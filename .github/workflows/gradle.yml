@@ -27,7 +27,7 @@ jobs:
     - name: Build with Gradle
       uses: gradle/gradle-build-action@v2.2.0
       with:
-        arguments: check build
+        arguments: build
 
     - name: Publish Test Results
       uses: EnricoMi/publish-unit-test-result-action@v1
