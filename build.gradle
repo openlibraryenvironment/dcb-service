@@ -119,6 +119,7 @@ tasks {
 
   check {
     dependsOn jacocoTestCoverageVerification
+    dependsOn jacocoTestReport
   }
   jacocoTestReport {
     dependsOn test
