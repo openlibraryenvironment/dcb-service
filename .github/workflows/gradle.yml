@@ -33,7 +33,7 @@ jobs:
       uses: EnricoMi/publish-unit-test-result-action@v1
       with:
         files: |
-          service/build/test-results/**/*.xml
+          build/test-results/**/*.xml
 
     - uses: actions/upload-artifact@v3.1.0
       with:
