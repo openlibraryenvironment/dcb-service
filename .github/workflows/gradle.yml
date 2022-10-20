@@ -27,7 +27,15 @@ jobs:
     - name: Build with Gradle
       uses: gradle/gradle-build-action@v2.2.0
       with:
-        arguments: build
+        arguments: check build
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        if: always()
+        with:
+          files: |
+            service/build/test-results/**/*.xml
+
     - uses: actions/upload-artifact@v3.1.0
       with:
         name: Build Artifacts
