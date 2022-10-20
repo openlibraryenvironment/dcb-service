@@ -1,0 +1,5 @@
+= DCB: Direct Consortial Borrowing
+Steve Osguthorpe <steve.osguthorpe@k-int.com>
+
+[.lead]
+A https://www.k-int.com/[Knowledge Integration] product for https://projectreshare.org/[Project ReShare]

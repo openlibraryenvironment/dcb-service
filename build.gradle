@@ -1,0 +1,153 @@
+buildscript {
+  repositories {
+    mavenCentral()
+    maven { url "https://maven.k-int.com/content/repositories/releases" }
+  }
+  dependencies {
+    classpath 'com.k_int.gradle:kint-gradle-plugin:2.1.3'
+  }
+}
+
+plugins {
+  id("com.github.johnrengelman.shadow") version "7.1.2"
+  id("io.micronaut.application") version "3.6.2"
+  id("io.micronaut.test-resources") version "3.6.2"
+  id('jacoco')
+  id("org.asciidoctor.jvm.convert") version "3.3.2"
+}
+
+// Apply our custom plugins.
+apply plugin: "com.k_int.gradle.plugin"
+apply plugin: "com.k_int.gradle.conventional-git"
+
+// INcludes
+apply from: "gradle/asciidoc.gradle"
+
+
+//version = "0.1"
+group = "org.olf.reshare.dcb"
+
+repositories {
+  mavenCentral()
+  maven { url "https://maven.k-int.com/content/repositories/releases" }
+}
+
+
+dependencies {
+  annotationProcessor("io.micronaut.data:micronaut-data-processor")
+  annotationProcessor("io.micronaut:micronaut-http-validation")
+  annotationProcessor("io.micronaut.openapi:micronaut-openapi")
+  implementation("io.micronaut:micronaut-http-client")
+  implementation("io.micronaut:micronaut-jackson-databind")
+  implementation("io.micronaut:micronaut-management")
+  implementation("io.micronaut.cache:micronaut-cache-caffeine")
+  implementation("io.micronaut.data:micronaut-data-r2dbc")
+  //    implementation("io.micronaut.elasticsearch:micronaut-elasticsearch")
+  implementation("io.micronaut.reactor:micronaut-reactor")
+  implementation("io.micronaut.reactor:micronaut-reactor-http-client")
+  implementation("io.swagger.core.v3:swagger-annotations")
+  implementation("jakarta.annotation:jakarta.annotation-api")
+  //    implementation("org.apache.logging.log4j:log4j-api:2.19.0")
+  //    implementation("org.apache.logging.log4j:log4j-core:2.19.0")
+  runtimeOnly("ch.qos.logback:logback-classic")
+  runtimeOnly("org.postgresql:r2dbc-postgresql")
+  //    runtimeOnly("org.slf4j:log4j-over-slf4j:1.7.36")
+  compileOnly("org.graalvm.nativeimage:svm")
+
+  implementation("io.micronaut:micronaut-validation")
+}
+
+
+application {
+  mainClass.set("org.olf.reshare.dcb.Application")
+}
+java {
+  sourceCompatibility = JavaVersion.toVersion("17")
+  targetCompatibility = JavaVersion.toVersion("17")
+}
+
+graalvmNative.toolchainDetection = false
+micronaut {
+  runtime("netty")
+  testRuntime("junit5")
+  processing {
+    incremental(true)
+    annotations("org.olf.reshare.dcb.*")
+  }
+}
+
+final Set<String> jacocoExcludes = ['**/Application.class']
+
+tasks {
+  final Map<String, String> labels = [
+    'maintainer'  : 'Steve Osguthorpe <steve.osguthorpe@k-int.com>',
+    'version'     : project.hasProperty('versionWithMeta') ? project.getProperty('versionWithMeta') : project.getProperty('version')
+  ]
+
+  dockerfile {
+    label(labels)
+  }
+
+  boolean isPre = project.hasProperty('versionPreRelease') &&
+      ("${project.getProperty('versionPreRelease')}".trim() != "")
+
+  // Build up a list of tags we should apply
+  final Set<String> tags = [
+    'versionMajor',
+    'versionMajorMinor',
+    'version'
+  ].findResults {
+    project.hasProperty(it) ? project.property(it).toString().trim() : null
+  }
+
+  // If this is a pre-release (inlcuding Snapshots) then add "next" tag. Otherwise, use latest
+  tags << (isPre ? 'next' : 'latest')
+
+  final imageAndRepo = "${System.env.DOCKER_IMAGE ?: project.name}"
+
+  Set<String> imageNames = tags.collect {
+    "${imageAndRepo}:${it}"
+  }
+
+  dockerBuild {
+    images = imageNames
+  }
+
+  dockerBuildNative {
+    images = imageNames
+  }
+
+  check {
+    dependsOn jacocoTestCoverageVerification
+  }
+  jacocoTestReport {
+    dependsOn test
+
+    reports {
+      xml.enabled false
+      csv.enabled false
+    }
+
+    afterEvaluate {
+      classDirectories.setFrom(files(classDirectories.files.collect {
+        fileTree(dir: it, exclude: jacocoExcludes)
+      }))
+    }
+  }
+  jacocoTestCoverageVerification {
+
+    afterEvaluate {
+      classDirectories.setFrom(files(classDirectories.files.collect {
+        fileTree(dir: it, exclude: jacocoExcludes)
+      }))
+    }
+
+    violationRules {
+      rule {
+        limit {
+          minimum = 0.7 // 70% coverage
+        }
+      }
+    }
+  }
+}
