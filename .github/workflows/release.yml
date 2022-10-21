@@ -4,6 +4,10 @@ on:
     branches: [ main ]
     tags:
         - 'v.*'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -37,5 +41,5 @@ jobs:
           DOCKER_REGISTRY_URL: ${{ secrets.DOCKER_REGISTRY_URL }}
           TESTCONTAINERS_RYUK_DISABLED: true
         run: |
-          export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/dcb" | sed -e 's#//#/#' -e 's#^/##'`
+          export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/reshare-dcb" | sed -e 's#//#/#' -e 's#^/##'`
           ./gradlew check dockerPushNative --no-daemon
