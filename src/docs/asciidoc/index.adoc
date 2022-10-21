@@ -3,3 +3,31 @@ Steve Osguthorpe <steve.osguthorpe@k-int.com>
 
 [.lead]
 A https://www.k-int.com/[Knowledge Integration] product for https://projectreshare.org/[Project ReShare]
+
+== Introduction
+
+The direct consortial borrowing project aims to address the need of consortia that have already agreed to lend within the network.
+
+== Running
+
+There are currently no other requirements other than having the application.
+
+=== Linux and Mac
+
+After pulling the repository the application can be started by issuing the command
+
+[source,shell,subs="attributes+"]
+.Unix based systems
+----
+$ ./gradlew run
+----
+
+=== Windows
+
+After pulling the repository the application can be started by issuing the command
+
+[source,shell,subs="attributes+"]
+.Unix based systems
+----
+> gradle.bat run
+----
