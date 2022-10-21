@@ -17,7 +17,6 @@ There are currently no other requirements other than having the application.
 After pulling the repository the application can be started by issuing the command
 
 [source,shell,subs="attributes+"]
-.Unix based systems
 ----
 $ ./gradlew run
 ----
@@ -27,7 +26,6 @@ $ ./gradlew run
 After pulling the repository the application can be started by issuing the command
 
 [source,shell,subs="attributes+"]
-.Unix based systems
 ----
 > gradle.bat run
 ----
