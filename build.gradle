@@ -87,6 +87,10 @@ tasks {
   dockerfile {
     label(labels)
   }
+  
+  dockerfileNative {
+    label(labels)
+  }
 
   boolean isPre = project.hasProperty('versionPreRelease') &&
       ("${project.getProperty('versionPreRelease')}".trim() != "")
