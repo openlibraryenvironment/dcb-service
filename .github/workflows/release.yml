@@ -1,4 +1,4 @@
-name: GraalVM CE CI
+name: Release
 on:
   push:
     branches: [ main ]

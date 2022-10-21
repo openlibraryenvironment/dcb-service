@@ -27,6 +27,7 @@ jobs:
         distribution: temurin
     - name: Validate Gradle wrapper
       uses: gradle/wrapper-validation-action@v1.0.4
+
     - name: Build with Gradle
       uses: gradle/gradle-build-action@v2.2.0
       with:
@@ -39,6 +40,7 @@ jobs:
         junit_files: "build/test-results/test/**/*.xml"
 
     - uses: actions/upload-artifact@v3.1.0
+      if: always() # Upload artefacts even when build fails.
       with:
         name: Build Artifacts
         path: |
