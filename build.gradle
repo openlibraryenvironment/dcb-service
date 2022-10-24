@@ -37,6 +37,7 @@ dependencies {
   annotationProcessor("io.micronaut.data:micronaut-data-processor")
   annotationProcessor("io.micronaut:micronaut-http-validation")
   annotationProcessor("io.micronaut.openapi:micronaut-openapi")
+  annotationProcessor("io.micronaut.security:micronaut-security-annotations")
   implementation("io.micronaut:micronaut-http-client")
   implementation("io.micronaut:micronaut-jackson-databind")
   implementation("io.micronaut:micronaut-management")
