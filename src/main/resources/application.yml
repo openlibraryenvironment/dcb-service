@@ -9,6 +9,18 @@ micronaut:
       swagger-ui:
         paths: classpath:META-INF/swagger/views/swagger-ui
         mapping: /swagger-ui/**
+  security:
+    authentication: bearer
+    token:
+      jwt:
+        signatures:
+          secret:
+            generator:
+              access-token:
+                expiration: 600
+              secret: testSecret
+              base64: true
+              jws-algorithm: HS256
 #r2dbc:
 #  datasources:
 #    default:
