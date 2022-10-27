@@ -11,19 +11,19 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class DcbAuthenticationProvider implements AuthenticationProvider {
 	
-	// TODO: Change
-	private static String USERNAME = "user";
-	private static String PASSWORD = "password";
+  // TODO: Change
+  private static String USERNAME = "user";
+  private static String PASSWORD = "password";
 	
-    @Override
+  @Override
     public Publisher<AuthenticationResponse> authenticate(HttpRequest<?> httpRequest, AuthenticationRequest<?, ?> authenticationRequest) {
         
-    	return Mono.<AuthenticationResponse>create(emitter -> {
-            if (authenticationRequest.getIdentity().equals(USERNAME) && authenticationRequest.getSecret().equals(PASSWORD)) {
-                emitter.success(AuthenticationResponse.success(USERNAME));
-            } else {
-                emitter.error(AuthenticationResponse.exception());
-            } 
-        });
-    }
+    return Mono.<AuthenticationResponse>create(emitter -> {
+      if (authenticationRequest.getIdentity().equals(USERNAME) && authenticationRequest.getSecret().equals(PASSWORD)) {
+        emitter.success(AuthenticationResponse.success(USERNAME));
+      } else {
+        emitter.error(AuthenticationResponse.exception());
+      } 
+    });
+  }
 }

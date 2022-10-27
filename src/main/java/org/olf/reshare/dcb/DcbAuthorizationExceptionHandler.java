@@ -15,16 +15,16 @@ import static io.micronaut.http.HttpStatus.UNAUTHORIZED;
 @Replaces(DefaultAuthorizationExceptionHandler.class)
 public class DcbAuthorizationExceptionHandler extends DefaultAuthorizationExceptionHandler {
 	
-	@Override
-	protected MutableHttpResponse<?> httpResponseWithStatus(HttpRequest<?> request, AuthorizationException e){
-        // 401
-        if (request.getHeaders().contains("Authorization")) {
-        	System.out.println("Unauthorized for: " + request);
-        	return HttpResponse.status(UNAUTHORIZED);
-        }
-		// 400
-        return HttpResponse
-        		.unauthorized()
-        		.status(BAD_REQUEST);
-	}
+  @Override
+  protected MutableHttpResponse<?> httpResponseWithStatus(HttpRequest<?> request, AuthorizationException e){
+    // 401
+    if (request.getHeaders().contains("Authorization")) {
+      System.out.println("Unauthorized for: " + request);
+      return HttpResponse.status(UNAUTHORIZED);
+    }
+    // 400
+    return HttpResponse
+      .unauthorized()
+      .status(BAD_REQUEST);
+  }
 }
