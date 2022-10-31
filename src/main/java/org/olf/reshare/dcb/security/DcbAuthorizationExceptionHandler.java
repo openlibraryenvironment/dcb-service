@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb;
+package org.olf.reshare.dcb.security;
 
 import io.micronaut.context.annotation.Replaces;
 import io.micronaut.http.HttpRequest;
@@ -10,6 +10,7 @@ import jakarta.inject.Singleton;
 
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.HttpStatus.UNAUTHORIZED;
+//import static io.micronaut.http.HttpHeaders.WWW_AUTHENTICATE;
 
 @Singleton
 @Replaces(DefaultAuthorizationExceptionHandler.class)
@@ -20,7 +21,8 @@ public class DcbAuthorizationExceptionHandler extends DefaultAuthorizationExcept
     // 401
     if (request.getHeaders().contains("Authorization")) {
       System.out.println("Unauthorized for: " + request);
-      return HttpResponse.status(UNAUTHORIZED);
+      return HttpResponse
+    		  .status(UNAUTHORIZED);
     }
     // 400
     return HttpResponse

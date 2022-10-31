@@ -13,22 +13,27 @@ micronaut:
     authentication: bearer
     token:
       jwt:
+        generator:
+          access-token:
+            expiration: 600
+          refresh-token:
+            secret: 'cGxlYXNlQ2hhbmdlVGhpc1NlY3JldEZvckFOZXdPbmU='
+            base64: true 
+            jws-algorithm: HS256
         signatures:
           secret:
             generator:
-              access-token:
-                expiration: 600
-              secret: testSecret
-              base64: true
+              secret: 'cGxlYXNlQ2hhbmdlVGhpc1NlY3JldEZvckFOZXdPbmU='
+              base64: true 
               jws-algorithm: HS256
-#r2dbc:
-#  datasources:
-#    default:
-#      url: r2dbc:postgresql://localhost:5432/postgres
-#      username: postgres
-#      password: ''
-#      schema-generate: CREATE_DROP
-#      dialect: POSTGRES
+r2dbc:
+  datasources:
+    default:
+      url: r2dbc:postgresql://localhost:5432/postgres
+      username: "${db.username:placeholder}"
+      password: "${db.password:placeholder}"
+      schema-generate: CREATE_DROP
+      dialect: POSTGRES
 #elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
 netty:
   default:
