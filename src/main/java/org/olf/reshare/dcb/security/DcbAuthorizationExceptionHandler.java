@@ -10,7 +10,6 @@ import jakarta.inject.Singleton;
 
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.HttpStatus.UNAUTHORIZED;
-//import static io.micronaut.http.HttpHeaders.WWW_AUTHENTICATE;
 
 @Singleton
 @Replaces(DefaultAuthorizationExceptionHandler.class)

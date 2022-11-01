@@ -56,11 +56,9 @@ dependencies {
   compileOnly("org.graalvm.nativeimage:svm")
  
   //data
-  implementation("io.micronaut.data:micronaut-data-r2dbc")
-//  implementation("io.micronaut:io.micronaut.r2dbc:micronaut-r2dbc-rxjava2")
-  runtimeOnly("org.postgresql:r2dbc-postgresql")
-  runtimeOnly("org.postgresql:postgresql")
-  
+//  implementation("io.micronaut.data:micronaut-data-r2dbc")
+//  runtimeOnly('io.r2dbc:r2dbc-postgresql:0.8.13.RELEASE')
+//  runtimeOnly("org.postgresql:postgresql")
 }
 
 application {
