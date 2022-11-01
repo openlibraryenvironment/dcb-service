@@ -1,0 +1,37 @@
+micronaut:
+  application:
+    name: dcb
+  router:
+    static-resources:
+      swagger:
+        paths: classpath:META-INF/swagger
+        mapping: /swagger/**
+      swagger-ui:
+        paths: classpath:META-INF/swagger/views/swagger-ui
+        mapping: /swagger-ui/**
+  security:
+    authentication: bearer
+    token:
+      jwt:
+        generator:
+          access-token:
+            expiration: 600
+        signatures:
+          secret:
+            generator:
+              secret: cGxlYXNlQ2hhbmdlVGhpc1NlY3JldEZvckFOZXdPbmU
+              base64: true 
+              jws-algorithm: HS256
+#r2dbc:
+#  datasources:
+#    default:
+#      url: r2dbc:postgresql://localhost:5432/postgres
+#      username: "${db.username:placeholder}"
+#      password: "${db.password:placeholder}"
+#      schema-generate: CREATE_DROP
+#      dialect: POSTGRES
+#elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
+netty:
+  default:
+    allocator:
+      max-order: 3
