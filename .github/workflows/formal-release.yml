@@ -1,9 +1,8 @@
-name: Snapshot Release
+name: Formal Release
 on:
   push:
-    paths-ignore:
-      - 'src/docs/asciidoc/**' # If all modified paths fall only in this set then this will be ignored
-    branches: [ main ]
+    tags:
+        - 'v.*'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -31,7 +30,6 @@ jobs:
             ~/.m2/repository
           key: ${{ runner.os }}-gradle-test-${{ hashFiles('**/*.gradle') }}
           restore-keys: ${{ runner.os }}-gradle-test-
-
       - name: Setup GraalVM CE
         uses: graalvm/setup-graalvm@v1
         with:
