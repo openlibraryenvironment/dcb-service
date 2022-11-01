@@ -19,7 +19,7 @@ micronaut:
         signatures:
           secret:
             generator:
-              secret: "${token.secret:placeholder}"
+              secret: cGxlYXNlQ2hhbmdlVGhpc1NlY3JldEZvckFOZXdPbmU
               base64: true 
               jws-algorithm: HS256
 #r2dbc:
@@ -35,4 +35,3 @@ netty:
   default:
     allocator:
       max-order: 3
-

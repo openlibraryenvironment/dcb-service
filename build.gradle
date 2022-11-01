@@ -34,17 +34,14 @@ repositories {
 
 
 dependencies {
-  annotationProcessor("io.micronaut.data:micronaut-data-processor")
   annotationProcessor("io.micronaut:micronaut-http-validation")
   annotationProcessor("io.micronaut.openapi:micronaut-openapi")
-  
   annotationProcessor('io.micronaut.security:micronaut-security-annotations')
+  annotationProcessor("io.micronaut.data:micronaut-data-processor")
   implementation("io.micronaut.security:micronaut-security-jwt")
   implementation("io.micronaut:micronaut-http-client")
-  implementation("io.micronaut:micronaut-jackson-databind")
   implementation("io.micronaut:micronaut-management")
   implementation("io.micronaut.cache:micronaut-cache-caffeine")
-  implementation("io.micronaut.data:micronaut-data-r2dbc")
   //    implementation("io.micronaut.elasticsearch:micronaut-elasticsearch")
   implementation("io.micronaut.reactor:micronaut-reactor")
   implementation("io.micronaut.reactor:micronaut-reactor-http-client")
@@ -52,16 +49,17 @@ dependencies {
   implementation("jakarta.annotation:jakarta.annotation-api")
   //    implementation("org.apache.logging.log4j:log4j-api:2.19.0")
   //    implementation("org.apache.logging.log4j:log4j-core:2.19.0")
+  implementation("io.micronaut:micronaut-validation")
+  implementation("io.micronaut:micronaut-jackson-databind")
   runtimeOnly("ch.qos.logback:logback-classic")
-  runtimeOnly("org.postgresql:r2dbc-postgresql")
   //    runtimeOnly("org.slf4j:log4j-over-slf4j:1.7.36")
   compileOnly("org.graalvm.nativeimage:svm")
-
-  implementation("io.micronaut:micronaut-validation")
-  testImplementation("io.micronaut.test:micronaut-test-rest-assured")
-  
+ 
+  //data
+//  implementation("io.micronaut.data:micronaut-data-r2dbc")
+//  runtimeOnly('io.r2dbc:r2dbc-postgresql:0.8.13.RELEASE')
+//  runtimeOnly("org.postgresql:postgresql")
 }
-
 
 application {
   mainClass.set("org.olf.reshare.dcb.Application")

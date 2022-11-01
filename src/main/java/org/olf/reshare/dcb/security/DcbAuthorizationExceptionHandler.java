@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb;
+package org.olf.reshare.dcb.security;
 
 import io.micronaut.context.annotation.Replaces;
 import io.micronaut.http.HttpRequest;
@@ -20,7 +20,8 @@ public class DcbAuthorizationExceptionHandler extends DefaultAuthorizationExcept
     // 401
     if (request.getHeaders().contains("Authorization")) {
       System.out.println("Unauthorized for: " + request);
-      return HttpResponse.status(UNAUTHORIZED);
+      return HttpResponse
+    		  .status(UNAUTHORIZED);
     }
     // 400
     return HttpResponse
