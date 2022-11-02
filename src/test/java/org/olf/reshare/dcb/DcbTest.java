@@ -15,23 +15,23 @@ import jakarta.inject.Inject;
 @MicronautTest(transactional = false)
 class DcbTest {
 
-  @Inject
-  EmbeddedApplication<?> application;
+	@Inject
+	EmbeddedApplication<?> application;
 
-  @Inject
-  @Client("/")
-  HttpClient client;
+	@Inject
+	@Client("/")
+	HttpClient client;
 
-  @Test
-  void testItWorks () {
-    Assertions.assertTrue(application.isRunning());
-  }
+	@Test
+	void testItWorks () {
+		Assertions.assertTrue(application.isRunning());
+	}
 
-//  @Test
-//  void testDcbRootPath () {
-//    final String text = client.toBlocking().retrieve(HttpRequest.GET("/"),
-//        String.class);
-//    assertEquals("Example Response", text);
-//  }
+	// @Test
+	// void testDcbRootPath () {
+	// final String text = client.toBlocking().retrieve(HttpRequest.GET("/"),
+	// String.class);
+	// assertEquals("Example Response", text);
+	// }
 
 }

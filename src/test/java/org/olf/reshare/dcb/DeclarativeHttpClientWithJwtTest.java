@@ -16,19 +16,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @MicronautTest
 class DeclarativeHttpClientWithJwtTest {
 
-    @Inject
-    AppClient appClient; 
+	@Inject
+	AppClient appClient;
 
-    @Test
-    void verifyJwtAuthenticationWorksWithDeclarativeClient() throws ParseException {
-        UsernamePasswordCredentials creds = new UsernamePasswordCredentials("user", "password");
-        BearerAccessRefreshToken loginRsp = appClient.login(creds); 
+	@Test
+	void verifyJwtAuthenticationWorksWithDeclarativeClient ()
+	    throws ParseException {
+		UsernamePasswordCredentials creds = new UsernamePasswordCredentials("user",
+		    "password");
+		BearerAccessRefreshToken loginRsp = appClient.login(creds);
 
-        assertNotNull(loginRsp);
-        assertNotNull(loginRsp.getAccessToken());
-        assertTrue(JWTParser.parse(loginRsp.getAccessToken()) instanceof SignedJWT);
+		assertNotNull(loginRsp);
+		assertNotNull(loginRsp.getAccessToken());
+		assertTrue(JWTParser.parse(loginRsp.getAccessToken()) instanceof SignedJWT);
 
-        String msg = appClient.home("Bearer " + loginRsp.getAccessToken()); 
-        assertEquals("user", msg);
-    }
+		String msg = appClient.home("Bearer " + loginRsp.getAccessToken());
+		assertEquals("user", msg);
+	}
 }

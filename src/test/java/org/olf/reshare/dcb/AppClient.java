@@ -15,10 +15,11 @@ import static io.micronaut.http.MediaType.TEXT_PLAIN;
 @Client("/")
 public interface AppClient {
 
-    @Post("/login")
-    BearerAccessRefreshToken login(@Body UsernamePasswordCredentials credentials);
+	@Post("/login")
+	BearerAccessRefreshToken login (
+	    @Body UsernamePasswordCredentials credentials);
 
-    @Consumes(TEXT_PLAIN)
-    @Get
-    String home(@Header(AUTHORIZATION) String authorization);
+	@Consumes(TEXT_PLAIN)
+	@Get
+	String home (@Header(AUTHORIZATION) String authorization);
 }
