@@ -1,10 +1,11 @@
-Thumbs.db
 .*
 !.git*
+!.editorconfig
 build/
 bin/
 target/
 out/
+*.db
 *.iml
 *.ipr
 *.iws
