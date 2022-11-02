@@ -1,19 +1,19 @@
 buildscript {
-  repositories {
-    mavenCentral()
-    maven { url "https://maven.k-int.com/content/repositories/releases" }
-  }
-  dependencies {
-    classpath 'com.k_int.gradle:kint-gradle-plugin:2.1.3'
-  }
+	repositories {
+		mavenCentral()
+		maven { url "https://maven.k-int.com/content/repositories/releases" }
+	}
+	dependencies {
+		classpath 'com.k_int.gradle:kint-gradle-plugin:2.1.3'
+	}
 }
 
 plugins {
-  id("com.github.johnrengelman.shadow") version "7.1.2"
-  id("io.micronaut.application") version "3.6.2"
-  id("io.micronaut.test-resources") version "3.6.2"
-  id('jacoco')
-  id("org.asciidoctor.jvm.convert") version "3.3.2"
+	id("com.github.johnrengelman.shadow") version "7.1.2"
+	id("io.micronaut.application") version "3.6.2"
+	id("io.micronaut.test-resources") version "3.6.2"
+	id('jacoco')
+	id("org.asciidoctor.jvm.convert") version "3.3.2"
 }
 
 // Apply our custom plugins.
@@ -28,134 +28,142 @@ apply from: "gradle/asciidoc.gradle"
 group = "org.olf.reshare.dcb"
 
 repositories {
-  mavenCentral()
-  maven { url "https://maven.k-int.com/content/repositories/releases" }
+	mavenCentral()
+	maven { url "https://maven.k-int.com/content/repositories/releases" }
 }
 
 
 dependencies {
-  annotationProcessor("io.micronaut:micronaut-http-validation")
-  annotationProcessor("io.micronaut.openapi:micronaut-openapi")
-  annotationProcessor('io.micronaut.security:micronaut-security-annotations')
-  annotationProcessor("io.micronaut.data:micronaut-data-processor")
-  implementation("io.micronaut.security:micronaut-security-jwt")
-  implementation("io.micronaut:micronaut-http-client")
-  implementation("io.micronaut:micronaut-management")
-  implementation("io.micronaut.cache:micronaut-cache-caffeine")
-  //    implementation("io.micronaut.elasticsearch:micronaut-elasticsearch")
-  implementation("io.micronaut.reactor:micronaut-reactor")
-  implementation("io.micronaut.reactor:micronaut-reactor-http-client")
-  implementation("io.swagger.core.v3:swagger-annotations")
-  implementation("jakarta.annotation:jakarta.annotation-api")
-  //    implementation("org.apache.logging.log4j:log4j-api:2.19.0")
-  //    implementation("org.apache.logging.log4j:log4j-core:2.19.0")
-  implementation("io.micronaut:micronaut-validation")
-  implementation("io.micronaut:micronaut-jackson-databind")
-  runtimeOnly("ch.qos.logback:logback-classic")
-  //    runtimeOnly("org.slf4j:log4j-over-slf4j:1.7.36")
-  compileOnly("org.graalvm.nativeimage:svm")
- 
-  //data
-//  implementation("io.micronaut.data:micronaut-data-r2dbc")
-//  runtimeOnly('io.r2dbc:r2dbc-postgresql:0.8.13.RELEASE')
-//  runtimeOnly("org.postgresql:postgresql")
+	annotationProcessor('io.soabase.record-builder:record-builder-processor:34')
+	annotationProcessor("io.micronaut:micronaut-http-validation")
+	annotationProcessor("io.micronaut.openapi:micronaut-openapi")
+	annotationProcessor('io.micronaut.security:micronaut-security-annotations')
+	annotationProcessor("io.micronaut.data:micronaut-data-processor")
+
+
+	// Implementation
+	implementation("io.micronaut.security:micronaut-security-jwt")
+	implementation("io.micronaut:micronaut-http-client")
+	implementation("io.micronaut:micronaut-management")
+	implementation("io.micronaut.cache:micronaut-cache-caffeine")
+	//    implementation("io.micronaut.elasticsearch:micronaut-elasticsearch")
+	implementation("io.micronaut.reactor:micronaut-reactor")
+	implementation("io.micronaut.reactor:micronaut-reactor-http-client")
+	implementation("io.swagger.core.v3:swagger-annotations")
+	implementation("jakarta.annotation:jakarta.annotation-api")
+	implementation("io.micronaut:micronaut-validation")
+	implementation("io.micronaut:micronaut-jackson-databind")
+	
+  implementation("org.apache.logging.log4j:log4j-api:2.19.0")
+  implementation("org.apache.logging.log4j:log4j-core:2.19.0")
+	
+	runtimeOnly("ch.qos.logback:logback-classic")
+	runtimeOnly("org.slf4j:log4j-over-slf4j:1.7.36")
+
+	compileOnly ('io.soabase.record-builder:record-builder-core:34')
+	compileOnly("org.graalvm.nativeimage:svm")
+
+	//data
+	//  implementation("io.micronaut.data:micronaut-data-r2dbc")
+	//  runtimeOnly('io.r2dbc:r2dbc-postgresql:0.8.13.RELEASE')
+	//  runtimeOnly("org.postgresql:postgresql")
 }
 
 application {
-  mainClass.set("org.olf.reshare.dcb.Application")
+	mainClass.set("org.olf.reshare.dcb.Application")
 }
 java {
-  sourceCompatibility = JavaVersion.toVersion("17")
-  targetCompatibility = JavaVersion.toVersion("17")
+	sourceCompatibility = JavaVersion.toVersion("17")
+	targetCompatibility = JavaVersion.toVersion("17")
 }
 
 graalvmNative.toolchainDetection = false
 micronaut {
-  runtime("netty")
-  testRuntime("junit5")
-  processing {
-    incremental(true)
-    annotations("org.olf.reshare.dcb.*")
-  }
+	runtime("netty")
+	testRuntime("junit5")
+	processing {
+		incremental(true)
+		annotations("org.olf.reshare.dcb.*")
+	}
 }
 
 final Set<String> jacocoExcludes = ['**/Application.class']
 
 tasks {
-  final Map<String, String> labels = [
-    'maintainer'  : 'Steve Osguthorpe <steve.osguthorpe@k-int.com>',
-    'version'     : project.hasProperty('versionWithMeta') ? project.getProperty('versionWithMeta') : project.getProperty('version')
-  ]
+	final Map<String, String> labels = [
+		'maintainer'  : 'Steve Osguthorpe <steve.osguthorpe@k-int.com>',
+		'version'     : project.hasProperty('versionWithMeta') ? project.getProperty('versionWithMeta') : project.getProperty('version')
+	]
 
-  dockerfile {
-    label(labels)
-  }
-  
-  dockerfileNative {
-    label(labels)
-  }
+	dockerfile {
+		label(labels)
+	}
 
-  boolean isPre = project.hasProperty('versionPreRelease') &&
-      ("${project.getProperty('versionPreRelease')}".trim() != "")
+	dockerfileNative {
+		label(labels)
+	}
 
-  // Build up a list of tags we should apply
-  final Set<String> tags = [
-    'versionMajor',
-    'versionMajorMinor',
-    'version'
-  ].findResults {
-    project.hasProperty(it) ? project.property(it).toString().trim() : null
-  }
+	boolean isPre = project.hasProperty('versionPreRelease') &&
+			("${project.getProperty('versionPreRelease')}".trim() != "")
 
-  // If this is a pre-release (inlcuding Snapshots) then add "next" tag. Otherwise, use latest
-  tags << (isPre ? 'next' : 'latest')
+	// Build up a list of tags we should apply
+	final Set<String> tags = [
+		'versionMajor',
+		'versionMajorMinor',
+		'version'
+	].findResults {
+		project.hasProperty(it) ? project.property(it).toString().trim() : null
+	}
 
-  final imageAndRepo = "${System.env.DOCKER_IMAGE ?: project.name}"
+	// If this is a pre-release (inlcuding Snapshots) then add "next" tag. Otherwise, use latest
+	tags << (isPre ? 'next' : 'latest')
 
-  Set<String> imageNames = tags.collect {
-    "${imageAndRepo}:${it}"
-  }
+	final imageAndRepo = "${System.env.DOCKER_IMAGE ?: project.name}"
 
-  dockerBuild {
-    images = imageNames
-  }
+	Set<String> imageNames = tags.collect {
+		"${imageAndRepo}:${it}"
+	}
 
-  dockerBuildNative {
-    images = imageNames
-  }
+	dockerBuild {
+		images = imageNames
+	}
 
-  check {
-    dependsOn jacocoTestCoverageVerification
-    dependsOn jacocoTestReport
-  }
-  jacocoTestReport {
-    dependsOn test
+	dockerBuildNative {
+		images = imageNames
+	}
 
-    reports {
-      xml.enabled false
-      csv.enabled false
-    }
+	check {
+		dependsOn jacocoTestCoverageVerification
+		dependsOn jacocoTestReport
+	}
+	jacocoTestReport {
+		dependsOn test
 
-    afterEvaluate {
-      classDirectories.setFrom(files(classDirectories.files.collect {
-        fileTree(dir: it, exclude: jacocoExcludes)
-      }))
-    }
-  }
-  jacocoTestCoverageVerification {
+		reports {
+			xml.enabled false
+			csv.enabled false
+		}
 
-    afterEvaluate {
-      classDirectories.setFrom(files(classDirectories.files.collect {
-        fileTree(dir: it, exclude: jacocoExcludes)
-      }))
-    }
+		afterEvaluate {
+			classDirectories.setFrom(files(classDirectories.files.collect {
+				fileTree(dir: it, exclude: jacocoExcludes)
+			}))
+		}
+	}
+	jacocoTestCoverageVerification {
 
-    violationRules {
-      rule {
-        limit {
-          minimum = 0.7 // 70% coverage
-        }
-      }
-    }
-  }
+		afterEvaluate {
+			classDirectories.setFrom(files(classDirectories.files.collect {
+				fileTree(dir: it, exclude: jacocoExcludes)
+			}))
+		}
+
+		violationRules {
+			rule {
+				limit {
+					minimum = 0.7 // 70% coverage
+				}
+			}
+		}
+	}
 }
