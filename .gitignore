@@ -5,6 +5,7 @@ build/
 bin/
 target/
 out/
+data-store/
 *.db
 *.iml
 *.ipr
