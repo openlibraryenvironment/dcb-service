@@ -21,4 +21,9 @@ public interface BibRepository {
   
   @NotNull
   public Publisher<BibRecord> getAll();
+
+  
+	public void cleanUp ();
+
+	public void commit ();
 }

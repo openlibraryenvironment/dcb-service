@@ -1,5 +1,6 @@
 package org.olf.reshare.dcb.bib.storage;
 
+import java.util.Collections;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -33,10 +34,22 @@ public class DefaultBibRepository implements BibRepository {
 		return execute( (bibData) -> {
 
 			// Return the record.
-			bibData.records().put( record.id().toString(), record );
-			bibStore.store( bibData.records() );
+			bibData.records().put( record.getId().toString(), record );
 			return record;
 		} );
+	}
+	
+	@Override
+	public void commit () {
+		execute( (bibData) -> {
+			return bibStore.store( bibData.records() );
+		});
+		cleanUp();
+	}
+	
+	@Override
+	public void cleanUp() {
+		bibStore.issueFullGarbageCollection();
 	}
 
 	@Override
@@ -52,14 +65,16 @@ public class DefaultBibRepository implements BibRepository {
 	}
 
 	// Helper to wrap the supplied operation to ensure synchronization.
-	private <T> T execute ( Function<BibDataRoot, T> action ) {
+	protected <T> T execute ( @NotNull Function<BibDataRoot, T> action ) {
 		return XThreads.executeSynchronized( () -> action.apply( (BibDataRoot)bibStore.root() ));
 	}
 
 	@Override
-	public @NotNull Publisher<BibRecord> getAll () {
+	@NotNull
+	@NonNull
+	public Publisher<BibRecord> getAll () {
 		return execute( bibData -> {
-			return Flux.fromIterable( bibData.records().values() );
+			return Flux.fromIterable( Collections.unmodifiableCollection( bibData.records().values() ));
 		});
 	}
 

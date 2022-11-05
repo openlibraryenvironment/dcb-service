@@ -4,7 +4,6 @@ import java.util.UUID;
 
 import org.olf.reshare.dcb.ImportedRecord;
 import org.olf.reshare.dcb.bib.model.BibRecord;
-import org.olf.reshare.dcb.bib.model.BibRecordBuilder;
 import org.olf.reshare.dcb.bib.storage.BibRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,13 +21,26 @@ public class DefaultBibRecordService implements BibRecordService {
 		this.bibRepo = bibRepo;
 	}
 	
-  public void addBibRecord ( ImportedRecord record ) {
-  	final BibRecord bib = BibRecordBuilder.builder()
-  		.id( UUID.randomUUID())
-  		.title( record.title() )
-  		.build();
+  @Override
+	public void addBibRecord ( ImportedRecord record ) {
   	
-  	log.debug( "Adding bib record for title" + bib.title() );
+  	final BibRecord bib = new BibRecord()
+  		.setId( UUID.randomUUID() )
+  		.setTitle( record.title() );
+  	
+  	log.debug( "Adding bib record for title" + bib.getTitle() );
   	bibRepo.save( bib );
   }
+  
+  @Override
+  public void cleanup() {
+  	bibRepo.cleanUp();
+  }
+  
+
+  @Override
+  public void commit() {
+  	bibRepo.commit();
+  }
+  	
 }

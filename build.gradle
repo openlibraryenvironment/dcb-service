@@ -44,6 +44,7 @@ dependencies {
 	// This should likely always be last in the annotations list
 	annotationProcessor('io.micronaut:micronaut-graal')
 	annotationProcessor('io.soabase.record-builder:record-builder-processor:34')
+	annotationProcessor('org.immutables:value:2.9.2')
 	annotationProcessor("io.micronaut.serde:micronaut-serde-processor:1.3.2")
 	annotationProcessor("io.micronaut:micronaut-http-validation")
 	annotationProcessor("io.micronaut.openapi:micronaut-openapi")
@@ -74,6 +75,7 @@ dependencies {
 	runtimeOnly("org.slf4j:log4j-over-slf4j:1.7.36")
 
 	compileOnly ('io.soabase.record-builder:record-builder-core:34')
+	compileOnly('org.immutables:value:2.9.2')
 	compileOnly("org.graalvm.nativeimage:svm")
 
 	//data
