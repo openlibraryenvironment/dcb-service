@@ -19,12 +19,14 @@ import jakarta.inject.Singleton;
 The MarcImportService is a concrete class that "does the work". 
 */
 @Singleton
-public class MarcImportService {
+public class MarcImportService{
 
-   private final BibRecordService bibService;
+   int recordCount = 0;
 
-   public MarcImportService(BibRecordService bibService) {
-      this.bibService = bibService;
+   private final BibRecordService bibRecordService;
+
+   public MarcImportService(BibRecordService bibRecordService) {
+      this.bibRecordService = bibRecordService;
    }
 
    // Simply returns the full marc file
@@ -47,12 +49,29 @@ public class MarcImportService {
          DataField title = (DataField) record.getVariableField("245");
          DataField itemType = (DataField) record.getVariableField("075");
 
-         ImportedRecord importedRecord = new ImportedRecord(UUID.randomUUID(), controlNumber, controlNumberIdentifier, title, itemType);
-
          // fetch data and parse into ImportedRecord
-         bibService.addBibRecord(importedRecord);
+         ImportedRecord importedRecord = new ImportedRecord(UUID.randomUUID(), controlNumber, controlNumberIdentifier, title, itemType);
+         bibRecordService.addBibRecord(importedRecord);
+
+         // How many records?
+         recordCount++;
       }
+      System.out.print("Processed " + recordCount + " records.");
+      recordCount=0;
     }
+
+       
+    
+   //  public static void main(String args[]) throws Exception {
+   //    MarcImportService marcImportService = new MarcImportService(BibRecordService);
+   //    marcImportService.doImport("../SGCLsample1.mrc");
+   // }
+   // My attempt at Flux 
+   /*
+   public Flux<Record> recordsFlux(){
+      return Flux.fromIterable(getMarcFile("../SGCLsample1.mrc"));
+   }
+   */
 }
 
 

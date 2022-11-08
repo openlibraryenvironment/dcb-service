@@ -13,12 +13,8 @@ public class DefaultBibRecordService implements BibRecordService {
 	
   @Override
   public void addBibRecord ( ImportedRecord record ) {
-    log.info("Adding record {} ", 
-      record.identifier(), 
-      record.controlNumber(), 
-      record.controlNumber(),
-      record.title(),
-      record.itemType());
+    log.info("Adding record {}",
+    record.identifier() + ", " + record.title());
   }
 }
 

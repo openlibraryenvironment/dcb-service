@@ -2,7 +2,6 @@ package org.olf.reshare.dcb;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.UUID;
 
@@ -13,7 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.marc4j.MarcReader;
 import org.marc4j.MarcStreamReader;
 import org.marc4j.marc.ControlField;
-import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.olf.reshare.dcb.ImportedRecord;
 
@@ -24,19 +22,18 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 public class ImportedRecordTest {
 
    @Test
-   void testImportedRecord() throws FileNotFoundException {
+   void testImportedRecord() throws Exception {
 
       String marcFileName = "../SGCLsample1.mrc";
+      assertNotNull(marcFileName);
+
       InputStream input = new FileInputStream(new File(marcFileName));
       MarcReader marcFile = new MarcStreamReader(input);
 
       // record 1
       Record record = marcFile.next();
       ControlField controlNumber = (ControlField) record.getVariableField("001");
-      ControlField controlNumberIdentifier = (ControlField) record.getVariableField("003");
-      DataField title = (DataField) record.getVariableField("245");
-      DataField itemType = (DataField) record.getVariableField("075");
-      ImportedRecord result = new ImportedRecord(UUID.randomUUID(), controlNumber, controlNumberIdentifier, title, itemType);
+      ImportedRecord result = new ImportedRecord(UUID.randomUUID(), controlNumber, null, null, null);
 
       assertNotNull(result);
       assertEquals(ImportedRecord.class, result.getClass());
@@ -44,10 +41,7 @@ public class ImportedRecordTest {
       // record 2
       Record record2 = marcFile.next();
       ControlField controlNumber2 = (ControlField) record2.getVariableField("001");
-      ControlField controlNumberIdentifier2 = (ControlField) record2.getVariableField("003");
-      DataField title2 = (DataField) record2.getVariableField("245");
-      DataField itemType2 = (DataField) record2.getVariableField("075");
-      ImportedRecord result2 = new ImportedRecord(UUID.randomUUID(), controlNumber2, controlNumberIdentifier2, title2, itemType2);
+      ImportedRecord result2 = new ImportedRecord(UUID.randomUUID(), controlNumber2, null, null, null);
 
       assertNotNull(result2);
       assertEquals(ImportedRecord.class, result2.getClass());
