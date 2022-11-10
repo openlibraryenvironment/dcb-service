@@ -18,14 +18,11 @@ public class DcbAuthenticationProvider implements AuthenticationProvider {
 	private static String PASSWORD = "password";
 
 	@Override
-	public Publisher<AuthenticationResponse> authenticate (
-	    @Nullable HttpRequest<?> httpRequest,
-	    AuthenticationRequest<?, ?> authenticationRequest) {
+	public Publisher<AuthenticationResponse> authenticate(@Nullable HttpRequest<?> httpRequest,
+			AuthenticationRequest<?, ?> authenticationRequest) {
 		return Flux.create(emitter -> {
-			if (authenticationRequest.getIdentity().equals(USERNAME)
-			    && authenticationRequest.getSecret().equals(PASSWORD)) {
-				emitter.next(AuthenticationResponse
-				    .success((String) authenticationRequest.getIdentity()));
+			if (authenticationRequest.getIdentity().equals(USERNAME) && authenticationRequest.getSecret().equals(PASSWORD)) {
+				emitter.next(AuthenticationResponse.success((String) authenticationRequest.getIdentity()));
 				emitter.complete();
 			} else {
 				emitter.error(AuthenticationResponse.exception());

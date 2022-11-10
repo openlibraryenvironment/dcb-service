@@ -20,7 +20,7 @@ public class HomeController {
 
 	@Produces(TEXT_PLAIN)
 	@Get
-	public String index (Principal principal) {
+	public String index(Principal principal) {
 		return principal.getName();
 	}
 }
