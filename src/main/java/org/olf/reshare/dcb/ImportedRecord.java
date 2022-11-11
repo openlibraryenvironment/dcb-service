@@ -1,4 +1,3 @@
-
 package org.olf.reshare.dcb;
 
 import java.util.UUID;
@@ -16,7 +15,15 @@ public record ImportedRecord (
    @NonNull @NotEmpty UUID identifier,
    @Nullable String controlNumber,
    @Nullable String controlNumberIdentifier,
-   @Nullable String title, 
-   @Nullable String itemType){}
-	
-   
+   @Nullable String LCCN,
+   @Nullable String ISBN,
+   @Nullable String itemType,
+   @Nullable String author,
+   @Nullable String title,
+   @Nullable String edition,
+   @Nullable String publicationInformation,
+   @Nullable String physicalDescription,
+   @Nullable String seriesStatement,
+   @Nullable String annotationOrSummaryNote,
+   @Nullable String topicalSubjectHeading,
+   @Nullable String personalNameAddedEntry){}

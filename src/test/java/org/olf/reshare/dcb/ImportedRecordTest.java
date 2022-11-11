@@ -33,7 +33,7 @@ public class ImportedRecordTest {
       // record 1
       Record record = marcFile.next();
       ControlField controlNumber = (ControlField) record.getVariableField("001");
-      ImportedRecord result = new ImportedRecord(UUID.randomUUID(), controlNumber, null, null, null);
+      ImportedRecord result = new ImportedRecord(UUID.randomUUID(), controlNumber.toString(), null, null, null, null, null, null, null, null, null, null, null, null, null);
 
       assertNotNull(result);
       assertEquals(ImportedRecord.class, result.getClass());
@@ -41,13 +41,13 @@ public class ImportedRecordTest {
       // record 2
       Record record2 = marcFile.next();
       ControlField controlNumber2 = (ControlField) record2.getVariableField("001");
-      ImportedRecord result2 = new ImportedRecord(UUID.randomUUID(), controlNumber2, null, null, null);
+      ImportedRecord result2 = new ImportedRecord(UUID.randomUUID(), controlNumber2.toString(), null, null, null, null, null, null, null, null, null, null, null, null, null);
 
       assertNotNull(result2);
       assertEquals(ImportedRecord.class, result2.getClass());
 
       assertNotEquals(result.identifier(), result2.identifier());
-      assertNotEquals(result.controlNumber().getData(), result2.controlNumber().getData());
+      assertNotEquals(result.controlNumber(), result2.controlNumber());
    }
    
 }
