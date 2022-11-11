@@ -4,7 +4,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.marc4j.MarcReader;
@@ -60,10 +62,10 @@ public class MarcImportService{
          Record record = reader.next();
          
          // Get desired fields from marc record
-         ControlField controlNumber = (ControlField) record.getVariableField("001");
-         ControlField controlNumberIdentifier = (ControlField) record.getVariableField("003");
-         DataField title = (DataField) record.getVariableField("245");
-         DataField itemType = (DataField) record.getVariableField("075");
+         String controlNumber = record.getVariableField("001").toString();
+         String controlNumberIdentifier =  record.getVariableField("003").toString();
+         String title = record.getVariableField("245").toString();
+         String itemType = record.getVariableField("075").toString();
 
          // parse into ImportedRecord type
          ImportedRecord importedRecord = new ImportedRecord(UUID.randomUUID(), controlNumber, controlNumberIdentifier, title, itemType);
@@ -75,29 +77,43 @@ public class MarcImportService{
       System.out.print("Processed " + recordCount + " records.");
       recordCount=0;
     }
-    
+
+    public Iterable<Record> convertToIterable() throws Exception {
+      final MarcReader reader = getMarcFile("../test-data/100K_Truman_records.D221005.mrc");
+      final Iterable<Record> iterableMarcStream = new Iterable<>() {
+            @Override
+            public Iterator<Record> iterator() {
+               return new Iterator<Record>() {
+
+               // Delegate to the reader. We made it final so we can reference from nested
+               // scopes.
+               @Override
+               public boolean hasNext() {
+                  return reader.hasNext();
+               }
+
+               @Override
+               public Record next() {
+                  return reader.next();
+               }
+            };
+         }
+      };
+      return iterableMarcStream;
+    }
+   
    // Attempt at using flux
    public void recordsFlux() throws Exception {
-      Flux<Record> fluxOfListOfRecord = Flux.fromIterable(read("../test-data/SGCLsample1.mrc"));
-      Flux<Record> fluxOfImportedRecords = fluxOfListOfRecord
-            .mapNotNull(record -> {
-               ImportedRecord importedRecord = new ImportedRecord(UUID.randomUUID(), 
-                  (ControlField) ((Record) record).getVariableField("001"),
-                  (ControlField) ((Record) record).getVariableField("003"),
-                  (DataField) ((Record) record).getVariableField("245"),
-                  (DataField) ((Record) record).getVariableField("075"));
-               bibRecordService.addBibRecord(importedRecord);
-               return null;
-            });
-      fluxOfImportedRecords.subscribe();
+      Flux<Record> fluxOfListOfRecord = Flux.fromIterable(convertToIterable());
+      fluxOfListOfRecord.subscribe(record -> {
+
+         ControlField field001 = (ControlField) record.getVariableField("001");
+         ControlField field003 = (ControlField) record.getVariableField("003");
+         DataField field245 = (DataField) record.getVariableField("245");
+         DataField field075 = (DataField) record.getVariableField("075");
+         
+      	ImportedRecord importedRecord = new ImportedRecord(UUID.randomUUID(), Objects.toString(field001, null), Objects.toString(field003, null), Objects.toString(field245, null), Objects.toString(field075, null));
+         bibRecordService.addBibRecord(importedRecord);
+      });
    }
 }
-
-
-
-
-
-
-
-
-
