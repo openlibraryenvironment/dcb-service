@@ -13,8 +13,9 @@ import jakarta.inject.Inject;
 @SuppressWarnings("all")
 public class MarcImportServiceTest {
    
-   private static final String marcFileName = "../test-data/100K_Truman_records.D221005.mrc";
-   private static final String marcFileName2 = "../test-data/SGCLsample1.mrc";
+   // /https://www.loc.gov/standards/marcxml/
+   private static final String testMarcFile = "src/main/resources/sandburg.mrc";
+   private static final String marcFileOutsideProject = "../test-data/SGCLsample1.mrc";
    
    @Inject
    MarcImportService marcImportService;
@@ -22,7 +23,7 @@ public class MarcImportServiceTest {
    @Test
    void testFluxOfRecords() {
        try {
-         marcImportService.fluxOfRecords(marcFileName);
+         marcImportService.fluxOfRecords(testMarcFile);
       } catch (Exception e) {e.printStackTrace();}
    }
 
