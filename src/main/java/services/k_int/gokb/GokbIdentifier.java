@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb.gokb.bib;
+package services.k_int.gokb;
 
 import io.micronaut.serde.annotation.Serdeable;
 

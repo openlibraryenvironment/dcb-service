@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb.gokb.bib;
+package org.olf.reshare.dcb.gokb;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -21,6 +21,8 @@ import jakarta.inject.Singleton;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import services.k_int.gokb.GokbApiClient;
+import services.k_int.gokb.GokbTipp;
 
 @Singleton
 @Requires(property = (GokbImporter.CONFIG_ROOT + ".enabled"), value = "true")

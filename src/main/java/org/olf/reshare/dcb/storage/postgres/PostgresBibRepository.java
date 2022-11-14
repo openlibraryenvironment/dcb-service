@@ -1,5 +1,7 @@
 package org.olf.reshare.dcb.storage.postgres;
 
+import java.util.UUID;
+
 import org.olf.reshare.dcb.bib.model.BibRecord;
 import org.olf.reshare.dcb.storage.BibRepository;
 
@@ -10,5 +12,5 @@ import jakarta.inject.Singleton;
 
 @Singleton
 @R2dbcRepository(dialect = Dialect.POSTGRES)
-public abstract class PostgresBibRepository implements BibRepository, ReactiveStreamsCrudRepository<BibRecord, String> {
+public abstract class PostgresBibRepository implements BibRepository, ReactiveStreamsCrudRepository<BibRecord, UUID> {
 }

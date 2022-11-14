@@ -25,7 +25,7 @@ public class DefaultBibRecordService implements BibRecordService {
 	@Override
 	public void addBibRecord(ImportedRecord record) {
 
-		final BibRecord bib = new BibRecord().setId(UUID.randomUUID().toString()).setTitle(record.title());
+		final BibRecord bib = new BibRecord().setId(UUID.randomUUID()).setTitle(record.title());
 
 		log.debug("Adding bib record for title" + bib.getTitle());
 		Mono.from( bibRepo.save(bib) ).subscribe();

@@ -4,13 +4,9 @@ import java.util.UUID;
 
 import javax.validation.constraints.NotNull;
 
-import io.micronaut.context.annotation.Type;
 import io.micronaut.core.annotation.NonNull;
-import io.micronaut.data.annotation.AutoPopulated;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
-import io.micronaut.data.annotation.TypeDef;
-import io.micronaut.data.model.DataType;
 import jakarta.persistence.Column;
 
 @MappedEntity
@@ -19,19 +15,18 @@ public class BibRecord {
 	@NotNull
 	@NonNull
 	@Id
-  @AutoPopulated
-  private String id;
+  private UUID id;
 	
 	@NotNull
 	@NonNull
 	@Column(columnDefinition = "TEXT")
 	private String title;
 
-	public String getId() {
+	public UUID getId() {
 		return id;
 	}
 
-	public BibRecord setId(String id) {
+	public BibRecord setId(UUID id) {
 		this.id = id;
 		return this;
 	}

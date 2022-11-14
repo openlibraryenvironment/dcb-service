@@ -1,7 +1,8 @@
 package org.olf.reshare.dcb.storage;
 
+import java.util.UUID;
+
 import javax.validation.Valid;
-import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 
 import org.olf.reshare.dcb.bib.model.BibRecord;
@@ -18,7 +19,7 @@ public interface BibRepository {
 
 	@NotNull
 	@SingleResult
-	Publisher<BibRecord> findById(@NonNull @NotEmpty String id);
+	Publisher<BibRecord> findById(@NonNull UUID id);
 
 	@NotNull
 	Publisher<BibRecord> findAll();
