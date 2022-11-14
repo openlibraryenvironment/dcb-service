@@ -68,20 +68,27 @@ public class MarcImportService{
       Flux<Record> fluxOfListOfRecord = Flux.fromIterable(convertToIterable(fileName));
       fluxOfListOfRecord.subscribe(record -> {
 
-         ControlField field001 = (ControlField) record.getVariableField("001"); // contains the control number assigned by the organization creating, using, or distributing the record.
-         ControlField field003 = (ControlField) record.getVariableField("003"); // contains the MARC Organization Code identifying whose system control number is present in field 001.
-         DataField field010 = (DataField) record.getVariableField("010"); // 010 tag		marks the Library of Congress Control Number (LCCN)
-         DataField field020 = (DataField) record.getVariableField("020"); // 020 tag	 	marks the International Standard Book Number (ISBN)
+         // 0XX
+         ControlField field001 = (ControlField) record.getVariableField("001"); // control number assigned by the organization creating, using, or distributing the record.
+         ControlField field003 = (ControlField) record.getVariableField("003"); // MARC Organization Code identifying whose system control number is present in field 001.
+         DataField field010 = (DataField) record.getVariableField("010"); // Library of Congress Control Number (LCCN)
+         DataField field020 = (DataField) record.getVariableField("020"); // International Standard Book Number (ISBN)
+         DataField field022 = (DataField) record.getVariableField("022");// International Standard Serial Number (ISSN)
          DataField field075 = (DataField) record.getVariableField("075"); // Type of entity that is described by the authority record as a whole.
-         DataField field100 = (DataField) record.getVariableField("100"); // 100 tag	 	marks a personal name main entry (author)
-         DataField field245 = (DataField) record.getVariableField("245"); // 245 tag	 	marks the title information (which includes the title, other title information, and the statement of responsibility)
-         DataField field250 = (DataField) record.getVariableField("250"); // 250 tag	 	marks the edition
-         DataField field260 = (DataField) record.getVariableField("260"); // 260 tag	 	marks the publication information
-         DataField field300 = (DataField) record.getVariableField("300"); // 300 tag	 	marks the physical description (often referred to as the "collation" when describing books)
-         DataField field490 = (DataField) record.getVariableField("490"); // 490 tag	 	marks the series statement
-         DataField field520 = (DataField) record.getVariableField("520"); // 520 tag	 	marks the annotation or summary note
-         DataField field650 = (DataField) record.getVariableField("650"); // 650 tag	 	marks a topical subject heading
-         DataField field700 = (DataField) record.getVariableField("700"); // 700 tag	 	marks a personal name added entry (joint author, editor, or illustrator)
+         DataField field082 = (DataField) record.getVariableField("082"); // Dewey Decimal Classification Number (DDCN)
+         DataField field092 = (DataField) record.getVariableField("092"); // Locally Assigned Dewey Call Number (LADCN)
+         // 1XX
+         DataField field100 = (DataField) record.getVariableField("100"); // personal name main entry (author)
+         // 2XX
+         DataField field245 = (DataField) record.getVariableField("245"); // title information (which includes the title, other title information, and the statement of responsibility)
+         DataField field250 = (DataField) record.getVariableField("250"); // edition
+         DataField field260 = (DataField) record.getVariableField("260"); // publication information
+         // 3XX - 8XX
+         DataField field300 = (DataField) record.getVariableField("300"); // physical description (often referred to as the "collation" when describing books)
+         DataField field490 = (DataField) record.getVariableField("490"); // series statement
+         DataField field520 = (DataField) record.getVariableField("520"); // annotation or summary note
+         DataField field650 = (DataField) record.getVariableField("650"); // topical subject heading
+         DataField field700 = (DataField) record.getVariableField("700"); // personal name added entry (joint author, editor, or illustrator)
 
          ImportedRecord importedRecord = ImportedRecordBuilder.builder()
                            .identifier(UUID.randomUUID())
@@ -89,7 +96,10 @@ public class MarcImportService{
                            .controlNumberIdentifier(Objects.toString(field003, null))
                            .LCCN(Objects.toString(field010, null))
                            .ISBN(Objects.toString(field020, null))
+                           .ISSN(Objects.toString(field022, null))
                            .itemType(Objects.toString(field075, null))
+                           .DDCN(Objects.toString(field082, null))
+                           .LADCN(Objects.toString(field092, null))
                            .author(Objects.toString(field100, null))
                            .title(Objects.toString(field245, null))
                            .edition(Objects.toString(field250, null))
