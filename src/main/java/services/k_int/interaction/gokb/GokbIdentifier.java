@@ -1,4 +1,4 @@
-package services.k_int.gokb;
+package services.k_int.interaction.gokb;
 
 import io.micronaut.serde.annotation.Serdeable;
 

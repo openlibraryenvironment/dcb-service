@@ -1,4 +1,4 @@
-package services.k_int.gokb;
+package services.k_int.interaction.gokb;
 
 import static io.micronaut.http.HttpHeaders.ACCEPT;
 import static io.micronaut.http.HttpHeaders.USER_AGENT;

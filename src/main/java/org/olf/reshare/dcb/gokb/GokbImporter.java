@@ -21,8 +21,8 @@ import jakarta.inject.Singleton;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import services.k_int.gokb.GokbApiClient;
-import services.k_int.gokb.GokbTipp;
+import services.k_int.interaction.gokb.GokbApiClient;
+import services.k_int.interaction.gokb.GokbTipp;
 
 @Singleton
 @Requires(property = (GokbImporter.CONFIG_ROOT + ".enabled"), value = "true")

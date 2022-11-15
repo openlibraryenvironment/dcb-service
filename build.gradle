@@ -84,11 +84,15 @@ dependencies {
 	runtimeOnly('io.r2dbc:r2dbc-postgresql:0.8.13.RELEASE')
 	runtimeOnly("org.postgresql:postgresql")
 	runtimeOnly("io.r2dbc:r2dbc-pool")
+	
+	// Tests
+  testImplementation('org.mock-server:mockserver-junit-jupiter:5.14.0')
 }
 
 application {
 	mainClass.set("org.olf.reshare.dcb.Application")
 }
+
 java {
 	sourceCompatibility = JavaVersion.toVersion("17")
 	targetCompatibility = JavaVersion.toVersion("17")
