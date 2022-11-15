@@ -12,5 +12,5 @@ import jakarta.inject.Singleton;
 
 @Singleton
 @R2dbcRepository(dialect = Dialect.POSTGRES)
-public abstract class PostgresBibRepository implements BibRepository, ReactiveStreamsCrudRepository<BibRecord, UUID> {
+public abstract class PostgresBibRepository implements ReactiveStreamsCrudRepository<BibRecord, UUID> , BibRepository{
 }

@@ -34,7 +34,7 @@ jobs:
     - name: Build with Gradle
       uses: gradle/gradle-build-action@v2.2.0
       with:
-        arguments: build
+        arguments: build jacocoTestCoverageVerification
 
     - name: Publish Test Results
       uses: EnricoMi/publish-unit-test-result-action@v2

@@ -22,14 +22,24 @@ micronaut:
               secret: cGxlYXNlQ2hhbmdlVGhpc1NlY3JldEZvckFOZXdPbmU
               base64: true 
               jws-algorithm: HS256
-#r2dbc:
-#  datasources:
-#    default:
-#      url: r2dbc:postgresql://localhost:5432/postgres
-#      username: "${db.username:placeholder}"
-#      password: "${db.password:placeholder}"
-#      schema-generate: CREATE_DROP
-#      dialect: POSTGRES
+r2dbc:
+  datasources:
+    default:
+      options:
+        driver: pool
+        poolName: r2dbc
+        protocol: h2:mem
+        maxSize: 5
+        initialSize: 5
+        maxLifeTime: PT280S
+        maxIdleTime: PT240S
+        maxAcquireTime: PT6S
+      
+      #driver: h2
+      url: "r2dbc:h2:mem:///dcbtest;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+      dialect: postgres
+      
+      schema-generate: CREATE_DROP
 #elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
 netty:
   default:
