@@ -23,20 +23,22 @@ import io.micronaut.retry.annotation.Retryable;
 @Header(name = USER_AGENT, value = "ReShare DCB")
 @Header(name = ACCEPT, value = APPLICATION_JSON)
 public interface GokbApiClient {
+	public static final String COMPONENT_TYPE_TIPP = "TitleInstancePackagePlatform";
+	public static final String QUERY_PARAM_COMPONENT_TYPE = "component_type";
 
 	public final static String CONFIG_ROOT = "gokb.client";
 	static final Logger log = LoggerFactory.getLogger(GokbApiClient.class);
 
 	@SingleResult
 	default Publisher<GokbScrollResponse> scrollTipps(@Nullable String scrollId, @Nullable Instant changedSince) {
-		return scroll("TitleInstancePackagePlatform", scrollId, Objects.toString(changedSince));
+		return scroll(COMPONENT_TYPE_TIPP, scrollId, Objects.toString(changedSince));
 	}
 	
 	@Get("/scroll")
 	@SingleResult
 	@Retryable
 	<T> Publisher<GokbScrollResponse> scroll(
-			@QueryValue("component_type") String type,
+			@QueryValue(GokbApiClient.QUERY_PARAM_COMPONENT_TYPE) String type,
 			@Nullable @QueryValue("scrollId") String scrollId,
 			@Nullable @QueryValue("changedSince") String changedSince);
 }

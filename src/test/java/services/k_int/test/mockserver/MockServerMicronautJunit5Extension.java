@@ -7,9 +7,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLSocketFactory;
+
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.mockserver.configuration.Configuration;
 import org.mockserver.integration.ClientAndServer;
 import org.mockserver.junit.jupiter.MockServerExtension;
+import org.mockserver.logging.MockServerLogger;
+import org.mockserver.socket.tls.KeyStoreFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,8 +57,13 @@ public class MockServerMicronautJunit5Extension extends MockServerExtension {
 			log.debug("Setting system property \"{}\" to \"{}\"", key, val);
 			System.setProperty(key, val);
 		});
+		
+		log.debug("Restoring socket factory");
+		HttpsURLConnection.setDefaultSSLSocketFactory(sockF);
 	}
 
+	private static SSLSocketFactory sockF;
+	
 	private static void stashCurrentProps() {
 
 		log.debug("Stashing current MN client settings.");
@@ -60,12 +71,20 @@ public class MockServerMicronautJunit5Extension extends MockServerExtension {
 		MN_PROPS.forEach(key -> {
 			STASHED.put(key, System.getProperty(key));
 		});
+		
+		log.debug("Getting default keystore");
+		sockF = HttpsURLConnection.getDefaultSSLSocketFactory();
+		
+		// Replace it here.
+		HttpsURLConnection.setDefaultSSLSocketFactory(
+				new KeyStoreFactory(Configuration.configuration(), new MockServerLogger()).sslContext().getSocketFactory());
 	}
 
 	@Override
 	public void beforeAll(ExtensionContext context) {
-		super.beforeAll(context);
+
 		stashCurrentProps();
+		super.beforeAll(context);
 		setMicronautProxySettings(this.clientAndServer);
 	}
 
@@ -75,5 +94,7 @@ public class MockServerMicronautJunit5Extension extends MockServerExtension {
 
 		restoreStashed();
 	}
+	
+	
 
 }
