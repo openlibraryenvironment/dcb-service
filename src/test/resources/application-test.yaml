@@ -22,6 +22,10 @@ micronaut:
               secret: cGxlYXNlQ2hhbmdlVGhpc1NlY3JldEZvckFOZXdPbmU
               base64: true 
               jws-algorithm: HS256
+
+  scheduled:
+    enabled: false
+
 r2dbc:
   datasources:
     default:
@@ -45,3 +49,4 @@ netty:
   default:
     allocator:
       max-order: 3
+      

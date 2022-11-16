@@ -7,10 +7,13 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import java.time.Instant;
 import java.util.Objects;
 
+import javax.validation.constraints.NotBlank;
+
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.http.annotation.Get;
@@ -31,14 +34,14 @@ public interface GokbApiClient {
 
 	@SingleResult
 	default Publisher<GokbScrollResponse> scrollTipps(@Nullable String scrollId, @Nullable Instant changedSince) {
-		return scroll(COMPONENT_TYPE_TIPP, scrollId, Objects.toString(changedSince));
+		return scroll(COMPONENT_TYPE_TIPP, scrollId, Objects.toString(changedSince, null));
 	}
 	
 	@Get("/scroll")
 	@SingleResult
 	@Retryable
 	<T> Publisher<GokbScrollResponse> scroll(
-			@QueryValue(GokbApiClient.QUERY_PARAM_COMPONENT_TYPE) String type,
+			@NonNull @NotBlank @QueryValue(GokbApiClient.QUERY_PARAM_COMPONENT_TYPE) String type,
 			@Nullable @QueryValue("scrollId") String scrollId,
 			@Nullable @QueryValue("changedSince") String changedSince);
 }

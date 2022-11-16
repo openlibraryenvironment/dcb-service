@@ -7,7 +7,7 @@ import javax.transaction.Transactional;
 
 import org.olf.reshare.dcb.ImportedRecordBuilder;
 import org.olf.reshare.dcb.bib.BibRecordService;
-import org.olf.reshare.dcb.storage.BibRepository;
+import org.olf.reshare.dcb.core.AppConfig;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +16,6 @@ import io.micronaut.context.annotation.Requires;
 import io.micronaut.retry.event.RetryEvent;
 import io.micronaut.retry.event.RetryEventListener;
 import io.micronaut.scheduling.annotation.Scheduled;
-import io.micronaut.serde.ObjectMapper;
 import jakarta.inject.Singleton;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -35,16 +34,13 @@ public class GokbImporter implements Runnable, RetryEventListener {
 	
 	private static Logger log = LoggerFactory.getLogger(GokbImporter.class);
 	private final GokbApiClient gokbapi;
-	BibRecordService bibRecordService;
-	BibRepository bibRepo;
-	ObjectMapper objectMapper;
+	private final BibRecordService bibRecordService;
+	private final AppConfig appConfig;
 
-	GokbImporter(GokbApiClient gokbapi, BibRecordService bibRecordService, BibRepository bibRepo,
-			ObjectMapper objectMapper) {
+	GokbImporter(GokbApiClient gokbapi, BibRecordService bibRecordService, AppConfig appConfig) {
 		this.gokbapi = gokbapi;
 		this.bibRecordService = bibRecordService;
-		this.bibRepo = bibRepo;
-		this.objectMapper = objectMapper;
+		this.appConfig = appConfig;
 	}
 
 	
@@ -86,6 +82,12 @@ public class GokbImporter implements Runnable, RetryEventListener {
 	@Scheduled(initialDelay = "2s",fixedDelay = "90s")
 	@Transactional
 	public void run() {
+		
+		// Short out here if disabled.
+		if (!appConfig.getScheduledTasks().isEnabled()) {
+			log.debug("Skipping GOKb import. All tasks have been disabled");
+			return;
+		}
 
 		if (mutex != null) {
 			log.info("GOKb import already runnning. Skip this invokation.");
