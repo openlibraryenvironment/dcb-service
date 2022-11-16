@@ -10,6 +10,8 @@
 				%highlight(%-5level) %magenta(%logger{36}) - %msg%n</pattern>
 		</encoder>
 	</appender>
+	
+	<logger name="io.micronaut.http.client" level="DEBUG"/>
 
 	<root level="info">
 		<appender-ref ref="STDOUT" />

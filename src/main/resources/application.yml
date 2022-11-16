@@ -30,7 +30,7 @@ r2dbc:
         driver: pool
         poolName: r2dbc
         protocol: postgres
-        maxSize: 5
+        maxSize: 20
         initialSize: 5
         maxLifeTime: PT280S
         maxIdleTime: PT240S
