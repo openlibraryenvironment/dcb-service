@@ -21,7 +21,7 @@ public class AppConfig {
 		}
 	}
 	
-	private ScheduledTasks scheduledTasks;
+	private ScheduledTasks scheduledTasks = new AppConfig.ScheduledTasks();
 
 	public ScheduledTasks getScheduledTasks() {
 		return scheduledTasks;

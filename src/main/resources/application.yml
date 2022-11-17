@@ -57,7 +57,3 @@ gokb:
   import:
     enabled: true
 
-dcb:
-  scheduled-tasks:
-    enabled: false
-

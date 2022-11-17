@@ -2,7 +2,6 @@ package org.olf.reshare.dcb.gokb;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 import javax.transaction.Transactional;
 
@@ -91,7 +90,6 @@ public class GokbImporter implements Runnable, RetryEventListener {
 		log.info("Scheduled GOKb import");
 		
 		final long start = System.currentTimeMillis();
-		log.info("Now {}", Instant.ofEpochMilli(start).truncatedTo(ChronoUnit.SECONDS)) ;
 		// Client stream
 		mutex = Flux.from(scrollAllResults(null, lastRun))
 				.name("gokp-tipps")

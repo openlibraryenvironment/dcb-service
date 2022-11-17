@@ -46,4 +46,8 @@ netty:
   default:
     allocator:
       max-order: 3
+
+dcb:
+  scheduled-tasks:
+    enabled: false
       
