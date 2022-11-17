@@ -2,13 +2,12 @@ package org.olf.reshare.dcb.gokb;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 
 import javax.transaction.Transactional;
 
 import org.olf.reshare.dcb.ImportedRecordBuilder;
 import org.olf.reshare.dcb.bib.BibRecordService;
-import org.olf.reshare.dcb.core.AppConfig;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +22,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.gokb.GokbApiClient;
 import services.k_int.interaction.gokb.GokbTipp;
+import services.k_int.micronaut.scheduling.processor.AppTask;
 
 @Singleton
 @Requires(property = (GokbImporter.CONFIG_ROOT + ".enabled"), value = "true")
@@ -36,12 +36,10 @@ public class GokbImporter implements Runnable, RetryEventListener {
 	private static Logger log = LoggerFactory.getLogger(GokbImporter.class);
 	private final GokbApiClient gokbapi;
 	private final BibRecordService bibRecordService;
-	private final AppConfig appConfig;
 
-	GokbImporter(GokbApiClient gokbapi, BibRecordService bibRecordService, AppConfig appConfig) {
+	GokbImporter(GokbApiClient gokbapi, BibRecordService bibRecordService) {
 		this.gokbapi = gokbapi;
 		this.bibRecordService = bibRecordService;
-		this.appConfig = appConfig;
 	}
 
 	
@@ -81,14 +79,9 @@ public class GokbImporter implements Runnable, RetryEventListener {
 
 	@Override
 	@Scheduled(initialDelay = "2s",fixedDelay = "90s")
+	@AppTask
 	@Transactional
 	public void run() {
-		
-		// Short out here if disabled.
-		if (!appConfig.getScheduledTasks().isEnabled()) {
-			log.debug("Skipping GOKb import. All tasks have been disabled");
-			return;
-		}
 
 		if (mutex != null) {
 			log.info("GOKb import already runnning. Skip this invokation.");
@@ -98,7 +91,7 @@ public class GokbImporter implements Runnable, RetryEventListener {
 		log.info("Scheduled GOKb import");
 		
 		final long start = System.currentTimeMillis();
-		log.info("Now {}", GokbApiClient.TEMPORAL_FORMATTER.format( Instant.ofEpochMilli(start))) ;
+		log.info("Now {}", Instant.ofEpochMilli(start).truncatedTo(ChronoUnit.SECONDS)) ;
 		// Client stream
 		mutex = Flux.from(scrollAllResults(null, lastRun))
 				.name("gokp-tipps")

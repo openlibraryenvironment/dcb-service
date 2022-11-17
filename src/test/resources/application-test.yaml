@@ -23,9 +23,6 @@ micronaut:
               base64: true 
               jws-algorithm: HS256
 
-  scheduled:
-    enabled: false
-
 r2dbc:
   datasources:
     default:

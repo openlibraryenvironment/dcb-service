@@ -5,9 +5,7 @@ import static io.micronaut.http.HttpHeaders.USER_AGENT;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 
 import javax.validation.constraints.NotBlank;
 
@@ -34,12 +32,9 @@ public interface GokbApiClient {
 	public final static String CONFIG_ROOT = "gokb.client";
 	static final Logger log = LoggerFactory.getLogger(GokbApiClient.class);
 	
-	static final DateTimeFormatter TEMPORAL_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
-      .withZone(ZoneId.from(ZoneOffset.UTC));
-
 	@SingleResult
 	default Publisher<GokbScrollResponse> scrollTipps(@Nullable String scrollId, @Nullable Instant changedSince) {
-		return scroll(COMPONENT_TYPE_TIPP, scrollId, changedSince != null ? TEMPORAL_FORMATTER.format(changedSince) : null);
+		return scroll(COMPONENT_TYPE_TIPP, scrollId, changedSince != null ? changedSince.truncatedTo(ChronoUnit.SECONDS).toString() : null);
 	}
 	
 	@Get("/scroll")

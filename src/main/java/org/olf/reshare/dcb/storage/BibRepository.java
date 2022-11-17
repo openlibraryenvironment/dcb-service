@@ -15,7 +15,7 @@ public interface BibRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<BibRecord> save(@Valid @NotNull @NonNull BibRecord bibRecord);
+	Publisher<? extends BibRecord> save(@Valid @NotNull @NonNull BibRecord bibRecord);
 
 	@NotNull
 	@SingleResult

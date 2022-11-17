@@ -59,5 +59,5 @@ gokb:
 
 dcb:
   scheduled-tasks:
-    # enabled: false
+    enabled: false
 
