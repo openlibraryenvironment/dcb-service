@@ -5,6 +5,7 @@ import java.time.Instant;
 
 import javax.transaction.Transactional;
 
+import org.olf.reshare.dcb.ImportedRecord;
 import org.olf.reshare.dcb.ImportedRecordBuilder;
 import org.olf.reshare.dcb.bib.BibRecordService;
 import org.reactivestreams.Publisher;
@@ -77,7 +78,6 @@ public class GokbImporter implements Runnable {
 	@Override
 	@Scheduled(initialDelay = "2s",fixedDelay = "90s")
 	@AppTask
-	@Transactional
 	public void run() {
 
 		if (mutex != null) {
@@ -88,12 +88,15 @@ public class GokbImporter implements Runnable {
 		log.info("Scheduled GOKb import");
 		
 		final long start = System.currentTimeMillis();
+		
+		// The stream of imported records.
+		final var importedRecordStream = Flux.from(scrollAllResults(null, lastRun))
+			.name("gokp-tipps")
+			.filter(tipp -> tipp.tippTitleName() != null)
+			.map(tipp -> ImportedRecordBuilder.ImportedRecord(tipp.tippTitleName()));
+		
 		// Client stream
-		mutex = Flux.from(scrollAllResults(null, lastRun))
-				.name("gokp-tipps")
-				.filter(tipp -> tipp.tippTitleName() != null)
-				.map(tipp -> ImportedRecordBuilder.ImportedRecord(tipp.tippTitleName()))
-				.doOnNext(bibRecordService::addBibRecord)
+		mutex = Flux.from(bibRecordService.process( importedRecordStream ))
 				.doOnTerminate(bibRecordService::commit) // Wnen done commit the data
 				.doOnComplete(cleanUp( Instant.ofEpochMilli(start) ))
 				.doOnCancel(cleanUp( lastRun )) // Don't change the last run
