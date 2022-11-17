@@ -8,7 +8,9 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
 import jakarta.persistence.Column;
+import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
+@ExcludeFromGeneratedCoverageReport
 @MappedEntity
 public class BibRecord {
 

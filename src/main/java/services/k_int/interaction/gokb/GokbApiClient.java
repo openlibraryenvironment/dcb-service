@@ -33,14 +33,14 @@ public interface GokbApiClient {
 	static final Logger log = LoggerFactory.getLogger(GokbApiClient.class);
 	
 	@SingleResult
-	default Publisher<GokbScrollResponse> scrollTipps(@Nullable String scrollId, @Nullable Instant changedSince) {
+	public default Publisher<GokbScrollResponse> scrollTipps(@Nullable String scrollId, @Nullable Instant changedSince) {
 		return scroll(COMPONENT_TYPE_TIPP, scrollId, changedSince != null ? changedSince.truncatedTo(ChronoUnit.SECONDS).toString() : null);
 	}
 	
 	@Get("/scroll")
 	@SingleResult
 	@Retryable
-	<T> Publisher<GokbScrollResponse> scroll(
+	abstract <T> Publisher<GokbScrollResponse> scroll(
 			@NonNull @NotBlank @QueryValue(GokbApiClient.QUERY_PARAM_COMPONENT_TYPE) String type,
 			@Nullable @QueryValue("scrollId") String scrollId,
 			@Nullable @QueryValue("changedSince") String changedSince);

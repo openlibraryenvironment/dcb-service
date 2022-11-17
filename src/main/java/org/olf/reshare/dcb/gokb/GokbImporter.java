@@ -12,8 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Requires;
-import io.micronaut.retry.event.RetryEvent;
-import io.micronaut.retry.event.RetryEventListener;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 import reactor.core.Disposable;
@@ -25,7 +23,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 
 @Singleton
 @Requires(property = (GokbImporter.CONFIG_ROOT + ".enabled"), value = "true")
-public class GokbImporter implements Runnable, RetryEventListener {
+public class GokbImporter implements Runnable {
 
 	public static final String CONFIG_ROOT = "gokb.import";
 	
@@ -118,13 +116,5 @@ public class GokbImporter implements Runnable, RetryEventListener {
 					log.info("Finsihed adding {} records. Total time {} hours, {} minute and {} seconds", count,
 							elapsed.toHoursPart(), elapsed.toMinutesPart(), elapsed.toSecondsPart());
 				});
-	}
-
-
-	@Override
-	public void onApplicationEvent(RetryEvent retry) {
-
-		var state = retry.getRetryState();
-		log.info("Retry attempt {} for {}", state.currentAttempt(), retry.getSource().getDeclaringType().toString());
 	}
 }

@@ -10,6 +10,7 @@ import io.micronaut.data.r2dbc.annotation.R2dbcRepository;
 import io.micronaut.data.repository.reactive.ReactiveStreamsCrudRepository;
 import jakarta.inject.Singleton;
 
+@SuppressWarnings("unchecked")
 @Singleton
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 public abstract class PostgresBibRepository implements ReactiveStreamsCrudRepository<BibRecord, UUID> , BibRepository{
