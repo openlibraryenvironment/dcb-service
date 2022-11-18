@@ -14,8 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import org.junit.jupiter.api.Test;
 import org.marc4j.MarcReader;
 import org.marc4j.MarcStreamReader;
-import org.olf.reshare.dcb.ImportedRecord;
-import org.olf.reshare.dcb.ImportedRecordBuilder;
+import org.olf.reshare.dcb.bib.record.ImportedRecord;
+import org.olf.reshare.dcb.bib.record.ImportedRecordBuilder;
 
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 
@@ -23,9 +23,11 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 @MicronautTest
 public class ImportedRecordTest {
 
+   private final String testMarcFile = "src/main/resources/5recordsSGCLsample1.mrc";
+
    @Test
    private MarcReader testImportOfFile() throws Exception {
-      String marcFileName = "../test-data/SGCLsample1.mrc";
+      String marcFileName = testMarcFile;
       InputStream input = new FileInputStream(new File(marcFileName));
       MarcReader marcFile = new MarcStreamReader(input);
       assertNotNull(marcFileName);
@@ -43,12 +45,12 @@ public class ImportedRecordTest {
    @Test
    void testIdentifiersAreDifferent() throws Exception {
 
-      ImportedRecord id1 = ImportedRecordBuilder.builder().identifier(UUID.randomUUID()).build();
-      ImportedRecord id2 = ImportedRecordBuilder.builder().identifier(UUID.randomUUID()).build();
+      ImportedRecord id1 = ImportedRecordBuilder.builder().id(UUID.randomUUID()).build();
+      ImportedRecord id2 = ImportedRecordBuilder.builder().id(UUID.randomUUID()).build();
 
-      assertNotNull(id1.identifier());
-      assertNotNull(id2.identifier());
-      assertNotEquals(id2.identifier(), id1.identifier());
+      assertNotNull(id1.id());
+      assertNotNull(id2.id());
+      assertNotEquals(id2.id(), id1.id());
    }
 
    // TODO: Identifer null even though specifier @NonNull
@@ -56,7 +58,7 @@ public class ImportedRecordTest {
    void testNoIdentifer() throws Exception {
 
       ImportedRecord id1 = ImportedRecordBuilder.builder().build();
-      assertNull(id1.identifier());
+      assertNull(id1.id());
    }
 
    // TODO: Should except empty strings?

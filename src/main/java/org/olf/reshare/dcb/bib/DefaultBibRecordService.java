@@ -1,6 +1,6 @@
 package org.olf.reshare.dcb.bib;
 
-import org.olf.reshare.dcb.ImportedRecord;
+import org.olf.reshare.dcb.bib.record.ImportedRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +13,6 @@ public class DefaultBibRecordService implements BibRecordService {
 	
   @Override
   public void addBibRecord ( ImportedRecord record ) {
-    log.info("Adding record {}", record.identifier() + record.title());
+    log.info("Adding record {}", record.identifiers());
   }
 }
-

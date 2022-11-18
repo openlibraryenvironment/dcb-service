@@ -13,8 +13,7 @@ import jakarta.inject.Inject;
 @SuppressWarnings("all")
 public class MarcImportServiceTest {
    
-   // /https://www.loc.gov/standards/marcxml/
-   private static final String testMarcFile = "src/main/resources/sandburg.mrc";
+   private static final String testMarcFile = "src/main/resources/18recordsSGCLsample1.mrc";
    private static final String marcFileOutsideProject = "../test-data/SGCLsample1.mrc";
    
    @Inject
