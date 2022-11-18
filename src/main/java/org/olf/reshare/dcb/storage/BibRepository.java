@@ -5,7 +5,7 @@ import java.util.UUID;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
-import org.olf.reshare.dcb.bib.model.BibRecord;
+import org.olf.reshare.dcb.model.BibRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
@@ -16,13 +16,21 @@ public interface BibRepository {
 	@NonNull
 	@SingleResult
 	Publisher<? extends BibRecord> save(@Valid @NotNull @NonNull BibRecord bibRecord);
+	
+	@NonNull
+	@SingleResult
+	Publisher<? extends BibRecord> update(@Valid @NotNull @NonNull BibRecord bibRecord);
 
-	@NotNull
+	@NonNull
 	@SingleResult
 	Publisher<BibRecord> findById(@NonNull UUID id);
 
-	@NotNull
+	@NonNull
 	Publisher<BibRecord> findAll();
+	
+	@NonNull
+	@SingleResult
+	Publisher<Boolean> existsById(@NonNull UUID id);
 
 	public default void cleanUp() {
 	};

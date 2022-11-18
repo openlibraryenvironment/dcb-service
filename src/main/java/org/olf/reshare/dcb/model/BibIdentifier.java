@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb.bib.model;
+package org.olf.reshare.dcb.model;
 
 import java.util.UUID;
 
@@ -20,6 +20,30 @@ public class BibIdentifier {
 	@Column(columnDefinition = "UUID")
   private UUID id;
 	
+	public UUID getId() {
+		return id;
+	}
+
+	public void setId(UUID id) {
+		this.id = id;
+	}
+
+	public String getValue() {
+		return value;
+	}
+
+	public void setValue(String value) {
+		this.value = value;
+	}
+
+	public String getNamespace() {
+		return namespace;
+	}
+
+	public void setNamespace(String namespace) {
+		this.namespace = namespace;
+	}
+
 	@NotNull
 	@NonNull
 	private String value;

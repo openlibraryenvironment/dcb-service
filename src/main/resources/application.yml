@@ -44,7 +44,7 @@ r2dbc:
       password: "${db.password:dcb}"
       dialect: postgres
       
-      schema-generate: CREATE_DROP
+      schema-generate: CREATE
       
 # elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
 netty:
@@ -54,6 +54,6 @@ netty:
       
 ### App config
 gokb:
-  import:
+  ingest:
     enabled: true
 

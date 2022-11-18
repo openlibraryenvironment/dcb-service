@@ -1,6 +1,7 @@
 .*
 !.git*
 !.editorconfig
+/src/groovy
 build/
 bin/
 target/

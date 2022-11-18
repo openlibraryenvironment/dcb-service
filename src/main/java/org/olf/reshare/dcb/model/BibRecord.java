@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb.bib.model;
+package org.olf.reshare.dcb.model;
 
 import java.util.HashSet;
 import java.util.Set;
