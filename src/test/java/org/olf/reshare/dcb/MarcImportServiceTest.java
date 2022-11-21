@@ -4,6 +4,8 @@ import java.io.FileNotFoundException;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.olf.reshare.dcb.bib.BibRecordService;
+import org.olf.reshare.dcb.bib.DefaultBibRecordService;
 import org.olf.reshare.dcb.bib.marc.MarcImportService;
 
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
@@ -20,13 +22,6 @@ public class MarcImportServiceTest {
    MarcImportService marcImportService;
 
    @Test
-   void testFluxOfRecords() {
-       try {
-         marcImportService.fluxOfRecords(testMarcFile);
-      } catch (Exception e) {e.printStackTrace();}
-   }
-
-   @Test
    void testGetMarcFile() throws Exception {
       FileNotFoundException thrown = Assertions.assertThrows(FileNotFoundException.class, () -> {
          marcImportService.fluxOfRecords("Unrecognized file");
@@ -34,4 +29,10 @@ public class MarcImportServiceTest {
       Assertions.assertEquals("Unrecognized file (No such file or directory)", thrown.getMessage());
    }
 
+   @Test
+   void testFluxOfRecords() {
+       try {
+         marcImportService.fluxOfRecords(testMarcFile);
+      } catch (Exception e) {e.printStackTrace();}
+   }
 }

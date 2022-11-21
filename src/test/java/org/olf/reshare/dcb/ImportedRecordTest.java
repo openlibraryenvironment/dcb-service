@@ -3,6 +3,8 @@ package org.olf.reshare.dcb;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -16,6 +18,12 @@ import org.marc4j.MarcReader;
 import org.marc4j.MarcStreamReader;
 import org.olf.reshare.dcb.bib.record.ImportedRecord;
 import org.olf.reshare.dcb.bib.record.ImportedRecordBuilder;
+import org.olf.reshare.dcb.bib.record.subclasses.Author;
+import org.olf.reshare.dcb.bib.record.subclasses.Description;
+import org.olf.reshare.dcb.bib.record.subclasses.Edition;
+import org.olf.reshare.dcb.bib.record.subclasses.Identifier;
+import org.olf.reshare.dcb.bib.record.subclasses.PublicationInformation;
+import org.olf.reshare.dcb.bib.record.subclasses.Title;
 
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 
@@ -61,50 +69,45 @@ public class ImportedRecordTest {
       assertNull(id1.id());
    }
 
-   // TODO: Should except empty strings?
-   /** 
    @Test
-   void testEmptyStrings() throws Exception {
+   void testFields() throws Exception {
 
-      ImportedRecord id1 = ImportedRecordBuilder.builder()
-                              .identifier("")
-                              .controlNumber("")
-                              .controlNumberIdentifier("")
-                              .LCCN("")
-                              .ISBN("")
-                              .ISSN("")
-                              .itemType("")
-                              .DDCN("")
-                              .LADCN("")
-                              .author("")
-                              .title("")
-                              .edition("")
-                              .publicationInformation("")
-                              .physicalDescription("")
-                              .seriesStatement("")
-                              .annotationOrSummaryNote("")
-                              .topicalSubjectHeading("")
-                              .personalNameAddedEntry("")
-                              .build();
-      assertNotEquals("", id1.identifier());
-      assertNotEquals("", id1.controlNumber());
-      assertNotEquals("", id1.LCCN());
-      assertNotEquals("", id1.ISBN());
-      assertNotEquals("", id1.ISSN());
-      assertNotEquals("", id1.itemType());
-      assertNotEquals("", id1.DDCN());
-      assertNotEquals("", id1.LADCN());
-      assertNotEquals("", id1.author());
-      assertNotEquals("", id1.title());
-      assertNotEquals("", id1.edition());
-      assertNotEquals("", id1.publicationInformation());
-      assertNotEquals("", id1.physicalDescription());
-      assertNotEquals("", id1.seriesStatement());
-      assertNotEquals("", id1.annotationOrSummaryNote());
-      assertNotEquals("", id1.topicalSubjectHeading());
-      assertNotEquals("", id1.personalNameAddedEntry());
+      List<Identifier> identifiers = new ArrayList<>();
+      identifiers.add(new Identifier("Identifier", "test"));
+
+      List<Author> otherAuthors = new ArrayList<>();
+      otherAuthors.add(new Author("otherAuthors", "test"));
+
+      List<Title> titleInformation = new ArrayList<>();
+      titleInformation.add(new Title("Info", "test"));
+
+      List<PublicationInformation> publicationInformation = new ArrayList<>();
+      publicationInformation.add(new PublicationInformation("Info", "test"));
+
+      List<Description> descriptions = new ArrayList<>();
+      descriptions.add(new Description("Description", "test"));
+
+      ImportedRecord importedRecord = ImportedRecordBuilder.builder()
+      .identifiers(identifiers)
+      .mainAuthor(new Author("main author", "test"))
+      .otherAuthors(otherAuthors)
+      .title(new Title("Title", "test"))
+      .titleInformation(titleInformation)
+      .edition(new Edition("Edition", "test"))
+      .publicationInformation(publicationInformation)
+      .descriptions(descriptions)
+      .build();
+
+
+      assertEquals("[{ namespace: \"Identifier\", value: \"test\" }]", importedRecord.identifiers().toString());
+      assertEquals("{ namespace: \"main author\", value: \"test\" }", importedRecord.mainAuthor().toString());
+      assertEquals("[{ namespace: \"otherAuthors\", value: \"test\" }]", importedRecord.otherAuthors().toString());
+      assertEquals("{ namespace: \"Title\", value: \"test\" }", importedRecord.title().toString());
+      assertEquals("[{ namespace: \"Info\", value: \"test\" }]", importedRecord.titleInformation().toString());
+      assertEquals("{ namespace: \"Edition\", value: \"test\" }", importedRecord.edition().toString());
+      assertEquals("[{ namespace: \"Info\", value: \"test\" }]", importedRecord.publicationInformation().toString());
+      assertEquals("[{ namespace: \"Description\", value: \"test\" }]", importedRecord.descriptions().toString());
    }
-   */
 
-   
+   // TODO: Should except empty strings?
 }
