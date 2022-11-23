@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb.bib.record.subclasses;
+package org.olf.reshare.dcb.bib.record;
 
 import java.util.ArrayList;
 import java.util.List;
