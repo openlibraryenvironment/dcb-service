@@ -1,29 +1,20 @@
 package org.olf.reshare.dcb.bib.record;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
-public class Description {
+import javax.validation.constraints.NotEmpty;
 
-   String description;
-   List<String> descriptions = new ArrayList<>();
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.serde.annotation.Serdeable;
+import io.soabase.recordbuilder.core.RecordBuilder;
 
-   public Description(String description) {
-       this.description = description;
-   }
 
-   public Description(List<String> descriptions) {
-      this.descriptions = descriptions;
-   }
-
-   public Description() {
-   }
-
-   @Override
-   public String toString() {
-       StringBuilder sb = new StringBuilder();
-       if(description != null) {sb.append("description: ").append(description);}
-       if(descriptions != null) {sb.append("descriptions: ").append(descriptions);}
-       return sb.toString();
-   } 
-}
+@Serdeable
+@RecordBuilder
+public record Description (
+   @NonNull @NotEmpty UUID id,
+   @Nullable String description,
+   @Nullable List<String> descriptions
+   ){}

@@ -1,19 +1,17 @@
 package org.olf.reshare.dcb.bib.record;
 
-public class Edition {
-   String edition;
+import java.util.UUID;
 
-   public Edition(String edition) {
-       this.edition = edition;
-   }
+import javax.validation.constraints.NotEmpty;
 
-   public Edition() {
-   }
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.serde.annotation.Serdeable;
+import io.soabase.recordbuilder.core.RecordBuilder;
 
-   @Override
-   public String toString() {
-       StringBuilder sb = new StringBuilder();
-       if(edition != null) {sb.append("edition: ").append(edition);}
-       return sb.toString();
-   } 
-}
+@Serdeable
+@RecordBuilder
+public record Edition (
+   @NonNull @NotEmpty UUID id,
+   @Nullable String edition
+   ){}

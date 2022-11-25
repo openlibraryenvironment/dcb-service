@@ -9,7 +9,7 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import io.soabase.recordbuilder.core.RecordBuilder;
-
+import org.olf.reshare.dcb.bib.record.ImportedRecord;
 
 @Serdeable
 @RecordBuilder

@@ -1,38 +1,18 @@
 package org.olf.reshare.dcb.bib.record;
 
-public class Author {
+import java.util.UUID;
 
-    String name;
-    Identifier identifier;
+import javax.validation.constraints.NotEmpty;
 
-    public Author() {}
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.serde.annotation.Serdeable;
+import io.soabase.recordbuilder.core.RecordBuilder;
 
-    public Author(String name, Identifier identifier) {
-        this.name = name;
-        this.identifier = identifier;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public Identifier getIdentifier() {
-        return identifier;
-    }
-
-    public void setIdentifier(Identifier identifier) {
-        this.identifier = identifier;
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        if(name != null) {sb.append("name: ").append(name);}
-        if(identifier != null) {sb.append("ientifier: ").append(identifier);}
-        return sb.toString();
-    } 
-}
+@Serdeable
+@RecordBuilder
+public record Author (
+   @NonNull @NotEmpty UUID id,
+   @Nullable String name,
+   @Nullable Identifier identifier
+   ){}

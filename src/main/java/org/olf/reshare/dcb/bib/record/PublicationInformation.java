@@ -1,29 +1,23 @@
 package org.olf.reshare.dcb.bib.record;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
-public class PublicationInformation {
+import javax.validation.constraints.NotEmpty;
 
-    String publicationInformation;
-    List<String> allPublicationInformation = new ArrayList<>();
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.serde.annotation.Serdeable;
+import io.soabase.recordbuilder.core.RecordBuilder;
 
-    public PublicationInformation(List<String> allPublicationInformation) {
-       this.allPublicationInformation = allPublicationInformation;
-    }
+@Serdeable
+@RecordBuilder
+public record PublicationInformation (
+    @NonNull @NotEmpty UUID id,
+    @Nullable String publicationInformation,
+    @Nullable List<String> allPublicationInformation
+    ){
 
-    public PublicationInformation(String PublicationInformation) {
-        this.publicationInformation = publicationInformation;
-    }
- 
-    public PublicationInformation() {
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        if(publicationInformation != null) {sb.append("publicationInformation: ").append(publicationInformation);}
-        if(allPublicationInformation != null) {sb.append("allPublicationInformation: ").append(allPublicationInformation);}
-        return sb.toString();
-    } 
-}
+   public PublicationInformation build() {
+      return null;
+   }}

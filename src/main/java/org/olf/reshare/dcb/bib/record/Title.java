@@ -1,29 +1,20 @@
 package org.olf.reshare.dcb.bib.record;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
-public class Title {
+import javax.validation.constraints.NotEmpty;
 
-    String title;
-    List<String> otherTitleInformation = new ArrayList<>();
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.serde.annotation.Serdeable;
+import io.soabase.recordbuilder.core.RecordBuilder;
 
-    public Title(List<String> otherTitleInformation) {
-       this.otherTitleInformation = otherTitleInformation;
-    }
-
-    public Title(String title) {
-        this.title = title;
-    }
-
-    public Title() {
-    }
+@Serdeable
+@RecordBuilder
+public record Title (
+    @NonNull @NotEmpty UUID id,
+    @Nullable String title,
+    @Nullable List<String> otherTitleInformation
+    ){}
     
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        if(title != null) {sb.append("title: ").append(title);}
-        if(otherTitleInformation != null) {sb.append("otherTitleInformation: ").append(otherTitleInformation);}
-        return sb.toString();
-    } 
-}
