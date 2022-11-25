@@ -33,6 +33,7 @@ import org.olf.reshare.dcb.bib.record.TitleBuilder;
 
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /*
 The MarcImportService is a concrete class that "does the work". 
@@ -83,17 +84,20 @@ public class MarcImportService{
 
    /*
    * Get all occurences of a particular field 
-   * 0(n)
    */
    private List<String> getDataFromAllOccurerncesOfField( List<VariableField> allFields, String subfield ){
       List<String> allData = new ArrayList<>();
 
-      for ( int i = 0; i < allFields.size(); i++ ) {
-         DataField field = ( DataField ) allFields.get( i );
-         if( field != null && field.getSubfieldsAsString( subfield ) != null) {
-            allData.add( field.getSubfieldsAsString( subfield ) );
+      Mono<List<VariableField>> mono = Mono.just(allFields);
+      Flux<VariableField> flux = mono.flatMapMany(Flux::fromIterable);
+
+      flux.subscribe( field -> {
+         DataField dataField = ( DataField ) field;
+         if( field != null && dataField.getSubfieldsAsString( subfield ) != null) {
+            allData.add( dataField.getSubfieldsAsString( subfield ) );
          }
-      }
+      });
+
       if ( allData.isEmpty() ) { return null; }
       return allData;
    }
@@ -221,29 +225,29 @@ public class MarcImportService{
       final List<Description> descriptions = new ArrayList<>();
 
       Flux<String> tags = Flux.just("300", "520", "650");
-      String[] subfields300 = {"a", "b", "c", "d", "e", "f"};
-      String[] subfields520 = {"a", "b", "c", "u", "2", "f"};
-      String[] subfields650 = {"a", "b", "c", "d"};
+      Flux<String> subfields300 = Flux.just("a", "b", "c", "d", "e", "f");
+      Flux<String> subfields520 = Flux.just("a", "b", "c", "u", "2", "f");
+      Flux<String> subfields650 = Flux.just("a", "b", "c", "d");
 
       tags.subscribe( tag -> {
-         for (String subfield300 : subfields300) {           
+         subfields300.subscribe( subfield -> {         
             List<VariableField> subfields = record.getVariableFields(tag);
-            List<String> values = getDataFromAllOccurerncesOfField(subfields, subfield300);
+            List<String> values = getDataFromAllOccurerncesOfField(subfields, subfield);
             final DescriptionBuilder description = DescriptionBuilder.builder().descriptions(values);
             if ( values != null ) { descriptions.add( description.id(UUID.randomUUID()).build() ); }
-         }
-         for (String subfield520 : subfields520) {           
+         });
+         subfields520.subscribe( subfield -> {           
             List<VariableField> subfields = record.getVariableFields(tag);
-            List<String> values = getDataFromAllOccurerncesOfField(subfields, subfield520);
+            List<String> values = getDataFromAllOccurerncesOfField(subfields, subfield);
             final DescriptionBuilder description = DescriptionBuilder.builder().descriptions(values);
             if ( values != null ) { descriptions.add( description.id(UUID.randomUUID()).build() ); }
-         }
-         for (String subfield650 : subfields650) {           
+         });
+         subfields650.subscribe( subfield -> {          
             List<VariableField> subfields = record.getVariableFields(tag);
-            List<String> values = getDataFromAllOccurerncesOfField(subfields, subfield650);
+            List<String> values = getDataFromAllOccurerncesOfField(subfields, subfield);
             final DescriptionBuilder description = DescriptionBuilder.builder().descriptions(values);
             if ( values != null ) { descriptions.add( description.id(UUID.randomUUID()).build() ); }
-         }
+         });
       });
 
       if ( descriptions.isEmpty() ) { return null; }
