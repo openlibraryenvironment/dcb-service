@@ -142,7 +142,7 @@ public class MarcImportService{
       final IdentifierBuilder ISSN = IdentifierBuilder.builder()
          .namespace("International Standard Serial Number")
          .value(value022a);
-      if ( value022a != null ) { identifiers.add( ISBN.id(UUID.randomUUID()).build() ); }
+      if ( value022a != null ) { identifiers.add( ISSN.id(UUID.randomUUID()).build() ); }
 
 
       if ( identifiers.isEmpty() ) { return null; }
