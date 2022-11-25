@@ -204,10 +204,10 @@ public class MarcImportService{
             author.name(value110a);
             valuesAdded = true;
          }
-         if ( field700.getSubfieldsAsString("0") != null ) {
+         if ( field110.getSubfieldsAsString("0") != null ) {
             author.identifier( IdentifierBuilder.builder()
                .namespace("Authority record control number or standard number (R)")
-               .value(field700.getSubfieldsAsString("0"))
+               .value(field110.getSubfieldsAsString("0"))
                .build() );
             valuesAdded = true;
          }
@@ -265,7 +265,6 @@ public class MarcImportService{
       final List<PublicationInformation> publicationInformation = new ArrayList<>();
       Flux<String> subfields = Flux.just("a", "b", "c", "e", "f");
       List<VariableField> fields = record.getVariableFields("260");
-
       subfields.subscribe( subfield -> {         
          List<String> values = getDataFromAllOccurerncesOfField(fields, subfield);
          final PublicationInformationBuilder builder = PublicationInformationBuilder.builder().allPublicationInformation(values);
