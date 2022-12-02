@@ -6,6 +6,7 @@ import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
 
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.Collections;
 
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -34,27 +35,33 @@ public interface SierraApiClient {
 	
 	
 	
+//	@SingleResult
+//	@Get("/bibs/")
+//	public Publisher<BibResultSet> bibs ( @Nullable @QueryValue("limit") final Integer limit, @Nullable @QueryValue("offset") final Integer offset, @QueryValue("createdDate") @Nullable LocalDate createdDate);
+	
 	@SingleResult
 	@Get("/bibs/")
-	public Publisher<BibResultSet> bibs ( @Nullable @QueryValue("limit") final Integer limit, @Nullable @QueryValue("offest") final Integer offset, @QueryValue("createdDate") @Nullable LocalDate createdDate, @Nullable @QueryValue("fields") @Format("CSV") Iterable<String> fields);
+	public Publisher<BibResultSet> bibs ( @Nullable @QueryValue("limit") final Integer limit, @Nullable @QueryValue("offset") final Integer offset, @QueryValue("createdDate") @Nullable LocalDate createdDate, @Nullable @QueryValue("fields") @Format("CSV") Iterable<String> fields);
 	// fields:'id,createdDate,updatedDate,deletedDate,title,author,materialType,bibLevel,marc,items',
 	// fields:'id,createdDate,updatedDate,deletedDate,title',
 	// createdDate:'2000-10-25'
 	//createdDate:'[2022-11-01,2022-12-01]'
 
 	@SingleResult
-	public default Publisher<BibResultSet> bibs ( final int limit, final int offset, LocalDate createdDate, String... fields ) {
-		return bibs (limit, offset, createdDate, Arrays.asList(fields));
+	public default Publisher<BibResultSet> bibs ( final Integer limit, final Integer offset, LocalDate createdDate, String... fields ) {
+		
+		return bibs (limit, offset, createdDate, fields.length < 1 ? null : Arrays.asList(fields));
 	}
 	
 	@SingleResult
 	public default Publisher<BibResultSet> bibs () {
-		return bibs (null, null, null, null);
+		return bibs (null, null);
 	}
 	
 	@SingleResult
 	public default Publisher<BibResultSet> bibs ( final Integer limit, final Integer offset, String... fields ) {
-		return bibs (limit, offset, null, Arrays.asList(fields));
+		
+		return bibs (limit, offset, null, fields);
 	}
 	
 	@SingleResult

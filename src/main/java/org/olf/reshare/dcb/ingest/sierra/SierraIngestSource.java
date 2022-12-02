@@ -42,7 +42,7 @@ public class SierraIngestSource implements IngestSource {
 
 		// The stream of imported records.
 		return Flux.from(getAllResults())
-				.filter( sierraBib ->  sierraBib.title() != null )
+				.filter( sierraBib -> sierraBib.title() != null )
 				.map(sierraBib -> IngestRecordBuilder.builder()
 						.uuid(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE, sierraBib.id()))
 						.title(sierraBib.title())
@@ -51,7 +51,7 @@ public class SierraIngestSource implements IngestSource {
 
 	private Publisher <BibRecord> getAllResults() {
 		log.info("Fetching scroll page from Sierra");
-		return Flux.from(sierraApi.bibs())
+		return Flux.from(sierraApi.bibs(5000, 0))
 				.flatMap( response -> Flux.fromIterable(response.entries()) );
 	}
 }

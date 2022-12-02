@@ -22,6 +22,9 @@ micronaut:
               secret: "${token.secret:placeholder}"
               base64: true 
               jws-algorithm: HS256
+  http:
+    client:
+      read-timeout: PT30S
 
 r2dbc:
   datasources:
@@ -56,9 +59,10 @@ jackson:
   date-format: "yyyy-MM-dd'T'HH:mm:ssZ"
   
 ### App config
+  
 gokb:
   ingest:
-    enabled: false
+    enabled: true
 
 sierra:
   ingest:

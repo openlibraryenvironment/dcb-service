@@ -63,7 +63,11 @@ public class IngestService implements Runnable {
 		// Interleave sources to form 1 flux of ingest records.
 		this.mutex = Flux.merge(
 					Flux.fromIterable(ingestSources)
-						.map(source -> source.apply(lastRun)))
+						.map(source -> source.apply(lastRun))
+						.onErrorResume(t -> {
+							log.error("Error ingesting sources {}", t.getMessage());
+							return Mono.empty(); 
+						})
 				
 				// Interleaved source stream from all source results.
 				// Process them using the pipeline steps...
