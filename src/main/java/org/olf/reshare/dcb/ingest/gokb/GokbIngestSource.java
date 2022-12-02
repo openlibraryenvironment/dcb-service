@@ -53,7 +53,8 @@ public class GokbIngestSource implements IngestSource {
 	private Publisher<GokbTipp> scrollAllResults(final String scrollId, final Instant lastRun) {
 		log.info("Fetching scroll page from Gokb");
 		return Mono.from(gokbapi.scrollTipps(scrollId, lastRun))
-				.filter(resp -> "OK".equalsIgnoreCase(resp.result()) && resp.size() > 0).flatMapMany(resp -> {
+				.filter(resp -> "OK".equalsIgnoreCase(resp.result()) && resp.size() > 0)
+				.flatMapMany(resp -> {
 
 					log.info("Fetched a chunk of {} records", resp.size());
 					// We already have results. If there are more results then we create a

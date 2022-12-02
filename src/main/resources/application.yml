@@ -51,9 +51,16 @@ netty:
   default:
     allocator:
       max-order: 3
-      
+
+jackson:
+  date-format: "yyyy-MM-dd'T'HH:mm:ssZ"
+  
 ### App config
 gokb:
+  ingest:
+    enabled: false
+
+sierra:
   ingest:
     enabled: true
 
