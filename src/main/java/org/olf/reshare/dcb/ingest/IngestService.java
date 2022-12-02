@@ -67,7 +67,7 @@ public class IngestService implements Runnable {
 						.onErrorResume(t -> {
 							log.error("Error ingesting sources {}", t.getMessage());
 							return Mono.empty(); 
-						})
+						}))
 				
 				// Interleaved source stream from all source results.
 				// Process them using the pipeline steps...
