@@ -32,7 +32,7 @@ public class MarcImportServiceTest {
    @Test
    void testFluxOfRecords() {
        try {
-         marcImportService.fluxOfRecords(testMarcFile);
+         marcImportService.fluxOfRecords(marcFileOutsideProject);
       } catch (Exception e) {e.printStackTrace();}
    }
 }

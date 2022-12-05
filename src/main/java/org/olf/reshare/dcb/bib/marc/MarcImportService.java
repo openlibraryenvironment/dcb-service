@@ -4,8 +4,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -106,44 +108,37 @@ public class MarcImportService{
    * identifiers
    */
    private List<Identifier> getAllIdentifers( Record record ){
-
       List<Identifier> identifiers = new ArrayList<>();
-      String controlNumberValue = record.getControlNumber();
-      ControlField field003 = ( ControlField ) record.getVariableField("003");
-      DataField field010 = ( DataField ) record.getVariableField("010");
-      List<VariableField> all020 = record.getVariableFields("020");
-      DataField field022 = ( DataField )  record.getVariableField("022");
-      String value003 = null, value010a = null, value022a = null;
 
-      final IdentifierBuilder controlNumber = IdentifierBuilder.builder()
-         .namespace("Control Number")
-         .value(controlNumberValue);
+      // Control number
+      String controlNumberValue = record.getControlNumber();
+      final IdentifierBuilder controlNumber = IdentifierBuilder.builder().namespace("Control Number").value(controlNumberValue);
       if ( controlNumberValue != null ) { identifiers.add( controlNumber.id(UUID.randomUUID()).build() ); }
 
-      if( field003 != null ) { value003 = field003.getData(); }
-      final IdentifierBuilder ControlNumberIdentifier = IdentifierBuilder.builder()
-         .namespace("Control Number Identifer")
-         .value(value003);
-      if ( value003 != null ) {  identifiers.add( ControlNumberIdentifier.id(UUID.randomUUID()).build() ); }
-      
-      if( field010 != null ) { value010a = field010.getSubfieldsAsString("a"); }
-      final IdentifierBuilder ICCN = IdentifierBuilder.builder()
-         .namespace("Library of Congress Control Number")
-         .value(value010a);
-      if ( value010a != null ) { identifiers.add( ICCN.id(UUID.randomUUID()).build() ); }
-      
-      List<String> values020a = getDataFromAllOccurerncesOfField(all020, "a");
-      final IdentifierBuilder ISBN = IdentifierBuilder.builder()
-         .namespace("International Standard Book Number")
-         .values(values020a);
-      if ( values020a != null ) { identifiers.add( ISBN.id(UUID.randomUUID()).build() ); }
+      // Control number identifier
+      ControlField field003 = ( ControlField ) record.getVariableField("003");
+      if( field003 != null ) { 
+         String value003 = field003.getData();
+         final IdentifierBuilder ControlNumberIdentifier = IdentifierBuilder.builder().namespace("Control Number Identifer").value(value003);
+         if ( value003 != null ) {  identifiers.add( ControlNumberIdentifier.id(UUID.randomUUID()).build() ); }
+      }
 
-      if( field022 != null ) { value022a = Objects.toString( field022.getSubfieldsAsString("a") ); }
-      final IdentifierBuilder ISSN = IdentifierBuilder.builder()
-         .namespace("International Standard Serial Number")
-         .value(value022a);
-      if ( value022a != null ) { identifiers.add( ISSN.id(UUID.randomUUID()).build() ); }
+      // others
+      Flux<String> tags = Flux.just("010", "020", "022");
+      Map<String, String> map = Map.of(
+         "010", "Library of Congress Control Number", 
+         "020", "International Standard Book Number", 
+         "022", "International Standard Serial Number");
 
+      tags.subscribe( tag -> {     
+         List<VariableField> varibleFields = record.getVariableFields(tag);
+         if( varibleFields != null ) { 
+            List<String> values = getDataFromAllOccurerncesOfField(varibleFields, "a");
+            // if len == 1 then .value not .values
+            final IdentifierBuilder identifer = IdentifierBuilder.builder().namespace( map.get( tag ) ).values( values );
+            if ( values != null ) { identifiers.add( identifer.id(UUID.randomUUID()).build() ); }
+         }
+      });
 
       if ( identifiers.isEmpty() ) { return null; }
       return identifiers;
@@ -179,51 +174,35 @@ public class MarcImportService{
       return mainAuthor.id(UUID.randomUUID()).build();
    }
 
-
    /*
    * other authors
    */
    private List<Author> getOtherAuthors( Record record ){
       List<Author> otherAuthors = new ArrayList<>();
-      DataField field700 = (DataField) record.getVariableField("700");
-      DataField field110 = (DataField) record.getVariableField("110");
+
+      Flux<String> tags = Flux.just("700", "110");
+      tags.subscribe( tag -> {
+         DataField field = (DataField) record.getVariableField(tag);
+         if(field != null) {
+            final AuthorBuilder author = AuthorBuilder.builder();
+            Boolean valuesAdded = false;
+
+            if( field.getSubfieldsAsString("a") != null ) {
+               String value700a = field.getSubfieldsAsString("a"); 
+               author.name(value700a);
+               valuesAdded = true;
+            }
+            if ( field.getSubfieldsAsString("0") != null ) {
+               author.identifier( IdentifierBuilder.builder()
+                  .namespace("Authority record control number or standard number (R)")
+                  .value(field.getSubfieldsAsString("0"))
+                  .build() );
+               valuesAdded = true;
+            }
+            if ( valuesAdded == true ) { otherAuthors.add( author.id(UUID.randomUUID()).build() ); }
+         }
+      });
       
-      if(field700 != null) {
-         final AuthorBuilder author = AuthorBuilder.builder();
-         Boolean valuesAdded = false;
-
-         if( field700.getSubfieldsAsString("a") != null ) {
-            String value700a = field700.getSubfieldsAsString("a"); 
-            author.name(value700a);
-            valuesAdded = true;
-         }
-         if ( field700.getSubfieldsAsString("0") != null ) {
-            author.identifier( IdentifierBuilder.builder()
-               .namespace("Authority record control number or standard number (R)")
-               .value(field700.getSubfieldsAsString("0"))
-               .build() );
-            valuesAdded = true;
-         }
-         if ( valuesAdded == true ) { otherAuthors.add(author.build()); }
-      }
-      if(field110 != null) {
-         final AuthorBuilder author = AuthorBuilder.builder();
-         Boolean valuesAdded = false;
-
-         if( field110.getSubfieldsAsString("a") != null ) {
-            String value110a = field110.getSubfieldsAsString("a"); 
-            author.name(value110a);
-            valuesAdded = true;
-         }
-         if ( field110.getSubfieldsAsString("0") != null ) {
-            author.identifier( IdentifierBuilder.builder()
-               .namespace("Authority record control number or standard number (R)")
-               .value(field110.getSubfieldsAsString("0"))
-               .build() );
-            valuesAdded = true;
-         }
-         if ( valuesAdded == true ) { otherAuthors.add( author.id(UUID.randomUUID()).build() ); }
-      }
       if ( otherAuthors.isEmpty() ) { return null; }
       return otherAuthors;
    }
