@@ -83,7 +83,7 @@ public class MarcImportService{
    }
 
    /*
-   * Get all occurences of a particular field 
+   * Get all occurences of a specified field 
    */
    private List<String> getDataFromAllOccurerncesOfField( List<VariableField> allFields, String subfield ){
       List<String> allData = new ArrayList<>();
@@ -103,7 +103,7 @@ public class MarcImportService{
    }
 
    /*
-   * The identifiers we want
+   * identifiers
    */
    private List<Identifier> getAllIdentifers( Record record ){
 
@@ -149,6 +149,9 @@ public class MarcImportService{
       return identifiers;
    }
 
+   /*
+   * main author
+   */
    private Author getMainAuthor( Record record ){
       DataField field100 = (DataField) record.getVariableField("100");
       final AuthorBuilder mainAuthor = AuthorBuilder.builder();
@@ -176,6 +179,10 @@ public class MarcImportService{
       return mainAuthor.id(UUID.randomUUID()).build();
    }
 
+
+   /*
+   * other authors
+   */
    private List<Author> getOtherAuthors( Record record ){
       List<Author> otherAuthors = new ArrayList<>();
       DataField field700 = (DataField) record.getVariableField("700");
@@ -221,6 +228,9 @@ public class MarcImportService{
       return otherAuthors;
    }
 
+   /*
+   * descriptions
+   */
    private List<Description> getDescriptions( Record record ){
       final List<Description> descriptions = new ArrayList<>();
 
@@ -254,6 +264,9 @@ public class MarcImportService{
       return descriptions;
    }
 
+   /*
+   * edition
+   */
    private Edition getEdition( Record record ){
       DataField field250 = ( DataField ) record.getVariableField("250");
       String values250a = null;
@@ -265,6 +278,9 @@ public class MarcImportService{
                .build();
    }
 
+   /*
+   * publication information
+   */
    private List<PublicationInformation> getPublicationInformation( Record record ){
       final List<PublicationInformation> publicationInformation = new ArrayList<>();
       Flux<String> subfields = Flux.just("a", "b", "c", "e", "f");
@@ -279,6 +295,9 @@ public class MarcImportService{
       return publicationInformation;
    }
 
+   /*
+   * title
+   */
    private Title getTitle( Record record ){
       DataField field245 = (DataField) record.getVariableField("245");
       String values245a = field245.getSubfieldsAsString("a");
@@ -290,6 +309,9 @@ public class MarcImportService{
                .build();
    }
 
+   /*
+   * title information
+   */
    private List<Title> getTitleInformation( Record record ){
       List<Title> titleInformation = new ArrayList<>();
       List<VariableField> fields = record.getVariableFields("245");
