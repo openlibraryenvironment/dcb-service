@@ -4,9 +4,8 @@ import static io.micronaut.http.HttpHeaders.ACCEPT;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
 
-import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
+import java.util.Objects;
 
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -24,53 +23,23 @@ import io.micronaut.http.annotation.Produces;
 import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.multipart.MultipartBody;
-import services.k_int.interaction.auth.OAuthToken;
+import io.micronaut.retry.annotation.Retryable;
+import services.k_int.interaction.auth.AuthToken;
 
-@Client("${" + SierraApiClient.CONFIG_ROOT + ".api.url:`https://sandbox.iii.com/iii/sierra-api/v6`}")
+@Client(value = "${" + SierraApiClient.CONFIG_ROOT + ".api.url:`https://sandbox.iii.com/iii/sierra-api/v6`}", errorType = SierraError.class)
 @Header(name = ACCEPT, value = APPLICATION_JSON)
 public interface SierraApiClient {
 
 	public final static String CONFIG_ROOT = "sierra.client";
 	static final Logger log = LoggerFactory.getLogger(SierraApiClient.class);
 	
-	
-	
-//	@SingleResult
-//	@Get("/bibs/")
-//	public Publisher<BibResultSet> bibs ( @Nullable @QueryValue("limit") final Integer limit, @Nullable @QueryValue("offset") final Integer offset, @QueryValue("createdDate") @Nullable LocalDate createdDate);
-	
 	@SingleResult
-	@Get("/bibs/")
-	public Publisher<BibResultSet> bibs ( @Nullable @QueryValue("limit") final Integer limit, @Nullable @QueryValue("offset") final Integer offset, @QueryValue("createdDate") @Nullable LocalDate createdDate, @Nullable @QueryValue("fields") @Format("CSV") Iterable<String> fields);
-	// fields:'id,createdDate,updatedDate,deletedDate,title,author,materialType,bibLevel,marc,items',
-	// fields:'id,createdDate,updatedDate,deletedDate,title',
-	// createdDate:'2000-10-25'
-	//createdDate:'[2022-11-01,2022-12-01]'
-
-	@SingleResult
-	public default Publisher<BibResultSet> bibs ( final Integer limit, final Integer offset, LocalDate createdDate, String... fields ) {
-		
-		return bibs (limit, offset, createdDate, fields.length < 1 ? null : Arrays.asList(fields));
-	}
-	
-	@SingleResult
-	public default Publisher<BibResultSet> bibs () {
-		return bibs (null, null);
-	}
-	
-	@SingleResult
-	public default Publisher<BibResultSet> bibs ( final Integer limit, final Integer offset, String... fields ) {
-		
-		return bibs (limit, offset, null, fields);
-	}
-	
-	@SingleResult
-	public default Publisher<OAuthToken> login( final String key, final String secret ) {
+	public default Publisher<AuthToken> login( final String key, final String secret ) {
 		return login(new BasicAuth(key, secret));
 	}
 	
 	@SingleResult
-	public default Publisher<OAuthToken> login( BasicAuth creds ) {
+	public default Publisher<AuthToken> login( BasicAuth creds ) {
 		return login( creds, MultipartBody.builder()
         .addPart("grant_type", "client_credentials")
         .build());
@@ -80,6 +49,42 @@ public interface SierraApiClient {
 	@SingleResult
 	@Post("/token")
 	@Produces(value = MULTIPART_FORM_DATA)
-	public Publisher<OAuthToken> login( BasicAuth creds, @Body MultipartBody body);
+	public Publisher<AuthToken> login( BasicAuth creds, @Body MultipartBody body);
 	
+	@SingleResult
+	@Get("/bibs/")
+	@Retryable
+	public Publisher<SierraBibResultSet> bibs (
+			@Nullable @QueryValue("limit") final Integer limit, 
+			@Nullable @QueryValue("offset") final Integer offset,
+			@Nullable @QueryValue("createdDate") final String createdDate,
+			@Nullable @QueryValue("updatedDate") final String updatedDate,
+			@Nullable @QueryValue("fields") @Format("CSV") final Iterable<String> fields,
+			@Nullable @QueryValue("deleted") final Boolean deleted,
+			@Nullable @QueryValue("deletedDate") final String deletedDate,
+			@Nullable @QueryValue("suppressed") final Boolean suppressed,
+			@Nullable @QueryValue("locations") @Format("CSV") final Iterable<String> locations);
+	
+	// fields:'id,createdDate,updatedDate,deletedDate,title,author,materialType,bibLevel,marc,items',
+	// fields:'id,createdDate,updatedDate,deletedDate,title',
+	// createdDate:'2000-10-25'
+	//createdDate:'[2022-11-01,2022-12-01]'
+	
+	public default Publisher<SierraBibResultSet> bibs (SierraBibParams params) {		
+		return bibs (
+				params.limit(),
+				params.offset(),
+				Objects.toString(params.createdDate(), null),
+				Objects.toString(params.updatedDate(), null),
+				nullIfEmpty(params.fields()),
+				params.deleted(),
+				Objects.toString(params.deletedDate(), null),
+				params.suppressed(),
+				nullIfEmpty(params.locations()));
+	}
+	
+	private <T> Collection<T> nullIfEmpty (Collection<T> collection) {
+		if (collection == null || collection.size() < 1) return null;
+		return collection;
+	}
 }

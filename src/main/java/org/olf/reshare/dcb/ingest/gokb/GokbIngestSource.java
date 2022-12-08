@@ -21,7 +21,7 @@ import services.k_int.interaction.gokb.GokbTipp;
 import services.k_int.utils.UUIDUtils;
 
 @Singleton
-@Requires(property = (GokbIngestSource.CONFIG_ROOT + ".enabled"), value = "true")
+@Requires(property = (GokbIngestSource.CONFIG_ROOT + ".enabled"), value = "true", defaultValue = "false")
 public class GokbIngestSource implements IngestSource {
 
 	public static final String CONFIG_ROOT = "gokb.ingest";
@@ -42,7 +42,7 @@ public class GokbIngestSource implements IngestSource {
 		log.info("Fecthing from GOKb");
 
 		// The stream of imported records.
-		return Flux.from(scrollAllResults(null, since)).name("gokp-tipps")
+		return Flux.from(scrollAllResults(since, null)).name("gokp-tipps")
 				.filter(tipp -> tipp.tippTitleName() != null)
 				.map(tipp -> IngestRecordBuilder.builder()
 						.uuid(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE, tipp.uuid().toString()))
@@ -50,7 +50,7 @@ public class GokbIngestSource implements IngestSource {
 						.build());
 	}
 
-	private Publisher<GokbTipp> scrollAllResults(final String scrollId, final Instant lastRun) {
+	private Publisher<GokbTipp> scrollAllResults(final Instant lastRun, final String scrollId) {
 		log.info("Fetching scroll page from Gokb");
 		return Mono.from(gokbapi.scrollTipps(scrollId, lastRun))
 				.filter(resp -> "OK".equalsIgnoreCase(resp.result()) && resp.size() > 0)
@@ -71,7 +71,7 @@ public class GokbIngestSource implements IngestSource {
 						log.info("No more results to fetch");
 					}
 
-					return more ? Flux.concat(currentPage, scrollAllResults(resp.scrollId(), lastRun)) : currentPage;
+					return more ? Flux.concat(currentPage, scrollAllResults(lastRun, resp.scrollId())) : currentPage;
 				});
 	}
 }

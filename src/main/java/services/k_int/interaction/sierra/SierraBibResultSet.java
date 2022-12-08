@@ -8,8 +8,8 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
-public record BibResultSet(
+public record SierraBibResultSet(
 		@Nullable int total,
 		@Nullable int start,
-		@NotNull List<BibRecord> entries) {
+		@NotNull List<SierraBibRecord> entries) {
 }

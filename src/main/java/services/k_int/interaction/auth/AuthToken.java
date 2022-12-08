@@ -12,7 +12,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
-public record OAuthToken (
+public record AuthToken (
 		@NotEmpty String value,
 		@NotEmpty String type,
 		@NotNull Instant expires
@@ -21,7 +21,7 @@ public record OAuthToken (
 	public static final Duration DEFAULT_EXPIRATION_BUFFER = Duration.ofSeconds(10);
 	
 	@JsonCreator
-	public OAuthToken(
+	public AuthToken(
 			@JsonProperty("access_token")
 			@NotEmpty String value,
 			

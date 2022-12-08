@@ -57,14 +57,5 @@ netty:
 
 jackson:
   date-format: "yyyy-MM-dd'T'HH:mm:ssZ"
-  
-### App config
-  
-gokb:
-  ingest:
-    enabled: true
 
-sierra:
-  ingest:
-    enabled: true
 
