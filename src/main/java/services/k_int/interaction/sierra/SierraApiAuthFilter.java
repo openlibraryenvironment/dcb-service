@@ -27,10 +27,10 @@ public class SierraApiAuthFilter implements HttpClientFilter {
 	static final Logger log = LoggerFactory.getLogger(SierraApiAuthFilter.class);
 	
 	@Property(name = SierraApiClient.CONFIG_ROOT + ".api.key")
-	private String key;
+	protected String key;
 	
 	@Property(name = SierraApiClient.CONFIG_ROOT + ".api.secret")
-	private String secret;
+	protected String secret;
 	
 	private AuthToken currentToken;
 	

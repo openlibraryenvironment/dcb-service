@@ -5,7 +5,7 @@ import java.util.List;
 
 import javax.transaction.Transactional;
 
-import org.olf.reshare.dcb.ingest.IngestRecord;
+import org.olf.reshare.dcb.ingest.IngestRecordDef;
 import org.olf.reshare.dcb.model.BibRecord;
 import org.olf.reshare.dcb.processing.ProcessingStep;
 import org.olf.reshare.dcb.storage.BibRepository;
@@ -28,12 +28,12 @@ public class BibRecordService {
 		this.bibRepo = bibRepo;
 	}
 
-	private BibRecord step1( final BibRecord bib, final IngestRecord imported) {
+	private BibRecord step1( final BibRecord bib, final IngestRecordDef imported) {
 //		log.info("Executing step 1");
 		return bib;
 	}
 	
-	private BibRecord minimalRecord(final IngestRecord imported) {
+	private BibRecord minimalRecord(final IngestRecordDef imported) {
 		return new BibRecord().setId(imported.uuid()).setTitle(imported.title());
 	}
 	
@@ -42,13 +42,13 @@ public class BibRecordService {
 		.flatMap(exists -> Mono.fromDirect(exists ? bibRepo.update(record) : bibRepo.save(record)));
 	}
 	
-	public Mono<BibRecord> getOrSeed(final IngestRecord source) {
+	public Mono<BibRecord> getOrSeed(final IngestRecordDef source) {
 		return Mono.from(bibRepo.findById(source.uuid()))
 				.switchIfEmpty(Mono.just(this.minimalRecord(source)));
 	}
 	
 	@Transactional
-	public Publisher<BibRecord> process(final IngestRecord source) {
+	public Publisher<BibRecord> process(final IngestRecordDef source) {
 		
 		// Check if existing...
 		return Mono.just(source)

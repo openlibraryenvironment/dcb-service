@@ -27,6 +27,7 @@ public class IngestService implements Runnable {
 	private final BibRecordService bibRecordService;
 
 	private final List<IngestSource> ingestSources;
+	
 
 	IngestService(BibRecordService bibRecordService, List<IngestSource> ingestSources) {
 		this.bibRecordService = bibRecordService;
@@ -72,7 +73,6 @@ public class IngestService implements Runnable {
 				// Interleaved source stream from all source results.
 				// Process them using the pipeline steps...
 				.flatMap(bibRecordService::process)
-				
 				
 				// General handlers.
 				.doOnCancel(cleanUp(lastRun)) // Don't change the last run

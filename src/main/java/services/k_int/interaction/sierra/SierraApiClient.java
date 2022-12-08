@@ -6,6 +6,7 @@ import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
 
 import java.util.Collection;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -34,12 +35,12 @@ public interface SierraApiClient {
 	static final Logger log = LoggerFactory.getLogger(SierraApiClient.class);
 	
 	@SingleResult
-	public default Publisher<AuthToken> login( final String key, final String secret ) {
+	default Publisher<AuthToken> login( final String key, final String secret ) {
 		return login(new BasicAuth(key, secret));
 	}
 	
 	@SingleResult
-	public default Publisher<AuthToken> login( BasicAuth creds ) {
+	default Publisher<AuthToken> login( BasicAuth creds ) {
 		return login( creds, MultipartBody.builder()
         .addPart("grant_type", "client_credentials")
         .build());
@@ -49,12 +50,12 @@ public interface SierraApiClient {
 	@SingleResult
 	@Post("/token")
 	@Produces(value = MULTIPART_FORM_DATA)
-	public Publisher<AuthToken> login( BasicAuth creds, @Body MultipartBody body);
+	Publisher<AuthToken> login( BasicAuth creds, @Body MultipartBody body);
 	
 	@SingleResult
 	@Get("/bibs/")
 	@Retryable
-	public Publisher<SierraBibResultSet> bibs (
+	Publisher<SierraBibResultSet> bibs (
 			@Nullable @QueryValue("limit") final Integer limit, 
 			@Nullable @QueryValue("offset") final Integer offset,
 			@Nullable @QueryValue("createdDate") final String createdDate,
@@ -65,12 +66,8 @@ public interface SierraApiClient {
 			@Nullable @QueryValue("suppressed") final Boolean suppressed,
 			@Nullable @QueryValue("locations") @Format("CSV") final Iterable<String> locations);
 	
-	// fields:'id,createdDate,updatedDate,deletedDate,title,author,materialType,bibLevel,marc,items',
-	// fields:'id,createdDate,updatedDate,deletedDate,title',
-	// createdDate:'2000-10-25'
-	//createdDate:'[2022-11-01,2022-12-01]'
-	
-	public default Publisher<SierraBibResultSet> bibs (SierraBibParams params) {		
+	@SingleResult
+	default Publisher<SierraBibResultSet> bibs (SierraBibParamsDef params) {
 		return bibs (
 				params.limit(),
 				params.offset(),
@@ -83,8 +80,15 @@ public interface SierraApiClient {
 				nullIfEmpty(params.locations()));
 	}
 	
-	private <T> Collection<T> nullIfEmpty (Collection<T> collection) {
+	@SingleResult
+	public default Publisher<SierraBibResultSet> bibs (Consumer<SierraBibParamsDef.Builder> consumer) {
+		return bibs(SierraBibParamsDef.build(consumer));
+	}
+	
+	private static <T> Collection<T> nullIfEmpty (Collection<T> collection) {
 		if (collection == null || collection.size() < 1) return null;
 		return collection;
 	}
+	
+	
 }

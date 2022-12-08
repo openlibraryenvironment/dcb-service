@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.olf.reshare.dcb.ingest.IngestRecord;
-import org.olf.reshare.dcb.ingest.IngestRecordBuilder;
+import org.olf.reshare.dcb.ingest.IngestRecordDef;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -18,10 +18,8 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import services.k_int.interaction.sierra.SierraBibRecord;
 import services.k_int.interaction.sierra.SierraApiClient;
-import services.k_int.interaction.sierra.SierraBibParams;
-import services.k_int.interaction.sierra.SierraDateTimeRange;
+import services.k_int.interaction.sierra.SierraBibRecord;
 import services.k_int.utils.UUIDUtils;
 
 @Singleton
@@ -41,7 +39,7 @@ public class SierraIngestSource implements IngestSource {
 	}
 
 	@Override
-	public Publisher<IngestRecord> apply(Instant since) {
+	public Publisher<IngestRecordDef> apply(Instant since) {
 		
 		log.info("Fetching from Sierra");
 
@@ -54,7 +52,7 @@ public class SierraIngestSource implements IngestSource {
 								log.info(s);
 								return null;
 							}))
-				.map(sierraBib -> IngestRecordBuilder.builder()
+				.map(sierraBib -> IngestRecord.builder()
 						.uuid(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE, sierraBib.id()))
 						.title(sierraBib.title())
 						.build());
@@ -63,38 +61,36 @@ public class SierraIngestSource implements IngestSource {
 	private Publisher<SierraBibRecord> scrollAllResults(final Instant since, final int offset, final int limit) {
 		log.info("Fetching batch from Sierra API");
 
-		final SierraBibParams apiParams = SierraBibParams.build(params -> {
+		return Mono.from(sierraApi.bibs(params -> {
 			params
 				.deleted(false)
 				.offset(offset)
 				.limit(limit);
 			
 			if (since != null) {
-
 				params
-					.updatedDate(SierraDateTimeRange.build(dtr -> {
+					.updatedDate(dtr -> {
 						dtr
 							.to(LocalDateTime.now())
 							.from(LocalDateTime.from(since));
-					}));
+					});
 			}
-		});
-
-		return Mono.from(sierraApi.bibs(apiParams)).flatMapMany(resp -> {
-
-			final List<SierraBibRecord> bibs = resp.entries();
-			log.info("Fetched a chunk of {} records", bibs.size());
-			final int nextOffset = resp.start() + bibs.size();
-			final boolean possiblyMore = bibs.size() == limit;
-
-			if (!possiblyMore) {
-				log.info("No more results to fetch");
-			}
-
-			final Flux<SierraBibRecord> currentPage = Flux.fromIterable(bibs);
-			
-			// Try next page if there is the possibility of more results.
-			return possiblyMore ? Flux.concat(currentPage, scrollAllResults(since, nextOffset, limit)) : currentPage;
-		});
+		}))
+			.flatMapMany(resp -> {
+	
+				final List<SierraBibRecord> bibs = resp.entries();
+				log.info("Fetched a chunk of {} records", bibs.size());
+				final int nextOffset = resp.start() + bibs.size();
+				final boolean possiblyMore = bibs.size() == limit;
+	
+				if (!possiblyMore) {
+					log.info("No more results to fetch");
+				}
+	
+				final Flux<SierraBibRecord> currentPage = Flux.fromIterable(bibs);
+				
+				// Try next page if there is the possibility of more results.
+				return possiblyMore ? Flux.concat(currentPage, scrollAllResults(since, nextOffset, limit)) : currentPage;
+			});
 	}
 }

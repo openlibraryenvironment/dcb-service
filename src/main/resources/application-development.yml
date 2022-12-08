@@ -1,0 +1,13 @@
+### App config
+gokb:
+  ingest:
+    enabled: false
+
+sierra:
+  ingest:
+    enabled: true
+  
+  client:
+    api:
+      key: "9/FnXtNb5qWahEcHpMiL/OlSJe0b"
+      secret: "I8g9uNbzs3"
