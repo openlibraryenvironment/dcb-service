@@ -6,7 +6,6 @@ import java.time.Instant;
 import java.util.UUID;
 
 import org.olf.reshare.dcb.ingest.IngestRecord;
-import org.olf.reshare.dcb.ingest.IngestRecordDef;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -37,17 +36,18 @@ public class GokbIngestSource implements IngestSource {
 	}
 
 	@Override
-	public Publisher<IngestRecordDef> apply(Instant since) {
+	public Publisher<IngestRecord> apply(Instant since) {
 
 		log.info("Fetching from GOKb");
 
 		// The stream of imported records.
 		return Flux.from(scrollAllResults(since, null)).name("gokp-tipps")
 				.filter(tipp -> tipp.tippTitleName() != null)
-				.map(tipp -> IngestRecord.builder()
+				.map(tipp -> IngestRecord.build( record -> {
+					record
 						.uuid(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE, tipp.uuid().toString()))
-						.title(tipp.tippTitleName())
-						.build());
+						.title(tipp.tippTitleName());
+				}));
 	}
 
 	private Publisher<GokbTipp> scrollAllResults(final Instant lastRun, final String scrollId) {

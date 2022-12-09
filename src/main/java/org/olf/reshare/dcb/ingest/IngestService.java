@@ -27,7 +27,6 @@ public class IngestService implements Runnable {
 	private final BibRecordService bibRecordService;
 
 	private final List<IngestSource> ingestSources;
-	
 
 	IngestService(BibRecordService bibRecordService, List<IngestSource> ingestSources) {
 		this.bibRecordService = bibRecordService;

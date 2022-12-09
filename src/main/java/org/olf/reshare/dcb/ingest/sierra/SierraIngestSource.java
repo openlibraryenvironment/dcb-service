@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.UUID;
 
 import org.olf.reshare.dcb.ingest.IngestRecord;
-import org.olf.reshare.dcb.ingest.IngestRecordDef;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -19,7 +18,7 @@ import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraApiClient;
-import services.k_int.interaction.sierra.SierraBibRecord;
+import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.utils.UUIDUtils;
 
 @Singleton
@@ -39,7 +38,7 @@ public class SierraIngestSource implements IngestSource {
 	}
 
 	@Override
-	public Publisher<IngestRecordDef> apply(Instant since) {
+	public Publisher<IngestRecord> apply(Instant since) {
 		
 		log.info("Fetching from Sierra");
 
@@ -58,7 +57,7 @@ public class SierraIngestSource implements IngestSource {
 						.build());
 	}
 	
-	private Publisher<SierraBibRecord> scrollAllResults(final Instant since, final int offset, final int limit) {
+	private Publisher<BibResult> scrollAllResults(final Instant since, final int offset, final int limit) {
 		log.info("Fetching batch from Sierra API");
 
 		return Mono.from(sierraApi.bibs(params -> {
@@ -78,7 +77,7 @@ public class SierraIngestSource implements IngestSource {
 		}))
 			.flatMapMany(resp -> {
 	
-				final List<SierraBibRecord> bibs = resp.entries();
+				final List<BibResult> bibs = resp.entries();
 				log.info("Fetched a chunk of {} records", bibs.size());
 				final int nextOffset = resp.start() + bibs.size();
 				final boolean possiblyMore = bibs.size() == limit;
@@ -87,7 +86,7 @@ public class SierraIngestSource implements IngestSource {
 					log.info("No more results to fetch");
 				}
 	
-				final Flux<SierraBibRecord> currentPage = Flux.fromIterable(bibs);
+				final Flux<BibResult> currentPage = Flux.fromIterable(bibs);
 				
 				// Try next page if there is the possibility of more results.
 				return possiblyMore ? Flux.concat(currentPage, scrollAllResults(since, nextOffset, limit)) : currentPage;

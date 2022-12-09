@@ -7,13 +7,14 @@ import java.util.function.Consumer;
 
 import javax.validation.constraints.NotNull;
 
-import org.immutables.value.Value;
+import org.immutables.value.Value.Immutable;
 
 import jakarta.annotation.Nullable;
+import services.k_int.interaction.DefaultImmutableStyle;
 
-@Value.Immutable
-@Value.Style(typeImmutable = "*", typeAbstract = {"*Def"})
-public abstract class SierraDateTimeRangeDef {
+@Immutable
+@DefaultImmutableStyle
+public abstract class DateTimeRange {
 
 	@NotNull
 	abstract LocalDateTime from();
@@ -33,13 +34,10 @@ public abstract class SierraDateTimeRangeDef {
 
 		return String.format("[%s,%s]", fromStr, toStr);
 	}
-
 	
-	public static class Builder extends SierraDateTimeRange.Builder {
-		
-	}
+	public static class Builder extends DateTimeRangeImpl.Builder {}
 	
-	public static SierraDateTimeRange build( Consumer<Builder> consumer ) {
+	public static DateTimeRange build( Consumer<Builder> consumer ) {
 		Builder builder = builder();
 		consumer.accept(builder);
 		return builder.build();
@@ -48,14 +46,4 @@ public abstract class SierraDateTimeRangeDef {
 	public static Builder builder() {
 		return new Builder();
 	}
-
-//	public static SierraDateTimeRangeBuilder builder() {
-//		return SierraDateTimeRangeBuilder.builder();
-//	}
-//	
-//	public static SierraDateTimeRange build( Consumer<SierraDateTimeRangeBuilder> consumer ) {
-//		SierraDateTimeRangeBuilder builder = builder();
-//		consumer.accept(builder);
-//		return builder.build();
-//	}
 }

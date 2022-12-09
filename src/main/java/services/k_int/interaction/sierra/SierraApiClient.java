@@ -26,6 +26,8 @@ import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.retry.annotation.Retryable;
 import services.k_int.interaction.auth.AuthToken;
+import services.k_int.interaction.sierra.bibs.BibParams;
+import services.k_int.interaction.sierra.bibs.BibResultSet;
 
 @Client(value = "${" + SierraApiClient.CONFIG_ROOT + ".api.url:`https://sandbox.iii.com/iii/sierra-api/v6`}", errorType = SierraError.class)
 @Header(name = ACCEPT, value = APPLICATION_JSON)
@@ -55,7 +57,7 @@ public interface SierraApiClient {
 	@SingleResult
 	@Get("/bibs/")
 	@Retryable
-	Publisher<SierraBibResultSet> bibs (
+	Publisher<BibResultSet> bibs (
 			@Nullable @QueryValue("limit") final Integer limit, 
 			@Nullable @QueryValue("offset") final Integer offset,
 			@Nullable @QueryValue("createdDate") final String createdDate,
@@ -67,7 +69,7 @@ public interface SierraApiClient {
 			@Nullable @QueryValue("locations") @Format("CSV") final Iterable<String> locations);
 	
 	@SingleResult
-	default Publisher<SierraBibResultSet> bibs (SierraBibParamsDef params) {
+	default Publisher<BibResultSet> bibs (BibParams params) {
 		return bibs (
 				params.limit(),
 				params.offset(),
@@ -81,8 +83,8 @@ public interface SierraApiClient {
 	}
 	
 	@SingleResult
-	public default Publisher<SierraBibResultSet> bibs (Consumer<SierraBibParamsDef.Builder> consumer) {
-		return bibs(SierraBibParamsDef.build(consumer));
+	public default Publisher<BibResultSet> bibs (Consumer<BibParams.Builder> consumer) {
+		return bibs(BibParams.build(consumer));
 	}
 	
 	private static <T> Collection<T> nullIfEmpty (Collection<T> collection) {

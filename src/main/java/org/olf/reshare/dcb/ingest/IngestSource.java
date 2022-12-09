@@ -7,7 +7,7 @@ import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.Nullable;
 
-public interface IngestSource extends Function<Instant, Publisher<IngestRecordDef>> {
+public interface IngestSource extends Function<Instant, Publisher<IngestRecord>> {
 	
 	/**
 	 * Take in an Instant representing the point in time to use as the changed since
@@ -17,5 +17,5 @@ public interface IngestSource extends Function<Instant, Publisher<IngestRecordDe
 	 * @return A Publisher of IngestRecords 
 	 */
 	@Override
-	Publisher<IngestRecordDef> apply(@Nullable Instant changedSince);
+	Publisher<IngestRecord> apply(@Nullable Instant changedSince);
 }
