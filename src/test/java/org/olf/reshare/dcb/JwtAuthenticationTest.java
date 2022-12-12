@@ -17,6 +17,9 @@ import com.nimbusds.jwt.SignedJWT;
 
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
+import static io.micronaut.http.HttpStatus.OK;
+import static io.micronaut.http.MediaType.TEXT_PLAIN;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
