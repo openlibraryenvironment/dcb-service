@@ -1,4 +1,4 @@
-### App config
+### Development config
 gokb:
   ingest:
     enabled: false
