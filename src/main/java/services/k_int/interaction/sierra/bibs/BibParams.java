@@ -8,7 +8,6 @@ import org.immutables.value.Value.Immutable;
 import jakarta.annotation.Nullable;
 import services.k_int.interaction.DefaultImmutableStyle;
 import services.k_int.interaction.sierra.DateTimeRange;
-import services.k_int.interaction.sierra.DateTimeRange;
 
 @Immutable
 @DefaultImmutableStyle

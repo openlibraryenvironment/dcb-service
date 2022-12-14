@@ -1,12 +1,9 @@
 package org.olf.reshare.dcb.ingest.gokb;
 
-import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-
 import java.time.Instant;
-import java.util.UUID;
 
-import org.olf.reshare.dcb.ingest.IngestRecord;
 import org.olf.reshare.dcb.ingest.IngestSource;
+import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +14,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.gokb.GokbApiClient;
 import services.k_int.interaction.gokb.GokbTipp;
-import services.k_int.utils.UUIDUtils;
 
 @Singleton
 @Requires(property = (GokbIngestSource.CONFIG_ROOT + ".enabled"), value = "true", defaultValue = "false")
@@ -26,8 +22,6 @@ public class GokbIngestSource implements IngestSource {
 	public static final String CONFIG_ROOT = "gokb.ingest";
 
 	private static Logger log = LoggerFactory.getLogger(GokbIngestSource.class);
-	public static final UUID NAMESPACE = UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB,
-			GokbIngestSource.class.getSimpleName());
 
 	private final GokbApiClient gokbapi;
 
@@ -45,7 +39,7 @@ public class GokbIngestSource implements IngestSource {
 				.filter(tipp -> tipp.tippTitleName() != null)
 				.map(tipp -> IngestRecord.build( record -> {
 					record
-						.uuid(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE, tipp.uuid().toString()))
+						.uuid(getUUID5ForId(tipp.uuid().toString()))
 						.title(tipp.tippTitleName());
 				}));
 	}

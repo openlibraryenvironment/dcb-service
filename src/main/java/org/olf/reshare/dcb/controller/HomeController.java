@@ -1,13 +1,14 @@
 package org.olf.reshare.dcb.controller;
 
+import static io.micronaut.http.MediaType.TEXT_PLAIN;
+import static io.micronaut.security.rules.SecurityRule.IS_AUTHENTICATED;
+
+import java.security.Principal;
+
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Produces;
 import io.micronaut.security.annotation.Secured;
-import java.security.Principal;
-
-import static io.micronaut.security.rules.SecurityRule.IS_AUTHENTICATED;
-import static io.micronaut.http.MediaType.TEXT_PLAIN;
 
 /**
  * 

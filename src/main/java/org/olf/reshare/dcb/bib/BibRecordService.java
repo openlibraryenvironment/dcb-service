@@ -5,7 +5,7 @@ import java.util.List;
 
 import javax.transaction.Transactional;
 
-import org.olf.reshare.dcb.ingest.IngestRecord;
+import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.olf.reshare.dcb.model.BibRecord;
 import org.olf.reshare.dcb.processing.ProcessingStep;
 import org.olf.reshare.dcb.storage.BibRepository;

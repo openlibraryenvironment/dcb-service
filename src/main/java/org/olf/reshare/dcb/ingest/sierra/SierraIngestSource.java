@@ -1,14 +1,11 @@
 package org.olf.reshare.dcb.ingest.sierra;
 
-import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
-import org.olf.reshare.dcb.ingest.IngestRecord;
 import org.olf.reshare.dcb.ingest.IngestSource;
+import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +16,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibResult;
-import services.k_int.utils.UUIDUtils;
 
 @Singleton
 @Requires(property = (SierraIngestSource.CONFIG_ROOT + ".enabled"), value = "true", defaultValue = "false")
@@ -28,8 +24,6 @@ public class SierraIngestSource implements IngestSource {
 	public static final String CONFIG_ROOT = "sierra.ingest";
 
 	private static Logger log = LoggerFactory.getLogger(SierraIngestSource.class);
-	public static final UUID NAMESPACE = UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB,
-			SierraIngestSource.class.getSimpleName());
 
 	private final SierraApiClient sierraApi;
 
@@ -52,8 +46,8 @@ public class SierraIngestSource implements IngestSource {
 								return null;
 							}))
 				.map(sierraBib -> IngestRecord.builder()
-						.uuid(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE, sierraBib.id()))
-						.title(sierraBib.title())
+						.uuid( getUUID5ForId(sierraBib.id()) )
+						.title( sierraBib.title() )
 						.build());
 	}
 	
