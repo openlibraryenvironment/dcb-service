@@ -26,30 +26,26 @@ import org.slf4j.LoggerFactory;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.util.StringUtils;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-public abstract class MarcIngestSource implements IngestSource {
+public abstract class MarcIngestSource<T> implements IngestSource {
 	
 	private final static String REGEX_NAMESPACE_ID_PAIR = "^((\\(([^)]+)\\))|(([^:]+):))(.*)$";
 
 	private static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
 
-	protected abstract Publisher<Record> getRecords(Instant since);
-
-	protected IngestRecord marcRecordToIngestRecord(final Record marcRecord) {
-		return IngestRecord.build(ir -> {
+	protected IngestRecord.Builder populateRecordFromMarc ( final IngestRecord.Builder ingestRecord, final Record marcRecord ) {
 			
-			ir.uuid( getUUID5ForId(marcRecord.getId() + "") );
-			
-			// Title(s)
-			enrichWithTitleInformation(ir, marcRecord);
-			
-			// Identifiers
-			enrichWithIdentifiers(ir, marcRecord);
-			
-			// Author(s)
-			enrichWithAuthorInformation(ir, marcRecord);
-			
-		});
+		// Title(s)
+		enrichWithTitleInformation(ingestRecord, marcRecord);
+		
+		// Identifiers
+		enrichWithIdentifiers(ingestRecord, marcRecord);
+		
+		// Author(s)
+		enrichWithAuthorInformation(ingestRecord, marcRecord);
+		
+		return ingestRecord;
 	}
 	
 	@NonNull
@@ -112,23 +108,22 @@ public abstract class MarcIngestSource implements IngestSource {
 		
 		Optional.ofNullable(marcRecord.getControlNumber())
 			.filter( StringUtils::isNotEmpty )
-			.ifPresent( cn -> {
+			.flatMap( cn -> {
 				final String cnAuthority = extractControlData(marcRecord, "003")
 						.findFirst()
 						.orElse(getDefaultControlIdNamespace());
 				
-				if (StringUtils.isNotEmpty(cnAuthority)) {
-					ingestRecord.addIdentifiers(id -> {
+				return Optional.ofNullable( StringUtils.isEmpty(cnAuthority) ? null : Identifier.build(id -> {
 						id.namespace(cnAuthority)
 							.value(cn);
-					});
-				}
-			});
+					}));
+			})
+			.ifPresent(ingestRecord::addIdentifiers);
 		
 		return ingestRecord;
 	}
 	
-	protected IngestRecord.Builder handleSystemControlNumber( final IngestRecord.Builder ingestRecord, final Record marcRecord  ) {
+	protected IngestRecord.Builder handleSystemControlNumber( final IngestRecord.Builder ingestRecord, final Record marcRecord ) {
 		extractSubfieldData(marcRecord, "035", "a")
 			.forEach( val -> {
 				final Pattern pattern = Pattern.compile(REGEX_NAMESPACE_ID_PAIR);
@@ -144,8 +139,6 @@ public abstract class MarcIngestSource implements IngestSource {
 		
 		return ingestRecord;
 	}
-	
-
 	
 	private static final Map<String, String> IDENTIFIER_FIELD_NAMESPACE = Map.of(
 		"010", "LCCN",
@@ -164,8 +157,8 @@ public abstract class MarcIngestSource implements IngestSource {
 			.filter( Objects::nonNull )
 			.map( DataField.class::cast )
 			.forEach(df -> {
-				
 				Optional.ofNullable(df.getSubfieldsAsString("a"))
+					.filter( StringUtils::isNotEmpty )
 					.ifPresent(sfs -> {
 						ingestRecord.addIdentifiers(id -> {
 							id.namespace(IDENTIFIER_FIELD_NAMESPACE.get(df.getTag()))
@@ -196,7 +189,6 @@ public abstract class MarcIngestSource implements IngestSource {
 			.forEach(cint -> {
 				sortValues.put((char)cint, sortValues.size());
 			});
-		
 	
 		return marcRecord.getVariableFields(tag).stream()
 			.filter( Objects::nonNull )
@@ -213,12 +205,23 @@ public abstract class MarcIngestSource implements IngestSource {
 					.map( sf -> sf.getData() )
 					.collect(Collectors.joining(delimiter)));
 	}
+	
+	protected abstract Publisher<T> getResources( Instant since );
+	protected abstract IngestRecord.Builder initIngestRecordBuilder ( T resource );
+	protected abstract Record resourceToMarc( T resource );
 
 	@Override
-	public Publisher<IngestRecord> apply(Instant since) {
+	public Publisher<IngestRecord> apply( Instant since ) {
 
 		log.info("Read from the marc source and publish a stream of IngestRecords");
 
-		return Flux.from(getRecords(since)).map(this::marcRecordToIngestRecord);
+		return Flux.from(getResources(since))
+			.flatMap(resource -> {
+				return Mono.just( initIngestRecordBuilder( resource ) )
+					.map( ir -> {
+						Record marcRecord = resourceToMarc( resource );
+						return populateRecordFromMarc(ir, marcRecord).build();
+					});
+			});
 	}
 }

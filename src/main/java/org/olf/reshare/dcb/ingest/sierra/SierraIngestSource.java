@@ -9,6 +9,7 @@ import javax.validation.constraints.NotNull;
 import org.marc4j.marc.Record;
 import org.olf.reshare.dcb.ingest.marc.MarcIngestSource;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
+import org.olf.reshare.dcb.ingest.model.IngestRecord.Builder;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +23,7 @@ import services.k_int.interaction.sierra.bibs.BibResult;
 
 @Singleton
 @Requires(property = (SierraIngestSource.CONFIG_ROOT + ".enabled"), value = "true", defaultValue = "false")
-public class SierraIngestSource extends MarcIngestSource {
+public class SierraIngestSource extends MarcIngestSource<BibResult> {
 
 	public static final String CONFIG_ROOT = "sierra.ingest";
 
@@ -74,23 +75,33 @@ public class SierraIngestSource extends MarcIngestSource {
 	}
 
 	@Override
-	protected Publisher<Record> getRecords(final Instant since) {
+	protected @NotNull String getDefaultControlIdNamespace() {
+		return "sierra";
+	}
+
+	@Override
+	protected Publisher<BibResult> getResources(Instant since) {
 		log.info("Fetching MARC JSON from Sierra");
 		
 		// The stream of imported records.
 		return Flux.from(scrollAllResults(since, 0, 2000))
-				.filter( sierraBib -> sierraBib.marc() != null )
-				.switchIfEmpty(
-						Flux.just("No results returned. Stopping")
-							.mapNotNull(s -> {
-								log.info(s);
-								return null;
-							}))
-				.map(sierraBib -> sierraBib.marc());
+			.filter( sierraBib -> sierraBib.marc() != null )
+			.switchIfEmpty(
+					Mono.just("No results returned. Stopping")
+						.mapNotNull(s -> {
+							log.info(s);
+							return null;
+						}));
 	}
 
 	@Override
-	protected @NotNull String getDefaultControlIdNamespace() {
-		return "sierra";
+	protected Builder initIngestRecordBuilder(BibResult resource) {
+		return IngestRecord.builder()
+			.uuid(getUUID5ForId(resource.id()));
+	}
+
+	@Override
+	protected Record resourceToMarc(BibResult resource) {
+		return resource.marc();
 	}
 }
