@@ -8,6 +8,7 @@ import javax.validation.constraints.NotNull;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 
+import org.marc4j.marc.Record;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 
@@ -25,6 +26,7 @@ public record BibResult(
 	@Nullable LocalDate deletedDate,
 	
 	@NotNull boolean deleted,
-	@Nullable String title) {
+	
+	@Nullable Record marc) {
 
 }

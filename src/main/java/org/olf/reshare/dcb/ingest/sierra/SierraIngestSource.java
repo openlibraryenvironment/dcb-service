@@ -4,7 +4,10 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import org.olf.reshare.dcb.ingest.IngestSource;
+import javax.validation.constraints.NotNull;
+
+import org.marc4j.marc.Record;
+import org.olf.reshare.dcb.ingest.marc.MarcIngestSource;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -19,7 +22,7 @@ import services.k_int.interaction.sierra.bibs.BibResult;
 
 @Singleton
 @Requires(property = (SierraIngestSource.CONFIG_ROOT + ".enabled"), value = "true", defaultValue = "false")
-public class SierraIngestSource implements IngestSource {
+public class SierraIngestSource extends MarcIngestSource {
 
 	public static final String CONFIG_ROOT = "sierra.ingest";
 
@@ -30,26 +33,6 @@ public class SierraIngestSource implements IngestSource {
 	SierraIngestSource(SierraApiClient sierraApi) {
 		this.sierraApi = sierraApi;
 	}
-
-	@Override
-	public Publisher<IngestRecord> apply(Instant since) {
-		
-		log.info("Fetching from Sierra");
-
-		// The stream of imported records.
-		return Flux.from(scrollAllResults(since, 0, 2000))
-				.filter( sierraBib -> sierraBib.title() != null )
-				.switchIfEmpty(
-						Flux.just("No results returned. Stopping")
-							.mapNotNull(s -> {
-								log.info(s);
-								return null;
-							}))
-				.map(sierraBib -> IngestRecord.builder()
-						.uuid( getUUID5ForId(sierraBib.id()) )
-						.title( sierraBib.title() )
-						.build());
-	}
 	
 	private Publisher<BibResult> scrollAllResults(final Instant since, final int offset, final int limit) {
 		log.info("Fetching batch from Sierra API");
@@ -58,7 +41,10 @@ public class SierraIngestSource implements IngestSource {
 			params
 				.deleted(false)
 				.offset(offset)
-				.limit(limit);
+				.limit(limit)
+				.addFields(
+						"id", "updatedDate", "createdDate",
+						"deletedDate", "deleted", "marc");
 			
 			if (since != null) {
 				params
@@ -85,5 +71,26 @@ public class SierraIngestSource implements IngestSource {
 				// Try next page if there is the possibility of more results.
 				return possiblyMore ? Flux.concat(currentPage, scrollAllResults(since, nextOffset, limit)) : currentPage;
 			});
+	}
+
+	@Override
+	protected Publisher<Record> getRecords(final Instant since) {
+		log.info("Fetching MARC JSON from Sierra");
+		
+		// The stream of imported records.
+		return Flux.from(scrollAllResults(since, 0, 2000))
+				.filter( sierraBib -> sierraBib.marc() != null )
+				.switchIfEmpty(
+						Flux.just("No results returned. Stopping")
+							.mapNotNull(s -> {
+								log.info(s);
+								return null;
+							}))
+				.map(sierraBib -> sierraBib.marc());
+	}
+
+	@Override
+	protected @NotNull String getDefaultControlIdNamespace() {
+		return "sierra";
 	}
 }

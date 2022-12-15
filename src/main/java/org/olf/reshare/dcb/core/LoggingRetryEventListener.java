@@ -25,7 +25,7 @@ public class LoggingRetryEventListener implements RetryEventListener {
 		if (!log.isInfoEnabled()) {
 			return;
 		}
-		
+				
 		final var source = retry.getSource();
 		final String args = Arrays.stream(
 				source.getParameterValues())
@@ -37,5 +37,6 @@ public class LoggingRetryEventListener implements RetryEventListener {
 				retry.getRetryState().currentAttempt(),
 				source.getDeclaringType().getSimpleName(),
 				source.getName(), args);
+		log.debug("Caused by: {}", retry.getThrowable());
 	}
 }

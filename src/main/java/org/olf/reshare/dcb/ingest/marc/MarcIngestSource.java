@@ -33,7 +33,7 @@ public abstract class MarcIngestSource implements IngestSource {
 
 	private static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
 
-	protected abstract Publisher<Record> getRecords();
+	protected abstract Publisher<Record> getRecords(Instant since);
 
 	protected IngestRecord marcRecordToIngestRecord(final Record marcRecord) {
 		return IngestRecord.build(ir -> {
@@ -60,6 +60,7 @@ public abstract class MarcIngestSource implements IngestSource {
 		
 		Stream.of( "100", "110", "700", "710")
 			.map( tag -> marcRecord.getVariableField(tag) )
+			.filter( Objects::nonNull )
 			.map( DataField.class::cast )
 			.map( df -> {
 				String authorName;
@@ -88,6 +89,7 @@ public abstract class MarcIngestSource implements IngestSource {
 	protected IngestRecord.Builder enrichWithTitleInformation ( final IngestRecord.Builder ingestRecord, final Record marcRecord ) {
 		// Initial title.
 		final String title = Stream.of( "245", "243", "240", "246", "222", "210", "240", "247", "130" )
+			.filter( Objects::nonNull )
 			.flatMap( tag -> extractSubfieldData(marcRecord, tag, "abc") )
 			.filter( StringUtils::isNotEmpty )
 			.reduce( ingestRecord.build().title(), ( current, item ) -> {
@@ -108,7 +110,7 @@ public abstract class MarcIngestSource implements IngestSource {
 	protected IngestRecord.Builder handleControlNumber( final IngestRecord.Builder ingestRecord, final Record marcRecord ) {
 		// Grab the pair of 001 and 003. These contain the identifier value and namespace respectively
 		
-		Optional.of(marcRecord.getControlNumber())
+		Optional.ofNullable(marcRecord.getControlNumber())
 			.filter( StringUtils::isNotEmpty )
 			.ifPresent( cn -> {
 				final String cnAuthority = extractControlData(marcRecord, "003")
@@ -159,12 +161,17 @@ public abstract class MarcIngestSource implements IngestSource {
 		
 		IDENTIFIER_FIELD_NAMESPACE.keySet().stream()
 			.flatMap( tag -> marcRecord.getVariableFields(tag).stream() )
+			.filter( Objects::nonNull )
 			.map( DataField.class::cast )
 			.forEach(df -> {
-				ingestRecord.addIdentifiers(id -> {
-					id.namespace(IDENTIFIER_FIELD_NAMESPACE.get(df.getTag()))
-						.value(df.getSubfieldsAsString("a"));
-				});
+				
+				Optional.ofNullable(df.getSubfieldsAsString("a"))
+					.ifPresent(sfs -> {
+						ingestRecord.addIdentifiers(id -> {
+							id.namespace(IDENTIFIER_FIELD_NAMESPACE.get(df.getTag()))
+								.value(sfs);
+						});
+					});
 			});
 		
 		return ingestRecord;
@@ -212,6 +219,6 @@ public abstract class MarcIngestSource implements IngestSource {
 
 		log.info("Read from the marc source and publish a stream of IngestRecords");
 
-		return Flux.from(getRecords()).map(this::marcRecordToIngestRecord);
+		return Flux.from(getRecords(since)).map(this::marcRecordToIngestRecord);
 	}
 }
