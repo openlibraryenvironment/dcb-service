@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.MarcFactory;
 import org.marc4j.marc.Record;
+import org.marc4j.marc.impl.MarcFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +20,8 @@ import jakarta.inject.Singleton;
 @Singleton
 public class Marc4jRecordSerde implements Serde<Record>{
 
-	private final MarcFactory factory = MarcFactory.newInstance();
+	// Instanciate the default class here. Works better with native compilation.
+	private final MarcFactory factory = new MarcFactoryImpl();
 
 	private static Logger log = LoggerFactory.getLogger(Marc4jRecordSerde.class);
 	
