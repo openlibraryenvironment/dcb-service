@@ -1,0 +1,84 @@
+{
+	"total": 3,
+	"start": 0,
+	"entries": [
+		{
+			"id": "1000001",
+			"updatedDate": "2022-02-15T14:18:05Z",
+			"createdDate": "2003-05-08T15:55:00Z",
+			"deleted": false,
+			"suppressed": false,
+			"lang": {
+				"code": "eng"
+			},
+			"title": "Hey, what's wrong with this one",
+			"author": "Wojciechowska, Maia,",
+			"materialType": {
+				"code": "a  ",
+				"value": "Book"
+			},
+			"bibLevel": {
+				"code": "m",
+				"value": "MONOGRAPH"
+			},
+			"publishYear": 1969,
+			"catalogDate": "1990-10-10",
+			"country": {
+				"code": "nyu",
+				"name": "New York (State)"
+			}
+		},
+		{
+			"id": "1000003",
+			"updatedDate": "2022-08-09T22:12:06Z",
+			"createdDate": "2003-05-08T15:55:13Z",
+			"deleted": false,
+			"suppressed": false,
+			"lang": {
+				"code": "eng"
+			},
+			"title": "Basic circuit theory",
+			"author": "Desoer, Charles A.",
+			"materialType": {
+				"code": "a  ",
+				"value": "Book"
+			},
+			"bibLevel": {
+				"code": "m",
+				"value": "MONOGRAPH"
+			},
+			"publishYear": 1969,
+			"catalogDate": "1990-10-10",
+			"country": {
+				"code": "mau",
+				"name": "Massachusetts"
+			}
+		},
+		{
+			"id": "1000005",
+			"updatedDate": "2022-04-13T22:07:56Z",
+			"createdDate": "2003-05-08T15:55:13Z",
+			"deleted": false,
+			"suppressed": false,
+			"lang": {
+				"code": "eng"
+			},
+			"title": "The Soviet economy; structure, principles, problems.",
+			"author": "Spulber, Nicolas.",
+			"materialType": {
+				"code": "g  ",
+				"value": "Video (VHS)"
+			},
+			"bibLevel": {
+				"code": "m",
+				"value": "MONOGRAPH"
+			},
+			"publishYear": 1969,
+			"catalogDate": "1990-10-10",
+			"country": {
+				"code": "nyu",
+				"name": "New York (State)"
+			}
+		}
+	]
+}
