@@ -493,5 +493,4 @@ public class SierraApiTests {
 		assertEquals(response.entries().get(1).id(), "1000003"); // 1000003?
 		assertEquals(response.entries().get(2).id(), "1000005"); // 1000004?
 	}
-
 }
