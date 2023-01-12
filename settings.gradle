@@ -1,3 +1,2 @@
-
-rootProject.name="dcb"
-
+rootProject.name = 'reshare-dcb-service'
+include 'dcb'

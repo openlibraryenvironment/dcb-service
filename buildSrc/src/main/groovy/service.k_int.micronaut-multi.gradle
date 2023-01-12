@@ -1,0 +1,29 @@
+import org.gradle.plugins.ide.eclipse.model.*;
+eclipse {
+	classpath {
+		file {
+			whenMerged { classpath ->
+				//you can tinker with the Classpath here
+				List entries = classpath.getEntries()
+				
+				def gen = new SourceFolder( '.apt_generated', null )
+					gen.getEntryAttributes().putAll([
+						'optional': true,
+						'gradle_scope': 'main',
+						'gradle_used_by_scope': ['main','test'].join(','),
+					])
+					
+				def test_gen = new SourceFolder( '.apt_generated_test', 'bin/test' )
+					test_gen.getEntryAttributes().putAll([
+						'optional': true,
+						'gradle_scope': 'test',
+						'gradle_used_by_scope': 'test',
+						'test': true
+					])
+				
+				entries << gen
+				entries << test_gen
+			}
+		}
+	}
+}
