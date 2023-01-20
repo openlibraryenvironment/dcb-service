@@ -12,9 +12,11 @@ import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.Relation.Kind;
+import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Column;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
+@Serdeable
 @ExcludeFromGeneratedCoverageReport
 @MappedEntity
 public class BibRecord {

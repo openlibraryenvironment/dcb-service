@@ -1,11 +1,11 @@
 ### Development config
-gokb:
-  ingest:
-    enabled: true
+#gokb:
+#  ingest:
+#    enabled: true
 
-sierra:
-  ingest:
-    enabled: true
+# sierra:
+#   ingest:
+#     enabled: true
   
   client:
     api:

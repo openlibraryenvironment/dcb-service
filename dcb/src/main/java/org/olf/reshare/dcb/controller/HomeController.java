@@ -9,12 +9,15 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Produces;
 import io.micronaut.security.annotation.Secured;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
  * 
  * Testing purposes
  *
  */
+
+@Tag(name = "Management API")
 @Secured(IS_AUTHENTICATED)
 @Controller
 public class HomeController {

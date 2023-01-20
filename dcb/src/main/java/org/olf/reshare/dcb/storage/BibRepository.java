@@ -10,6 +10,8 @@ import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
 
 public interface BibRepository {
 
@@ -27,6 +29,10 @@ public interface BibRepository {
 
 	@NonNull
 	Publisher<BibRecord> findAll();
+	
+	@NonNull
+	@SingleResult
+	Publisher<Page<BibRecord>> findAll(Pageable page);
 	
 	@NonNull
 	@SingleResult

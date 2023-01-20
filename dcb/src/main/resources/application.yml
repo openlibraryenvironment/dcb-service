@@ -4,11 +4,16 @@ micronaut:
   router:
     static-resources:
       swagger:
+        enabled: true
         paths: classpath:META-INF/swagger
         mapping: /swagger/**
       swagger-ui:
+        enabled: true
         paths: classpath:META-INF/swagger/views/swagger-ui
         mapping: /swagger-ui/**
+      redoc:
+        paths: classpath:META-INF/swagger/views/redoc
+        mapping: /redoc/**
   security:
     authentication: bearer
     token:
@@ -20,8 +25,22 @@ micronaut:
           secret:
             generator:
               secret: "${token.secret:placeholder}"
-              base64: true 
+              base64: true
               jws-algorithm: HS256
+
+    intercept-url-map:
+      - pattern: "/swagger/**"
+        access:
+          - isAnonymous()
+      -
+        pattern: "/swagger-ui/**"
+        access:
+          - isAnonymous()
+      -
+        pattern: "/redoc/**"
+        access:
+          - isAnonymous()
+
   http:
     client:
       read-timeout: PT30S
