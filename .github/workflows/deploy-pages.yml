@@ -26,6 +26,8 @@ concurrency:
 
 jobs:
   deploy:
+    env:
+      MICRONAUT_OPENAPI_VIEWS_SPEC: "mapping.path=/reshare-dcb-service/openapi"
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
