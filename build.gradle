@@ -28,3 +28,12 @@ repositories {
 	maven { url "https://maven.k-int.com/content/repositories/releases" }
 }
 
+task staticCopyOpenApi (type: Copy) {
+	from('dcb/build/classes/java/main/META-INF/swagger') {
+		include '*.yml'
+	}
+	
+	from('dcb/build/classes/java/main/META-INF/swagger/views/redoc/')
+	
+	into 'build/docs/asciidoc/openapi'
+}

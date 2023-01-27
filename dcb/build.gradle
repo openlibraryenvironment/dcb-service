@@ -108,6 +108,8 @@ micronaut {
 final Set<String> jacocoExcludes = ['**/Application.class']
 
 tasks {
+	
+	
 	final Map<String, String> labels = [
 		'maintainer'  : 'Steve Osguthorpe <steve.osguthorpe@k-int.com>',
 		'version'     : project.hasProperty('versionWithMeta') ? project.getProperty('versionWithMeta') : project.getProperty('version')
