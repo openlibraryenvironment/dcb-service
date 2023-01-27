@@ -29,6 +29,9 @@ repositories {
 }
 
 task staticCopyOpenApi (type: Copy) {
+	
+	dependsOn 'dcb:assemble'
+	
 	from('dcb/build/classes/java/main/META-INF/swagger') {
 		include '*.yml'
 	}
