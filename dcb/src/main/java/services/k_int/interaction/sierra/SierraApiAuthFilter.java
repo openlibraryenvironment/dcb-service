@@ -42,7 +42,7 @@ public class SierraApiAuthFilter implements HttpClientFilter {
 
 	@Override
 	public Publisher<? extends HttpResponse<?>> doFilter(MutableHttpRequest<?> request, ClientFilterChain chain) {
-
+		
 		return Mono.justOrEmpty(currentToken)
 		  .filter( token -> !currentToken.isExpired() )
 			.switchIfEmpty(

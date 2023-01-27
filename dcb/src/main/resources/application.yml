@@ -6,14 +6,14 @@ micronaut:
       swagger:
         enabled: true
         paths: classpath:META-INF/swagger
-        mapping: /swagger/**
+        mapping: /openapi/**
       swagger-ui:
         enabled: true
         paths: classpath:META-INF/swagger/views/swagger-ui
-        mapping: /swagger-ui/**
+        mapping: /openapi/ui/**
       redoc:
         paths: classpath:META-INF/swagger/views/redoc
-        mapping: /redoc/**
+        mapping: /openapi/redoc/**
   security:
     authentication: bearer
     token:
@@ -29,15 +29,7 @@ micronaut:
               jws-algorithm: HS256
 
     intercept-url-map:
-      - pattern: "/swagger/**"
-        access:
-          - isAnonymous()
-      -
-        pattern: "/swagger-ui/**"
-        access:
-          - isAnonymous()
-      -
-        pattern: "/redoc/**"
+      - pattern: "/openapi/**"
         access:
           - isAnonymous()
 
