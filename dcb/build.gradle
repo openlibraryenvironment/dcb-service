@@ -9,7 +9,6 @@ plugins {
 	id("io.micronaut.application") version "3.7.0"
 	id("io.micronaut.test-resources") version "3.7.0"
 	id('jacoco')
-	
 	id 'org.olf.reshare.dcb-bom'
 	id 'service.k_int.micronaut-multi'
 }
@@ -70,18 +69,27 @@ dependencies {
         implementation("io.micronaut.data:micronaut-data-r2dbc")
         implementation("io.micronaut.data:micronaut-data-jdbc")
         implementation("io.micronaut.sql:micronaut-jdbc-hikari")
+
 	runtimeOnly("org.postgresql:postgresql")
         // Without this dependency, testcontainer injection seems not to happen at all.
         // Wonder if this is because the bean that uses PG is a r2dbc service
         runtimeOnly("org.postgresql:r2dbc-postgresql")
-	runtimeOnly("io.r2dbc:r2dbc-pool")
+
+        // Uncommmenting this dependency results in
+        // testresources Micronaut Message: Could not resolve placeholder ${auto.test.resources.r2dbc.datasources.default.options.protocol}
+        //
+	// runtimeOnly("io.r2dbc:r2dbc-pool")
+
+
 	runtimeOnly('io.r2dbc:r2dbc-postgresql')
         implementation("io.micronaut.flyway:micronaut-flyway")
 
-	
 	// Tests
 
+  testImplementation("io.micronaut.test:micronaut-test-junit5")
   testImplementation('org.mock-server:mockserver-junit-jupiter')
+  testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+
         testImplementation(platform("org.testcontainers:testcontainers-bom:1.14.3"))
         testRuntimeOnly("org.testcontainers:postgresql")
 }

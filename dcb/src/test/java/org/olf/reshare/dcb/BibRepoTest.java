@@ -17,9 +17,10 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.List;
+import org.junit.jupiter.api.Order;
 
-@TestMethodOrder(OrderAnnotation.class)
 @DcbTest
+@TestMethodOrder(OrderAnnotation.class)
 class BibRepoTest {
 
 
@@ -32,6 +33,7 @@ class BibRepoTest {
 	BibRepository bibRepo;
 
 	@Test
+        @Order(1)
 	void testBibCreation () {
                 log.debug("1. testBibCreation");
 

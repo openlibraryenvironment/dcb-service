@@ -27,12 +27,10 @@ micronaut:
               secret: "${token.secret:placeholder}"
               base64: true
               jws-algorithm: HS256
-
     intercept-url-map:
       - pattern: "/openapi/**"
         access:
           - isAnonymous()
-
   http:
     client:
       read-timeout: PT30S
