@@ -40,6 +40,7 @@ dependencies {
 	annotationProcessor('io.micronaut.security:micronaut-security-annotations')
 	annotationProcessor("io.micronaut.data:micronaut-data-processor")
 
+
 	
 	// Implementation
 	implementation("io.micronaut.security:micronaut-security-jwt")
@@ -71,13 +72,15 @@ dependencies {
   implementation("io.micronaut.data:micronaut-data-r2dbc")
 	runtimeOnly("org.postgresql:postgresql")
 	runtimeOnly("io.r2dbc:r2dbc-pool")
-	
 	runtimeOnly('io.r2dbc:r2dbc-postgresql')
 	
 	// Tests
+
   testImplementation('org.mock-server:mockserver-junit-jupiter')
-	testRuntimeOnly("com.h2database:h2")
-	testRuntimeOnly('io.r2dbc:r2dbc-h2')
+        testImplementation(platform("org.testcontainers:testcontainers-bom:1.14.3"))
+        testRuntimeOnly("org.testcontainers:postgresql")
+	// testRuntimeOnly("com.h2database:h2")
+	// testRuntimeOnly('io.r2dbc:r2dbc-h2')
 }
 
 application {

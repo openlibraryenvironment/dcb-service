@@ -58,7 +58,7 @@ r2dbc:
       password: "${db.password:dcb}"
       dialect: postgres
       
-      schema-generate: CREATE
+      # schema-generate: CREATE
       
 # elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
 netty:

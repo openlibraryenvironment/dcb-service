@@ -23,24 +23,27 @@ micronaut:
               base64: true 
               jws-algorithm: HS256
 
+# testresources will look inside this config to try and work out what kind of container
+# should be provisioned. Once it detects postgres, it will inject the username, password, url
+# of a provisioned postgres instance.
+datasources:
+  default:
+    driverClassName: org.postgresql.Driver
+    schema-generate: NONE
+    db-type: postgres
+    dialect: POSTGRES
+
 r2dbc:
   datasources:
     default:
-      options:
-        driver: pool
-        poolName: r2dbc
-        protocol: h2:mem
-        maxSize: 5
-        initialSize: 5
-        maxLifeTime: PT280S
-        maxIdleTime: PT240S
-        maxAcquireTime: PT6S
-      
-      #driver: h2
-      url: "r2dbc:h2:mem:///dcbtest;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
-      dialect: postgres
-      
-      schema-generate: CREATE_DROP
+      enabled: true
+      # https://micronaut-projects.github.io/micronaut-test-resources/latest/guide/
+      # Specify db-type so test resources knows what to provision
+      db-type: postgres
+      # url: ${DB_URL:`r2dbc:postgresql://localhost:5432/postgres`}
+      # username: ${DB_USER:`postgres`}
+      # password: ${DB_PASSWORD:`pass`}
+
 #elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
 netty:
   default:
