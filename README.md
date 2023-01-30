@@ -12,9 +12,18 @@ This module is distributed in source and precompiled docker container form:
 # Deployment
 
 The module is deployed as a docker container which supports the following runtime ENV settings
+
+Note: Today flyway does not support r2dbc datasources, so we need to configure both JDBC and R2DBC datasources - same
+DB connection effectively, 2 different connections - with JDBC only being used for database migrations.
+
 | ENV | Description | Example |
 |---|---|---|
-||||
+|r2dbc_datasources_default_url|R2DBC Connect URL|r2dbc:postgresql://localhost:5432/dcb|
+|r2dbc_datasources_default_username|R2DBC Username|dcb|
+|r2dbc_datasources_default_password|R2DBC Password|dcb
+|datasources_default_url|JDBC Connect URL|jdbc:postgresql://localhost:5432/dcb|
+|datasources_default_username|JDBC Username|dcb|
+|datasources_default_password|JDBC Password|dcb|
 
 # API Documentation
 
