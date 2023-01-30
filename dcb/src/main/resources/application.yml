@@ -37,28 +37,36 @@ micronaut:
     client:
       read-timeout: PT30S
 
+flyway:
+  enabled: true
+  datasources:
+    default:
+      enabled: true
+      # locations:
+      #   - classpath:db/migrations
+      # default-schema: r2dbc-poc
+      # url: ${DB_URL:`r2dbc:postgresql://localhost:5432/postgres`}
+      # username: ${DB_USER:`postgres`}
+      # password: ${DB_PASSWORD:`pass`}
+
+datasources:
+  default:
+    driverClassName: org.postgresql.Driver
+    schema-generate: NONE
+    db-type: postgres
+    dialect: POSTGRES
+
 r2dbc:
   datasources:
     default:
-      options:
-        driver: pool
-        poolName: r2dbc
-        protocol: postgres
-        maxSize: 20
-        initialSize: 5
-        maxLifeTime: PT280S
-        maxIdleTime: PT240S
-        maxAcquireTime: PT6S
-      
-      driver: postgresql
-      host: "${db.host:localhost}"
-      port: "${db.port:5432}"
-      database: "${db.database:dcbdev}"
-      username: "${db.username:dcb}"
-      password: "${db.password:dcb}"
-      dialect: postgres
-      
-      # schema-generate: CREATE
+      enabled: true
+      # https://micronaut-projects.github.io/micronaut-test-resources/latest/guide/
+      # Specify db-type so test resources knows what to provision
+      db-type: postgres
+      # url: ${DB_URL:`r2dbc:postgresql://localhost:5432/postgres`}
+      # username: ${DB_USER:`postgres`}
+      # password: ${DB_PASSWORD:`pass`}
+
       
 # elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
 netty:
