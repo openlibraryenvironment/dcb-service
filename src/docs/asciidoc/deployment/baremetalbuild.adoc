@@ -1,4 +1,6 @@
+= ReShare DCB - bare metal deployment notes
 
+Last updated 2023-01-30
 
 ReshareDCB is a micronaut application at time of writing (Jan 2023) compiled as a Java 17 source. At that time, k-int are building using the Temurin 7.0.6 Java distro. The project itself has gradle wrapper installed, so no external gradle installation is necessary.
 
@@ -30,3 +32,32 @@ Is the command to execute to build jar options. After execution the dcb/build/li
     - dcb-runner.jar  
 
 Where the -all.jar jar is the fatjar. .jar is the standard library, and -runner is executable
+
+
+
+= Running
+
+== fatjar
+
+=== Preparation
+
+NOTE: reshare-dcb uses the r2dbc streaming library for database connectivity and the flyway library for managing migrations. Flyway however
+does not support r2dbc. It is therefore -currently- necessary to configure both JDBC and R2DBC connection properties for the module.
+
+the fatjar can take configuration from ENV settings:
+
+    export r2dbc_datasources_default_url="r2dbc:postgresql://localhost:5432/dcb"
+    export r2dbc_datasources_default_username="dcb"
+    export r2dbc_datasources_default_password="dcb"
+    export datasources_default_url="jdbc:postgresql://localhost:5432/dcb"
+    export datasources_default_username="dcb"
+    export datasources_default_password="dcb"
+
+then run the jar
+
+    java -jar ./dcb-all.jar
+
+
+=== Validate
+
+A docker-compose.yaml and init.sql file are provided in this directory which will work with the above config for starting the stand-alone jar
