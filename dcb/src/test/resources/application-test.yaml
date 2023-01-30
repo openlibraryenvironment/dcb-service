@@ -33,3 +33,33 @@ dcb:
   scheduled-tasks:
     enabled: false
       
+flyway:
+  enabled: true
+  datasources:
+    default:
+      enabled: true
+      # locations:
+      #   - classpath:db/migrations
+      # default-schema: r2dbc-poc
+      # url: ${DB_URL:`r2dbc:postgresql://localhost:5432/postgres`}
+      # username: ${DB_USER:`postgres`}
+      # password: ${DB_PASSWORD:`pass`}
+
+datasources:
+  default:
+    driverClassName: org.postgresql.Driver
+    schema-generate: NONE
+    db-type: postgres
+    dialect: POSTGRES
+
+r2dbc:
+  datasources:
+    default:
+      enabled: true
+      # https://micronaut-projects.github.io/micronaut-test-resources/latest/guide/
+      # Specify db-type so test resources knows what to provision
+      db-type: postgres
+      # url: ${DB_URL:`r2dbc:postgresql://localhost:5432/postgres`}
+      # username: ${DB_USER:`postgres`}
+      # password: ${DB_PASSWORD:`pass`}
+
