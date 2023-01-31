@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.text.ParseException;
 
 import org.junit.jupiter.api.Test;
+import org.olf.reshare.dcb.test.DcbTest;
 
 import com.nimbusds.jwt.JWTParser;
 import com.nimbusds.jwt.SignedJWT;

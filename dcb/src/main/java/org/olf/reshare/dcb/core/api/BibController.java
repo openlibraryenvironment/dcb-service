@@ -1,9 +1,9 @@
-package org.olf.reshare.dcb.api;
+package org.olf.reshare.dcb.core.api;
 
 import javax.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 
-import org.olf.reshare.dcb.model.BibRecord;
+import org.olf.reshare.dcb.core.model.BibRecord;
 import org.olf.reshare.dcb.storage.BibRepository;
 import org.reactivestreams.Publisher;
 
