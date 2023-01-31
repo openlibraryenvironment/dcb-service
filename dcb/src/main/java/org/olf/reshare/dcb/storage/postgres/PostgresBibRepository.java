@@ -2,7 +2,7 @@ package org.olf.reshare.dcb.storage.postgres;
 
 import java.util.UUID;
 
-import org.olf.reshare.dcb.model.BibRecord;
+import org.olf.reshare.dcb.core.model.BibRecord;
 import org.olf.reshare.dcb.storage.BibRepository;
 
 import io.micronaut.data.model.query.builder.sql.Dialect;

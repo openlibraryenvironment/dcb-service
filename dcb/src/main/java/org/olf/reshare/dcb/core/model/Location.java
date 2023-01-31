@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb.model;
+package org.olf.reshare.dcb.core.model;
 
 import java.util.UUID;
 
@@ -7,19 +7,31 @@ import javax.validation.constraints.NotNull;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Column;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
+@Serdeable
 @ExcludeFromGeneratedCoverageReport
 @MappedEntity
-public class BibIdentifier {
+public class Location {
 
 	@NotNull
 	@NonNull
 	@Id
 	@Column(columnDefinition = "UUID")
-  private UUID id;
-	
+	private UUID id;
+
+	@NotNull
+	@NonNull
+	@Column(columnDefinition = "TEXT", unique = true)
+	private String code;
+
+	@NotNull
+	@NonNull
+	@Column(columnDefinition = "TEXT")
+	private String name;
+
 	public UUID getId() {
 		return id;
 	}
@@ -28,27 +40,19 @@ public class BibIdentifier {
 		this.id = id;
 	}
 
-	public String getValue() {
-		return value;
+	public String getCode() {
+		return code;
 	}
 
-	public void setValue(String value) {
-		this.value = value;
+	public void setCode(String code) {
+		this.code = code;
 	}
 
-	public String getNamespace() {
-		return namespace;
+	public String getName() {
+		return name;
 	}
 
-	public void setNamespace(String namespace) {
-		this.namespace = namespace;
+	public void setName(String name) {
+		this.name = name;
 	}
-
-	@NotNull
-	@NonNull
-	private String value;
-	
-	@NotNull
-	@NonNull
-	private String namespace;
 }

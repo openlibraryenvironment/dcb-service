@@ -14,11 +14,11 @@ plugins {
 	id("org.asciidoctor.jvm.convert") version "3.3.2"
 }
 
-version = "1.0.0"
+//version = "1.0.0"
 
 // Apply our custom plugins.
-//apply plugin: "com.k_int.gradle.plugin"
-//apply plugin: "com.k_int.gradle.conventional-git"
+apply plugin: "com.k_int.gradle.plugin"
+apply plugin: "com.k_int.gradle.conventional-git"
 
 // Includes
 apply from: "gradle/asciidoc.gradle"

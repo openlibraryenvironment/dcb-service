@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb;
+package org.olf.reshare.dcb.test;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

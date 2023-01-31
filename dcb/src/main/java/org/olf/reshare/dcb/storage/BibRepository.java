@@ -5,7 +5,7 @@ import java.util.UUID;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
-import org.olf.reshare.dcb.model.BibRecord;
+import org.olf.reshare.dcb.core.model.BibRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
