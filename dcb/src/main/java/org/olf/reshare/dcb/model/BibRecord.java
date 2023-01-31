@@ -21,11 +21,19 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @MappedEntity
 public class BibRecord {
 
+	public BibRecord() {
+        }
+
+	public BibRecord(UUID id, String title) {
+		this.id = id;
+		this.title = title;
+        }
+
 	@NotNull
 	@NonNull
 	@Id
 	@Column(columnDefinition = "UUID")
-  private UUID id;
+	private UUID id;
 	
 	@Nullable
 	@Column(columnDefinition = "TEXT")

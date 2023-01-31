@@ -1,0 +1,5 @@
+select 1;
+CREATE USER dcb WITH PASSWORD 'dcb';
+DROP DATABASE if exists dcb;
+CREATE DATABASE dcb;
+GRANT ALL PRIVILEGES ON DATABASE dcb to dcb;

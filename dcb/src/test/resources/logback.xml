@@ -1,0 +1,27 @@
+<configuration>
+
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <withJansi>true</withJansi>
+    <!-- encoders are assigned the type ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+    <encoder>
+      <pattern>%cyan(%d{HH:mm:ss.SSS}) %gray([%thread]) %highlight(%-5level) %magenta(%logger{36}) - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- 
+    <logger name="io.micronaut.http.client" level="DEBUG"/>
+  -->
+
+  <logger name="io.r2dbc.postgresql.QUERY" level="DEBUG"/>
+  <logger name="io.micronaut.data.query" level="DEBUG"/>
+  <logger name="org.flywaydb" level="DEBUG"/>
+  <logger name="org.flyway" level="DEBUG"/>
+  <logger name="io.micronaut.flyway" level="DEBUG"/>
+  <logger name="org.olf.reshare" level="DEBUG"/>
+  <logger name="services.k_int" level="DEBUG"/>
+
+  <root level="info">
+    <appender-ref ref="STDOUT" />
+  </root>
+
+</configuration>

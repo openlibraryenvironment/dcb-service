@@ -26,7 +26,7 @@ DB connection effectively, 2 different connections - with JDBC only being used f
 |datasources_default_password|JDBC Password|dcb|
 
 # API Documentation
-API Docs can be found here: https://openlibraryenvironment.github.io/reshare-dcb-service/openapi/
+Module documentation is auto generated and is accessed from the following URL once the container has started: https://openlibraryenvironment.github.io/reshare-dcb-service/openapi/
 
 # General Documentation
 Module documentation can be found here: https://openlibraryenvironment.github.io/reshare-dcb-service/
