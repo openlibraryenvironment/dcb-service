@@ -96,6 +96,13 @@ dependencies {
         testRuntimeOnly("org.testcontainers:postgresql")
 }
 
+//configurations.all {
+//	resolutionStrategy.dependencySubstitution {
+//		substitute(module("io.micronaut:micronaut-jackson-databind"))
+//				.using(module("io.micronaut.serde:micronaut-serde-jackson:1.5.0"))
+//	}
+//}
+
 application {
 	mainClass.set("org.olf.reshare.dcb.Application")
 }
