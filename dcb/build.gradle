@@ -81,7 +81,9 @@ dependencies {
 	// runtimeOnly("io.r2dbc:r2dbc-pool")
 
 
-	runtimeOnly('io.r2dbc:r2dbc-postgresql')
+        // The postgres r2dbc driver seems much more recent - so commenting this one out, and testing
+	// runtimeOnly('io.r2dbc:r2dbc-postgresql')
+
         implementation("io.micronaut.flyway:micronaut-flyway")
 
 	// Tests
