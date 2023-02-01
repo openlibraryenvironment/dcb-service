@@ -20,6 +20,14 @@
   <logger name="io.micronaut.data.query" level="DEBUG"/>
   -->
   
+  <logger name="io.r2dbc.postgresql.QUERY" level="DEBUG"/>
+  <logger name="io.micronaut.data.query" level="DEBUG"/>
+  <logger name="org.flywaydb" level="DEBUG"/>
+  <logger name="org.flyway" level="DEBUG"/>
+  <logger name="io.micronaut.flyway" level="DEBUG"/>
+  <logger name="org.olf.reshare" level="DEBUG"/>
+  <logger name="services.k_int" level="DEBUG"/>
+
 	<root level="info">
 		<appender-ref ref="STDOUT" />
 	</root>
