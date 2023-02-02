@@ -46,7 +46,6 @@ public class SierraApiTests {
 		// Mock the response from Sierra
 		mock.when(
 			request()
-				.withHeader("host", "sandbox.iii.com")
 				.withHeader("Accept", "application/json")
 				.withMethod("POST")
 				.withPath("/iii/sierra-api/v6/token")
@@ -73,7 +72,6 @@ public class SierraApiTests {
 		// Mock the response from Sierra
 		mock.when(
 			request()
-				.withHeader("host", "sandbox.iii.com")
 				.withHeader("Accept", "application/json")
 				.withMethod("POST")
 				.withPath("/iii/sierra-api/v6/token")
@@ -100,7 +98,6 @@ public class SierraApiTests {
 		// Mock the response from Sierra
 		mock.when(
 			request()
-				.withHeader("host", "sandbox.iii.com")
 				.withHeader("Accept", "application/json")
 				.withMethod("POST")
 				.withPath("/iii/sierra-api/v6/token")
@@ -133,7 +130,6 @@ public class SierraApiTests {
 		// Mock the response from Sierra
 		mock.when(
 			request()
-				.withHeader("host", "sandbox.iii.com")
 				.withHeader("Accept", "application/json")
 				.withMethod("GET")
 				.withPath("/iii/sierra-api/v6/bibs/")
@@ -165,7 +161,6 @@ public class SierraApiTests {
 		// Mock the response from Sierra
 		mock.when(
 			request()
-				.withHeader("host", "sandbox.iii.com")
 				.withHeader("Accept", "application/json")
 				.withMethod("GET")
 				.withPath("/iii/sierra-api/v6/bibs/")
@@ -198,7 +193,6 @@ public class SierraApiTests {
 		// Mock the response from Sierra
 		mock.when(
 			request()
-				.withHeader("host", "sandbox.iii.com")
 				.withHeader("Accept", "application/json")
 				.withMethod("GET")
 				.withPath("/iii/sierra-api/v6/bibs/")
@@ -234,7 +228,6 @@ public class SierraApiTests {
 		// Mock the response from Sierra
 		mock.when(
 			request()
-				.withHeader("host", "sandbox.iii.com")
 				.withHeader("Accept", "application/json")
 				.withMethod("GET")
 				.withPath("/iii/sierra-api/v6/bibs/")
@@ -278,7 +271,6 @@ public class SierraApiTests {
 		// Mock the response from Sierra
 		mock.when(
 			request()
-				.withHeader("host", "sandbox.iii.com")
 				.withHeader("Accept", "application/json")
 				.withMethod("GET")
 				.withPath("/iii/sierra-api/v6/bibs/")
@@ -323,7 +315,6 @@ public class SierraApiTests {
 		// Mock the response from Sierra
 		mock.when(
 			request()
-				.withHeader("host", "sandbox.iii.com")
 				.withHeader("Accept", "application/json")
 				.withMethod("GET")
 				.withPath("/iii/sierra-api/v6/bibs/")
@@ -368,7 +359,6 @@ public class SierraApiTests {
 		// Mock the response from Sierra
 		mock.when(
 			request()
-				.withHeader("host", "sandbox.iii.com")
 				.withHeader("Accept", "application/json")
 				.withMethod("GET")
 				.withPath("/iii/sierra-api/v6/bibs/")
@@ -422,7 +412,6 @@ public class SierraApiTests {
 		// Mock the response from Sierra
 		mock.when(
 			request()
-				.withHeader("host", "sandbox.iii.com")
 				.withHeader("Accept", "application/json")
 				.withMethod("GET")
 				.withPath("/iii/sierra-api/v6/bibs/")
@@ -457,7 +446,6 @@ public class SierraApiTests {
 		// Mock the response from Sierra
 		mock.when(
 			request()
-				.withHeader("host", "sandbox.iii.com")
 				.withHeader("Accept", "application/json")
 				.withMethod("GET")
 				.withPath("/iii/sierra-api/v6/bibs/")
@@ -504,7 +492,6 @@ public class SierraApiTests {
 		// Mock the response from Sierra
 		mock.when(
 			request()
-				.withHeader("host", "sandbox.iii.com")
 				.withHeader("Accept", "application/json")
 				.withMethod("GET")
 				.withPath("/iii/sierra-api/v6/bibs/")
