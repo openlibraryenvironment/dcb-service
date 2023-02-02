@@ -2,6 +2,7 @@ package org.olf.reshare.dcb.sierra;
 
 import io.micronaut.context.annotation.Value;
 import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.BasicAuth;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
@@ -28,7 +29,6 @@ import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 
-
 @MockServerMicronautTest
 public class SierraApiTests {
 
@@ -40,24 +40,54 @@ public class SierraApiTests {
 
 	private final String MOCK_ROOT = "classpath:mock-responses/sierra";
 
-	@Value("${sierra.client.api.key}")
-	private String CLIENT_KEY;
-
-	@Value("${sierra.client.api.secret}")
-	private String CLIENT_SECRET;
-
 	@Test
-	public void testLoginTokenType () {
+	public void testLoginTokenType ( MockServerClient mock ) throws IOException {
 
-		var response = Mono.from( client.login(CLIENT_KEY, CLIENT_SECRET) ).block();
+		// Mock the response from Sierra
+		mock.when(
+			request()
+				.withHeader("host", "sandbox.iii.com")
+				.withHeader("Accept", "application/json")
+				.withMethod("POST")
+				.withPath("/iii/sierra-api/v6/token")
+		).respond(
+			response()
+				.withStatusCode(200)
+				.withContentType(MediaType.APPLICATION_JSON)
+				.withBody(
+					json(new String(loader
+						.getResourceAsStream(MOCK_ROOT + "/sierra-api-login.json")
+						.orElseThrow()
+						.readAllBytes()))));
+
+
+		var response = Mono.from( client.login("key", "secret") ).block();
+		System.out.println(response);
 		assertNotNull(response);
 		assertEquals(response.type().toLowerCase(), "bearer");
 	}
 
 	@Test
-	public void testLoginTokenExpiration () {
+	public void testLoginTokenExpiration ( MockServerClient mock ) throws IOException {
 
-		var response = Mono.from( client.login(CLIENT_KEY, CLIENT_SECRET) ).block();
+		// Mock the response from Sierra
+		mock.when(
+			request()
+				.withHeader("host", "sandbox.iii.com")
+				.withHeader("Accept", "application/json")
+				.withMethod("POST")
+				.withPath("/iii/sierra-api/v6/token")
+		).respond(
+			response()
+				.withStatusCode(200)
+				.withContentType(MediaType.APPLICATION_JSON)
+				.withBody(
+					json(new String(loader
+						.getResourceAsStream(MOCK_ROOT + "/sierra-api-login.json")
+						.orElseThrow()
+						.readAllBytes()))));
+
+		var response = Mono.from( client.login("key", "secret") ).block();
 		assertNotNull(response);
 		assertEquals(response.getClass(), AuthToken.class);
 		assertFalse( response.isExpired() );
@@ -65,10 +95,27 @@ public class SierraApiTests {
 	}
 
 	@Test
-	public void testLoginTokenUnique () {
+	public void testLoginTokenUnique ( MockServerClient mock ) throws IOException {
 
-		var token1 = Mono.from( client.login(CLIENT_KEY, CLIENT_SECRET) ).block();
-		var token2 = Mono.from( client.login(CLIENT_KEY, CLIENT_SECRET) ).block();
+		// Mock the response from Sierra
+		mock.when(
+			request()
+				.withHeader("host", "sandbox.iii.com")
+				.withHeader("Accept", "application/json")
+				.withMethod("POST")
+				.withPath("/iii/sierra-api/v6/token")
+		).respond(
+			response()
+				.withStatusCode(200)
+				.withContentType(MediaType.APPLICATION_JSON)
+				.withBody(
+					json(new String(loader
+						.getResourceAsStream(MOCK_ROOT + "/sierra-api-login.json")
+						.orElseThrow()
+						.readAllBytes()))));
+
+		var token1 = Mono.from( client.login("key", "secret") ).block();
+		var token2 = Mono.from( client.login("key", "secret") ).block();
 
 		assertNotNull(token1);
 		assertNotNull(token2);
@@ -81,25 +128,25 @@ public class SierraApiTests {
 	https://sandbox.iii.com:443/iii/sierra-api/v6/bibs/?limit=1
 	 */
 	@Test
-	public void testQueryLimit ( MockServerClient mock) throws IOException {
+	public void testQueryLimit ( MockServerClient mock ) throws IOException {
 
 		// Mock the response from Sierra
 		mock.when(
-				request()
-					.withHeader("host", "sandbox.iii.com")
-					.withHeader("Accept", "application/json")
-					.withMethod("GET")
-					.withPath("/iii/sierra-api/v6/bibs/")
-					.withQueryStringParameter("limit", "1")
+			request()
+				.withHeader("host", "sandbox.iii.com")
+				.withHeader("Accept", "application/json")
+				.withMethod("GET")
+				.withPath("/iii/sierra-api/v6/bibs/")
+				.withQueryStringParameter("limit", "1")
 		).respond(
-				response()
-					.withStatusCode(200)
-					.withContentType(MediaType.APPLICATION_JSON)
-					.withBody(
-						json(new String(loader
-							.getResourceAsStream(MOCK_ROOT + "/sierra-api-limit.json")
-							.orElseThrow()
-							.readAllBytes()))));
+			response()
+				.withStatusCode(200)
+				.withContentType(MediaType.APPLICATION_JSON)
+				.withBody(
+					json(new String(loader
+						.getResourceAsStream(MOCK_ROOT + "/sierra-api-limit.json")
+						.orElseThrow()
+						.readAllBytes()))));
 
 		// Fetch from sierra and block
 		var response = Mono.from( client.bibs(BibParams.builder().limit(1).build()) ).block();
@@ -156,7 +203,7 @@ public class SierraApiTests {
 				.withMethod("GET")
 				.withPath("/iii/sierra-api/v6/bibs/")
 				.withQueryStringParameter("limit", "3")
-				//.withQueryStringParameter("id", "1000001,1000003,1000005")
+			//.withQueryStringParameter("id", "1000001,1000003,1000005")
 		).respond(
 			response()
 				.withStatusCode(200)
@@ -207,12 +254,12 @@ public class SierraApiTests {
 		// Fetch from sierra and block
 		var response = Mono.from( client.bibs(params ->
 			{
-			params
-				.limit(1)
-				.deleted(false) // required?
-				.addFields("author", "title", "publishYear", "deleted");
+				params
+					.limit(1)
+					.deleted(false) // required?
+					.addFields("author", "title", "publishYear", "deleted");
 			}
-			)).block();
+		)).block();
 
 		assertNotNull(response);
 		assertEquals(response.getClass(), BibResultSet.class);
@@ -266,8 +313,6 @@ public class SierraApiTests {
 		String str = response.entries().get(0).createdDate().toString();
 		assertEquals(str, "2003-05-08T15:55");
 	}
-
-
 
 	/*
 	https://sandbox.iii.com:443/iii/sierra-api/v6/bibs/?limit=1&updatedDate=2022-02-15T14%3A18&deleted=false
@@ -367,7 +412,6 @@ public class SierraApiTests {
 		// work around
 		assertEquals(response.entries().get(0).deletedDate(), localDate);
 	}
-
 
 	/*
 	https://sandbox.iii.com:443/iii/sierra-api/v6/bibs/?limit=1&suppressed=false
