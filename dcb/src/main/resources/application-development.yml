@@ -3,11 +3,55 @@
 #  ingest:
 #    enabled: true
 
-# sierra:
-#   ingest:
-#     enabled: true
-  
+sierra:
   client:
     api:
       key: "9/FnXtNb5qWahEcHpMiL/OlSJe0b"
       secret: "I8g9uNbzs3"
+#   ingest:
+#     enabled: true
+
+#db:
+#  host: localhost
+#  port: 5432
+#  database: dcbdev
+#  username: dcb
+#  password: dcb
+
+datasources:
+  default:
+    enabled: true
+    driverClassName: org.postgresql.Driver
+    schema-generate: NONE
+    db-type: postgresql
+    dialect: postgres
+    #username: "${db.username:}"
+    #password: "${db.password:}"
+    
+
+r2dbc:
+  datasources:
+    default:
+      enabled: true
+      # https://micronaut-projects.github.io/micronaut-test-resources/latest/guide/
+      # Specify db-type so test resources knows what to provision
+      db-type: postgresql
+      # username: ${DB_USER:`postgres`}
+      # password: ${DB_PASSWORD:`pass`}
+      options:
+        driver: pool
+        protocol: postgres
+        poolName: r2dbc
+        maxSize: 20
+        initialSize: 5
+        maxLifeTime: PT280S
+        maxIdleTime: PT240S
+        maxAcquireTime: PT6S
+      
+      # driver: postgresql
+      
+      dialect: postgres
+      
+      schema-generate: NONE
+
+    

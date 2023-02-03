@@ -78,7 +78,7 @@ dependencies {
 	// Uncommmenting this dependency results in
 	// testresources Micronaut Message: Could not resolve placeholder ${auto.test.resources.r2dbc.datasources.default.options.protocol}
 	//
-	// runtimeOnly("io.r2dbc:r2dbc-pool")
+	runtimeOnly("io.r2dbc:r2dbc-pool")
 
 
 	// The postgres r2dbc driver seems much more recent - so commenting this one out, and testing

@@ -47,12 +47,20 @@ flyway:
       # username: ${DB_USER:`postgres`}
       # password: ${DB_PASSWORD:`pass`}
 
+db:
+  host: localhost
+  port: 5432
+
 datasources:
   default:
+    enabled: true
     driverClassName: org.postgresql.Driver
     schema-generate: NONE
-    db-type: postgres
-    dialect: POSTGRES
+    db-type: postgresql
+    dialect: postgres
+    #username: "${db.username:}"
+    #password: "${db.password:}"
+    
 
 r2dbc:
   datasources:
@@ -60,11 +68,28 @@ r2dbc:
       enabled: true
       # https://micronaut-projects.github.io/micronaut-test-resources/latest/guide/
       # Specify db-type so test resources knows what to provision
-      db-type: postgres
+      db-type: postgresql
       # url: ${DB_URL:`r2dbc:postgresql://localhost:5432/postgres`}
       # username: ${DB_USER:`postgres`}
       # password: ${DB_PASSWORD:`pass`}
-
+      options:
+        driver: pool
+        protocol: postgres
+        poolName: r2dbc
+        maxSize: 20
+        initialSize: 5
+        maxLifeTime: PT280S
+        maxIdleTime: PT240S
+        maxAcquireTime: PT6S
+      
+      # driver: postgresql
+      #url: "r2dbc:postgresql://${db.host}:${db.port}/${db.database:}"
+      #host: "${db.host:localhost}"
+      #username: "${db.username:}"
+      #password: "${db.password:}"
+      dialect: postgres
+      
+      schema-generate: NONE
       
 # elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
 netty:
