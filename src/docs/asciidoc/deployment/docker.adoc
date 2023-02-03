@@ -1,0 +1,23 @@
+= Docker
+
+The module is built and published as a docker container on the link:https://nexus.libsdev.k-int.com/#browse/browse:libsdev-docker:v2%2Fknowledgeintegration%2Freshare-dcb[K-Int repository]
+
+The images are tagged using the major/minor version numbers, so you are free to decide at which level you wish to track the software.
+
+For example to deploy the latest snapshot pre-release of version 1 you would do the following inside a console:
+
+[source%nowrap,shell]
+.Command prompt
+----
+$ docker pull docker.libsdev.k-int.com/knowledgeintegration/reshare-dcb:1-SNAPSHOT
+$ docker run -it <your env vars> docker.libsdev.k-int.com/knowledgeintegration/reshare-dcb:1-SNAPSHOT
+----
+
+[TIP]
+=====
+[%collapsible]
+.Click to view available environment variables
+====
+include::env-vars.adoc[]
+====
+=====

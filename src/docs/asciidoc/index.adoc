@@ -30,13 +30,18 @@ After pulling the repository the application can be started by issuing the comma
 > gradle.bat run
 ----
 
+== Deploying
+=== Environment variables
+
+The following environment variables are common to all the methods of deployment.
+
+include::deployment/env-vars.adoc[]
+
+include::deployment/docker.adoc[leveloffset=2]
+include::deployment/bare-metal-build.adoc[leveloffset=2]
+
 == API Docs
 
 View the link:openapi/[HTTP API documentation^] (Opens in new window).
 
 There is also an interactive version of the API documentation available from a running instance of the application. Assuming the application is running at `http://localhost:8080` visit http://localhost:8080/openapi/ui/index.html
-
-
-== Production Guidance
-
-link:deployment/baremetalbuild.adoc[Self build from source for a bare metal deployment]
