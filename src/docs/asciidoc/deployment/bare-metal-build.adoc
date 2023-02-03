@@ -1,0 +1,81 @@
+= Building from source
+
+Last updated 2023-01-30
+
+ReshareDCB is a micronaut application at time of writing (Jan 2023) compiled as a Java 17 source. At that time, k-int are building using the Temurin 7.0.6 Java distro. The project itself has gradle wrapper installed, so no external gradle installation is necessary.
+
+This guidance is intended for organisations wishing to build the raw service executable (I.E. not have the build emit a container).
+
+There is a policy decision which hosting providers need to make: Use the graalvm executable or build a plain old java fat-jar (Or build the skinny jar and do something else). Both options are cleanly described in the gradle build target - run "gradlew tasks" to see the targets possible.
+
+== Native executable build
+
+You will need the graalvm JDK to build a native executable - instructions tested Jan 2023 with Graalvm 22.3.r17-grl
+
+[source%nowrap,shell]
+.Command prompt
+----
+./gradlew nativeCompile
+----
+
+Will create a native executable including ONLY the parts of the JDK needed to run the code. This will output artefacts to dcb/build/native/nativeCompile named `dcb`
+
+This executable is a native executable and can be executed on any linux like environment, without the need to install the Java Virtual Machine.
+
+== Jar build
+
+[source%nowrap,shell]
+.Command prompt
+----
+./gradlew jar
+----
+
+Is the command to execute to build jar options. After execution the dcb/build/libs/
+
+    - dcb-all.jar
+    - dcb-jar
+    - dcb-runner.jar  
+
+Where the -all.jar jar is the fatjar. .jar is the standard library, and -runner is executable
+
+== Running
+
+Set any environment variables:
+
+[source%nowrap,shell]
+.Command prompt
+----
+export r2dbc_datasources_default_url="r2dbc:postgresql://localhost:5432/dcb"
+export r2dbc_datasources_default_username="dcb"
+export r2dbc_datasources_default_password="dcb"
+export datasources_default_url="jdbc:postgresql://localhost:5432/dcb"
+export datasources_default_username="dcb"
+export datasources_default_password="dcb"
+----
+
+you can then run the jar or the native executable from the relevant directory:
+
+[source%nowrap,shell]
+.Command prompt (Run Jar)
+----
+java -jar ./dcb-all.jar
+----
+
+[source%nowrap,shell]
+.Command prompt (Run native)
+----
+./dcb
+----
+
+[TIP]
+=====
+[%collapsible]
+.Click to view available environment variables
+====
+include::env-vars.adoc[]
+====
+=====
+
+=== Validate
+
+A docker-compose.yml and init.sql file are provided in this directory which will work with the above config for starting the application.

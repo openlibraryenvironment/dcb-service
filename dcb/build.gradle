@@ -37,7 +37,7 @@ dependencies {
 	annotationProcessor("io.micronaut.openapi:micronaut-openapi")
 	annotationProcessor('io.micronaut.security:micronaut-security-annotations')
 	annotationProcessor("io.micronaut.data:micronaut-data-processor")
-	
+
 	// Implementation
 	implementation("io.micronaut.security:micronaut-security-jwt")
 	implementation("io.micronaut:micronaut-http-client")
@@ -52,49 +52,56 @@ dependencies {
 
 	implementation("org.apache.logging.log4j:log4j-api")
 	implementation("org.apache.logging.log4j:log4j-core")
-	
-//	implementation("io.micronaut:micronaut-jackson-databind") // Not using Jackson for binding.
+
+	//	implementation("io.micronaut:micronaut-jackson-databind") // Not using Jackson for binding.
 	implementation("io.micronaut.serde:micronaut-serde-jackson")
 	implementation 'org.marc4j:marc4j'
 
 	runtimeOnly("ch.qos.logback:logback-classic")
 	runtimeOnly("org.slf4j:log4j-over-slf4j")
-	
+
 	compileOnly('org.immutables:value')
 	compileOnly("org.graalvm.nativeimage:svm")
 
 	//data
-        implementation("io.micronaut.r2dbc:micronaut-r2dbc-core")
+	implementation("io.micronaut.r2dbc:micronaut-r2dbc-core")
 	implementation("io.micronaut.data:micronaut-data-processor")
-        implementation("io.micronaut.data:micronaut-data-r2dbc")
-        implementation("io.micronaut.data:micronaut-data-jdbc")
-        implementation("io.micronaut.sql:micronaut-jdbc-hikari")
+	implementation("io.micronaut.data:micronaut-data-r2dbc")
+	implementation("io.micronaut.data:micronaut-data-jdbc")
+	implementation("io.micronaut.sql:micronaut-jdbc-hikari")
 
 	runtimeOnly("org.postgresql:postgresql")
-        // Without this dependency, testcontainer injection seems not to happen at all.
-        // Wonder if this is because the bean that uses PG is a r2dbc service
-        runtimeOnly("org.postgresql:r2dbc-postgresql")
+	// Without this dependency, testcontainer injection seems not to happen at all.
+	// Wonder if this is because the bean that uses PG is a r2dbc service
+	runtimeOnly("org.postgresql:r2dbc-postgresql")
 
-        // Uncommmenting this dependency results in
-        // testresources Micronaut Message: Could not resolve placeholder ${auto.test.resources.r2dbc.datasources.default.options.protocol}
-        //
-	// runtimeOnly("io.r2dbc:r2dbc-pool")
+	// Uncommmenting this dependency results in
+	// testresources Micronaut Message: Could not resolve placeholder ${auto.test.resources.r2dbc.datasources.default.options.protocol}
+	//
+	runtimeOnly("io.r2dbc:r2dbc-pool")
 
 
-        // The postgres r2dbc driver seems much more recent - so commenting this one out, and testing
+	// The postgres r2dbc driver seems much more recent - so commenting this one out, and testing
 	// runtimeOnly('io.r2dbc:r2dbc-postgresql')
 
-        implementation("io.micronaut.flyway:micronaut-flyway")
+	implementation("io.micronaut.flyway:micronaut-flyway")
 
 	// Tests
 
-  testImplementation("io.micronaut.test:micronaut-test-junit5")
-  testImplementation('org.mock-server:mockserver-junit-jupiter')
-  testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+	testImplementation("io.micronaut.test:micronaut-test-junit5")
+	testImplementation('org.mock-server:mockserver-junit-jupiter')
+	testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
-        testImplementation(platform("org.testcontainers:testcontainers-bom:1.14.3"))
-        testRuntimeOnly("org.testcontainers:postgresql")
+	testImplementation(platform("org.testcontainers:testcontainers-bom:1.14.3"))
+	testRuntimeOnly("org.testcontainers:postgresql")
 }
+
+//configurations.all {
+//	resolutionStrategy.dependencySubstitution {
+//		substitute(module("io.micronaut:micronaut-jackson-databind"))
+//				.using(module("io.micronaut.serde:micronaut-serde-jackson:1.5.0"))
+//	}
+//}
 
 application {
 	mainClass.set("org.olf.reshare.dcb.Application")
@@ -102,7 +109,7 @@ application {
 
 run {
 	systemProperties([
-			'micronaut.environments': 'development'
+		'micronaut.environments': 'development'
 	])
 }
 
@@ -124,8 +131,8 @@ micronaut {
 final Set<String> jacocoExcludes = ['**/Application.class']
 
 tasks {
-	
-	
+
+
 	final Map<String, String> labels = [
 		'maintainer'  : 'Steve Osguthorpe <steve.osguthorpe@k-int.com>',
 		'version'     : project.hasProperty('versionWithMeta') ? project.getProperty('versionWithMeta') : project.getProperty('version')
@@ -167,7 +174,7 @@ tasks {
 	dockerBuildNative {
 		images = imageNames
 	}
-	
+
 	jacocoTestReport {
 		dependsOn test
 

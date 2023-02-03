@@ -1,0 +1,17 @@
+[NOTE]
+======
+Note: Today flyway does not support r2dbc datasources, so we need to configure both JDBC and R2DBC datasources - same DB connection effectively, 2 different connections - with JDBC only being used for database migrations.
+======
+
+[%autowidth.stretch]
+|===
+|ENV | Description |Required | Example
+
+|R2DBC_DATASOURCES_DEFAULT_URL |R2DBC Connection URL |yes |r2dbc:postgresql://localhost:5432/dcb
+|R2DBC_DATASOURCES_DEFAULT_USERNAME |R2DBC Username |yes |dcb
+|R2DBC_DATASOURCES_DEFAULT_PASSWORD |R2DBC Password |yes |dcb
+
+|DATASOURCES_DEFAULT_URL |JDBC Connection URL |yes |jdbc:postgresql://localhost:5432/dcb
+|DATASOURCES_DEFAULT_USERNAME |JDBC Username |yes |dcb
+|DATASOURCES_DEFAULT_PASSWORD |JDBC Password |yes |dcb
+|=== 

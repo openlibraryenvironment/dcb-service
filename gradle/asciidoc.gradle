@@ -3,6 +3,7 @@ asciidoctor {
   forkOptions {
     jvmArgs("--add-opens","java.base/sun.nio.ch=ALL-UNNAMED","--add-opens","java.base/java.io=ALL-UNNAMED")
   }
+	baseDirFollowsSourceFile()
 }
 
 asciidoctorj {
@@ -15,7 +16,8 @@ asciidoctorj {
 
   options doctype: "book", ruby: "erubis"
 
-  attributes "sourcedir": "src/docs/asciidoc",
+  attributes([
+		"sourcedir": "src/docs/asciidoc",
     "source-highlighter": "coderay",
     "toc": "left",
     "idprefix": "",
@@ -26,5 +28,6 @@ asciidoctorj {
     "imagesdir": "images",
     "project-version": "$project.version",
     "revnumber": "$project.version"
+	])
 }
 
