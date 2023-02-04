@@ -164,7 +164,7 @@ tasks {
 	final imageAndRepo = "${System.env.DOCKER_IMAGE ?: project.name}"
 
 	Set<String> imageNames = tags.collect { "${imageAndRepo}:${it}" }
-	Set<String> java_imageNames = tags.collect { "${imageAndRepo}_java:${it}" }
+	Set<String> java_imageNames = tags.collect { "${imageAndRepo}-java:${it}" }
 
 	dockerBuild {
 		images = java_imageNames
