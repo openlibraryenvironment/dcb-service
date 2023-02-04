@@ -53,7 +53,8 @@ jobs:
           TESTCONTAINERS_RYUK_DISABLED: true
         run: |
           export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/reshare-dcb" | sed -e 's#//#/#' -e 's#^/##'`
-          ./gradlew check jacocoTestReport dockerPushNative dockerPush --no-daemon
+          # ./gradlew check jacocoTestReport dockerPushNative --no-daemon
+          ./gradlew check jacocoTestReport dockerPush --no-daemon
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
