@@ -155,20 +155,19 @@ tasks {
 		'versionMajorMinor',
 		'version'
 	].findResults {
-		project.hasProperty(it) ? project.property(it).toString().trim() : null
+		( project.hasProperty(it) && !project.property(it).equals('unspecified') ) ? project.property(it).toString().trim() : null
 	}
 
-	// If this is a pre-release (inlcuding Snapshots) then add "next" tag. Otherwise, use latest
+	// If this is a pre-release (including Snapshots) then add "next" tag. Otherwise, use latest
 	tags << (isPre ? 'next' : 'latest')
 
 	final imageAndRepo = "${System.env.DOCKER_IMAGE ?: project.name}"
 
-	Set<String> imageNames = tags.collect {
-		"${imageAndRepo}:${it}"
-	}
+	Set<String> imageNames = tags.collect { "${imageAndRepo}:${it}" }
+	Set<String> java_imageNames = tags.collect { "${imageAndRepo}_java:${it}" }
 
 	dockerBuild {
-		images = imageNames
+		images = java_imageNames
 	}
 
 	dockerBuildNative {
