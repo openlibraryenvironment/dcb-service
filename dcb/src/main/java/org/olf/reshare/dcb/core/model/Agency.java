@@ -20,7 +20,7 @@ public class Agency {
 	@NonNull
 	@Id
 	@Column(columnDefinition = "UUID")
-  private UUID id;
+	private UUID id;
 	
 	@Nullable
 	@Column(columnDefinition = "TEXT")
