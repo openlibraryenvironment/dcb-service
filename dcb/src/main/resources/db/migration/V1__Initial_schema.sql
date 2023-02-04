@@ -11,7 +11,7 @@ create table bib_identifier (
 
 create table agency (
 	id uuid primary key,
-	title varchar(200)
+	name varchar(200)
 );
 
 create table location (

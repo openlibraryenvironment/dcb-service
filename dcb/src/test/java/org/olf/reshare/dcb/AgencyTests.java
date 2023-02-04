@@ -8,7 +8,6 @@ import org.olf.reshare.dcb.test.DcbTest;
 public class AgencyTests {
 	
 	@Test
-  public void agenciesFromConfig () {
-		
+	public void agenciesFromConfig () {
 	}
 }
