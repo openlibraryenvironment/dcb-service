@@ -26,11 +26,11 @@ public class IngestService implements Runnable {
 	private static Logger log = LoggerFactory.getLogger(IngestService.class);
 	private final BibRecordService bibRecordService;
 
-	private final List<IngestSource> ingestSources;
+	private final List<IngestSourcesProvider> sourceProviders;
 
-	IngestService(BibRecordService bibRecordService, List<IngestSource> ingestSources) {
+	IngestService(BibRecordService bibRecordService, List<IngestSourcesProvider> sourceProviders) {
 		this.bibRecordService = bibRecordService;
-		this.ingestSources = ingestSources;
+		this.sourceProviders = sourceProviders;
 	}
 
 	private Runnable cleanUp(final Instant i) {
@@ -62,38 +62,45 @@ public class IngestService implements Runnable {
 
 		// Interleave sources to form 1 flux of ingest records.
 		this.mutex = Flux.merge(
-				Flux.fromIterable(ingestSources)
-					.map(source -> source.apply(lastRun))
-					.onErrorResume(t -> {
-						log.error("Error ingesting sources {}", t.getMessage());
-						return Mono.empty();
-					}))
+			Flux.fromIterable(sourceProviders)
+				.flatMap(provider -> provider.getIngestSources())
+				.filter(source -> {
+					if ( source.isEnabled() ) return true;
+					log.info ("Ingest from source: {} has been disabled in config", source.getName());
+					
+					return false;
+				})
+				.map(source -> source.apply(lastRun))
+				.onErrorResume(t -> {
+					log.error("Error ingesting data {}", t.getMessage());
+					return Mono.empty(); 
+				}))
+				
+				// Interleaved source stream from all source results.
+				// Process them using the pipeline steps...
+				.flatMap(bibRecordService::process)
+				
+				// General handlers.
+				.doOnCancel(cleanUp(lastRun)) // Don't change the last run
+				.onErrorResume(t -> {
+					log.error("Error ingesting sources {}", t.getMessage());
+					t.printStackTrace();
+					cleanUp(lastRun).run();
 
-			// Interleaved source stream from all source results.
-			// Process them using the pipeline steps...
-			.flatMap(bibRecordService::process)
+					return Mono.empty();
+					
+				}).count().subscribe(count -> {
+					bibRecordService.cleanup();
+					cleanUp(Instant.ofEpochMilli(start)).run();
 
-			// General handlers.
-			.doOnCancel(cleanUp(lastRun)) // Don't change the last run
-			.onErrorResume(t -> {
-				log.error("Error ingesting sources {}", t.getMessage());
-				t.printStackTrace();
-				cleanUp(lastRun).run();
+					if (count < 1) {
+						log.info("No records to import");
+						return;
+					}
 
-				return Mono.empty();
-
-			}).count().subscribe(count -> {
-				bibRecordService.cleanup();
-				cleanUp(Instant.ofEpochMilli(start)).run();
-
-				if (count < 1) {
-					log.info("No records to import");
-					return;
-				}
-
-				final Duration elapsed = Duration.ofMillis(System.currentTimeMillis() - start);
-				log.info("Finsihed adding {} records. Total time {} hours, {} minute and {} seconds", count,
-					elapsed.toHoursPart(), elapsed.toMinutesPart(), elapsed.toSecondsPart());
-			});
+					final Duration elapsed = Duration.ofMillis(System.currentTimeMillis() - start);
+					log.info("Finsihed adding {} records. Total time {} hours, {} minute and {} seconds", count,
+							elapsed.toHoursPart(), elapsed.toMinutesPart(), elapsed.toSecondsPart());
+				});
 	}
 }

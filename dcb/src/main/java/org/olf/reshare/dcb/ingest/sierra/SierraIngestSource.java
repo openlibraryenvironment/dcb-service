@@ -1,8 +1,11 @@
 package org.olf.reshare.dcb.ingest.sierra;
 
+import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import javax.validation.constraints.NotNull;
 
@@ -20,10 +23,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibResult;
+import services.k_int.utils.UUIDUtils;
 
 @Singleton
 @Requires(property = (SierraIngestSource.CONFIG_ROOT + ".enabled"), value = "true", defaultValue = "false")
-public class SierraIngestSource extends MarcIngestSource<BibResult> {
+public class SierraIngestSource implements MarcIngestSource<BibResult> {
 
 	public static final String CONFIG_ROOT = "sierra.ingest";
 
@@ -75,12 +79,13 @@ public class SierraIngestSource extends MarcIngestSource<BibResult> {
 	}
 
 	@Override
-	protected @NotNull String getDefaultControlIdNamespace() {
+	@NotNull
+	public String getDefaultControlIdNamespace() {
 		return "sierra";
 	}
 
 	@Override
-	protected Publisher<BibResult> getResources(Instant since) {
+	public Publisher<BibResult> getResources(Instant since) {
 		log.info("Fetching MARC JSON from Sierra");
 
 		// The stream of imported records.
@@ -95,13 +100,26 @@ public class SierraIngestSource extends MarcIngestSource<BibResult> {
 	}
 
 	@Override
-	protected Builder initIngestRecordBuilder(BibResult resource) {
+	public Builder initIngestRecordBuilder(BibResult resource) {
 		return IngestRecord.builder()
-			.uuid(getUUID5ForId(resource.id()));
+			.uuid(uuid5ForBibResult(resource));
+	}
+	
+	private static final String UUID5_PREFIX = "ingest-source:sierra";
+	
+	public UUID uuid5ForBibResult( @NotNull final BibResult result ) {
+		
+		final String concat = UUID5_PREFIX + ":" + result.id();
+		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
 	@Override
-	protected Record resourceToMarc(BibResult resource) {
+	public Record resourceToMarc(BibResult resource) {
 		return resource.marc();
+	}
+
+	@Override
+	public String getName() {
+		return this.getClass().getName();
 	}
 }

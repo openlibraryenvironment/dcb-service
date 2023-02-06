@@ -1,0 +1,25 @@
+hosts:
+  test1:
+    type: org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient
+    client:
+      key: test1-key
+      secret: test1-secret
+      base-url: https://test1.com
+      
+  test2:
+    type: org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient
+    client:
+      key: test2-key2
+      secret: test2-secret
+      base-url: https://test2.com
+      
+agencies:
+  agency1:
+    hostLms: test1
+  agency2:
+    hostLms: test1
+  agency3:
+    hostLms: test2
+  agency4:
+    hostLms: test2
+  
