@@ -15,43 +15,22 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
 @MappedEntity
-public class Agency {
+public class PatronRequest {
 	@NotNull
 	@NonNull
 	@Id
 	@Column(columnDefinition = "UUID")
 	private UUID id;
 	
-	@Nullable
 	@Column(columnDefinition = "TEXT")
-	private String name;
+	private String patronId;
 
+        @Nullable
+	@Column(columnDefinition = "TEXT")
+	private String bibClusterId;
 
-        public Agency() {
-        }
-
-        public Agency(UUID id, String name) {
-                this.id = id;
-                this.name = name;
-        }
-
-        public UUID getId() {
-                return id;
-        }
-
-        public Agency setId(UUID id) {
-                this.id = id;
-                return this;
-        }
-
-        public String getName() {
-                return name;
-        }
-
-        public Agency setName(String name) {
-                this.name = name;
-                return this;
-        }
-
+        @Nullable
+	@Column(columnDefinition = "TEXT")
+	private String pickupLocationCode;
 }
 
