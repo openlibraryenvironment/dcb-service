@@ -2,23 +2,29 @@ package org.olf.reshare.dcb;
 
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockserver.model.JsonBody.json;
 
+import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.serde.annotation.Serdeable;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.olf.reshare.dcb.core.api.datavalidation.PatronRequestCommand;
-import org.olf.reshare.dcb.core.model.*;
-import org.olf.reshare.dcb.core.model.builders.*;
+import org.mockserver.model.JsonBody;
+import org.olf.reshare.dcb.core.api.datavalidation.*;
+
+import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.test.DcbTest;
 
 import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.UUID;
 
 @DcbTest
@@ -30,47 +36,42 @@ class PatronRequestTest {
 	@Client("/")
 	HttpClient client;
 
+	@Inject
+	ResourceLoader loader;
+
+	private final String JSON_ROOT = "classpath:patron-request";
+
 	@Test
-	void canPlacePatronRequest() {
+	public void canPlacePatronRequest() throws IOException {
 
-		// build payload
-		PatronRequestCommand patronRequestCommand = new PatronRequestCommand(null, null, null, null);
+		HttpClientResponseException e = Assertions.assertThrows(HttpClientResponseException.class, () -> {
+			PatronRequestCommand patronRequestCommand = new PatronRequestCommand(null, null, null, null);
+			client.toBlocking().exchange(HttpRequest.POST("/patrons/requests/place", patronRequestCommand ));
+		});
 
-		// place request
-		HttpRequest<?> placeRequestRequest = HttpRequest.POST("/patrons/requests/place", patronRequestCommand);
-		HttpResponse<PatronRequest> placeRequestResponse = client.toBlocking()
-			.exchange(placeRequestRequest, PatronRequest.class);
-
-		log.debug("Placed test patron request: {}", placeRequestResponse);
-
-		assertNotNull(placeRequestResponse);
-		assertEquals(placeRequestResponse.getStatus(), BAD_REQUEST);
+		HttpResponse<?> response = e.getResponse();
+		assertEquals(HttpStatus.BAD_REQUEST, response.getStatus());
 
 
-		// check we can fetch with id
-//		UUID PR_ID = placeRequestResponse.body().getId();
-//		HttpRequest<?> getPatronRequestRequest = HttpRequest.GET("/admin/patrons/requests/" + PR_ID);
-//		HttpResponse<PatronRequest> getPatronRequestResponse = client.toBlocking()
-//				.exchange(getPatronRequestRequest, PatronRequest.class);
-//
-//		log.debug("Fetching test patron request: {}", getPatronRequestResponse);
-//
-//		assertNotNull(getPatronRequestResponse);
-//		assertEquals(getPatronRequestResponse.body().getId(), PR_ID);
+		CitationCommand citationCommand = new CitationCommand();
+		citationCommand.setBibClusterId("ad0cd9fe-9bef-4942-8a16-a9fa677e7146");
+
+		RequestorCommand requestorCommand = new RequestorCommand();
+		requestorCommand.setIdentifiier("jane-smith");
+		AgencyCommand agencyCommand = new AgencyCommand();
+		agencyCommand.setCode("RGX12");
+		requestorCommand.setAgency(agencyCommand);
+
+		PickupLocationCommand pickupLocationCommand = new PickupLocationCommand();
+		pickupLocationCommand.setCode("ABC123");
+
+		PatronRequestCommand patronRequestCommand = new PatronRequestCommand();
+		patronRequestCommand.setCitation( citationCommand );
+		patronRequestCommand.setRequestor( requestorCommand );
+		patronRequestCommand.setPickupLocation( pickupLocationCommand );
+
+		response = client.toBlocking().exchange(HttpRequest.POST("/patrons/requests/place", patronRequestCommand));
+		assertEquals(HttpStatus.OK, response.getStatus());
 	}
 
-//	@Test
-//	void mustProvideValidPayloadToPlaceRequest () {
-//
-//		// build payload
-//		PatronRequest patronRequest = new PatronRequestBuilder()
-//			.createPatronRequest();
-//
-//		final HttpClientResponseException exception = Assertions.assertThrows(HttpClientResponseException.class, () -> {
-//			// place request & throw 401
-//			HttpRequest<?> placeRequestRequest = HttpRequest.POST("/patrons/requests/place", patronRequest);
-//			client.toBlocking().exchange(placeRequestRequest, PatronRequest.class);;
-//		});
-//		Assertions.assertEquals(BAD_REQUEST, exception.getStatus());
-//	}
 }

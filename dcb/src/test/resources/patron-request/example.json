@@ -1,0 +1,14 @@
+{
+	"citation":{
+		"bibClusterId":"ad0cd9fe-9bef-4942-8a16-a9fa677e7146"
+	},
+	"requestor":{
+		"identifier":"jane-smith",
+		"agency":{
+			"code":"RGX12"
+		}
+	},
+	"pickupLocation":{
+		"code":"ABC123"
+	}
+}

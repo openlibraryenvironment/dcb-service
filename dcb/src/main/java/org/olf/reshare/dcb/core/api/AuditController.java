@@ -18,4 +18,12 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 @Tag(name = "Audit API")
 public class AuditController {
 
+	public static final Logger log = LoggerFactory.getLogger(AuditController.class);
+//	@SingleResult
+//	@Get("/admin/patrons/requests/{id}")
+//	public Publisher<PatronRequest> getPatronRequest(@PathVariable("id") final UUID id) {
+//		log.debug("REST, get patron request with id: {}", id);
+//		return patronRequestRepository.findById(id);
+//	}
+
 }
