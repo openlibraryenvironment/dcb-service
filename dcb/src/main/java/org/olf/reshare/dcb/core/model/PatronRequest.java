@@ -32,5 +32,16 @@ public class PatronRequest {
         @Nullable
 	@Column(columnDefinition = "TEXT")
 	private String pickupLocationCode;
+
+
+
+	@NonNull
+	public UUID getId() {
+		return id;
+	}
+
+	public void setId(@NonNull UUID id) {
+		this.id = id;
+	}
 }
 

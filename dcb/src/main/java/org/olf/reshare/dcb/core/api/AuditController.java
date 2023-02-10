@@ -6,6 +6,7 @@ import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.olf.reshare.dcb.core.model.PatronRequest;
+import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,11 +20,17 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 public class AuditController {
 
 	public static final Logger log = LoggerFactory.getLogger(AuditController.class);
-//	@SingleResult
-//	@Get("/admin/patrons/requests/{id}")
-//	public Publisher<PatronRequest> getPatronRequest(@PathVariable("id") final UUID id) {
-//		log.debug("REST, get patron request with id: {}", id);
-//		return patronRequestRepository.findById(id);
-//	}
+	private final PatronRequestRepository patronRequestRepository;
+
+	public AuditController(PatronRequestRepository patronRequestRepository) {
+		this.patronRequestRepository = patronRequestRepository;
+	}
+
+	@SingleResult
+	@Get("/admin/patrons/requests/{id}")
+	public Publisher<PatronRequest> getPatronRequest(@PathVariable("id") final UUID id) {
+		log.debug("REST, get patron request with id: {}", id);
+		return patronRequestRepository.findById(id);
+	}
 
 }

@@ -1,31 +1,21 @@
 package org.olf.reshare.dcb;
 
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockserver.model.JsonBody.json;
-
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.serde.annotation.Serdeable;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.mockserver.model.JsonBody;
 import org.olf.reshare.dcb.core.api.datavalidation.*;
 
-import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.test.DcbTest;
 
 import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.UUID;
 
 @DcbTest
 class PatronRequestTest {
@@ -36,13 +26,8 @@ class PatronRequestTest {
 	@Client("/")
 	HttpClient client;
 
-	@Inject
-	ResourceLoader loader;
-
-	private final String JSON_ROOT = "classpath:patron-request";
-
 	@Test
-	public void canPlacePatronRequest() throws IOException {
+	public void testPlacePatronRequestValidation() {
 
 		HttpClientResponseException e = Assertions.assertThrows(HttpClientResponseException.class, () -> {
 			PatronRequestCommand patronRequestCommand = new PatronRequestCommand(null, null, null, null);
