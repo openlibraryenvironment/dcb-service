@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb;
+package org.olf.reshare.dcb.api;
 
 import static org.junit.jupiter.api.Assertions.*;
 import io.micronaut.http.HttpRequest;
