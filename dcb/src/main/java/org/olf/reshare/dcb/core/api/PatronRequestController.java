@@ -39,12 +39,17 @@ public class PatronRequestController  {
 		// create new id
 		UUID uuid = UUID.randomUUID();
 
-		// new patron request stored
+		// get model representation
 		PatronRequest patronRequest = new PatronRequest();
-		patronRequest.setId(uuid);
 
 		return patronRequestCommand
-			.doOnNext(pr -> pr.setId(uuid))
+			.doOnNext(pr -> {
+				pr.setId(uuid);
+				patronRequest.setId(uuid);
+				patronRequest.setPatronId(pr.getRequestor().getIdentifiier());
+				patronRequest.setBibClusterId(pr.getCitation().getBibClusterId());
+				patronRequest.setPickupLocationCode(pr.getPickupLocation().getCode());
+			})
 			.map(p -> {
 				patronRequestRepository.save(patronRequest);
 				return HttpResponse.ok(p);
