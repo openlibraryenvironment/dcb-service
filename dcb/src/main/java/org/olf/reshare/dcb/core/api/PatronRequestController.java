@@ -48,7 +48,7 @@ public class PatronRequestController  {
 				pr.setId(uuid);
 				patronRequest.setId(uuid);
 				patronRequest.setPatronId(pr.getRequestor().getIdentifiier());
-				patronRequest.setPatronId(pr.getRequestor().getAgency().getCode());
+				patronRequest.setPatronAgencyCode(pr.getRequestor().getAgency().getCode());
 				patronRequest.setBibClusterId(pr.getCitation().getBibClusterId());
 				patronRequest.setPickupLocationCode(pr.getPickupLocation().getCode());
 			})
