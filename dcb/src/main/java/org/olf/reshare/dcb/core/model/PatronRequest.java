@@ -25,12 +25,59 @@ public class PatronRequest {
 	@Column(columnDefinition = "TEXT")
 	private String patronId;
 
-        @Nullable
+	@Column(columnDefinition = "TEXT")
+	private String patronAgencyCode;
+
+	@Nullable
 	@Column(columnDefinition = "TEXT")
 	private String bibClusterId;
 
-        @Nullable
+	@Nullable
 	@Column(columnDefinition = "TEXT")
 	private String pickupLocationCode;
+
+
+	@NonNull
+	public UUID getId() {
+		return id;
+	}
+
+	public void setId(@NonNull UUID id) {
+		this.id = id;
+	}
+
+	public String getPatronId() {
+		return patronId;
+	}
+
+	public void setPatronId(String patronId) {
+		this.patronId = patronId;
+	}
+
+	public String getPatronAgencyCode() {
+		return patronAgencyCode;
+	}
+
+	public void setPatronAgencyCode(String patronAgencyCode) {
+		this.patronAgencyCode = patronAgencyCode;
+	}
+
+	@Nullable
+	public String getBibClusterId() {
+		return bibClusterId;
+	}
+
+	public void setBibClusterId(@Nullable String bibClusterId) {
+		this.bibClusterId = bibClusterId;
+	}
+
+	@Nullable
+	public String getPickupLocationCode() {
+		return pickupLocationCode;
+	}
+
+	public void setPickupLocationCode(@Nullable String pickupLocationCode) {
+		this.pickupLocationCode = pickupLocationCode;
+	}
 }
 
