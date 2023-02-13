@@ -8,7 +8,7 @@ import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.olf.reshare.dcb.core.api.datavalidation.PatronRequestCommand;
-import org.olf.reshare.dcb.processing.PatronRequestService;
+import org.olf.reshare.dcb.request.fulfilment.PatronRequestService;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
