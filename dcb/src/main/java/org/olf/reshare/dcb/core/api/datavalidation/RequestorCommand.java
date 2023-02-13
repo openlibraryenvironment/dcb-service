@@ -1,10 +1,9 @@
 package org.olf.reshare.dcb.core.api.datavalidation;
 
-import io.micronaut.core.annotation.Introspected;
-import io.micronaut.serde.annotation.Serdeable;
-
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+
+import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
 public class RequestorCommand {
@@ -14,6 +13,13 @@ public class RequestorCommand {
 	String identifiier;
 
 	AgencyCommand agency;
+
+	public RequestorCommand() { }
+
+	public RequestorCommand(String identifiier, AgencyCommand agency) {
+		this.identifiier = identifiier;
+		this.agency = agency;
+	}
 
 	public String getIdentifiier() {
 		return identifiier;

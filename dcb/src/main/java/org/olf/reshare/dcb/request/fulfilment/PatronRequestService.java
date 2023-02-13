@@ -25,33 +25,48 @@ public class PatronRequestService {
 		this.patronRequestRepository = patronRequestRepository;
 	}
 
-	public Mono<PatronRequestCommand> savePatronRequest(Mono<PatronRequestCommand> patronRequestCommand) {
+	public Mono<PatronRequestCommand> savePatronRequest(
+		Mono<PatronRequestCommand> patronRequestCommand) {
 
-                log.debug("savePatronRequest({})", patronRequestCommand);
+		log.debug("savePatronRequest({})", patronRequestCommand);
 
-		// create new id
-		UUID uuid = UUID.randomUUID();
+		return patronRequestCommand
+			.map(PatronRequestService::mapToPatronRequest)
+			.flatMap(this::savePatronRequest)
+			.map(PatronRequestService::mapToResult);
+	}
 
-		// get model representation
-		PatronRequest patronRequest = new PatronRequest();
+	private static PatronRequest mapToPatronRequest(PatronRequestCommand command) {
+		final var patronRequest = new PatronRequest();
 
-		patronRequestCommand
-			.doOnNext(pr -> {
-				pr.setId(uuid);
-				patronRequest.setId(uuid);
-				patronRequest.setPatronId(pr.getRequestor().getIdentifiier());
-				patronRequest.setPatronAgencyCode(pr.getRequestor().getAgency().getCode());
-				patronRequest.setBibClusterId(pr.getCitation().getBibClusterId());
-				patronRequest.setPickupLocationCode(pr.getPickupLocation().getCode());
-			})
-			.map(p -> {
-                                log.debug("call save on {}", patronRequest);
-				patronRequestRepository.save(patronRequest);
-				return p;
-			});
+		patronRequest.setId(UUID.randomUUID());
+		patronRequest.setPatronId(command.getRequestor().getIdentifiier());
+		patronRequest.setPatronAgencyCode(command.getRequestor().getAgency().getCode());
+		patronRequest.setBibClusterId(command.getCitation().getBibClusterId());
+		patronRequest.setPickupLocationCode(command.getPickupLocation().getCode());
 
-                log.debug("returning {}", patronRequestCommand);
-		return patronRequestCommand;
+		return patronRequest;
+	}
+
+	private Mono<? extends PatronRequest> savePatronRequest(
+		PatronRequest patronRequest) {
+
+		log.debug("call save on {}", patronRequest);
+
+		// Mono and publishers don't chain very well, so convert to mono
+		return Mono.from(patronRequestRepository.save(patronRequest));
+	}
+
+	private static PatronRequestCommand mapToResult(PatronRequest patronRequest) {
+		// This is a strange name because we are using a command as a return value
+		final var resultCommand = new PatronRequestCommand(patronRequest.getId(),
+			new CitationCommand(patronRequest.getBibClusterId()),
+			new RequestorCommand(patronRequest.getPatronId(),
+				new AgencyCommand(patronRequest.getPatronAgencyCode())),
+			new PickupLocationCommand(patronRequest.getPickupLocationCode()));
+
+		log.debug("returning {}", resultCommand);
+		return resultCommand;
 	}
 
 	public Mono<PatronRequestCommand> getPatronRequestWithId(UUID id) {
@@ -82,5 +97,4 @@ public class PatronRequestService {
 				return patronRequestCommand;
 			});
 	}
-
 }
