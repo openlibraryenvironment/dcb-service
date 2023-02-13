@@ -23,6 +23,7 @@ create table location (
 create table patron_request (
 	id uuid primary key,
 	patron_id varchar(200),
+	patron_agency_code varchar(200),
 	bib_cluster_id uuid,
 	pickup_location_code varchar(200)
 );

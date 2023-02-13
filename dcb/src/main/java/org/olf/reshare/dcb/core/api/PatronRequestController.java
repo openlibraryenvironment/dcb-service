@@ -44,9 +44,11 @@ public class PatronRequestController  {
 
 		return patronRequestCommand
 			.doOnNext(pr -> {
+				// TODO: use service to do logic
 				pr.setId(uuid);
 				patronRequest.setId(uuid);
 				patronRequest.setPatronId(pr.getRequestor().getIdentifiier());
+				patronRequest.setPatronId(pr.getRequestor().getAgency().getCode());
 				patronRequest.setBibClusterId(pr.getCitation().getBibClusterId());
 				patronRequest.setPickupLocationCode(pr.getPickupLocation().getCode());
 			})

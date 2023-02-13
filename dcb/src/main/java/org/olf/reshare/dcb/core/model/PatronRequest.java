@@ -25,14 +25,16 @@ public class PatronRequest {
 	@Column(columnDefinition = "TEXT")
 	private String patronId;
 
+	@Column(columnDefinition = "TEXT")
+	private String patronAgencyCode;
+
 	@Nullable
 	@Column(columnDefinition = "TEXT")
 	private String bibClusterId;
 
-        @Nullable
+	@Nullable
 	@Column(columnDefinition = "TEXT")
 	private String pickupLocationCode;
-
 
 
 	@NonNull
@@ -50,6 +52,14 @@ public class PatronRequest {
 
 	public void setPatronId(String patronId) {
 		this.patronId = patronId;
+	}
+
+	public String getPatronAgencyCode() {
+		return patronAgencyCode;
+	}
+
+	public void setPatronAgencyCode(String patronAgencyCode) {
+		this.patronAgencyCode = patronAgencyCode;
 	}
 
 	@Nullable
