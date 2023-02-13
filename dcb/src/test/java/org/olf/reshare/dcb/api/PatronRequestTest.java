@@ -56,7 +56,6 @@ class PatronRequestTest {
 		patronRequestCommand.setPickupLocation( pickupLocationCommand );
 
 		HttpResponse<PatronRequestCommand> rp = client.toBlocking().exchange(HttpRequest.POST("/patrons/requests/place", patronRequestCommand));
-		log.debug("this is the response:>>>>>>>>>{}", rp.get);
 		assertEquals(HttpStatus.OK, rp.getStatus());
 	}
 
