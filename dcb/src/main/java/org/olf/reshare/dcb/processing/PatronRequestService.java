@@ -23,12 +23,16 @@ import java.util.UUID;
 @Singleton
 public class PatronRequestService {
 
+        public static final Logger log = LoggerFactory.getLogger(PatronRequestService.class);
+
 	private final PatronRequestRepository patronRequestRepository;
 	public PatronRequestService(PatronRequestRepository patronRequestRepository) {
 		this.patronRequestRepository = patronRequestRepository;
 	}
 
 	public Mono<PatronRequestCommand> savePatronRequest(Mono<PatronRequestCommand> patronRequestCommand) {
+
+                log.debug("savePatronRequest({})", patronRequestCommand);
 
 		// create new id
 		UUID uuid = UUID.randomUUID();
@@ -46,10 +50,12 @@ public class PatronRequestService {
 				patronRequest.setPickupLocationCode(pr.getPickupLocation().getCode());
 			})
 			.map(p -> {
+                                log.debug("call save on {}", patronRequest);
 				patronRequestRepository.save(patronRequest);
 				return p;
 			});
 
+                log.debug("returning {}", patronRequestCommand);
 		return patronRequestCommand;
 	}
 
