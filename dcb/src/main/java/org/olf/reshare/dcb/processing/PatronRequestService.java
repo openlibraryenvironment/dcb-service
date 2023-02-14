@@ -31,24 +31,35 @@ public class PatronRequestService {
 		// create new id
 		UUID uuid = UUID.randomUUID();
 
-		// get model representation
-		PatronRequest patronRequest = new PatronRequest();
-
 		patronRequestRecordMono.map(pr -> {
-			log.debug(String.format("create pr %s %s %s %s %s",uuid,
-				pr.requestor().identifier(),
-				pr.requestor().agency().code(),
-				pr.citation().bibClusterId(),
-				pr.pickupLocation().code()));
-			patronRequest.setId(UUID.randomUUID());
-			patronRequest.setPatronId("jane-smith");
-			patronRequest.setPatronAgencyCode("RGX12");
-			patronRequest.setBibClusterId(UUID.randomUUID());
-			patronRequest.setPickupLocationCode("ABC123");
-			log.debug(String.format("Execute save %s",patronRequest));
-			return pr;
+
+                        if ( ( pr.requestor() != null ) &&
+                             ( pr.requestor().agency() != null ) &&
+                             ( pr.citation() != null ) &&
+                             ( pr.pickupLocation() != null ) ) {
+
+        			log.debug(String.format("create pr %s %s %s %s %s",uuid,
+	        			pr.requestor().identifier(),
+		        		pr.requestor().agency().code(),
+			        	pr.citation().bibClusterId(),
+				        pr.pickupLocation().code()));
+
+                                PatronRequest patronRequest = new PatronRequest(UUID.randomUUID(),
+                                                                                "jane-smith",
+                                                                                "RGX12",
+                                                                                UUID.randomUUID(),
+                                                                                "ABC123");
+
+        			log.debug(String.format("Execute save %s",patronRequest));
+		                patronRequestRepository.save(patronRequest);
+
+	        		return pr;
+                        }
+
+                        log.error("Invalid patron request data");
+                        return null;
 		});
-		patronRequestRepository.save(patronRequest);
+
 		return patronRequestRecordMono
 			.map(pr -> new PatronRequestRecord(uuid, pr.citation(), pr.pickupLocation(), pr.requestor()));
 	}

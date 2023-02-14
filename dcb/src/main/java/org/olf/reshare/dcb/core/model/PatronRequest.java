@@ -16,6 +16,18 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @ExcludeFromGeneratedCoverageReport
 @MappedEntity
 public class PatronRequest {
+
+        public PatronRequest() {
+        }
+
+        public PatronRequest(UUID id, String patronId, String patronAgencyCode, UUID bibClusterId, String pickupLocationCode) {
+                this.id = id;
+                this.patronId = patronId;
+                this.patronAgencyCode = patronAgencyCode;
+                this.bibClusterId = bibClusterId;
+                this.pickupLocationCode = pickupLocationCode;
+        }
+
 	@NotNull
 	@NonNull
 	@Id
