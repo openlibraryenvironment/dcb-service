@@ -44,7 +44,7 @@ public class PatronRequestService {
 			        	pr.citation().bibClusterId(),
 				        pr.pickupLocation().code()));
 
-                                PatronRequest patronRequest = new PatronRequest(pr.id(),
+                                PatronRequest patronRequest = new PatronRequest(uuid,
                                                                                 pr.requestor().identifier(),
                                                                                 pr.requestor().agency().code(),
                                                                                 pr.citation().bibClusterId(),

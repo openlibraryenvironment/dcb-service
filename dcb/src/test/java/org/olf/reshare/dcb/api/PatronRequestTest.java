@@ -108,8 +108,9 @@ class PatronRequestTest {
 		List<PatronRequest> patronRequests = Flux.from(requestRepository.findAll()).collectList().block();
 		assert patronRequests != null;
 
+                // We've created 2 patron requests.. so there should be 2 in the DB
 		log.debug("Got {} patron request: {}", patronRequests.size(), patronRequests.toString());
-		assert patronRequests.size() == 1;
+		assert patronRequests.size() == 2;
 	}
 
 }
