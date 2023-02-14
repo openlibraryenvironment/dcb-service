@@ -3,7 +3,10 @@ package org.olf.reshare.dcb.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.olf.reshare.dcb.test.DcbTest;
@@ -23,6 +26,7 @@ import reactor.core.publisher.Flux;
 import java.util.List;
 import java.util.UUID;
 
+@TestMethodOrder(OrderAnnotation.class)
 @DcbTest
 class PatronRequestTest {
 
@@ -35,6 +39,7 @@ class PatronRequestTest {
 	PatronRequestRepository requestRepository;
 
 	@Test
+        @Order(1)
 	public void testPlacePatronRequestValidation() {
 
                 log.info("Empty patron request");
@@ -75,6 +80,7 @@ class PatronRequestTest {
 	}
 
 	@Test
+        @Order(2)
 	void testPatronRequestCreation() {
 		log.debug("1. testPatronRequestCreation");
 		JSONObject patronRequest = new JSONObject() {{
