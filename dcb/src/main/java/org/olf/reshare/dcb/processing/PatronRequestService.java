@@ -53,11 +53,10 @@ public class PatronRequestService {
         			log.debug(String.format("Execute save %s",patronRequest));
 		                Mono<PatronRequest> new_pr_mono = Mono.from( patronRequestRepository.save(patronRequest) );
                                 log.debug("Created new pr: {}",new_pr_mono.block().toString());
-
-	        		return pr;
                         }
-
-                        log.error("Invalid patron request data");
+                        else {
+                          log.error("Invalid patron request data");
+                        }
 
                         return new PatronRequestRecord(uuid, pr.citation(), pr.pickupLocation(), pr.requestor());
 		});
