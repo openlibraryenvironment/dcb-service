@@ -39,6 +39,7 @@ public class PatronRequestController {
 		log.debug("REST, place patron request: {}", patronRequestRecordMono);
 
 		patronRequestRecordMono = patronRequestService.savePatronRequest(patronRequestRecordMono);
+
 		return patronRequestRecordMono.map(HttpResponse::ok);
 
 	}

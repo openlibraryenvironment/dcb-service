@@ -31,7 +31,7 @@ public class PatronRequestService {
 		// create new id
 		UUID uuid = UUID.randomUUID();
 
-		patronRequestRecordMono.map(pr -> {
+		return patronRequestRecordMono.map(pr -> {
 
                         if ( ( pr.requestor() != null ) &&
                              ( pr.requestor().agency() != null ) &&
@@ -51,17 +51,17 @@ public class PatronRequestService {
                                                                                 "ABC123");
 
         			log.debug(String.format("Execute save %s",patronRequest));
-		                patronRequestRepository.save(patronRequest);
+		                Mono<PatronRequest> new_pr_mono = Mono.from( patronRequestRepository.save(patronRequest) );
+                                log.debug("Created new pr: {}",new_pr_mono.block().toString());
 
 	        		return pr;
                         }
 
                         log.error("Invalid patron request data");
-                        return null;
+
+                        return new PatronRequestRecord(uuid, pr.citation(), pr.pickupLocation(), pr.requestor());
 		});
 
-		return patronRequestRecordMono
-			.map(pr -> new PatronRequestRecord(uuid, pr.citation(), pr.pickupLocation(), pr.requestor()));
 	}
 
 	public Mono<PatronRequestRecord> getPatronRequestWithId(UUID id) {
