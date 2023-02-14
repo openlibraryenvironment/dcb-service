@@ -135,8 +135,8 @@ tasks {
 
 
 	final Map<String, String> labels = [
-		'maintainer'  : 'Steve Osguthorpe <steve.osguthorpe@k-int.com>',
-		'version'     : project.hasProperty('versionWithMeta') ? project.getProperty('versionWithMeta') : project.getProperty('version')
+		'maintainer': 'Steve Osguthorpe <steve.osguthorpe@k-int.com>',
+		'version'   : project.hasProperty('versionWithMeta') ? project.getProperty('versionWithMeta') : project.getProperty('version')
 	]
 
 	dockerfile {
@@ -148,7 +148,7 @@ tasks {
 	}
 
 	boolean isPre = project.hasProperty('versionPreRelease') &&
-			("${project.getProperty('versionPreRelease')}".trim() != "")
+		("${project.getProperty('versionPreRelease')}".trim() != "")
 
 	// Build up a list of tags we should apply
 	final Set<String> tags = [
@@ -156,7 +156,7 @@ tasks {
 		'versionMajorMinor',
 		'version'
 	].findResults {
-		( project.hasProperty(it) && !project.property(it).equals('unspecified') ) ? project.property(it).toString().trim() : null
+		(project.hasProperty(it) && !project.property(it).equals('unspecified')) ? project.property(it).toString().trim() : null
 	}
 
 	// If this is a pre-release (including Snapshots) then add "next" tag. Otherwise, use latest

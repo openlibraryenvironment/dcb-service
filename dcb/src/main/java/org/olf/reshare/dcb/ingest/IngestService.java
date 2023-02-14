@@ -62,38 +62,38 @@ public class IngestService implements Runnable {
 
 		// Interleave sources to form 1 flux of ingest records.
 		this.mutex = Flux.merge(
-					Flux.fromIterable(ingestSources)
-						.map(source -> source.apply(lastRun))
-						.onErrorResume(t -> {
-							log.error("Error ingesting sources {}", t.getMessage());
-							return Mono.empty(); 
-						}))
-				
-				// Interleaved source stream from all source results.
-				// Process them using the pipeline steps...
-				.flatMap(bibRecordService::process)
-				
-				// General handlers.
-				.doOnCancel(cleanUp(lastRun)) // Don't change the last run
-				.onErrorResume(t -> {
-					log.error("Error ingesting sources {}", t.getMessage());
-					t.printStackTrace();
-					cleanUp(lastRun).run();
+				Flux.fromIterable(ingestSources)
+					.map(source -> source.apply(lastRun))
+					.onErrorResume(t -> {
+						log.error("Error ingesting sources {}", t.getMessage());
+						return Mono.empty();
+					}))
 
-					return Mono.empty();
-					
-				}).count().subscribe(count -> {
-					bibRecordService.cleanup();
-					cleanUp(Instant.ofEpochMilli(start)).run();
+			// Interleaved source stream from all source results.
+			// Process them using the pipeline steps...
+			.flatMap(bibRecordService::process)
 
-					if (count < 1) {
-						log.info("No records to import");
-						return;
-					}
+			// General handlers.
+			.doOnCancel(cleanUp(lastRun)) // Don't change the last run
+			.onErrorResume(t -> {
+				log.error("Error ingesting sources {}", t.getMessage());
+				t.printStackTrace();
+				cleanUp(lastRun).run();
 
-					final Duration elapsed = Duration.ofMillis(System.currentTimeMillis() - start);
-					log.info("Finsihed adding {} records. Total time {} hours, {} minute and {} seconds", count,
-							elapsed.toHoursPart(), elapsed.toMinutesPart(), elapsed.toSecondsPart());
-				});
+				return Mono.empty();
+
+			}).count().subscribe(count -> {
+				bibRecordService.cleanup();
+				cleanUp(Instant.ofEpochMilli(start)).run();
+
+				if (count < 1) {
+					log.info("No records to import");
+					return;
+				}
+
+				final Duration elapsed = Duration.ofMillis(System.currentTimeMillis() - start);
+				log.info("Finsihed adding {} records. Total time {} hours, {} minute and {} seconds", count,
+					elapsed.toHoursPart(), elapsed.toMinutesPart(), elapsed.toSecondsPart());
+			});
 	}
 }

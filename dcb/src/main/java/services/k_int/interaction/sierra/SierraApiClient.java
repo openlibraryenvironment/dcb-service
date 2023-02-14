@@ -35,62 +35,62 @@ public interface SierraApiClient {
 
 	public final static String CONFIG_ROOT = "sierra.client";
 	static final Logger log = LoggerFactory.getLogger(SierraApiClient.class);
-	
+
 	@SingleResult
-	default Publisher<AuthToken> login( final String key, final String secret ) {
+	default Publisher<AuthToken> login(final String key, final String secret) {
 		return login(new BasicAuth(key, secret));
 	}
-	
+
 	@SingleResult
-	default Publisher<AuthToken> login( BasicAuth creds ) {
-		return login( creds, MultipartBody.builder()
-        .addPart("grant_type", "client_credentials")
-        .build());
+	default Publisher<AuthToken> login(BasicAuth creds) {
+		return login(creds, MultipartBody.builder()
+			.addPart("grant_type", "client_credentials")
+			.build());
 	}
-	
+
 	// Basic auth is auto bound to the request.
 	@SingleResult
 	@Post("/token")
 	@Produces(value = MULTIPART_FORM_DATA)
-	Publisher<AuthToken> login( BasicAuth creds, @Body MultipartBody body);
-	
+	Publisher<AuthToken> login(BasicAuth creds, @Body MultipartBody body);
+
 	@SingleResult
 	@Get("/bibs/")
 	@Retryable
-	Publisher<BibResultSet> bibs (
-			@Nullable @QueryValue("limit") final Integer limit, 
-			@Nullable @QueryValue("offset") final Integer offset,
-			@Nullable @QueryValue("createdDate") final String createdDate,
-			@Nullable @QueryValue("updatedDate") final String updatedDate,
-			@Nullable @QueryValue("fields") @Format("CSV") final Iterable<String> fields,
-			@Nullable @QueryValue("deleted") final Boolean deleted,
-			@Nullable @QueryValue("deletedDate") final String deletedDate,
-			@Nullable @QueryValue("suppressed") final Boolean suppressed,
-			@Nullable @QueryValue("locations") @Format("CSV") final Iterable<String> locations);
-	
+	Publisher<BibResultSet> bibs(
+		@Nullable @QueryValue("limit") final Integer limit,
+		@Nullable @QueryValue("offset") final Integer offset,
+		@Nullable @QueryValue("createdDate") final String createdDate,
+		@Nullable @QueryValue("updatedDate") final String updatedDate,
+		@Nullable @QueryValue("fields") @Format("CSV") final Iterable<String> fields,
+		@Nullable @QueryValue("deleted") final Boolean deleted,
+		@Nullable @QueryValue("deletedDate") final String deletedDate,
+		@Nullable @QueryValue("suppressed") final Boolean suppressed,
+		@Nullable @QueryValue("locations") @Format("CSV") final Iterable<String> locations);
+
 	@SingleResult
-	default Publisher<BibResultSet> bibs (BibParams params) {
-		return bibs (
-				params.limit(),
-				params.offset(),
-				Objects.toString(params.createdDate(), null),
-				Objects.toString(params.updatedDate(), null),
-				nullIfEmpty(params.fields()),
-				params.deleted(),
-				Objects.toString(params.deletedDate(), null),
-				params.suppressed(),
-				nullIfEmpty(params.locations()));
+	default Publisher<BibResultSet> bibs(BibParams params) {
+		return bibs(
+			params.limit(),
+			params.offset(),
+			Objects.toString(params.createdDate(), null),
+			Objects.toString(params.updatedDate(), null),
+			nullIfEmpty(params.fields()),
+			params.deleted(),
+			Objects.toString(params.deletedDate(), null),
+			params.suppressed(),
+			nullIfEmpty(params.locations()));
 	}
-	
+
 	@SingleResult
-	public default Publisher<BibResultSet> bibs (Consumer<BibParams.Builder> consumer) {
+	public default Publisher<BibResultSet> bibs(Consumer<BibParams.Builder> consumer) {
 		return bibs(BibParams.build(consumer));
 	}
-	
-	private static <T> Collection<T> nullIfEmpty (Collection<T> collection) {
+
+	private static <T> Collection<T> nullIfEmpty(Collection<T> collection) {
 		if (collection == null || collection.size() < 1) return null;
 		return collection;
 	}
-	
-	
+
+
 }

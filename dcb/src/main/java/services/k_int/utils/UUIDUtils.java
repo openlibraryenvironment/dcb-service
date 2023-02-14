@@ -19,7 +19,7 @@ public class UUIDUtils {
 
 	/**
 	 * Create a UUID V5 from the supplied namespace UUID and a string
-	 * 
+	 *
 	 * @param namespace UUID namespace
 	 * @param name      The string data
 	 * @return A Version 5 compliant UUID
@@ -30,7 +30,7 @@ public class UUIDUtils {
 
 	/**
 	 * Create a UUID V5 from the supplied namespace UUID and an array of bytes
-	 * 
+	 *
 	 * @param namespace UUID namespace
 	 * @param nameBytes The byte data
 	 * @return A Version 5 compliant UUID
@@ -63,7 +63,7 @@ public class UUIDUtils {
 
 	/**
 	 * Construct UUID directly from Bytes.
-	 * 
+	 *
 	 * @param data The byte data
 	 * @return A UUID
 	 */

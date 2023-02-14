@@ -22,26 +22,26 @@ import reactor.core.publisher.Mono;
 @Tag(name = "Bib API")
 public class BibController {
 
-  private final BibRepository _bibRepository;
+	private final BibRepository _bibRepository;
 
-  public BibController ( BibRepository bibRepository  ) {
-  	_bibRepository = bibRepository;
-  }
-	
-  @Secured(SecurityRule.IS_ANONYMOUS)
+	public BibController(BibRepository bibRepository) {
+		_bibRepository = bibRepository;
+	}
+
+	@Secured(SecurityRule.IS_ANONYMOUS)
 	@Operation(
 		summary = "Browse Bibs",
 		description = "Paginate through the list of known Bibilographic entries",
 		parameters = {
-				@Parameter(in = ParameterIn.QUERY, name = "number", description="The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
-				@Parameter(in = ParameterIn.QUERY, name = "size", description="The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
+			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
+			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
 	)
-  @Get("/{?pageable*}")
-  public Mono<Page<BibRecord>> list(@Parameter(hidden = true) @Valid Pageable pageable ) {
+	@Get("/{?pageable*}")
+	public Mono<Page<BibRecord>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
 		if (pageable == null) {
 			pageable = Pageable.from(0, 100);
 		}
-		
-    return Mono.from( _bibRepository.findAll( pageable ) ) ;
-  }
+
+		return Mono.from(_bibRepository.findAll(pageable));
+	}
 }

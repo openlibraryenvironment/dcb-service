@@ -60,7 +60,7 @@ datasources:
     dialect: postgres
     #username: "${db.username:}"
     #password: "${db.password:}"
-    
+
 
 r2dbc:
   datasources:
@@ -90,7 +90,7 @@ r2dbc:
       dialect: postgres
       
       schema-generate: NONE
-      
+
 # elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
 netty:
   default:

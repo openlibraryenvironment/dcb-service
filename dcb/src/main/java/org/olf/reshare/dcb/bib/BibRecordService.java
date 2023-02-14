@@ -28,36 +28,36 @@ public class BibRecordService {
 		this.bibRepo = bibRepo;
 	}
 
-	private BibRecord step1( final BibRecord bib, final IngestRecord imported) {
+	private BibRecord step1(final BibRecord bib, final IngestRecord imported) {
 //		log.info("Executing step 1");
 		return bib;
 	}
-	
+
 	private BibRecord minimalRecord(final IngestRecord imported) {
 		return new BibRecord().setId(imported.uuid()).setTitle(imported.title());
 	}
-	
+
 	public Mono<BibRecord> saveOrUpdate(final BibRecord record) {
 		return Mono.from(bibRepo.existsById(record.getId()))
-		.flatMap(exists -> Mono.fromDirect(exists ? bibRepo.update(record) : bibRepo.save(record)));
+			.flatMap(exists -> Mono.fromDirect(exists ? bibRepo.update(record) : bibRepo.save(record)));
 	}
-	
+
 	public Mono<BibRecord> getOrSeed(final IngestRecord source) {
 		return Mono.from(bibRepo.findById(source.uuid()))
-				.switchIfEmpty(Mono.just(this.minimalRecord(source)));
+			.switchIfEmpty(Mono.just(this.minimalRecord(source)));
 	}
-	
+
 	@Transactional
 	public Publisher<BibRecord> process(final IngestRecord source) {
-		
+
 		// Check if existing...
 		return Mono.just(source)
 			.flatMap(this::getOrSeed)
 			.flatMap((final BibRecord bib) -> {
-				
+
 				final List<ProcessingStep> pipeline = new ArrayList<>();
 				pipeline.add(this::step1);
-				
+
 				return Flux.fromIterable(pipeline)
 					.reduce(bib, (theBib, step) -> step.apply(bib, source));
 			})

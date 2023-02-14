@@ -20,7 +20,7 @@ micronaut:
           secret:
             generator:
               secret: cGxlYXNlQ2hhbmdlVGhpc1NlY3JldEZvckFOZXdPbmU
-              base64: true 
+              base64: true
               jws-algorithm: HS256
 
 #elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
@@ -32,7 +32,7 @@ netty:
 dcb:
   scheduled-tasks:
     enabled: false
-      
+
 #flyway:
 #  enabled: true
 #  datasources:

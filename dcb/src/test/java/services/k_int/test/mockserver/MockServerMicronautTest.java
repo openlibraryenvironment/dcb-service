@@ -10,7 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.METHOD, ElementType.ANNOTATION_TYPE, ElementType.TYPE })
+@Target({ElementType.METHOD, ElementType.ANNOTATION_TYPE, ElementType.TYPE})
 @ExtendWith(MockServerMicronautJunit5Extension.class)
 @MicronautTest(transactional = false)
 public @interface MockServerMicronautTest {

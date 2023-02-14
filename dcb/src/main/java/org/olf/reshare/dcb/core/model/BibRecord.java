@@ -38,7 +38,7 @@ public class BibRecord {
 	@Nullable
 	@Column(columnDefinition = "TEXT")
 	private String title;
-	
+
 	@NotNull
 	@Relation(value = Kind.MANY_TO_MANY)
 	private Set<BibIdentifier> identifiers = new HashSet<>();

@@ -13,7 +13,7 @@ import io.micronaut.serde.annotation.Serdeable;
 public class SierraError extends JsonError {
 
 	public static final Argument<SierraError> TYPE = Argument.of(SierraError.class);
-	
+
 	public SierraError() {
 		this(null);
 	}
@@ -22,7 +22,7 @@ public class SierraError extends JsonError {
 	private int specificCode;
 	private String name;
 	private String description;
-	
+
 
 	/**
 	 * @param message The message
@@ -30,7 +30,7 @@ public class SierraError extends JsonError {
 	public SierraError(@Nullable String message) {
 		super(message);
 	}
-	
+
 	@Override
 	public String getMessage() {
 		StringBuilder builder = new StringBuilder();
@@ -38,15 +38,15 @@ public class SierraError extends JsonError {
 		Optional.ofNullable(description).ifPresent(d -> builder.append(String.format(": %s", d)));
 		Optional.ofNullable(code).ifPresent(c -> {
 			builder.append(String.format(" - [%s", c));
-			Optional.ofNullable(specificCode).ifPresent(sc -> 
+			Optional.ofNullable(specificCode).ifPresent(sc ->
 				builder.append(String.format(" / %s", sc))
 			);
 			builder.append("]");
 		});
-		
+
 		return builder.toString();
 	}
-	
+
 	@JsonProperty("code")
 	public void setCode(int code) {
 		this.code = code;

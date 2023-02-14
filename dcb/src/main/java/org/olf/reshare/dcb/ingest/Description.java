@@ -10,8 +10,9 @@ import io.micronaut.serde.annotation.Serdeable;
 import jakarta.annotation.Nullable;
 
 @Serdeable
-public record Description (
-   @NonNull @NotEmpty UUID id,
-   @Nullable String description,
-   @Nullable List<String> descriptions
-   ){}
+public record Description(
+	@NonNull @NotEmpty UUID id,
+	@Nullable String description,
+	@Nullable List<String> descriptions
+) {
+}

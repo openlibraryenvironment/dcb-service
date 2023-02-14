@@ -18,31 +18,31 @@ import io.micronaut.serde.Serde;
 import jakarta.inject.Singleton;
 
 @Singleton
-public class Marc4jRecordSerde implements Serde<Record>{
+public class Marc4jRecordSerde implements Serde<Record> {
 
 	// Instanciate the default class here. Works better with native compilation.
 	private final MarcFactory factory = new MarcFactoryImpl();
 
 	private static Logger log = LoggerFactory.getLogger(Marc4jRecordSerde.class);
-	
-  private static final String KEY_LEADER = "leader";
-  private static final String KEY_INDICATOR_1 = "ind1";
-  private static final String KEY_INDICATOR_2 = "ind2";
-  
-  private static final String KEY_FIELDS = "fields";
-  private static final String KEY_SUBFIELDS = "subfields";
+
+	private static final String KEY_LEADER = "leader";
+	private static final String KEY_INDICATOR_1 = "ind1";
+	private static final String KEY_INDICATOR_2 = "ind2";
+
+	private static final String KEY_FIELDS = "fields";
+	private static final String KEY_SUBFIELDS = "subfields";
 //  private static final String KEY_CONTROLFIELD = "controlfield";
 //  private static final String KEY_DATAFIELD = "datafield";
 //  private static final String KEY_SUBFIELD = "subfield";
-  
-  private static final String REGEX_CTRLFIELD = "00[0-9]";
-  private static final String REGEX_DATAFIELD = "((0[1-9])|[1-9][0-9])[0-9]";
-  private static final String REGEX_SUBFIELD = "[a-z0-9]";
-	
+
+	private static final String REGEX_CTRLFIELD = "00[0-9]";
+	private static final String REGEX_DATAFIELD = "((0[1-9])|[1-9][0-9])[0-9]";
+	private static final String REGEX_SUBFIELD = "[a-z0-9]";
+
 	@Override
 	public void serialize(Encoder encoder, EncoderContext context, Argument<? extends Record> type, Record value)
-			throws IOException {
-		
+		throws IOException {
+
 		// NOOP.
 		encoder.encodeNull();
 	}
@@ -54,7 +54,7 @@ public class Marc4jRecordSerde implements Serde<Record>{
 		Record record = factory.newRecord();
 		// Should start with an object
 		try (Decoder root = dec.decodeObject()) {
-			
+
 			String currentKey;
 			while ((currentKey = root.decodeKey()) != null) {
 				switch (currentKey) {
@@ -70,38 +70,38 @@ public class Marc4jRecordSerde implements Serde<Record>{
 					}
 					default -> {
 						// Unknown root property
-						root.skipValue();					
+						root.skipValue();
 					}
 				}
 			}
 		} catch (Exception e) {
-			log.error ("Error decoding MARC JSON", e);
+			log.error("Error decoding MARC JSON", e);
 		}
-		
+
 		return record;
 	}
 
-	protected void decodeFieldsArray ( final Decoder dec, final Record record ) throws IOException {
-			
-		
+	protected void decodeFieldsArray(final Decoder dec, final Record record) throws IOException {
+
+
 		try (Decoder fields = dec.decodeArray()) {
 			while (fields.hasNextArrayValue()) {
-				
+
 				// Each entry is an object
 				try (Decoder field = fields.decodeObject()) {
-				  // Create our Record
+					// Create our Record
 					String currentKey;
 					while ((currentKey = field.decodeKey()) != null) {
-						if (currentKey.matches(REGEX_CTRLFIELD)) {							
+						if (currentKey.matches(REGEX_CTRLFIELD)) {
 							record.addVariableField(
-									factory.newControlField(currentKey, field.decodeString()));
-							
+								factory.newControlField(currentKey, field.decodeString()));
+
 						} else if (currentKey.matches(REGEX_DATAFIELD)) {
 							// Data field is object.
 							final DataField df = factory.newDataField();
 							df.setTag(currentKey);
-							
-							try( Decoder fieldData = field.decodeObject() ) {
+
+							try (Decoder fieldData = field.decodeObject()) {
 								while ((currentKey = fieldData.decodeKey()) != null) {
 									switch (currentKey) {
 										case KEY_INDICATOR_1 -> {
@@ -116,18 +116,18 @@ public class Marc4jRecordSerde implements Serde<Record>{
 											// Decode the subfields.
 											try (Decoder subfields = fieldData.decodeArray()) {
 												while (subfields.hasNextArrayValue()) {
-													
+
 													// Each entry is an object
 													try (Decoder subfield = subfields.decodeObject()) {
-													
-													  // Create a subfield per entry
+
+														// Create a subfield per entry
 														while ((currentKey = subfield.decodeKey()) != null) {
 															if (currentKey.matches(REGEX_SUBFIELD)) {
 																df.addSubfield(
-																		factory.newSubfield(currentKey.charAt(0), subfield.decodeString()));
+																	factory.newSubfield(currentKey.charAt(0), subfield.decodeString()));
 															} else {
 																// subfield not matched
-																subfield.skipValue();		
+																subfield.skipValue();
 															}
 														}
 													}
@@ -136,13 +136,13 @@ public class Marc4jRecordSerde implements Serde<Record>{
 										}
 										default -> {
 											// Unknown field data property
-											fieldData.skipValue();		
+											fieldData.skipValue();
 										}
 									}
 								}
 								record.addVariableField(df);
 							}
-							
+
 						} else {
 							// Unknown field.
 							field.skipValue();
@@ -153,5 +153,5 @@ public class Marc4jRecordSerde implements Serde<Record>{
 		}
 
 	}
-	
+
 }

@@ -20,25 +20,25 @@ import jakarta.inject.Singleton;
 public class AppTaskAwareScheduledMethodProcessor extends ScheduledMethodProcessor {
 
 	private static Logger log = LoggerFactory.getLogger(AppTaskAwareScheduledMethodProcessor.class);
-	
+
 	private final AppConfig config;
-	
+
 	public AppTaskAwareScheduledMethodProcessor(BeanContext beanContext, Optional<ConversionService<?>> conversionService,
-			TaskExceptionHandler<?, ?> taskExceptionHandler, AppConfig appConfig) {
+																							TaskExceptionHandler<?, ?> taskExceptionHandler, AppConfig appConfig) {
 		super(beanContext, conversionService, taskExceptionHandler);
 		this.config = appConfig;
 		log.info("Using AppTask aware scheduler");
 	}
-	
+
 	@Override
 	public void process(BeanDefinition<?> beanDefinition, ExecutableMethod<?, ?> method) {
-		
+
 		if (!config.getScheduledTasks().isEnabled() && method.hasAnnotation(AppTask.class)) {
 			log.info("Skipping task processing as {}.{} annotated as {} and scheduling is disabled in application config",
-					method.getDeclaringType().getSimpleName(), method.getName(), AppTask.class.getSimpleName());
+				method.getDeclaringType().getSimpleName(), method.getName(), AppTask.class.getSimpleName());
 			return;
 		}
-		
+
 		super.process(beanDefinition, method);
 	}
 }

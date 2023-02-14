@@ -10,4 +10,5 @@ import org.immutables.value.Value.Style;
 @Target({ElementType.PACKAGE, ElementType.TYPE})
 @Retention(RetentionPolicy.CLASS)
 @Style(typeImmutable = "*Impl", typeAbstract = {"*Def", "Abstract*"})
-public @interface DefaultImmutableStyle {}
+public @interface DefaultImmutableStyle {
+}

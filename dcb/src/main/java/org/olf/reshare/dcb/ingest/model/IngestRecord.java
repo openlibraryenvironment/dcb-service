@@ -30,29 +30,31 @@ public interface IngestRecord {
 	Author author();
 
 	Set<Author> otherAuthors();
-	
-	@Nullable String materialType();
-	
-	@Nullable String bibLevel();
+
+	@Nullable
+	String materialType();
+
+	@Nullable
+	String bibLevel();
 
 //  @Nullable String edition();
 //  List<PublicationInformation> publicationInformation();
 //  List<Description> descriptions();
 
 	public static class Builder extends IngestRecordImpl.Builder {
-		
-		public Builder addIdentifiers( Consumer<Identifier.Builder> consumer ) {
-			addIdentifiers( Identifier.build(consumer) );
+
+		public Builder addIdentifiers(Consumer<Identifier.Builder> consumer) {
+			addIdentifiers(Identifier.build(consumer));
 			return this;
 		}
-		
-		public Builder author( Consumer<Author.Builder> consumer ) {
-			author( Author.build(consumer) );
+
+		public Builder author(Consumer<Author.Builder> consumer) {
+			author(Author.build(consumer));
 			return this;
 		}
-		
-		public Builder addOtherAuthors( Consumer<Author.Builder> consumer ) {
-			addOtherAuthors( Author.build(consumer) );
+
+		public Builder addOtherAuthors(Consumer<Author.Builder> consumer) {
+			addOtherAuthors(Author.build(consumer));
 			return this;
 		}
 	}

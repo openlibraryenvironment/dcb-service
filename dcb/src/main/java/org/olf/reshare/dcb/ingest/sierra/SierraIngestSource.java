@@ -34,41 +34,41 @@ public class SierraIngestSource extends MarcIngestSource<BibResult> {
 	SierraIngestSource(SierraApiClient sierraApi) {
 		this.sierraApi = sierraApi;
 	}
-	
+
 	private Publisher<BibResult> scrollAllResults(final Instant since, final int offset, final int limit) {
 		log.info("Fetching batch from Sierra API");
 
 		return Mono.from(sierraApi.bibs(params -> {
-			params
-				.deleted(false)
-				.offset(offset)
-				.limit(limit)
-				.addFields(
+				params
+					.deleted(false)
+					.offset(offset)
+					.limit(limit)
+					.addFields(
 						"id", "updatedDate", "createdDate",
 						"deletedDate", "deleted", "marc");
-			
-			if (since != null) {
-				params
-					.updatedDate(dtr -> {
-						dtr
-							.to(LocalDateTime.now())
-							.fromDate(LocalDateTime.from(since));
-					});
-			}
-		}))
+
+				if (since != null) {
+					params
+						.updatedDate(dtr -> {
+							dtr
+								.to(LocalDateTime.now())
+								.fromDate(LocalDateTime.from(since));
+						});
+				}
+			}))
 			.flatMapMany(resp -> {
-	
+
 				final List<BibResult> bibs = resp.entries();
 				log.info("Fetched a chunk of {} records", bibs.size());
 				final int nextOffset = resp.start() + bibs.size();
 				final boolean possiblyMore = bibs.size() == limit;
-	
+
 				if (!possiblyMore) {
 					log.info("No more results to fetch");
 				}
-	
+
 				final Flux<BibResult> currentPage = Flux.fromIterable(bibs);
-				
+
 				// Try next page if there is the possibility of more results.
 				return possiblyMore ? Flux.concat(currentPage, scrollAllResults(since, nextOffset, limit)) : currentPage;
 			});
@@ -82,16 +82,16 @@ public class SierraIngestSource extends MarcIngestSource<BibResult> {
 	@Override
 	protected Publisher<BibResult> getResources(Instant since) {
 		log.info("Fetching MARC JSON from Sierra");
-		
+
 		// The stream of imported records.
 		return Flux.from(scrollAllResults(since, 0, 2000))
-			.filter( sierraBib -> sierraBib.marc() != null )
+			.filter(sierraBib -> sierraBib.marc() != null)
 			.switchIfEmpty(
-					Mono.just("No results returned. Stopping")
-						.mapNotNull(s -> {
-							log.info(s);
-							return null;
-						}));
+				Mono.just("No results returned. Stopping")
+					.mapNotNull(s -> {
+						log.info(s);
+						return null;
+					}));
 	}
 
 	@Override

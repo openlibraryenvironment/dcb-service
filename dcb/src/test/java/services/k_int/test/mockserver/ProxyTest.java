@@ -32,32 +32,32 @@ public class ProxyTest {
 	public void testProxied() {
 
 		List<?> resp = client.toBlocking().retrieve(HttpRequest.GET("/_/proxy/modules?filter=mod-agreements"),
-				Argument.of(List.class, Argument.of(Map.class, String.class, Object.class)));
+			Argument.of(List.class, Argument.of(Map.class, String.class, Object.class)));
 
 		assertNotNull(resp);
 		assertTrue(resp.size() > 0);
 	}
 
 	@Test
-  public void testIntercepted ( MockServerClient mock ) {
+	public void testIntercepted(MockServerClient mock) {
 
-    // Mock the response from the registry.
-    mock.when(
-      request()
-        .withHeader("host", "folio-registry.aws.indexdata.com")
-        .withMethod("GET")
-        .withPath("/_/proxy/modules"))
-        .respond(
-          response()
-            .withStatusCode(200)
-            .withContentType(MediaType.APPLICATION_JSON)
-            .withBody("[]")); // Empty list
+		// Mock the response from the registry.
+		mock.when(
+				request()
+					.withHeader("host", "folio-registry.aws.indexdata.com")
+					.withMethod("GET")
+					.withPath("/_/proxy/modules"))
+			.respond(
+				response()
+					.withStatusCode(200)
+					.withContentType(MediaType.APPLICATION_JSON)
+					.withBody("[]")); // Empty list
 
-    // Use the regular registry client to fetch the agreement mock.
-    List<?> resp = client.toBlocking().retrieve(HttpRequest.GET("/_/proxy/modules?filter=mod-agreements"),
-    		Argument.of(List.class, Argument.of(Map.class, String.class, Object.class)));
-  	
-  	assertNotNull(resp);
-  	assertEquals(resp.size(), 0);
-  }
+		// Use the regular registry client to fetch the agreement mock.
+		List<?> resp = client.toBlocking().retrieve(HttpRequest.GET("/_/proxy/modules?filter=mod-agreements"),
+			Argument.of(List.class, Argument.of(Map.class, String.class, Object.class)));
+
+		assertNotNull(resp);
+		assertEquals(resp.size(), 0);
+	}
 }
