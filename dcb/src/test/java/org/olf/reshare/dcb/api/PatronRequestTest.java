@@ -2,8 +2,15 @@ package org.olf.reshare.dcb.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.data.annotation.Id;
+import jakarta.persistence.Column;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.olf.reshare.dcb.core.model.PatronRequest;
+import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.olf.reshare.dcb.test.DcbTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +24,11 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import net.minidev.json.JSONObject;
 import org.olf.reshare.dcb.processing.PatronRequestRecord;
 import jakarta.inject.Inject;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import javax.validation.constraints.NotNull;
+import java.util.List;
 import java.util.UUID;
 
 @DcbTest
@@ -26,6 +38,9 @@ class PatronRequestTest {
 	@Inject
 	@Client("/")
 	HttpClient client;
+
+	@Inject
+	PatronRequestRepository requestRepository;
 
 	@Test
 	public void testPlacePatronRequestValidation() {
@@ -66,6 +81,28 @@ class PatronRequestTest {
 
 		HttpResponse<PatronRequestRecord> rp = client.toBlocking().exchange(HttpRequest.POST("/patrons/requests/place", patronRequest));
 		assertEquals(HttpStatus.OK, rp.getStatus());
+	}
+
+	@Test
+	void testPatronRequestCreation() {
+		log.debug("1. testPatronRequestCreation");
+
+		PatronRequest patronRequest = new PatronRequest();
+		patronRequest.setId(UUID.randomUUID());
+		patronRequest.setPatronId("test");
+		patronRequest.setPatronAgencyCode("test");
+		patronRequest.setBibClusterId(UUID.randomUUID());
+		patronRequest.setPickupLocationCode("test");
+
+		Mono<PatronRequest> patronRequestMono = Mono.from(requestRepository.save(patronRequest));
+		log.debug("Created test patron request: {}", patronRequestMono.block().toString());
+
+		// Make sure that we have 1 task
+		List<PatronRequest> patronRequests = Flux.from(requestRepository.findAll()).collectList().block();
+		assert patronRequests != null;
+
+		log.debug("Got {} patron request: {}", patronRequests.size(), patronRequests.toString());
+		assert patronRequests.size() == 1;
 	}
 
 }

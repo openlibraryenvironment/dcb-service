@@ -29,7 +29,7 @@ public class PatronRequest {
 	private String patronAgencyCode;
 
 	@Nullable
-	@Column(columnDefinition = "TEXT")
+	@Column(columnDefinition = "UUID")
 	private UUID bibClusterId;
 
 	@Nullable
