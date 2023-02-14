@@ -39,10 +39,10 @@ class PatronRequestTest {
 	PatronRequestRepository requestRepository;
 
 	@Test
-        @Order(1)
+	@Order(1)
 	public void testPlacePatronRequestValidation() {
 
-                log.info("Empty patron request");
+		log.info("Empty patron request");
 		HttpClientResponseException e = Assertions.assertThrows(HttpClientResponseException.class, () -> {
 			JSONObject patronRequest = new JSONObject();
 			client.toBlocking().exchange(HttpRequest.POST("/patrons/requests/place", patronRequest));
@@ -80,7 +80,7 @@ class PatronRequestTest {
 	}
 
 	@Test
-        @Order(2)
+	@Order(2)
 	void testPatronRequestCreation() {
 		log.debug("1. testPatronRequestCreation");
 		JSONObject patronRequest = new JSONObject() {{
@@ -114,7 +114,7 @@ class PatronRequestTest {
 		List<PatronRequest> patronRequests = Flux.from(requestRepository.findAll()).collectList().block();
 		assert patronRequests != null;
 
-                // We've created 2 patron requests.. so there should be 2 in the DB
+		// Second request do should be 2 patron request present
 		log.debug("Got {} patron request: {}", patronRequests.size(), patronRequests.toString());
 		assert patronRequests.size() == 2;
 	}
