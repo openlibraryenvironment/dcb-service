@@ -44,11 +44,11 @@ public class PatronRequestService {
 			        	pr.citation().bibClusterId(),
 				        pr.pickupLocation().code()));
 
-                                PatronRequest patronRequest = new PatronRequest(UUID.randomUUID(),
-                                                                                "jane-smith",
-                                                                                "RGX12",
-                                                                                UUID.randomUUID(),
-                                                                                "ABC123");
+                                PatronRequest patronRequest = new PatronRequest(pr.id(),
+                                                                                pr.requestor().identifier(),
+                                                                                pr.requestor().agency().code(),
+                                                                                pr.citation().bibClusterId(),
+                                                                                pr.pickupLocation().code());
 
         			log.debug(String.format("Execute save %s",patronRequest));
 		                Mono<PatronRequest> new_pr_mono = Mono.from( patronRequestRepository.save(patronRequest) );
