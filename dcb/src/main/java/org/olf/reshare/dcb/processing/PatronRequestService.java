@@ -31,33 +31,34 @@ public class PatronRequestService {
 		// create new id
 		UUID uuid = UUID.randomUUID();
 
-		return patronRequestRecordMono.doOnNext(pr -> {
-			if ( ( pr.requestor() != null ) &&
-					 ( pr.requestor().agency() != null ) &&
-					 ( pr.citation() != null ) &&
-					 ( pr.pickupLocation() != null ) ) {
+		return patronRequestRecordMono.map(pr -> {
+			if ((pr.requestor() != null) &&
+				(pr.requestor().agency() != null) &&
+				(pr.citation() != null) &&
+				(pr.pickupLocation() != null)) {
 
-							log.debug(String.format("create pr %s %s %s %s %s",uuid,
-								pr.requestor().identifier(),
-								pr.requestor().agency().code(),
-								pr.citation().bibClusterId(),
-								pr.pickupLocation().code()));
+				log.debug(String.format("create pr %s %s %s %s %s", uuid,
+					pr.requestor().identifier(),
+					pr.requestor().agency().code(),
+					pr.citation().bibClusterId(),
+					pr.pickupLocation().code()));
 
-							PatronRequest patronRequest = new PatronRequest(uuid,
-								pr.requestor().identifier(),
-								pr.requestor().agency().code(),
-								pr.citation().bibClusterId(),
-								pr.pickupLocation().code());
+				PatronRequest patronRequest = new PatronRequest(uuid,
+					pr.requestor().identifier(),
+					pr.requestor().agency().code(),
+					pr.citation().bibClusterId(),
+					pr.pickupLocation().code());
 
-							log.debug(String.format("Execute save %s",patronRequest));
-							Mono<PatronRequest> new_pr_mono = Mono.from( patronRequestRepository.save(patronRequest) );
+				log.debug(String.format("Execute save %s", patronRequest));
+				Mono<PatronRequest> new_pr_mono = Mono.from(patronRequestRepository.save(patronRequest));
 
-//							// TODO: replace as block allows save to catch up
-//							log.debug("Created new pr: {}",new_pr_mono.block().toString());
+				// TODO: replace as block allows save to catch up
+				log.debug("Created new pr: {}", new_pr_mono.block().toString());
 			} else {
 				log.error("Invalid patron request data");
 			}
-		}).map(pr -> new PatronRequestRecord(uuid, pr.citation(), pr.pickupLocation(), pr.requestor()));
+			return new PatronRequestRecord(uuid, pr.citation(), pr.pickupLocation(), pr.requestor());
+		});
 	}
 
 	public Mono<PatronRequestRecord> getPatronRequestWithId(UUID id) {
