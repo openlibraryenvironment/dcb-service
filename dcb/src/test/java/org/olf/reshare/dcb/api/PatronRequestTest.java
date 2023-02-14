@@ -1,13 +1,15 @@
 package org.olf.reshare.dcb.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import org.junit.jupiter.api.Assertions;
+import java.util.UUID;
+
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
-import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.olf.reshare.dcb.test.DcbTest;
 import org.slf4j.Logger;
@@ -19,12 +21,9 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import net.minidev.json.JSONObject;
-import org.olf.reshare.dcb.processing.PatronRequestRecord;
 import jakarta.inject.Inject;
+import net.minidev.json.JSONObject;
 import reactor.core.publisher.Flux;
-import java.util.List;
-import java.util.UUID;
 
 @TestMethodOrder(OrderAnnotation.class)
 @DcbTest
@@ -40,18 +39,18 @@ class PatronRequestTest {
 
 	@Test
 	@Order(1)
-	public void testPlacePatronRequestValidation() {
-
+	void testPlacePatronRequestValidation() {
 		log.info("Empty patron request");
-		HttpClientResponseException e = Assertions.assertThrows(HttpClientResponseException.class, () -> {
-			JSONObject patronRequest = new JSONObject();
-			client.toBlocking().exchange(HttpRequest.POST("/patrons/requests/place", patronRequest));
+
+		final var e = assertThrows(HttpClientResponseException.class, () -> {
+			client.toBlocking()
+				.exchange(HttpRequest.POST("/patrons/requests/place", new JSONObject()));
 		});
 
 		HttpResponse<?> response = e.getResponse();
 		assertEquals(HttpStatus.BAD_REQUEST, response.getStatus());
 
-		JSONObject patronRequest = new JSONObject() {{
+		final var patronRequest = new JSONObject() {{
 			// citation
 			JSONObject citation = new JSONObject() {{
 				put("bibClusterId", UUID.randomUUID().toString());
@@ -73,50 +72,59 @@ class PatronRequestTest {
 			put("pickupLocation", pickupLocation);
 		}};
 
-		log.debug("Using payload: {}", patronRequest.toString());
+		log.debug("Using payload: {}", patronRequest);
 
-		HttpResponse<PatronRequestRecord> rp = client.toBlocking().exchange(HttpRequest.POST("/patrons/requests/place", patronRequest));
-		assertEquals(HttpStatus.OK, rp.getStatus());
+		final var request = client.toBlocking()
+			.exchange(HttpRequest.POST("/patrons/requests/place", patronRequest));
+
+		assertEquals(HttpStatus.OK, request.getStatus());
 	}
 
 	@Test
 	@Order(2)
 	void testPatronRequestCreation() {
 		log.debug("1. testPatronRequestCreation");
-		JSONObject patronRequest = new JSONObject() {{
+		final var patronRequest = new JSONObject() {{
 			// citation
-			JSONObject citation = new JSONObject() {{
+			final var citation = new JSONObject() {{
 				put("bibClusterId", UUID.randomUUID().toString());
 			}};
 			put("citation", citation);
 			// requestor
-			JSONObject requestor = new JSONObject() {{
+			final var requestor = new JSONObject() {{
 				put("identifier", "jane-smith");
-				JSONObject agency = new JSONObject() {{
+				final var agency = new JSONObject() {{
 					put("code", "RGX12");
 				}};
 				put("agency", agency);
 			}};
 			put("requestor", requestor);
 			// pickup location
-			JSONObject pickupLocation = new JSONObject() {{
+			final var pickupLocation = new JSONObject() {{
 				put("code", "ABC123");
 			}};
 			put("pickupLocation", pickupLocation);
 		}};
-		log.debug("Using payload: {}", patronRequest.toString());
+
+		log.debug("Using payload: {}", patronRequest);
 
 		// make a request to the api
-		client.toBlocking().exchange(HttpRequest.POST("/patrons/requests/place", patronRequest));
+		client.toBlocking()
+			.exchange(HttpRequest.POST("/patrons/requests/place", patronRequest));
+
 		log.debug("Created test patron request: {}", patronRequest);
 
 		// Make sure that we have 1 task
-		List<PatronRequest> patronRequests = Flux.from(requestRepository.findAll()).collectList().block();
-		assert patronRequests != null;
+		final var patronRequests = Flux.from(
+			requestRepository.findAll()).collectList().block();
+
+		assertNotNull(patronRequests);
 
 		// Second request do should be 2 patron request present
-		log.debug("Got {} patron request: {}", patronRequests.size(), patronRequests.toString());
-		assert patronRequests.size() == 2;
+		log.debug("Got {} patron request: {}", patronRequests.size(),
+			patronRequests);
+
+		assertEquals(2, patronRequests.size());
 	}
 
 }
