@@ -15,11 +15,11 @@ public interface PatronRequestRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<? extends PatronRequest> save(@Valid @NotNull @NonNull PatronRequest PatronRequest);
+	Publisher<? extends PatronRequest> save(@Valid @NotNull @NonNull PatronRequest patronRequest);
 
 	@NonNull
 	@SingleResult
-	Publisher<? extends PatronRequest> update(@Valid @NotNull @NonNull PatronRequest PatronRequest);
+	Publisher<? extends PatronRequest> update(@Valid @NotNull @NonNull PatronRequest patronRequest);
 
 	@NonNull
 	@SingleResult
@@ -38,8 +38,6 @@ public interface PatronRequestRepository {
 
 	public default void cleanUp() {
 	}
-
-	;
 
 	public default void commit() {
 	}

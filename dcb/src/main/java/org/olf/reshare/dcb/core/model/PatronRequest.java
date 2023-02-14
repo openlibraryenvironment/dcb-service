@@ -79,5 +79,9 @@ public class PatronRequest {
 	public void setPickupLocationCode(@Nullable String pickupLocationCode) {
 		this.pickupLocationCode = pickupLocationCode;
 	}
+
+        public String toString() {
+                return String.format("PatronRequest#%s",id);
+        }
 }
 

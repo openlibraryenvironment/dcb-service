@@ -38,6 +38,7 @@ class PatronRequestTest {
 	@Test
 	public void testPlacePatronRequestValidation() {
 
+                log.info("Empty patron request");
 		HttpClientResponseException e = Assertions.assertThrows(HttpClientResponseException.class, () -> {
 			JSONObject patronRequest = new JSONObject();
 			client.toBlocking().exchange(HttpRequest.POST("/patrons/requests/place", patronRequest));
@@ -49,7 +50,7 @@ class PatronRequestTest {
 		JSONObject patronRequest = new JSONObject() {{
 			// citation
 			JSONObject citation = new JSONObject() {{
-				put("bibClusterId", UUID.randomUUID());
+				put("bibClusterId", UUID.randomUUID().toString());
 			}};
 			put("citation", citation);
 			// requestor
@@ -80,7 +81,7 @@ class PatronRequestTest {
 		JSONObject patronRequest = new JSONObject() {{
 			// citation
 			JSONObject citation = new JSONObject() {{
-				put("bibClusterId", UUID.randomUUID());
+				put("bibClusterId", UUID.randomUUID().toString());
 			}};
 			put("citation", citation);
 			// requestor

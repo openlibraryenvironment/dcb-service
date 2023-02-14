@@ -9,13 +9,16 @@ import java.util.UUID;
 
 @Serdeable
 public record PatronRequestRecord(
+
 	@Nullable UUID id,
 	@NotNull
 	@NotBlank
 	Citation citation,
+
 	@NotNull
 	@NotBlank
 	PickupLocation pickupLocation,
+
 	@NotNull
 	@NotBlank
 	Requestor requestor
