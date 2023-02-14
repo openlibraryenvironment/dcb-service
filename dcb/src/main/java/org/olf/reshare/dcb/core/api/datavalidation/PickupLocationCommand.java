@@ -1,10 +1,9 @@
 package org.olf.reshare.dcb.core.api.datavalidation;
 
-import io.micronaut.core.annotation.Introspected;
-import io.micronaut.serde.annotation.Serdeable;
-
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+
+import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
 public class PickupLocationCommand {
@@ -12,6 +11,12 @@ public class PickupLocationCommand {
 	@NotBlank
 	@NotNull
 	String code;
+
+	public PickupLocationCommand() { }
+
+	public PickupLocationCommand(String code) {
+		this.code = code;
+	}
 
 	public String getCode() {
 		return code;

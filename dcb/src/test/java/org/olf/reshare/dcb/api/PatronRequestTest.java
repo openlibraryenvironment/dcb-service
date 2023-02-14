@@ -1,21 +1,25 @@
 package org.olf.reshare.dcb.api;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.olf.reshare.dcb.core.api.datavalidation.AgencyCommand;
+import org.olf.reshare.dcb.core.api.datavalidation.CitationCommand;
+import org.olf.reshare.dcb.core.api.datavalidation.PatronRequestCommand;
+import org.olf.reshare.dcb.core.api.datavalidation.PickupLocationCommand;
+import org.olf.reshare.dcb.core.api.datavalidation.RequestorCommand;
+import org.olf.reshare.dcb.test.DcbTest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.olf.reshare.dcb.core.api.datavalidation.*;
-
-import org.olf.reshare.dcb.test.DcbTest;
-
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @DcbTest
 class PatronRequestTest {
