@@ -1,10 +1,7 @@
 package org.olf.reshare.dcb.processing;
 
-import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.Nullable;
-import io.micronaut.http.HttpResponse;
 import io.micronaut.serde.annotation.Serdeable;
-import org.olf.reshare.dcb.core.model.Agency;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
@@ -30,7 +27,7 @@ public record PatronRequestRecord(
 	}
 	@Serdeable
 	public record Citation(
-		String bibClusterId
+		UUID bibClusterId
 	) {
 	}
 	@Serdeable

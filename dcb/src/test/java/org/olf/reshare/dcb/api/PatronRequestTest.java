@@ -1,6 +1,13 @@
 package org.olf.reshare.dcb.api;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.olf.reshare.dcb.test.DcbTest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
@@ -8,18 +15,9 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import net.minidev.json.JSONObject;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-
 import org.olf.reshare.dcb.processing.PatronRequestRecord;
-import org.olf.reshare.dcb.test.DcbTest;
-
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.HashMap;
-import java.util.Map;
+import java.util.UUID;
 
 @DcbTest
 class PatronRequestTest {
@@ -45,7 +43,7 @@ class PatronRequestTest {
 		JSONObject patronRequest = new JSONObject() {{
 			// citation
 			JSONObject citation = new JSONObject() {{
-				put("bibClusterId", "ad0cd9fe-9bef-4942-8a16-a9fa677e7146");
+				put("bibClusterId", UUID.randomUUID());
 			}};
 			put("citation", citation);
 			// requestor

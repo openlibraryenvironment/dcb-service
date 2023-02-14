@@ -30,7 +30,7 @@ public class PatronRequest {
 
 	@Nullable
 	@Column(columnDefinition = "TEXT")
-	private String bibClusterId;
+	private UUID bibClusterId;
 
 	@Nullable
 	@Column(columnDefinition = "TEXT")
@@ -63,11 +63,11 @@ public class PatronRequest {
 	}
 
 	@Nullable
-	public String getBibClusterId() {
+	public UUID getBibClusterId() {
 		return bibClusterId;
 	}
 
-	public void setBibClusterId(@Nullable String bibClusterId) {
+	public void setBibClusterId(@Nullable UUID bibClusterId) {
 		this.bibClusterId = bibClusterId;
 	}
 
