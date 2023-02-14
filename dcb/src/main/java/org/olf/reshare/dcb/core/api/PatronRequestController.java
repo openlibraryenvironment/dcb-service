@@ -34,9 +34,9 @@ public class PatronRequestController {
 	}
 
 	@SingleResult
-	@Post(value = "/patrons/requests/place", consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
+	@Post(value = "/patrons/requests/place", consumes = APPLICATION_JSON)
 	public Mono<HttpResponse<PatronRequestRecord>> placePatronRequest(@Body @Valid Mono<PatronRequestRecord> patronRequestRecordMono) {
-		log.debug("REST, place patron request: {}", patronRequestRecordMono.toString());
+		log.debug("REST, place patron request: {}", patronRequestRecordMono);
 
 		patronRequestRecordMono = patronRequestService.savePatronRequest(patronRequestRecordMono);
 		return patronRequestRecordMono.map(HttpResponse::ok);

@@ -9,8 +9,8 @@ import java.util.UUID;
 
 @Serdeable
 public record PatronRequestRecord(
-
-	@Nullable UUID id,
+	@Nullable
+	UUID id,
 	@NotNull
 	@NotBlank
 	Citation citation,

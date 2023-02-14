@@ -23,7 +23,7 @@ public class PatronRequestService {
 
 	public static final Logger log = LoggerFactory.getLogger(PatronRequestService.class);
 
-        @Transactional
+
 	public Mono<PatronRequestRecord> savePatronRequest(Mono<PatronRequestRecord> patronRequestRecordMono) {
 
                 log.debug(String.format("savePatronRequest(%s)",patronRequestRecordMono));
@@ -34,23 +34,23 @@ public class PatronRequestService {
 		// get model representation
 		PatronRequest patronRequest = new PatronRequest();
 
+		patronRequestRecordMono.map(pr -> {
+			log.debug(String.format("create pr %s %s %s %s %s",uuid,
+				pr.requestor().identifier(),
+				pr.requestor().agency().code(),
+				pr.citation().bibClusterId(),
+				pr.pickupLocation().code()));
+			patronRequest.setId(UUID.randomUUID());
+			patronRequest.setPatronId("jane-smith");
+			patronRequest.setPatronAgencyCode("RGX12");
+			patronRequest.setBibClusterId(UUID.randomUUID());
+			patronRequest.setPickupLocationCode("ABC123");
+			log.debug(String.format("Execute save %s",patronRequest));
+			return pr;
+		});
+		patronRequestRepository.save(patronRequest);
 		return patronRequestRecordMono
-			.map(pr -> new PatronRequestRecord(uuid, pr.citation(), pr.pickupLocation(), pr.requestor()))
-			.map(pr -> {
-                                log.debug(String.format("create pr %s %s %s %s %s",uuid,
-                                                                                   pr.requestor().identifier(),
-                                                                                   pr.requestor().agency().code(),
-                                                                                   pr.citation().bibClusterId(),
-                                                                                   pr.pickupLocation().code()));
-				patronRequest.setId(uuid);
-				patronRequest.setPatronId(pr.requestor().identifier());
-				patronRequest.setPatronAgencyCode(pr.requestor().agency().code());
-				patronRequest.setBibClusterId(pr.citation().bibClusterId());
-				patronRequest.setPickupLocationCode(pr.pickupLocation().code());
-                                log.debug(String.format("Execute save %s",patronRequest));
-				patronRequestRepository.save(patronRequest);
-				return pr;
-			});
+			.map(pr -> new PatronRequestRecord(uuid, pr.citation(), pr.pickupLocation(), pr.requestor()));
 	}
 
 	public Mono<PatronRequestRecord> getPatronRequestWithId(UUID id) {
