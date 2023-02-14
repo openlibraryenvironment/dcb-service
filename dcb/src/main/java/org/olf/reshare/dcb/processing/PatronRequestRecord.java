@@ -22,7 +22,6 @@ public record PatronRequestRecord(
 	@NotNull
 	@NotBlank
 	Requestor requestor
-
 ){
 	@Serdeable
 	public record PickupLocation(
@@ -31,7 +30,8 @@ public record PatronRequestRecord(
 	}
 	@Serdeable
 	public record Citation(
-		String bibClusterId) {
+		String bibClusterId
+	) {
 	}
 	@Serdeable
 	public record Agency(

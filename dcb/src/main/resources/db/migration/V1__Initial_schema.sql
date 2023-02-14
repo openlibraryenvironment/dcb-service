@@ -24,6 +24,6 @@ create table patron_request (
 	id uuid primary key,
 	patron_id varchar(200),
 	patron_agency_code varchar(200),
-	bib_cluster_id uuid,
+	bib_cluster_id uuid varchar(200),
 	pickup_location_code varchar(200)
 );
