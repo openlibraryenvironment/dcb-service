@@ -9,7 +9,7 @@ import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
 public record BibResultSet(
-		@Nullable int total,
-		@Nullable int start,
-		@NotNull List<BibResult> entries) {
+	@Nullable int total,
+	@Nullable int start,
+	@NotNull List<BibResult> entries) {
 }

@@ -18,7 +18,7 @@ plugins {
 
 // Apply our custom plugins.
 apply plugin: "com.k_int.gradle.plugin"
-apply plugin: "com.k_int.gradle.conventional-git"
+//apply plugin: "com.k_int.gradle.conventional-git"
 
 // Includes
 apply from: "gradle/asciidoc.gradle"
@@ -28,28 +28,28 @@ repositories {
 	maven { url "https://maven.k-int.com/content/repositories/releases" }
 }
 
-task staticCopyOpenApiViews (type: Copy) {
+task staticCopyOpenApiViews(type: Copy) {
 	dependsOn 'dcb:assemble'
-	
+
 	from('dcb/build/classes/java/main/META-INF/swagger/views/') {
 		exclude '**/*.html'
 	}
-	
+
 	into 'build/docs/asciidoc'
 }
 
-task staticCopyOpenApi (type: Copy) {
-	
+task staticCopyOpenApi(type: Copy) {
+
 	dependsOn ':staticCopyOpenApiViews'
-	
+
 	from('dcb/build/classes/java/main/META-INF/swagger') {
 		include '*.yml'
 	}
-	
+
 	// Promote the redoc index page to the open api sub-path
 	from('dcb/build/classes/java/main/META-INF/swagger/views/redoc/index.html')
-	
+
 	into 'build/docs/asciidoc/openapi'
-	
-	
+
+
 }

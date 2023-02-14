@@ -21,7 +21,7 @@ public class PatronRequest {
 	@Id
 	@Column(columnDefinition = "UUID")
 	private UUID id;
-	
+
 	@Column(columnDefinition = "TEXT")
 	private String patronId;
 

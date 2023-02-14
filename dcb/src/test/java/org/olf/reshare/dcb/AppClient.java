@@ -16,10 +16,10 @@ import io.micronaut.security.token.jwt.render.BearerAccessRefreshToken;
 public interface AppClient {
 
 	@Post("/login")
-	BearerAccessRefreshToken login (
-	    @Body UsernamePasswordCredentials credentials);
+	BearerAccessRefreshToken login(
+		@Body UsernamePasswordCredentials credentials);
 
 	@Consumes(TEXT_PLAIN)
 	@Get
-	String home (@Header(AUTHORIZATION) String authorization);
+	String home(@Header(AUTHORIZATION) String authorization);
 }

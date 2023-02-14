@@ -15,18 +15,18 @@ import io.micronaut.serde.annotation.Serdeable;
 @Serdeable
 public record BibResult(
 	@NotEmpty String id,
-	
-	@JsonFormat(pattern="yyyy-MM-dd'T'HH:mm:ss'Z'")
+
+	@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
 	@Nullable LocalDateTime updatedDate,
-	
-	@JsonFormat(pattern="yyyy-MM-dd'T'HH:mm:ss'Z'")
+
+	@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
 	@Nullable LocalDateTime createdDate,
-	
-	@JsonFormat(pattern="yyyy-MM-dd")
+
+	@JsonFormat(pattern = "yyyy-MM-dd")
 	@Nullable LocalDate deletedDate,
-	
+
 	@NotNull boolean deleted,
-	
+
 	@Nullable Record marc) {
 
 }

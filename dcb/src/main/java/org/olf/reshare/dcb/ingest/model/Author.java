@@ -12,15 +12,15 @@ import services.k_int.interaction.DefaultImmutableStyle;
 @Immutable
 @DefaultImmutableStyle
 public interface Author {
-	
+
 	@NotEmpty
 	String name();
 
 	List<Identifier> identifiers();
 
 	public static class Builder extends AuthorImpl.Builder {
-		public Builder addIdentifiers( Consumer<Identifier.Builder> consumer ) {
-			addIdentifiers( Identifier.build(consumer) );
+		public Builder addIdentifiers(Consumer<Identifier.Builder> consumer) {
+			addIdentifiers(Identifier.build(consumer));
 			return this;
 		}
 	}

@@ -34,15 +34,16 @@ public abstract class DateTimeRange {
 
 		return String.format("[%s,%s]", fromStr, toStr);
 	}
-	
-	public static class Builder extends DateTimeRangeImpl.Builder {}
-	
-	public static DateTimeRange build( Consumer<Builder> consumer ) {
+
+	public static class Builder extends DateTimeRangeImpl.Builder {
+	}
+
+	public static DateTimeRange build(Consumer<Builder> consumer) {
 		Builder builder = builder();
 		consumer.accept(builder);
 		return builder.build();
 	}
-	
+
 	public static Builder builder() {
 		return new Builder();
 	}

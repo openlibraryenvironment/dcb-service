@@ -41,7 +41,7 @@ public class SierraApiTests {
 	private final String MOCK_ROOT = "classpath:mock-responses/sierra";
 
 	@Test
-	public void testLoginTokenType ( MockServerClient mock ) throws IOException {
+	public void testLoginTokenType(MockServerClient mock) throws IOException {
 
 		// Mock the response from Sierra
 		mock.when(
@@ -60,14 +60,14 @@ public class SierraApiTests {
 						.readAllBytes()))));
 
 
-		var response = Mono.from( client.login("key", "secret") ).block();
+		var response = Mono.from(client.login("key", "secret")).block();
 		System.out.println(response);
 		assertNotNull(response);
 		assertEquals(response.type().toLowerCase(), "bearer");
 	}
 
 	@Test
-	public void testLoginTokenExpiration ( MockServerClient mock ) throws IOException {
+	public void testLoginTokenExpiration(MockServerClient mock) throws IOException {
 
 		// Mock the response from Sierra
 		mock.when(
@@ -85,15 +85,15 @@ public class SierraApiTests {
 						.orElseThrow()
 						.readAllBytes()))));
 
-		var response = Mono.from( client.login("key", "secret") ).block();
+		var response = Mono.from(client.login("key", "secret")).block();
 		assertNotNull(response);
 		assertEquals(response.getClass(), AuthToken.class);
-		assertFalse( response.isExpired() );
-		assertTrue( response.expires().isAfter(Instant.MIN) );
+		assertFalse(response.isExpired());
+		assertTrue(response.expires().isAfter(Instant.MIN));
 	}
 
 	@Test
-	public void testLoginTokenUnique ( MockServerClient mock ) throws IOException {
+	public void testLoginTokenUnique(MockServerClient mock) throws IOException {
 
 		// Mock the response from Sierra
 		mock.when(
@@ -111,8 +111,8 @@ public class SierraApiTests {
 						.orElseThrow()
 						.readAllBytes()))));
 
-		var token1 = Mono.from( client.login("key", "secret") ).block();
-		var token2 = Mono.from( client.login("key", "secret") ).block();
+		var token1 = Mono.from(client.login("key", "secret")).block();
+		var token2 = Mono.from(client.login("key", "secret")).block();
 
 		assertNotNull(token1);
 		assertNotNull(token2);
@@ -125,7 +125,7 @@ public class SierraApiTests {
 	https://sandbox.iii.com:443/iii/sierra-api/v6/bibs/?limit=1
 	 */
 	@Test
-	public void testQueryLimit ( MockServerClient mock ) throws IOException {
+	public void testQueryLimit(MockServerClient mock) throws IOException {
 
 		// Mock the response from Sierra
 		mock.when(
@@ -145,7 +145,7 @@ public class SierraApiTests {
 						.readAllBytes()))));
 
 		// Fetch from sierra and block
-		var response = Mono.from( client.bibs(BibParams.builder().limit(1).build()) ).block();
+		var response = Mono.from(client.bibs(BibParams.builder().limit(1).build())).block();
 
 		assertNotNull(response);
 		assertEquals(response.getClass(), BibResultSet.class);
@@ -156,7 +156,7 @@ public class SierraApiTests {
 	https://sandbox.iii.com:443/iii/sierra-api/v6/bibs/?limit=1&offset=1
 	 */
 	@Test
-	public void testQueryOffset ( MockServerClient mock) throws IOException {
+	public void testQueryOffset(MockServerClient mock) throws IOException {
 
 		// Mock the response from Sierra
 		mock.when(
@@ -177,7 +177,7 @@ public class SierraApiTests {
 						.readAllBytes()))));
 
 		// Fetch from sierra and block
-		var response = Mono.from( client.bibs(BibParams.builder().limit(1).offset(1).build()) ).block();
+		var response = Mono.from(client.bibs(BibParams.builder().limit(1).offset(1).build())).block();
 
 		assertNotNull(response);
 		assertEquals(response.getClass(), BibResultSet.class);
@@ -188,7 +188,7 @@ public class SierraApiTests {
 	https://sandbox.iii.com:443/iii/sierra-api/v6/bibs/?limit=3&id=1000001%2C1000003%2C1000005
 	*/
 	@Test
-	public void testQueryId ( MockServerClient mock) throws IOException {
+	public void testQueryId(MockServerClient mock) throws IOException {
 
 		// Mock the response from Sierra
 		mock.when(
@@ -209,7 +209,7 @@ public class SierraApiTests {
 
 		// Fetch from sierra and block
 		// are we seperating the id from sierra? (one and many ids)
-		var response = Mono.from( client.bibs(BibParams.builder().limit(3).build()) ).block();
+		var response = Mono.from(client.bibs(BibParams.builder().limit(3).build())).block();
 
 		assertNotNull(response);
 		assertEquals(response.getClass(), BibResultSet.class);
@@ -223,7 +223,7 @@ public class SierraApiTests {
 	https://sandbox.iii.com:443/iii/sierra-api/v6/bibs/?limit=1&fields=author%2Ctitle%2CpublishYear%2Cdeleted&deleted=false
 	 */
 	@Test
-	public void testQueryFields ( MockServerClient mock) throws IOException {
+	public void testQueryFields(MockServerClient mock) throws IOException {
 
 		// Mock the response from Sierra
 		mock.when(
@@ -245,7 +245,7 @@ public class SierraApiTests {
 						.readAllBytes()))));
 
 		// Fetch from sierra and block
-		var response = Mono.from( client.bibs(params ->
+		var response = Mono.from(client.bibs(params ->
 			{
 				params
 					.limit(1)
@@ -257,7 +257,7 @@ public class SierraApiTests {
 		assertNotNull(response);
 		assertEquals(response.getClass(), BibResultSet.class);
 
-		BibResult bibResult = new BibResult("1000001", LocalDateTime.of(2022,2,15,14,18,5), LocalDateTime.of(2003,5,8,15,55), null, false, null);
+		BibResult bibResult = new BibResult("1000001", LocalDateTime.of(2022, 2, 15, 14, 18, 5), LocalDateTime.of(2003, 5, 8, 15, 55), null, false, null);
 		BibResultSet bibResultSet = new BibResultSet(1, 0, List.of(bibResult));
 		assertEquals(response, bibResultSet);
 	}
@@ -266,7 +266,7 @@ public class SierraApiTests {
 	https://sandbox.iii.com:443/iii/sierra-api/v6/bibs/?limit=1&createdDate=2003-05-08T15%3A55&deleted=false
  	*/
 	@Test
-	public void testQueryCreatedDate ( MockServerClient mock) throws IOException {
+	public void testQueryCreatedDate(MockServerClient mock) throws IOException {
 
 		// Mock the response from Sierra
 		mock.when(
@@ -288,9 +288,9 @@ public class SierraApiTests {
 						.readAllBytes()))));
 
 		// Fetch from sierra and block
-		LocalDateTime localDateTime = LocalDateTime.of(2003, Month.MAY,8,15,55,0);
+		LocalDateTime localDateTime = LocalDateTime.of(2003, Month.MAY, 8, 15, 55, 0);
 
-		var response = Mono.from( client.bibs(params -> {
+		var response = Mono.from(client.bibs(params -> {
 				params
 					.limit(1)
 					.deleted(false) // required?
@@ -310,7 +310,7 @@ public class SierraApiTests {
 	https://sandbox.iii.com:443/iii/sierra-api/v6/bibs/?limit=1&updatedDate=2022-02-15T14%3A18&deleted=false
  	*/
 	@Test
-	public void testQueryUpdatedDate ( MockServerClient mock) throws IOException {
+	public void testQueryUpdatedDate(MockServerClient mock) throws IOException {
 
 		// Mock the response from Sierra
 		mock.when(
@@ -331,9 +331,9 @@ public class SierraApiTests {
 						.orElseThrow()
 						.readAllBytes()))));
 
-		LocalDateTime localDateTime = LocalDateTime.of(2022, Month.FEBRUARY,15,14,18,5);
+		LocalDateTime localDateTime = LocalDateTime.of(2022, Month.FEBRUARY, 15, 14, 18, 5);
 		// Fetch from sierra and block
-		var response = Mono.from( client.bibs(params -> {
+		var response = Mono.from(client.bibs(params -> {
 				params
 					.limit(1)
 					.deleted(false) // required?
@@ -354,7 +354,7 @@ public class SierraApiTests {
 	https://sandbox.iii.com:443/iii/sierra-api/v6/bibs/?limit=5&deletedDate=%5B2011-08-25%2C2012-07-23%5D&deleted=true
  	*/
 	@Test
-	public void testQueryDeletedDate ( MockServerClient mock) throws IOException {
+	public void testQueryDeletedDate(MockServerClient mock) throws IOException {
 
 		// Mock the response from Sierra
 		mock.when(
@@ -377,12 +377,12 @@ public class SierraApiTests {
 
 		// Fetch from sierra and block
 		var response = Mono.from(
-				client.bibs( BibParams.builder()
+				client.bibs(BibParams.builder()
 					.limit(5)
 					.deleted(true)
 					.deletedDate(dtr -> { // long winded
-						dtr.fromDate(LocalDateTime.from( LocalDateTime.of(2011, Month.AUGUST,25,0, 0, 0) ))
-							.to(LocalDateTime.from( LocalDateTime.of(2012, Month.JULY,23, 0, 0, 0) ));
+						dtr.fromDate(LocalDateTime.from(LocalDateTime.of(2011, Month.AUGUST, 25, 0, 0, 0)))
+							.to(LocalDateTime.from(LocalDateTime.of(2012, Month.JULY, 23, 0, 0, 0)));
 					})
 					.build()))
 			.block();
@@ -391,7 +391,7 @@ public class SierraApiTests {
 		assertEquals(response.getClass(), BibResultSet.class);
 
 		// Check response contains a deleted date
-		LocalDate localDate = LocalDate.of(2012, 1,13);
+		LocalDate localDate = LocalDate.of(2012, 1, 13);
 
 		/* LocalDateTime != LocalDate :(
 		var ref = new Object() { List<LocalDate> updatedDates = new ArrayList<>(); };
@@ -407,7 +407,7 @@ public class SierraApiTests {
 	https://sandbox.iii.com:443/iii/sierra-api/v6/bibs/?limit=1&suppressed=false
  	*/
 	@Test
-	public void testQuerySuppressed ( MockServerClient mock) throws IOException {
+	public void testQuerySuppressed(MockServerClient mock) throws IOException {
 
 		// Mock the response from Sierra
 		mock.when(
@@ -428,20 +428,20 @@ public class SierraApiTests {
 						.readAllBytes()))));
 
 		// Fetch from sierra and block
-		var response = Mono.from( client.bibs(BibParams.builder().limit(1).suppressed(false).build() )).block();
+		var response = Mono.from(client.bibs(BibParams.builder().limit(1).suppressed(false).build())).block();
 
 		// BibResult not supporting suppressed
 		assertNotNull(response);
 		assertEquals(response.getClass(), BibResultSet.class);
 		assertEquals(response.total(), 1);
-		assertEquals(response.entries().get(0).id(),"1000001");
+		assertEquals(response.entries().get(0).id(), "1000001");
 	}
 
 	/*
 	https://sandbox.iii.com:443/iii/sierra-api/v6/bibs/?limit=3&fields=locations%2Cdeleted&deleted=false&suppressed=false&locations=a
  	*/
 	@Test
-	public void testQueryLocation ( MockServerClient mock) throws IOException {
+	public void testQueryLocation(MockServerClient mock) throws IOException {
 
 		// Mock the response from Sierra
 		mock.when(
@@ -464,7 +464,7 @@ public class SierraApiTests {
 						.readAllBytes()))));
 
 		// Fetch from sierra and block
-		var response = Mono.from( client.bibs(params ->
+		var response = Mono.from(client.bibs(params ->
 			{
 				params
 					.limit(3)
@@ -487,7 +487,7 @@ public class SierraApiTests {
 	https://sandbox.iii.com:443/iii/sierra-api/v6/bibs/?limit=3&offset=1&fields=author%2Ctitle%2CpublishYear%2Cdeleted%2Clocations&deleted=false&suppressed=false&locations=a
  	*/
 	@Test
-	public void testConstructor ( MockServerClient mock ) throws IOException {
+	public void testConstructor(MockServerClient mock) throws IOException {
 
 		// Mock the response from Sierra
 		mock.when(
@@ -512,7 +512,7 @@ public class SierraApiTests {
 						.readAllBytes()))));
 
 		// Fetch from sierra and block
-		var response = Mono.from( client.bibs(
+		var response = Mono.from(client.bibs(
 			3,
 			1,
 			"null",
@@ -521,7 +521,7 @@ public class SierraApiTests {
 			false,
 			null,
 			false,
-			List.of("a")) ).block();
+			List.of("a"))).block();
 
 		assertNotNull(response);
 		assertEquals(response.getClass(), BibResultSet.class);

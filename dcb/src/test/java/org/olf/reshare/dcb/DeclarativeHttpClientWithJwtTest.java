@@ -23,10 +23,10 @@ class DeclarativeHttpClientWithJwtTest {
 	AppClient appClient;
 
 	@Test
-	void verifyJwtAuthenticationWorksWithDeclarativeClient ()
-	    throws ParseException {
+	void verifyJwtAuthenticationWorksWithDeclarativeClient()
+		throws ParseException {
 		UsernamePasswordCredentials creds = new UsernamePasswordCredentials("user",
-		    "password");
+			"password");
 		BearerAccessRefreshToken loginRsp = appClient.login(creds);
 
 		assertNotNull(loginRsp);

@@ -5,181 +5,203 @@
 	"scrollId": "testid",
 	"hasMoreRecords": false,
 	"total": 3,
-	"records": [{
-		"titlePublishers": [],
-		"titleType": "Book",
-		"titleFirstAuthor": "",
-		"tippPackage": "org.gokb.cred.Package:27152811",
-		"tippTitleName": "Use of Voltage Stability Assessment and Transient Stability Assessment Tools in Grid Operations",
-		"lastUpdatedDisplay": "2022-11-10T07:31:49Z",
-		"titleFirstEditor": "Nuthalapati",
-		"editionStatement": "1",
-		"accessStartDate": "2022-11-01",
-		"dateFirstOnline": "2021-01-01",
-		"uuid": "3b8c5120-fa81-4472-8b69-00dc2dac22bf",
-		"curatoryGroups": ["TU Hamburg"],
-		"dateCreated": "2022-10-10T14:27:40Z",
-		"hostPlatformName": "SpringerLink",
-		"hostPlatform": "org.gokb.cred.Platform:106399",
-		"prices": [],
-		"titleHistory": [],
-		"titleImprint": "",
-		"firstEditor": "Nuthalapati",
-		"dateFristInPrint": "2021-01-01",
-		"componentType": "TitleInstancePackagePlatform",
-		"hostPlatformUuid": "6b61a81f-ef36-4114-a705-7b802b41e317",
-		"tippTitle": "org.gokb.cred.BookInstance:27164304",
-		"titleDateFirstInPrint": "2021-01-01",
-		"identifiers": [{
-			"baseUrl": null,
-			"namespace": "doi",
-			"value": "10.1007/978-3-030-67482-3",
-			"namespaceName": "DOI"
-		}, {
-			"baseUrl": null,
-			"namespace": "pisbn",
-			"value": "978-3-030-67481-6",
-			"namespaceName": "Print-ISBN"
-		}, {
-			"baseUrl": null,
-			"namespace": "isbn",
-			"value": "978-3-030-67482-3",
-			"namespaceName": "ISBN"
-		}],
-		"titleDateFirstOnline": "2021-01-01",
-		"publicationType": "Monograph",
-		"altname": [],
-		"tippPackageUuid": "25cdf3dc-a315-44fe-9199-8f291265c493",
-		"tippTitleMedium": "Book",
-		"url": "https://link.springer.com/10.1007/978-3-030-67482-3",
-		"tippTitleUuid": "297860e7-e2c5-448e-bdf8-3e5c90a6002c",
-		"titleVolumeNumber": "",
-		"importId": "10.1007/978-3-030-67482-3",
-		"publisherName": "Springer International Publishing",
-		"name": "Use of Voltage Stability Assessment and Transient Stability Assessment Tools in Grid Operations",
-		"parentPublicationTitleId": "6403",
-		"titleEdition": {
-			"statement": "1"
+	"records": [
+		{
+			"titlePublishers": [],
+			"titleType": "Book",
+			"titleFirstAuthor": "",
+			"tippPackage": "org.gokb.cred.Package:27152811",
+			"tippTitleName": "Use of Voltage Stability Assessment and Transient Stability Assessment Tools in Grid Operations",
+			"lastUpdatedDisplay": "2022-11-10T07:31:49Z",
+			"titleFirstEditor": "Nuthalapati",
+			"editionStatement": "1",
+			"accessStartDate": "2022-11-01",
+			"dateFirstOnline": "2021-01-01",
+			"uuid": "3b8c5120-fa81-4472-8b69-00dc2dac22bf",
+			"curatoryGroups": [
+				"TU Hamburg"
+			],
+			"dateCreated": "2022-10-10T14:27:40Z",
+			"hostPlatformName": "SpringerLink",
+			"hostPlatform": "org.gokb.cred.Platform:106399",
+			"prices": [],
+			"titleHistory": [],
+			"titleImprint": "",
+			"firstEditor": "Nuthalapati",
+			"dateFristInPrint": "2021-01-01",
+			"componentType": "TitleInstancePackagePlatform",
+			"hostPlatformUuid": "6b61a81f-ef36-4114-a705-7b802b41e317",
+			"tippTitle": "org.gokb.cred.BookInstance:27164304",
+			"titleDateFirstInPrint": "2021-01-01",
+			"identifiers": [
+				{
+					"baseUrl": null,
+					"namespace": "doi",
+					"value": "10.1007/978-3-030-67482-3",
+					"namespaceName": "DOI"
+				},
+				{
+					"baseUrl": null,
+					"namespace": "pisbn",
+					"value": "978-3-030-67481-6",
+					"namespaceName": "Print-ISBN"
+				},
+				{
+					"baseUrl": null,
+					"namespace": "isbn",
+					"value": "978-3-030-67482-3",
+					"namespaceName": "ISBN"
+				}
+			],
+			"titleDateFirstOnline": "2021-01-01",
+			"publicationType": "Monograph",
+			"altname": [],
+			"tippPackageUuid": "25cdf3dc-a315-44fe-9199-8f291265c493",
+			"tippTitleMedium": "Book",
+			"url": "https://link.springer.com/10.1007/978-3-030-67482-3",
+			"tippTitleUuid": "297860e7-e2c5-448e-bdf8-3e5c90a6002c",
+			"titleVolumeNumber": "",
+			"importId": "10.1007/978-3-030-67482-3",
+			"publisherName": "Springer International Publishing",
+			"name": "Use of Voltage Stability Assessment and Transient Stability Assessment Tools in Grid Operations",
+			"parentPublicationTitleId": "6403",
+			"titleEdition": {
+				"statement": "1"
+			},
+			"tippPackageName": "Springer Energy Ebooks 2021 English/International",
+			"status": "Current"
 		},
-		"tippPackageName": "Springer Energy Ebooks 2021 English/International",
-		"status": "Current"
-	}, {
-		"titlePublishers": [],
-		"titleType": "Book",
-		"titleFirstAuthor": "Ibrahim",
-		"tippPackage": "org.gokb.cred.Package:27152811",
-		"tippTitleName": "Design and Implementation of Voltage Source Converters in HVDC Systems",
-		"lastUpdatedDisplay": "2022-11-10T07:31:49Z",
-		"titleFirstEditor": "",
-		"editionStatement": "1",
-		"accessStartDate": "2022-11-01",
-		"dateFirstOnline": "2021-01-01",
-		"uuid": "4ddbdc42-42cc-4691-8701-48b514d6051f",
-		"curatoryGroups": ["TU Hamburg"],
-		"dateCreated": "2022-10-10T14:27:40Z",
-		"hostPlatformName": "SpringerLink",
-		"hostPlatform": "org.gokb.cred.Platform:106399",
-		"prices": [],
-		"titleHistory": [],
-		"titleImprint": "",
-		"firstAuthor": "Ibrahim",
-		"dateFristInPrint": "2021-01-01",
-		"componentType": "TitleInstancePackagePlatform",
-		"hostPlatformUuid": "6b61a81f-ef36-4114-a705-7b802b41e317",
-		"tippTitle": "org.gokb.cred.BookInstance:18202459",
-		"titleDateFirstInPrint": "2021-01-01",
-		"identifiers": [{
-			"baseUrl": null,
-			"namespace": "doi",
-			"value": "10.1007/978-3-030-51661-1",
-			"namespaceName": "DOI"
-		}, {
-			"baseUrl": null,
-			"namespace": "pisbn",
-			"value": "978-3-030-51660-4",
-			"namespaceName": "Print-ISBN"
-		}, {
-			"baseUrl": null,
-			"namespace": "isbn",
-			"value": "978-3-030-51661-1",
-			"namespaceName": "ISBN"
-		}],
-		"titleDateFirstOnline": "2021-01-01",
-		"publicationType": "Monograph",
-		"altname": [],
-		"tippPackageUuid": "25cdf3dc-a315-44fe-9199-8f291265c493",
-		"tippTitleMedium": "Book",
-		"url": "https://link.springer.com/10.1007/978-3-030-51661-1",
-		"tippTitleUuid": "c1c194a6-5148-4218-a8aa-bb10720e3abd",
-		"titleVolumeNumber": "",
-		"importId": "10.1007/978-3-030-51661-1",
-		"publisherName": "Springer International Publishing",
-		"name": "Design and Implementation of Voltage Source Converters in HVDC Systems",
-		"parentPublicationTitleId": "4622",
-		"titleEdition": {
-			"differentiator": "1",
-			"statement": "1"
+		{
+			"titlePublishers": [],
+			"titleType": "Book",
+			"titleFirstAuthor": "Ibrahim",
+			"tippPackage": "org.gokb.cred.Package:27152811",
+			"tippTitleName": "Design and Implementation of Voltage Source Converters in HVDC Systems",
+			"lastUpdatedDisplay": "2022-11-10T07:31:49Z",
+			"titleFirstEditor": "",
+			"editionStatement": "1",
+			"accessStartDate": "2022-11-01",
+			"dateFirstOnline": "2021-01-01",
+			"uuid": "4ddbdc42-42cc-4691-8701-48b514d6051f",
+			"curatoryGroups": [
+				"TU Hamburg"
+			],
+			"dateCreated": "2022-10-10T14:27:40Z",
+			"hostPlatformName": "SpringerLink",
+			"hostPlatform": "org.gokb.cred.Platform:106399",
+			"prices": [],
+			"titleHistory": [],
+			"titleImprint": "",
+			"firstAuthor": "Ibrahim",
+			"dateFristInPrint": "2021-01-01",
+			"componentType": "TitleInstancePackagePlatform",
+			"hostPlatformUuid": "6b61a81f-ef36-4114-a705-7b802b41e317",
+			"tippTitle": "org.gokb.cred.BookInstance:18202459",
+			"titleDateFirstInPrint": "2021-01-01",
+			"identifiers": [
+				{
+					"baseUrl": null,
+					"namespace": "doi",
+					"value": "10.1007/978-3-030-51661-1",
+					"namespaceName": "DOI"
+				},
+				{
+					"baseUrl": null,
+					"namespace": "pisbn",
+					"value": "978-3-030-51660-4",
+					"namespaceName": "Print-ISBN"
+				},
+				{
+					"baseUrl": null,
+					"namespace": "isbn",
+					"value": "978-3-030-51661-1",
+					"namespaceName": "ISBN"
+				}
+			],
+			"titleDateFirstOnline": "2021-01-01",
+			"publicationType": "Monograph",
+			"altname": [],
+			"tippPackageUuid": "25cdf3dc-a315-44fe-9199-8f291265c493",
+			"tippTitleMedium": "Book",
+			"url": "https://link.springer.com/10.1007/978-3-030-51661-1",
+			"tippTitleUuid": "c1c194a6-5148-4218-a8aa-bb10720e3abd",
+			"titleVolumeNumber": "",
+			"importId": "10.1007/978-3-030-51661-1",
+			"publisherName": "Springer International Publishing",
+			"name": "Design and Implementation of Voltage Source Converters in HVDC Systems",
+			"parentPublicationTitleId": "4622",
+			"titleEdition": {
+				"differentiator": "1",
+				"statement": "1"
+			},
+			"tippPackageName": "Springer Energy Ebooks 2021 English/International",
+			"status": "Current"
 		},
-		"tippPackageName": "Springer Energy Ebooks 2021 English/International",
-		"status": "Current"
-	}, {
-		"titlePublishers": [],
-		"titleType": "Book",
-		"titleFirstAuthor": "Zhang",
-		"tippPackage": "org.gokb.cred.Package:27152811",
-		"tippTitleName": "Advanced Power Applications for System Reliability Monitoring",
-		"lastUpdatedDisplay": "2022-11-10T07:31:49Z",
-		"titleFirstEditor": "",
-		"editionStatement": "1",
-		"accessStartDate": "2022-11-01",
-		"dateFirstOnline": "2021-01-01",
-		"uuid": "8b8aa1cc-0b63-4508-92ca-4ce470010f18",
-		"curatoryGroups": ["TU Hamburg"],
-		"dateCreated": "2022-10-10T14:27:40Z",
-		"hostPlatformName": "SpringerLink",
-		"hostPlatform": "org.gokb.cred.Platform:106399",
-		"prices": [],
-		"titleHistory": [],
-		"titleImprint": "",
-		"firstAuthor": "Zhang",
-		"dateFristInPrint": "2021-01-01",
-		"componentType": "TitleInstancePackagePlatform",
-		"hostPlatformUuid": "6b61a81f-ef36-4114-a705-7b802b41e317",
-		"tippTitle": "org.gokb.cred.BookInstance:18202348",
-		"titleDateFirstInPrint": "2021-01-01",
-		"identifiers": [{
-			"baseUrl": null,
-			"namespace": "doi",
-			"value": "10.1007/978-3-030-44544-7",
-			"namespaceName": "DOI"
-		}, {
-			"baseUrl": null,
-			"namespace": "pisbn",
-			"value": "978-3-030-44543-0",
-			"namespaceName": "Print-ISBN"
-		}, {
-			"baseUrl": null,
-			"namespace": "isbn",
-			"value": "978-3-030-44544-7",
-			"namespaceName": "ISBN"
-		}],
-		"titleDateFirstOnline": "2021-01-01",
-		"publicationType": "Monograph",
-		"altname": [],
-		"tippPackageUuid": "25cdf3dc-a315-44fe-9199-8f291265c493",
-		"tippTitleMedium": "Book",
-		"url": "https://link.springer.com/10.1007/978-3-030-44544-7",
-		"tippTitleUuid": "8e9fdcfe-f014-47dc-ab31-1c27fa460ea4",
-		"titleVolumeNumber": "",
-		"importId": "10.1007/978-3-030-44544-7",
-		"publisherName": "Springer International Publishing",
-		"name": "Advanced Power Applications for System Reliability Monitoring",
-		"parentPublicationTitleId": "4622",
-		"titleEdition": {
-			"differentiator": "1",
-			"statement": "1"
-		},
-		"tippPackageName": "Springer Energy Ebooks 2021 English/International",
-		"status": "Current"
-	}]
+		{
+			"titlePublishers": [],
+			"titleType": "Book",
+			"titleFirstAuthor": "Zhang",
+			"tippPackage": "org.gokb.cred.Package:27152811",
+			"tippTitleName": "Advanced Power Applications for System Reliability Monitoring",
+			"lastUpdatedDisplay": "2022-11-10T07:31:49Z",
+			"titleFirstEditor": "",
+			"editionStatement": "1",
+			"accessStartDate": "2022-11-01",
+			"dateFirstOnline": "2021-01-01",
+			"uuid": "8b8aa1cc-0b63-4508-92ca-4ce470010f18",
+			"curatoryGroups": [
+				"TU Hamburg"
+			],
+			"dateCreated": "2022-10-10T14:27:40Z",
+			"hostPlatformName": "SpringerLink",
+			"hostPlatform": "org.gokb.cred.Platform:106399",
+			"prices": [],
+			"titleHistory": [],
+			"titleImprint": "",
+			"firstAuthor": "Zhang",
+			"dateFristInPrint": "2021-01-01",
+			"componentType": "TitleInstancePackagePlatform",
+			"hostPlatformUuid": "6b61a81f-ef36-4114-a705-7b802b41e317",
+			"tippTitle": "org.gokb.cred.BookInstance:18202348",
+			"titleDateFirstInPrint": "2021-01-01",
+			"identifiers": [
+				{
+					"baseUrl": null,
+					"namespace": "doi",
+					"value": "10.1007/978-3-030-44544-7",
+					"namespaceName": "DOI"
+				},
+				{
+					"baseUrl": null,
+					"namespace": "pisbn",
+					"value": "978-3-030-44543-0",
+					"namespaceName": "Print-ISBN"
+				},
+				{
+					"baseUrl": null,
+					"namespace": "isbn",
+					"value": "978-3-030-44544-7",
+					"namespaceName": "ISBN"
+				}
+			],
+			"titleDateFirstOnline": "2021-01-01",
+			"publicationType": "Monograph",
+			"altname": [],
+			"tippPackageUuid": "25cdf3dc-a315-44fe-9199-8f291265c493",
+			"tippTitleMedium": "Book",
+			"url": "https://link.springer.com/10.1007/978-3-030-44544-7",
+			"tippTitleUuid": "8e9fdcfe-f014-47dc-ab31-1c27fa460ea4",
+			"titleVolumeNumber": "",
+			"importId": "10.1007/978-3-030-44544-7",
+			"publisherName": "Springer International Publishing",
+			"name": "Advanced Power Applications for System Reliability Monitoring",
+			"parentPublicationTitleId": "4622",
+			"titleEdition": {
+				"differentiator": "1",
+				"statement": "1"
+			},
+			"tippPackageName": "Springer Energy Ebooks 2021 English/International",
+			"status": "Current"
+		}
+	]
 }

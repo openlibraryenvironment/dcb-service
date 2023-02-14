@@ -34,38 +34,38 @@ public class LocationController {
 	private final List<Location> LOCATIONS_TEMP;
 
 	private final static UUID LOCATION_NS = UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB,
-			Location.class.getSimpleName());
+		Location.class.getSimpleName());
 
 	LocationController() {
-		LOCATIONS_TEMP = Stream.of(new String[][] {
-				{ "apl", "Altoona (IA) Public" }, { "klb", "ATSU" }, { "avcir", "Avila University, Library Desk" },
-				{ "bplg6", "Bettendorf Public Library" }, { "c1b", "Conception Abbey Library" },
-				{ "ch", "Children's Library,CALS-Children's Library" }, { "db", "Dee Brown" }, { "fl", "Fletcher" },
-				{ "lr", "Main Library" }, { "ma", "Maumelle" }, { "mb", "Millie Brooks" }, { "mm", "McMath" },
-				{ "nx", "Nixon" }, { "ok", "Rooker" }, { "pe", "Milam" }, { "sh", "Sanders" }, { "te", "Terry" },
-				{ "th", "Thompson" }, { "wm", "Williams" }
-		})
+		LOCATIONS_TEMP = Stream.of(new String[][]{
+				{"apl", "Altoona (IA) Public"}, {"klb", "ATSU"}, {"avcir", "Avila University, Library Desk"},
+				{"bplg6", "Bettendorf Public Library"}, {"c1b", "Conception Abbey Library"},
+				{"ch", "Children's Library,CALS-Children's Library"}, {"db", "Dee Brown"}, {"fl", "Fletcher"},
+				{"lr", "Main Library"}, {"ma", "Maumelle"}, {"mb", "Millie Brooks"}, {"mm", "McMath"},
+				{"nx", "Nixon"}, {"ok", "Rooker"}, {"pe", "Milam"}, {"sh", "Sanders"}, {"te", "Terry"},
+				{"th", "Thompson"}, {"wm", "Williams"}
+			})
 			.filter(data -> data.length > 0)
-		  .map(data -> {
-					final Location l = new Location();
-					l.setCode(data[0]);
-					l.setName(data[1]);
-					return l;
+			.map(data -> {
+				final Location l = new Location();
+				l.setCode(data[0]);
+				l.setName(data[1]);
+				return l;
 			})
 			.map(LocationController::decorateWithUUID)
 			.collect(Collectors.toUnmodifiableList());
 	}
 
-	
+
 	@Operation(
 		summary = "Fetch all locations"
 	)
-  @Get("/")
+	@Get("/")
 	Mono<Page<Location>> list() {
 		return Mono.just(
-				Page.of(
-						LOCATIONS_TEMP,
-						Pageable.from(1, LOCATIONS_TEMP.size()),
-						LOCATIONS_TEMP.size()));
+			Page.of(
+				LOCATIONS_TEMP,
+				Pageable.from(1, LOCATIONS_TEMP.size()),
+				LOCATIONS_TEMP.size()));
 	}
 }

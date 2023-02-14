@@ -21,37 +21,37 @@ public class Agency {
 	@Id
 	@Column(columnDefinition = "UUID")
 	private UUID id;
-	
+
 	@Nullable
 	@Column(columnDefinition = "TEXT")
 	private String name;
 
 
-        public Agency() {
-        }
+	public Agency() {
+	}
 
-        public Agency(UUID id, String name) {
-                this.id = id;
-                this.name = name;
-        }
+	public Agency(UUID id, String name) {
+		this.id = id;
+		this.name = name;
+	}
 
-        public UUID getId() {
-                return id;
-        }
+	public UUID getId() {
+		return id;
+	}
 
-        public Agency setId(UUID id) {
-                this.id = id;
-                return this;
-        }
+	public Agency setId(UUID id) {
+		this.id = id;
+		return this;
+	}
 
-        public String getName() {
-                return name;
-        }
+	public String getName() {
+		return name;
+	}
 
-        public Agency setName(String name) {
-                this.name = name;
-                return this;
-        }
+	public Agency setName(String name) {
+		this.name = name;
+		return this;
+	}
 
 }
 

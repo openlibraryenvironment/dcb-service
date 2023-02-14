@@ -18,7 +18,7 @@ public interface AgencyRepository {
 	@NonNull
 	@SingleResult
 	Publisher<? extends Agency> save(@Valid @NotNull @NonNull Agency agency);
-	
+
 	@NonNull
 	@SingleResult
 	Publisher<? extends Agency> update(@Valid @NotNull @NonNull Agency agency);
@@ -29,17 +29,19 @@ public interface AgencyRepository {
 
 	@NonNull
 	Publisher<Agency> findAll();
-	
+
 	@NonNull
 	@SingleResult
 	Publisher<Page<Agency>> findAll(Pageable page);
-	
+
 	@NonNull
 	@SingleResult
 	Publisher<Boolean> existsById(@NonNull UUID id);
 
 	public default void cleanUp() {
-	};
+	}
+
+	;
 
 	public default void commit() {
 	}

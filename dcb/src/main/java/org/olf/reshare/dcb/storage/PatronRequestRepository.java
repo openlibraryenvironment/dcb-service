@@ -16,7 +16,7 @@ public interface PatronRequestRepository {
 	@NonNull
 	@SingleResult
 	Publisher<? extends PatronRequest> save(@Valid @NotNull @NonNull PatronRequest PatronRequest);
-	
+
 	@NonNull
 	@SingleResult
 	Publisher<? extends PatronRequest> update(@Valid @NotNull @NonNull PatronRequest PatronRequest);
@@ -27,17 +27,19 @@ public interface PatronRequestRepository {
 
 	@NonNull
 	Publisher<PatronRequest> findAll();
-	
+
 	@NonNull
 	@SingleResult
 	Publisher<Page<PatronRequest>> findAll(Pageable page);
-	
+
 	@NonNull
 	@SingleResult
 	Publisher<Boolean> existsById(@NonNull UUID id);
 
 	public default void cleanUp() {
-	};
+	}
+
+	;
 
 	public default void commit() {
 	}

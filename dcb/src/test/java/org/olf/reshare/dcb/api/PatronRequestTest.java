@@ -7,19 +7,22 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import net.minidev.json.JSONObject;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.olf.reshare.dcb.core.api.datavalidation.*;
 
+import org.olf.reshare.dcb.processing.PatronRequestRecord;
 import org.olf.reshare.dcb.test.DcbTest;
 
 import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @DcbTest
 class PatronRequestTest {
-
 
 	public static final Logger log = LoggerFactory.getLogger(PatronRequestTest.class);
 	@Inject
@@ -30,32 +33,40 @@ class PatronRequestTest {
 	public void testPlacePatronRequestValidation() {
 
 		HttpClientResponseException e = Assertions.assertThrows(HttpClientResponseException.class, () -> {
-			PatronRequestCommand patronRequestCommand = new PatronRequestCommand(null, null, null, null);
-			client.toBlocking().exchange(HttpRequest.POST("/patrons/requests/place", patronRequestCommand ));
+			JSONObject patronRequest = new JSONObject();
+			client.toBlocking().exchange(HttpRequest.POST("/patrons/requests/place", patronRequest));
 		});
 
 		HttpResponse<?> response = e.getResponse();
 		assertEquals(HttpStatus.BAD_REQUEST, response.getStatus());
 
 
-		CitationCommand citationCommand = new CitationCommand();
-		citationCommand.setBibClusterId("ad0cd9fe-9bef-4942-8a16-a9fa677e7146");
 
-		RequestorCommand requestorCommand = new RequestorCommand();
-		requestorCommand.setIdentifiier("jane-smith");
-		AgencyCommand agencyCommand = new AgencyCommand();
-		agencyCommand.setCode("RGX12");
-		requestorCommand.setAgency(agencyCommand);
+		JSONObject patronRequest = new JSONObject() {{
+			// citation
+			JSONObject citation = new JSONObject() {{
+				put("bibClusterId", "ad0cd9fe-9bef-4942-8a16-a9fa677e7146");
+			}};
+			put("citation", citation);
+			// requestor
+			JSONObject requestor = new JSONObject() {{
+				put("identifier", "jane-smith");
+				JSONObject agency = new JSONObject() {{
+					put("code", "RGX12");
+				}};
+				put("agency", agency);
+			}};
+			put("requestor", requestor);
+			// pickup location
+			JSONObject pickupLocation = new JSONObject() {{
+				put("code", "ABC123");
+			}};
+			put("pickupLocation", pickupLocation);
+		}};
 
-		PickupLocationCommand pickupLocationCommand = new PickupLocationCommand();
-		pickupLocationCommand.setCode("ABC123");
+		log.debug("Using payload: {}", patronRequest.toString());
 
-		PatronRequestCommand patronRequestCommand = new PatronRequestCommand();
-		patronRequestCommand.setCitation( citationCommand );
-		patronRequestCommand.setRequestor( requestorCommand );
-		patronRequestCommand.setPickupLocation( pickupLocationCommand );
-
-		HttpResponse<PatronRequestCommand> rp = client.toBlocking().exchange(HttpRequest.POST("/patrons/requests/place", patronRequestCommand));
+		HttpResponse<PatronRequestRecord> rp = client.toBlocking().exchange(HttpRequest.POST("/patrons/requests/place", patronRequest));
 		assertEquals(HttpStatus.OK, rp.getStatus());
 	}
 

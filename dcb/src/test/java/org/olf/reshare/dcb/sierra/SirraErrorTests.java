@@ -21,7 +21,7 @@ public class SirraErrorTests {
 	SierraApiClient client;
 
 	@Test
-	public void testSierraError () {
+	public void testSierraError() {
 
 		SierraError exception = new SierraError();
 

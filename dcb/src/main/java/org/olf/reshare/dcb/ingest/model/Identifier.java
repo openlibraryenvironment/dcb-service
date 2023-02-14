@@ -11,19 +11,22 @@ import services.k_int.interaction.DefaultImmutableStyle;
 @Immutable
 @DefaultImmutableStyle
 public interface Identifier {
-    @NotNull String namespace();
-    @NotNull String value();
-    
-    public static class Builder extends IdentifierImpl.Builder {
-  	}
+	@NotNull
+	String namespace();
 
-  	public static Identifier build(Consumer<Builder> consumer) {
-  		Builder builder = builder();
-  		consumer.accept(builder);
-  		return builder.build();
-  	}
+	@NotNull
+	String value();
 
-  	public static Builder builder() {
-  		return new Builder();
-  	}
+	public static class Builder extends IdentifierImpl.Builder {
+	}
+
+	public static Identifier build(Consumer<Builder> consumer) {
+		Builder builder = builder();
+		consumer.accept(builder);
+		return builder.build();
+	}
+
+	public static Builder builder() {
+		return new Builder();
+	}
 }

@@ -15,10 +15,14 @@ import org.olf.reshare.dcb.core.model.BibRecord;
 import org.olf.reshare.dcb.storage.BibRepository;
 import org.olf.reshare.dcb.storage.postgres.PostgresBibRepository;
 import org.olf.reshare.dcb.test.DcbTest;
+
 import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.List;
+
 import org.junit.jupiter.api.Order;
 
 @DcbTest

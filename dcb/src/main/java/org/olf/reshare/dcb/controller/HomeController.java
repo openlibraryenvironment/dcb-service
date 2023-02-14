@@ -12,9 +12,7 @@ import io.micronaut.security.annotation.Secured;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
- * 
  * Testing purposes
- *
  */
 
 @Tag(name = "Management API")

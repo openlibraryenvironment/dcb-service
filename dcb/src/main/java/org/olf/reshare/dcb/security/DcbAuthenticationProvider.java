@@ -20,7 +20,7 @@ public class DcbAuthenticationProvider implements AuthenticationProvider {
 
 	@Override
 	public Publisher<AuthenticationResponse> authenticate(@Nullable HttpRequest<?> httpRequest,
-			AuthenticationRequest<?, ?> authenticationRequest) {
+																												AuthenticationRequest<?, ?> authenticationRequest) {
 		return Flux.create(emitter -> {
 			if (authenticationRequest.getIdentity().equals(USERNAME) && authenticationRequest.getSecret().equals(PASSWORD)) {
 				emitter.next(AuthenticationResponse.success((String) authenticationRequest.getIdentity()));

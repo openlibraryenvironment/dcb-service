@@ -18,7 +18,7 @@ public interface BibRepository {
 	@NonNull
 	@SingleResult
 	Publisher<? extends BibRecord> save(@Valid @NotNull @NonNull BibRecord bibRecord);
-	
+
 	@NonNull
 	@SingleResult
 	Publisher<? extends BibRecord> update(@Valid @NotNull @NonNull BibRecord bibRecord);
@@ -29,17 +29,19 @@ public interface BibRepository {
 
 	@NonNull
 	Publisher<BibRecord> findAll();
-	
+
 	@NonNull
 	@SingleResult
 	Publisher<Page<BibRecord>> findAll(Pageable page);
-	
+
 	@NonNull
 	@SingleResult
 	Publisher<Boolean> existsById(@NonNull UUID id);
 
 	public default void cleanUp() {
-	};
+	}
+
+	;
 
 	public default void commit() {
 	}

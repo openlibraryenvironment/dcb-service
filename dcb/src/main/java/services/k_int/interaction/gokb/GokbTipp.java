@@ -10,8 +10,8 @@ import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
 public record GokbTipp(
-		@NotNull UUID uuid, 
-		@Nullable String tippTitleName,
-		@Nullable String titleType,
-		List<GokbIdentifier> identifiers) {
+	@NotNull UUID uuid,
+	@Nullable String tippTitleName,
+	@Nullable String titleType,
+	List<GokbIdentifier> identifiers) {
 }

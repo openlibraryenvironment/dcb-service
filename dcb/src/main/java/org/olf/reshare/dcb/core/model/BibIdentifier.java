@@ -18,8 +18,8 @@ public class BibIdentifier {
 	@NonNull
 	@Id
 	@Column(columnDefinition = "UUID")
-  private UUID id;
-	
+	private UUID id;
+
 	public UUID getId() {
 		return id;
 	}
@@ -47,7 +47,7 @@ public class BibIdentifier {
 	@NotNull
 	@NonNull
 	private String value;
-	
+
 	@NotNull
 	@NonNull
 	private String namespace;
