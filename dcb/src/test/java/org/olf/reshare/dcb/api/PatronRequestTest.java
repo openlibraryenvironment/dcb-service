@@ -2,6 +2,7 @@ package org.olf.reshare.dcb.api;
 
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.HttpStatus.OK;
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -15,7 +16,6 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.olf.reshare.dcb.core.model.PatronRequest;
-import org.olf.reshare.dcb.processing.PatronRequestRecord;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.olf.reshare.dcb.test.DcbTest;
 
@@ -24,6 +24,7 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import net.minidev.json.JSONObject;
 import reactor.core.publisher.Flux;
@@ -79,22 +80,15 @@ class PatronRequestTest {
 		final var placeResponse = placePatronRequest(createPlacePatronRequestCommand());
 
 		assertEquals(OK, placeResponse.getStatus());
+		assertNotNull(placeResponse.body());
 
-		final var patronRequests = getAllPatronRequests();
+		final var id = requireNonNull(placeResponse.body()).id();
 
-		assertNotNull(patronRequests);
-		assertEquals(1, patronRequests.size());
-
-		// Get first request
-		PatronRequest patronRequest = patronRequests.get(0);
-
-		// get patron request by id via audit controller
 		var getResponse = client.toBlocking()
-			.retrieve(HttpRequest.GET("/admin/patrons/requests/"+patronRequest.getId()),
-				PatronRequestRecord.class);
-
-		// check the response has same id as the requested patron request
-		assertEquals(getResponse.id(), patronRequest.getId());
+			.retrieve(HttpRequest.GET("/admin/patrons/requests/" + id),
+				PlacedPatronRequest.class);
+		
+		assertEquals(id, getResponse.id());
 	}
 
 	private static JSONObject createPlacePatronRequestCommand() {
@@ -121,12 +115,16 @@ class PatronRequestTest {
 		}};
 	}
 
-	private HttpResponse<Object> placePatronRequest(JSONObject json) {
+	private HttpResponse<PlacedPatronRequest> placePatronRequest(JSONObject json) {
 		return client.toBlocking()
-			.exchange(HttpRequest.POST("/patrons/requests/place", json));
+			.exchange(HttpRequest.POST("/patrons/requests/place", json),
+				PlacedPatronRequest.class);
 	}
 
 	private List<PatronRequest> getAllPatronRequests() {
 		return Flux.from(requestRepository.findAll()).collectList().block();
 	}
+
+	@Serdeable
+	public record PlacedPatronRequest(UUID id) { }
 }
