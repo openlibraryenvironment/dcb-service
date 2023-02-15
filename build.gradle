@@ -18,7 +18,7 @@ plugins {
 
 // Apply our custom plugins.
 apply plugin: "com.k_int.gradle.plugin"
-//apply plugin: "com.k_int.gradle.conventional-git"
+apply plugin: "com.k_int.gradle.conventional-git"
 
 // Includes
 apply from: "gradle/asciidoc.gradle"
