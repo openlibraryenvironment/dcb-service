@@ -9,7 +9,7 @@ import static org.mockito.Mockito.when;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
-import org.olf.reshare.dcb.processing.PatronRequestRecord;
+import org.olf.reshare.dcb.processing.PlacePatronRequestCommand;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 
 import reactor.core.publisher.Mono;
@@ -25,14 +25,14 @@ class PatronRequestServiceTests {
 
 		final var service = new PatronRequestService(repositoryMock);
 
-		final var command = Mono.fromSupplier(() -> new PatronRequestRecord(
-			UUID.randomUUID(), new PatronRequestRecord.Citation(UUID.randomUUID()),
-			new PatronRequestRecord.PickupLocation("code"),
-			new PatronRequestRecord.Requestor("jane-smith",
-				new PatronRequestRecord.Agency("ABC-123"))));
+		final var command = Mono.fromSupplier(() -> new PlacePatronRequestCommand(
+			UUID.randomUUID(), new PlacePatronRequestCommand.Citation(UUID.randomUUID()),
+			new PlacePatronRequestCommand.PickupLocation("code"),
+			new PlacePatronRequestCommand.Requestor("jane-smith",
+				new PlacePatronRequestCommand.Agency("ABC-123"))));
 
 		final var exception = assertThrows(RuntimeException.class,
-			() -> service.savePatronRequest(command).block());
+			() -> service.placePatronRequest(command).block());
 
 		assertEquals("saving failed", exception.getMessage());
 	}

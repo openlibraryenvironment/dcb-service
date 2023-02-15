@@ -1,14 +1,15 @@
 package org.olf.reshare.dcb.processing;
 
-import io.micronaut.core.annotation.Nullable;
-import io.micronaut.serde.annotation.Serdeable;
+import java.util.UUID;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import java.util.UUID;
+
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
-public record PatronRequestRecord(
+public record PlacePatronRequestCommand(
 	@Nullable
 	UUID id,
 	@NotNull

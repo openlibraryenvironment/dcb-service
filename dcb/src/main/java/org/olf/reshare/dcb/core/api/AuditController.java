@@ -1,19 +1,24 @@
 package org.olf.reshare.dcb.core.api;
 
-import io.micronaut.core.async.annotation.SingleResult;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.annotation.*;
-import io.micronaut.security.annotation.Secured;
-import io.micronaut.security.rules.SecurityRule;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import org.olf.reshare.dcb.processing.PatronRequestRecord;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+
+import java.util.UUID;
+
+import org.olf.reshare.dcb.processing.PlacePatronRequestCommand;
 import org.olf.reshare.dcb.request.fulfilment.PatronRequestService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Mono;
 
-import java.util.UUID;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.PathVariable;
+import io.micronaut.http.annotation.Produces;
+import io.micronaut.security.annotation.Secured;
+import io.micronaut.security.rules.SecurityRule;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import reactor.core.publisher.Mono;
 
 @Secured(SecurityRule.IS_ANONYMOUS)
 @Produces(APPLICATION_JSON)
@@ -30,11 +35,13 @@ public class AuditController {
 
 	@SingleResult
 	@Get(value = "/admin/patrons/requests/{id}", produces = APPLICATION_JSON)
-	public Mono<HttpResponse<PatronRequestRecord>> getPatronRequest(@PathVariable("id") final UUID id) {
+	public Mono<HttpResponse<PlacePatronRequestCommand>> getPatronRequest(
+		@PathVariable("id") final UUID id) {
+
 		log.debug("REST, get patron request with id: {}", id);
 
-		Mono<PatronRequestRecord> patronRequestRecordMono = patronRequestService.getPatronRequestWithId(id);
-		return patronRequestRecordMono.map(HttpResponse::ok);
+		return patronRequestService.getPatronRequestWithId(id)
+			.map(HttpResponse::ok);
 	}
 
 }
