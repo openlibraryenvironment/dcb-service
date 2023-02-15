@@ -9,7 +9,6 @@ import static org.mockito.Mockito.when;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
-import org.olf.reshare.dcb.processing.PlacePatronRequestCommand;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 
 import reactor.core.publisher.Mono;

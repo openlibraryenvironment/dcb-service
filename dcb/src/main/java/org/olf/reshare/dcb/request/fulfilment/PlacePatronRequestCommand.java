@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb.processing;
+package org.olf.reshare.dcb.request.fulfilment;
 
 import java.util.UUID;
 

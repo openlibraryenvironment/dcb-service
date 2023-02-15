@@ -4,7 +4,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 import java.util.UUID;
 
-import org.olf.reshare.dcb.processing.PlacePatronRequestCommand;
+import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.reshare.dcb.request.fulfilment.PatronRequestService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
