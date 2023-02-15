@@ -22,7 +22,7 @@ public class PatronRequestService {
 
 	public static final Logger log = LoggerFactory.getLogger(PatronRequestService.class);
 
-	public Mono<PlacePatronRequestCommand> placePatronRequest(
+	public Mono<PatronRequestView> placePatronRequest(
 		Mono<PlacePatronRequestCommand> command) {
 
 		log.debug(String.format("placePatronRequest(%s)", command));
@@ -60,26 +60,25 @@ public class PatronRequestService {
 		return Mono.from(patronRequestRepository.save(patronRequest));
 	}
 
-	private static PlacePatronRequestCommand mapToResult(PatronRequest pr) {
+	private static PatronRequestView mapToResult(PatronRequest patronRequest) {
 		// This is strange because we use a command for both in an out representations
-		final var result = new PlacePatronRequestCommand(pr.getId(),
-			new PlacePatronRequestCommand.Citation(pr.getBibClusterId()),
-			new PlacePatronRequestCommand.PickupLocation(pr.getPickupLocationCode()),
-			new PlacePatronRequestCommand.Requestor(pr.getPatronId(),
-				new PlacePatronRequestCommand.Agency(pr.getPatronAgencyCode())));
+		final var result = new PatronRequestView(patronRequest.getId(),
+			new PatronRequestView.Citation(patronRequest.getBibClusterId()),
+			new PatronRequestView.PickupLocation(patronRequest.getPickupLocationCode()),
+			new PatronRequestView.Requestor(patronRequest.getPatronId(),
+				new PatronRequestView.Agency(patronRequest.getPatronAgencyCode())));
 
 		log.debug("returning {}", result);
 
 		return result;
 	}
 
-	public Mono<PlacePatronRequestCommand> getPatronRequestWithId(UUID id) {
-		// This is strange because we use a command for both in an out representations
+	public Mono<PatronRequestView> findPatronRequestById(UUID id) {
 		return Mono.from(patronRequestRepository.findById(id))
-			.map(pr -> new PlacePatronRequestCommand(pr.getId(),
-				new PlacePatronRequestCommand.Citation(pr.getBibClusterId()),
-				new PlacePatronRequestCommand.PickupLocation(pr.getPatronAgencyCode()),
-				new PlacePatronRequestCommand.Requestor(pr.getPatronId(),
-					new PlacePatronRequestCommand.Agency(pr.getPatronAgencyCode()))));
+			.map(pr -> new PatronRequestView(pr.getId(),
+				new PatronRequestView.Citation(pr.getBibClusterId()),
+				new PatronRequestView.PickupLocation(pr.getPatronAgencyCode()),
+				new PatronRequestView.Requestor(pr.getPatronId(),
+					new PatronRequestView.Agency(pr.getPatronAgencyCode()))));
 	}
 }

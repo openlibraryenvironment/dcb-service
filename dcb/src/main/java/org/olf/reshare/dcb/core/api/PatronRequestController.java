@@ -4,6 +4,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 import javax.validation.Valid;
 
+import org.olf.reshare.dcb.request.fulfilment.PatronRequestView;
 import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.reshare.dcb.request.fulfilment.PatronRequestService;
 import org.slf4j.Logger;
@@ -35,7 +36,7 @@ public class PatronRequestController {
 
 	@SingleResult
 	@Post(value = "/patrons/requests/place", consumes = APPLICATION_JSON)
-	public Mono<HttpResponse<PlacePatronRequestCommand>> placePatronRequest(
+	public Mono<HttpResponse<PatronRequestView>> placePatronRequest(
 		@Body @Valid Mono<PlacePatronRequestCommand> command) {
 
 		log.debug("REST, place patron request: {}", command);
