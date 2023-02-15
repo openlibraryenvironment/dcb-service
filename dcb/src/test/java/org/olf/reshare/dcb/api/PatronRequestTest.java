@@ -51,12 +51,15 @@ class PatronRequestTest {
 	@Test
 	@Order(1)
 	void testPlacePatronRequestValidation() {
-		final var e = assertThrows(HttpClientResponseException.class, () -> {
-			client.toBlocking()
-				.exchange(HttpRequest.POST("/patrons/requests/place", new JSONObject()));
-		});
+		// These are separate variables to only have single invocation in assertThrows
+		final var blockingClient = client.toBlocking();
+		final var request = HttpRequest.POST("/patrons/requests/place",
+			new JSONObject());
 
-		HttpResponse<?> response = e.getResponse();
+		final var e = assertThrows(HttpClientResponseException.class,
+			() -> blockingClient.exchange(request));
+
+		final var response = e.getResponse();
 
 		assertEquals(BAD_REQUEST, response.getStatus());
 	}
@@ -87,7 +90,7 @@ class PatronRequestTest {
 		var getResponse = client.toBlocking()
 			.retrieve(HttpRequest.GET("/admin/patrons/requests/" + id),
 				PlacedPatronRequest.class);
-		
+
 		assertEquals(id, getResponse.id());
 	}
 
