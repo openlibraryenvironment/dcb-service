@@ -10,6 +10,8 @@ import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.olf.reshare.dcb.core.model.PatronRequest;
+import org.olf.reshare.dcb.processing.PatronRequestRecord;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.olf.reshare.dcb.test.DcbTest;
 import org.slf4j.Logger;
@@ -24,6 +26,7 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import net.minidev.json.JSONObject;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @TestMethodOrder(OrderAnnotation.class)
 @DcbTest
@@ -44,7 +47,7 @@ class PatronRequestTest {
 
 		final var e = assertThrows(HttpClientResponseException.class, () -> {
 			client.toBlocking()
-				.exchange(HttpRequest.POST("/patrons/requests/place", new JSONObject()));
+				.exchange(HttpRequest.POST("/admin/patrons/requests/", new JSONObject()));
 		});
 
 		HttpResponse<?> response = e.getResponse();
@@ -120,11 +123,37 @@ class PatronRequestTest {
 
 		assertNotNull(patronRequests);
 
-		// Second request do should be 2 patron request present
+		// Second request should have 2 patron request present
 		log.debug("Got {} patron request: {}", patronRequests.size(),
 			patronRequests);
 
 		assertEquals(2, patronRequests.size());
+	}
+
+	@Test
+	@Order(3)
+	void testGetPatronRequest() {
+		log.debug("1. testGetPatronRequest");
+
+		// Make sure that we have 1 task
+		final var patronRequests = Flux.from(requestRepository.findAll()).collectList().block();
+		assertNotNull(patronRequests);
+
+		// should have 2 patron request present
+		log.debug("Got {} patron request: {}", patronRequests.size(), patronRequests);
+		assertEquals(2, patronRequests.size());
+
+		// Get first request
+		PatronRequest patronRequest = patronRequests.get(0);
+		log.debug("Got {} from patron requests: {}", patronRequest, patronRequests);
+
+		// get patron request by id via audit controller
+		var response = client.toBlocking().retrieve(HttpRequest.GET("/admin/patrons/requests/"+patronRequest.getId()), PatronRequestRecord.class);
+
+		// check the response has same id as the requested patron request
+		assertEquals(response.id(), patronRequest.getId());
+
+		log.debug("Got patron request response: {}", response);
 	}
 
 }
