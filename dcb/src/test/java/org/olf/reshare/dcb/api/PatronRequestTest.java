@@ -42,13 +42,12 @@ class PatronRequestTest {
 	void beforeEach() {
 		final var allPatronRequests = getAllPatronRequests();
 
-		allPatronRequests.forEach(patronRequest -> {
-			requestRepository.delete(patronRequest.getId());
-		});
+		allPatronRequests.forEach(
+			patronRequest -> requestRepository.delete(patronRequest.getId()));
 	}
 
 	@Test
-	void testPlacePatronRequestValidation() {
+	void cannotPlaceRequestWhenNoInformationIsProvided() {
 		// These are separate variables to only have single invocation in assertThrows
 		final var blockingClient = client.toBlocking();
 		final var request = HttpRequest.POST("/patrons/requests/place",
@@ -63,7 +62,7 @@ class PatronRequestTest {
 	}
 
 	@Test
-	void testPatronRequestCreation() {
+	void canPlaceAPatronRequest() {
 		final var response = placePatronRequest(createPlacePatronRequestCommand());
 
 		assertEquals(OK, response.getStatus());
@@ -75,7 +74,7 @@ class PatronRequestTest {
 	}
 
 	@Test
-	void testGetPatronRequest() {
+	void canGetAPlacedPatronRequestViaAdminAPI() {
 		final var placeResponse = placePatronRequest(createPlacePatronRequestCommand());
 
 		assertEquals(OK, placeResponse.getStatus());
