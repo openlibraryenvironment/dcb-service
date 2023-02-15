@@ -9,42 +9,17 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
-public record PlacePatronRequestCommand(
-	@Nullable
-	UUID id,
-	@NotNull
-	@NotBlank
-	Citation citation,
+public record PlacePatronRequestCommand(@Nullable UUID id,
+	@NotNull @NotBlank Citation citation,
+	@NotNull @NotBlank PickupLocation pickupLocation,
+	@NotNull @NotBlank Requestor requestor) {
 
-	@NotNull
-	@NotBlank
-	PickupLocation pickupLocation,
-
-	@NotNull
-	@NotBlank
-	Requestor requestor
-){
 	@Serdeable
-	public record PickupLocation(
-		String code
-	) {
-	}
+	public record PickupLocation(String code) { }
 	@Serdeable
-	public record Citation(
-		UUID bibClusterId
-	) {
-	}
+	public record Citation(UUID bibClusterId) { }
 	@Serdeable
-	public record Agency(
-		String code
-	) {
-	}
+	public record Agency(String code) { }
 	@Serdeable
-	public record Requestor(
-		String identifier,
-		Agency agency
-	) {
-
-
-	}
+	public record Requestor(String identifier, Agency agency) { }
 }
