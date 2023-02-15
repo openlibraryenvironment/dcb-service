@@ -2,7 +2,7 @@ package org.olf.reshare.dcb.core.api;
 
 import javax.validation.Valid;
 
-import org.olf.reshare.dcb.processing.PatronRequestService;
+import org.olf.reshare.dcb.request.fulfilment.PatronRequestService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

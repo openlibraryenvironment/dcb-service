@@ -1,8 +1,9 @@
-package org.olf.reshare.dcb.processing;
+package org.olf.reshare.dcb.request.fulfilment;
 
 import java.util.UUID;
 
 import org.olf.reshare.dcb.core.model.PatronRequest;
+import org.olf.reshare.dcb.processing.PatronRequestRecord;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +14,6 @@ import reactor.core.publisher.Mono;
 
 @Singleton
 public class PatronRequestService {
-
 	@Inject
 	PatronRequestRepository patronRequestRepository;
 

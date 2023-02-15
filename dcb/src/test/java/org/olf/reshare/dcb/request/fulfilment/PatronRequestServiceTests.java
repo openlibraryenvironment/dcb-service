@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb.processing;
+package org.olf.reshare.dcb.request.fulfilment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -9,12 +9,13 @@ import static org.mockito.Mockito.when;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.olf.reshare.dcb.processing.PatronRequestRecord;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 
 import reactor.core.publisher.Mono;
 
 
-class PatronRequestServiceTest {
+class PatronRequestServiceTests {
 	@Test
 	void shouldReturnErrorWhenDatabaseSavingFails() {
 		final var repositoryMock = mock(PatronRequestRepository.class);

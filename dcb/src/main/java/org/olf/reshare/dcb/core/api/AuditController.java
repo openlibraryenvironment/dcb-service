@@ -7,7 +7,7 @@ import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.olf.reshare.dcb.processing.PatronRequestRecord;
-import org.olf.reshare.dcb.processing.PatronRequestService;
+import org.olf.reshare.dcb.request.fulfilment.PatronRequestService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
