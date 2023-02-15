@@ -12,7 +12,6 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.olf.reshare.dcb.core.model.PatronRequest;
@@ -49,7 +48,6 @@ class PatronRequestTest {
 	}
 
 	@Test
-	@Order(1)
 	void testPlacePatronRequestValidation() {
 		// These are separate variables to only have single invocation in assertThrows
 		final var blockingClient = client.toBlocking();
@@ -65,7 +63,6 @@ class PatronRequestTest {
 	}
 
 	@Test
-	@Order(2)
 	void testPatronRequestCreation() {
 		final var response = placePatronRequest(createPlacePatronRequestCommand());
 
@@ -78,7 +75,6 @@ class PatronRequestTest {
 	}
 
 	@Test
-	@Order(3)
 	void testGetPatronRequest() {
 		final var placeResponse = placePatronRequest(createPlacePatronRequestCommand());
 
