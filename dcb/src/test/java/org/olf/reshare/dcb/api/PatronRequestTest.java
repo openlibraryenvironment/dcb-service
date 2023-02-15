@@ -47,7 +47,7 @@ class PatronRequestTest {
 
 		final var e = assertThrows(HttpClientResponseException.class, () -> {
 			client.toBlocking()
-				.exchange(HttpRequest.POST("/admin/patrons/requests/", new JSONObject()));
+				.exchange(HttpRequest.POST("/patrons/requests/place", new JSONObject()));
 		});
 
 		HttpResponse<?> response = e.getResponse();
