@@ -6,8 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -36,6 +38,15 @@ class PatronRequestTest {
 	@Inject
 	PatronRequestRepository requestRepository;
 
+	@BeforeEach
+	void beforeEach() {
+		final var allPatronRequests = getAllPatronRequests();
+
+		allPatronRequests.forEach(patronRequest -> {
+			requestRepository.delete(patronRequest.getId());
+		});
+	}
+
 	@Test
 	@Order(1)
 	void testPlacePatronRequestValidation() {
@@ -52,10 +63,11 @@ class PatronRequestTest {
 	@Test
 	@Order(2)
 	void testPatronRequestCreation() {
-		placePatronRequest(createPlacePatronRequestCommand());
+		final var response = placePatronRequest(createPlacePatronRequestCommand());
 
-		final var patronRequests = Flux.from(
-			requestRepository.findAll()).collectList().block();
+		assertEquals(OK, response.getStatus());
+
+		final var patronRequests = getAllPatronRequests();
 
 		assertNotNull(patronRequests);
 		assertEquals(1, patronRequests.size());
@@ -64,7 +76,11 @@ class PatronRequestTest {
 	@Test
 	@Order(3)
 	void testGetPatronRequest() {
-		final var patronRequests = Flux.from(requestRepository.findAll()).collectList().block();
+		final var placeResponse = placePatronRequest(createPlacePatronRequestCommand());
+
+		assertEquals(OK, placeResponse.getStatus());
+
+		final var patronRequests = getAllPatronRequests();
 
 		assertNotNull(patronRequests);
 		assertEquals(1, patronRequests.size());
@@ -73,12 +89,12 @@ class PatronRequestTest {
 		PatronRequest patronRequest = patronRequests.get(0);
 
 		// get patron request by id via audit controller
-		var response = client.toBlocking()
+		var getResponse = client.toBlocking()
 			.retrieve(HttpRequest.GET("/admin/patrons/requests/"+patronRequest.getId()),
 				PatronRequestRecord.class);
 
 		// check the response has same id as the requested patron request
-		assertEquals(response.id(), patronRequest.getId());
+		assertEquals(getResponse.id(), patronRequest.getId());
 	}
 
 	private static JSONObject createPlacePatronRequestCommand() {
@@ -105,10 +121,12 @@ class PatronRequestTest {
 		}};
 	}
 
-	private void placePatronRequest(JSONObject json) {
-		final var response = client.toBlocking()
+	private HttpResponse<Object> placePatronRequest(JSONObject json) {
+		return client.toBlocking()
 			.exchange(HttpRequest.POST("/patrons/requests/place", json));
+	}
 
-		assertEquals(OK, response.getStatus());
+	private List<PatronRequest> getAllPatronRequests() {
+		return Flux.from(requestRepository.findAll()).collectList().block();
 	}
 }
