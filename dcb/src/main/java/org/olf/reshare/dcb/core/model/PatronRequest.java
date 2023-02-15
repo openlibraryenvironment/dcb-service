@@ -16,50 +16,47 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @ExcludeFromGeneratedCoverageReport
 @MappedEntity
 public class PatronRequest {
+	public PatronRequest(UUID id, String patronId, String patronAgencyCode,
+		UUID bibClusterId, String pickupLocationCode) {
+
+		this.id = id;
+		this.patronId = patronId;
+		this.patronAgencyCode = patronAgencyCode;
+		this.bibClusterId = bibClusterId;
+		this.pickupLocationCode = pickupLocationCode;
+	}
+
 	@NotNull
 	@NonNull
 	@Id
 	@Column(columnDefinition = "UUID")
-	private UUID id;
+	private final UUID id;
 
 	@Column(columnDefinition = "TEXT")
-	private String patronId;
+	private final String patronId;
 
 	@Column(columnDefinition = "TEXT")
-	private String patronAgencyCode;
+	private final String patronAgencyCode;
 
 	@Nullable
 	@Column(columnDefinition = "UUID")
-	private UUID bibClusterId;
+	private final UUID bibClusterId;
 
 	@Nullable
 	@Column(columnDefinition = "TEXT")
-	private String pickupLocationCode;
-
+	private final String pickupLocationCode;
 
 	@NonNull
 	public UUID getId() {
 		return id;
 	}
 
-	public void setId(@NonNull UUID id) {
-		this.id = id;
-	}
-
 	public String getPatronId() {
 		return patronId;
 	}
 
-	public void setPatronId(String patronId) {
-		this.patronId = patronId;
-	}
-
 	public String getPatronAgencyCode() {
 		return patronAgencyCode;
-	}
-
-	public void setPatronAgencyCode(String patronAgencyCode) {
-		this.patronAgencyCode = patronAgencyCode;
 	}
 
 	@Nullable
@@ -67,21 +64,13 @@ public class PatronRequest {
 		return bibClusterId;
 	}
 
-	public void setBibClusterId(@Nullable UUID bibClusterId) {
-		this.bibClusterId = bibClusterId;
-	}
-
 	@Nullable
 	public String getPickupLocationCode() {
 		return pickupLocationCode;
 	}
 
-	public void setPickupLocationCode(@Nullable String pickupLocationCode) {
-		this.pickupLocationCode = pickupLocationCode;
+	public String toString() {
+		return String.format("PatronRequest#%s",id);
 	}
-
-        public String toString() {
-                return String.format("PatronRequest#%s",id);
-        }
 }
 
