@@ -30,7 +30,7 @@ import reactor.core.publisher.Flux;
 
 @TestMethodOrder(OrderAnnotation.class)
 @DcbTest
-class PatronRequestTest {
+class PatronRequestTests {
 	@Inject
 	@Client("/")
 	HttpClient client;
