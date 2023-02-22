@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.util.StringUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraApiClient;
@@ -149,7 +150,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	
 	@Override
 	public boolean isEnabled() {
-		Boolean enabled = (Boolean)lms.getClientConfig().get("ingest");
-		return enabled == null || enabled == Boolean.TRUE;
+		final String ingestStr = (String)lms.getClientConfig().get("ingest");
+		return ingestStr == null || StringUtils.isTrue(ingestStr);
 	}
 }
