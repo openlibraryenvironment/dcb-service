@@ -73,6 +73,7 @@ public class IngestService implements Runnable {
 				.map(source -> source.apply(lastRun))
 				.onErrorResume(t -> {
 					log.error("Error ingesting data {}", t.getMessage());
+					t.printStackTrace();
 					return Mono.empty(); 
 				}))
 				
