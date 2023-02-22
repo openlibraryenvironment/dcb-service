@@ -33,6 +33,13 @@ public class IngestService implements Runnable {
 		this.sourceProviders = sourceProviders;
 	}
 
+
+	@javax.annotation.PostConstruct
+	private void init() {
+		log.info("IngestService::init - providers:{}",sourceProviders.toString());
+	}
+
+
 	private Runnable cleanUp(final Instant i) {
 
 		final var me = this;
