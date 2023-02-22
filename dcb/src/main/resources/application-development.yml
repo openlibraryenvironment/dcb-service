@@ -1,13 +1,14 @@
 ### Development config
-#gokb:
-#  ingest:
-#    enabled: true
 
-sierra:
-  client:
-    api:
+hosts:
+  sandbox:
+    type: org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient
+    client:
+      base-url: "https://sandbox.iii.com"
       key: "9/FnXtNb5qWahEcHpMiL/OlSJe0b"
       secret: "I8g9uNbzs3"
-    #   ingest:
-    #     enabled: true
+      ingest: false
     
+agencies:
+  testAgency1:
+    hostLms: sandbox
