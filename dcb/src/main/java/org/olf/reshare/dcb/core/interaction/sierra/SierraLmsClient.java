@@ -5,6 +5,7 @@ import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import java.net.MalformedURLException;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +54,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	
 	private Flux<BibResult> scrollAllBibs(final Instant since, final int offset, final int limit) {
 		log.info("Fetching batch from Sierra API");
-
+		 
+		final Instant fromTime = since == null ? null : since.truncatedTo(ChronoUnit.SECONDS);
 		return Mono.from(client.bibs(params -> {
 			params
 				.deleted(false)
@@ -63,12 +65,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						"id", "updatedDate", "createdDate",
 						"deletedDate", "deleted", "marc");
 			
-			if (since != null) {
+			if (fromTime != null) {
 				params
 					.updatedDate(dtr -> {
 						dtr
 							.to(LocalDateTime.now())
-							.fromDate(LocalDateTime.from(since));
+							.fromDate(LocalDateTime.from(fromTime));
 					});
 			}
 		}))
@@ -86,7 +88,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				final Flux<BibResult> currentPage = Flux.fromIterable(bibs);
 				
 				// Try next page if there is the possibility of more results.
-				return possiblyMore ? Flux.concat(currentPage, scrollAllBibs(since, nextOffset, limit)) : currentPage;
+				return possiblyMore ? Flux.concat(currentPage, scrollAllBibs(fromTime, nextOffset, limit)) : currentPage;
 			});
 	}
 

@@ -17,7 +17,7 @@ import reactor.core.publisher.Mono;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
 @Singleton
-@Parallel
+//@Parallel
 public class IngestService implements Runnable {
 
 	private Disposable mutex = null;
