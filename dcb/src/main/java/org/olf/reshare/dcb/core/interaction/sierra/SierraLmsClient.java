@@ -30,6 +30,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibResult;
+import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
 @Prototype
@@ -102,8 +103,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Publisher<BibResult> getResources(Instant since) {
 		log.info("Fetching MARC JSON from Sierra");
 		
+		final int pageSize = MapUtils.getAsOptionalString(
+				lms.getClientConfig(), "page-size")
+			.map(Integer::parseInt)
+			.orElse(DEFAULT_PAGE_SIZE)
+		;
+		
 		// The stream of imported records.
-		return Flux.from(scrollAllBibs(since, 0, 2000))
+		return Flux.from(scrollAllBibs(since, 0, pageSize))
 			.filter( sierraBib -> sierraBib.marc() != null )
 			.switchIfEmpty(
 					Mono.just("No results returned. Stopping")
@@ -152,7 +159,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	
 	@Override
 	public boolean isEnabled() {
-		final String ingestStr = (String)lms.getClientConfig().get("ingest");
-		return ingestStr == null || StringUtils.isTrue(ingestStr);
+		return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest")
+			.map(StringUtils::isTrue)
+			.orElse(Boolean.TRUE);
 	}
 }

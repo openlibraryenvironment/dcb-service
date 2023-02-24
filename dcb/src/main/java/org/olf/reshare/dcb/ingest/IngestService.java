@@ -8,7 +8,6 @@ import org.olf.reshare.dcb.bib.BibRecordService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micronaut.context.annotation.Parallel;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 import reactor.core.Disposable;
