@@ -7,6 +7,7 @@ import org.olf.reshare.dcb.core.model.HostLms;
 import reactor.core.publisher.Flux;
 
 public interface HostLmsClient {
+	
 	HostLms getHostLms();
 	Flux<Map<String, ?>> getAllBibData();
 }
