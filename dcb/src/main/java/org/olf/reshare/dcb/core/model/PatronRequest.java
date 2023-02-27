@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import javax.validation.constraints.NotNull;
 
+import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.data.annotation.Id;
@@ -16,15 +17,27 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @ExcludeFromGeneratedCoverageReport
 @MappedEntity
 public class PatronRequest {
+
+	@Creator
 	public PatronRequest(UUID id, String patronId, String patronAgencyCode,
-		UUID bibClusterId, String pickupLocationCode) {
+											 UUID bibClusterId, String pickupLocationCode
+											 /*,@Nullable List<SupplierRequest> supplierRequests */) {
 
 		this.id = id;
 		this.patronId = patronId;
 		this.patronAgencyCode = patronAgencyCode;
 		this.bibClusterId = bibClusterId;
 		this.pickupLocationCode = pickupLocationCode;
+		
+//		if (supplierRequests != null) {
+//			this.supplierRequests = supplierRequests;
+//		}
 	}
+//	
+//	public PatronRequest(UUID id, String patronId, String patronAgencyCode,
+//											 UUID bibClusterId, String pickupLocationCode) {
+//		this(id,patronId,patronAgencyCode,bibClusterId,pickupLocationCode, null);
+//	}
 
 	@NotNull
 	@NonNull
@@ -45,6 +58,11 @@ public class PatronRequest {
 	@Nullable
 	@Column(columnDefinition = "TEXT")
 	private final String pickupLocationCode;
+
+	// Owned by other side.
+//	@Nullable
+//	@Relation(value = Relation.Kind.ONE_TO_MANY, cascade = Cascade.ALL, mappedBy = "patronRequest")
+//	private List<SupplierRequest> supplierRequests = new ArrayList<>();
 
 	@NonNull
 	public UUID getId() {
@@ -68,6 +86,14 @@ public class PatronRequest {
 	public String getPickupLocationCode() {
 		return pickupLocationCode;
 	}
+
+//	public void setSupplierRequests(List<SupplierRequest> supplierRequests) {
+//		this.supplierRequests = supplierRequests;
+//	}
+//
+//	public List<SupplierRequest> getSupplierRequests() {
+//		return supplierRequests;
+//	}
 
 	public String toString() {
 		return String.format("PatronRequest#%s",id);

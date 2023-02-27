@@ -19,10 +19,18 @@ public interface PatronRequestRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<PatronRequest> findById(@NonNull UUID id);
+	Publisher<? extends PatronRequest> persist(@Valid @NotNull @NonNull PatronRequest patronRequest);
+
+	@NonNull
+	@SingleResult
+	Publisher<? extends PatronRequest> update(@Valid @NotNull @NonNull PatronRequest patronRequest);
+
+	@NonNull
+	@SingleResult
+	Publisher<PatronRequest> findById(@NotNull UUID id);
 
 	@NonNull
 	Publisher<PatronRequest> findAll();
 
-	void delete(UUID id);
+	Publisher<Void> delete(UUID id);
 }
