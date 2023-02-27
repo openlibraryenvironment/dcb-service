@@ -27,3 +27,21 @@ create table patron_request (
 	bib_cluster_id uuid,
 	pickup_location_code varchar(200)
 );
+
+create table supplier_request (
+	id uuid primary key,
+	patron_request_id uuid,
+	holdings_item_id uuid,
+	holdings_agency_code varchar(200),
+	CONSTRAINT fk_patron_request FOREIGN KEY (patron_request_id) REFERENCES patron_request(id)
+);
+
+--create table patron_request_supplier_request (
+--	supplier_request_id uuid primary key,
+--	patron_request_id uuid,
+--	holdings_item_id uuid,
+--	holdings_agency_code varchar(200),
+--	CONSTRAINT fk_patron_request
+--  FOREIGN KEY(patron_request_id)
+--  REFERENCES patron_request(id)
+--);

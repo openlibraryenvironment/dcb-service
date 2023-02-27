@@ -7,16 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
-import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
+import org.olf.reshare.dcb.storage.SupplierRequestRepository;
 import org.olf.reshare.dcb.test.DcbTest;
+import org.olf.reshare.dcb.test.PatronRequestsDataAccess;
 
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -26,9 +24,7 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import net.minidev.json.JSONObject;
-import reactor.core.publisher.Flux;
 
-@TestMethodOrder(OrderAnnotation.class)
 @DcbTest
 class PatronRequestTests {
 	@Inject
@@ -36,14 +32,17 @@ class PatronRequestTests {
 	HttpClient client;
 
 	@Inject
-	PatronRequestRepository requestRepository;
+	PatronRequestRepository patronRequestRepository;
+
+	@Inject
+	SupplierRequestRepository supplierRequestRepository;
+
+	@Inject
+	PatronRequestsDataAccess patronRequestsDataAccess;
 
 	@BeforeEach
 	void beforeEach() {
-		final var allPatronRequests = getAllPatronRequests();
-
-		allPatronRequests.forEach(
-			patronRequest -> requestRepository.delete(patronRequest.getId()));
+		patronRequestsDataAccess.deleteAllPatronRequests();
 	}
 
 	@Test
@@ -67,7 +66,7 @@ class PatronRequestTests {
 
 		assertEquals(OK, response.getStatus());
 
-		final var patronRequests = getAllPatronRequests();
+		final var patronRequests = patronRequestsDataAccess.getAllPatronRequests();
 
 		assertNotNull(patronRequests);
 		assertEquals(1, patronRequests.size());
@@ -117,10 +116,6 @@ class PatronRequestTests {
 		return client.toBlocking()
 			.exchange(HttpRequest.POST("/patrons/requests/place", json),
 				PlacedPatronRequest.class);
-	}
-
-	private List<PatronRequest> getAllPatronRequests() {
-		return Flux.from(requestRepository.findAll()).collectList().block();
 	}
 
 	@Serdeable
