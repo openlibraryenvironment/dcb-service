@@ -1,6 +1,5 @@
 package org.olf.reshare.dcb.core.model;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -24,9 +23,6 @@ public interface HostLms {
 	@NotNull
 	public Class<? extends HostLmsClient> getType();
 
-	@NonNull
-	@NotNull
-	List<Agency> getAgencies();
 	
 	@NonNull
 	@NotNull

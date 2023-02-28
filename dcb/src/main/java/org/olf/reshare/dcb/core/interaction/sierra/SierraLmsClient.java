@@ -18,7 +18,7 @@ import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.ingest.marc.MarcIngestSource;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
-import org.olf.reshare.dcb.ingest.model.IngestRecord.Builder;
+import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,62 +35,54 @@ import services.k_int.utils.UUIDUtils;
 
 @Prototype
 public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
-	
+
 	private static final Logger log = LoggerFactory.getLogger(SierraLmsClient.class);
-	
+
 	private final HostLms lms;
 	private final SierraApiClient client;
-	
-	public SierraLmsClient( @Parameter HostLms lms, HostLmsSierraApiClientFactory clientFactory ) throws MalformedURLException {
+
+	public SierraLmsClient(@Parameter HostLms lms, HostLmsSierraApiClientFactory clientFactory)
+			throws MalformedURLException {
 		this.lms = lms;
-		
+
 		// Get a sierra api client.
 		client = clientFactory.createClientFor(lms);
 	}
-	
+
 	@Override
 	public HostLms getHostLms() {
 		return lms;
 	}
-	
+
 	private Flux<BibResult> scrollAllBibs(final Instant since, final int offset, final int limit) {
 		log.info("Fetching batch from Sierra API");
-		 
+
 		final Instant fromTime = since == null ? null : since.truncatedTo(ChronoUnit.SECONDS);
 		return Mono.from(client.bibs(params -> {
-			params
-				.deleted(false)
-				.offset(offset)
-				.limit(limit)
-				.addFields(
-						"id", "updatedDate", "createdDate",
-						"deletedDate", "deleted", "marc");
-			
+			params.deleted(false).offset(offset).limit(limit)
+					.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "deleted", "marc"));
+
 			if (fromTime != null) {
-				params
-					.updatedDate(dtr -> {
-						dtr
-							.to(LocalDateTime.now())
-							.fromDate(LocalDateTime.from(fromTime));
-					});
+				params.updatedDate(dtr -> {
+					dtr.to(LocalDateTime.now()).fromDate(LocalDateTime.from(fromTime));
+				});
 			}
-		}))
-			.flatMapMany(resp -> {
-	
-				final List<BibResult> bibs = resp.entries();
-				log.info("Fetched a chunk of {} records", bibs.size());
-				final int nextOffset = resp.start() + bibs.size();
-				final boolean possiblyMore = bibs.size() == limit;
-	
-				if (!possiblyMore) {
-					log.info("No more results to fetch");
-				}
-	
-				final Flux<BibResult> currentPage = Flux.fromIterable(bibs);
-				
-				// Try next page if there is the possibility of more results.
-				return possiblyMore ? Flux.concat(currentPage, scrollAllBibs(fromTime, nextOffset, limit)) : currentPage;
-			});
+		})).flatMapMany(resp -> {
+
+			final List<BibResult> bibs = resp.entries();
+			log.info("Fetched a chunk of {} records", bibs.size());
+			final int nextOffset = resp.start() + bibs.size();
+			final boolean possiblyMore = bibs.size() == limit;
+
+			if (!possiblyMore) {
+				log.info("No more results to fetch");
+			}
+
+			final Flux<BibResult> currentPage = Flux.fromIterable(bibs);
+
+			// Try next page if there is the possibility of more results.
+			return possiblyMore ? Flux.concat(currentPage, scrollAllBibs(fromTime, nextOffset, limit)) : currentPage;
+		});
 	}
 
 	@Override
@@ -102,38 +94,31 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	public Publisher<BibResult> getResources(Instant since) {
 		log.info("Fetching MARC JSON from Sierra");
-		
-		final int pageSize = MapUtils.getAsOptionalString(
-				lms.getClientConfig(), "page-size")
-			.map(Integer::parseInt)
-			.orElse(DEFAULT_PAGE_SIZE)
-		;
-		
+
+		final int pageSize = MapUtils.getAsOptionalString(lms.getClientConfig(), "page-size").map(Integer::parseInt)
+				.orElse(DEFAULT_PAGE_SIZE);
+
 		// The stream of imported records.
-		return Flux.from(scrollAllBibs(since, 0, pageSize))
-			.filter( sierraBib -> sierraBib.marc() != null )
-			.switchIfEmpty(
-					Mono.just("No results returned. Stopping")
-						.mapNotNull(s -> {
-							log.info(s);
-							return null;
-						}));
+		return Flux.from(scrollAllBibs(since, 0, pageSize)).filter(sierraBib -> sierraBib.marc() != null)
+				.switchIfEmpty(Mono.just("No results returned. Stopping").mapNotNull(s -> {
+					log.info(s);
+					return null;
+				}));
 	}
 
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
-	
-	public UUID uuid5ForBibResult( @NotNull final BibResult result ) {
-		
+
+	public UUID uuid5ForBibResult(@NotNull final BibResult result) {
+
 		final String concat = UUID5_PREFIX + ":" + lms.getName() + ":" + result.id();
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
-	
+
 	@Override
-	public Builder initIngestRecordBuilder(BibResult resource) {
-		
+	public IngestRecordBuilder initIngestRecordBuilder(BibResult resource) {
+
 		// Use the host LMS as the
-		return IngestRecord.builder()
-			.uuid(uuid5ForBibResult(resource));
+		return IngestRecord.builder().uuid(uuid5ForBibResult(resource));
 	}
 
 	@Override
@@ -143,24 +128,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public Flux<Map<String, ?>> getAllBibData() {
-		return Flux.from( client.bibs( params -> params.deleted(false) ))
-			.flatMap(results -> Flux.fromIterable(results.entries()) )
-			.map(bibRes -> {
-				Map<String, Object> map = new HashMap<>();
-				map.put("id", bibRes.id());
-				return map;
-			});
+		return Flux.from(client.bibs(params -> params.deleted(false)))
+				.flatMap(results -> Flux.fromIterable(results.entries())).map(bibRes -> {
+					Map<String, Object> map = new HashMap<>();
+					map.put("id", bibRes.id());
+					return map;
+				});
 	}
 
 	@Override
 	public String getName() {
 		return lms.getName();
 	}
-	
+
 	@Override
 	public boolean isEnabled() {
-		return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest")
-			.map(StringUtils::isTrue)
-			.orElse(Boolean.TRUE);
+		return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(Boolean.TRUE);
 	}
 }

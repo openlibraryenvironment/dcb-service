@@ -1,6 +1,7 @@
 package org.olf.reshare.dcb.core.model;
 
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import javax.validation.constraints.NotNull;
 
@@ -15,16 +16,17 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Value;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
-@Builder
 @Data
+@Serdeable
+@ExcludeFromGeneratedCoverageReport
+@MappedEntity
 @NoArgsConstructor(onConstructor_=@Creator())
 @AllArgsConstructor
-@Serdeable
-@MappedEntity
-@ExcludeFromGeneratedCoverageReport
-public class BibRecord {
+@Builder
+public class DataAgency implements Agency {
 	
 	@NotNull
 	@NonNull
@@ -34,5 +36,9 @@ public class BibRecord {
 
 	@Nullable
 	@Column(columnDefinition = "TEXT")
-	private String title;
+	private String name;
+
+	@Nullable
+	@Column(columnDefinition = "TEXT")
+	private HostLms hostLms;
 }

@@ -1,33 +1,34 @@
 package org.olf.reshare.dcb.sierra;
 
-import io.micronaut.context.annotation.Value;
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.BasicAuth;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
-import org.mockserver.client.MockServerClient;
-import org.mockserver.model.MediaType;
-import reactor.core.publisher.Mono;
-import services.k_int.interaction.auth.AuthToken;
-import services.k_int.interaction.sierra.DateTimeRange;
-import services.k_int.interaction.sierra.SierraApiClient;
-import services.k_int.interaction.sierra.bibs.BibParams;
-import services.k_int.interaction.sierra.bibs.BibResult;
-import services.k_int.interaction.sierra.bibs.BibResultSet;
-import services.k_int.test.mockserver.MockServerMicronautTest;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockserver.model.HttpRequest.request;
+import static org.mockserver.model.HttpResponse.response;
+import static org.mockserver.model.JsonBody.json;
 
 import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
-import java.util.*;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockserver.model.HttpRequest.request;
-import static org.mockserver.model.HttpResponse.response;
-import static org.mockserver.model.JsonBody.json;
+import org.junit.jupiter.api.Test;
+import org.mockserver.client.MockServerClient;
+import org.mockserver.model.MediaType;
+
+import io.micronaut.core.io.ResourceLoader;
+import jakarta.inject.Inject;
+import reactor.core.publisher.Mono;
+import services.k_int.interaction.auth.AuthToken;
+import services.k_int.interaction.sierra.SierraApiClient;
+import services.k_int.interaction.sierra.bibs.BibParams;
+import services.k_int.interaction.sierra.bibs.BibResult;
+import services.k_int.interaction.sierra.bibs.BibResultSet;
+import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 public class SierraApiTests {
@@ -250,7 +251,7 @@ public class SierraApiTests {
 				params
 					.limit(1)
 					.deleted(false) // required?
-					.addFields("author", "title", "publishYear", "deleted");
+					.fields(List.of("author", "title", "publishYear", "deleted"));
 			}
 		)).block();
 
@@ -294,7 +295,7 @@ public class SierraApiTests {
 				params
 					.limit(1)
 					.deleted(false) // required?
-					.createdDate(dtr -> dtr.from(DateTimeRange.builder().fromDate(localDateTime).build()));
+					.createdDate(dtr -> dtr.fromDate(localDateTime));
 			}
 		)).block();
 
@@ -337,7 +338,7 @@ public class SierraApiTests {
 				params
 					.limit(1)
 					.deleted(false) // required?
-					.updatedDate(dtr -> dtr.from(DateTimeRange.builder().fromDate(localDateTime).build()));
+					.updatedDate(dtr -> dtr.fromDate(localDateTime));
 			}
 		)).block();
 
@@ -469,8 +470,8 @@ public class SierraApiTests {
 				params
 					.limit(3)
 					.deleted(false)
-					.addFields("locations", "deleted")
-					.locations(List.of("a"));
+					.fields(List.of("locations", "deleted"))
+					.location("a");
 			}
 		)).block();
 

@@ -1,71 +1,86 @@
 package org.olf.reshare.dcb.ingest.model;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
 import javax.validation.constraints.NotEmpty;
 
-import org.immutables.value.Value.Immutable;
+import org.olf.reshare.dcb.ingest.model.Author.AuthorBuilder;
+import org.olf.reshare.dcb.ingest.model.Identifier.IdentifierBuilder;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
-import services.k_int.interaction.DefaultImmutableStyle;
+import lombok.Builder;
+import lombok.Data;
+import lombok.Singular;
+import lombok.Value;
 
-@Immutable
-@DefaultImmutableStyle
-public interface IngestRecord {
+@Data
+@Builder
+@Value
+public class IngestRecord {
 	@NonNull
 	@NotEmpty
-	UUID uuid();
+	UUID uuid;
 
 	@Nullable
-	String title();
+	String title;
 
-	Set<String> otherTitles();
+	@Singular
+	Set<String> otherTitles;
 
-	Set<Identifier> identifiers(); // ICCN, ISBN, ISSN, controlNumber, controlNumberIdentifier
-
-	@Nullable
-	Author author();
-
-	Set<Author> otherAuthors();
+	@Singular
+	Set<Identifier> identifiers; // ICCN, ISBN, ISSN, controlNumber, controlNumberIdentifier
 
 	@Nullable
-	String materialType();
+	Author author;
+
+	@Singular
+	Set<Author> otherAuthors;
 
 	@Nullable
-	String bibLevel();
+	String materialType;
+
+	@Nullable
+	String bibLevel;
 
 //  @Nullable String edition();
 //  List<PublicationInformation> publicationInformation();
 //  List<Description> descriptions();
 
-	public static class Builder extends IngestRecordImpl.Builder {
+	public static class IngestRecordBuilder {
 
-		public Builder addIdentifiers(Consumer<Identifier.Builder> consumer) {
-			addIdentifiers(Identifier.build(consumer));
+		public IngestRecordBuilder addIdentifier(Consumer<IdentifierBuilder> consumer) {
+			identifier(Identifier.build(consumer));
+			return this;
+		}
+		
+		public IngestRecordBuilder addIdentifiers(Identifier... ids) {
+			identifiers(List.of(ids));
 			return this;
 		}
 
-		public Builder author(Consumer<Author.Builder> consumer) {
-			author(Author.build(consumer));
+		public IngestRecordBuilder author(Consumer<AuthorBuilder> consumer) {
+			author( Author.build(consumer) );
 			return this;
 		}
 
-		public Builder addOtherAuthors(Consumer<Author.Builder> consumer) {
-			addOtherAuthors(Author.build(consumer));
+		public IngestRecordBuilder author(Author author) {
+			this.author = author;
+			return this;
+		}
+
+		public IngestRecordBuilder addOtherAuthor(Consumer<AuthorBuilder> consumer) {
+			otherAuthor(Author.build(consumer));
 			return this;
 		}
 	}
 
-	public static IngestRecord build(Consumer<Builder> consumer) {
-		Builder builder = builder();
+	public static IngestRecord build(Consumer<IngestRecordBuilder> consumer) {
+		IngestRecordBuilder builder = builder();
 		consumer.accept(builder);
 		return builder.build();
-	}
-
-	public static Builder builder() {
-		return new Builder();
 	}
 }

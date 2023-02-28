@@ -48,8 +48,5 @@ task staticCopyOpenApi(type: Copy) {
 
 	// Promote the redoc index page to the open api sub-path
 	from('dcb/build/classes/java/main/META-INF/swagger/views/redoc/index.html')
-
 	into 'build/docs/asciidoc/openapi'
-
-
 }

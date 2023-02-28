@@ -34,7 +34,11 @@ public class BibRecordService {
 	}
 
 	private BibRecord minimalRecord(final IngestRecord imported) {
-		return new BibRecord().setId(imported.uuid()).setTitle(imported.title());
+		
+		return BibRecord.builder()
+			.id(imported.getUuid())
+			.title(imported.getTitle())
+			.build();
 	}
 
 	public Mono<BibRecord> saveOrUpdate(final BibRecord record) {
@@ -43,7 +47,7 @@ public class BibRecordService {
 	}
 
 	public Mono<BibRecord> getOrSeed(final IngestRecord source) {
-		return Mono.from(bibRepo.findById(source.uuid()))
+		return Mono.from(bibRepo.findById(source.getUuid()))
 			.switchIfEmpty(Mono.just(this.minimalRecord(source)));
 	}
 

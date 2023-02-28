@@ -12,7 +12,7 @@ import javax.validation.constraints.NotNull;
 import org.marc4j.marc.Record;
 import org.olf.reshare.dcb.ingest.marc.MarcIngestSource;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
-import org.olf.reshare.dcb.ingest.model.IngestRecord.Builder;
+import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,9 +47,9 @@ public class SierraIngestSource implements MarcIngestSource<BibResult> {
 					.deleted(false)
 					.offset(offset)
 					.limit(limit)
-					.addFields(
+					.fields(List.of(
 						"id", "updatedDate", "createdDate",
-						"deletedDate", "deleted", "marc");
+						"deletedDate", "deleted", "marc"));
 
 				if (since != null) {
 					params
@@ -100,7 +100,7 @@ public class SierraIngestSource implements MarcIngestSource<BibResult> {
 	}
 
 	@Override
-	public Builder initIngestRecordBuilder(BibResult resource) {
+	public IngestRecordBuilder initIngestRecordBuilder(BibResult resource) {
 		return IngestRecord.builder()
 			.uuid(uuid5ForBibResult(resource));
 	}

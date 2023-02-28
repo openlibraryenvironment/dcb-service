@@ -250,7 +250,7 @@ public class SierraApiTests {
 				params
 					.limit(1)
 					.deleted(false) // required?
-					.addFields("author", "title", "publishYear", "deleted");
+					.fields(List.of("author", "title", "publishYear", "deleted"));
 			}
 		)).block();
 
@@ -294,7 +294,7 @@ public class SierraApiTests {
 				params
 					.limit(1)
 					.deleted(false) // required?
-					.createdDate(dtr -> dtr.from(DateTimeRange.builder().fromDate(localDateTime).build()));
+					.createdDate(dtr -> dtr.fromDate(localDateTime));
 			}
 		)).block();
 
@@ -337,7 +337,7 @@ public class SierraApiTests {
 				params
 					.limit(1)
 					.deleted(false) // required?
-					.updatedDate(dtr -> dtr.from(DateTimeRange.builder().fromDate(localDateTime).build()));
+					.updatedDate(dtr -> dtr.fromDate(localDateTime));
 			}
 		)).block();
 
@@ -469,8 +469,8 @@ public class SierraApiTests {
 				params
 					.limit(3)
 					.deleted(false)
-					.addFields("locations", "deleted")
-					.locations(List.of("a"));
+					.fields(List.of("locations", "deleted"))
+					.location("a");
 			}
 		)).block();
 

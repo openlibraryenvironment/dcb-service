@@ -30,13 +30,17 @@ repositories {
 
 dependencies {
 	// This should likely always be first in the annotations list
-	annotationProcessor('org.immutables:value')
+	annotationProcessor 'org.projectlombok:lombok'
+	
 	annotationProcessor('io.micronaut:micronaut-graal')
 	annotationProcessor("io.micronaut.serde:micronaut-serde-processor")
 	annotationProcessor("io.micronaut:micronaut-http-validation")
 	annotationProcessor("io.micronaut.openapi:micronaut-openapi")
 	annotationProcessor('io.micronaut.security:micronaut-security-annotations')
 	annotationProcessor("io.micronaut.data:micronaut-data-processor")
+	
+	compileOnly 'org.projectlombok:lombok'
+	compileOnly("org.graalvm.nativeimage:svm")
 
 	// Implementation
 	implementation("io.micronaut.security:micronaut-security-jwt")
@@ -60,8 +64,6 @@ dependencies {
 	runtimeOnly("ch.qos.logback:logback-classic")
 	runtimeOnly("org.slf4j:log4j-over-slf4j")
 
-	compileOnly('org.immutables:value')
-	compileOnly("org.graalvm.nativeimage:svm")
 
 	//data
 	implementation("io.micronaut.r2dbc:micronaut-r2dbc-core")
@@ -87,7 +89,9 @@ dependencies {
 	implementation("io.micronaut.flyway:micronaut-flyway")
 
 	// Tests
-
+	testCompileOnly 'org.projectlombok:lombok'
+	testAnnotationProcessor 'org.projectlombok:lombok'
+	
 	testImplementation("io.micronaut.test:micronaut-test-junit5")
 	testImplementation('org.mock-server:mockserver-junit-jupiter')
 	testImplementation('org.mockito:mockito-core:5.1.1')
@@ -133,8 +137,6 @@ micronaut {
 final Set<String> jacocoExcludes = ['**/Application.class']
 
 tasks {
-
-
 	final Map<String, String> labels = [
 		'maintainer': 'Steve Osguthorpe <steve.osguthorpe@k-int.com>',
 		'version'   : project.hasProperty('versionWithMeta') ? project.getProperty('versionWithMeta') : project.getProperty('version')
