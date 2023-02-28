@@ -173,13 +173,14 @@ tasks {
 	final imageAndRepo = "${System.env.DOCKER_IMAGE ?: project.name}"
 
 	Set<String> imageNames = tags.collect { "${imageAndRepo}:${it}" }
+	Set<String> nativImageNames = tags.collect { "${imageAndRepo}:native-${it}" }
 
 	dockerBuild {
 		images = imageNames
 	}
 
 	dockerBuildNative {
-		images = imageNames
+		images = nativImageNames
 	}
 
 	jacocoTestReport {
