@@ -36,21 +36,6 @@ public class ConfigHostLms implements HostLms {
 	}
 
 	@Override
-	public @NotNull List<Agency> getAgencies() {
-		
-		if (agencies != null) {
-			return this.agencies;
-		}
-		
-		agencies = beans.getBeansOfType(Agency.class)
-			.stream()
-			.filter(a -> a.getHostLms() == this)
-			.collect(Collectors.toUnmodifiableList());
-		
-		return agencies;
-	}
-
-	@Override
 	public Map<String, Object> getClientConfig() {
 		return clientConfig;
 	}

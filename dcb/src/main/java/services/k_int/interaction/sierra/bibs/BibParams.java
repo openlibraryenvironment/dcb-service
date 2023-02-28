@@ -1,69 +1,69 @@
 package services.k_int.interaction.sierra.bibs;
 
+import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import org.immutables.value.Value.Immutable;
-
 import jakarta.annotation.Nullable;
-import services.k_int.interaction.DefaultImmutableStyle;
+import lombok.Builder;
+import lombok.Data;
+import lombok.Singular;
 import services.k_int.interaction.sierra.DateTimeRange;
+import services.k_int.interaction.sierra.DateTimeRange.DateTimeRangeBuilder;
 
-@Immutable
-@DefaultImmutableStyle
-public interface BibParams {
-
-	@Nullable
-	Integer limit();
+@Builder
+@Data
+public class BibParams {
 
 	@Nullable
-	Integer offset();
+	Integer limit;
 
 	@Nullable
-	Set<String> fields();
+	Integer offset;
 
 	@Nullable
-	DateTimeRange createdDate();
+	@Singular
+	Set<String> fields;
 
 	@Nullable
-	DateTimeRange updatedDate();
+	DateTimeRange createdDate;
 
 	@Nullable
-	DateTimeRange deletedDate();
+	DateTimeRange updatedDate;
 
 	@Nullable
-	Boolean deleted();
+	DateTimeRange deletedDate;
 
 	@Nullable
-	Boolean suppressed();
+	Boolean deleted;
 
 	@Nullable
-	Set<String> locations();
+	Boolean suppressed;
 
-	public static class Builder extends BibParamsImpl.Builder {
-		public Builder createdDate(Consumer<DateTimeRange.Builder> consumer) {
-			createdDate(DateTimeRange.build(consumer));
+	@Nullable
+	@Singular
+	Set<String> locations;
+
+	public static class BibParamsBuilder {
+		public BibParamsBuilder createdDate(Consumer<DateTimeRangeBuilder> consumer) {
+			createdDate = DateTimeRange.build(consumer);
 			return this;
 		}
 
-		public Builder updatedDate(Consumer<DateTimeRange.Builder> consumer) {
-			updatedDate(DateTimeRange.build(consumer));
+		public BibParamsBuilder updatedDate(Consumer<DateTimeRangeBuilder> consumer) {
+			updatedDate = DateTimeRange.build(consumer);
 			return this;
 		}
 
-		public Builder deletedDate(Consumer<DateTimeRange.Builder> consumer) {
-			deletedDate(DateTimeRange.build(consumer));
+		public BibParamsBuilder deletedDate(Consumer<DateTimeRangeBuilder> consumer) {
+			deletedDate = DateTimeRange.build(consumer);
 			return this;
 		}
 	}
 
-	public static BibParams build(Consumer<Builder> consumer) {
-		Builder builder = builder();
+	public static BibParams build(Consumer<BibParamsBuilder> consumer) {
+		BibParamsBuilder builder = builder();
 		consumer.accept(builder);
 		return builder.build();
-	}
-
-	public static Builder builder() {
-		return new Builder();
 	}
 }

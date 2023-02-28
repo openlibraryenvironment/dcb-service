@@ -19,6 +19,7 @@ import org.marc4j.marc.Record;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.ingest.model.Identifier;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
+import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +35,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 
 	static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
 
-	default IngestRecord.Builder populateRecordFromMarc ( final IngestRecord.Builder ingestRecord, final Record marcRecord ) {
+	default IngestRecordBuilder populateRecordFromMarc ( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
 			
 		// Title(s)
 		enrichWithTitleInformation(ingestRecord, marcRecord);
@@ -52,7 +53,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 	@NotNull
 	String getDefaultControlIdNamespace();
 	
-	default IngestRecord.Builder enrichWithAuthorInformation ( final IngestRecord.Builder ingestRecord, final Record marcRecord ) {
+	default IngestRecordBuilder enrichWithAuthorInformation ( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
 		
 		Stream.of( "100", "110", "700", "710")
 			.map( tag -> marcRecord.getVariableField(tag) )
@@ -82,20 +83,20 @@ public interface MarcIngestSource<T> extends IngestSource {
 		return ingestRecord;
 	}
 	
-	default IngestRecord.Builder enrichWithTitleInformation ( final IngestRecord.Builder ingestRecord, final Record marcRecord ) {
+	default IngestRecordBuilder enrichWithTitleInformation ( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
 		// Initial title.
 		final String title = Stream.of( "245", "243", "240", "246", "222", "210", "240", "247", "130" )
 			.filter( Objects::nonNull )
 			.flatMap( tag -> extractSubfieldData(marcRecord, tag, "abc") )
 			.filter( StringUtils::isNotEmpty )
-			.reduce( ingestRecord.build().title(), ( current, item ) -> {
+			.reduce( ingestRecord.build().getTitle(), ( current, item ) -> {
 				if (StringUtils.isEmpty( current )) {
 					ingestRecord.title(item);
 					return item;
 				}
 				
 				// Keep returning the first title that was set. 
-				ingestRecord.addOtherTitles(item);
+				ingestRecord.otherTitle(item);
 				return current;
 			});
 		
@@ -103,7 +104,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 		return ingestRecord;
 	}
 	
-	default IngestRecord.Builder handleControlNumber( final IngestRecord.Builder ingestRecord, final Record marcRecord ) {
+	default IngestRecordBuilder handleControlNumber( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
 		// Grab the pair of 001 and 003. These contain the identifier value and namespace respectively
 		
 		Optional.ofNullable(marcRecord.getControlNumber())
@@ -123,14 +124,14 @@ public interface MarcIngestSource<T> extends IngestSource {
 		return ingestRecord;
 	}
 	
-	default IngestRecord.Builder handleSystemControlNumber( final IngestRecord.Builder ingestRecord, final Record marcRecord ) {
+	default IngestRecordBuilder handleSystemControlNumber( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
 		extractSubfieldData(marcRecord, "035", "a")
 			.forEach( val -> {
 				final Pattern pattern = Pattern.compile(REGEX_NAMESPACE_ID_PAIR);
         final Matcher matcher = pattern.matcher(val);
         
         if (matcher.matches()) {
-        	ingestRecord.addIdentifiers(id -> {
+        	ingestRecord.addIdentifier(id -> {
         		id.namespace( Objects.requireNonNullElse(matcher.group(3), matcher.group(5)) )
         			.value(matcher.group(6));
         	});
@@ -147,7 +148,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 		"027", "STRN"
 	);
 	
-	default IngestRecord.Builder enrichWithIdentifiers( final IngestRecord.Builder ingestRecord, final Record marcRecord ) {
+	default IngestRecordBuilder enrichWithIdentifiers( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
 		
 		handleControlNumber(ingestRecord, marcRecord);
 		handleSystemControlNumber(ingestRecord, marcRecord);
@@ -160,7 +161,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 				Optional.ofNullable(df.getSubfieldsAsString("a"))
 					.filter( StringUtils::isNotEmpty )
 					.ifPresent(sfs -> {
-						ingestRecord.addIdentifiers(id -> {
+						ingestRecord.addIdentifier(id -> {
 							id.namespace(IDENTIFIER_FIELD_NAMESPACE.get(df.getTag()))
 								.value(sfs);
 						});
@@ -207,7 +208,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 	
 	Publisher<T> getResources( Instant since );
-	IngestRecord.Builder initIngestRecordBuilder ( T resource );
+	IngestRecordBuilder initIngestRecordBuilder ( T resource );
 	Record resourceToMarc( T resource );
 
 	@Override

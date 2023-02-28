@@ -1,29 +1,24 @@
 package org.olf.reshare.dcb;
 
-import org.junit.jupiter.api.Assertions;
+import java.util.List;
+import java.util.UUID;
+
+import javax.transaction.Transactional;
+
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
+import org.olf.reshare.dcb.core.model.BibRecord;
+import org.olf.reshare.dcb.storage.BibRepository;
+import org.olf.reshare.dcb.test.DcbTest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.micronaut.runtime.EmbeddedApplication;
 import jakarta.inject.Inject;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import org.olf.reshare.dcb.core.model.BibRecord;
-import org.olf.reshare.dcb.storage.BibRepository;
-import org.olf.reshare.dcb.storage.postgres.PostgresBibRepository;
-import org.olf.reshare.dcb.test.DcbTest;
-
-import java.util.UUID;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.List;
-
-import org.junit.jupiter.api.Order;
 
 @DcbTest
 @TestMethodOrder(OrderAnnotation.class)
@@ -39,10 +34,15 @@ class BibRepoTest {
 
 	@Test
 	@Order(1)
+	@Transactional
 	void testBibCreation() {
 		log.debug("1. testBibCreation");
 
-		Mono<BibRecord> bib_record_mono = Mono.from(bibRepo.save(new BibRecord(UUID.randomUUID(), "Brain of the Firm")));
+		Mono<BibRecord> bib_record_mono = Mono.from(bibRepo.save(
+				BibRecord.builder()
+					.id(UUID.randomUUID())
+					.title("Brain of the Firm")
+					.build()));
 		log.debug("Created test bib: {}", bib_record_mono.block().toString());
 
 		// Make sure that we have 1 task
@@ -50,7 +50,7 @@ class BibRepoTest {
 		assert bibs != null;
 
 		log.debug("Got {} bibs: {}", bibs.size(), bibs.toString());
-		assert bibs.size() == 1;
+		assert bibs.size() == 1; 
 
 	}
 

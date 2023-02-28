@@ -5,33 +5,34 @@ import java.util.function.Consumer;
 
 import javax.validation.constraints.NotEmpty;
 
-import org.immutables.value.Value.Immutable;
+import org.olf.reshare.dcb.ingest.model.Identifier.IdentifierBuilder;
 
-import services.k_int.interaction.DefaultImmutableStyle;
+import lombok.Builder;
+import lombok.Data;
+import lombok.Singular;
+import lombok.Value;
 
-@Immutable
-@DefaultImmutableStyle
-public interface Author {
+@Data
+@Builder
+@Value
+public class Author {
 
 	@NotEmpty
-	String name();
+	String name;
 
-	List<Identifier> identifiers();
+	@Singular
+	List<Identifier> identifiers;
 
-	public static class Builder extends AuthorImpl.Builder {
-		public Builder addIdentifiers(Consumer<Identifier.Builder> consumer) {
-			addIdentifiers(Identifier.build(consumer));
+	public static class AuthorBuilder {
+		public AuthorBuilder addIdentifier(Consumer<IdentifierBuilder> consumer) {
+			identifier(Identifier.build(consumer));
 			return this;
 		}
 	}
 
-	public static Author build(Consumer<Builder> consumer) {
-		Builder builder = builder();
+	public static Author build(Consumer<AuthorBuilder> consumer) {
+		AuthorBuilder builder = builder();
 		consumer.accept(builder);
 		return builder.build();
-	}
-
-	public static Builder builder() {
-		return new Builder();
 	}
 }
