@@ -58,9 +58,10 @@ datasources:
     schema-generate: NONE
     db-type: postgresql
     dialect: postgres
+    minimumIdol: 0
+    maximumPoolSize: 2
     #username: "${db.username:}"
     #password: "${db.password:}"
-
 
 r2dbc:
   datasources:
