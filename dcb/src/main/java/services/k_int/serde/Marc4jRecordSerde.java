@@ -2,6 +2,7 @@ package services.k_int.serde;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.MarcFactory;
@@ -35,9 +36,9 @@ public class Marc4jRecordSerde implements Serde<Record> {
 //  private static final String KEY_DATAFIELD = "datafield";
 //  private static final String KEY_SUBFIELD = "subfield";
 
-	private static final String REGEX_CTRLFIELD = "00[0-9]";
-	private static final String REGEX_DATAFIELD = "((0[1-9])|[1-9][0-9])[0-9]";
-	private static final String REGEX_SUBFIELD = "[a-z0-9]";
+	private static final Pattern REGEX_CTRLFIELD = Pattern.compile( "00[0-9]" );
+	private static final Pattern REGEX_DATAFIELD = Pattern.compile( "((0[1-9])|[1-9][0-9])[0-9]" );
+	private static final Pattern REGEX_SUBFIELD = Pattern.compile( "[a-z0-9]" );
 
 	@Override
 	public void serialize(Encoder encoder, EncoderContext context, Argument<? extends Record> type, Record value)
@@ -92,11 +93,11 @@ public class Marc4jRecordSerde implements Serde<Record> {
 					// Create our Record
 					String currentKey;
 					while ((currentKey = field.decodeKey()) != null) {
-						if (currentKey.matches(REGEX_CTRLFIELD)) {
+						if ( REGEX_CTRLFIELD.matcher(currentKey).matches() ) {
 							record.addVariableField(
 								factory.newControlField(currentKey, field.decodeString()));
 
-						} else if (currentKey.matches(REGEX_DATAFIELD)) {
+						} else if ( REGEX_DATAFIELD.matcher(currentKey).matches() ) {
 							// Data field is object.
 							final DataField df = factory.newDataField();
 							df.setTag(currentKey);
@@ -122,7 +123,7 @@ public class Marc4jRecordSerde implements Serde<Record> {
 
 														// Create a subfield per entry
 														while ((currentKey = subfield.decodeKey()) != null) {
-															if (currentKey.matches(REGEX_SUBFIELD)) {
+															if ( REGEX_SUBFIELD.matcher(currentKey).matches() ) {
 																df.addSubfield(
 																	factory.newSubfield(currentKey.charAt(0), subfield.decodeString()));
 															} else {
