@@ -8,11 +8,13 @@ import javax.transaction.Transactional;
 
 import org.olf.reshare.dcb.core.model.BibRecord;
 import org.olf.reshare.dcb.storage.BibRepository;
+import org.reactivestreams.Publisher;
 
 import io.micronaut.data.model.query.builder.sql.Dialect;
 import io.micronaut.data.r2dbc.annotation.R2dbcRepository;
 import io.micronaut.data.repository.reactive.ReactiveStreamsPageableRepository;
 import jakarta.inject.Singleton;
+import reactor.core.publisher.Mono;
 
 @SuppressWarnings("unchecked")
 @Singleton
@@ -22,15 +24,13 @@ public interface PostgresBibRepository extends ReactiveStreamsPageableRepository
 	
 	@Override
 	@Transactional(NOT_SUPPORTED)
-	default void cleanUp() {
-		// TODO Auto-generated method stub
-		BibRepository.super.cleanUp();
+	default Publisher<Void> cleanUp() {
+		return Mono.empty();
 	}
 	
 	@Override
 	@Transactional(NOT_SUPPORTED)
-	default void commit() {
-		// TODO Auto-generated method stub
-		BibRepository.super.commit();
+	default Publisher<Void> commit() {
+		return Mono.empty();
 	}
 }

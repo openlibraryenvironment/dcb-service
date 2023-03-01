@@ -23,6 +23,7 @@ public class IngestService implements Runnable {
 	private Instant lastRun = null;
 
 	private static Logger log = LoggerFactory.getLogger(IngestService.class);
+	
 	private final BibRecordService bibRecordService;
 
 	private final List<IngestSourcesProvider> sourceProviders;
@@ -96,18 +97,22 @@ public class IngestService implements Runnable {
 
 					return Mono.empty();
 					
-				}).count().subscribe(count -> {
-					bibRecordService.cleanup();
-					cleanUp(Instant.ofEpochMilli(start)).run();
+				})
+				
+				.count()
+					.doOnNext(count -> {
+						if (count < 1) {
+							log.info("No records to import");
+							return;
+						}
 
-					if (count < 1) {
-						log.info("No records to import");
-						return;
-					}
-
-					final Duration elapsed = Duration.ofMillis(System.currentTimeMillis() - start);
-					log.info("Finsihed adding {} records. Total time {} hours, {} minute and {} seconds", count,
-							elapsed.toHoursPart(), elapsed.toMinutesPart(), elapsed.toSecondsPart());
-				});
+						final Duration elapsed = Duration.ofMillis(System.currentTimeMillis() - start);
+						log.info("Finsihed adding {} records. Total time {} hours, {} minute and {} seconds", count,
+								elapsed.toHoursPart(), elapsed.toMinutesPart(), elapsed.toSecondsPart());
+					})
+					
+				.then(Mono.from( bibRecordService.cleanup() ))
+				
+				.subscribe();
 	}
 }
