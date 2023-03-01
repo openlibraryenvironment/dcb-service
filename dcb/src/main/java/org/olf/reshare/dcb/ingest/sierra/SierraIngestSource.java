@@ -40,7 +40,7 @@ public class SierraIngestSource implements MarcIngestSource<BibResult> {
 	}
 
 	private Publisher<BibResult> scrollAllResults(final Instant since, final int offset, final int limit) {
-		log.info("Fetching batch from Sierra API");
+		log.info("Fetching batch from Sierra API with since={} offset={} limit={}", since, offset, limit);
 
 		return Mono.from(sierraApi.bibs(params -> {
 				params
