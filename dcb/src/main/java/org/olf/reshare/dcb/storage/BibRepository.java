@@ -7,6 +7,7 @@ import javax.validation.constraints.NotNull;
 
 import org.olf.reshare.dcb.core.model.BibRecord;
 import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
@@ -38,11 +39,16 @@ public interface BibRepository {
 	@SingleResult
 	Publisher<Boolean> existsById(@NonNull UUID id);
 
-	public default void cleanUp() {
-	}
+	static final Publisher<Void> NOOP = new Publisher<Void>() {
+		@Override
+		public void subscribe(Subscriber<? super Void> s) {
+			s.onSubscribe(null);
+		}
+		
+	};
+	
+	public Publisher<Void> cleanUp();
 
-	;
 
-	public default void commit() {
-	}
+	public Publisher<Void> commit();
 }

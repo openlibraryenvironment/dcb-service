@@ -68,12 +68,12 @@ public class BibRecordService {
 			.flatMap(this::saveOrUpdate);
 	}
 
-	public void cleanup() {
-		bibRepo.cleanUp();
+	public Publisher<Void> cleanup() {
+		return bibRepo.cleanUp();
 	}
 
-	public void commit() {
-		bibRepo.commit();
+	public Publisher<Void> commit() {
+		return bibRepo.commit();
 	}
 
 }
