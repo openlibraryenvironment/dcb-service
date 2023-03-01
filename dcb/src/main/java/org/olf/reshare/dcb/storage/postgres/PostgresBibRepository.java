@@ -1,5 +1,7 @@
 package org.olf.reshare.dcb.storage.postgres;
 
+import static javax.transaction.Transactional.TxType.NOT_SUPPORTED;
+
 import java.util.UUID;
 
 import javax.transaction.Transactional;
@@ -17,4 +19,18 @@ import jakarta.inject.Singleton;
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 @Transactional
 public interface PostgresBibRepository extends ReactiveStreamsPageableRepository<BibRecord, UUID>, BibRepository {
+	
+	@Override
+	@Transactional(NOT_SUPPORTED)
+	default void cleanUp() {
+		// TODO Auto-generated method stub
+		BibRepository.super.cleanUp();
+	}
+	
+	@Override
+	@Transactional(NOT_SUPPORTED)
+	default void commit() {
+		// TODO Auto-generated method stub
+		BibRepository.super.commit();
+	}
 }
