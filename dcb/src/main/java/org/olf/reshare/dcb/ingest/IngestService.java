@@ -68,9 +68,9 @@ public class IngestService implements Runnable {
 		final long start = System.currentTimeMillis();
 
 		// Interleave sources to form 1 flux of ingest records.
-		this.mutex = Flux.merge(
+		this.mutex = Flux.concat(
 			Flux.fromIterable(sourceProviders)
-				.flatMap(provider -> provider.getIngestSources())
+				.concatMap(provider -> provider.getIngestSources())
 				.filter(source -> {
 					if ( source.isEnabled() ) return true;
 					log.info ("Ingest from source: {} has been disabled in config", source.getName());
@@ -86,7 +86,7 @@ public class IngestService implements Runnable {
 				
 				// Interleaved source stream from all source results.
 				// Process them using the pipeline steps...
-				.flatMap(bibRecordService::process)
+				.concatMap(bibRecordService::process)
 				
 				// General handlers.
 				.doOnCancel(cleanUp(lastRun)) // Don't change the last run

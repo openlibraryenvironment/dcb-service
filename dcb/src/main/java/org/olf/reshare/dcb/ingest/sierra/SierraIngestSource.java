@@ -4,6 +4,7 @@ import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +24,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibResult;
+import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.utils.UUIDUtils;
 
 @Singleton
@@ -37,45 +39,49 @@ public class SierraIngestSource implements MarcIngestSource<BibResult> {
 
 	SierraIngestSource(SierraApiClient sierraApi) {
 		this.sierraApi = sierraApi;
-	}
-
-	private Publisher<BibResult> scrollAllResults(final Instant since, final int offset, final int limit) {
+	}	
+	
+	private Mono<BibResultSet> fetchPage (Instant since, int offset, int limit) {
 		log.info("Fetching batch from Sierra API with since={} offset={} limit={}", since, offset, limit);
-
 		return Mono.from(sierraApi.bibs(params -> {
+			params
+				.deleted(false)
+				.offset(offset)
+				.limit(limit)
+				.fields(List.of(
+					"id", "updatedDate", "createdDate",
+					"deletedDate", "deleted", "marc"));
+
+			if (since != null) {
 				params
-					.deleted(false)
-					.offset(offset)
-					.limit(limit)
-					.fields(List.of(
-						"id", "updatedDate", "createdDate",
-						"deletedDate", "deleted", "marc"));
-
-				if (since != null) {
-					params
-						.updatedDate(dtr -> {
-							dtr
-								.to(LocalDateTime.now())
-								.fromDate(LocalDateTime.from(since));
-						});
-				}
-			}))
-			.flatMapMany(resp -> {
-
-				final List<BibResult> bibs = resp.entries();
+					.updatedDate(dtr -> {
+						dtr
+							.to(LocalDateTime.now())
+							.fromDate(LocalDateTime.from(since));
+					});
+			}
+		}));
+	}
+	
+	private Publisher<BibResult> pageAllResults(Instant since, int offset, int limit) {
+		
+		return fetchPage(since, offset, limit)
+			.expand(results -> {
+				var bibs = results.entries();
+				
 				log.info("Fetched a chunk of {} records", bibs.size());
-				final int nextOffset = resp.start() + bibs.size();
+				final int nextOffset = results.start() + bibs.size();
 				final boolean possiblyMore = bibs.size() == limit;
-
+				
 				if (!possiblyMore) {
 					log.info("No more results to fetch");
+					return Mono.empty();
 				}
-
-				final Flux<BibResult> currentPage = Flux.fromIterable(bibs);
-
-				// Try next page if there is the possibility of more results.
-				return possiblyMore ? Flux.concat(currentPage, scrollAllResults(since, nextOffset, limit)) : currentPage;
-			});
+				
+				return fetchPage(since, nextOffset, limit);
+			})
+			
+			.concatMap(results -> Flux.fromIterable( new ArrayList<>( results.entries() )));
 	}
 
 	@Override
@@ -89,7 +95,7 @@ public class SierraIngestSource implements MarcIngestSource<BibResult> {
 		log.info("Fetching MARC JSON from Sierra");
 
 		// The stream of imported records.
-		return Flux.from(scrollAllResults(since, 0, 2000))
+		return Flux.from(pageAllResults(since, 0, 2000))
 			.filter(sierraBib -> sierraBib.marc() != null)
 			.switchIfEmpty(
 				Mono.just("No results returned. Stopping")
