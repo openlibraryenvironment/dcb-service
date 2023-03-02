@@ -14,8 +14,7 @@ import reactor.core.publisher.Mono;
 public class PatronRequestResolutionService {
 	public static final Logger log = LoggerFactory.getLogger(PatronRequestResolutionService.class);
 
-	@Inject
-	SharedIndexService sharedIndex;
+	private final SharedIndexService sharedIndex;
 
 	public PatronRequestResolutionService(SharedIndexService sharedIndex) {
 		this.sharedIndex = sharedIndex;
@@ -72,5 +71,4 @@ public class PatronRequestResolutionService {
 	}
 
 	private record HoldingsAndItemPair(Holdings holdings, Holdings.Item item) { }
-
 }
