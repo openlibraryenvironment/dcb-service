@@ -11,18 +11,18 @@ import org.marc4j.marc.impl.MarcFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.serde.Decoder;
 import io.micronaut.serde.Encoder;
 import io.micronaut.serde.Serde;
-import jakarta.inject.Singleton;
 
-@Singleton
+@Prototype
 public class Marc4jRecordSerde implements Serde<Record> {
 
 	// Instanciate the default class here. Works better with native compilation.
-	private final MarcFactory factory = new MarcFactoryImpl();
+	private static final MarcFactory factory = new MarcFactoryImpl();
 
 	private static Logger log = LoggerFactory.getLogger(Marc4jRecordSerde.class);
 
@@ -83,7 +83,6 @@ public class Marc4jRecordSerde implements Serde<Record> {
 	}
 
 	protected void decodeFieldsArray(final Decoder dec, final Record record) throws IOException {
-
 
 		try (Decoder fields = dec.decodeArray()) {
 			while (fields.hasNextArrayValue()) {

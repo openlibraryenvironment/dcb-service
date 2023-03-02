@@ -12,7 +12,7 @@ import io.micronaut.core.util.Toggleable;
 
 public interface IngestSource extends Function<Instant, Publisher<IngestRecord>>, Toggleable, Named {
 	
-	public static final int DEFAULT_PAGE_SIZE = 200;
+	public static final int DEFAULT_PAGE_SIZE = 2000;
 	
 	/**
 	 * Take in an Instant representing the point in time to use as the changed since

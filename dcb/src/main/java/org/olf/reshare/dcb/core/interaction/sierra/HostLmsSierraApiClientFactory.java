@@ -1,5 +1,7 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
+import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -9,6 +11,7 @@ import java.util.Map;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.reactivestreams.Publisher;
 
+import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.BasicAuth;
 import io.micronaut.http.HttpHeaders;
@@ -16,9 +19,13 @@ import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpRequest;
+import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.Post;
+import io.micronaut.http.annotation.Produces;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.retry.annotation.Retryable;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
@@ -48,6 +55,9 @@ public class HostLmsSierraApiClientFactory {
 		private final HttpClient client;
 
 		private HostLmsSierraApiClient(HostLms hostLms, HttpClient client) {
+			
+			log.debug("Creating Sierra HOstLMs client for HostLms {}", hostLms.getName());
+			
 			URI hostUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
 			rootUri = resolve(hostUri, UriBuilder.of("/iii/sierra-api/v6/").build());
 			
@@ -56,10 +66,13 @@ public class HostLmsSierraApiClientFactory {
 		}
 
 		@Override
+		@SingleResult
+		@Retryable
+		@Get("bibs")
 		public Publisher<BibResultSet> bibs(Integer limit, Integer offset, String createdDate, String updatedDate,
 				Iterable<String> fields, Boolean deleted, String deletedDate, Boolean suppressed, Iterable<String> locations) {
 
-			return getRequest("bibs/")
+			return getRequest("bibs")
 				.map(req -> req.uri(theUri -> {
 					theUri
 						.queryParam("limit", limit)
@@ -86,6 +99,10 @@ public class HostLmsSierraApiClientFactory {
 		}
 
 		@Override
+		@SingleResult
+		@Retryable
+		@Post("token")
+		@Produces(value = MULTIPART_FORM_DATA)
 		public Publisher<AuthToken> login(BasicAuth creds, MultipartBody body) {
 			return postRequest("token")
 					.map(req ->
