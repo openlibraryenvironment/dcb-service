@@ -1,23 +1,26 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.olf.reshare.dcb.core.model.PatronRequest;
+import org.olf.reshare.dcb.request.resolution.SupplierRequestService;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
 @Singleton
 public class PatronRequestService {
-	@Inject
-	PatronRequestRepository patronRequestRepository;
+	private final PatronRequestRepository patronRequestRepository;
+	private final SupplierRequestService supplierRequestService;
 
-	public PatronRequestService(PatronRequestRepository patronRequestRepository) {
+	public PatronRequestService(PatronRequestRepository patronRequestRepository, SupplierRequestService supplierRequestService) {
 		this.patronRequestRepository = patronRequestRepository;
+		this.supplierRequestService = supplierRequestService;
 	}
 
 	public static final Logger log = LoggerFactory.getLogger(PatronRequestService.class);
@@ -66,7 +69,8 @@ public class PatronRequestService {
 			new PatronRequestView.Citation(patronRequest.getBibClusterId()),
 			new PatronRequestView.PickupLocation(patronRequest.getPickupLocationCode()),
 			new PatronRequestView.Requestor(patronRequest.getPatronId(),
-				new PatronRequestView.Agency(patronRequest.getPatronAgencyCode())));
+				new PatronRequestView.Agency(patronRequest.getPatronAgencyCode())),
+			new ArrayList<>());
 
 		log.debug("returning {}", result);
 
@@ -74,11 +78,8 @@ public class PatronRequestService {
 	}
 
 	public Mono<PatronRequestView> findPatronRequestById(UUID id) {
-		return Mono.from(patronRequestRepository.findById(id))
-			.map(pr -> new PatronRequestView(pr.getId(),
-				new PatronRequestView.Citation(pr.getBibClusterId()),
-				new PatronRequestView.PickupLocation(pr.getPatronAgencyCode()),
-				new PatronRequestView.Requestor(pr.getPatronId(),
-					new PatronRequestView.Agency(pr.getPatronAgencyCode()))));
+		log.debug("findPatronRequestById({})", id);
+		return Mono.from( patronRequestRepository.findById(id) )
+			.flatMap(supplierRequestService::findSupplierRequest);
 	}
 }
