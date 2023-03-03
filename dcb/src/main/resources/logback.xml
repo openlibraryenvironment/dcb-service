@@ -21,8 +21,8 @@
 	<logger name="io.micronaut.data.query" level="DEBUG"/>
 	-->
 
-	<logger name="io.r2dbc.postgresql.QUERY" level="DEBUG"/>
-	<logger name="io.micronaut.data.query" level="DEBUG"/>
+	<logger name="io.r2dbc.postgresql.QUERY" level="WARN"/>
+	<logger name="io.micronaut.data.query" level="WARN"/>
 	<logger name="org.flywaydb" level="DEBUG"/>
 	<logger name="org.flyway" level="DEBUG"/>
 	<logger name="io.micronaut.flyway" level="DEBUG"/>
