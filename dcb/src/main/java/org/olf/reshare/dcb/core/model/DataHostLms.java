@@ -23,6 +23,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+import io.micronaut.data.annotation.Transient;
 
 @Data
 @Serdeable
@@ -49,11 +50,22 @@ public class DataHostLms implements HostLms {
 	@NotNull
 	@Nullable
 	@MappedProperty(value="lms_client_class")
-	public Class<? extends HostLmsClient> type;
-	
+	public String lmsClientClass;
+
 	@NonNull
 	@NotNull
 	@Singular("clientConfig")
 	@TypeDef(type = DataType.JSON)
 	Map<String, Object> clientConfig;
+
+	@Transient
+        public Class<? extends HostLmsClient> getType() {
+		Class<? extends HostLmsClient> resolved_class = null;
+		try {
+			resolved_class = (Class<? extends HostLmsClient>) Class.forName(lmsClientClass);
+		} catch ( ClassNotFoundException cnfe ) {
+		}
+		return resolved_class;
+	}
+
 }
