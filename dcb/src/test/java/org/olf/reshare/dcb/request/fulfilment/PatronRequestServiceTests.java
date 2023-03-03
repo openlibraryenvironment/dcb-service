@@ -9,28 +9,24 @@ import static org.mockito.Mockito.when;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
-import org.olf.reshare.dcb.request.resolution.SupplierRequestService;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
-
-import reactor.core.publisher.Mono;
 
 
 class PatronRequestServiceTests {
 	@Test
 	void shouldReturnErrorWhenDatabaseSavingFails() {
 		final var repositoryMock = mock(PatronRequestRepository.class);
-		final var supplierRequestServiceMock = mock(SupplierRequestService.class);
 
 		when(repositoryMock.save(any()))
 			.thenThrow(new RuntimeException("saving failed"));
 
-		final var service = new PatronRequestService(repositoryMock, supplierRequestServiceMock);
+		final var service = new PatronRequestService(repositoryMock);
 
-		final var command = Mono.fromSupplier(() -> new PlacePatronRequestCommand(
+		final var command = new PlacePatronRequestCommand(
 			UUID.randomUUID(), new PlacePatronRequestCommand.Citation(UUID.randomUUID()),
 			new PlacePatronRequestCommand.PickupLocation("code"),
 			new PlacePatronRequestCommand.Requestor("jane-smith",
-				new PlacePatronRequestCommand.Agency("ABC-123"))));
+				new PlacePatronRequestCommand.Agency("ABC-123")));
 
 		final var exception = assertThrows(RuntimeException.class,
 			() -> service.placePatronRequest(command).block());

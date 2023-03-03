@@ -21,7 +21,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @DcbTest
-public class PatronRequestRepoTest {
+class PatronRequestRepositoryTests {
 	@Inject
 	PatronRequestRepository requestRepository;
 
@@ -67,7 +67,9 @@ public class PatronRequestRepoTest {
 				.collectList()
 				.block();
 		
+		assertThat(fetchedSupplierRequests, is(notNullValue()));
 		assertThat(fetchedSupplierRequests.size(), is(1));
+
 		assertThat(fetchedSupplierRequests.get(0).getId(), is(supplierRequest.getId()));
 	}
 }

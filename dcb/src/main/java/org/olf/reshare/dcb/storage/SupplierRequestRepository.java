@@ -13,15 +13,10 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 
 public interface SupplierRequestRepository {
-
 	@NonNull
 	@SingleResult
 	Publisher<? extends SupplierRequest> save(@Valid @NotNull SupplierRequest supplierRequest);
 
-	@NonNull
-	@SingleResult
-	Publisher<SupplierRequest> findById(@NotNull UUID id);
-	
 	@NonNull
 	Publisher<SupplierRequest> findAllByPatronRequest(@NotNull PatronRequest pr);
 

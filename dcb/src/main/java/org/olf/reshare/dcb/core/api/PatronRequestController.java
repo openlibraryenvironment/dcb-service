@@ -4,9 +4,8 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 import javax.validation.Valid;
 
-import org.olf.reshare.dcb.request.fulfilment.PatronRequestView;
-import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.reshare.dcb.request.fulfilment.PatronRequestService;
+import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +25,7 @@ import reactor.core.publisher.Mono;
 @Controller
 @Tag(name = "Patron Request API")
 public class PatronRequestController {
-	public static final Logger log = LoggerFactory.getLogger(PatronRequestController.class);
+	private static final Logger log = LoggerFactory.getLogger(PatronRequestController.class);
 
 	private final PatronRequestService patronRequestService;
 
@@ -37,11 +36,12 @@ public class PatronRequestController {
 	@SingleResult
 	@Post(value = "/patrons/requests/place", consumes = APPLICATION_JSON)
 	public Mono<HttpResponse<PatronRequestView>> placePatronRequest(
-		@Body @Valid Mono<PlacePatronRequestCommand> command) {
+		@Body @Valid PlacePatronRequestCommand command) {
 
 		log.debug("REST, place patron request: {}", command);
 
 		return patronRequestService.placePatronRequest(command)
+			.map(PatronRequestView::from)
 			.map(HttpResponse::ok);
 	}
 }
