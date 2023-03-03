@@ -1,5 +1,7 @@
 create table bib_record (
 	id uuid primary key,
+        date_created timestamp,
+        date_updated timestamp,
 	title varchar(1024)
 );
 
