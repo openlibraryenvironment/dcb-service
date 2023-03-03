@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import javax.validation.constraints.NotNull;
 
+import io.micronaut.data.annotation.MappedProperty;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 
 import io.micronaut.core.annotation.Creator;
@@ -26,7 +27,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Data
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
-@MappedEntity
+@MappedEntity(value="host_lms")
 @NoArgsConstructor(onConstructor_=@Creator())
 @AllArgsConstructor
 @Builder
@@ -47,6 +48,7 @@ public class DataHostLms implements HostLms {
 	@NonNull
 	@NotNull
 	@Nullable
+	@MappedProperty(value="lms_client_class")
 	public Class<? extends HostLmsClient> type;
 	
 	@NonNull
