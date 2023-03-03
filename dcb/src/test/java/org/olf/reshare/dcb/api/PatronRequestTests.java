@@ -3,8 +3,9 @@ package org.olf.reshare.dcb.api;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.HttpStatus.OK;
 import static java.util.Objects.requireNonNull;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.UUID;
@@ -17,11 +18,9 @@ import org.olf.reshare.dcb.test.DcbTest;
 import org.olf.reshare.dcb.test.PatronRequestsDataAccess;
 
 import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import net.minidev.json.JSONObject;
 
@@ -40,9 +39,73 @@ class PatronRequestTests {
 	@Inject
 	PatronRequestsDataAccess patronRequestsDataAccess;
 
+	@Inject
+	PatronRequestApiClient patronRequestApiClient;
+
+	@Inject
+	AdminApiClient adminApiClient;
+
 	@BeforeEach
 	void beforeEach() {
 		patronRequestsDataAccess.deleteAllPatronRequests();
+	}
+
+	@Test
+	void canPlacePatronRequest() {
+		final var bibClusterId = UUID.randomUUID();
+
+		final var response = patronRequestApiClient.placePatronRequest(bibClusterId,
+			"jane-smith", "RGX12", "ABC123");
+
+		assertThat(response.getStatus(), is(OK));
+
+		final var placedPatronRequest = response.body();
+
+		assertThat(placedPatronRequest, is(notNullValue()));
+
+		assertThat(placedPatronRequest.id(), is(notNullValue()));
+
+		assertThat(placedPatronRequest.citation(), is(notNullValue()));
+		assertThat(placedPatronRequest.citation().bibClusterId(), is(bibClusterId));
+
+		assertThat(placedPatronRequest.requestor(), is(notNullValue()));
+		assertThat(placedPatronRequest.requestor().identifier(), is("jane-smith"));
+
+		assertThat(placedPatronRequest.requestor().agency(), is(notNullValue()));
+		assertThat(placedPatronRequest.requestor().agency().code(), is("RGX12"));
+
+		assertThat(placedPatronRequest.pickupLocation(), is(notNullValue()));
+		assertThat(placedPatronRequest.pickupLocation().code(), is("ABC123"));
+	}
+
+	@Test
+	void canGetPlacedPatronRequestViaAdminAPI() {
+		final var bibClusterId = UUID.randomUUID();
+
+		final var placeRequestResponse = patronRequestApiClient.placePatronRequest(
+			bibClusterId, "alice-stevens", "BVN45", "HTF56");
+
+		assertThat(placeRequestResponse.getStatus(), is(OK));
+
+		final var id = requireNonNull(placeRequestResponse.body()).id();
+
+		var patronRequest = adminApiClient.getPatronRequestViaAdminApi(id);
+
+		assertThat(patronRequest, is(notNullValue()));
+
+		assertThat(patronRequest.id(), is(id));
+
+		assertThat(patronRequest.citation(), is(notNullValue()));
+		assertThat(patronRequest.citation().bibClusterId(), is(bibClusterId));
+
+		assertThat(patronRequest.requestor(), is(notNullValue()));
+		assertThat(patronRequest.requestor().identifier(), is("alice-stevens"));
+
+		assertThat(patronRequest.requestor().agency(), is(notNullValue()));
+		assertThat(patronRequest.requestor().agency().code(), is("BVN45"));
+
+		assertThat(patronRequest.pickupLocation(), is(notNullValue()));
+		assertThat(patronRequest.pickupLocation().code(), is("HTF56"));
 	}
 
 	@Test
@@ -52,72 +115,11 @@ class PatronRequestTests {
 		final var request = HttpRequest.POST("/patrons/requests/place",
 			new JSONObject());
 
-		final var e = assertThrows(HttpClientResponseException.class,
+		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> blockingClient.exchange(request));
 
-		final var response = e.getResponse();
+		final var response = exception.getResponse();
 
-		assertEquals(BAD_REQUEST, response.getStatus());
+		assertThat(response.getStatus(), is(BAD_REQUEST));
 	}
-
-	@Test
-	void canPlaceAPatronRequest() {
-		final var response = placePatronRequest(createPlacePatronRequestCommand());
-
-		assertEquals(OK, response.getStatus());
-
-		final var patronRequests = patronRequestsDataAccess.getAllPatronRequests();
-
-		assertNotNull(patronRequests);
-		assertEquals(1, patronRequests.size());
-	}
-
-	@Test
-	void canGetAPlacedPatronRequestViaAdminAPI() {
-		final var placeResponse = placePatronRequest(createPlacePatronRequestCommand());
-
-		assertEquals(OK, placeResponse.getStatus());
-		assertNotNull(placeResponse.body());
-
-		final var id = requireNonNull(placeResponse.body()).id();
-
-		var getResponse = client.toBlocking()
-			.retrieve(HttpRequest.GET("/admin/patrons/requests/" + id),
-				PlacedPatronRequest.class);
-
-		assertEquals(id, getResponse.id());
-	}
-
-	private static JSONObject createPlacePatronRequestCommand() {
-		return new JSONObject() {{
-			// citation
-			final var citation = new JSONObject() {{
-				put("bibClusterId", UUID.randomUUID().toString());
-			}};
-			put("citation", citation);
-			// requestor
-			final var requestor = new JSONObject() {{
-				put("identifier", "jane-smith");
-				final var agency = new JSONObject() {{
-					put("code", "RGX12");
-				}};
-				put("agency", agency);
-			}};
-			put("requestor", requestor);
-			// pickup location
-			final var pickupLocation = new JSONObject() {{
-				put("code", "ABC123");
-			}};
-			put("pickupLocation", pickupLocation);
-		}};
-	}
-
-	private HttpResponse<PlacedPatronRequest> placePatronRequest(JSONObject json) {
-		return client.toBlocking()
-			.exchange(HttpRequest.POST("/patrons/requests/place", json),
-				PlacedPatronRequest.class);
-	}
-
-	@Serdeable
-	public record PlacedPatronRequest(UUID id) { }
 }

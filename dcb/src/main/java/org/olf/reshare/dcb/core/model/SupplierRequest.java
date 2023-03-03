@@ -17,8 +17,9 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @ExcludeFromGeneratedCoverageReport
 @MappedEntity
 public class SupplierRequest {
+	public SupplierRequest(@NonNull UUID id, @Nullable PatronRequest patronRequest,
+		@NonNull UUID holdingsItemId, @NonNull String holdingsAgencyCode) {
 
-	public SupplierRequest(@NonNull UUID id, @Nullable PatronRequest patronRequest, @NonNull UUID holdingsItemId, @NonNull String holdingsAgencyCode) {
 		this.id = id;
 		this.patronRequest = patronRequest;
 		this.HoldingsItemId = holdingsItemId;

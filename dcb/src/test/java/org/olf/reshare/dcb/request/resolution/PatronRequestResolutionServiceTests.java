@@ -45,9 +45,8 @@ class PatronRequestResolutionServiceTests {
 		assertThat(supplierRequestRecord, is(notNullValue()));
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequestRecord.item().id(), is(itemId));
-		assertThat(supplierRequestRecord.agency(),
-			is(new Holdings.Agency("agency")));
+		assertThat(supplierRequestRecord.getHoldingsItemId(), is(itemId));
+		assertThat(supplierRequestRecord.getHoldingsAgencyCode(), is("agency"));
 	}
 	@Test
 	void shouldResolveToFirstItemWhenSingleHoldingsWithMultipleItems() {
@@ -76,9 +75,8 @@ class PatronRequestResolutionServiceTests {
 		assertThat(supplierRequestRecord, is(notNullValue()));
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequestRecord.item().id(), is(itemId1));
-		assertThat(supplierRequestRecord.agency(),
-			is(new Holdings.Agency("agency")));
+		assertThat(supplierRequestRecord.getHoldingsItemId(), is(itemId1));
+		assertThat(supplierRequestRecord.getHoldingsAgencyCode(), is("agency"));
 	}
 
 	@Test
@@ -108,10 +106,10 @@ class PatronRequestResolutionServiceTests {
 		assertThat(supplierRequestRecord, is(notNullValue()));
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequestRecord.item().id(), is(itemId1));
-		assertThat(supplierRequestRecord.agency(),
-			is(new Holdings.Agency("agency 1")));
+		assertThat(supplierRequestRecord.getHoldingsItemId(), is(itemId1));
+		assertThat(supplierRequestRecord.getHoldingsAgencyCode(), is("agency 1"));
 	}
+
 	@Test
 	void shouldFailResolveRequestWhenThereAreNoHoldings() {
 		// create a shared index with bib

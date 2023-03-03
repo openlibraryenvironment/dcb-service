@@ -3,31 +3,32 @@ package org.olf.reshare.dcb.request.resolution;
 import java.util.UUID;
 
 import org.olf.reshare.dcb.core.model.PatronRequest;
+import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
 @Singleton
 public class PatronRequestResolutionService {
-	public static final Logger log = LoggerFactory.getLogger(PatronRequestResolutionService.class);
+	private static final Logger log = LoggerFactory.getLogger(PatronRequestResolutionService.class);
 
-	private final SharedIndexService sharedIndex;
+	private final SharedIndexService sharedIndexService;
 
-	public PatronRequestResolutionService(SharedIndexService sharedIndex) {
-		this.sharedIndex = sharedIndex;
+	public PatronRequestResolutionService(SharedIndexService sharedIndexService) {
+		this.sharedIndexService = sharedIndexService;
 	}
-
 
 	public Mono<SupplierRequest> resolvePatronRequest(PatronRequest patronRequest) {
 		log.debug(String.format("resolvePatronRequest(%s)", patronRequest));
-		return sharedIndex.findClusteredBib(patronRequest.getBibClusterId())
+
+		return sharedIndexService.findClusteredBib(patronRequest.getBibClusterId())
 			.filter(this::validateClusteredBib)
 			.map(PatronRequestResolutionService::chooseFirstHoldings)
 			.map(PatronRequestResolutionService::chooseFirstItem)
-			.map(PatronRequestResolutionService::mapToSupplierRequest);
+			.map(holdingsAndItemPair -> mapToSupplierRequest(holdingsAndItemPair,
+				patronRequest));
 	}
 
 	private boolean validateClusteredBib(ClusteredBib clusteredBib) {
@@ -57,7 +58,7 @@ public class PatronRequestResolutionService {
 	}
 
 	private static SupplierRequest mapToSupplierRequest(
-		HoldingsAndItemPair holdingsAndItemPair) {
+		HoldingsAndItemPair holdingsAndItemPair, PatronRequest patronRequest) {
 
 		Holdings.Agency agency = holdingsAndItemPair.holdings.agency();
 		log.debug(String.format("mapToSupplierRequest(%s, %s)",
@@ -67,7 +68,8 @@ public class PatronRequestResolutionService {
 		log.debug(String.format("create sr %s %s %s", uuid,
 			holdingsAndItemPair.item, agency));
 
-		return new SupplierRequest(uuid, holdingsAndItemPair.item, agency);
+		return new SupplierRequest(uuid, patronRequest,
+			holdingsAndItemPair.item.id(), agency.code());
 	}
 
 	private record HoldingsAndItemPair(Holdings holdings, Holdings.Item item) { }

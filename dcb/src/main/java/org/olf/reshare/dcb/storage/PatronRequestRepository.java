@@ -12,18 +12,9 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 
 public interface PatronRequestRepository {
-
 	@NonNull
 	@SingleResult
 	Publisher<? extends PatronRequest> save(@Valid @NotNull @NonNull PatronRequest patronRequest);
-
-	@NonNull
-	@SingleResult
-	Publisher<? extends PatronRequest> persist(@Valid @NotNull @NonNull PatronRequest patronRequest);
-
-	@NonNull
-	@SingleResult
-	Publisher<? extends PatronRequest> update(@Valid @NotNull @NonNull PatronRequest patronRequest);
 
 	@NonNull
 	@SingleResult

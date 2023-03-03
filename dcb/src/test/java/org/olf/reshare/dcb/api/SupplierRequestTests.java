@@ -1,14 +1,12 @@
 package org.olf.reshare.dcb.api;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.hamcrest.Matchers.hasSize;
 
-import java.util.List;
 import java.util.UUID;
 
-import io.micronaut.serde.annotation.Serdeable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.model.PatronRequest;
@@ -18,19 +16,11 @@ import org.olf.reshare.dcb.storage.SupplierRequestRepository;
 import org.olf.reshare.dcb.test.DcbTest;
 import org.olf.reshare.dcb.test.PatronRequestsDataAccess;
 
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
 import jakarta.inject.Inject;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @DcbTest
 class SupplierRequestTests {
-	@Inject
-	@Client("/")
-	HttpClient client;
-
 	@Inject
 	PatronRequestRepository patronRequestRepository;
 
@@ -40,6 +30,9 @@ class SupplierRequestTests {
 	@Inject
 	PatronRequestsDataAccess patronRequestsDataAccess;
 
+	@Inject
+	AdminApiClient adminApiClient;
+
 	@BeforeEach
 	void beforeEach() {
 		patronRequestsDataAccess.deleteAllPatronRequests();
@@ -47,63 +40,57 @@ class SupplierRequestTests {
 
 	@Test
 	void canGetASupplierRequestViaAdminAPI() {
-		final var patronRequest = new PatronRequest(UUID.randomUUID(),
-			"patronId",
-			"code",
-			UUID.randomUUID(),
-			"pickupLocationCode");
+		final var patronRequestId = UUID.randomUUID();
+		final var bibClusterId = UUID.randomUUID();
 
-		final var supplierRequest = new SupplierRequest(UUID.randomUUID(),
-			patronRequest,  UUID.randomUUID(), "holdingAgencyCode");
+		final var patronRequest = new PatronRequest(patronRequestId,
+			"bob-jones", "VDR87", bibClusterId,
+			"NMB55");
 
-		final var supplierRequests = List.of(supplierRequest);
+		final var supplierRequestId = UUID.randomUUID();
+		final var itemId = UUID.randomUUID();
 
-		// Save the request
-		Mono.from( patronRequestRepository.save(patronRequest) )
-			.flatMap(pr -> Flux.fromIterable(supplierRequests)
-				.flatMap(supplierRequestRepository::save)
-				.then(Mono.just(pr)))
-			.block();
+		final var supplierRequest = new SupplierRequest(supplierRequestId,
+			patronRequest, itemId, "BVC67");
 
-		final var fetchedPatronRequest = Mono.from(patronRequestRepository
-			.findById(patronRequest.getId())).block();
+		savePatronAndSupplierRequest(patronRequest, supplierRequest);
+
+		final var fetchedPatronRequest = adminApiClient.getPatronRequestViaAdminApi(
+			patronRequest.getId());
 
 		assertThat(fetchedPatronRequest, is(notNullValue()));
 
-		// Also fetch related supplier requests
-		final var fetchedSupplierRequests = Flux.from(supplierRequestRepository
-				.findAllByPatronRequest(fetchedPatronRequest))
-			.collectList()
+		assertThat(fetchedPatronRequest.id(), is(patronRequestId));
+
+		assertThat(fetchedPatronRequest.citation(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.citation().bibClusterId(), is(bibClusterId));
+
+		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.requestor().identifier(), is("bob-jones"));
+
+		assertThat(fetchedPatronRequest.requestor().agency(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.requestor().agency().code(), is("VDR87"));
+
+		assertThat(fetchedPatronRequest.pickupLocation(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.pickupLocation().code(), is("NMB55"));
+
+		assertThat(fetchedPatronRequest.supplierRequests(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
+
+		final var onlySupplierRequest = fetchedPatronRequest.supplierRequests().get(0);
+
+		assertThat(onlySupplierRequest, is(notNullValue()));
+
+		assertThat(onlySupplierRequest.id(), is(supplierRequestId));
+		assertThat(onlySupplierRequest.agency().code(), is("BVC67"));
+		assertThat(onlySupplierRequest.item().id(), is(itemId));
+	}
+
+	private void savePatronAndSupplierRequest(PatronRequest patronRequest,
+		SupplierRequest supplierRequest) {
+
+		Mono.from(patronRequestRepository.save(patronRequest))
+			.flatMap(pr -> Mono.from(supplierRequestRepository.save(supplierRequest)))
 			.block();
-
-		assertThat(fetchedSupplierRequests.size(), is(1));
-		assertThat(fetchedSupplierRequests.get(0).getId(), is(supplierRequest.getId()));
-
-		UUID uuid = patronRequest.getId();
-		assertNotNull(uuid);
-
-		var getResponse = client.toBlocking()
-			.retrieve(HttpRequest.GET("/admin/patrons/requests/" + fetchedPatronRequest.getId()),
-				PlacedSupplierRequests.class);
-
-		// check the supplier request from admin api is the one we saved
-		assertNotNull(getResponse.supplierRequests().get(0));
-		assertThat(getResponse.supplierRequests().get(0).id(), is(supplierRequest.getId()));
-		assertThat(getResponse.supplierRequests().get(0).agency().code(), is(supplierRequest.getHoldingsAgencyCode()));
-		assertThat(getResponse.supplierRequests().get(0).item().id(), is(supplierRequest.getHoldingsItemId()));
 	}
-
-	/*
-	Expected Response
-	 */
-	@Serdeable
-	public record PlacedSupplierRequests(List<SupplierRequestResponse> supplierRequests) {
-		@Serdeable
-		public record SupplierRequestResponse(UUID id, ItemResponse item, AgencyResponse agency) {}
-		@Serdeable
-		public record ItemResponse(UUID id) {}
-		@Serdeable
-		public record AgencyResponse(String code) { }
-	}
-
 }
