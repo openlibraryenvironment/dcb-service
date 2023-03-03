@@ -5,25 +5,22 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.model.PatronRequest;
-import org.olf.reshare.dcb.request.resolution.fake.FakeSharedIndexService;
-import org.olf.reshare.dcb.test.DcbTest;
 
-import jakarta.inject.Inject;
+import reactor.core.publisher.Mono;
 
-@DcbTest
-class PatronResolutionServiceTests {
+class PatronRequestResolutionServiceTests {
+	private final SharedIndexService mockSharedIndex = mock(SharedIndexService.class);
 
-	@Inject
-	PatronRequestResolutionService patronRequestResolutionService;
-
-	@Inject
-	FakeSharedIndexService sharedIndex;
+	private final PatronRequestResolutionService resolutionService
+		= new PatronRequestResolutionService(mockSharedIndex);
 
 	@Test
 	void shouldResolveToFirstItemWhenSingleHoldingsWithSingleItem() {
@@ -33,18 +30,16 @@ class PatronResolutionServiceTests {
 
 		final var clusteredBib = new ClusteredBib(bibClusterId,
 			List.of(new Holdings(new Holdings.Agency("agency"),
-			List.of(new Holdings.Item(itemId))
-		)));
+			List.of(new Holdings.Item(itemId)))));
 
-		sharedIndex.addClusteredBib(clusteredBib);
+		when(mockSharedIndex.findClusteredBib(bibClusterId))
+			.thenReturn(Mono.just(clusteredBib));
 
 		// A test patron request
-		final var patronRequest = new PatronRequest(UUID.randomUUID(),
-			"patronId", "patronAgencyCode",
-			bibClusterId, "pickupLocationCode");
+		final var patronRequest = createPatronRequest(bibClusterId);
 
 		// resolve patron request to supplier request
-		final var supplierRequestRecord = patronRequestResolutionService
+		final var supplierRequestRecord = resolutionService
 			.resolvePatronRequest(patronRequest).block();
 
 		assertThat(supplierRequestRecord, is(notNullValue()));
@@ -66,18 +61,16 @@ class PatronResolutionServiceTests {
 			List.of(new Holdings(new Holdings.Agency("agency"),
 				List.of(new Holdings.Item(itemId1),
 					new Holdings.Item(itemId2),
-					new Holdings.Item(itemId3))
-			)));
+					new Holdings.Item(itemId3)))));
 
-		sharedIndex.addClusteredBib(clusteredBib);
+		when(mockSharedIndex.findClusteredBib(bibClusterId))
+			.thenReturn(Mono.just(clusteredBib));
 
 		// A test patron request
-		final var patronRequest = new PatronRequest(UUID.randomUUID(),
-			"patronId", "patronAgencyCode",
-			bibClusterId, "pickupLocationCode");
+		final var patronRequest = createPatronRequest(bibClusterId);
 
 		// resolve patron request to supplier request
-		final var supplierRequestRecord = patronRequestResolutionService
+		final var supplierRequestRecord = resolutionService
 			.resolvePatronRequest(patronRequest).block();
 
 		assertThat(supplierRequestRecord, is(notNullValue()));
@@ -97,19 +90,19 @@ class PatronResolutionServiceTests {
 
 		final var clusteredBib = new ClusteredBib(bibClusterId,
 			List.of(
-				new Holdings(new Holdings.Agency("agency 1"), List.of(new Holdings.Item(itemId1))),
-				new Holdings(new Holdings.Agency("agency 2"), List.of(new Holdings.Item(itemId2)))
-				));
+				new Holdings(new Holdings.Agency("agency 1"),
+					List.of(new Holdings.Item(itemId1))),
+				new Holdings(new Holdings.Agency("agency 2"),
+					List.of(new Holdings.Item(itemId2)))));
 
-		sharedIndex.addClusteredBib(clusteredBib);
+		when(mockSharedIndex.findClusteredBib(bibClusterId))
+			.thenReturn(Mono.just(clusteredBib));
 
 		// A test patron request
-		final var patronRequest = new PatronRequest(UUID.randomUUID(),
-			"patronId", "patronAgencyCode",
-			bibClusterId, "pickupLocationCode");
+		final var patronRequest = createPatronRequest(bibClusterId);
 
 		// resolve patron request to supplier request
-		final var supplierRequestRecord = patronRequestResolutionService
+		final var supplierRequestRecord = resolutionService
 			.resolvePatronRequest(patronRequest).block();
 
 		assertThat(supplierRequestRecord, is(notNullValue()));
@@ -124,20 +117,17 @@ class PatronResolutionServiceTests {
 		// create a shared index with bib
 		final var bibClusterId = UUID.randomUUID();
 
-		final var clusteredBib = new ClusteredBib(bibClusterId,
-			List.of());
+		final var clusteredBib = new ClusteredBib(bibClusterId, List.of());
 
-		sharedIndex.addClusteredBib(clusteredBib);
+		when(mockSharedIndex.findClusteredBib(bibClusterId))
+			.thenReturn(Mono.just(clusteredBib));
 
 		// A test patron request
-		final var patronRequest = new PatronRequest(UUID.randomUUID(),
-			"patronId", "patronAgencyCode",
-			bibClusterId, "pickupLocationCode");
+		final var patronRequest = createPatronRequest(bibClusterId);
 
 		// check Exception thrown is what is expected
 		final var e = assertThrows(UnableToResolveHoldings.class,
-			() -> patronRequestResolutionService
-				.resolvePatronRequest(patronRequest).block());
+			() -> resolutionService.resolvePatronRequest(patronRequest).block());
 
 		final var responseMsg = e.getMessage();
 
@@ -151,17 +141,15 @@ class PatronResolutionServiceTests {
 
 		final var clusteredBib = new ClusteredBib(bibClusterId, null);
 
-		sharedIndex.addClusteredBib(clusteredBib);
+		when(mockSharedIndex.findClusteredBib(bibClusterId))
+			.thenReturn(Mono.just(clusteredBib));
 
 		// A test patron request
-		final var patronRequest = new PatronRequest(UUID.randomUUID(),
-			"patronId", "patronAgencyCode",
-			bibClusterId, "pickupLocationCode");
+		final var patronRequest = createPatronRequest(bibClusterId);
 
 		// check Exception thrown is what is expected
 		final var e = assertThrows(UnableToResolveHoldings.class,
-			() -> patronRequestResolutionService
-							.resolvePatronRequest(patronRequest).block());
+			() -> resolutionService.resolvePatronRequest(patronRequest).block());
 
 		final var responseMsg = e.getMessage();
 
@@ -176,17 +164,15 @@ class PatronResolutionServiceTests {
 		final var clusteredBib = new ClusteredBib(bibClusterId,
 			List.of(new Holdings(new Holdings.Agency("agency 1"), List.of())));
 
-		sharedIndex.addClusteredBib(clusteredBib);
+		when(mockSharedIndex.findClusteredBib(bibClusterId))
+			.thenReturn(Mono.just(clusteredBib));
 
 		// A test patron request
-		final var patronRequest = new PatronRequest(UUID.randomUUID(),
-			"patronId", "patronAgencyCode",
-			bibClusterId, "pickupLocationCode");
+		final var patronRequest = createPatronRequest(bibClusterId);
 
 		// check Exception thrown is what is expected
 		final var e = assertThrows(UnableToResolveAnItem.class,
-			() -> patronRequestResolutionService
-				.resolvePatronRequest(patronRequest).block());
+			() -> resolutionService.resolvePatronRequest(patronRequest).block());
 
 		final var responseMsg = e.getMessage();
 
@@ -201,20 +187,24 @@ class PatronResolutionServiceTests {
 		final var clusteredBib = new ClusteredBib(bibClusterId,
 			List.of(new Holdings(new Holdings.Agency("agency 1"), null)));
 
-		sharedIndex.addClusteredBib(clusteredBib);
+		when(mockSharedIndex.findClusteredBib(bibClusterId))
+			.thenReturn(Mono.just(clusteredBib));
 
 		// A test patron request
-		final var patronRequest = new PatronRequest(UUID.randomUUID(),
-			"patronId", "patronAgencyCode",
-			bibClusterId, "pickupLocationCode");
+		final var patronRequest = createPatronRequest(bibClusterId);
 
 		// check Exception thrown is what is expected
 		final var e = assertThrows(UnableToResolveAnItem.class,
-			() -> patronRequestResolutionService
-							.resolvePatronRequest(patronRequest).block());
+			() -> resolutionService.resolvePatronRequest(patronRequest).block());
 
 		final var responseMsg = e.getMessage();
 
 		assertEquals("No Items in holdings", responseMsg);
+	}
+
+	private static PatronRequest createPatronRequest(UUID bibClusterId) {
+		return new PatronRequest(UUID.randomUUID(),
+			"patronId", "patronAgencyCode",
+			bibClusterId, "pickupLocationCode");
 	}
 }
