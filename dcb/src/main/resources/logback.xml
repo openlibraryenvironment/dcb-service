@@ -28,6 +28,7 @@
 	<logger name="io.micronaut.flyway" level="DEBUG"/>
 	<logger name="org.olf.reshare" level="DEBUG"/>
 	<logger name="services.k_int" level="DEBUG"/>
+	<logger name="org.olf.reshare.dcb.ingest.marc.MarcIngestSource" level="WARN"/>
 
 	<root level="info">
 		<appender-ref ref="STDOUT"/>
