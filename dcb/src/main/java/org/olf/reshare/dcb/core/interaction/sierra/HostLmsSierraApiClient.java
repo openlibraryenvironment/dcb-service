@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
+import io.micronaut.context.annotation.Secondary;
+import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
@@ -38,6 +40,7 @@ import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.SierraError;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 
+@Secondary
 @Prototype
 public class HostLmsSierraApiClient implements SierraApiClient {
 	
@@ -52,6 +55,16 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	private final HttpClient client;
 	private static final Argument<SierraError> errorType = Argument.of(SierraError.class);
 
+	public HostLmsSierraApiClient() {
+		
+		// No args constructor needed for Micronaut bean
+		// context to not freak out when deciding which bean of the interface type
+		// implemented it should use. Even though this one is "Secondary" the constructor
+		// args are still found to not exist without this constructor.
+		throw new IllegalStateException();
+	}
+	
+	@Creator
 	public HostLmsSierraApiClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client) {
 		
 		log.debug("Creating Sierra HostLms client for HostLms {}", hostLms.getName());
