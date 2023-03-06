@@ -10,6 +10,7 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.data.annotation.Relation;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
@@ -38,7 +39,8 @@ public class DataAgency implements Agency {
 	@Column(columnDefinition = "TEXT")
 	private String name;
 
+        
+        @Relation(value = Relation.Kind.MANY_TO_ONE)
 	@Nullable
-	@Column(columnDefinition = "TEXT")
-	private HostLms hostLms;
+	private DataHostLms hostLms;
 }

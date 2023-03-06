@@ -11,11 +11,6 @@ create table bib_identifier (
 	namespace varchar(255)
 );
 
-create table agency (
-	id uuid primary key,
-	name varchar(200)
-);
-
 create table location (
 	id uuid primary key,
 	code varchar(200),
@@ -43,6 +38,13 @@ create table host_lms (
   name varchar(200),
   lms_client_class varchar(200),
   client_config text
+);
+
+create table agency (
+  id uuid primary key,
+  name varchar(200),
+  host_lms uuid,
+  CONSTRAINT fk_host_lms FOREIGN KEY (host_lms) REFERENCES host_lms(id)
 );
 
 --create table patron_request_supplier_request (

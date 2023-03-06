@@ -30,6 +30,10 @@ public interface HostLmsRepository {
 	Publisher<DataHostLms> findById(@NonNull UUID id);
 
 	@NonNull
+	@SingleResult
+	Publisher<DataHostLms> findByName(@NonNull String name);
+
+	@NonNull
 	Publisher<DataHostLms> findAll();
 
         Publisher<Void> delete(UUID id);
