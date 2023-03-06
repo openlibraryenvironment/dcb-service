@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import javax.validation.constraints.NotNull;
 
+import io.micronaut.data.annotation.MappedProperty;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 
 import io.micronaut.core.annotation.Creator;
@@ -22,11 +23,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+import io.micronaut.data.annotation.Transient;
 
 @Data
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
-@MappedEntity
+@MappedEntity(value="host_lms")
 @NoArgsConstructor(onConstructor_=@Creator())
 @AllArgsConstructor
 @Builder
@@ -47,11 +49,23 @@ public class DataHostLms implements HostLms {
 	@NonNull
 	@NotNull
 	@Nullable
-	public Class<? extends HostLmsClient> type;
-	
+	@MappedProperty(value="lms_client_class")
+	public String lmsClientClass;
+
 	@NonNull
 	@NotNull
 	@Singular("clientConfig")
 	@TypeDef(type = DataType.JSON)
 	Map<String, Object> clientConfig;
+
+	@Transient
+        public Class<? extends HostLmsClient> getType() {
+		Class<? extends HostLmsClient> resolved_class = null;
+		try {
+			resolved_class = (Class<? extends HostLmsClient>) Class.forName(lmsClientClass);
+		} catch ( ClassNotFoundException cnfe ) {
+		}
+		return resolved_class;
+	}
+
 }

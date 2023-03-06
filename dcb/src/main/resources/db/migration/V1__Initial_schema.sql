@@ -38,6 +38,13 @@ create table supplier_request (
 	CONSTRAINT fk_patron_request FOREIGN KEY (patron_request_id) REFERENCES patron_request(id)
 );
 
+create table host_lms (
+  id uuid primary key,
+  name varchar(200),
+  lms_client_class varchar(200),
+  client_config text
+);
+
 --create table patron_request_supplier_request (
 --	supplier_request_id uuid primary key,
 --	patron_request_id uuid,
