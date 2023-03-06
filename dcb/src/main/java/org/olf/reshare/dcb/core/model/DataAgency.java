@@ -39,8 +39,8 @@ public class DataAgency implements Agency {
 	@Column(columnDefinition = "TEXT")
 	private String name;
 
-        
+	@NotNull
+	@NonNull
         @Relation(value = Relation.Kind.MANY_TO_ONE)
-	@Nullable
 	private DataHostLms hostLms;
 }

@@ -15,8 +15,6 @@ public interface Agency {
 	@NotNull
 	public String getName();
 
-	@NonNull
-	@NotNull
 	public HostLms getHostLms();
 
 	public static DataAgencyBuilder builder() {
