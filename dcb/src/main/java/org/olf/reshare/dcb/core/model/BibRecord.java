@@ -16,6 +16,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+import java.time.Instant;
+import io.micronaut.data.annotation.DateCreated;
+import io.micronaut.data.annotation.DateUpdated;
 
 @Builder
 @Data
@@ -31,6 +34,16 @@ public class BibRecord {
 	@Id
 	@Column(columnDefinition = "UUID")
 	private UUID id;
+
+	@Nullable
+	@Column
+        @DateCreated
+	private Instant dateCreated;
+
+	@Nullable
+	@Column
+        @DateUpdated
+	private Instant dateUpdated;
 
 	@Nullable
 	@Column(columnDefinition = "TEXT")
