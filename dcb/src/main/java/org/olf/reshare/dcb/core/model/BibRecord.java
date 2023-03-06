@@ -16,7 +16,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import io.micronaut.data.annotation.DateCreated;
 import io.micronaut.data.annotation.DateUpdated;
 
@@ -38,12 +38,12 @@ public class BibRecord {
 	@Nullable
 	@Column
         @DateCreated
-	private LocalDateTime dateCreated;
+	private Instant dateCreated;
 
 	@Nullable
 	@Column
         @DateUpdated
-	private LocalDateTime dateUpdated;
+	private Instant dateUpdated;
 
 	@Nullable
 	@Column(columnDefinition = "TEXT")
