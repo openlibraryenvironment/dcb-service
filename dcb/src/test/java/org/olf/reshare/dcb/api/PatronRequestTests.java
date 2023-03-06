@@ -6,14 +6,13 @@ import static java.util.Objects.requireNonNull;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.olf.reshare.dcb.storage.PatronRequestRepository;
-import org.olf.reshare.dcb.storage.SupplierRequestRepository;
 import org.olf.reshare.dcb.test.DcbTest;
 import org.olf.reshare.dcb.test.PatronRequestsDataAccess;
 
@@ -31,12 +30,6 @@ class PatronRequestTests {
 	HttpClient client;
 
 	@Inject
-	PatronRequestRepository patronRequestRepository;
-
-	@Inject
-	SupplierRequestRepository supplierRequestRepository;
-
-	@Inject
 	PatronRequestsDataAccess patronRequestsDataAccess;
 
 	@Inject
@@ -51,61 +44,37 @@ class PatronRequestTests {
 	}
 
 	@Test
-	void canPlacePatronRequest() {
+	void canPlacePatronRequestViaApiAndGetPatronRequestViaAdminApi() {
 		final var bibClusterId = UUID.randomUUID();
-
-		final var response = patronRequestApiClient.placePatronRequest(bibClusterId,
+		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(bibClusterId,
 			"jane-smith", "RGX12", "ABC123");
 
-		assertThat(response.getStatus(), is(OK));
+		assertThat(placedRequestResponse.getStatus(), is(OK));
 
-		final var placedPatronRequest = response.body();
+		final var patronRequestId = requireNonNull(placedRequestResponse.body()).id();
+		final var fetchedPatronRequest = adminApiClient.getPatronRequestViaAdminApi(patronRequestId);
 
-		assertThat(placedPatronRequest, is(notNullValue()));
+		assertThat(fetchedPatronRequest, is(notNullValue()));
+		assertThat(fetchedPatronRequest.id(), is(patronRequestId));
+		assertThat(fetchedPatronRequest.citation(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.citation().bibClusterId(), is(bibClusterId));
+		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.requestor().identifier(), is("jane-smith"));
+		assertThat(fetchedPatronRequest.requestor().agency(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.requestor().agency().code(), is("RGX12"));
+		assertThat(fetchedPatronRequest.pickupLocation(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.pickupLocation().code(), is("ABC123"));
 
-		assertThat(placedPatronRequest.id(), is(notNullValue()));
+		// supplier request
+		assertThat(fetchedPatronRequest.supplierRequests(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
 
-		assertThat(placedPatronRequest.citation(), is(notNullValue()));
-		assertThat(placedPatronRequest.citation().bibClusterId(), is(bibClusterId));
+		final var onlySupplierRequest = fetchedPatronRequest.supplierRequests().get(0);
 
-		assertThat(placedPatronRequest.requestor(), is(notNullValue()));
-		assertThat(placedPatronRequest.requestor().identifier(), is("jane-smith"));
-
-		assertThat(placedPatronRequest.requestor().agency(), is(notNullValue()));
-		assertThat(placedPatronRequest.requestor().agency().code(), is("RGX12"));
-
-		assertThat(placedPatronRequest.pickupLocation(), is(notNullValue()));
-		assertThat(placedPatronRequest.pickupLocation().code(), is("ABC123"));
-	}
-
-	@Test
-	void canGetPlacedPatronRequestViaAdminAPI() {
-		final var bibClusterId = UUID.randomUUID();
-
-		final var placeRequestResponse = patronRequestApiClient.placePatronRequest(
-			bibClusterId, "alice-stevens", "BVN45", "HTF56");
-
-		assertThat(placeRequestResponse.getStatus(), is(OK));
-
-		final var id = requireNonNull(placeRequestResponse.body()).id();
-
-		var patronRequest = adminApiClient.getPatronRequestViaAdminApi(id);
-
-		assertThat(patronRequest, is(notNullValue()));
-
-		assertThat(patronRequest.id(), is(id));
-
-		assertThat(patronRequest.citation(), is(notNullValue()));
-		assertThat(patronRequest.citation().bibClusterId(), is(bibClusterId));
-
-		assertThat(patronRequest.requestor(), is(notNullValue()));
-		assertThat(patronRequest.requestor().identifier(), is("alice-stevens"));
-
-		assertThat(patronRequest.requestor().agency(), is(notNullValue()));
-		assertThat(patronRequest.requestor().agency().code(), is("BVN45"));
-
-		assertThat(patronRequest.pickupLocation(), is(notNullValue()));
-		assertThat(patronRequest.pickupLocation().code(), is("HTF56"));
+		assertThat(onlySupplierRequest, is(notNullValue()));
+		assertThat(onlySupplierRequest.id(), is(notNullValue()));
+		assertThat(onlySupplierRequest.agency().code(), is("fake agency"));
+		assertThat(onlySupplierRequest.item().id(), is(notNullValue()));
 	}
 
 	@Test
