@@ -25,16 +25,21 @@ public class LoggingRetryEventListener implements RetryEventListener {
 		}
 
 		final var source = retry.getSource();
+		final var retryState = retry.getRetryState();
 		final String args = Arrays.stream(
 				source.getParameterValues())
 			.filter(Objects::nonNull)
 			.map(o -> Objects.toString(o, null))
 			.collect(Collectors.joining(", "));
 
-		log.info("Retry #{} for {}::{}( {} )",
-			retry.getRetryState().currentAttempt(),
+		log.info("Retry #{} for \"{}\" {}::{}( {} )",
+			retryState.currentAttempt(),
+			retry.getThrowable().getMessage(),
 			source.getDeclaringType().getSimpleName(),
 			source.getName(), args);
-		log.debug("Caused by: {}", retry.getThrowable());
+		
+		if (retryState.currentAttempt() == retryState.getMaxAttempts()) {
+			retry.getThrowable().printStackTrace();
+		}
 	}
 }
