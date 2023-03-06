@@ -43,8 +43,8 @@ create table host_lms (
 create table agency (
   id uuid primary key,
   name varchar(200),
-  host_lms uuid,
-  CONSTRAINT fk_host_lms FOREIGN KEY (host_lms) REFERENCES host_lms(id)
+  host_lms_id uuid,
+  CONSTRAINT fk_host_lms FOREIGN KEY (host_lms_id) REFERENCES host_lms(id)
 );
 
 --create table patron_request_supplier_request (

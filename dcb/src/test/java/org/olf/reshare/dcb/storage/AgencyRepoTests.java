@@ -64,6 +64,8 @@ class AgencyRepoTests {
                                                            "org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient",
                                                            cfg);
 
+                Mono.from(hostLmsRepository.save(new_host_lms)).block();
+
         	DataAgency new_agency = new DataAgency(UUID.randomUUID(), "Test Agency Name1", new_host_lms);
 
         	Mono.from(agencyRepository.save(new_agency)).block();
