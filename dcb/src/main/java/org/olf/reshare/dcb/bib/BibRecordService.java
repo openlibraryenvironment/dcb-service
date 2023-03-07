@@ -38,6 +38,8 @@ public class BibRecordService {
 		return BibRecord.builder()
 			.id(imported.getUuid())
 			.title(imported.getTitle())
+                        .sourceSystemId(imported.getSourceSystemId())
+                        .sourceRecordId(imported.getSourceRecordId())
 			.build();
 	}
 

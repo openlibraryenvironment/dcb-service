@@ -2,7 +2,9 @@ create table bib_record (
 	id uuid primary key,
         date_created timestamp,
         date_updated timestamp,
-	title varchar(1024)
+        source_system_id uuid,
+        source_record_id varchar(256),
+	title text
 );
 
 create table bib_identifier (

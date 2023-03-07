@@ -45,6 +45,16 @@ public class BibRecord {
         @DateUpdated
 	private Instant dateUpdated;
 
+        @NotNull
+        @NonNull
+        @Column(columnDefinition = "UUID")
+        private UUID sourceSystemId;
+
+        @NotNull
+        @NonNull
+        @Column(columnDefinition = "varchar(256)")
+        private String sourceRecordId;
+
 	@Nullable
 	@Column(columnDefinition = "TEXT")
 	private String title;
