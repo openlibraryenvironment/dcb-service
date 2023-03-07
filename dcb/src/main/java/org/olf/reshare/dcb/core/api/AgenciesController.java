@@ -45,6 +45,7 @@ public class AgenciesController {
                 this.agencyRepository = agencyRepository;
 	}
 
+/*
         @Secured(SecurityRule.IS_ANONYMOUS)
         @Operation(
                 summary = "Browse Agencies",
@@ -54,13 +55,14 @@ public class AgenciesController {
                         @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
         )
         @Get("/{?pageable*}")
-        public Mono<Page<AgencyData>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
+        public Mono<Page<DataAgency>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
                 if (pageable == null) {
                         pageable = Pageable.from(0, 100);
                 }
 
                 return Mono.from(agencyRepository.findAll(pageable));
         }
+*/
 
         @Get("/{id}") 
         public Mono<DataAgency> show(UUID id) {
