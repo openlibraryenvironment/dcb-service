@@ -32,6 +32,10 @@ public interface AgencyRepository {
 	@SingleResult
 	Publisher<DataAgency> findById(@NonNull UUID id);
 
+        @NonNull
+        @SingleResult
+        Publisher<Page<BibRecord>> findAll(Pageable page);
+
 	@NonNull
 	Publisher<? extends DataAgency> findAll();
 

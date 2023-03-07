@@ -22,12 +22,14 @@ import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
-import org.olf.reshare.dcb.core.model.Agency;
+import org.olf.reshare.dcb.core.model.DataAgency;
 import org.olf.reshare.dcb.storage.AgencyRepository;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.UUID;
 
 @Validated
 @Secured(SecurityRule.IS_ANONYMOUS)
@@ -43,17 +45,25 @@ public class AgenciesController {
                 this.agencyRepository = agencyRepository;
 	}
 
+        @Secured(SecurityRule.IS_ANONYMOUS)
         @Operation(
-                summary = "List agencies"
+                summary = "Browse Agencies",
+                description = "Paginate through the list of known agencies",
+                parameters = {
+                        @Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
+                        @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
         )
-        @Get("/")
-        Mono<Page<Agency>> list() {
-                List<Agency> temp_agencies = new ArrayList<Agency>();
-                return Mono.just(
-                        Page.of(
-                                temp_agencies,
-                                Pageable.from(1, temp_agencies.size()),
-                                temp_agencies.size()));
+        @Get("/{?pageable*}")
+        public Mono<Page<AgencyData>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
+                if (pageable == null) {
+                        pageable = Pageable.from(0, 100);
+                }
+
+                return Mono.from(agencyRepository.findAll(pageable));
         }
 
+        @Get("/{id}") 
+        public Mono<DataAgency> show(UUID id) {
+                return Mono.from(agencyRepository.findById(id)); 
+        }
 }
