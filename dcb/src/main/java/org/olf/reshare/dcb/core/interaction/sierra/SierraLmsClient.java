@@ -131,7 +131,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public IngestRecordBuilder initIngestRecordBuilder(BibResult resource) {
 
 		// Use the host LMS as the
-		return IngestRecord.builder().uuid(uuid5ForBibResult(resource));
+		return IngestRecord.builder()
+                          .uuid(uuid5ForBibResult(resource))
+                          .sourceSystemId(lms.getId())
+                          .sourceRecordId(resource.id());
+
 	}
 
 	@Override

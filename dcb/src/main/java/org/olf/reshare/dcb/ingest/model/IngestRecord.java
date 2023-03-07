@@ -25,6 +25,14 @@ public class IngestRecord {
 	@NotEmpty
 	UUID uuid;
 
+        @NonNull
+        @NotEmpty
+        UUID sourceSystemId;
+
+        @NonNull
+        @NotEmpty
+        String sourceRecordId;
+
 	@Nullable
 	String title;
 

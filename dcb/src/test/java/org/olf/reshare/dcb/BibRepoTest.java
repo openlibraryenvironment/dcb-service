@@ -38,11 +38,17 @@ class BibRepoTest {
 	void testBibCreation() {
 		log.debug("1. testBibCreation");
 
-		Mono<BibRecord> bib_record_mono = Mono.from(bibRepo.save(
-				BibRecord.builder()
-					.id(UUID.randomUUID())
-					.title("Brain of the Firm")
-					.build()));
+                BibRecord raw_record = BibRecord.builder()
+                                        .id(UUID.randomUUID())
+                                        .title("Brain of the Firm")
+                                        .sourceSystemId(UUID.randomUUID())
+                                        .sourceRecordId(UUID.randomUUID().toString())
+                                        .build();
+
+                log.debug("Constructed raw bib: {}",raw_record.toString());
+
+		Mono<BibRecord> bib_record_mono = Mono.from(bibRepo.save(raw_record));
+
 		log.debug("Created test bib: {}", bib_record_mono.block().toString());
 
 		// Make sure that we have 1 task
