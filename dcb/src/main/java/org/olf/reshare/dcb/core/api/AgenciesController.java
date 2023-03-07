@@ -23,6 +23,8 @@ import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
 import org.olf.reshare.dcb.core.model.DataAgency;
@@ -45,7 +47,6 @@ public class AgenciesController {
                 this.agencyRepository = agencyRepository;
 	}
 
-/*
         @Secured(SecurityRule.IS_ANONYMOUS)
         @Operation(
                 summary = "Browse Agencies",
@@ -62,7 +63,6 @@ public class AgenciesController {
 
                 return Mono.from(agencyRepository.findAll(pageable));
         }
-*/
 
         @Get("/{id}") 
         public Mono<DataAgency> show(UUID id) {
