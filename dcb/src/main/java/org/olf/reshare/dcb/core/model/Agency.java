@@ -2,27 +2,24 @@ package org.olf.reshare.dcb.core.model;
 
 import java.util.UUID;
 
-import javax.validation.constraints.NotNull;
-
 import org.olf.reshare.dcb.core.model.DataAgency.DataAgencyBuilder;
 
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.data.annotation.Id;
 
 public interface Agency {
 
 	@NonNull
-	@NotNull
+	@Id
 	public UUID getId();
 
 	@NonNull
-	@NotNull
 	public String getName();
 
 	@NonNull
-	@NotNull
-	public HostLms getHostLms();
+	public <T extends HostLms> T getHostLms();
 
 	public static DataAgencyBuilder builder() {
 		return DataAgency.builder();
-  }
+	}
 }

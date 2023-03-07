@@ -1,46 +1,40 @@
-//package org.olf.reshare.dcb.storage;
-//
-//import java.util.UUID;
-//
-//import javax.validation.Valid;
-//import javax.validation.constraints.NotNull;
-//
-//import org.olf.reshare.dcb.core.model.AgencyDataImpl;
-//import org.reactivestreams.Publisher;
-//
-//import io.micronaut.core.annotation.NonNull;
-//import io.micronaut.core.async.annotation.SingleResult;
-//import io.micronaut.data.model.Page;
-//import io.micronaut.data.model.Pageable;
-//
-//public interface AgencyRepository {
-//
-//  @NonNull
-//  @SingleResult
-//  Publisher<? extends AgencyDataImpl> save(@Valid @NotNull @NonNull AgencyDataImpl agency);
-//  
-//  @NonNull
-//  @SingleResult
-//  Publisher<? extends AgencyDataImpl> update(@Valid @NotNull @NonNull AgencyDataImpl agency);
-//
-//  @NonNull
-//  @SingleResult
-//  Publisher<AgencyDataImpl> findById(@NonNull UUID id);
-//
-//  @NonNull
-//  Publisher<AgencyDataImpl> findAll();
-//  
-//  @NonNull
-//  @SingleResult
-//  Publisher<Page<AgencyDataImpl>> findAll(Pageable page);
-//  
-//  @NonNull
-//  @SingleResult
-//  Publisher<Boolean> existsById(@NonNull UUID id);
-//
-//  public default void cleanUp() {
-//  };
-//
-//  public default void commit() {
-//  }
-//}
+package org.olf.reshare.dcb.storage;
+
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
+import io.micronaut.data.model.Sort;
+
+import org.olf.reshare.dcb.core.model.DataAgency;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import java.util.UUID;
+
+public interface AgencyRepository {
+
+	@NonNull
+	@SingleResult
+	Publisher<? extends DataAgency> save(@Valid @NotNull @NonNull DataAgency agency);
+
+	@NonNull
+	@SingleResult
+	Publisher<? extends DataAgency> persist(@Valid @NotNull @NonNull DataAgency agency);
+
+	@NonNull
+	@SingleResult
+	Publisher<? extends DataAgency> update(@Valid @NotNull @NonNull DataAgency agency);
+
+	@NonNull
+	@SingleResult
+	Publisher<DataAgency> findById(@NonNull UUID id);
+
+	@NonNull
+	Publisher<? extends DataAgency> findAll();
+
+	Publisher<Void> delete(UUID id);
+
+}

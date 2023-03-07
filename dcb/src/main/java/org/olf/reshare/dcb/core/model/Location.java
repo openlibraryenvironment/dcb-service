@@ -4,16 +4,27 @@ import java.util.UUID;
 
 import javax.validation.constraints.NotNull;
 
+import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Column;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.Singular;
 
+
+@Data
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
 @MappedEntity
+@NoArgsConstructor(onConstructor_ = @Creator())
+@AllArgsConstructor
+@Builder
 public class Location {
 
 	@NotNull
