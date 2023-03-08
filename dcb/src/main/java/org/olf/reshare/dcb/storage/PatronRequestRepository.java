@@ -18,6 +18,10 @@ public interface PatronRequestRepository {
 
 	@NonNull
 	@SingleResult
+	Publisher<? extends PatronRequest> update(@Valid @NotNull @NonNull PatronRequest patronRequest);
+
+	@NonNull
+	@SingleResult
 	Publisher<PatronRequest> findById(@NotNull UUID id);
 
 	@NonNull

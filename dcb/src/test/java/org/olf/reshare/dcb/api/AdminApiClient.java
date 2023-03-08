@@ -25,7 +25,7 @@ class AdminApiClient {
 	static
 	record AdminAccessPatronRequest(@Nullable UUID id, @Nullable Citation citation,
 		@Nullable Requestor requestor, @Nullable PickupLocation pickupLocation,
-		@Nullable List<SupplierRequest> supplierRequests) {
+		@Nullable List<SupplierRequest> supplierRequests, @Nullable Status status) {
 
 		@Serdeable
 		record Citation(@Nullable UUID bibClusterId) { }
@@ -44,5 +44,8 @@ class AdminApiClient {
 
 		@Serdeable
 		record Item(UUID id) {}
+
+		@Serdeable
+		record Status(String code) { }
 	}
 }

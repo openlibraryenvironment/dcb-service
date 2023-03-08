@@ -59,7 +59,8 @@ class PatronRequestApiClient {
 	@Serdeable
 	static
 	record PlacedPatronRequest(@Nullable UUID id, @Nullable Citation citation,
-		@Nullable Requestor requestor, @Nullable PickupLocation pickupLocation) {
+		@Nullable Requestor requestor, @Nullable PickupLocation pickupLocation,
+	 	@Nullable Status status) {
 
 		@Serdeable
 		record Citation(@Nullable UUID bibClusterId) { }
@@ -72,5 +73,8 @@ class PatronRequestApiClient {
 
 		@Serdeable
 		record PickupLocation(String code) { }
+
+		@Serdeable
+		record Status(String code) { }
 	}
 }
