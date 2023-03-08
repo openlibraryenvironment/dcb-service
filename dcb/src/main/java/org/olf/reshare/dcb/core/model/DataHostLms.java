@@ -3,6 +3,8 @@ package org.olf.reshare.dcb.core.model;
 import java.util.Map;
 import java.util.UUID;
 
+import javax.validation.constraints.Size;
+
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 
 import io.micronaut.core.annotation.Creator;
@@ -39,7 +41,7 @@ public class DataHostLms implements HostLms {
 
 	@NonNull
 	@Nullable
-	@Column(columnDefinition = "TEXT")
+	@Size(max = 200)
 	public String name;
 
 	@NonNull
@@ -52,6 +54,7 @@ public class DataHostLms implements HostLms {
 	@TypeDef(type = DataType.JSON)
 	Map<String, Object> clientConfig;
 
+	@SuppressWarnings("unchecked")
 	@Transient
 	public Class<? extends HostLmsClient> getType() {
 		//TODO: Replace this with a proper converter implementation then remove this getter.
