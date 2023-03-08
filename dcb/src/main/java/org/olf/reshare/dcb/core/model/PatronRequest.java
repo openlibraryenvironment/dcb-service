@@ -17,6 +17,8 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
+
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
 @Data
@@ -42,8 +44,21 @@ public class PatronRequest {
 	@Column(columnDefinition = "UUID")
 	private final UUID bibClusterId;
 
+
 	@Nullable
 	@Size(max = 200)
 	private final String pickupLocationCode;
+
+	@Nullable
+	@Size(max = 200)
+	private final String statusCode;
+
+	public PatronRequest resolve() {
+		return new PatronRequest(id, patronId, patronAgencyCode, bibClusterId,
+			pickupLocationCode, RESOLVED);
+	}
+
 }
+
+
 

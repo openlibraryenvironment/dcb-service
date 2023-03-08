@@ -23,6 +23,9 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import net.minidev.json.JSONObject;
 
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
+
 @DcbTest
 class PatronRequestTests {
 	@Inject
@@ -64,6 +67,8 @@ class PatronRequestTests {
 		assertThat(fetchedPatronRequest.requestor().agency().code(), is("RGX12"));
 		assertThat(fetchedPatronRequest.pickupLocation(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.pickupLocation().code(), is("ABC123"));
+		assertThat(fetchedPatronRequest.status(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.status().code(), is(RESOLVED));
 
 		// supplier request
 		assertThat(fetchedPatronRequest.supplierRequests(), is(notNullValue()));

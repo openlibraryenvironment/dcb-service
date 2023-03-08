@@ -68,7 +68,10 @@ public class PatronRequestResolutionService {
 		log.debug(String.format("create sr %s %s %s", uuid,
 			holdingsAndItemPair.item, agency));
 
-		return new SupplierRequest(uuid, patronRequest,
+		log.debug("Resolve the patron request");
+		final var updatedPatronRequest = patronRequest.resolve();
+
+		return new SupplierRequest(uuid, updatedPatronRequest,
 			holdingsAndItemPair.item.id(), agency.code());
 	}
 
