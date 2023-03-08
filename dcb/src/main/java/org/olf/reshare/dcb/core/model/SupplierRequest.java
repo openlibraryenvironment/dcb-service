@@ -41,11 +41,11 @@ public class SupplierRequest {
 	@NotNull
 	@NonNull
 	@Column(columnDefinition = "UUID")
-	private final UUID HoldingsItemId;
+	private final UUID holdingsItemId;
 
 	@NotNull
 	@NonNull
 	@Size(max = 200)
-	private final String HoldingsAgencyCode;
+	private final String holdingsAgencyCode;
 }
 
