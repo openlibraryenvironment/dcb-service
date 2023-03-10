@@ -34,6 +34,18 @@ micronaut:
   http:
     client:
       read-timeout: PT30S
+      
+  metrics:
+    enabled: true
+    export:
+      prometheus:
+        enabled: true
+        step: PT1M
+        descriptions: true
+
+endpoints:
+  prometheus:
+    sensitive: false
 
 flyway:
   enabled: true

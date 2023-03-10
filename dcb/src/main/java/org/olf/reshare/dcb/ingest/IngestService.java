@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 
 import org.olf.reshare.dcb.bib.BibRecordService;
+import org.olf.reshare.dcb.core.model.BibRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +53,29 @@ public class IngestService implements Runnable {
 			log.info("Mutex now set to {}", me.mutex);
 		};
 	}
+	
+	public Flux<BibRecord> getBibRecordStream() {
+		return Flux.concat(
+			Flux.fromIterable(sourceProviders)
+				.concatMap(provider -> provider.getIngestSources())
+				.filter(source -> {
+					if ( source.isEnabled() ) return true;
+					log.info ("Ingest from source: {} has been disabled in config", source.getName());
+					
+					return false;
+				})
+				.map(source -> source.apply(lastRun))
+				.onErrorResume(t -> {
+					log.error("Error ingesting data {}", t.getMessage());
+					t.printStackTrace();
+					return Mono.empty(); 
+				}))
+
+
+			// Interleaved source stream from all source results.
+			// Process them using the pipeline steps...
+			.concatMap(bibRecordService::process);
+	}
 
 	@Override
 	@Scheduled(initialDelay = "2s", fixedDelay = "1h")
@@ -68,51 +92,33 @@ public class IngestService implements Runnable {
 		final long start = System.currentTimeMillis();
 
 		// Interleave sources to form 1 flux of ingest records.
-		this.mutex = Flux.concat(
-			Flux.fromIterable(sourceProviders)
-				.concatMap(provider -> provider.getIngestSources())
-				.filter(source -> {
-					if ( source.isEnabled() ) return true;
-					log.info ("Ingest from source: {} has been disabled in config", source.getName());
-					
-					return false;
-				})
-				.map(source -> source.apply(lastRun))
-				.onErrorResume(t -> {
-					log.error("Error ingesting data {}", t.getMessage());
-					t.printStackTrace();
-					return Mono.empty(); 
-				}))
-				
-				// Interleaved source stream from all source results.
-				// Process them using the pipeline steps...
-				.concatMap(bibRecordService::process)
-				
-				// General handlers.
-				.doOnCancel(cleanUp(lastRun)) // Don't change the last run
-				.onErrorResume(t -> {
-					log.error("Error ingesting sources {}", t.getMessage());
-					t.printStackTrace();
-					cleanUp(lastRun).run();
+		this.mutex = getBibRecordStream()
 
-					return Mono.empty();
-					
-				})
-				
-				.count()
-					.doOnNext(count -> {
-						if (count < 1) {
-							log.info("No records to import");
-							return;
-						}
+			// General handlers.
+			.doOnCancel(cleanUp(lastRun)) // Don't change the last run
+			.onErrorResume(t -> {
+				log.error("Error ingesting records {}", t.getMessage());
+				t.printStackTrace();
+				cleanUp(lastRun).run();
 
-						final Duration elapsed = Duration.ofMillis(System.currentTimeMillis() - start);
-						log.info("Finsihed adding {} records. Total time {} hours, {} minute and {} seconds", count,
-								elapsed.toHoursPart(), elapsed.toMinutesPart(), elapsed.toSecondsPart());
-					})
-					
-				.then(Mono.from( bibRecordService.cleanup() ))
-				
-				.subscribe();
+				return Mono.empty();
+			
+			})
+
+			.count()
+				.doOnNext(count -> {
+					if (count < 1) {
+						log.info("No records to import");
+						return;
+					}
+
+					final Duration elapsed = Duration.ofMillis(System.currentTimeMillis() - start);
+					log.info("Finsihed adding {} records. Total time {} hours, {} minute and {} seconds", count,
+							elapsed.toHoursPart(), elapsed.toMinutesPart(), elapsed.toSecondsPart());
+				})
+
+			.then(Mono.from( bibRecordService.cleanup() ))
+
+			.subscribe();
 	}
 }

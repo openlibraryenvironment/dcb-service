@@ -40,6 +40,15 @@ include::deployment/env-vars.adoc[]
 include::deployment/docker.adoc[leveloffset=2]
 include::deployment/bare-metal-build.adoc[leveloffset=2]
 
+== Metrics
+
+Metrics are available from running instances of the application at `/metrics`.
+
+=== Prometheus
+
+Reshare DCB supports providing metrics in the format understood by Prometheus.
+By default Prometheus looks for metrics to be published under `/metrics`, but seeing as that is the home of our internal metrics, the prometheus format is instead published under `/prometheus`
+
 == API Docs
 
 View the link:openapi/[HTTP API documentation^] (Opens in new window).
