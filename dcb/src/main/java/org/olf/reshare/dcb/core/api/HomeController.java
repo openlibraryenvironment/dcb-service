@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb.controller;
+package org.olf.reshare.dcb.core.api;
 
 import static io.micronaut.http.MediaType.TEXT_PLAIN;
 import static io.micronaut.security.rules.SecurityRule.IS_AUTHENTICATED;

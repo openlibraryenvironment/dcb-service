@@ -1,46 +1,33 @@
 package org.olf.reshare.dcb.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
-import static org.mockserver.model.HttpTemplate.template;
 import static org.mockserver.model.JsonBody.json;
-import static org.mockserver.model.Parameter.param;
-
-import java.io.IOException;
-
-import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
-import org.mockserver.client.MockServerClient;
-import org.mockserver.matchers.TimeToLive;
-import org.mockserver.matchers.Times;
-import org.mockserver.model.HttpTemplate.TemplateType;
-import org.mockserver.model.MediaType;
-
-import io.micronaut.core.io.ResourceLoader;
-import jakarta.inject.Inject;
-import reactor.core.publisher.Mono;
-import services.k_int.interaction.sierra.SierraApiClient;
-import services.k_int.test.mockserver.MockServerMicronautTest;
 
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import javax.validation.constraints.NotEmpty;
-
 import org.junit.jupiter.api.BeforeAll;
-import org.olf.reshare.dcb.core.interaction.HostLmsClient;
+import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.mockserver.client.MockServerClient;
+import org.mockserver.model.MediaType;
 import org.olf.reshare.dcb.core.model.HostLms;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
+import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import jakarta.inject.Inject;
+import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@MicronautTest(transactional = false, propertySources = { "classpath:tests/hostLmsProps.yml" })
+@MicronautTest(rebuildContext = true, transactional = false, propertySources = { "classpath:tests/hostLmsProps.yml" })
+@TestInstance(Lifecycle.PER_CLASS)
 @TestMethodOrder(OrderAnnotation.class)
 public class HostLmsTests {
 	
@@ -48,43 +35,11 @@ public class HostLmsTests {
 	public static void addFakeSierraApis(MockServerClient mock) {
 		
 		// Mock login to sierra
-		mock.when(
-			request()
-				.withHeader("Accept", "application/json")
-				.withHeader("host", "test1.com")
-				.withHeader("Authorization", "Basic dGVzdDEta2V5OnRlc3QxLXNlY3JldA==")
-				.withMethod("POST")
-				.withPath("/iii/sierra-api/v6/token"))
-		.respond(
-				response()
-					.withStatusCode(200)
-					.withContentType(MediaType.APPLICATION_JSON)
-					.withBody(
-						json("{"
-								+ "		\"access_token\": \"test1_auth_token\"," 
-								+ "		\"token_type\": \"Bearer\","
-								+ "		\"expires_in\": 3600"
-								+ "}"
-						)));
+		SierraTestUtils.mockFor(mock, "test1.com")
+			.setValidCredentials("test1-key", "test1-secret", "test1_auth_token", 3000L);
 		
-		mock.when(
-				request()
-					.withHeader("Accept", "application/json")
-					.withHeader("host", "test2.com")
-					.withHeader("Authorization", "Basic dGVzdDIta2V5Mjp0ZXN0Mi1zZWNyZXQ=")
-					.withMethod("POST")
-					.withPath("/iii/sierra-api/v6/token"))
-			.respond(
-					response()
-						.withStatusCode(200)
-						.withContentType(MediaType.APPLICATION_JSON)
-						.withBody(
-							json("{"
-									+ "		\"access_token\": \"test2_auth_token\"," 
-									+ "		\"token_type\": \"Bearer\","
-									+ "		\"expires_in\": 3600"
-									+ "}"
-							)));
+		SierraTestUtils.mockFor(mock, "test2.com")
+			.setValidCredentials("test2-key2", "test2-secret", "test2_auth_token", 3600L);
 		
 		// Mock the response from Sierra
 		mock.when(
@@ -148,19 +103,6 @@ public class HostLmsTests {
 								+ "		}\n"
 								+ "	]\n"
 								+ "}")));
-		
-		
-		// Catch all others. 403.
-		mock.when(
-	      request(),
-	      Times.unlimited(),
-	      TimeToLive.unlimited(),
-	      -10
-	  )
-	  .respond(
-	      response()
-	          .withStatusCode(403)
-	  );
 	}
 
 	@Inject
