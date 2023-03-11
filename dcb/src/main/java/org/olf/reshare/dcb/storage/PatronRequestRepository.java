@@ -10,6 +10,8 @@ import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
 
 public interface PatronRequestRepository {
 	@NonNull
@@ -26,6 +28,10 @@ public interface PatronRequestRepository {
 
 	@NonNull
 	Publisher<PatronRequest> findAll();
+
+        @NonNull
+        @SingleResult
+        Publisher<Page<PatronRequest>> findAll(Pageable page);
 
 	Publisher<Void> delete(UUID id);
 }

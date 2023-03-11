@@ -6,14 +6,13 @@ import javax.validation.Valid;
 
 import org.olf.reshare.dcb.request.fulfilment.PatronRequestService;
 import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand;
-import org.olf.reshare.dcb.core.model.PatronRequest;
-import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micronaut.core.async.annotation.SingleResult;
+
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
+import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
@@ -27,51 +26,46 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
 import reactor.core.publisher.Mono;
+import org.olf.reshare.dcb.core.model.DataAgency;
+import org.olf.reshare.dcb.storage.AgencyRepository;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.UUID;
 
 @Validated
 @Secured(SecurityRule.IS_ANONYMOUS)
-@Controller("/patrons/requests")
-@Tag(name = "Patron Request API")
-public class PatronRequestController {
-	private static final Logger log = LoggerFactory.getLogger(PatronRequestController.class);
+@Controller("/agencies")
+@Tag(name = "Agencies")
+public class AgenciesController {
 
-	private final PatronRequestService patronRequestService;
-	private final PatronRequestRepository patronRequestRepository;
+	private static final Logger log = LoggerFactory.getLogger(AgenciesController.class);
 
-	public PatronRequestController(PatronRequestService patronRequestService, PatronRequestRepository patronRequestRepository) {
-		this.patronRequestService = patronRequestService;
-		this.patronRequestRepository = patronRequestRepository;
-	}
+        private AgencyRepository agencyRepository;
 
-	@SingleResult
-	@Post(value = "/place", consumes = APPLICATION_JSON)
-	public Mono<HttpResponse<PatronRequestView>> placePatronRequest(
-		@Body @Valid PlacePatronRequestCommand command) {
-
-		log.debug("REST, place patron request: {}", command);
-
-		return patronRequestService.placePatronRequest(command)
-			.map(PatronRequestView::from)
-			.map(HttpResponse::ok);
+	public AgenciesController(AgencyRepository agencyRepository) {
+                this.agencyRepository = agencyRepository;
 	}
 
         @Secured(SecurityRule.IS_ANONYMOUS)
         @Operation(
-                summary = "Browse Requests",
-                description = "Paginate through the list of Patron Requests",
+                summary = "Browse Agencies",
+                description = "Paginate through the list of known agencies",
                 parameters = {
                         @Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
                         @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
         )
         @Get("/{?pageable*}")
-        public Mono<Page<PatronRequest>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
+        public Mono<Page<DataAgency>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
                 if (pageable == null) {
                         pageable = Pageable.from(0, 100);
                 }
 
-                return Mono.from(patronRequestRepository.findAll(pageable));
+                return Mono.from(agencyRepository.findAll(pageable));
         }
 
+        @Get("/{id}") 
+        public Mono<DataAgency> show(UUID id) {
+                return Mono.from(agencyRepository.findById(id)); 
+        }
 }
