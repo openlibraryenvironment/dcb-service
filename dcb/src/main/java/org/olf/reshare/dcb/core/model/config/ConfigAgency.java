@@ -17,10 +17,12 @@ public class ConfigAgency implements Agency {
 	
 	private final BeanContext beans;
 	private final UUID id = UUID.randomUUID();
+	private String code;
 	private String name;
 	private String hostLms;
 	
-	public ConfigAgency( @Parameter("name") String name, BeanContext beanProvider ) {
+	public ConfigAgency( @Parameter("code") String code, @Parameter("name") String name, BeanContext beanProvider ) {
+		this.code = code;
 		this.name = name;
 		this.beans = beanProvider;
 	}
@@ -34,6 +36,11 @@ public class ConfigAgency implements Agency {
 	@Override
 	public UUID getId() {
 		return id;
+	}
+
+	@Override
+	public String getCode() {
+		return code;
 	}
 
 	@Override

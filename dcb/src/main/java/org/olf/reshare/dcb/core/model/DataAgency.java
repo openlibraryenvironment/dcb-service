@@ -32,6 +32,11 @@ public class DataAgency implements Agency {
 	private UUID id;
 
 	@NonNull
+	@Column(columnDefinition = "varchar(32)")
+	private String code;
+
+	@NonNull
+	@Column(columnDefinition = "varchar(200)")
 	@Size(max = 200)
 	private String name;
 

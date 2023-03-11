@@ -29,9 +29,17 @@ public interface HostLmsRepository {
 	@SingleResult
 	Publisher<DataHostLms> findById(@NonNull UUID id);
 
+        @NonNull
+        @SingleResult
+        Publisher<Boolean> existsById(@NonNull UUID id);
+
 	@NonNull
 	@SingleResult
 	Publisher<DataHostLms> findByName(@NonNull String name);
+
+        @NonNull
+        @SingleResult
+        Publisher<Page<DataHostLms>> findAll(Pageable page);
 
 	@NonNull
 	Publisher<DataHostLms> findAll();

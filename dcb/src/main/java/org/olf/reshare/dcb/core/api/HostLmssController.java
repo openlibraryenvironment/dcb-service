@@ -26,51 +26,51 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
-import org.olf.reshare.dcb.core.model.DataAgency;
-import org.olf.reshare.dcb.storage.AgencyRepository;
+import org.olf.reshare.dcb.core.model.DataHostLms;
+import org.olf.reshare.dcb.storage.HostLmsRepository;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.UUID;
 
 @Validated
 @Secured(SecurityRule.IS_ANONYMOUS)
-@Controller("/agencies")
-@Tag(name = "Agencies")
-public class AgenciesController {
+@Controller("/hostlmss")
+@Tag(name = "HostLMSs")
+public class HostLmssController {
 
-	private static final Logger log = LoggerFactory.getLogger(AgenciesController.class);
+	private static final Logger log = LoggerFactory.getLogger(HostLmssController.class);
 
-        private AgencyRepository agencyRepository;
+        private HostLmsRepository hostLMSRepository;
 
-	public AgenciesController(AgencyRepository agencyRepository) {
-                this.agencyRepository = agencyRepository;
+	public HostLmssController(HostLmsRepository hostLMSRepository) {
+                this.hostLMSRepository = hostLMSRepository;
 	}
 
         @Operation(
-                summary = "Browse Agencies",
-                description = "Paginate through the list of known agencies",
+                summary = "Browse HOST LMSs",
+                description = "Paginate through the list of known host LMSs",
                 parameters = {
                         @Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
                         @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
         )
         @Get("/{?pageable*}")
-        public Mono<Page<DataAgency>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
+        public Mono<Page<DataHostLms>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
                 if (pageable == null) {
                         pageable = Pageable.from(0, 100);
                 }
 
-                return Mono.from(agencyRepository.findAll(pageable));
+                return Mono.from(hostLMSRepository.findAll(pageable));
         }
 
         @Get("/{id}") 
-        public Mono<DataAgency> show(UUID id) {
-                return Mono.from(agencyRepository.findById(id)); 
+        public Mono<DataHostLms> show(UUID id) {
+                return Mono.from(hostLMSRepository.findById(id)); 
         }
 
 
  	@Post("/")
-	public Mono<DataAgency> postAgency(@Body DataAgency agency) {
-                return Mono.from(agencyRepository.existsById(agency.getId()))
-                        .flatMap(exists -> Mono.fromDirect(exists ? agencyRepository.update(agency) : agencyRepository.save(agency)));
+	public Mono<DataHostLms> postHostLMS(@Body DataHostLms hostLMS) {
+                return Mono.from(hostLMSRepository.existsById(hostLMS.getId()))
+                        .flatMap(exists -> Mono.fromDirect(exists ? hostLMSRepository.update(hostLMS) : hostLMSRepository.save(hostLMS)));
 	}
 }

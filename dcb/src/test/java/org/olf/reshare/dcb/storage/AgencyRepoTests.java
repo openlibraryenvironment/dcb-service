@@ -60,13 +60,14 @@ class AgencyRepoTests {
 		// Create a host LMS entry for our new Agency to point at
                 Map<String, Object> cfg = new HashMap<String,Object>();
                 DataHostLms new_host_lms = new DataHostLms(UUID.randomUUID(),
-                                                           "Test HostLMS2",
+                                                           "TH2",  // Code
+                                                           "Test HostLMS2",  // Name
                                                            "org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient",
                                                            cfg);
 
                 Mono.from(hostLmsRepository.save(new_host_lms)).block();
 
-        	DataAgency new_agency = new DataAgency(UUID.randomUUID(), "Test Agency Name1", new_host_lms);
+        	DataAgency new_agency = new DataAgency(UUID.randomUUID(), "ACODE1", "Test Agency Name1", new_host_lms);
 
         	Mono.from(agencyRepository.save(new_agency)).block();
 

@@ -53,6 +53,7 @@ class HostLmsRepoTests {
 	void createHostLmsViaRepository() {
 		Map<String, Object> cfg = new HashMap<String,Object>();
         	DataHostLms new_host_lms = new DataHostLms(UUID.randomUUID(),
+                                                           "TCODE1",
                                                            "Test HostLMS1",
                                                            "org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient",
                                                            cfg);

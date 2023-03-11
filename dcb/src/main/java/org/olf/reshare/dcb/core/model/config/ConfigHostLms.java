@@ -26,11 +26,13 @@ public class ConfigHostLms implements HostLms {
 	private Map<String, Object> clientConfig;
 	private final UUID id = UUID.randomUUID();
 	private String name;
+	private String code;
 	private Class<? extends HostLmsClient> type;
 
 	private List<Agency> agencies;
 
-	public ConfigHostLms( @Parameter("name") String name, BeanContext beanContext ) {
+	public ConfigHostLms( @Parameter("code") String code, @Parameter("name") String name, BeanContext beanContext ) {
+		this.code = code;
 		this.name = name;
 		this.beans = beanContext;
 	}
@@ -44,6 +46,11 @@ public class ConfigHostLms implements HostLms {
 	public UUID getId() {
 		return id;
 	}
+
+        @Override
+        public String getCode() {
+                return code;
+        }
 
 	@Override
 	public String getName() {

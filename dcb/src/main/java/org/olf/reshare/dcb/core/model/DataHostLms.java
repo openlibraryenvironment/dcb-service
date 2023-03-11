@@ -40,6 +40,10 @@ public class DataHostLms implements HostLms {
 	public UUID id;
 
 	@NonNull
+	@Column(columnDefinition = "varchar(32)")
+	public String code;
+
+	@NonNull
 	@Nullable
 	@Size(max = 200)
 	public String name;

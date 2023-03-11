@@ -17,6 +17,9 @@ public interface HostLms {
 	public UUID getId();
 	
 	@NonNull
+	public String getCode();
+	
+	@NonNull
 	public String getName();
 	
 	@NonNull

@@ -37,17 +37,19 @@ create table supplier_request (
 );
 
 create table host_lms (
-	id uuid primary key,
-	name varchar(200),
-	lms_client_class varchar(200),
-	client_config text
+  id uuid primary key,
+  code varchar(32),
+  name varchar(200),
+  lms_client_class varchar(200),
+  client_config text
 );
 
 create table agency (
-	id uuid primary key,
-	name varchar(200),
-	host_lms_id uuid,
-	CONSTRAINT fk_host_lms FOREIGN KEY (host_lms_id) REFERENCES host_lms(id)
+  id uuid primary key,
+  code varchar(32),
+  name varchar(200),
+  host_lms_id uuid,
+  CONSTRAINT fk_host_lms FOREIGN KEY (host_lms_id) REFERENCES host_lms(id)
 );
 
 --create table patron_request_supplier_request (
