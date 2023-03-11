@@ -38,6 +38,10 @@ public class DataHostLms implements HostLms {
 	public UUID id;
 
 	@NonNull
+	@Column(columnDefinition = "varchar(32)")
+	public String code;
+
+	@NonNull
 	@Nullable
 	@Column(columnDefinition = "TEXT")
 	public String name;

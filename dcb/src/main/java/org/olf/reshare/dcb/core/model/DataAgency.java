@@ -30,6 +30,10 @@ public class DataAgency implements Agency {
 	private UUID id;
 
 	@NonNull
+	@Column(columnDefinition = "varchar(32)")
+	private String code;
+
+	@NonNull
 	@Column(columnDefinition = "TEXT")
 	private String name;
 
