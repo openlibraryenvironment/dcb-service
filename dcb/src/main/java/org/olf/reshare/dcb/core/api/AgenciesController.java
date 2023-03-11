@@ -9,6 +9,8 @@ import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.reactivestreams.Publisher;
+
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -68,4 +70,11 @@ public class AgenciesController {
         public Mono<DataAgency> show(UUID id) {
                 return Mono.from(agencyRepository.findById(id)); 
         }
+
+
+ 	@Post("/")
+	public Mono<DataAgency> postAgency(@Body DataAgency agency) {
+                return Mono.from(agencyRepository.existsById(agency.getId()))
+                        .flatMap(exists -> Mono.fromDirect(exists ? agencyRepository.update(agency) : agencyRepository.save(agency)));
+	}
 }
