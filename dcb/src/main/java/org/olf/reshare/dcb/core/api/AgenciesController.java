@@ -9,9 +9,6 @@ import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.reactivestreams.Publisher;
-
-
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.core.async.annotation.SingleResult;
@@ -49,7 +46,6 @@ public class AgenciesController {
                 this.agencyRepository = agencyRepository;
 	}
 
-        @Secured(SecurityRule.IS_ANONYMOUS)
         @Operation(
                 summary = "Browse Agencies",
                 description = "Paginate through the list of known agencies",
