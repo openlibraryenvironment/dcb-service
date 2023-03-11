@@ -2,6 +2,8 @@ package org.olf.reshare.dcb.core.model;
 
 import java.util.UUID;
 
+import javax.validation.constraints.Size;
+
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
@@ -34,7 +36,8 @@ public class DataAgency implements Agency {
 	private String code;
 
 	@NonNull
-	@Column(columnDefinition = "TEXT")
+	@Column(columnDefinition = "varchar(200)")
+	@Size(max = 200)
 	private String name;
 
 	@NonNull

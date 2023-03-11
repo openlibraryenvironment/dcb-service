@@ -30,10 +30,8 @@ import services.k_int.interaction.sierra.bibs.BibParams;
 import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 
-// @Client(value = "${" + SierraApiClient.CONFIG_ROOT + ".api.url:`https://sandbox.iii.com/iii/sierra-api/v6`}", errorType = SierraError.class)
 @Client(value = "${" + SierraApiClient.CONFIG_ROOT + ".api.url:/iii/sierra-api/v6}", errorType = SierraError.class)
 @Header(name = ACCEPT, value = APPLICATION_JSON)
-//@MutableRequests
 public interface SierraApiClient {
 
 	public final static String CONFIG_ROOT = "sierra.client";

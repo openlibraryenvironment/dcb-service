@@ -6,8 +6,8 @@ buildscript {
 
 plugins {
 	id("com.github.johnrengelman.shadow") version "7.1.2"
-	id("io.micronaut.application") version "3.7.0"
-	id("io.micronaut.test-resources") version "3.7.0"
+	id("io.micronaut.application") version "3.7.4"
+	id("io.micronaut.test-resources") version "3.7.4"
 	id('jacoco')
 	id 'org.olf.reshare.dcb-bom'
 	id 'service.k_int.micronaut-multi'
@@ -73,6 +73,7 @@ dependencies {
 	implementation("io.micronaut.sql:micronaut-jdbc-hikari")
 
 	runtimeOnly("org.postgresql:postgresql")
+	
 	// Without this dependency, testcontainer injection seems not to happen at all.
 	// Wonder if this is because the bean that uses PG is a r2dbc service
 	runtimeOnly("org.postgresql:r2dbc-postgresql")
@@ -82,11 +83,13 @@ dependencies {
 	//
 	runtimeOnly("io.r2dbc:r2dbc-pool")
 
-
-	// The postgres r2dbc driver seems much more recent - so commenting this one out, and testing
-	// runtimeOnly('io.r2dbc:r2dbc-postgresql')
-
 	implementation("io.micronaut.flyway:micronaut-flyway")
+
+	// Metrics (Prometheus)
+	implementation "io.micronaut.micrometer:micronaut-micrometer-registry-prometheus"
+	
+	// Also required to enable endpoint
+	implementation "io.micronaut:micronaut-management"
 
 	// Tests
 	testCompileOnly 'org.projectlombok:lombok'
@@ -134,7 +137,14 @@ micronaut {
 	}
 }
 
-final Set<String> jacocoExcludes = ['**/Application.class']
+final Set<String> jacocoExcludes = [
+	'**/Application.class',
+	'services/k_int/**/*',
+	'**/model/**/*',  
+	
+	// Ingest happens at a different client level, so safely exclude from report.
+	'org/olf/reshare/dcb/ingest/sierra/**/*',  
+	'org/olf/reshare/dcb/ingest/gokb/**/*']
 
 tasks {
 	final Map<String, String> labels = [

@@ -11,7 +11,7 @@ import io.micronaut.serde.annotation.Serdeable;
 @Serdeable
 record PatronRequestAdminView(UUID id, Citation citation,
 	PickupLocation pickupLocation, Requestor requestor,
-	List<SupplierRequest> supplierRequests) {
+	List<SupplierRequest> supplierRequests, Status status) {
 
 	static PatronRequestAdminView from(PatronRequest patronRequest,
 		List<org.olf.reshare.dcb.core.model.SupplierRequest> supplierRequests) {
@@ -21,7 +21,8 @@ record PatronRequestAdminView(UUID id, Citation citation,
 			new PickupLocation(patronRequest.getPickupLocationCode()),
 			new Requestor(patronRequest.getPatronId(),
 				new Agency(patronRequest.getPatronAgencyCode())),
-			SupplierRequest.fromList(supplierRequests));
+			SupplierRequest.fromList(supplierRequests),
+			new Status(patronRequest.getStatusCode()));
 	}
 
 	@Serdeable
@@ -57,4 +58,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 
 	@Serdeable
 	record Item(UUID id) {}
+
+	@Serdeable
+	record Status(String code) {}
 }

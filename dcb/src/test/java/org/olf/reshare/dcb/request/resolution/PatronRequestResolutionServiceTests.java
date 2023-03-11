@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 import java.util.List;
 import java.util.UUID;
@@ -47,6 +49,10 @@ class PatronRequestResolutionServiceTests {
 		// check supplier request has the item we expected
 		assertThat(supplierRequestRecord.getHoldingsItemId(), is(itemId));
 		assertThat(supplierRequestRecord.getHoldingsAgencyCode(), is("agency"));
+
+		// check patron request has the expected status
+		assertThat(supplierRequestRecord.getPatronRequest(), is(notNullValue()));
+		assertThat(supplierRequestRecord.getPatronRequest().getStatusCode(), is(RESOLVED));
 	}
 	@Test
 	void shouldResolveToFirstItemWhenSingleHoldingsWithMultipleItems() {
@@ -77,6 +83,10 @@ class PatronRequestResolutionServiceTests {
 		// check supplier request has the item we expected
 		assertThat(supplierRequestRecord.getHoldingsItemId(), is(itemId1));
 		assertThat(supplierRequestRecord.getHoldingsAgencyCode(), is("agency"));
+
+		// check patron request has the expected status
+		assertThat(supplierRequestRecord.getPatronRequest(), is(notNullValue()));
+		assertThat(supplierRequestRecord.getPatronRequest().getStatusCode(), is(RESOLVED));
 	}
 
 	@Test
@@ -108,6 +118,10 @@ class PatronRequestResolutionServiceTests {
 		// check supplier request has the item we expected
 		assertThat(supplierRequestRecord.getHoldingsItemId(), is(itemId1));
 		assertThat(supplierRequestRecord.getHoldingsAgencyCode(), is("agency 1"));
+
+		// check patron request has the expected status
+		assertThat(supplierRequestRecord.getPatronRequest(), is(notNullValue()));
+		assertThat(supplierRequestRecord.getPatronRequest().getStatusCode(), is(RESOLVED));
 	}
 
 	@Test
@@ -203,6 +217,6 @@ class PatronRequestResolutionServiceTests {
 	private static PatronRequest createPatronRequest(UUID bibClusterId) {
 		return new PatronRequest(UUID.randomUUID(),
 			"patronId", "patronAgencyCode",
-			bibClusterId, "pickupLocationCode");
+			bibClusterId, "pickupLocationCode", SUBMITTED_TO_DCB);
 	}
 }

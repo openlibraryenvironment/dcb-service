@@ -4,26 +4,25 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
-import org.olf.reshare.dcb.request.resolution.PatronRequestResolutionService;
+import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
-import org.olf.reshare.dcb.storage.SupplierRequestRepository;
+import reactor.core.publisher.Mono;
 
 
 class PatronRequestServiceTests {
 	@Test
 	void shouldReturnErrorWhenDatabaseSavingFails() {
 		final var patronRequestRepository = mock(PatronRequestRepository.class);
-		final var supplierRequestRepository = mock(SupplierRequestRepository.class);
-		final var patronRequestResolutionService = mock(PatronRequestResolutionService.class);
+		final var requestWorkflow = mock(PatronRequestWorkflow.class);
 
+		final var patronRequestService = new PatronRequestService(patronRequestRepository, requestWorkflow);
 		when(patronRequestRepository.save(any()))
 			.thenThrow(new RuntimeException("saving failed"));
-
-		final var service = new PatronRequestService(patronRequestRepository, supplierRequestRepository, patronRequestResolutionService);
 
 		final var command = new PlacePatronRequestCommand(
 			UUID.randomUUID(), new PlacePatronRequestCommand.Citation(UUID.randomUUID()),
@@ -32,10 +31,35 @@ class PatronRequestServiceTests {
 				new PlacePatronRequestCommand.Agency("ABC-123")));
 
 		final var exception = assertThrows(RuntimeException.class,
-			() -> service.placePatronRequest(command).block());
+			() -> patronRequestService.placePatronRequest(command).block());
 
 		assertEquals("saving failed", exception.getMessage());
-		verify(supplierRequestRepository, times(0)).save(any());
-		verify(patronRequestResolutionService, times(0)).resolvePatronRequest(any());
+		verify(requestWorkflow, times(0)).initiate(any());
+	}
+
+	@Test
+	void shouldInitiateRequestWorkflow() {
+		final var patronRequestRepository = mock(PatronRequestRepository.class);
+		final var requestWorkflow = mock(PatronRequestWorkflow.class);
+		final var patronRequestService = new PatronRequestService(patronRequestRepository, requestWorkflow);
+
+		final var patronRequest = new PatronRequest(UUID.randomUUID(),
+			"patronId", "patronAgencyCode",
+			UUID.randomUUID(), "pickupLocationCode", SUBMITTED_TO_DCB);
+
+		final var command = new PlacePatronRequestCommand(
+			UUID.randomUUID(), new PlacePatronRequestCommand.Citation(UUID.randomUUID()),
+			new PlacePatronRequestCommand.PickupLocation("pickupLocationCode"),
+			new PlacePatronRequestCommand.Requestor("patronId",
+				new PlacePatronRequestCommand.Agency("patronAgencyCode")));
+
+		when( patronRequestRepository.save(any()) )
+			.thenAnswer(invocation -> Mono.just(patronRequest));
+
+		when( requestWorkflow.initiate(any()) )
+			.thenAnswer(invocation -> Mono.just(patronRequest));
+
+		patronRequestService.placePatronRequest(command).block();
+		verify(requestWorkflow).initiate(any());
 	}
 }

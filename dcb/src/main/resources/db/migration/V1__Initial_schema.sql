@@ -1,9 +1,9 @@
 create table bib_record (
 	id uuid primary key,
-        date_created timestamp,
-        date_updated timestamp,
-        source_system_id uuid,
-        source_record_id varchar(256),
+	date_created timestamp,
+	date_updated timestamp,
+	source_system_id uuid,
+	source_record_id varchar(256),
 	title text
 );
 
@@ -24,7 +24,8 @@ create table patron_request (
 	patron_id varchar(200),
 	patron_agency_code varchar(200),
 	bib_cluster_id uuid,
-	pickup_location_code varchar(200)
+	pickup_location_code varchar(200),
+	status_code varchar(200)
 );
 
 create table supplier_request (
