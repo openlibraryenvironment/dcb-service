@@ -27,10 +27,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
 import org.olf.reshare.dcb.core.model.DataAgency;
+import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.storage.AgencyRepository;
+import org.olf.reshare.dcb.storage.HostLmsRepository;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.UUID;
+import org.olf.reshare.dcb.core.api.types.AgencyDTO;
 
 @Validated
 @Secured(SecurityRule.IS_ANONYMOUS)
@@ -41,9 +44,12 @@ public class AgenciesController {
 	private static final Logger log = LoggerFactory.getLogger(AgenciesController.class);
 
         private AgencyRepository agencyRepository;
+	private HostLmsRepository hostLmsRepository;
 
-	public AgenciesController(AgencyRepository agencyRepository) {
+	public AgenciesController(AgencyRepository agencyRepository,
+                                  HostLmsRepository hostLmsRepository) {
                 this.agencyRepository = agencyRepository;
+                this.hostLmsRepository = hostLmsRepository;
 	}
 
         @Operation(
@@ -67,10 +73,27 @@ public class AgenciesController {
                 return Mono.from(agencyRepository.findById(id)); 
         }
 
-
+        /*
  	@Post("/")
 	public Mono<DataAgency> postAgency(@Body DataAgency agency) {
                 return Mono.from(agencyRepository.existsById(agency.getId()))
                         .flatMap(exists -> Mono.fromDirect(exists ? agencyRepository.update(agency) : agencyRepository.save(agency)));
 	}
+        */
+
+	// TODO: Convert return DataAgency to AgencyDTO
+        @Post("/")
+        public Mono<DataAgency> postAgency(@Body AgencyDTO agency) {
+
+		// Convert AgencyDTO into DataAgency with correctly linked HostLMS
+		DataHostLms lms = Mono.from(hostLmsRepository.findByCode(agency.hostLMSCode())).block();
+                DataAgency da = new DataAgency(agency.id(),
+                                               agency.code(),
+                                               agency.name(),
+                                               lms);
+ 
+                return Mono.from(agencyRepository.existsById(da.getId()))
+                       .flatMap(exists -> Mono.fromDirect(exists ? agencyRepository.update(da) : agencyRepository.save(da)));
+        }
+
 }
