@@ -24,7 +24,7 @@ public class PatronRequestResolutionStateTransitionTests {
 		final var patronRequestResolutionStateTransition = new PatronRequestResolutionStateTransition(patronRequestResolutionService,
 			patronRequestRepository, supplierRequestRepository);
 
-		final var patronRequest = new PatronRequest(UUID.randomUUID(),
+		final var patronRequest = new PatronRequest(UUID.randomUUID(), null, null,
 			"patronId", "patronAgencyCode",
 			UUID.randomUUID(), "pickupLocationCode", RESOLVED);
 

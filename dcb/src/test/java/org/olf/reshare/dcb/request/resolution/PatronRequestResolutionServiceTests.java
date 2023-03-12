@@ -215,7 +215,7 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	private static PatronRequest createPatronRequest(UUID bibClusterId) {
-		return new PatronRequest(UUID.randomUUID(),
+		return new PatronRequest(UUID.randomUUID(), null, null,
 			"patronId", "patronAgencyCode",
 			bibClusterId, "pickupLocationCode", SUBMITTED_TO_DCB);
 	}
