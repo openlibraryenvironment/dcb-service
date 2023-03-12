@@ -22,7 +22,19 @@ public interface LocationRepository {
 
         @NonNull
         @SingleResult
+        Publisher<? extends Location> update(@Valid @NotNull @NonNull Location location);
+
+        @NonNull
+        @SingleResult
         Publisher<Location> findById(@NotNull UUID id);
+
+        @NonNull
+        @SingleResult
+        Publisher<Boolean> existsById(@NonNull UUID id);
+
+        @NonNull
+        @SingleResult
+        Publisher<Page<Location>> findAll(Pageable page);
 
         @NonNull
         Publisher<Location> findAll();

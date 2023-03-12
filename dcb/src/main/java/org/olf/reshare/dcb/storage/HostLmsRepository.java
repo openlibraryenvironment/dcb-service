@@ -37,6 +37,10 @@ public interface HostLmsRepository {
 	@SingleResult
 	Publisher<DataHostLms> findByName(@NonNull String name);
 
+	@NonNull
+	@SingleResult
+	Publisher<DataHostLms> findByCode(@NonNull String code);
+
         @NonNull
         @SingleResult
         Publisher<Page<DataHostLms>> findAll(Pageable page);
