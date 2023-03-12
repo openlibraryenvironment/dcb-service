@@ -47,6 +47,8 @@ public class PatronRequestService {
 
 		log.debug("Setting request status {}", SUBMITTED_TO_DCB);
 		return new PatronRequest(uuid,
+                        null,
+                        null,
 			command.requestor().identifier(),
 			command.requestor().agency().code(),
 			command.citation().bibClusterId(),

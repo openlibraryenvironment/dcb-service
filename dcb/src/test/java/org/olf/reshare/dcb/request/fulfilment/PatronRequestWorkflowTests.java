@@ -16,7 +16,7 @@ public class PatronRequestWorkflowTests {
 	void shouldCallPatronRequestStateTransition() {
 		final var patronRequestResolutionStateTransition = mock(PatronRequestResolutionStateTransition.class);
 		final var requestWorkflow = new PatronRequestWorkflow(patronRequestResolutionStateTransition);
-		final var patronRequest = new PatronRequest(UUID.randomUUID(),
+		final var patronRequest = new PatronRequest(UUID.randomUUID(), null, null,
 			"patronId", "patronAgencyCode",
 			UUID.randomUUID(), "pickupLocationCode", SUBMITTED_TO_DCB);
 

@@ -43,7 +43,7 @@ class PatronRequestServiceTests {
 		final var requestWorkflow = mock(PatronRequestWorkflow.class);
 		final var patronRequestService = new PatronRequestService(patronRequestRepository, requestWorkflow);
 
-		final var patronRequest = new PatronRequest(UUID.randomUUID(),
+		final var patronRequest = new PatronRequest(UUID.randomUUID(), null, null,
 			"patronId", "patronAgencyCode",
 			UUID.randomUUID(), "pickupLocationCode", SUBMITTED_TO_DCB);
 
