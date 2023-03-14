@@ -33,7 +33,8 @@ micronaut:
           - isAnonymous()
   http:
     client:
-      read-timeout: PT30S
+      read-timeout: PT1M
+      max-content-length: 20971520
       
   metrics:
     enabled: true
@@ -71,7 +72,7 @@ datasources:
     db-type: postgresql
     dialect: postgres
     minimumIdol: 0
-    maximumPoolSize: 2
+    maximumPoolSize: 1
     #username: "${db.username:}"
     #password: "${db.password:}"
 

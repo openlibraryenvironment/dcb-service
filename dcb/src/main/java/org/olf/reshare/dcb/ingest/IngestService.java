@@ -55,7 +55,7 @@ public class IngestService implements Runnable {
 	}
 	
 	public Flux<BibRecord> getBibRecordStream() {
-		return Flux.concat(
+		return Flux.merge(
 			Flux.fromIterable(sourceProviders)
 				.concatMap(provider -> provider.getIngestSources())
 				.filter(source -> {
