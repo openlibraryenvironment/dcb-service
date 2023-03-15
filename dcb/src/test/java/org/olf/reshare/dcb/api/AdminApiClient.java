@@ -22,8 +22,7 @@ class AdminApiClient {
 	}
 
 	@Serdeable
-	static
-	record AdminAccessPatronRequest(@Nullable UUID id, @Nullable Citation citation,
+	static public record AdminAccessPatronRequest(@Nullable UUID id, @Nullable Citation citation,
 		@Nullable Requestor requestor, @Nullable PickupLocation pickupLocation,
 		@Nullable List<SupplierRequest> supplierRequests, @Nullable Status status) {
 
@@ -47,5 +46,10 @@ class AdminApiClient {
 
 		@Serdeable
 		record Status(String code) { }
+
+		// Workaround: records do not support been style properties
+		public String getStatusCode() {
+			return status().code();
+		}
 	}
 }

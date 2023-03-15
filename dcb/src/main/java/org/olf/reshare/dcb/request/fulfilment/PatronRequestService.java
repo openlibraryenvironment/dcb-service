@@ -1,5 +1,7 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
+
 import java.util.UUID;
 
 import org.olf.reshare.dcb.core.model.PatronRequest;
@@ -9,8 +11,6 @@ import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
-
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 @Singleton
 public class PatronRequestService {
@@ -23,7 +23,7 @@ public class PatronRequestService {
 		this.requestWorkflow = requestWorkflow;
 	}
 
-	public Mono<PatronRequest> placePatronRequest(
+	public Mono<? extends PatronRequest> placePatronRequest(
 		PlacePatronRequestCommand command) {
 
 		log.debug("placePatronRequest({})", command);
@@ -31,7 +31,7 @@ public class PatronRequestService {
 		return Mono.just(command)
 			.map(PatronRequestService::mapToPatronRequest)
 			.flatMap(this::savePatronRequest)
-			.flatMap(requestWorkflow::initiate);
+			.doOnSuccess(requestWorkflow::initiate);
 	}
 
 	private static PatronRequest mapToPatronRequest(
@@ -46,9 +46,7 @@ public class PatronRequestService {
 			SUBMITTED_TO_DCB));
 
 		log.debug("Setting request status {}", SUBMITTED_TO_DCB);
-		return new PatronRequest(uuid,
-                        null,
-                        null,
+		return new PatronRequest(uuid, null, null,
 			command.requestor().identifier(),
 			command.requestor().agency().code(),
 			command.citation().bibClusterId(),
