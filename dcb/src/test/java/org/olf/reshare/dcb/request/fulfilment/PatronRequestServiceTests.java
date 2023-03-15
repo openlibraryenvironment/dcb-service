@@ -53,10 +53,7 @@ class PatronRequestServiceTests {
 			new PlacePatronRequestCommand.Requestor("patronId",
 				new PlacePatronRequestCommand.Agency("patronAgencyCode")));
 
-		when( patronRequestRepository.save(any()) )
-			.thenAnswer(invocation -> Mono.just(patronRequest));
-
-		when( requestWorkflow.initiate(any()) )
+		when(patronRequestRepository.save(any()))
 			.thenAnswer(invocation -> Mono.just(patronRequest));
 
 		patronRequestService.placePatronRequest(command).block();

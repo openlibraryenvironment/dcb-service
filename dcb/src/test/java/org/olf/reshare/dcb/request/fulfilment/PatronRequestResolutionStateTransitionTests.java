@@ -40,7 +40,7 @@ public class PatronRequestResolutionStateTransitionTests {
 		when(supplierRequestRepository.save(any()))
 			.thenAnswer(invocation -> Mono.just(supplierRequest));
 
-		patronRequestResolutionStateTransition.makeTransition(patronRequest).block();
+		patronRequestResolutionStateTransition.attempt(patronRequest).block();
 		verify(patronRequestResolutionService).resolvePatronRequest(any());
 		verify(patronRequestRepository).update(any());
 		verify(supplierRequestRepository).save(any());
