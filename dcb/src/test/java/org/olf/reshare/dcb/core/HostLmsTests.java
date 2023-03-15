@@ -5,6 +5,11 @@ import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 
+import java.util.function.Function;
+import java.util.function.Supplier;
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
+
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -18,6 +23,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.MediaType;
 import org.olf.reshare.dcb.core.model.HostLms;
+import org.olf.reshare.dcb.core.model.DataHostLms;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
@@ -25,15 +31,20 @@ import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+import org.olf.reshare.dcb.storage.HostLmsRepository;
+
 @MockServerMicronautTest
 @MicronautTest(rebuildContext = true, transactional = false, propertySources = { "classpath:tests/hostLmsProps.yml" })
 @TestInstance(Lifecycle.PER_CLASS)
 @TestMethodOrder(OrderAnnotation.class)
 public class HostLmsTests {
 	
+        @Inject
+        HostLmsRepository hostLmsRepository;
+
 	@BeforeAll
 	public static void addFakeSierraApis(MockServerClient mock) {
-		
+
 		// Mock login to sierra
 		SierraTestUtils.mockFor(mock, "test1.com")
 			.setValidCredentials("test1-key", "test1-secret", "test1_auth_token", 3000L);
@@ -114,6 +125,9 @@ public class HostLmsTests {
 	@Test
 	public void hostLmsFromConfigLoaded() {
 		
+                // Clear out any hostLMS entries hanging around in the database
+                deleteAll(this::getAllHostLmss, this::deleteHostLms);
+		
 		// Get the list of configured host LMS
 		List<HostLms> allLms =  manager.getAllHostLms()
 			.sort((lms1, lms2) -> lms1.getName().compareTo(lms2.getName()))
@@ -148,5 +162,25 @@ public class HostLmsTests {
 	// ReCheck resolution
 
 	// Check validation of LMS across the
+
+        public List<DataHostLms> getAllHostLmss() {
+                return Flux.from(hostLmsRepository.findAll()).collectList().block();
+        }
+
+
+        private <T> void deleteAll(Supplier<List<T>> allRecordsFetcher, Function<T, Publisher<Void>> deleteFunction) {
+
+                final var allRecords = allRecordsFetcher.get();
+
+                Flux.fromStream(allRecords.stream())
+                        .flatMap(deleteFunction)
+                        .then()
+                        .block();
+        }
+
+        private Publisher<Void> deleteHostLms(DataHostLms hostLms) {
+                return hostLmsRepository.delete(hostLms.getId());
+        }
+
 
 }

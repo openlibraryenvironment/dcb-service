@@ -36,6 +36,9 @@ public interface MarcIngestSource<T> extends IngestSource {
 	static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
 
 	default IngestRecordBuilder populateRecordFromMarc ( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
+
+		// Leader fields
+		enrichWithLeaderInformation(ingestRecord, marcRecord);
 			
 		// Title(s)
 		enrichWithTitleInformation(ingestRecord, marcRecord);
@@ -53,6 +56,16 @@ public interface MarcIngestSource<T> extends IngestSource {
 	@NotNull
 	String getDefaultControlIdNamespace();
 	
+	default IngestRecordBuilder enrichWithLeaderInformation ( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
+
+		// This page has useful info for how to convert leader character position 06 into a value that can be used to interpret 008 fields
+		// https://www.itsmarc.com/crs/mergedprojects/helptop1/helptop1/directory_and_leader/idh_leader_06_bib.htm
+		
+		// ingestRecord.recordStatus(marcRecord.getLeader().getRecordStatus())
+		// ingestRecord.typeOfRecord(marcRecord.getLeader().getTypeOfRecord())
+		return ingestRecord;
+        }
+
 	default IngestRecordBuilder enrichWithAuthorInformation ( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
 		
 		Stream.of( "100", "110", "700", "710")
