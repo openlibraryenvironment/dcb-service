@@ -18,14 +18,20 @@ import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import org.olf.reshare.dcb.storage.HostLmsRepository;
+
 @Singleton
 public class HostLmsService implements IngestSourcesProvider {
 	
 	private final Map<UUID, HostLms> fromConfigById;
 	private final BeanContext context;
+        private final HostLmsRepository hostLmsRepository;
 	
-	HostLmsService(HostLms[] confHosts, BeanContext context) {
+	HostLmsService(HostLms[] confHosts, 
+                       BeanContext context,
+                       HostLmsRepository hostLmsRepository) {
 		this.context = context;
+                this.hostLmsRepository = hostLmsRepository;
 		this.fromConfigById = Stream.of(confHosts)
 			.collect(Collectors.toUnmodifiableMap(HostLms::getId, item -> item));
 	}
@@ -51,7 +57,8 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 	
 	public Flux<HostLms> getAllHostLms() {
-		return Flux.fromIterable( fromConfigById.values() );
+		// return Flux.fromIterable( fromConfigById.values() );
+                return Flux.merge(Flux.fromIterable( fromConfigById.values() ), hostLmsRepository.findAll()); 
 	}
 
 	@Override

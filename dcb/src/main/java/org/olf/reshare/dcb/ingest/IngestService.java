@@ -4,6 +4,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
+import io.micronaut.runtime.context.scope.Refreshable;
+
+
 import org.olf.reshare.dcb.bib.BibRecordService;
 import org.olf.reshare.dcb.core.model.BibRecord;
 import org.slf4j.Logger;
@@ -16,6 +19,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
+@Refreshable
 @Singleton
 //@Parallel
 public class IngestService implements Runnable {
@@ -78,7 +82,7 @@ public class IngestService implements Runnable {
 	}
 
 	@Override
-	@Scheduled(initialDelay = "2s", fixedDelay = "1h")
+        @Scheduled(initialDelay = "2s", fixedDelay = "${dcb.ingest.interval:1h}")
 	@AppTask
 	public void run() {
 
