@@ -45,7 +45,9 @@ public class BackgroundExecutorTests {
 		// have been figured out by trial and error to try to get a reliable yet
 		// low number to try to make the test run as quickly as possible.
 		// Lower numbers were found to provide false failures.
-		final var backgroundExecutor = new BackgroundExecutor(Duration.ofMillis(600));
+
+		// Use the text based configuration for this
+		final var backgroundExecutor = new BackgroundExecutor("PT0.600S");
 
 		final var testPublisher = TestPublisher.create();
 
