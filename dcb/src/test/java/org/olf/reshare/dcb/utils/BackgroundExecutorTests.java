@@ -2,7 +2,6 @@ package org.olf.reshare.dcb.utils;
 
 import static java.lang.Math.toIntExact;
 import static java.lang.System.currentTimeMillis;
-import static java.time.Duration.ZERO;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.lessThan;
@@ -26,7 +25,7 @@ public class BackgroundExecutorTests {
 
 		final var startTime = currentTimeMillis();
 
-		backgroundExecutor.executeAsynchronously(delayedMono, ZERO);
+		backgroundExecutor.executeAsynchronously(delayedMono);
 
 		final var endTime = currentTimeMillis();
 
