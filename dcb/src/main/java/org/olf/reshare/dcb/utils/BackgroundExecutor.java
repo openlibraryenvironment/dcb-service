@@ -2,6 +2,7 @@ package org.olf.reshare.dcb.utils;
 
 import java.time.Duration;
 
+import io.micronaut.context.annotation.Value;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
@@ -11,21 +12,19 @@ import reactor.core.scheduler.Schedulers;
 public class BackgroundExecutor {
 	private final Duration delay;
 
-	@Inject
-	public BackgroundExecutor() {
-		this(Duration.ZERO);
-	}
-
 	/**
 	 *
 	 * @param delay Duration of delay before task is started
 	 * Uses ISO-8601 format, as described in https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html#parse-java.lang.CharSequence-
 	 */
-	public BackgroundExecutor(String delay) {
+	@Inject
+	public BackgroundExecutor(
+		@Value("${dcb.background-execution.delay:PT0.0S}") String delay) {
+
 		this.delay = Duration.parse(delay);
 	}
 
-	public BackgroundExecutor(Duration delay) {
+	BackgroundExecutor(Duration delay) {
 		this.delay = delay;
 	}
 

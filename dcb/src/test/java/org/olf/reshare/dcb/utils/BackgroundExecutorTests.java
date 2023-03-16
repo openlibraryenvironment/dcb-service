@@ -16,7 +16,7 @@ import reactor.test.publisher.TestPublisher;
 public class BackgroundExecutorTests {
 	@Test
 	void shouldScheduleTaskToRunAsynchronously() {
-		final var backgroundExecutor = new BackgroundExecutor();
+		final var backgroundExecutor = new BackgroundExecutor(Duration.ZERO);
 
 		final var testPublisher = TestPublisher.create();
 
