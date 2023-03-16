@@ -23,7 +23,7 @@ public class PatronRequestWorkflow {
 	 * @param patronRequestResolutionStateTransition the resolution state transition
 	 * @param backgroundExecutor the background executor executing the next transition
 	 * @param stateTransitionDelay Duration of delay before task is started
-	 * Uses ISO-8601 format, as described in https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html#parse-java.lang.CharSequence-
+	 * Uses ISO-8601 format, as described <a href="https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html#parse-java.lang.CharSequence-">here</a>
 	 */
 	public PatronRequestWorkflow(
 		PatronRequestResolutionStateTransition patronRequestResolutionStateTransition,
