@@ -35,7 +35,6 @@ public class PatronRequestWorkflow {
 		this.stateTransitionDelay = stateTransitionDelay;
 	}
 
-
 	public void initiate(PatronRequest patronRequest) {
 		log.debug("initializeRequestWorkflow({})", patronRequest);
 
