@@ -2,6 +2,7 @@ package org.olf.reshare.dcb.utils;
 
 import static java.lang.Math.toIntExact;
 import static java.lang.System.currentTimeMillis;
+import static java.time.Duration.ZERO;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.lessThan;
@@ -16,7 +17,7 @@ import reactor.test.publisher.TestPublisher;
 public class BackgroundExecutorTests {
 	@Test
 	void shouldScheduleTaskToRunAsynchronously() {
-		final var backgroundExecutor = new BackgroundExecutor(Duration.ZERO);
+		final var backgroundExecutor = new BackgroundExecutor();
 
 		final var testPublisher = TestPublisher.create();
 
@@ -25,7 +26,7 @@ public class BackgroundExecutorTests {
 
 		final var startTime = currentTimeMillis();
 
-		backgroundExecutor.executeAsynchronously(delayedMono);
+		backgroundExecutor.executeAsynchronously(delayedMono, ZERO);
 
 		final var endTime = currentTimeMillis();
 
@@ -47,13 +48,13 @@ public class BackgroundExecutorTests {
 		// Lower numbers were found to provide false failures.
 
 		// Use the text based configuration for this
-		final var backgroundExecutor = new BackgroundExecutor("PT0.600S");
+		final var backgroundExecutor = new BackgroundExecutor();
 
 		final var testPublisher = TestPublisher.create();
 
 		final var mono = testPublisher.mono().then();
 
-		backgroundExecutor.executeAsynchronously(mono);
+		backgroundExecutor.executeAsynchronously(mono, Duration.ofMillis(600));
 
 		Awaitility.await()
 			// For at least this amount of time

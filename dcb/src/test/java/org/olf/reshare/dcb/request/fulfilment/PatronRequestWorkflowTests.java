@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
+import java.time.Duration;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -27,14 +28,17 @@ public class PatronRequestWorkflowTests {
 
 		when(transition.attempt(any())).thenReturn(monoFromTransition);
 
+		final var stateTransitionDelay = Duration.ofSeconds(5);
+
 		final var requestWorkflow = new PatronRequestWorkflow(transition,
-			backgroundExecutor);
+			backgroundExecutor, stateTransitionDelay);
 
 		requestWorkflow.initiate(patronRequest);
 		
 		verify(transition).attempt(any());
 
-		verify(backgroundExecutor).executeAsynchronously(eq(monoFromTransition));
+		verify(backgroundExecutor)
+			.executeAsynchronously(eq(monoFromTransition), eq(stateTransitionDelay));
 	}
 
 	private static PatronRequest createPatronRequest() {
