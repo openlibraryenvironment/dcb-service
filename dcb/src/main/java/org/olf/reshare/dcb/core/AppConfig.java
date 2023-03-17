@@ -3,8 +3,10 @@ package org.olf.reshare.dcb.core;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.core.util.Toggleable;
 
-@ConfigurationProperties("dcb")
+@ConfigurationProperties(AppConfig.ROOT)
 public class AppConfig {
+	
+	public static final String ROOT = "dcb";
 
 	@ConfigurationProperties("scheduled-tasks")
 	public static class ScheduledTasks implements Toggleable {
@@ -29,7 +31,5 @@ public class AppConfig {
 
 	public void setScheduledTasks(ScheduledTasks scheduledTasks) {
 		this.scheduledTasks = scheduledTasks;
-	}
-
-	;
+	};
 }

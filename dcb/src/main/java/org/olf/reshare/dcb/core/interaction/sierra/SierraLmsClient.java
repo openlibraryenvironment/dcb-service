@@ -38,6 +38,8 @@ import services.k_int.utils.UUIDUtils;
 public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
 
 	private static final Logger log = LoggerFactory.getLogger(SierraLmsClient.class);
+	
+	private static final int MAX_BUFFERED_ITEMS = 2000;
 
 	private final HostLms lms;
 	private final SierraApiClient client;
@@ -55,47 +57,38 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return lms;
 	}
 
-	private Mono<BibResultSet> fetchPage (Instant since, int offset, int limit) {
+	private Mono<BibResultSet> fetchPage(Instant since, int offset, int limit) {
 		log.info("Fetching batch from Sierra API with since={} offset={} limit={}", since, offset, limit);
 		return Mono.from(client.bibs(params -> {
-			params
-				.deleted(false)
-				.offset(offset)
-				.limit(limit)
-				.fields(List.of(
-					"id", "updatedDate", "createdDate",
-					"deletedDate", "deleted", "marc"));
+			params.deleted(false).offset(offset).limit(limit)
+					.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "deleted", "marc"));
 
 			if (since != null) {
-				params
-					.updatedDate(dtr -> {
-						dtr
-							.to(LocalDateTime.now())
-							.fromDate(LocalDateTime.from(since));
-					});
+				params.updatedDate(dtr -> {
+					dtr.to(LocalDateTime.now()).fromDate(LocalDateTime.from(since));
+				});
 			}
 		}));
 	}
-	
+
 	private Publisher<BibResult> pageAllResults(Instant since, int offset, int limit) {
 		
-		return fetchPage(since, offset, limit)
-			.expand(results -> {
-				var bibs = results.entries();
-				
-				log.info("Fetched a chunk of {} records", bibs.size());
-				final int nextOffset = results.start() + bibs.size();
-				final boolean possiblyMore = bibs.size() == limit;
-				
-				if (!possiblyMore) {
-					log.info("No more results to fetch");
-					return Mono.empty();
-				}
-				
-				return fetchPage(since, nextOffset, limit);
-			})
-			
-			.concatMap(results -> Flux.fromIterable( new ArrayList<>( results.entries() )));
+		return fetchPage(since, offset, limit).expand(results -> {
+			var bibs = results.entries();
+
+			log.info("Fetched a chunk of {} records", bibs.size());
+			final int nextOffset = results.start() + bibs.size();
+			final boolean possiblyMore = bibs.size() == limit;
+
+			if (!possiblyMore) {
+				log.info("No more results to fetch");
+				return Mono.empty();
+			}
+
+			return fetchPage(since, nextOffset, limit);
+		}, limit)
+		.concatMap(results -> Flux.fromIterable(new ArrayList<>(results.entries())), (MAX_BUFFERED_ITEMS / limit) + 1)
+		.onBackpressureBuffer(MAX_BUFFERED_ITEMS);
 	}
 
 	@Override
@@ -131,10 +124,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public IngestRecordBuilder initIngestRecordBuilder(BibResult resource) {
 
 		// Use the host LMS as the
-		return IngestRecord.builder()
-                          .uuid(uuid5ForBibResult(resource))
-                          .sourceSystemId(lms.getId())
-                          .sourceRecordId(resource.id());
+		return IngestRecord.builder().uuid(uuid5ForBibResult(resource)).sourceSystemId(lms.getId())
+				.sourceRecordId(resource.id());
 
 	}
 
