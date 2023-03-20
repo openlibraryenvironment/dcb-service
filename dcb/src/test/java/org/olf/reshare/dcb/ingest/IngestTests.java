@@ -13,19 +13,29 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.mockserver.client.MockServerClient;
 import org.olf.reshare.dcb.core.model.BibRecord;
+import org.olf.reshare.dcb.ingest.model.IngestRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Property;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.test.annotation.MockBean;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import reactor.core.publisher.Flux;
 import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.micronaut.PublisherTransformation;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@MicronautTest(transactional = false, propertySources = { "classpath:configs/ingestTests.yml" })
+@MicronautTest(transactional = false, propertySources = { "classpath:configs/ingestTests.yml" }, rebuildContext = true)
 @TestInstance(Lifecycle.PER_CLASS)
 public class IngestTests {
 	private static final String SIERRA_TOKEN = "test-token-for-user";
+	private final Logger log = LoggerFactory.getLogger(IngestTests.class);
 
 	@Inject
 	ResourceLoader loader;
@@ -52,8 +62,7 @@ public class IngestTests {
 	@BeforeAll
 	public void addFakeSierraApis(MockServerClient mock) throws IOException {
 
-		var mockSierra = SierraTestUtils.mockFor(mock, sierraHost).setValidCredentials(sierraUser, sierraPass, SIERRA_TOKEN,
-				60);
+		var mockSierra = SierraTestUtils.mockFor(mock, sierraHost).setValidCredentials(sierraUser, sierraPass, SIERRA_TOKEN, 60);
 
 		// Mock bibs returned by the sierra system for ingest.
 		mockSierra.whenRequest(req -> req.withMethod("GET").withPath("/iii/sierra-api/v6/bibs/*"))
@@ -63,8 +72,6 @@ public class IngestTests {
 				.whenRequest(
 						req -> req.withMethod("GET").withPath("/iii/sierra-api/v6/bibs/*").withQueryStringParameter("offset", "10"))
 				.respond(notFoundResponse());
-		
-		
 	}
 
 	@Test
@@ -74,6 +81,25 @@ public class IngestTests {
 		List<BibRecord> bibs =  ingestService.getBibRecordStream().collectList().block();
 		
 		assertEquals(10, bibs.size());
+	}
+	
+	@Test
+	@Property(name="tests.enableLimiter", value = "true")
+	public void ingestFromSierraWithLimiter() {
 
+		// Run the ingest process again, but with the limiter bean.
+		List<BibRecord> bibs =  ingestService.getBibRecordStream().collectList().block();
+		
+		// Should limit the returned items to 5.
+		assertEquals(5, bibs.size());
+	}
+	
+	@MockBean
+	@Prototype // Prototype ensures new instance of this bean at every injection point.
+	@Named(IngestService.TRANSFORMATIONS_RECORDS) // Qualified name is used when searching for Applicable Transformers.
+	@Requires(property = "tests.enableLimiter", value = "true")
+	PublisherTransformation<IngestRecord> testIngestLimiter() {
+		log.info("Test pipeline limiter");
+		return (pub) -> Flux.from(pub).take(5, true);
 	}
 }

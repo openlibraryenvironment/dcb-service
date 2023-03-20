@@ -106,10 +106,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		// The stream of imported records.
 		return Flux.from(pageAllResults(since, 0, pageSize)).filter(sierraBib -> sierraBib.marc() != null)
-				.switchIfEmpty(Mono.just("No results returned. Stopping").mapNotNull(s -> {
-					log.info(s);
-					return null;
-				}));
+				.switchIfEmpty(Mono.just("No results returned. Stopping")
+						.mapNotNull(s -> {
+							log.info(s);
+							return null;
+						}));
 	}
 
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
@@ -124,9 +125,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public IngestRecordBuilder initIngestRecordBuilder(BibResult resource) {
 
 		// Use the host LMS as the
-		return IngestRecord.builder().uuid(uuid5ForBibResult(resource)).sourceSystemId(lms.getId())
+		return IngestRecord.builder()
+				.uuid(uuid5ForBibResult(resource))
+				.sourceSystemId(lms.getId())
 				.sourceRecordId(resource.id());
-
 	}
 
 	@Override
