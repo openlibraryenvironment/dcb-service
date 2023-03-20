@@ -1,45 +1,43 @@
 package org.olf.reshare.dcb.storage;
 
+import java.util.UUID;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+
+import org.olf.reshare.dcb.core.model.Location;
+import org.reactivestreams.Publisher;
+
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
-import io.micronaut.data.model.Sort;
-
-import org.olf.reshare.dcb.core.model.Location;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
-
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import java.util.UUID;
 
 public interface LocationRepository {
 
-        @NonNull
-        @SingleResult
-        Publisher<? extends Location> save(@Valid @NotNull @NonNull Location location);
+	@NonNull
+	@SingleResult
+	Publisher<? extends Location> save(@Valid @NotNull @NonNull Location location);
 
-        @NonNull
-        @SingleResult
-        Publisher<? extends Location> update(@Valid @NotNull @NonNull Location location);
+	@NonNull
+	@SingleResult
+	Publisher<? extends Location> update(@Valid @NotNull @NonNull Location location);
 
-        @NonNull
-        @SingleResult
-        Publisher<Location> findById(@NotNull UUID id);
+	@NonNull
+	@SingleResult
+	Publisher<Location> findById(@NotNull UUID id);
 
-        @NonNull
-        @SingleResult
-        Publisher<Boolean> existsById(@NonNull UUID id);
+	@NonNull
+	@SingleResult
+	Publisher<Boolean> existsById(@NonNull UUID id);
 
-        @NonNull
-        @SingleResult
-        Publisher<Page<Location>> findAll(Pageable page);
+	@NonNull
+	@SingleResult
+	Publisher<Page<Location>> findAll(Pageable page);
 
-        @NonNull
-        Publisher<Location> findAll();
+	@NonNull
+	Publisher<Location> findAll();
 
-        Publisher<Void> delete(UUID id);
+	Publisher<Void> delete(UUID id);
 
 }
-

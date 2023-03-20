@@ -17,7 +17,6 @@ import io.micronaut.data.annotation.Transient;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
-import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -36,11 +35,11 @@ public class DataHostLms implements HostLms {
 
 	@NonNull
 	@Id
-	@Column(columnDefinition = "UUID")
+	@TypeDef( type = DataType.UUID)
 	public UUID id;
 
 	@NonNull
-	@Column(columnDefinition = "varchar(32)")
+	@Size(max = 32)
 	public String code;
 
 	@NonNull

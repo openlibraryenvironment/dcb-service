@@ -16,17 +16,20 @@ dependencies {
 		//	implementation("io.micronaut:micronaut-jackson-databind") // Not using Jackson for binding.
 		implementation "io.micronaut.serde:micronaut-serde-jackson:1.5.0"
 		implementation 'org.marc4j:marc4j:2.9.2'
-
+		runtimeOnly "org.slf4j:log4j-over-slf4j:1.7.36"
+		
+		// Reactor extra.
 		implementation 'io.projectreactor:reactor-bom:2022.0.5'
 
-		runtimeOnly "org.slf4j:log4j-over-slf4j:1.7.36"
-
 		// Data
-
 		runtimeOnly 'io.r2dbc:r2dbc-postgresql:0.8.13.RELEASE'
 
 		// Tests
 		testImplementation 'org.mock-server:mockserver-junit-jupiter:5.14.0'
-		testRuntimeOnly 'io.r2dbc:r2dbc-h2:1.0.0.RELEASE'
+//		testRuntimeOnly 'io.r2dbc:r2dbc-h2:1.0.0.RELEASE'
+		
+		testImplementation('org.mockito:mockito-core:5.1.1')
+		testImplementation('org.hamcrest:hamcrest:2.2')
+		testImplementation('org.awaitility:awaitility:4.2.0')
 	}
 }

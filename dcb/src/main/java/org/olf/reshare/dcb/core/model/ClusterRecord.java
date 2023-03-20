@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.UUID;
 
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
@@ -19,25 +18,23 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.experimental.Accessors;
+import lombok.RequiredArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 @Builder
 @Data
-@NoArgsConstructor(onConstructor_ = @Creator())
+@RequiredArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
 @Serdeable
 @MappedEntity
 @ExcludeFromGeneratedCoverageReport
-@Accessors(chain = true)
-public class BibRecord {
-
+public class ClusterRecord {
+	
 	@NotNull
 	@NonNull
 	@Id
 	@TypeDef(type = DataType.UUID)
-	private UUID id;
+	private final UUID id;
 
 	@Nullable
 	@DateCreated
@@ -47,20 +44,7 @@ public class BibRecord {
 	@DateUpdated
 	private Instant dateUpdated;
 
-	@NotNull
-	@NonNull
-	@TypeDef(type = DataType.UUID)
-	private UUID sourceSystemId;
-
-	@NotNull
-	@NonNull
-	@Size(max = 256)
-	private String sourceRecordId;
-
 	@Nullable
 	@TypeDef(type = DataType.STRING)
 	private String title;
-	
-	@Nullable
-	private UUID contributesTo;
 }

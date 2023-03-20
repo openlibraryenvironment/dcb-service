@@ -1,0 +1,19 @@
+export JAVA_OPTIONS="-Djava.util.concurrent.ForkJoinPool.common.parallelism=4"
+export DATASOURCES_DEFAULT_PASSWORD=dcb
+export DATASOURCES_DEFAULT_URL=jdbc:postgresql://localhost:5432/dcbdev
+export DATASOURCES_DEFAULT_USERNAME=dcb
+export R2DBC_DATASOURCES_DEFAULT_PASSWORD=dcb
+export R2DBC_DATASOURCES_DEFAULT_URL=r2dbc:postgresql://localhost:5432/dcbdev
+export R2DBC_DATASOURCES_DEFAULT_USERNAME=dcb
+
+export HOSTS_SANDBOX_CLIENT_BASE_URL=https://sandbox.iii.com
+export HOSTS_SANDBOX_CLIENT_INGEST=true
+export HOSTS_SANDBOX_CLIENT_KEY=9/FnXtNb5qWahEcHpMiL/OlSJe0b
+export HOSTS_SANDBOX_CLIENT_SECRET=I8g9uNbzs3
+export HOSTS_SANDBOX_TYPE=org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient
+
+export HOSTS_SANDBOX_CLIENT_BASE_URL=https://kc-towers.searchmobius.org
+export HOSTS_SANDBOX_CLIENT_INGEST=true
+export HOSTS_SANDBOX_CLIENT_KEY=cycvEgi5q+5MWPat5pJMHpX7HECX
+export HOSTS_SANDBOX_CLIENT_SECRET=d98df9!!!#d9d
+export HOSTS_SANDBOX_TYPE=org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient

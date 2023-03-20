@@ -15,8 +15,9 @@ import io.micronaut.data.annotation.DateCreated;
 import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.data.annotation.TypeDef;
+import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
-import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,16 +36,14 @@ public class PatronRequest {
 	@NotNull
 	@NonNull
 	@Id
-	@Column(columnDefinition = "UUID")
+	@TypeDef( type = DataType.UUID)
 	private UUID id;
 
 	@Nullable
-	@Column
 	@DateCreated
 	private Instant dateCreated;
 
 	@Nullable
-	@Column
 	@DateUpdated
 	private Instant dateUpdated;
 
@@ -55,7 +54,7 @@ public class PatronRequest {
 	private String patronAgencyCode;
 
 	@Nullable
-	@Column(columnDefinition = "UUID")
+	@TypeDef( type = DataType.UUID)
 	private UUID bibClusterId;
 
 	@Nullable

@@ -7,7 +7,8 @@ import javax.validation.constraints.NotNull;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
-import jakarta.persistence.Column;
+import io.micronaut.data.annotation.TypeDef;
+import io.micronaut.data.model.DataType;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 @ExcludeFromGeneratedCoverageReport
@@ -17,7 +18,7 @@ public class BibIdentifier {
 	@NotNull
 	@NonNull
 	@Id
-	@Column(columnDefinition = "UUID")
+	@TypeDef( type = DataType.UUID)
 	private UUID id;
 
 	public UUID getId() {

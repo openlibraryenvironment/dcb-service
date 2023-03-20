@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
 
 import org.olf.reshare.dcb.ingest.model.Author.AuthorBuilder;
 import org.olf.reshare.dcb.ingest.model.Identifier.IdentifierBuilder;
@@ -16,22 +17,25 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.Singular;
 import lombok.Value;
+import lombok.With;
+import lombok.experimental.Accessors;
 
 @Data
 @Builder
 @Value
+@Accessors(chain = true)
 public class IngestRecord {
 	@NonNull
 	@NotEmpty
 	UUID uuid;
 
-        @NonNull
-        @NotEmpty
-        UUID sourceSystemId;
+	@NonNull
+	@NotEmpty
+	UUID sourceSystemId;
 
-        @NonNull
-        @NotEmpty
-        String sourceRecordId;
+	@NonNull
+	@NotEmpty
+	String sourceRecordId;
 
 	@Nullable
 	String title;
@@ -53,6 +57,11 @@ public class IngestRecord {
 
 	@Nullable
 	String bibLevel;
+	
+	@NonNull
+	@NotNull
+	@With
+	UUID clusterRecordId;
 
 //  @Nullable String edition();
 //  List<PublicationInformation> publicationInformation();
@@ -64,14 +73,14 @@ public class IngestRecord {
 			identifier(Identifier.build(consumer));
 			return this;
 		}
-		
+
 		public IngestRecordBuilder addIdentifiers(Identifier... ids) {
 			identifiers(List.of(ids));
 			return this;
 		}
 
 		public IngestRecordBuilder author(Consumer<AuthorBuilder> consumer) {
-			author( Author.build(consumer) );
+			author(Author.build(consumer));
 			return this;
 		}
 
