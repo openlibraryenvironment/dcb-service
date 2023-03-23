@@ -114,9 +114,14 @@ public class LocationController {
         public Mono<Location> postLocation(@Body LocationDTO location) {
 
                 // Convert AgencyDTO into DataAgency with correctly linked HostLMS
-                Location l = new Location(location.id(),
-                                          location.code(),
-                                          location.name());
+                Location l = Location.builder()
+                                    .id(location.id())
+                                    .code(location.code())
+                                    .name(location.name())
+                                    .type(location.type())
+                                    .agency(location.agency())
+                                    .isPickup(location.isPickup())
+                                    .build();
 
                 return Mono.from(locationRepository.existsById(l.getId()))
                        .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)));

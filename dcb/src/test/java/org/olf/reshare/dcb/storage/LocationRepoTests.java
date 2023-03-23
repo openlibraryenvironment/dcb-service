@@ -58,6 +58,8 @@ class LocationRepoTests {
                                                 .id(UUID.randomUUID())
                                                 .code("Location1")
                                                 .name("Location1 Name")
+                                                .type("Location")  // Campus, Library, Location, Pickup Location
+                                                .isPickup(Boolean.TRUE)  // Campus, Library, Location, Pickup Location
                                                 .build();
 
                 Mono.from(locationRepository.save(new_location)).block();

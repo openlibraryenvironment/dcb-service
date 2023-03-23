@@ -43,6 +43,22 @@ public class Location {
 	@Column(columnDefinition = "TEXT")
 	private String name;
 
+
+        // Expect @Data to generate the getters and setters here - Use this field to discriminate
+        // Campus, Library, Locations (I.E. 3rd Floor Main Library), Service Points (Collection Desk, 3rd floor main library)
+        @NotNull
+	@NonNull
+	@Column(columnDefinition = "varchar(32)")
+	private String type;
+
+        // The UUID of the agency that owns this location record
+        @Column(name="agency_fk")
+        private UUID agency;
+
+        // List this location in the pickup location lists
+        @Column
+        private Boolean isPickup;
+
 	public UUID getId() {
 		return id;
 	}
