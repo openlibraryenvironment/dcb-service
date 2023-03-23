@@ -5,12 +5,19 @@ import org.olf.reshare.dcb.core.model.Location;
 import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
-public record LocationDTO(UUID id, String code, String name) {
+public record LocationDTO(UUID id, String code, String name, String type, UUID agency, Boolean isPickup) {
 
 
 	static LocationDTO from(Location location) {
-		return new LocationDTO(location.getId(),
-			               location.getCode(),
-			               location.getName());
+
+                UUID agency = ( location.getAgency() != null ) ? location.getAgency().getId() : null;
+
+		return new LocationDTO(
+                                  location.getId(),
+			          location.getCode(),
+			          location.getName(),
+                                  location.getType(),
+                                  agency,
+                                  location.getIsPickup());
 	}
 }

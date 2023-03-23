@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.olf.reshare.dcb.core.model.DataAgency;
 import org.olf.reshare.dcb.core.model.Location;
 
 import io.micronaut.data.model.Page;
@@ -27,6 +28,7 @@ import reactor.core.publisher.Mono;
 import services.k_int.utils.UUIDUtils;
 import org.olf.reshare.dcb.core.api.types.LocationDTO;
 import org.olf.reshare.dcb.storage.LocationRepository;
+import org.olf.reshare.dcb.storage.AgencyRepository;
 
 
 @Controller("/locations")
@@ -35,6 +37,7 @@ import org.olf.reshare.dcb.storage.LocationRepository;
 public class LocationController {
 
         private LocationRepository locationRepository;
+        private AgencyRepository agencyRepository;
 
         /*
 	private static Location decorateWithUUID(Location l) {
@@ -50,27 +53,10 @@ public class LocationController {
 		Location.class.getSimpleName());
         */
 
-	public LocationController(LocationRepository locationRepository) {
+	public LocationController(LocationRepository locationRepository,
+                                  AgencyRepository agencyRepository) {
 		this.locationRepository = locationRepository;
-		/*
-		LOCATIONS_TEMP = Stream.of(new String[][]{
-				{"apl", "Altoona (IA) Public"}, {"klb", "ATSU"}, {"avcir", "Avila University, Library Desk"},
-				{"bplg6", "Bettendorf Public Library"}, {"c1b", "Conception Abbey Library"},
-				{"ch", "Children's Library,CALS-Children's Library"}, {"db", "Dee Brown"}, {"fl", "Fletcher"},
-				{"lr", "Main Library"}, {"ma", "Maumelle"}, {"mb", "Millie Brooks"}, {"mm", "McMath"},
-				{"nx", "Nixon"}, {"ok", "Rooker"}, {"pe", "Milam"}, {"sh", "Sanders"}, {"te", "Terry"},
-				{"th", "Thompson"}, {"wm", "Williams"}
-			})
-			.filter(data -> data.length > 0)
-			.map(data -> {
-				final Location l = new Location();
-				l.setCode(data[0]);
-				l.setName(data[1]);
-				return l;
-			})
-			.map(LocationController::decorateWithUUID)
-			.collect(Collectors.toUnmodifiableList());
-		*/
+		this.agencyRepository = agencyRepository;
 	}
 
         @Operation(
@@ -113,10 +99,18 @@ public class LocationController {
         @Post("/")
         public Mono<Location> postLocation(@Body LocationDTO location) {
 
+                // Look up any agency if given on the incoming DTO
+                DataAgency agency = location.agency() != null ? Mono.from(agencyRepository.findById(location.agency())).block() : null;
+
                 // Convert AgencyDTO into DataAgency with correctly linked HostLMS
-                Location l = new Location(location.id(),
-                                          location.code(),
-                                          location.name());
+                Location l = Location.builder()
+                                    .id(location.id())
+                                    .code(location.code())
+                                    .name(location.name())
+                                    .type(location.type())
+                                    .agency(agency)
+                                    .isPickup(location.isPickup())
+                                    .build();
 
                 return Mono.from(locationRepository.existsById(l.getId()))
                        .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)));

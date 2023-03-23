@@ -16,7 +16,10 @@ create table bib_identifier (
 create table location (
 	id uuid primary key,
 	code varchar(200),
-	name varchar(255)
+	name varchar(255),
+        type varchar(32),
+        agency_fk uuid,
+        is_pickup boolean
 );
 
 create table patron_request (
@@ -39,20 +42,29 @@ create table supplier_request (
 );
 
 create table host_lms (
-  id uuid primary key,
-  code varchar(32),
-  name varchar(200),
-  lms_client_class varchar(200),
-  client_config text
+        id uuid primary key,
+        code varchar(32),
+        name varchar(200),
+        lms_client_class varchar(200),
+        client_config text
 );
 
 create table agency (
-  id uuid primary key,
-  code varchar(32),
-  name varchar(200),
-  host_lms_id uuid,
-  CONSTRAINT fk_host_lms FOREIGN KEY (host_lms_id) REFERENCES host_lms(id)
+        id uuid primary key,
+        code varchar(32),
+        name varchar(200),
+        host_lms_id uuid,
+        CONSTRAINT fk_host_lms FOREIGN KEY (host_lms_id) REFERENCES host_lms(id)
 );
+
+create table location_symbol (
+        id uuid primary key,
+        authority varchar(32),
+        code varchar(64),
+        owning_location_fk uuid,
+        CONSTRAINT fk_location FOREIGN KEY (owning_location_fk) REFERENCES location(id)
+);
+
 
 --create table patron_request_supplier_request (
 --	supplier_request_id uuid primary key,

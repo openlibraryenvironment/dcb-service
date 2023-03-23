@@ -8,6 +8,7 @@ import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.data.annotation.Relation;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Column;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
@@ -42,6 +43,23 @@ public class Location {
 	@NonNull
 	@Column(columnDefinition = "TEXT")
 	private String name;
+
+
+        // Expect @Data to generate the getters and setters here - Use this field to discriminate
+        // Campus, Library, Locations (I.E. 3rd Floor Main Library), Service Points (Collection Desk, 3rd floor main library)
+        @NotNull
+	@NonNull
+	@Column(columnDefinition = "varchar(32)")
+	private String type;
+
+        // The UUID of the agency that owns this location record
+        @Column(name="agency_fk")
+        @Relation(value = Relation.Kind.MANY_TO_ONE)
+        private DataAgency agency;
+
+        // List this location in the pickup location lists
+        @Column
+        private Boolean isPickup;
 
 	public UUID getId() {
 		return id;
