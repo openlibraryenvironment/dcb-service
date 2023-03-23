@@ -8,6 +8,7 @@ import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.data.annotation.Relation;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Column;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
@@ -53,7 +54,8 @@ public class Location {
 
         // The UUID of the agency that owns this location record
         @Column(name="agency_fk")
-        private UUID agency;
+        @Relation(value = Relation.Kind.MANY_TO_ONE)
+        private DataAgency agency;
 
         // List this location in the pickup location lists
         @Column

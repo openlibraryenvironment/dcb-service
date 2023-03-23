@@ -16,8 +16,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.storage.LocationRepository;
+import org.olf.reshare.dcb.storage.AgencyRepository;
 import org.olf.reshare.dcb.test.DcbTest;
 import org.olf.reshare.dcb.core.model.Location;
+import org.olf.reshare.dcb.core.model.Agency;
 
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -51,6 +53,8 @@ class LocationRepoTests {
 
 	@Test
 	void createLocationViaRepository() {
+
+
 
 		// Create a host LMS entry for our new Agency to point at
                 Location new_location = new Location()

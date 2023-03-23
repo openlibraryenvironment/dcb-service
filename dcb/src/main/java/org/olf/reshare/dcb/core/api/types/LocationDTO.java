@@ -9,12 +9,15 @@ public record LocationDTO(UUID id, String code, String name, String type, UUID a
 
 
 	static LocationDTO from(Location location) {
+
+                UUID agency = ( location.getAgency() != null ) ? location.getAgency().getId() : null;
+
 		return new LocationDTO(
                                   location.getId(),
 			          location.getCode(),
 			          location.getName(),
                                   location.getType(),
-                                  location.getAgency(),
+                                  agency,
                                   location.getIsPickup());
 	}
 }
