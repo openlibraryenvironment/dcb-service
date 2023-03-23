@@ -16,9 +16,11 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.storage.LocationRepository;
+import org.olf.reshare.dcb.storage.LocationSymbolRepository;
 import org.olf.reshare.dcb.storage.AgencyRepository;
 import org.olf.reshare.dcb.test.DcbTest;
 import org.olf.reshare.dcb.core.model.Location;
+import org.olf.reshare.dcb.core.model.LocationSymbol;
 import org.olf.reshare.dcb.core.model.Agency;
 
 import io.micronaut.http.HttpRequest;
@@ -47,6 +49,9 @@ class LocationRepoTests {
 	@Inject
 	LocationRepository locationRepository;
 
+	@Inject
+	LocationSymbolRepository locationSymbolRepository;
+
 	@BeforeEach
 	void beforeEach() {
 	}
@@ -68,10 +73,35 @@ class LocationRepoTests {
 
                 Mono.from(locationRepository.save(new_location)).block();
 
+                // Create a location symbol that can be used to identify this location
+                LocationSymbol new_ls1 = new LocationSymbol()
+                                              .builder()
+                                                .id(UUID.randomUUID())
+                                                .authority("DCBTEST")
+                                                .code("LOC1")
+                                                .location(new_location)
+                                                .build();
+                Mono.from(locationSymbolRepository.save(new_ls1)).block();
+
+                LocationSymbol new_ls2 = new LocationSymbol()
+                                              .builder()
+                                                .id(UUID.randomUUID())
+                                                .authority("CARDINAL")
+                                                .code("SSW")
+                                                .location(new_location)
+                                                .build();
+                Mono.from(locationSymbolRepository.save(new_ls2)).block();
+
         	final var fetchedLocationRecords = Flux.from(locationRepository.findAll())
                                 .collectList()
                                 .block();
 
         	assertThat(fetchedLocationRecords.size(), is(1));
+
+        	final var fetchedLocationSymbolRecords = Flux.from(locationSymbolRepository.findAll())
+                                .collectList()
+                                .block();
+
+        	assertThat(fetchedLocationSymbolRecords.size(), is(2));
 	}
 }
