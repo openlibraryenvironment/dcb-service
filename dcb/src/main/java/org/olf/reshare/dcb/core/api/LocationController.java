@@ -8,6 +8,9 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.olf.reshare.dcb.core.model.DataAgency;
 import org.olf.reshare.dcb.core.model.Location;
 
@@ -35,6 +38,8 @@ import org.olf.reshare.dcb.storage.AgencyRepository;
 @Tag(name = "Locations")
 @Secured(SecurityRule.IS_ANONYMOUS)
 public class LocationController {
+
+        private static final Logger log = LoggerFactory.getLogger(LocationController.class);
 
         private LocationRepository locationRepository;
         private AgencyRepository agencyRepository;
@@ -99,8 +104,12 @@ public class LocationController {
         @Post("/")
         public Mono<Location> postLocation(@Body LocationDTO location) {
 
+                log.debug("postLocation {}",location.toString());
+
                 // Look up any agency if given on the incoming DTO
                 DataAgency agency = location.agency() != null ? Mono.from(agencyRepository.findById(location.agency())).block() : null;
+
+                log.debug("Creating location with agency {}",agency);
 
                 // Convert AgencyDTO into DataAgency with correctly linked HostLMS
                 Location l = Location.builder()
