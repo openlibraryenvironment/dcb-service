@@ -56,7 +56,7 @@ public class GokbImportTests {
 //    // Use the regular registry client to fetch the agreement mock.
 //    List<?> resp = client.toBlocking().retrieve(HttpRequest.GET("/_/proxy/modules?filter=mod-agreements"),
 //    		Argument.of(List.class, Argument.of(Map.class, String.class, Object.class)));
-//  	
+//
 //  	assertNotNull(resp);
 //  	assertEquals(resp.size(), 0);
 	}

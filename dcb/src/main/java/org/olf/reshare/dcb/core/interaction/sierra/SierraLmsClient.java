@@ -5,16 +5,14 @@ import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import java.net.MalformedURLException;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import javax.validation.constraints.NotNull;
 
 import org.marc4j.marc.Record;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
+import org.olf.reshare.dcb.core.interaction.Item;
+import org.olf.reshare.dcb.core.interaction.Status;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.ingest.marc.MarcIngestSource;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
@@ -144,6 +142,19 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					map.put("id", bibRes.id());
 					return map;
 				});
+	}
+
+	@Override
+	public Flux<Item> getAllItemDataByBibRecordId(String bibRecordId) {
+		log.info("getAllItemDataByBibRecordId({})", bibRecordId);
+		return Flux.from(client.items(params -> params
+				.deleted(false)
+				.bibIds(List.of(bibRecordId))))
+			.flatMap(results -> Flux.fromIterable(results.getEntries()))
+			.map(itemRes -> new Item(itemRes.getId(),
+				new Status(itemRes.getStatus().getCode(),
+					itemRes.getStatus().getDisplay(),
+					itemRes.getStatus().getDuedate())));
 	}
 
 	@Override

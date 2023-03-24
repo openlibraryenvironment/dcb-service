@@ -10,7 +10,7 @@ import java.util.List;
 public class AvailabilityResponseView {
 	private final List<Item> itemList;
 	private final String bibRecordId;
-	private final String agencyCode;
+	private final String hostLmsCode;
 }
 
 

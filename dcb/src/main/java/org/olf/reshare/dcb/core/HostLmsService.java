@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
+import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.ingest.IngestSourcesProvider;
@@ -24,20 +25,26 @@ import org.olf.reshare.dcb.storage.HostLmsRepository;
 public class HostLmsService implements IngestSourcesProvider {
 	
 	private final Map<UUID, HostLms> fromConfigById;
+	private final Map<String, HostLms> fromConfigByCode;
 	private final BeanContext context;
-        private final HostLmsRepository hostLmsRepository;
+	private final HostLmsRepository hostLmsRepository;
 	
-	HostLmsService(HostLms[] confHosts, 
-                       BeanContext context,
+	HostLmsService(HostLms[] confHosts, BeanContext context,
                        HostLmsRepository hostLmsRepository) {
+		this.hostLmsRepository = hostLmsRepository;
 		this.context = context;
-                this.hostLmsRepository = hostLmsRepository;
 		this.fromConfigById = Stream.of(confHosts)
 			.collect(Collectors.toUnmodifiableMap(HostLms::getId, item -> item));
+		this.fromConfigByCode = Stream.of(confHosts)
+			.collect(Collectors.toUnmodifiableMap(HostLms::getCode, item -> item));
 	}
 	
 	public Mono<HostLms> findById( UUID id ) {
-		return Mono.justOrEmpty( fromConfigById.get(id) );
+		return Mono.justOrEmpty(fromConfigById.get(id));
+	}
+
+	public Mono<HostLms> findByCode( String code ) {
+		return Mono.justOrEmpty( fromConfigByCode.get(code) );
 	}
 	
 	public Mono<HostLmsClient> getClientFor( final HostLms hostLms ) {

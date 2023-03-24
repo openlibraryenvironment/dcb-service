@@ -39,6 +39,7 @@ import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.SierraError;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
+import services.k_int.interaction.sierra.items.ResultSet;
 
 @Secondary
 @Prototype
@@ -99,6 +100,35 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			}))
 			.flatMap(this::ensureToken)
 			.flatMap(req ->	doRetrieve(req, BibResultSet.class) );
+	}
+
+	@Override
+	@SingleResult
+	@Retryable
+	@Get("items")
+	public Publisher<ResultSet> items(Integer limit, Integer offset,
+		Iterable<String> id, Iterable<String> fields, String createdDate,
+		String updatedDate, String deletedDate, Boolean deleted, Iterable<String> bibIds,
+		String status, String dueDate, Boolean suppressed, Iterable<String> locations) {
+
+		return getRequest("items")
+			.map(req -> req.uri(theUri -> theUri
+				.queryParam("limit", limit)
+				.queryParam("offset", offset)
+				.queryParam("id", id)
+				.queryParam("fields", iterableToArray(fields))
+				.queryParam("createdDate", createdDate)
+				.queryParam("updatedDate", updatedDate)
+				.queryParam("deletedDate", deletedDate)
+				.queryParam("deleted", deleted)
+				.queryParam("bibIds", iterableToArray(bibIds))
+				.queryParam("status", status)
+				// Case for due date is deliberate to match inconsistency in Sierra API
+				.queryParam("duedate", dueDate)
+				.queryParam("suppressed", suppressed)
+				.queryParam("locations", iterableToArray(locations))))
+			.flatMap(this::ensureToken)
+			.flatMap(req ->	doRetrieve(req, ResultSet.class));
 	}
 	
 	private <T> Mono<T> handleResponseErrors ( final Mono<T> current ) {
