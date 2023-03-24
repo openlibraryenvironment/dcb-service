@@ -29,13 +29,14 @@ import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.bibs.BibParams;
 import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
+import services.k_int.interaction.sierra.items.Params;
+import services.k_int.interaction.sierra.items.ResultSet;
 
 @Client(value = "${" + SierraApiClient.CONFIG_ROOT + ".api.url:/iii/sierra-api/v6}", errorType = SierraError.class)
 @Header(name = ACCEPT, value = APPLICATION_JSON)
 public interface SierraApiClient {
-
-	public final static String CONFIG_ROOT = "sierra.client";
-	static final Logger log = LoggerFactory.getLogger(SierraApiClient.class);
+	String CONFIG_ROOT = "sierra.client";
+	Logger log = LoggerFactory.getLogger(SierraApiClient.class);
 	
 	private static <T> Collection<T> nullIfEmpty (Collection<T> collection) {
 		if (collection == null || collection.size() < 1) return null;
@@ -57,7 +58,7 @@ public interface SierraApiClient {
 	}
 	
 	@SingleResult
-	public default Publisher<BibResultSet> bibs (Consumer<BibParamsBuilder> consumer) {
+	default Publisher<BibResultSet> bibs (Consumer<BibParamsBuilder> consumer) {
 		return bibs(BibParams.build(consumer));
 	}
 	
@@ -74,7 +75,47 @@ public interface SierraApiClient {
 			@Nullable @QueryValue("deletedDate") final String deletedDate,
 			@Nullable @QueryValue("suppressed") final Boolean suppressed,
 			@Nullable @QueryValue("locations") @Format("CSV") final Iterable<String> locations);
-	
+
+	@SingleResult
+	default Publisher<ResultSet> items (Params params) {
+		return items(
+			params.getLimit(),
+			params.getOffset(),
+			nullIfEmpty(params.getId()),
+			nullIfEmpty(params.getFields()),
+			Objects.toString(params.getCreatedDate(), null),
+			Objects.toString(params.getUpdatedDate(), null),
+			Objects.toString(params.getDeletedDate(), null),
+			params.getDeleted(),
+			nullIfEmpty(params.getBibIds()),
+			params.getStatus(),
+			Objects.toString(params.getDuedate(), null),
+			params.getSuppressed(),
+			nullIfEmpty(params.getLocations()));
+	}
+
+	@SingleResult
+	default Publisher<ResultSet> items (Consumer<Params.ParamsBuilder> consumer) {
+		return items(Params.build(consumer));
+	}
+
+	@SingleResult
+	@Get("/items/")
+	@Retryable
+	Publisher<ResultSet> items(
+		@Nullable @QueryValue("limit") final Integer limit,
+		@Nullable @QueryValue("offset") final Integer offset,
+		@Nullable @QueryValue("id") final Iterable<String> id,
+		@Nullable @QueryValue("fields") @Format("CSV") final Iterable<String> fields,
+		@Nullable @QueryValue("createdDate") final String createdDate,
+		@Nullable @QueryValue("updatedDate") final String updatedDate,
+		@Nullable @QueryValue("deletedDate") final String deletedDate,
+		@Nullable @QueryValue("deleted") final Boolean deleted,
+		@Nullable @QueryValue("bibIds") final Iterable<String> bibIds,
+		@Nullable @QueryValue("status") final String status,
+		@Nullable @QueryValue("duedate") final String duedate,
+		@Nullable @QueryValue("suppressed") final Boolean suppressed,
+		@Nullable @QueryValue("locations") @Format("CSV") final Iterable<String> locations);
 
 	@SingleResult
 	default Publisher<AuthToken> login( BasicAuth creds ) {
@@ -93,5 +134,4 @@ public interface SierraApiClient {
 	default Publisher<AuthToken> login( final String key, final String secret ) {
 		return login(new BasicAuth(key, secret));
 	}
-	
 }

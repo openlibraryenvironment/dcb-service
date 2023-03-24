@@ -17,5 +17,4 @@ import jakarta.inject.Singleton;
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 @Transactional
 public interface PostgresHostLmsRepository extends ReactiveStreamsPageableRepository<DataHostLms, UUID>, HostLmsRepository {
-
 }

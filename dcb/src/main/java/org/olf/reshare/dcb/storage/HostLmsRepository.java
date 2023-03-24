@@ -6,7 +6,6 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -17,9 +16,9 @@ public interface HostLmsRepository {
 	@SingleResult
 	Publisher<? extends DataHostLms> save(@Valid @NotNull @NonNull DataHostLms hostLms);
 
-        @NonNull
-        @SingleResult
-        Publisher<? extends DataHostLms> persist(@Valid @NotNull @NonNull DataHostLms hostLms);
+	@NonNull
+	@SingleResult
+	Publisher<? extends DataHostLms> persist(@Valid @NotNull @NonNull DataHostLms hostLms);
 
 	@NonNull
 	@SingleResult
@@ -29,9 +28,9 @@ public interface HostLmsRepository {
 	@SingleResult
 	Publisher<DataHostLms> findById(@NonNull UUID id);
 
-        @NonNull
-        @SingleResult
-        Publisher<Boolean> existsById(@NonNull UUID id);
+	@NonNull
+	@SingleResult
+	Publisher<Boolean> existsById(@NonNull UUID id);
 
 	@NonNull
 	@SingleResult
@@ -41,13 +40,12 @@ public interface HostLmsRepository {
 	@SingleResult
 	Publisher<DataHostLms> findByCode(@NonNull String code);
 
-        @NonNull
-        @SingleResult
-        Publisher<Page<DataHostLms>> findAll(Pageable page);
+	@NonNull
+	@SingleResult
+	Publisher<Page<DataHostLms>> findAll(Pageable page);
 
 	@NonNull
 	Publisher<DataHostLms> findAll();
 
-        Publisher<Void> delete(UUID id);
-
+	Publisher<Void> delete(UUID id);
 }
