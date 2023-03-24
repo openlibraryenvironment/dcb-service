@@ -31,8 +31,8 @@ class PatronRequestResolutionServiceTests {
 		final var itemId = UUID.randomUUID();
 
 		final var clusteredBib = new ClusteredBib(bibClusterId,
-			List.of(new Holdings(new Holdings.Agency("agency"),
-			List.of(new Holdings.Item(itemId)))));
+			List.of(new Holdings(new Agency("agency"),
+			List.of(new Item(itemId)))));
 
 		when(mockSharedIndex.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
@@ -63,10 +63,8 @@ class PatronRequestResolutionServiceTests {
 		final var itemId3 = UUID.randomUUID();
 
 		final var clusteredBib = new ClusteredBib(bibClusterId,
-			List.of(new Holdings(new Holdings.Agency("agency"),
-				List.of(new Holdings.Item(itemId1),
-					new Holdings.Item(itemId2),
-					new Holdings.Item(itemId3)))));
+			List.of(new Holdings(new Agency("agency"),
+				List.of(new Item(itemId1), new Item(itemId2), new Item(itemId3)))));
 
 		when(mockSharedIndex.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
@@ -98,10 +96,8 @@ class PatronRequestResolutionServiceTests {
 
 		final var clusteredBib = new ClusteredBib(bibClusterId,
 			List.of(
-				new Holdings(new Holdings.Agency("agency 1"),
-					List.of(new Holdings.Item(itemId1))),
-				new Holdings(new Holdings.Agency("agency 2"),
-					List.of(new Holdings.Item(itemId2)))));
+				new Holdings(new Agency("agency 1"), List.of(new Item(itemId1))),
+				new Holdings(new Agency("agency 2"), List.of(new Item(itemId2)))));
 
 		when(mockSharedIndex.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
@@ -174,7 +170,7 @@ class PatronRequestResolutionServiceTests {
 		final var bibClusterId = UUID.randomUUID();
 
 		final var clusteredBib = new ClusteredBib(bibClusterId,
-			List.of(new Holdings(new Holdings.Agency("agency 1"), List.of())));
+			List.of(new Holdings(new Agency("agency 1"), List.of())));
 
 		when(mockSharedIndex.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
@@ -197,7 +193,7 @@ class PatronRequestResolutionServiceTests {
 		final var bibClusterId = UUID.randomUUID();
 
 		final var clusteredBib = new ClusteredBib(bibClusterId,
-			List.of(new Holdings(new Holdings.Agency("agency 1"), null)));
+			List.of(new Holdings(new Agency("agency 1"), null)));
 
 		when(mockSharedIndex.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
