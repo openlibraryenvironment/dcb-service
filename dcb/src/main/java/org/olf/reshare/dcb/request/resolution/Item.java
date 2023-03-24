@@ -1,6 +1,5 @@
 package org.olf.reshare.dcb.request.resolution;
 
-import java.util.List;
 import java.util.UUID;
 
 import io.micronaut.serde.annotation.Serdeable;
@@ -8,7 +7,6 @@ import lombok.Data;
 
 @Serdeable
 @Data
-public final class ClusteredBib {
+public final class Item {
 	private final UUID id;
-	private final List<Holdings> holdings;
 }

@@ -3,8 +3,10 @@ package org.olf.reshare.dcb.request.resolution.fake;
 import java.util.List;
 import java.util.UUID;
 
+import org.olf.reshare.dcb.request.resolution.Agency;
 import org.olf.reshare.dcb.request.resolution.ClusteredBib;
 import org.olf.reshare.dcb.request.resolution.Holdings;
+import org.olf.reshare.dcb.request.resolution.Item;
 import org.olf.reshare.dcb.request.resolution.SharedIndexService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +23,7 @@ public class FakeSharedIndexService implements SharedIndexService {
 		log.debug(String.format("findClusteredBib(%s)", bibClusterId));
 
 		return Mono.just(new ClusteredBib(bibClusterId,
-			List.of(new Holdings(new Holdings.Agency("fake agency"),
-				List.of(new Holdings.Item(UUID.randomUUID()))))));
+			List.of(new Holdings(new Agency("fake agency"),
+				List.of(new Item(UUID.randomUUID()))))));
 	}
 }
