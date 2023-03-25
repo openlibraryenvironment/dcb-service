@@ -18,15 +18,14 @@ micronaut:
     authentication: bearer
     token:
       jwt:
-        generator:
-          access-token:
-            expiration: 600
-        signatures:
-          secret:
-            generator:
-              secret: "${token.secret:placeholder}"
-              base64: true
-              jws-algorithm: HS256
+        enabled: true
+        signatures.jwks.keycloak:
+          url: https://reshare-hub-kc.libsdev.k-int.com/realms/reshare-hub/protocol/openid-connect/certs
+    oauth2.clients.keycloak:
+      client-id: dcb
+      client-secret: RncJxvqxtOpeboB6dYFegzF47q8gyK2x
+      openid:
+        issuer: https://reshare-hub-kc.libsdev.k-int.com/realms/reshare-hub
     intercept-url-map:
       - pattern: "/openapi/**"
         access:

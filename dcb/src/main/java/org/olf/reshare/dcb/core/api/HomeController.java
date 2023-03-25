@@ -25,4 +25,11 @@ public class HomeController {
 	public String index(Principal principal) {
 		return principal.getName();
 	}
+
+        @Secured({"ROLE_ADMIN"}) 
+        @Get(value="/secured", produces = TEXT_PLAIN)
+	public String index(Principal principal) {
+		return principal.getName();
+	}
+
 }
