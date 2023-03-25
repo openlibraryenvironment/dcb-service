@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.olf.reshare.dcb.core.model.LocationSymbol;
+import org.olf.reshare.dcb.core.model.Location;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -25,7 +26,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
 import services.k_int.utils.UUIDUtils;
+import org.olf.reshare.dcb.storage.LocationRepository;
 import org.olf.reshare.dcb.storage.LocationSymbolRepository;
+import org.olf.reshare.dcb.core.api.types.LocationSymbolDTO;
 
 
 @Controller("/symbols")
@@ -33,10 +36,13 @@ import org.olf.reshare.dcb.storage.LocationSymbolRepository;
 @Secured(SecurityRule.IS_ANONYMOUS)
 public class SymbolController {
 
+        private LocationRepository locationRepository;
         private LocationSymbolRepository locationSymbolRepository;
 
-	public SymbolController(LocationSymbolRepository locationSymbolRepository) {
+	public SymbolController(LocationSymbolRepository locationSymbolRepository,
+                                LocationRepository locationRepository) {
 		this.locationSymbolRepository = locationSymbolRepository;
+		this.locationRepository = locationRepository;
 	}
 
         @Operation(
@@ -58,6 +64,23 @@ public class SymbolController {
         @Get("/{id}")
         public Mono<LocationSymbol> show(UUID id) {
                 return Mono.from(locationSymbolRepository.findById(id));
+        }
+
+        // TODO: Convert return DataAgency to AgencyDTO
+        @Post("/")
+        public Mono<LocationSymbol> postLocationSymbol(@Body LocationSymbolDTO symbol) {
+
+                Location loc = Mono.from(locationRepository.findById(symbol.locationId())).block();
+
+                LocationSymbol ls = LocationSymbol.builder()
+                                               .id(symbol.id())
+                                               .authority(symbol.authority())
+                                               .code(symbol.code())
+                                               .location(loc)
+                                               .build();
+
+                return Mono.from(locationSymbolRepository.existsById(ls.getId()))
+                       .flatMap(exists -> Mono.fromDirect(exists ? locationSymbolRepository.update(ls) : locationSymbolRepository.save(ls)));
         }
 
 }
