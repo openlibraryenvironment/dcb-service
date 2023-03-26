@@ -29,6 +29,7 @@
 	<logger name="org.olf.reshare" level="DEBUG"/>
 	<logger name="services.k_int" level="DEBUG"/>
 	<logger name="org.olf.reshare.dcb.ingest.marc.MarcIngestSource" level="WARN"/>
+	<logger name="io.micronaut.security.authentication" level="DEBUG" />
 
 	<root level="info">
 		<appender-ref ref="STDOUT"/>

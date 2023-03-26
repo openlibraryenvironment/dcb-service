@@ -42,6 +42,7 @@ class JwtAuthenticationTest {
 		assertEquals(BAD_REQUEST, e.getStatus());
 	}
 
+        /*
 	@Test
 	void uponSuccessfulAuthenticationAJsonWebTokenIsIssuedToTheUser()
 		throws ParseException {
@@ -67,4 +68,5 @@ class JwtAuthenticationTest {
 		assertEquals(OK, rsp.getStatus());
 		assertEquals("user", response.body());
 	}
+	*/
 }

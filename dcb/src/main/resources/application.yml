@@ -14,18 +14,15 @@ micronaut:
       redoc:
         paths: classpath:META-INF/swagger/views/redoc
         mapping: /openapi/redoc/**
+
   security:
-    authentication: bearer
+    authentication: idtoken
     token:
       jwt:
         enabled: true
         signatures.jwks.keycloak:
-          url: https://reshare-hub-kc.libsdev.k-int.com/realms/reshare-hub/protocol/openid-connect/certs
-    oauth2.clients.keycloak:
-      client-id: dcb
-      client-secret: RncJxvqxtOpeboB6dYFegzF47q8gyK2x
-      openid:
-        issuer: https://reshare-hub-kc.libsdev.k-int.com/realms/reshare-hub
+          url: ${KEYCLOAK_CERT_URL:""}
+
     intercept-url-map:
       - pattern: "/openapi/**"
         access:
