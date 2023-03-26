@@ -33,7 +33,7 @@ import java.util.ArrayList;
 import java.util.UUID;
 
 @Validated
-@Secured(SecurityRule.IS_ANONYMOUS)
+@Secured({"ADMIN"})
 @Controller("/hostlmss")
 @Tag(name = "HostLMSs")
 public class HostLmssController {
