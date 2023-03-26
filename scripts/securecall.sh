@@ -25,3 +25,4 @@ export TOKEN=`curl \
 # See https://github.com/tchiotludo/akhq/issues/556
 # curl -v -v -H "Authorization: Bearer $TOKEN" "http://localhost:8080/secured"
 curl -H "Authorization: Bearer $TOKEN" "http://localhost:8080/secured"
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:8080/hostlmss"
