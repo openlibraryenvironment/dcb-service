@@ -23,17 +23,15 @@ import lombok.extern.slf4j.Slf4j;
 @Controller
 public class HomeController {
 
-        /*
 	@Produces(TEXT_PLAIN)
 	@Get
 	public String index(Principal principal) {
 		return principal.getName();
 	}
-        */
 
         @Secured({"ADMIN"}) 
         @Get(value="/secured", produces = TEXT_PLAIN)
-	public String index(Principal principal) {
+	public String securedEndpoint(Principal principal) {
 		io.micronaut.security.authentication.ServerAuthentication sa = (io.micronaut.security.authentication.ServerAuthentication) principal;
 		log.info("principal: {}", principal);
 		log.info("attrs: {}", sa.getAttributes());

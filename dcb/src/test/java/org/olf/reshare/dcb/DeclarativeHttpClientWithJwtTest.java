@@ -22,7 +22,6 @@ class DeclarativeHttpClientWithJwtTest {
 	@Inject
 	AppClient appClient;
 
-	/*
 	@Test
 	void verifyJwtAuthenticationWorksWithDeclarativeClient()
 		throws ParseException {
@@ -37,5 +36,4 @@ class DeclarativeHttpClientWithJwtTest {
 		String msg = appClient.home("Bearer " + loginRsp.getAccessToken());
 		assertEquals("user", msg);
 	}
-	*/
 }
