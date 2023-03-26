@@ -10,20 +10,21 @@ import io.micronaut.security.authentication.AuthenticationResponse;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
+import java.util.List;
 
 @Singleton
 public class DcbAuthenticationProvider implements AuthenticationProvider {
 
-	// TODO: Change
-	private static String USERNAME = "user";
-	private static String PASSWORD = "password";
+	private static List VALID_USERS = List.of( "user", "admin", "standard" );
 
 	@Override
 	public Publisher<AuthenticationResponse> authenticate(@Nullable HttpRequest<?> httpRequest,
 																												AuthenticationRequest<?, ?> authenticationRequest) {
 		return Flux.create(emitter -> {
-			if (authenticationRequest.getIdentity().equals(USERNAME) && authenticationRequest.getSecret().equals(PASSWORD)) {
-				emitter.next(AuthenticationResponse.success((String) authenticationRequest.getIdentity()));
+			if (VALID_USERS.contains(authenticationRequest.getIdentity())) {
+				// If the username is admin, allocate the admin role
+                                List<String> roles = authenticationRequest.getIdentity().equals("admin") ? List.of("ADMIN") : List.of( "STD" );
+				emitter.next(AuthenticationResponse.success((String) authenticationRequest.getIdentity(),  roles));
 				emitter.complete();
 			} else {
 				emitter.error(AuthenticationResponse.exception());
