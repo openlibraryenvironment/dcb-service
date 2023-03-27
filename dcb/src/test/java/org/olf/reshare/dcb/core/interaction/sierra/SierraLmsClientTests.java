@@ -36,7 +36,7 @@ import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@MicronautTest(transactional = false, propertySources = { "classpath:configs/sierraLmsClientTests.yml" }, rebuildContext = true)
+@MicronautTest(transactional = false, propertySources = { "classpath:configs/SierraLmsClientTests.yml" }, rebuildContext = true)
 @TestInstance(Lifecycle.PER_CLASS)
 class SierraLmsClientTests {
 	private static final String SIERRA_TOKEN = "test-token-for-user";
