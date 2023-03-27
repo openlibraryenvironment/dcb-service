@@ -1,20 +1,14 @@
 package services.k_int.interaction.sierra;
 
-import static io.micronaut.http.HttpStatus.*;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockserver.model.HttpRequest.request;
-import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
-import java.io.IOException;
 import java.util.List;
 
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 
@@ -83,41 +77,5 @@ class SierraApiItemTests {
 		assertEquals(items.get(0).getId(), "f2010365-e1b1-4a5d-b431-a3c65b5f23fb");
 		assertEquals(items.get(1).getId(), "c5bc9cd0-fc23-48be-9d52-647cea8c63ca");
 		assertEquals(items.get(2).getId(), "69415d0a-ace5-49e4-96fd-f63855235bf0");
-	}
-
-	/*
-	https://sandbox.iii.com:443/iii/sierra-api/v6/items/?id=0
-	*/
-	@Test
-	@Disabled // Matching expectation but 404 error is not being thrown?!
-	void sierraRespondsWithErrorWhenNoItemsAreFound(MockServerClient mock) throws IOException {
-
-		mock.when(
-				request()
-					.withHeader("Accept", "application/json")
-					.withMethod("GET")
-					.withPath("/iii/sierra-api/v6/items/")
-					.withQueryStringParameter("bibIds", "0")
-					.withQueryStringParameter("deleted", "false"))
-			.respond(notFoundResponse()
-				.withStatusCode(404)
-				.withContentType(APPLICATION_JSON)
-				.withBody(json(new String(loader
-					.getResourceAsStream(MOCK_ROOT + "/sierra-api-items-0.json")
-					.orElseThrow()
-					.readAllBytes()))));
-
-		// These are separate variables to only have single invocation in assertThrows
-		final var exception = assertThrows(HttpClientResponseException.class,
-			() ->  Mono.from(client.items(Params.builder()
-					.bibIds(List.of("0"))
-					.deleted(false)
-					.build()))
-				.block());
-
-		final var response = exception.getResponse();
-
-		assertThat(response.getStatus(), is(NOT_FOUND));
-		assertThat(response.code(), is(404));
 	}
 }

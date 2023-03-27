@@ -5,24 +5,26 @@ import java.util.Optional;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.micronaut.core.annotation.Nullable;
-import io.micronaut.core.type.Argument;
 import io.micronaut.http.hateoas.JsonError;
 import io.micronaut.serde.annotation.Serdeable;
+import lombok.Getter;
 
 @Serdeable.Deserializable
 public class SierraError extends JsonError {
-
-	public static final Argument<SierraError> TYPE = Argument.of(SierraError.class);
-
 	public SierraError() {
 		this(null);
 	}
 
+	@Getter
 	private int code;
-	private int specificCode;
-	private String name;
-	private String description;
 
+	@Getter
+	private int specificCode;
+
+	@Getter
+	private String name;
+
+	private String description;
 
 	/**
 	 * @param message The message
