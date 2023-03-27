@@ -5,9 +5,7 @@ hosts:
     type: org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient
     client:
       base-url: "https://sandbox.iii.com"
-      key: ${SANDBOX_API_KEY:""}
-      secret: ${SANDBOX_API_SECRET:""}
-      ingest: false
+      ingest: true
     
 agencies:
   testAgency1:
