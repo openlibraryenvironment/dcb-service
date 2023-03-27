@@ -1,5 +1,6 @@
 package org.olf.reshare.dcb.core;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -24,7 +25,7 @@ public class HostLmsService implements IngestSourcesProvider {
 	private final Map<String, HostLms> fromConfigByCode;
 	private final BeanContext context;
 	private final HostLmsRepository hostLmsRepository;
-	
+
 	HostLmsService(HostLms[] confHosts, BeanContext context,
                        HostLmsRepository hostLmsRepository) {
 		this.hostLmsRepository = hostLmsRepository;
@@ -40,7 +41,16 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	public Mono<HostLms> findByCode( String code ) {
-		return Mono.justOrEmpty( fromConfigByCode.get(code) );
+		return getAllHostLms()
+			.collectList()
+			.map(list -> findFirstByCode(code, list));
+	}
+
+	private static HostLms findFirstByCode(String code, List<HostLms> list) {
+		return list.stream()
+			.filter(hostLms -> hostLms.getCode().equals(code))
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No host found for code: " + code));
 	}
 
 	public Mono<HostLmsClient> getClientFor( final HostLms hostLms ) {
