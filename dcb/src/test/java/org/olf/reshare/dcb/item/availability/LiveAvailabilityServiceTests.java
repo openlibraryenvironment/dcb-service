@@ -4,6 +4,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -13,7 +14,6 @@ import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.interaction.Item;
 import org.olf.reshare.dcb.core.interaction.Status;
-import org.olf.reshare.dcb.core.model.HostLms;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -23,14 +23,10 @@ public class LiveAvailabilityServiceTests {
 	void shouldGetAvailableItemsViaHostLmsService() {
 		final var hostLmsService = mock(HostLmsService.class);
 		final var hostLmsClient = mock(HostLmsClient.class);
-		final var hostLms = mock(HostLms.class);
 
 		final var liveAvailabilityService = new LiveAvailabilityService(hostLmsService);
 
-		when(hostLmsService.findByCode("testLmsCode"))
-			.thenAnswer(invocation -> Mono.just(hostLms));
-
-		when(hostLmsService.getClientFor(hostLms))
+		when(hostLmsService.getClientFor("testLmsCode"))
 			.thenAnswer(invocation -> Mono.just(hostLmsClient));
 
 		final var item = new Item("testid",
@@ -55,9 +51,8 @@ public class LiveAvailabilityServiceTests {
 		assertThat(status.getCode(), is("testCode"));
 		assertThat(status.getDisplayText(), is("testText"));
 		assertThat(status.getDueDate(), is("testDate"));
-
-		verify(hostLmsService).findByCode(any());
-		verify(hostLmsService).getClientFor(any());
+		
+		verify(hostLmsService).getClientFor(anyString());
 		verify(hostLmsClient).getAllItemDataByBibRecordId(any());
 	}
 }

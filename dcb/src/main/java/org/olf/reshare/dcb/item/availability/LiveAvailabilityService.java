@@ -24,15 +24,10 @@ public class LiveAvailabilityService {
 	public Mono<List<Item>> getAvailableItems(String bibRecordId, String hostLmsCode) {
 		log.debug("getAvailableItems({}, {})", bibRecordId, hostLmsCode);
 
-		return getClient(hostLmsCode)
+		return hostLmsService.getClientFor(hostLmsCode)
 			.flatMapMany(hostLmsClient -> getItems(bibRecordId, hostLmsClient))
 			.map(this::mapToAvailabilityItem)
 			.collectList();
-	}
-
-	private Mono<HostLmsClient> getClient(String hostLmsCode) {
-		return hostLmsService.findByCode(hostLmsCode)
-						 .flatMap(hostLmsService::getClientFor);
 	}
 
 	private static Flux<org.olf.reshare.dcb.core.interaction.Item> getItems(
