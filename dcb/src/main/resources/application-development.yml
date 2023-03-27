@@ -13,20 +13,20 @@
 #   testAgency1:
 #     hostLms: sandbox
 # 
-# micronaut:
-#   security:
-#     authentication: bearer
-#     token:
-#       jwt:
-#         generator:
-#           access-token:
-#             expiration: 600
-#         signatures:
-#           secret:
-#             generator:
-#               secret: "${token.secret:secretsmustbeatleast256bitssothats32chars}"
-#               base64: true
-#               jws-algorithm: HS256
-#           jwks:
-#             keycloak:
-#               url: ${KEYCLOAK_CERT_URL:""}
+micronaut:
+  security:
+    authentication: bearer
+    token:
+      jwt:
+        generator:
+          access-token:
+            expiration: 600
+        signatures:
+          secret:
+            generator:
+              secret: "${token.secret:secretsmustbeatleast256bitssothats32cha874hjkj3hjhhdd888dhhhhrs}"
+              base64: true
+              jws-algorithm: HS256
+          jwks:
+            keycloak:
+              url: ${KEYCLOAK_CERT_URL:""}

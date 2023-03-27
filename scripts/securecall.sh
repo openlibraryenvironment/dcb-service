@@ -26,3 +26,17 @@ export TOKEN=`curl \
 # curl -v -v -H "Authorization: Bearer $TOKEN" "http://localhost:8080/secured"
 curl -H "Authorization: Bearer $TOKEN" "http://localhost:8080/secured"
 curl -H "Authorization: Bearer $TOKEN" "http://localhost:8080/hostlmss"
+
+
+echo Test the /login endpoint also
+
+
+# Generate a token from the /login endpoint
+
+export LOCALTOKEN=`curl -X POST http://localhost:8080/login -H 'Content-Type: application/json' -d '{"username":"admin","password":"admpass"}' | jq -r '.access_token'`
+
+echo LOCAL_TOLKEN: $LOCALTOKEN
+
+curl -H "Authorization: Bearer $LOCALTOKEN" "http://localhost:8080/secured"
+
+
