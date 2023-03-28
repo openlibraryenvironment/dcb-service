@@ -1,14 +1,14 @@
 package services.k_int.interaction.sierra.items;
 
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.Data;
-import services.k_int.interaction.sierra.SierraError;
+import java.util.List;
 
 import javax.validation.constraints.NotNull;
-import java.util.List;
+
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Data;
 @Data
 @Serdeable
-public class ResultSet extends SierraError {
+public class ResultSet {
 	int total;
 	int start;
 	@NotNull List<Result> entries;
