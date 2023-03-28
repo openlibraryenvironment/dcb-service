@@ -1,49 +1,54 @@
 package org.olf.reshare.dcb.core;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 
-import java.util.function.Function;
-import java.util.function.Supplier;
-import org.reactivestreams.Publisher;
-import reactor.core.publisher.Flux;
-
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
-import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.MediaType;
-import org.olf.reshare.dcb.core.model.HostLms;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.reshare.dcb.core.model.DataHostLms;
+import org.olf.reshare.dcb.core.model.HostLms;
+import org.olf.reshare.dcb.storage.HostLmsRepository;
+import org.olf.reshare.dcb.test.DataAccess;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
+import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import org.olf.reshare.dcb.storage.HostLmsRepository;
 
 @MockServerMicronautTest
 @MicronautTest(rebuildContext = true, transactional = false, propertySources = { "classpath:tests/hostLmsProps.yml" })
 @TestInstance(Lifecycle.PER_CLASS)
 @TestMethodOrder(OrderAnnotation.class)
-public class HostLmsTests {
+class HostLmsTests {
+	private final DataAccess dataAccess = new DataAccess();
 
 	@Inject
-	HostLmsRepository hostLmsRepository;
+	private HostLmsRepository hostLmsRepository;
 
 	@BeforeAll
-	public static void addFakeSierraApis(MockServerClient mock) {
+	static void addFakeSierraApis(MockServerClient mock) {
 
 		// Mock login to sierra
 		SierraTestUtils.mockFor(mock, "test1.com").setValidCredentials("test1-key", "test1-secret", "test1_auth_token",
@@ -74,6 +79,12 @@ public class HostLmsTests {
 								+ "}")));
 	}
 
+	@BeforeEach
+	void beforeEach() {
+		dataAccess.deleteAll(hostLmsRepository.findAll(),
+			hostLms -> hostLmsRepository.delete(hostLms.getId()));
+	}
+
 	@Inject
 	ResourceLoader loader;
 
@@ -81,14 +92,11 @@ public class HostLmsTests {
 	HostLmsService manager;
 
 	@Test
-	public void hostLmsFromConfigLoaded() {
-
-		// Clear out any hostLMS entries hanging around in the database
-		deleteAll(this::getAllHostLmss, this::deleteHostLms);
-
+	void hostLmsFromConfigLoaded() {
 		// Get the list of configured host LMS
-		List<HostLms> allLms = manager.getAllHostLms().sort((lms1, lms2) -> lms1.getName().compareTo(lms2.getName()))
-				.collect(Collectors.toUnmodifiableList()).block();
+		List<HostLms> allLms = manager.getAllHostLms().sort(
+				Comparator.comparing(HostLms::getName))
+			.collect(Collectors.toUnmodifiableList()).block();
 
 		assertEquals(2, allLms.size());
 
@@ -109,26 +117,44 @@ public class HostLmsTests {
 		assertEquals(1, results.size());
 	}
 
-	// Add an LMS to the Database
+	@Test
+	void shouldFindHostInConfigByCode() {
+		final var foundHost = manager.findByCode("test1").block();
 
-	// Check 3 LMSs
+		assertThat(foundHost, is(notNullValue()));
 
-	// ReCheck resolution
-
-	// Check validation of LMS across the
-
-	public List<DataHostLms> getAllHostLmss() {
-		return Flux.from(hostLmsRepository.findAll()).collectList().block();
+		assertThat(foundHost.getId(), is(notNullValue()));
+		assertThat(foundHost.getCode(), is("test1"));
+		assertThat(foundHost.getName(), is("test1"));
+		assertThat(foundHost.getType(), is(SierraLmsClient.class));
 	}
 
-	private <T> void deleteAll(Supplier<List<T>> allRecordsFetcher, Function<T, Publisher<Void>> deleteFunction) {
+	@Test
+	void shouldFindHostInDatabaseByCode() {
+		Mono.from(hostLmsRepository.save(new DataHostLms(UUID.randomUUID(), "database-host",
+			"Database Host", SierraLmsClient.class.getName(), Map.of())))
+		.block();
 
-		final var allRecords = allRecordsFetcher.get();
+		final var foundHost = manager.findByCode("database-host").block();
 
-		Flux.fromStream(allRecords.stream()).flatMap(deleteFunction).then().block();
+		assertThat(foundHost, is(notNullValue()));
+
+		assertThat(foundHost.getId(), is(notNullValue()));
+		assertThat(foundHost.getCode(), is("database-host"));
+		assertThat(foundHost.getName(), is("Database Host"));
+		assertThat(foundHost.getType(), is(SierraLmsClient.class));
 	}
 
-	private Publisher<Void> deleteHostLms(DataHostLms hostLms) {
-		return hostLmsRepository.delete(hostLms.getId());
+	@Test
+	void shouldNotFindHostWhenUnknown() {
+		Mono.from(hostLmsRepository.save(new DataHostLms(UUID.randomUUID(), "database-host",
+				"Database Host", SierraLmsClient.class.getName(), Map.of())))
+			.block();
+
+		final var exception = assertThrows(RuntimeException.class,
+			() -> manager.findByCode("unknown-host").block());
+
+		assertThat(exception, is(notNullValue()));
+		assertThat(exception.getMessage(), is("No Host LMS found for code: unknown-host"));
 	}
 }

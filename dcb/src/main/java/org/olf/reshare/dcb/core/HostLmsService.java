@@ -20,20 +20,17 @@ import reactor.core.publisher.Mono;
 
 @Singleton
 public class HostLmsService implements IngestSourcesProvider {
-	
 	private final Map<UUID, HostLms> fromConfigById;
-	private final Map<String, HostLms> fromConfigByCode;
 	private final BeanContext context;
 	private final HostLmsRepository hostLmsRepository;
 
 	HostLmsService(HostLms[] confHosts, BeanContext context,
-                       HostLmsRepository hostLmsRepository) {
+		HostLmsRepository hostLmsRepository) {
+
 		this.hostLmsRepository = hostLmsRepository;
 		this.context = context;
 		this.fromConfigById = Stream.of(confHosts)
 			.collect(Collectors.toUnmodifiableMap(HostLms::getId, item -> item));
-		this.fromConfigByCode = Stream.of(confHosts)
-			.collect(Collectors.toUnmodifiableMap(HostLms::getCode, item -> item));
 	}
 	
 	public Mono<HostLms> findById( UUID id ) {
@@ -50,7 +47,7 @@ public class HostLmsService implements IngestSourcesProvider {
 		return list.stream()
 			.filter(hostLms -> hostLms.getCode().equals(code))
 			.findFirst()
-			.orElseThrow(() -> new RuntimeException("No host found for code: " + code));
+			.orElseThrow(() -> new RuntimeException("No Host LMS found for code: " + code));
 	}
 
 	public Mono<HostLmsClient> getClientFor( final HostLms hostLms ) {
