@@ -8,4 +8,7 @@ import lombok.Data;
 public class Item {
 	private final String id;
 	private final Status status;
+	private final Location location;
+	private final String barcode;
+	private final String callNumber;
 }

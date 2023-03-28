@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.interaction.Item;
+import org.olf.reshare.dcb.core.interaction.Location;
 import org.olf.reshare.dcb.core.interaction.Status;
 
 import reactor.core.publisher.Flux;
@@ -30,7 +31,9 @@ public class LiveAvailabilityServiceTests {
 			.thenAnswer(invocation -> Mono.just(hostLmsClient));
 
 		final var item = new Item("testid",
-			new Status("testCode", "testText", "testDate"));
+			new Status("testCode", "testText", "testDate"),
+			new Location("testLocationCode", "testLocationName"),
+			"testBarcode", "testCallNumber");
 
 		when(hostLmsClient.getAllItemDataByBibRecordId("testBibId"))
 			.thenAnswer(invocation -> Flux.just(item));
@@ -44,6 +47,8 @@ public class LiveAvailabilityServiceTests {
 		final var onlyItem = items.get(0);
 
 		assertThat(onlyItem.getId(), is("testid"));
+		assertThat(onlyItem.getBarcode(), is("testBarcode"));
+		assertThat(onlyItem.getCallNumber(), is("testCallNumber"));
 
 		final var status = onlyItem.getStatus();
 
@@ -51,6 +56,12 @@ public class LiveAvailabilityServiceTests {
 		assertThat(status.getCode(), is("testCode"));
 		assertThat(status.getDisplayText(), is("testText"));
 		assertThat(status.getDueDate(), is("testDate"));
+
+		final var location = onlyItem.getLocation();
+
+		assertThat(location, is(notNullValue()));
+		assertThat(location.getCode(), is("testLocationCode"));
+		assertThat(location.getName(), is("testLocationName"));
 		
 		verify(hostLmsService).getClientFor(anyString());
 		verify(hostLmsClient).getAllItemDataByBibRecordId(any());

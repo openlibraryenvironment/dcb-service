@@ -1,6 +1,7 @@
 package org.olf.reshare.dcb.api;
 
 import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -112,6 +113,8 @@ class LiveAvailabilityApiTests {
 
 		assertThat(firstItem, is(notNullValue()));
 		assertThat(firstItem.getId(), is("67e91c1c-ada2-40cc-92dc-75db59d776a5"));
+		assertThat(firstItem.getBarcode(), is("30800005238487"));
+		assertThat(firstItem.getCallNumber(), is("HD9787.U5 M43 1969"));
 
 		final var firstItemStatus = firstItem.getStatus();
 
@@ -120,10 +123,18 @@ class LiveAvailabilityApiTests {
 		assertThat(firstItemStatus.getDisplayText(), is("AVAILABLE"));
 		assertThat(firstItemStatus.getDueDate(), is("2021-02-25T12:00:00Z"));
 
+		final var firstItemLocation = firstItem.getLocation();
+
+		assertThat(firstItemLocation, is(notNullValue()));
+		assertThat(firstItemLocation.getCode(), is("ab6"));
+		assertThat(firstItemLocation.getName(), is("King 6th Floor"));
+
 		final var secondItem = items.get(1);
 
 		assertThat(secondItem, is(notNullValue()));
 		assertThat(secondItem.getId(), is("5e9a80f9-c105-4984-a267-f9160caafd3b"));
+		assertThat(secondItem.getBarcode(), is("9849123490"));
+		assertThat(secondItem.getCallNumber(), is("BL221 .C48"));
 
 		final var secondItemStatus = secondItem.getStatus();
 
@@ -131,12 +142,17 @@ class LiveAvailabilityApiTests {
 		assertThat(secondItemStatus.getCode(), is("-"));
 		assertThat(secondItemStatus.getDisplayText(), is("AVAILABLE"));
 		assertThat(secondItemStatus.getDueDate(), is(nullValue()));
+
+		final var secondItemLocation = secondItem.getLocation();
+
+		assertThat(secondItemLocation, is(notNullValue()));
+		assertThat(secondItemLocation.getCode(), is("ab6"));
+		assertThat(secondItemLocation.getName(), is("King 6th Floor"));
 	}
 
 	@Test
 	@SneakyThrows
 	void failsWhenNoItemsFound() {
-
 		final var uri = UriBuilder.of("/items/availability")
 			.queryParam("bibRecordId", "test")
 			.queryParam("hostLmsCode", "test1")
@@ -153,5 +169,46 @@ class LiveAvailabilityApiTests {
 
 		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
 		assertThat(response.code(), is(500));
+
+		final var optionalBody = response.getBody(String.class);
+
+		assertThat(optionalBody.isPresent(), is(true));
+
+		final var body = optionalBody.get();
+
+		// The error comes back as a JSON structure
+		// Until we can check that better, check the error is part of the JSON as text
+		assertThat(body, containsString("Record not found"));
+	}
+
+	@Test
+	@SneakyThrows
+	void failsWhenHostLmsCannotBeFound() {
+		final var uri = UriBuilder.of("/items/availability")
+			.queryParam("bibRecordId", "test")
+			.queryParam("hostLmsCode", "unknown-host")
+			.build();
+
+		// These are separate variables to only have single invocation in assertThrows
+		final var blockingClient = client.toBlocking();
+		final var request = HttpRequest.GET(uri);
+
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> blockingClient.exchange(request));
+
+		final var response = exception.getResponse();
+
+		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
+		assertThat(response.code(), is(500));
+
+		final var optionalBody = response.getBody(String.class);
+
+		assertThat(optionalBody.isPresent(), is(true));
+
+		final var body = optionalBody.get();
+
+		// The error comes back as a JSON structure
+		// Until we can check that better, check the error is part of the JSON as text
+		assertThat(body, containsString("No Host LMS found for code: unknown-host"));
 	}
 }

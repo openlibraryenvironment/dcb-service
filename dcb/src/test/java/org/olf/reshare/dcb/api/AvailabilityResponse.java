@@ -2,6 +2,7 @@ package org.olf.reshare.dcb.api;
 
 import java.util.List;
 
+import org.olf.reshare.dcb.item.availability.Location;
 import org.olf.reshare.dcb.item.availability.Status;
 
 import io.micronaut.core.annotation.Nullable;
@@ -25,6 +26,13 @@ public class AvailabilityResponse {
 		private final String id;
 		@Nullable
 		private final Status status;
+		@Nullable
+		private final Location location;
+		@Nullable
+		private final String barcode;
+		@Nullable
+		private final String callNumber;
+
 	}
 }
 
