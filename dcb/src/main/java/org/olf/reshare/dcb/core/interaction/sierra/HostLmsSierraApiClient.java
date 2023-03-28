@@ -111,6 +111,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		String updatedDate, String deletedDate, Boolean deleted, Iterable<String> bibIds,
 		String status, String dueDate, Boolean suppressed, Iterable<String> locations) {
 
+		// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/items/Get_a_list_of_items_get_1
 		return getRequest("items")
 			.map(req -> req.uri(theUri -> theUri
 				.queryParam("limit", limit)
