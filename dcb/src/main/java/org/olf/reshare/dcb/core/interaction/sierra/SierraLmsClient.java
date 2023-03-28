@@ -12,6 +12,7 @@ import javax.validation.constraints.NotNull;
 import org.marc4j.marc.Record;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.interaction.Item;
+import org.olf.reshare.dcb.core.interaction.Location;
 import org.olf.reshare.dcb.core.interaction.Status;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.ingest.marc.MarcIngestSource;
@@ -154,7 +155,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.map(itemRes -> new Item(itemRes.getId(),
 				new Status(itemRes.getStatus().getCode(),
 					itemRes.getStatus().getDisplay(),
-					itemRes.getStatus().getDuedate())));
+					itemRes.getStatus().getDuedate()),
+				new Location(itemRes.getLocation().getCode(),
+					itemRes.getLocation().getName())));
 	}
 
 	@Override

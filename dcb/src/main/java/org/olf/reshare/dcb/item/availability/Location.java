@@ -5,8 +5,7 @@ import lombok.Data;
 
 @Data
 @Serdeable
-public class Item {
-	private final String id;
-	private final Status status;
-	private final Location location;
+public class Location {
+	private final String code;
+	private final String name;
 }

@@ -39,7 +39,7 @@ public class LiveAvailabilityService {
 
 	private Item mapToAvailabilityItem(org.olf.reshare.dcb.core.interaction.Item item) {
 		return new Item(item.getId(), new Status(item.getStatus().getCode(),
-			item.getStatus().getDisplayText(), item.getStatus().getDueDate()));
+			item.getStatus().getDisplayText(), item.getStatus().getDueDate()),
+			new Location(item.getLocation().getCode(), item.getLocation().getName()));
 	}
-
 }
