@@ -112,6 +112,8 @@ class LiveAvailabilityApiTests {
 
 		assertThat(firstItem, is(notNullValue()));
 		assertThat(firstItem.getId(), is("67e91c1c-ada2-40cc-92dc-75db59d776a5"));
+		assertThat(firstItem.getBarcode(), is("30800005238487"));
+		assertThat(firstItem.getCallNumber(), is("HD9787.U5 M43 1969"));
 
 		final var firstItemStatus = firstItem.getStatus();
 
@@ -130,6 +132,8 @@ class LiveAvailabilityApiTests {
 
 		assertThat(secondItem, is(notNullValue()));
 		assertThat(secondItem.getId(), is("5e9a80f9-c105-4984-a267-f9160caafd3b"));
+		assertThat(secondItem.getBarcode(), is("9849123490"));
+		assertThat(secondItem.getCallNumber(), is("BL221 .C48"));
 
 		final var secondItemStatus = secondItem.getStatus();
 
