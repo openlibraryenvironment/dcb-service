@@ -1,6 +1,7 @@
 package org.olf.reshare.dcb.api;
 
 import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -152,7 +153,6 @@ class LiveAvailabilityApiTests {
 	@Test
 	@SneakyThrows
 	void failsWhenNoItemsFound() {
-
 		final var uri = UriBuilder.of("/items/availability")
 			.queryParam("bibRecordId", "test")
 			.queryParam("hostLmsCode", "test1")
@@ -169,5 +169,46 @@ class LiveAvailabilityApiTests {
 
 		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
 		assertThat(response.code(), is(500));
+
+		final var optionalBody = response.getBody(String.class);
+
+		assertThat(optionalBody.isPresent(), is(true));
+
+		final var body = optionalBody.get();
+
+		// The error comes back as a JSON structure
+		// Until we can check that better, check the error is part of the JSON as text
+		assertThat(body, containsString("Record not found"));
+	}
+
+	@Test
+	@SneakyThrows
+	void failsWhenHostLmsCannotBeFound() {
+		final var uri = UriBuilder.of("/items/availability")
+			.queryParam("bibRecordId", "test")
+			.queryParam("hostLmsCode", "unknown-host")
+			.build();
+
+		// These are separate variables to only have single invocation in assertThrows
+		final var blockingClient = client.toBlocking();
+		final var request = HttpRequest.GET(uri);
+
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> blockingClient.exchange(request));
+
+		final var response = exception.getResponse();
+
+		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
+		assertThat(response.code(), is(500));
+
+		final var optionalBody = response.getBody(String.class);
+
+		assertThat(optionalBody.isPresent(), is(true));
+
+		final var body = optionalBody.get();
+
+		// The error comes back as a JSON structure
+		// Until we can check that better, check the error is part of the JSON as text
+		assertThat(body, containsString("No Host LMS found for code: unknown-host"));
 	}
 }
