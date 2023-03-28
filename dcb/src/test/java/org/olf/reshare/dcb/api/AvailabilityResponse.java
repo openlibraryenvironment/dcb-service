@@ -28,6 +28,11 @@ public class AvailabilityResponse {
 		private final Status status;
 		@Nullable
 		private final Location location;
+		@Nullable
+		private final String barcode;
+		@Nullable
+		private final String callNumber;
+
 	}
 }
 

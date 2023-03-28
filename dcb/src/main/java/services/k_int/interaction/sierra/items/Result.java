@@ -27,9 +27,17 @@ public class Result {
 	@Nullable
 	String[] volumes;
 	@Nullable
+	String barcode;
+	@Nullable
+	String callNumber;
+	@Nullable
 	String itemType;
 	@Nullable
 	TransitInfo transitInfo;
 	@Nullable
+	Integer copyNo;
+	@Nullable
 	Integer holdCount;
+//	fixedFields (map[integer, FixedField]): the fixed-length fields from the item record,
+//	varFields (array[VarField]): the variable-length fields from the item record
 }

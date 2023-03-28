@@ -32,7 +32,8 @@ public class LiveAvailabilityServiceTests {
 
 		final var item = new Item("testid",
 			new Status("testCode", "testText", "testDate"),
-			new Location("testLocationCode", "testLocationName"));
+			new Location("testLocationCode", "testLocationName"),
+			"testBarcode", "testCallNumber");
 
 		when(hostLmsClient.getAllItemDataByBibRecordId("testBibId"))
 			.thenAnswer(invocation -> Flux.just(item));
@@ -46,6 +47,8 @@ public class LiveAvailabilityServiceTests {
 		final var onlyItem = items.get(0);
 
 		assertThat(onlyItem.getId(), is("testid"));
+		assertThat(onlyItem.getBarcode(), is("testBarcode"));
+		assertThat(onlyItem.getCallNumber(), is("testCallNumber"));
 
 		final var status = onlyItem.getStatus();
 

@@ -157,7 +157,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					itemRes.getStatus().getDisplay(),
 					itemRes.getStatus().getDuedate()),
 				new Location(itemRes.getLocation().getCode(),
-					itemRes.getLocation().getName())));
+					itemRes.getLocation().getName()),
+				itemRes.getBarcode(), itemRes.getCallNumber()));
 	}
 
 	@Override
