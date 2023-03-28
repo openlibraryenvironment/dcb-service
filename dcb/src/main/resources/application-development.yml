@@ -5,10 +5,26 @@ hosts:
     type: org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient
     client:
       base-url: "https://sandbox.iii.com"
-      key: "9/FnXtNb5qWahEcHpMiL/OlSJe0b"
-      secret: "I8g9uNbzs3"
-      ingest: false
+      ingest: true
     
 agencies:
   testAgency1:
     hostLms: sandbox
+
+micronaut:
+  security:
+    authentication: bearer
+    token:
+      jwt:
+        generator:
+          access-token:
+            expiration: 600
+        signatures:
+          secret:
+            generator:
+              secret: "${token.secret:secretsmustbeatleast256bitssothats32cha874hjkj3hjhhdd888dhhhhrs}"
+              base64: true
+              jws-algorithm: HS256
+          jwks:
+            keycloak:
+              url: ${KEYCLOAK_CERT_URL:""}

@@ -14,19 +14,15 @@ micronaut:
       redoc:
         paths: classpath:META-INF/swagger/views/redoc
         mapping: /openapi/redoc/**
+
   security:
-    authentication: bearer
+    authentication: idtoken
     token:
       jwt:
-        generator:
-          access-token:
-            expiration: 600
-        signatures:
-          secret:
-            generator:
-              secret: "${token.secret:placeholder}"
-              base64: true
-              jws-algorithm: HS256
+        enabled: true
+        signatures.jwks.keycloak:
+          url: ${KEYCLOAK_CERT_URL:""}
+
     intercept-url-map:
       - pattern: "/openapi/**"
         access:

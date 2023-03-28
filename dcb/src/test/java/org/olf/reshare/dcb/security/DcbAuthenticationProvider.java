@@ -12,7 +12,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import java.util.List;
 
-@io.micronaut.context.annotation.Requires(env = {io.micronaut.context.env.Environment.DEVELOPMENT, io.micronaut.context.env.Environment.TEST, "development"})
 @Singleton
 public class DcbAuthenticationProvider implements AuthenticationProvider {
 
@@ -20,7 +19,7 @@ public class DcbAuthenticationProvider implements AuthenticationProvider {
 
 	@Override
 	public Publisher<AuthenticationResponse> authenticate(@Nullable HttpRequest<?> httpRequest,
-				AuthenticationRequest<?, ?> authenticationRequest) {
+																												AuthenticationRequest<?, ?> authenticationRequest) {
 		return Flux.create(emitter -> {
 			if (VALID_USERS.contains(authenticationRequest.getIdentity())) {
 				// If the username is admin, allocate the admin role

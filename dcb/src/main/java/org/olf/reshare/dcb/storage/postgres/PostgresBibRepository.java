@@ -39,4 +39,5 @@ public interface PostgresBibRepository extends ReactiveStreamsPageableRepository
 	default Publisher<Void> commit() {
 		return Mono.empty();
 	}
+
 }
