@@ -120,6 +120,12 @@ class LiveAvailabilityApiTests {
 		assertThat(firstItemStatus.getDisplayText(), is("AVAILABLE"));
 		assertThat(firstItemStatus.getDueDate(), is("2021-02-25T12:00:00Z"));
 
+		final var firstItemLocation = firstItem.getLocation();
+
+		assertThat(firstItemLocation, is(notNullValue()));
+		assertThat(firstItemLocation.getCode(), is("ab6"));
+		assertThat(firstItemLocation.getName(), is("King 6th Floor"));
+
 		final var secondItem = items.get(1);
 
 		assertThat(secondItem, is(notNullValue()));
@@ -131,6 +137,12 @@ class LiveAvailabilityApiTests {
 		assertThat(secondItemStatus.getCode(), is("-"));
 		assertThat(secondItemStatus.getDisplayText(), is("AVAILABLE"));
 		assertThat(secondItemStatus.getDueDate(), is(nullValue()));
+
+		final var secondItemLocation = secondItem.getLocation();
+
+		assertThat(secondItemLocation, is(notNullValue()));
+		assertThat(secondItemLocation.getCode(), is("ab6"));
+		assertThat(secondItemLocation.getName(), is("King 6th Floor"));
 	}
 
 	@Test
