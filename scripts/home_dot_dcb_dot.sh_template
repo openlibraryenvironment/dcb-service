@@ -1,11 +1,11 @@
 #!/bin/bash
 
-export KEYCLOAK_BASE
-export KEYCLOAK_CERT_URL
-export KEYCLOAK_CLIENT
-export KEYCLOAK_SECRET
-export DCB_ADMIN_USER
-export DCB_ADMIN_PASS
+export KEYCLOAK_BASE="https://reshare-hub-kc.libsdev.k-int.com/realms/reshare-hub"
+export KEYCLOAK_CERT_URL="$KEYCLOAK_BASE/protocol/openid-connect/certs"
+export KEYCLOAK_CLIENT="dcb"
+export KEYCLOAK_SECRET="THE_KEYCLOAK_SECRET"
+export DCB_ADMIN_USER=""
+export DCB_ADMIN_PASS=""
 
 
 
