@@ -1,0 +1,11 @@
+#!/bin/bash
+
+export KEYCLOAK_BASE
+export KEYCLOAK_CERT_URL
+export KEYCLOAK_CLIENT
+export KEYCLOAK_SECRET
+export DCB_ADMIN_USER
+export DCB_ADMIN_PASS
+
+
+
