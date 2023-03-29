@@ -34,7 +34,8 @@ public class LiveAvailabilityService {
 		String bibRecordId, HostLmsClient hostLmsClient) {
 		log.debug("getItems({}, {})", bibRecordId, hostLmsClient);
 
-		return hostLmsClient.getAllItemDataByBibRecordId(bibRecordId);
+		return hostLmsClient.getItemsByBibId(bibRecordId)
+			.flatMapMany(Flux::fromIterable);
 	}
 
 	private Item mapToAvailabilityItem(org.olf.reshare.dcb.core.interaction.Item item) {
