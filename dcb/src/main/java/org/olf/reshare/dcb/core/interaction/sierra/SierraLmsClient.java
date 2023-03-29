@@ -2,10 +2,13 @@ package org.olf.reshare.dcb.core.interaction.sierra;
 
 import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
-import java.net.MalformedURLException;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import javax.validation.constraints.NotNull;
 
@@ -30,21 +33,21 @@ import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
+import services.k_int.interaction.sierra.items.Result;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
 @Prototype
 public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
-
 	private static final Logger log = LoggerFactory.getLogger(SierraLmsClient.class);
 	
 	private static final int MAX_BUFFERED_ITEMS = 2000;
 
 	private final HostLms lms;
 	private final SierraApiClient client;
+	private final SierraResponseErrorMatcher sierraResponseErrorMatcher = new SierraResponseErrorMatcher();
 
-	public SierraLmsClient(@Parameter HostLms lms, HostLmsSierraApiClientFactory clientFactory)
-			throws MalformedURLException {
+	public SierraLmsClient(@Parameter HostLms lms, HostLmsSierraApiClientFactory clientFactory) {
 		this.lms = lms;
 
 		// Get a sierra api client.
@@ -71,7 +74,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private Publisher<BibResult> pageAllResults(Instant since, int offset, int limit) {
-		
+
 		return fetchPage(since, offset, limit).expand(results -> {
 			var bibs = results.entries();
 
@@ -146,19 +149,26 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Flux<Item> getAllItemDataByBibRecordId(String bibRecordId) {
-		log.info("getAllItemDataByBibRecordId({})", bibRecordId);
+	public Mono<List<Item>> getItemsByBibId(String bibId) {
+		log.info("getItemsByBibId({})", bibId);
+
 		return Flux.from(client.items(params -> params
 				.deleted(false)
-				.bibIds(List.of(bibRecordId))))
+				.bibIds(List.of(bibId))))
 			.flatMap(results -> Flux.fromIterable(results.getEntries()))
-			.map(itemRes -> new Item(itemRes.getId(),
-				new Status(itemRes.getStatus().getCode(),
-					itemRes.getStatus().getDisplay(),
-					itemRes.getStatus().getDuedate()),
-				new Location(itemRes.getLocation().getCode(),
-					itemRes.getLocation().getName()),
-				itemRes.getBarcode(), itemRes.getCallNumber()));
+			.map(SierraLmsClient::mapResultToItem)
+			.collectList()
+			.onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError, List.of());
+	}
+
+	private static Item mapResultToItem(Result result) {
+		return new Item(result.getId(),
+			new Status(result.getStatus().getCode(),
+				result.getStatus().getDisplay(),
+				result.getStatus().getDuedate()),
+			new Location(result.getLocation().getCode(),
+				result.getLocation().getName()),
+			result.getBarcode(), result.getCallNumber());
 	}
 
 	@Override

@@ -11,8 +11,6 @@ import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
-import java.io.IOException;
-
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -50,15 +48,9 @@ class LiveAvailabilityApiTests {
 	@Property(name = "hosts.test1.client.secret")
 	private String sierraPass;
 
-
-	private String getResourceAsString(String resourceName) throws IOException {
-		return new String(loader.getResourceAsStream(ITEMS_MOCK_ROOT + resourceName)
-			.get().readAllBytes());
-	}
-
 	@BeforeAll
-	public void addFakeSierraApis(MockServerClient mock) throws IOException {
-
+	@SneakyThrows
+	public void addFakeSierraApis(MockServerClient mock) {
 		var mockSierra = SierraTestUtils
 			.mockFor(mock, sierraHost)
 			.setValidCredentials(sierraUser, sierraPass, SIERRA_TOKEN, 60);
@@ -90,7 +82,6 @@ class LiveAvailabilityApiTests {
 	}
 
 	@Test
-	@SneakyThrows
 	void canProvideAListOfAvailableItemsViaLiveAvailabilityApi() {
 		final var uri = UriBuilder.of("/items/availability")
 			.queryParam("bibRecordId", "807f604a-37c2-4c76-86f3-220082ada83f")
@@ -151,41 +142,26 @@ class LiveAvailabilityApiTests {
 	}
 
 	@Test
-	@SneakyThrows
-	void failsWhenNoItemsFound() {
+	void reportsNoItemsWhenSierraRespondsWithNoRecordsFoundError() {
 		final var uri = UriBuilder.of("/items/availability")
 			.queryParam("bibRecordId", "test")
 			.queryParam("hostLmsCode", "test1")
 			.build();
 
-		// These are separate variables to only have single invocation in assertThrows
-		final var blockingClient = client.toBlocking();
-		final var request = HttpRequest.GET(uri);
+		final var availabilityResponse = client.toBlocking()
+			.retrieve(HttpRequest.GET(uri), AvailabilityResponse.class);
 
-		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> blockingClient.exchange(request));
+		assertThat(availabilityResponse.getBibRecordId(), is("test"));
+		assertThat(availabilityResponse.getHostLmsCode(), is("test1"));
 
-		final var response = exception.getResponse();
-
-		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
-		assertThat(response.code(), is(500));
-
-		final var optionalBody = response.getBody(String.class);
-
-		assertThat(optionalBody.isPresent(), is(true));
-
-		final var body = optionalBody.get();
-
-		// The error comes back as a JSON structure
-		// Until we can check that better, check the error is part of the JSON as text
-		assertThat(body, containsString("Record not found"));
+		// Empty lists does not get serialised to JSON
+		assertThat(availabilityResponse.getItemList(), is(nullValue()));
 	}
 
 	@Test
-	@SneakyThrows
 	void failsWhenHostLmsCannotBeFound() {
 		final var uri = UriBuilder.of("/items/availability")
-			.queryParam("bibRecordId", "test")
+			.queryParam("bibRecordId", "54354656")
 			.queryParam("hostLmsCode", "unknown-host")
 			.build();
 

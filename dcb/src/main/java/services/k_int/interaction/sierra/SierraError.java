@@ -33,6 +33,17 @@ public class SierraError extends JsonError {
 		super(message);
 	}
 
+	public SierraError(String message, int code, int specificCode, String name,
+		String description) {
+
+		super(message);
+
+		this.code = code;
+		this.specificCode = specificCode;
+		this.name = name;
+		this.description = description;
+	}
+
 	@Override
 	public String getMessage() {
 		StringBuilder builder = new StringBuilder();

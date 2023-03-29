@@ -1,9 +1,9 @@
 package org.olf.reshare.dcb.item.availability;
 
+import java.util.List;
+
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Data;
-
-import java.util.List;
 
 @Data
 @Serdeable
@@ -12,5 +12,3 @@ public class AvailabilityResponseView {
 	private final String bibRecordId;
 	private final String hostLmsCode;
 }
-
-

@@ -9,6 +9,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
@@ -16,7 +18,6 @@ import org.olf.reshare.dcb.core.interaction.Item;
 import org.olf.reshare.dcb.core.interaction.Location;
 import org.olf.reshare.dcb.core.interaction.Status;
 
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public class LiveAvailabilityServiceTests {
@@ -35,8 +36,8 @@ public class LiveAvailabilityServiceTests {
 			new Location("testLocationCode", "testLocationName"),
 			"testBarcode", "testCallNumber");
 
-		when(hostLmsClient.getAllItemDataByBibRecordId("testBibId"))
-			.thenAnswer(invocation -> Flux.just(item));
+		when(hostLmsClient.getItemsByBibId("testBibId"))
+			.thenAnswer(invocation -> Mono.just(List.of(item)));
 
 		final var items = liveAvailabilityService.getAvailableItems("testBibId",
 				"testLmsCode").block();
@@ -62,8 +63,8 @@ public class LiveAvailabilityServiceTests {
 		assertThat(location, is(notNullValue()));
 		assertThat(location.getCode(), is("testLocationCode"));
 		assertThat(location.getName(), is("testLocationName"));
-		
+
 		verify(hostLmsService).getClientFor(anyString());
-		verify(hostLmsClient).getAllItemDataByBibRecordId(any());
+		verify(hostLmsClient).getItemsByBibId(any());
 	}
 }
