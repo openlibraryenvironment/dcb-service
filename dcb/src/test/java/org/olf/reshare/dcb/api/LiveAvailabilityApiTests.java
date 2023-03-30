@@ -1,5 +1,6 @@
 package org.olf.reshare.dcb.api;
 
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
@@ -18,6 +19,7 @@ import org.mockserver.client.MockServerClient;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
@@ -170,12 +172,12 @@ class LiveAvailabilityApiTests {
 		final var request = HttpRequest.GET(uri);
 
 		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> blockingClient.exchange(request));
+			() -> blockingClient.exchange(request, Argument.of(AvailabilityResponse.class),
+				Argument.of(String.class)));
 
 		final var response = exception.getResponse();
 
-		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
-		assertThat(response.code(), is(500));
+		assertThat(response.getStatus(), is(BAD_REQUEST));
 
 		final var optionalBody = response.getBody(String.class);
 
@@ -183,8 +185,6 @@ class LiveAvailabilityApiTests {
 
 		final var body = optionalBody.get();
 
-		// The error comes back as a JSON structure
-		// Until we can check that better, check the error is part of the JSON as text
-		assertThat(body, containsString("No Host LMS found for code: unknown-host"));
+		assertThat(body, is("No Host LMS found for code: unknown-host"));
 	}
 }

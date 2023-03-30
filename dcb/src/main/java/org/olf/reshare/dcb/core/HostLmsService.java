@@ -47,7 +47,7 @@ public class HostLmsService implements IngestSourcesProvider {
 		return list.stream()
 			.filter(hostLms -> hostLms.getCode().equals(code))
 			.findFirst()
-			.orElseThrow(() -> new RuntimeException("No Host LMS found for code: " + code));
+			.orElseThrow(() -> new UnknownHostLmsException(code));
 	}
 
 	public Mono<HostLmsClient> getClientFor( final HostLms hostLms ) {
@@ -69,5 +69,11 @@ public class HostLmsService implements IngestSourcesProvider {
 			.filter( hlms -> IngestSource.class.isAssignableFrom( hlms.getType() ))
 			.flatMap(this::getClientFor)
 			.cast(IngestSource.class);
+	}
+
+	public static class UnknownHostLmsException extends RuntimeException {
+		UnknownHostLmsException(String code) {
+			super("No Host LMS found for code: " + code);
+		}
 	}
 }
