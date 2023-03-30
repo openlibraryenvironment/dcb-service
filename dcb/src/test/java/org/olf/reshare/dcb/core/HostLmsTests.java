@@ -151,7 +151,7 @@ class HostLmsTests {
 				"Database Host", SierraLmsClient.class.getName(), Map.of())))
 			.block();
 
-		final var exception = assertThrows(RuntimeException.class,
+		final var exception = assertThrows(HostLmsService.UnknownHostLmsException.class,
 			() -> manager.findByCode("unknown-host").block());
 
 		assertThat(exception, is(notNullValue()));
