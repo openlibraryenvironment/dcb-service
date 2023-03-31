@@ -79,8 +79,8 @@ public interface MarcIngestSource<T> extends IngestSource {
 //		var typeCode = marcRecord.getLeader().getTypeOfRecord();
 		
 		
-		// ingestRecord.recordStatus(marcRecord.getLeader().getRecordStatus())
-		// ingestRecord.typeOfRecord(marcRecord.getLeader().getTypeOfRecord())
+		ingestRecord.recordStatus(String.valueOf(marcRecord.getLeader().getRecordStatus()));
+		ingestRecord.typeOfRecord(String.valueOf(marcRecord.getLeader().getTypeOfRecord()));
 		return ingestRecord;
    }
 

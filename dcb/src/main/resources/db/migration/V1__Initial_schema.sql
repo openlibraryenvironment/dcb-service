@@ -13,6 +13,8 @@ create table bib_record (
 	source_record_id varchar(256),
 	title text,
 	contributes_to uuid NOT NULL,
+	record_status varchar(8),
+	type_of_record varchar(8),
   CONSTRAINT fk_contributes_to FOREIGN KEY (contributes_to) REFERENCES cluster_record(id)
 );
 CREATE INDEX idx_bib_source_system ON bib_record(source_system_id);

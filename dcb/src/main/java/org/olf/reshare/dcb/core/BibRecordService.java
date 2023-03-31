@@ -36,8 +36,14 @@ public class BibRecordService {
 
 	private BibRecord minimalRecord(final IngestRecord imported) {
 
-		return BibRecord.builder().id(imported.getUuid()).title(imported.getTitle())
-				.sourceSystemId(imported.getSourceSystemId()).sourceRecordId(imported.getSourceRecordId()).build();
+		return BibRecord.builder()
+                        .id(imported.getUuid())
+                        .title(imported.getTitle())
+			.sourceSystemId(imported.getSourceSystemId())
+                        .sourceRecordId(imported.getSourceRecordId())
+                        .recordStatus(imported.getRecordStatus())
+                        .typeOfRecord(imported.getTypeOfRecord())
+                        .build();
 	}
 
 	public Mono<BibRecord> saveOrUpdate(final BibRecord record) {
