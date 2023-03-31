@@ -1,6 +1,7 @@
 package org.olf.reshare.dcb.ingest.marc;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -10,16 +11,20 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.transaction.Transactional;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 
 import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
+import org.marc4j.marc.Subfield;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.ingest.model.Identifier;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
+import org.olf.reshare.dcb.ingest.model.RawSource;
+import org.olf.reshare.dcb.storage.RawSourceRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,12 +33,22 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.util.StringUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
 
 public interface MarcIngestSource<T> extends IngestSource {
 	
 	final static String REGEX_NAMESPACE_ID_PAIR = "^((\\(([^)]+)\\))|(([^:]+):))(.*)$";
 
 	static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
+	
+	static Comparator<Subfield> createSubFieldComparator(final HashMap<Character, Integer> sortValues) {
+		return ( sf1, sf2 ) -> {
+			int weight1 = Objects.requireNonNullElse(sortValues.get(sf1.getCode()), sortValues.size());
+			int weight2 = Objects.requireNonNullElse(sortValues.get(sf2.getCode()), sortValues.size());
+			
+			return Integer.compare(weight1, weight2);
+		};
+	}
 
 	default IngestRecordBuilder populateRecordFromMarc ( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
 
@@ -61,10 +76,13 @@ public interface MarcIngestSource<T> extends IngestSource {
 		// This page has useful info for how to convert leader character position 06 into a value that can be used to interpret 008 fields
 		// https://www.itsmarc.com/crs/mergedprojects/helptop1/helptop1/directory_and_leader/idh_leader_06_bib.htm
 		
+//		var typeCode = marcRecord.getLeader().getTypeOfRecord();
+		
+		
 		// ingestRecord.recordStatus(marcRecord.getLeader().getRecordStatus())
 		// ingestRecord.typeOfRecord(marcRecord.getLeader().getTypeOfRecord())
 		return ingestRecord;
-        }
+   }
 
 	default IngestRecordBuilder enrichWithAuthorInformation ( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
 		
@@ -108,8 +126,9 @@ public interface MarcIngestSource<T> extends IngestSource {
 					return item;
 				}
 				
-				// Keep returning the first title that was set. 
 				ingestRecord.otherTitle(item);
+				
+				// Keep returning the first title that was set. 
 				return current;
 			});
 		
@@ -200,7 +219,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 		
 		final HashMap<Character, Integer> sortValues = new HashMap<>(subfields.length());
 		subfields.chars()
-			.forEach(cint -> {
+			.forEachOrdered(cint -> {
 				sortValues.put((char)cint, sortValues.size());
 			});
 	
@@ -210,12 +229,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 			.map( field -> field.getSubfields(subfields)
 					.stream()
 					// Ensure requested order is maintained, then order defined.
-					.sorted(( sf1, sf2 ) -> {
-						int weight1 = Objects.requireNonNullElse(sortValues.get(sf1.getCode()), sortValues.size());
-						int weight2 = Objects.requireNonNullElse(sortValues.get(sf2.getCode()), sortValues.size());
-						
-						return Integer.compare(weight1, weight2);
-					})
+					.sorted(createSubFieldComparator(sortValues))
 					.map( sf -> sf.getData() )
 					.collect(Collectors.joining(delimiter)));
 	}
@@ -230,6 +244,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 		log.info("Read from the marc source and publish a stream of IngestRecords");
 
 		return Flux.from(getResources(since))
+			.flatMap(this::saveRawAndContinue)
 			.flatMap(resource -> {
 				return Mono.just( initIngestRecordBuilder( resource ) )
 					.map( ir -> {
@@ -238,4 +253,18 @@ public interface MarcIngestSource<T> extends IngestSource {
 					});
 			});
 	}
+	
+	RawSourceRepository getRawSourceRepository();
+	
+	@Transactional
+	public default Mono<T> saveRawAndContinue(T resource) {
+		return Mono.just(resource)
+			.zipWhen(res -> Mono.just(resourceToRawSource(res)))
+			.flatMap(TupleUtils.function(( res, raw ) -> {
+				return Mono.from(getRawSourceRepository().saveOrUpdate(raw))
+					.thenReturn(res);
+			}));
+	}
+
+	RawSource resourceToRawSource(T resource);
 }

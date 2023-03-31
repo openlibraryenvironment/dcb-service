@@ -5,9 +5,9 @@ import java.util.UUID;
 
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 
+import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
-import io.micronaut.core.annotation.Introspected;
 
 @Introspected
 public interface HostLms {

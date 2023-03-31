@@ -1,18 +1,17 @@
 package org.olf.reshare.dcb.storage;
 
+import java.util.UUID;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+
+import org.olf.reshare.dcb.core.model.DataAgency;
+import org.reactivestreams.Publisher;
+
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
-import io.micronaut.data.model.Sort;
-
-import org.olf.reshare.dcb.core.model.DataAgency;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
-
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import java.util.UUID;
 
 public interface AgencyRepository {
 
@@ -32,13 +31,13 @@ public interface AgencyRepository {
 	@SingleResult
 	Publisher<DataAgency> findById(@NonNull UUID id);
 
-        @NonNull
-        @SingleResult
-        Publisher<Boolean> existsById(@NonNull UUID id);
+	@NonNull
+	@SingleResult
+	Publisher<Boolean> existsById(@NonNull UUID id);
 
-        @NonNull
-        @SingleResult
-        Publisher<Page<DataAgency>> findAll(Pageable page);
+	@NonNull
+	@SingleResult
+	Publisher<Page<DataAgency>> findAll(Pageable page);
 
 	@NonNull
 	Publisher<? extends DataAgency> findAll();

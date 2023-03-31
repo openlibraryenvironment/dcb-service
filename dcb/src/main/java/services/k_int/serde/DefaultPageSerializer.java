@@ -15,25 +15,25 @@ public class DefaultPageSerializer implements Serializer<Page<Object>> {
 
 	@Override
 	public void serialize(Encoder encoder, EncoderContext context, Argument<? extends Page<Object>> type, Page<Object> page) throws IOException {
-		Encoder e = encoder.encodeObject(type);
+		try (Encoder e = encoder.encodeObject(type)) {
 
-		e.encodeKey("content");
+			e.encodeKey("content");
+	
+			@SuppressWarnings("unchecked")
+			Argument<List<Object>> contentType = Argument.listOf((Argument<Object>) type.getFirstTypeVariable().orElse(Argument.OBJECT_ARGUMENT));
+			context.findSerializer(contentType)
+				.createSpecific(context, contentType)
+				.serialize(e, context, contentType, page.getContent());
+	
+			e.encodeKey("pageable");
+			Argument<Pageable> pageable = Argument.of(Pageable.class);
+			context.findSerializer(pageable)
+				.createSpecific(context, pageable)
+				.serialize(e, context, pageable, page.getPageable());
+	
+			e.encodeKey("totalSize");
+			e.encodeLong(page.getTotalSize());
+		}
 
-		@SuppressWarnings("unchecked")
-		Argument<List<Object>> contentType = Argument.listOf((Argument<Object>) type.getFirstTypeVariable().orElse(Argument.OBJECT_ARGUMENT));
-		context.findSerializer(contentType)
-			.createSpecific(context, contentType)
-			.serialize(e, context, contentType, page.getContent());
-
-		e.encodeKey("pageable");
-		Argument<Pageable> pageable = Argument.of(Pageable.class);
-		context.findSerializer(pageable)
-			.createSpecific(context, pageable)
-			.serialize(e, context, pageable, page.getPageable());
-
-		e.encodeKey("totalSize");
-		e.encodeLong(page.getTotalSize());
-
-		e.finishStructure();
 	}
 }

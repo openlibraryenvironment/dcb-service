@@ -21,13 +21,17 @@ import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.ingest.marc.MarcIngestSource;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
+import org.olf.reshare.dcb.ingest.model.RawSource;
+import org.olf.reshare.dcb.storage.RawSourceRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.util.StringUtils;
+import io.micronaut.json.tree.JsonNode;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraApiClient;
@@ -42,16 +46,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private static final Logger log = LoggerFactory.getLogger(SierraLmsClient.class);
 	
 	private static final int MAX_BUFFERED_ITEMS = 2000;
+	
+	private final ConversionService<?> conversionService = ConversionService.SHARED;
 
 	private final HostLms lms;
 	private final SierraApiClient client;
 	private final SierraResponseErrorMatcher sierraResponseErrorMatcher = new SierraResponseErrorMatcher();
 
-	public SierraLmsClient(@Parameter HostLms lms, HostLmsSierraApiClientFactory clientFactory) {
+	private final RawSourceRepository rawSourceRepository;
+
+	public SierraLmsClient(@Parameter HostLms lms, HostLmsSierraApiClientFactory clientFactory, RawSourceRepository rawSourceRepository)  {
 		this.lms = lms;
 
 		// Get a sierra api client.
 		client = clientFactory.createClientFor(lms);
+		this.rawSourceRepository = rawSourceRepository;
 	}
 
 	@Override
@@ -96,12 +105,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	@NotNull
 	public String getDefaultControlIdNamespace() {
-		return "sierra";
+		return lms.getName();
 	}
 
 	@Override
 	public Publisher<BibResult> getResources(Instant since) {
-		log.info("Fetching MARC JSON from Sierra");
+		log.info("Fetching MARC JSON from Sierra for {}", lms.getName());
 
 		final int pageSize = MapUtils.getAsOptionalString(lms.getClientConfig(), "page-size").map(Integer::parseInt)
 				.orElse(DEFAULT_PAGE_SIZE);
@@ -119,7 +128,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	public UUID uuid5ForBibResult(@NotNull final BibResult result) {
 
-		final String concat = UUID5_PREFIX + ":" + lms.getName() + ":" + result.id();
+		final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":" + result.id();
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
@@ -131,6 +140,31 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				.uuid(uuid5ForBibResult(resource))
 				.sourceSystemId(lms.getId())
 				.sourceRecordId(resource.id());
+	}
+
+	public UUID uuid5ForRawJson(@NotNull final BibResult result) {
+
+		final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":raw:" + result.id();
+		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
+	}
+
+	@Override
+	public RawSource resourceToRawSource(BibResult resource) {
+		
+		final JsonNode rawJson = conversionService.convertRequired(resource.marc(), JsonNode.class);
+		
+		@SuppressWarnings("unchecked")
+		final Map<String,?> rawJsonString = conversionService.convertRequired(rawJson, Map.class);
+		
+		
+		RawSource raw = RawSource.builder()
+				.id(uuid5ForRawJson(resource))
+				.hostLmsId(lms.getId())
+				.remoteId(resource.id())
+				.json(rawJsonString)
+				.build();
+		
+		return raw;
 	}
 
 	@Override
@@ -179,5 +213,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	public boolean isEnabled() {
 		return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(Boolean.TRUE);
+	}
+
+	@Override
+	public RawSourceRepository getRawSourceRepository() {
+		return rawSourceRepository;
 	}
 }

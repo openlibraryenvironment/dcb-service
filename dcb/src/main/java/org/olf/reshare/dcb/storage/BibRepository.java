@@ -6,6 +6,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 import org.olf.reshare.dcb.core.model.BibRecord;
+import org.olf.reshare.dcb.core.model.ClusterRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
@@ -29,6 +30,16 @@ public interface BibRepository {
 
 	@NonNull
 	Publisher<BibRecord> findAll();
+	
+	@NonNull
+	Publisher<BibRecord> findAllByContributesTo(@NonNull UUID clusterRecordId);
+	
+	Publisher<UUID> findContributesToById( @NonNull UUID id );
+	
+	@NonNull
+	default Publisher<BibRecord> findAllByContributesTo(ClusterRecord clusterRecord) {
+		return findAllByContributesTo( clusterRecord.getId() );
+	}
 
 	@NonNull
 	@SingleResult

@@ -29,9 +29,9 @@ public interface PatronRequestRepository {
 	@NonNull
 	Publisher<PatronRequest> findAll();
 
-        @NonNull
-        @SingleResult
-        Publisher<Page<PatronRequest>> findAll(Pageable page);
+	@NonNull
+	@SingleResult
+	Publisher<Page<PatronRequest>> findAll(Pageable page);
 
 	Publisher<Void> delete(UUID id);
 }

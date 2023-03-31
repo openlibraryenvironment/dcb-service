@@ -4,7 +4,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
-import org.olf.reshare.dcb.bib.BibRecordService;
+import org.olf.reshare.dcb.core.BibRecordService;
+import org.olf.reshare.dcb.core.RecordClusteringService;
 import org.olf.reshare.dcb.core.model.BibRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,7 @@ import jakarta.inject.Singleton;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
 import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
@@ -35,11 +37,13 @@ public class IngestService implements Runnable {
 
 	private final List<IngestSourcesProvider> sourceProviders;
 	private final PublisherTransformationService publisherTransformationService;
+	private final RecordClusteringService recordClusteringService;
 
-	IngestService(BibRecordService bibRecordService, List<IngestSourcesProvider> sourceProviders, PublisherTransformationService publisherHooksService) {
+	IngestService(BibRecordService bibRecordService, List<IngestSourcesProvider> sourceProviders, PublisherTransformationService publisherHooksService, RecordClusteringService recordClusteringService) {
 		this.bibRecordService = bibRecordService;
 		this.sourceProviders = sourceProviders;
 		this.publisherTransformationService = publisherHooksService;
+		this.recordClusteringService = recordClusteringService;
 	}
 
 
@@ -80,9 +84,13 @@ public class IngestService implements Runnable {
 					return Mono.empty();
 				}))
 				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_RECORDS)) // Apply any hooks for "ingest-records"
-
+				
+				// Cluster record got or seeded inline.
+				.map(Mono::just)
+				.flatMap(ir -> ir.zipWhen( recordClusteringService::getOrSeedClusterRecord )
+						.map(TupleUtils.function(( ingestRecord, clusterRecord ) -> ingestRecord.withClusterRecordId(clusterRecord.getId() ))))
+				
 				// Interleaved source stream from all source results.
-				// Process them using the pipeline steps...
 				.flatMap(bibRecordService::process)
 				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_BIBS)); // Apply any hooks for "ingest-bibs";
 	}
@@ -96,7 +104,7 @@ public class IngestService implements Runnable {
 			log.info("Ingest already running skipping. Mutex: {}", this.mutex);
 			return;
 		}
-
+		
 		log.info("Scheduled Ingest");
 
 		final long start = System.currentTimeMillis();

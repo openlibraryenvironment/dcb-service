@@ -1,7 +1,8 @@
-package org.olf.reshare.dcb.bib;
+package org.olf.reshare.dcb.core;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import javax.transaction.Transactional;
 
@@ -34,40 +35,41 @@ public class BibRecordService {
 	}
 
 	private BibRecord minimalRecord(final IngestRecord imported) {
-		
-		return BibRecord.builder()
-			.id(imported.getUuid())
-			.title(imported.getTitle())
-                        .sourceSystemId(imported.getSourceSystemId())
-                        .sourceRecordId(imported.getSourceRecordId())
-			.build();
+
+		return BibRecord.builder().id(imported.getUuid()).title(imported.getTitle())
+				.sourceSystemId(imported.getSourceSystemId()).sourceRecordId(imported.getSourceRecordId()).build();
 	}
 
 	public Mono<BibRecord> saveOrUpdate(final BibRecord record) {
 		return Mono.from(bibRepo.existsById(record.getId()))
-			.flatMap(exists -> Mono.fromDirect(exists ? bibRepo.update(record) : bibRepo.save(record)));
+				.flatMap(exists -> Mono.fromDirect(exists ? bibRepo.update(record) : bibRepo.save(record)));
 	}
 
 	public Mono<BibRecord> getOrSeed(final IngestRecord source) {
-		return Mono.from(bibRepo.findById(source.getUuid()))
-			.switchIfEmpty(Mono.just(this.minimalRecord(source)));
+		return Mono.from( bibRepo.findById(source.getUuid()) )
+				.defaultIfEmpty( minimalRecord(source) )
+				.map( br -> br.setContributesTo(source.getClusterRecordId()) );
+	}
+
+	public Flux<BibRecord> findAllByContributesTo(final UUID clusterRecordId) {		
+		return Flux.from(bibRepo.findAllByContributesTo(clusterRecordId));
+	}
+	
+	public Mono<UUID> getClusterRecordIdForBib( UUID bibId ) {
+		return Mono.from( bibRepo.findContributesToById(bibId) );
 	}
 
 	@Transactional
 	public Publisher<BibRecord> process(final IngestRecord source) {
 
 		// Check if existing...
-		return Mono.just(source)
-			.flatMap(this::getOrSeed)
-			.flatMap((final BibRecord bib) -> {
+		return Mono.just(source).flatMap(this::getOrSeed).flatMap((final BibRecord bib) -> {
 
-				final List<ProcessingStep> pipeline = new ArrayList<>();
-				pipeline.add(this::step1);
+			final List<ProcessingStep> pipeline = new ArrayList<>();
+			pipeline.add(this::step1);
 
-				return Flux.fromIterable(pipeline)
-					.reduce(bib, (theBib, step) -> step.apply(bib, source));
-			})
-			.flatMap(this::saveOrUpdate);
+			return Flux.fromIterable(pipeline).reduce(bib, (theBib, step) -> step.apply(bib, source));
+		}).flatMap(this::saveOrUpdate);
 	}
 
 	public Publisher<Void> cleanup() {

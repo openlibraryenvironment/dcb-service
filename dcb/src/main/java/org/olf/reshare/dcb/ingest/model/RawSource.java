@@ -1,46 +1,50 @@
-package org.olf.reshare.dcb.core.model;
+package org.olf.reshare.dcb.ingest.model;
 
+import java.util.Map;
 import java.util.UUID;
 
+import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
-import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 @Data
 @Serdeable
+@MappedEntity
 @ExcludeFromGeneratedCoverageReport
-@MappedEntity(value = "agency")
-@NoArgsConstructor(onConstructor_ = @Creator())
+@RequiredArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
 @Builder
-public class DataAgency implements Agency {
-
+public class RawSource {
+	
+	@NotNull
 	@NonNull
 	@Id
-	@TypeDef( type = DataType.UUID)
+	@TypeDef(type = DataType.UUID)
 	private UUID id;
-
+	
+	@NotNull
 	@NonNull
-	@Size(max = 32)
-	private String code;
-
+	private UUID hostLmsId;
+	
+	@NotNull
 	@NonNull
-	@Size(max = 200)
-	private String name;
+	@Size(max = 255)
+	private String remoteId;
 
+	@NotNull
 	@NonNull
-	@Relation(value = Relation.Kind.MANY_TO_ONE)
-	private DataHostLms hostLms;
+	@TypeDef(type = DataType.JSON)
+	private Map<String,?> json;
 }
