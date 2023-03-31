@@ -63,4 +63,10 @@ public class BibRecord {
 	
 	@Nullable
 	private UUID contributesTo;
+
+	@Nullable
+	private String recordStatus;
+
+	@Nullable
+	private String typeOfRecord;
 }

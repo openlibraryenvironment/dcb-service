@@ -63,6 +63,12 @@ public class IngestRecord {
 	@With
 	UUID clusterRecordId;
 
+	@Nullable
+	String recordStatus;
+
+	@Nullable
+	String typeOfRecord;
+
 //  @Nullable String edition();
 //  List<PublicationInformation> publicationInformation();
 //  List<Description> descriptions();
