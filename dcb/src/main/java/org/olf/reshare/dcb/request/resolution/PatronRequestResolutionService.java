@@ -1,84 +1,101 @@
 package org.olf.reshare.dcb.request.resolution;
 
+import java.util.List;
 import java.util.UUID;
-import java.util.function.BiFunction;
 
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
+import org.olf.reshare.dcb.item.availability.LiveAvailability;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Singleton
 public class PatronRequestResolutionService {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestResolutionService.class);
-
 	private final SharedIndexService sharedIndexService;
+	private final LiveAvailability liveAvailabilityService;
 
-	public PatronRequestResolutionService(SharedIndexService sharedIndexService) {
+	public PatronRequestResolutionService(SharedIndexService sharedIndexService,
+		@Named("fakeLiveAvailabilityService") LiveAvailability liveAvailabilityService) {
 		this.sharedIndexService = sharedIndexService;
+		this.liveAvailabilityService = liveAvailabilityService;
 	}
 
 	public Mono<SupplierRequest> resolvePatronRequest(PatronRequest patronRequest) {
-		log.debug(String.format("resolvePatronRequest(%s)", patronRequest));
-
+		log.debug("resolvePatronRequest({})", patronRequest);
 		return sharedIndexService.findClusteredBib(patronRequest.getBibClusterId())
 			.filter(this::validateClusteredBib)
-			.map(PatronRequestResolutionService::chooseFirstHoldings)
-			.zipWhen(PatronRequestResolutionService::chooseFirstItem,
-				mapToSupplierRequest(patronRequest));
+			// get list of bibs from clustered bib
+			.map(ClusteredBib::getBibs)
+			.flatMapMany(Flux::fromIterable)
+			// from each bib get list of items
+			.flatMap(this::getAvailableItems)
+			// merge list of bibs of list of items into 1 list of items
+			.flatMap(Flux::fromIterable)
+			// get list of bibs from clustered bib
+			.collectList()
+			.filter(this::validateItemList)
+			// pick first item from merged list
+			.flatMap(PatronRequestResolutionService::chooseFirstItem)
+			.map(item -> mapToSupplierRequest(item, patronRequest));
 	}
 
-	private boolean validateClusteredBib(ClusteredBib clusteredBib) {
-		log.debug(String.format("validateClusteredBib(%s)", clusteredBib));
 
-		final var holdings = clusteredBib.getHoldings();
 
-		if (holdings == null || holdings.isEmpty()) {
-			throw new UnableToResolveHoldings("No holdings in clustered bib");
-		}
+	private boolean validateItemList(List<org.olf.reshare.dcb.item.availability.Item> itemList) {
+		log.debug("validateItemList({})", itemList);
 
-		final var items = holdings.get(0).getItems();
-
-		if (items == null || items.isEmpty()) {
-			throw new UnableToResolveAnItem("No Items in holdings");
+		if (itemList == null || itemList.isEmpty()) {
+			throw new UnableToResolvePatronRequest("No items in bib");
 		}
 
 		return true;
 	}
 
-	private static Holdings chooseFirstHoldings(ClusteredBib clusteredBib) {
-		return clusteredBib.getHoldings().get(0);
+	private boolean validateClusteredBib(ClusteredBib clusteredBib) {
+		log.debug("validateClusteredBib({})", clusteredBib);
+
+		if (clusteredBib == null) {
+			throw new UnableToResolvePatronRequest("Clustered bib was null");
+		}
+
+		final var bibs = clusteredBib.getBibs();
+
+		if (bibs == null || bibs.isEmpty()) {
+			throw new UnableToResolvePatronRequest("No bibs in clustered bib");
+		}
+
+		return true;
 	}
 
-	private static Mono<Item> chooseFirstItem(Holdings holdings) {
-		return Mono.just(holdings.getItems().get(0));
+	private Mono<List<org.olf.reshare.dcb.item.availability.Item>> getAvailableItems(Bib bib) {
+		log.debug("getAvailableItems({})", bib);
+		return liveAvailabilityService.getAvailableItems(bib.getBibRecordId(),
+			bib.getHostLmsCode());
 	}
 
-	private static BiFunction<Holdings, Item, SupplierRequest> mapToSupplierRequest(
-		PatronRequest patronRequest) {
-
-		return (holdings, item) -> mapToSupplierRequest(holdings, item, patronRequest);
+	private static Mono<Item> chooseFirstItem(List<org.olf.reshare.dcb.item.availability.Item> itemList) {
+		log.debug("chooseFirstItem({})", itemList.get(0));
+		// choose first availability item and convert it into a resolution item
+		return Mono.just(itemList.get(0))
+			.map(item -> new Item(item.getId(), item.getHostLmsCode()));
 	}
 
-	private static SupplierRequest mapToSupplierRequest(Holdings holdings,
-		Item item, PatronRequest patronRequest) {
-
-		Agency agency = holdings.getAgency();
-
-		log.debug(String.format("mapToSupplierRequest(%s, %s)",
-			item,  agency));
+	private static SupplierRequest mapToSupplierRequest(Item item, PatronRequest patronRequest) {
+		log.debug("mapToSupplierRequest({}}, {})", item, patronRequest);
 
 		final var uuid = UUID.randomUUID();
-		log.debug(String.format("create sr %s %s %s", uuid,
-			item, agency));
+		log.debug("create SR: {}, {}, {}", uuid, item, item.getHostLmsCode());
 
 		log.debug("Resolve the patron request");
 		final var updatedPatronRequest = patronRequest.resolve();
 
 		return new SupplierRequest(uuid, updatedPatronRequest,
-			item.getId(), agency.getCode());
+			item.getId(), item.getHostLmsCode());
 	}
 }

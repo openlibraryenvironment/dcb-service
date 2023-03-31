@@ -38,13 +38,13 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	record Requestor(String identifier, Agency agency) { }
 
 	@Serdeable
-	record SupplierRequest(UUID id, Item item, Agency agency) {
+	record SupplierRequest(UUID id, Item item, String hostLmsCode) {
 		private static SupplierRequest from(
 			org.olf.reshare.dcb.core.model.SupplierRequest supplierRequest) {
 
 		return new SupplierRequest(supplierRequest.getId(),
-			new Item(supplierRequest.getHoldingsItemId()),
-			new Agency(supplierRequest.getHoldingsAgencyCode()));
+			new Item(supplierRequest.getItemId()),
+			supplierRequest.getHostLmsCode());
 	}
 
 		private static List<SupplierRequest> fromList(
@@ -57,7 +57,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	}
 
 	@Serdeable
-	record Item(UUID id) {}
+	record Item(String id) {}
 
 	@Serdeable
 	record Status(String code) {}

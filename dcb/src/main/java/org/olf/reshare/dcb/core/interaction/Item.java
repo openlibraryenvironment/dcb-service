@@ -11,4 +11,5 @@ public class Item {
 	private final Location location;
 	private final String barcode;
 	private final String callNumber;
+	private final String hostLmsCode;
 }

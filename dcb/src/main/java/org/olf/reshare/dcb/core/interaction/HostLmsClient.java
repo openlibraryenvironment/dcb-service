@@ -12,5 +12,5 @@ public interface HostLmsClient {
 
 	Flux<Map<String, ?>> getAllBibData();
 
-	Mono<List<Item>> getItemsByBibId(String bibId);
+	Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode);
 }

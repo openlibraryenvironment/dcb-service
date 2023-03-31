@@ -10,5 +10,5 @@ import lombok.Data;
 @Data
 public final class ClusteredBib {
 	private final UUID id;
-	private final List<Holdings> holdings;
+	private final List<Bib> bibs;
 }

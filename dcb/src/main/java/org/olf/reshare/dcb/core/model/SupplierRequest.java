@@ -42,12 +42,12 @@ public class SupplierRequest {
 
 	@NotNull
 	@NonNull
-	@TypeDef( type = DataType.UUID)
-	private final UUID holdingsItemId;
+	@Size(max = 200)
+	private final String itemId;
 
 	@NotNull
 	@NonNull
 	@Size(max = 200)
-	private final String holdingsAgencyCode;
+	private final String hostLmsCode;
 }
 
