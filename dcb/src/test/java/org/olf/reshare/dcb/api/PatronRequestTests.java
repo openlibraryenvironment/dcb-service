@@ -84,7 +84,7 @@ class PatronRequestTests {
 
 		assertThat(onlySupplierRequest, is(notNullValue()));
 		assertThat(onlySupplierRequest.id(), is(notNullValue()));
-		assertThat(onlySupplierRequest.agency().code(), is("fake agency"));
+		assertThat(onlySupplierRequest.hostLmsCode(), is("FAKE_HOST_LMS_CODE"));
 		assertThat(onlySupplierRequest.item().id(), is(notNullValue()));
 	}
 

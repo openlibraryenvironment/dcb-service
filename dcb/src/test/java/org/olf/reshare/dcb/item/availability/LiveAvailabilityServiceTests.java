@@ -34,9 +34,9 @@ public class LiveAvailabilityServiceTests {
 		final var item = new Item("testid",
 			new Status("testCode", "testText", "testDate"),
 			new Location("testLocationCode", "testLocationName"),
-			"testBarcode", "testCallNumber");
+			"testBarcode", "testCallNumber", "hostLmsCode");
 
-		when(hostLmsClient.getItemsByBibId("testBibId"))
+		when(hostLmsClient.getItemsByBibId("testBibId", "testLmsCode"))
 			.thenAnswer(invocation -> Mono.just(List.of(item)));
 
 		final var items = liveAvailabilityService.getAvailableItems("testBibId",
@@ -50,6 +50,7 @@ public class LiveAvailabilityServiceTests {
 		assertThat(onlyItem.getId(), is("testid"));
 		assertThat(onlyItem.getBarcode(), is("testBarcode"));
 		assertThat(onlyItem.getCallNumber(), is("testCallNumber"));
+		assertThat(onlyItem.getHostLmsCode(), is("hostLmsCode"));
 
 		final var status = onlyItem.getStatus();
 
@@ -65,6 +66,6 @@ public class LiveAvailabilityServiceTests {
 		assertThat(location.getName(), is("testLocationName"));
 
 		verify(hostLmsService).getClientFor(anyString());
-		verify(hostLmsClient).getItemsByBibId(any());
+		verify(hostLmsClient).getItemsByBibId(any(), any());
 	}
 }

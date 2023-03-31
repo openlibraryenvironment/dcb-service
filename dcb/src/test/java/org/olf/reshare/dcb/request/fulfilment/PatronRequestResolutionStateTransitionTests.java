@@ -29,7 +29,7 @@ public class PatronRequestResolutionStateTransitionTests {
 			UUID.randomUUID(), "pickupLocationCode", RESOLVED);
 
 		final var supplierRequest = new SupplierRequest(UUID.randomUUID(),
-			patronRequest, UUID.randomUUID(), "holdingsAgencyCode");
+			patronRequest, "itemId", "holdingsAgencyCode");
 
 		when(patronRequestResolutionService.resolvePatronRequest(any()))
 			.thenAnswer(invocation -> Mono.just(supplierRequest));

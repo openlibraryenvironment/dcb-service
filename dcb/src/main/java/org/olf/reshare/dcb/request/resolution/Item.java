@@ -8,5 +8,6 @@ import lombok.Data;
 @Serdeable
 @Data
 public final class Item {
-	private final UUID id;
+	private final String id;
+	private final String hostLmsCode;
 }

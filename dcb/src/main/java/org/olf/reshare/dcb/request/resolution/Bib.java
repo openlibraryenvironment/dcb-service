@@ -3,8 +3,12 @@ package org.olf.reshare.dcb.request.resolution;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Data;
 
+import java.util.UUID;
+
 @Serdeable
 @Data
-public final class Agency {
-	private final String code;
+public class Bib {
+	private final UUID id;
+	private final String bibRecordId;
+	private final String hostLmsCode;
 }

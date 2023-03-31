@@ -39,10 +39,10 @@ class AdminApiClient {
 		record PickupLocation(String code) { }
 
 		@Serdeable
-		record SupplierRequest(UUID id, Item item, Agency agency) {}
+		record SupplierRequest(UUID id, Item item, String hostLmsCode) {}
 
 		@Serdeable
-		record Item(UUID id) {}
+		record Item(String id) {}
 
 		@Serdeable
 		record Status(String code) { }

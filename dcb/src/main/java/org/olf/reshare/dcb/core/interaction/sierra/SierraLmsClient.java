@@ -183,26 +183,27 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<List<Item>> getItemsByBibId(String bibId) {
+	public Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode) {
 		log.info("getItemsByBibId({})", bibId);
 
 		return Flux.from(client.items(params -> params
 				.deleted(false)
 				.bibIds(List.of(bibId))))
 			.flatMap(results -> Flux.fromIterable(results.getEntries()))
-			.map(SierraLmsClient::mapResultToItem)
+			.map(result -> mapResultToItem(result, hostLmsCode))
 			.collectList()
 			.onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError, List.of());
 	}
 
-	private static Item mapResultToItem(Result result) {
+	private static Item mapResultToItem(Result result, String hostLmsCode) {
 		return new Item(result.getId(),
 			new Status(result.getStatus().getCode(),
 				result.getStatus().getDisplay(),
 				result.getStatus().getDuedate()),
 			new Location(result.getLocation().getCode(),
 				result.getLocation().getName()),
-			result.getBarcode(), result.getCallNumber());
+			result.getBarcode(), result.getCallNumber(),
+			hostLmsCode);
 	}
 
 	@Override

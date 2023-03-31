@@ -78,7 +78,7 @@ class SierraLmsClientTests {
 
 		final var client = hostLmsService.getClientFor("test1").block();
 
-		final var items = getItemsByBibId(client, "4564554664");
+		final var items = getItemsByBibId(client, "4564554664", "hostLmsCode");
 
 		assertThat(items, is(notNullValue()));
 		assertThat(items, hasSize(3));
@@ -107,7 +107,7 @@ class SierraLmsClientTests {
 
 		final var client = hostLmsService.getClientFor("test1").block();
 
-		final var items = getItemsByBibId(client, "0");
+		final var items = getItemsByBibId(client, "0", "HostLmsCode");
 
 		assertThat(items, hasSize(0));
 	}
@@ -125,7 +125,7 @@ class SierraLmsClientTests {
 		final var client = hostLmsService.getClientFor("test1").block();
 
 		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> getItemsByBibId(client, "565496"));
+			() -> getItemsByBibId(client, "565496", "hostLmsCode"));
 
 		final var response = exception.getResponse();
 
@@ -162,7 +162,7 @@ class SierraLmsClientTests {
 		 .withBody(json(getResourceAsString(resourceName)));
 	}
 
-	private static List<Item> getItemsByBibId(HostLmsClient client, String bibId) {
-		return client.getItemsByBibId(bibId).block();
+	private static List<Item> getItemsByBibId(HostLmsClient client, String bibId, String hostLmsCode) {
+		return client.getItemsByBibId(bibId, hostLmsCode).block();
 	}
 }
