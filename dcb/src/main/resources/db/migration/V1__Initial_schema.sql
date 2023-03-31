@@ -58,7 +58,7 @@ create table host_lms (
         code varchar(32),
         name varchar(200),
         lms_client_class varchar(200),
-        client_config text
+        client_config JSONB
 );
 
 create table agency (
@@ -77,6 +77,13 @@ create table location_symbol (
         CONSTRAINT fk_location FOREIGN KEY (owning_location_fk) REFERENCES location(id)
 );
 
+create table process_state (
+        id uuid primary key,
+        context uuid,
+        process_name varchar(200),
+        process_state JSONB
+);
+
 create table raw_source (
     id uuid NOT NULL,
     host_lms_id uuid NOT NULL,
@@ -86,13 +93,3 @@ create table raw_source (
 );
 CREATE INDEX idx_rs_host_lms ON raw_source(host_lms_id);
 CREATE INDEX idx_rs_remote_id ON raw_source(remote_id);
-
---create table patron_request_supplier_request (
---	supplier_request_id uuid primary key,
---	patron_request_id uuid,
---	holdings_item_id uuid,
---	holdings_agency_code varchar(200),
---	CONSTRAINT fk_patron_request
---  FOREIGN KEY(patron_request_id)
---  REFERENCES patron_request(id)
---);
