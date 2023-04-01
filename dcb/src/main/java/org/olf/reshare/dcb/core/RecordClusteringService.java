@@ -4,6 +4,9 @@ import java.util.UUID;
 
 import javax.transaction.Transactional;
 
+// import javax.transaction.Transactional.TxType;
+// @Transactional(value=TxType.REQUIRES_NEW)
+
 import org.olf.reshare.dcb.core.model.BibRecord;
 import org.olf.reshare.dcb.core.model.ClusterRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
@@ -46,7 +49,7 @@ public class RecordClusteringService {
 		return Flux.from(bibRecords.findAllByContributesTo(cluserRecordId));
 	}
 	
-	@Transactional
+        @Transactional
 	public Mono<ClusterRecord> getOrSeedClusterRecord( IngestRecord ingestRecord ) {
 
 		// log.debug("getOrSeedClusterRecord "+ingestRecord.getUuid());
@@ -59,7 +62,6 @@ public class RecordClusteringService {
 						.id(UUID.randomUUID())
 						.title(ingestRecord.getTitle())
 						.build())
-			
 			.map( clusterRecords::saveOrUpdate )
 			.flatMap( Mono::from )
 		;

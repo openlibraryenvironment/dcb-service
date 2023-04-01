@@ -68,6 +68,8 @@ public class BibRecordService {
 	@Transactional
 	public Publisher<BibRecord> process(final IngestRecord source) {
 
+		log.debug("BibRecordService::process(...clusterid={})",source.getClusterRecordId());
+
 		// Check if existing...
 		return Mono.just(source).flatMap(this::getOrSeed).flatMap((final BibRecord bib) -> {
 
