@@ -95,10 +95,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			this.current_page = current_page;
  		}
 		public Map storred_state;
-		public List current_page;
+		public List<BibResult> current_page;
+		public boolean possiblyMore = false;
+		public int offset = 0;
+		public Instant since = null;
         }
 
-	private Publisher<BibResult> backpressureAwareBibResultGenerator() {
+	private Publisher<BibResult> backpressureAwareBibResultGenerator(int limit) {
 
 		// initialise the state - use lms.id as the key into the state store
 		Map<String, Object> current_state = processStateService.getState(lms.getId(),"ingest");
@@ -107,29 +110,79 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                 }
 		PubisherState generator_state = new PubisherState(current_state, null);
 
+		String cursor = (String) current_state.get("cursor");
+		if ( cursor != null ) {
+			log.debug("Cursor: "+cursor);
+			String[] components = cursor.split(":");
+
+			if ( components[0].equals("bootstrap") ) {
+				// Bootstrap cursor is used for the initial load where we need to just page through everything
+				// from day 0
+				generator_state.offset = Integer.parseInt(components[1]);
+			}
+			else if ( components[1].equals("delta") )  {
+				// Delta cursor is used after the initial bootstrap and lets us know the point in time
+				// from where we need to fetch records
+				generator_state.since = null;
+			}
+		}
+
+		// Make a note of the time before we start
+		long request_start_time = System.currentTimeMillis();
+
 		return Flux.generate(
 			() -> generator_state,    // initial state
 			(state, sink) -> {
-				log.info("Generating - state="+state);
+				log.info("Generating - state="+state.storred_state);
 
-				if ( generator_state.current_page == null ) {
-					// fetch a page of data
+				if ( ( generator_state.current_page == null ) || ( generator_state.current_page.size() == 0 ) ) {
+					// fetch a page of data and stash it
+					log.info("Fetching a page, offset="+generator_state.offset+" limit="+limit);
+					BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit).block();
+					generator_state.current_page = bsr.entries();
+
+					int number_of_records_returned = generator_state.current_page.size();
+					if ( number_of_records_returned == limit ) {
+						generator_state.possiblyMore = true;
+ 					}
+					else {
+						generator_state.possiblyMore = false;
+					}
+
+					// Increment the offset for the next fetch
+					generator_state.offset += number_of_records_returned;
+
+					log.info("Stashed a page of "+generator_state.current_page.size()+" records");
 				}
 
+				log.info("Returning next - current size is "+generator_state.current_page.size());
+				// Return the next pending bib result
 				sink.next(generator_state.current_page.remove(0));
 
-				if ( generator_state.current_page.size() == 0 )
-					generator_state.current_page = null;
+				// If we have exhausted the currently cached page, and we are at the end, terminate.
+				if (generator_state.current_page.size() == 0 ) {
+					if ( generator_state.possiblyMore == false ) {
+						log.info("Terminating - run out of bib results");
+						// Make a note of the time at which we started this run, so we know where to pick up from
+						// next time
+						state.storred_state.put("cursor","deltaSince:"+request_start_time);
+						processStateService.updateState(lms.getId(),"ingest",state.storred_state);
+	
+						sink.complete();
+					}
+					else {
+						// We have finished consuming a page of data, but there is more to come. Remember
+						// where we got up to and stash it in the DB
+						state.storred_state.put("cursor","bootstrap:"+generator_state.offset);
+						processStateService.updateState(lms.getId(),"ingest",state.storred_state);
+					}
+				}
 
-				if (true) {
-					log.info("Terminating");
-					sink.complete();
-				}
-				println("return state "+state);
+				// Store the state at the end of this run
+				log.debug("return state "+state.storred_state);
 				return state;
-				}
-			)
-			.rateLimit(100)
+			}
+		);
 	}
 
 	private Publisher<BibResult> pageAllResults(Instant since, int offset, int limit) {
@@ -166,7 +219,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				.orElse(DEFAULT_PAGE_SIZE);
 
 		// The stream of imported records.
-		return Flux.from(pageAllResults(since, 0, pageSize)).filter(sierraBib -> sierraBib.marc() != null)
+		// return Flux.from(pageAllResults(since, 0, pageSize)).filter(sierraBib -> sierraBib.marc() != null)
+		return Flux.from(backpressureAwareBibResultGenerator(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
 				.switchIfEmpty(Mono.just("No results returned. Stopping")
 						.mapNotNull(s -> {
 							log.info(s);
