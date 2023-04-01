@@ -51,7 +51,7 @@ class ProcessStateServiceTests {
                 test_state.put("key1","value1");
 
                 UUID test_context = UUID.randomUUID();
-                processStateService.updateState(test_context, "testProcess", test_state);
+                processStateService.updateState(test_context, "testProcess", test_state).block();
 
                 Map<String, Object> current_state = processStateService.getState(test_context, "testProcess");
 

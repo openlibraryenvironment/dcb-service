@@ -31,13 +31,13 @@ public class ProcessStateService {
                 this.processStateRepository = processStateRepository;
 	}
 	
-        public void updateState(UUID context, String processName, Map<String, Object> state) {
+        public Mono<ProcessState> updateState(UUID context, String processName, Map<String, Object> state) {
 
                 UUID persistence_id = UUIDUtils.nameUUIDFromNamespaceAndString(context,processName);
 
                 ProcessState ps = new ProcessState(persistence_id, context, processName, state);
 
-                Mono.from(processStateRepository.existsById(persistence_id))
+               return Mono.from(processStateRepository.existsById(persistence_id))
                         .flatMap(exists -> Mono.fromDirect(exists ? processStateRepository.update(ps) : processStateRepository.save(ps)));
         }
 
