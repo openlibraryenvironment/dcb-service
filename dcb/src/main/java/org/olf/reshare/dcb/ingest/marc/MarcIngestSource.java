@@ -83,42 +83,58 @@ public interface MarcIngestSource<T> extends IngestSource {
 		ingestRecord.typeOfRecord(String.valueOf(marcRecord.getLeader().getTypeOfRecord()));
                 // marcRecord.getLeader.getImplDefined1() will give us 2 characters needed to work out kind of resource - Marc variant specific
                 // In marc21 07 is Bibliographic Level
-                // ingestRecord.derivedType( deriveType(marcRecord.getLeader()));
+                ingestRecord.derivedType( deriveType(marcRecord.getLeader()));
 		return ingestRecord;
 	}
 
 	private String deriveType(org.marc4j.marc.Leader leader) {
+		String result = null;
 		switch ( leader.getTypeOfRecord() ) {
 			case 'a':
 				char[] implDefined1 = leader.getImplDefined1();
 				switch ( implDefined1[0] ) {
+					case 'a':
+					case 'c':
+					case 'd':
+					case 'm':
+						result = "Books";
+						break;
+					default:
+						result = "Continuing Resources";
+						break;
 					// a,c,d or m = Books
 					// b,i or s = Continuing Resources
 				}
-				break;
 			case 'c':
 			case 'd':
 			case 'i':
 			case 'j':
-				return "Music";
+				result = "Music";
+				break;
 			case 'e':
 			case 'f':
-				return "Maps";
+				result = "Maps";
+				break;
 			case 'g':
 			case 'k':
 			case 'o':
 			case 'r':
-				return "Visual Materials";
+				result = "Visual Materials";
+				break;
 			case 'm':
-				return "Computer Flile";
+				result = "Computer Flile";
+				break;
 			case 'p':
-				return "Mixed Materials";
+				result = "Mixed Materials";
+				break;
 			case 't':
-				return "Books";
+				result = "Books";
+				break;
 			default:
-				return "Unknown";
+				result = "Unknown";
+				break;
 		}
-		return "Unknown";
+		return result;
 	}
 
 	default IngestRecordBuilder enrichWithAuthorInformation ( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {

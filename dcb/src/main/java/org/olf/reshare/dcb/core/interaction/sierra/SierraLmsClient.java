@@ -13,6 +13,7 @@ import java.util.UUID;
 import javax.validation.constraints.NotNull;
 
 import org.marc4j.marc.Record;
+import org.olf.reshare.dcb.core.ProcessStateService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.interaction.Item;
 import org.olf.reshare.dcb.core.interaction.Location;
@@ -51,16 +52,22 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	private final HostLms lms;
 	private final SierraApiClient client;
+	private final ProcessStateService processStateService;
 	private final SierraResponseErrorMatcher sierraResponseErrorMatcher = new SierraResponseErrorMatcher();
 
 	private final RawSourceRepository rawSourceRepository;
 
-	public SierraLmsClient(@Parameter HostLms lms, HostLmsSierraApiClientFactory clientFactory, RawSourceRepository rawSourceRepository)  {
+	public SierraLmsClient(@Parameter HostLms lms, 
+                               HostLmsSierraApiClientFactory clientFactory, 
+                               RawSourceRepository rawSourceRepository,
+                               ProcessStateService processStateService
+                               )  {
 		this.lms = lms;
 
 		// Get a sierra api client.
 		client = clientFactory.createClientFor(lms);
 		this.rawSourceRepository = rawSourceRepository;
+		this.processStateService = processStateService;
 	}
 
 	@Override
@@ -80,6 +87,49 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				});
 			}
 		}));
+	}
+
+	class PubisherState {
+		public PubisherState(Map storred_state, List current_page) {
+			this.storred_state = storred_state;
+			this.current_page = current_page;
+ 		}
+		public Map storred_state;
+		public List current_page;
+        }
+
+	private Publisher<BibResult> backpressureAwareBibResultGenerator() {
+
+		// initialise the state - use lms.id as the key into the state store
+		Map<String, Object> current_state = processStateService.getState(lms.getId(),"ingest");
+                if ( current_state == null ) {
+                  current_state=new HashMap<String,Object>();
+                }
+		PubisherState generator_state = new PubisherState(current_state, null);
+
+		return Flux.generate(
+			() -> generator_state,    // initial state
+			(state, sink) -> {
+				log.info("Generating - state="+state);
+
+				if ( generator_state.current_page == null ) {
+					// fetch a page of data
+				}
+
+				sink.next(generator_state.current_page.remove(0));
+
+				if ( generator_state.current_page.size() == 0 )
+					generator_state.current_page = null;
+
+				if (true) {
+					log.info("Terminating");
+					sink.complete();
+				}
+				println("return state "+state);
+				return state;
+				}
+			)
+			.rateLimit(100)
 	}
 
 	private Publisher<BibResult> pageAllResults(Instant since, int offset, int limit) {
