@@ -32,6 +32,8 @@ import jakarta.inject.Inject;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import org.olf.reshare.dcb.core.model.ProcessState;
+
 import java.util.Map;
 import java.util.HashMap;
 
@@ -53,8 +55,8 @@ class ProcessStateServiceTests {
                 UUID test_context = UUID.randomUUID();
                 processStateService.updateState(test_context, "testProcess", test_state).block();
 
-                Map<String, Object> current_state = processStateService.getState(test_context, "testProcess");
+                ProcessState ps = processStateService.getState(test_context, "testProcess").block();
 
-                assert(current_state.get("key1").equals("value1"));
+                assert(ps.getProcessState().get("key1").equals("value1"));
 	}
 }

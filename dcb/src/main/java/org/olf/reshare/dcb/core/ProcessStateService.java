@@ -41,12 +41,9 @@ public class ProcessStateService {
                         .flatMap(exists -> Mono.fromDirect(exists ? processStateRepository.update(ps) : processStateRepository.save(ps)));
         }
 
-        public Map<String, Object> getState(UUID context, String processName) {
+        public Mono<ProcessState> getState(UUID context, String processName) {
                 UUID persistence_id = UUIDUtils.nameUUIDFromNamespaceAndString(context,processName);
 
-                ProcessState ps = Mono.from(processStateRepository.findById(persistence_id))
-                        .block();
-
-                return ps != null ? ps.getProcessState() : null;
+                return Mono.from(processStateRepository.findById(persistence_id));
         }
 }

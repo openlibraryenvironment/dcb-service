@@ -19,6 +19,7 @@ import org.olf.reshare.dcb.core.interaction.Item;
 import org.olf.reshare.dcb.core.interaction.Location;
 import org.olf.reshare.dcb.core.interaction.Status;
 import org.olf.reshare.dcb.core.model.HostLms;
+import org.olf.reshare.dcb.core.model.ProcessState;
 import org.olf.reshare.dcb.ingest.marc.MarcIngestSource;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
@@ -104,11 +105,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private Publisher<BibResult> backpressureAwareBibResultGenerator(int limit) {
 
 		// initialise the state - use lms.id as the key into the state store
-		Map<String, Object> current_state = processStateService.getState(lms.getId(),"ingest");
+		ProcessState ps = processStateService.getState(lms.getId(),"ingest").share().block();
+                Map<String, Object> current_state = ps != null ? ps.getProcessState() : null;
                 if ( current_state == null ) {
                   current_state=new HashMap<String,Object>();
                 }
+
+		// Our local object to store the state of this generator
 		PubisherState generator_state = new PubisherState(current_state, null);
+
 		log.info("backpressureAwareBibResultGenerator - state="+current_state+" lmsid="+lms.getId());
 
 		String cursor = (String) current_state.get("cursor");
@@ -128,9 +133,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				generator_state.since = Instant.ofEpochMilli(Long.parseLong(components[1]));
 				log.info("Resuming delta at timestamp "+generator_state.since);
 			}
-			else {
-				log.info("Start a fresh ingest");
-			}
+		}
+		else {
+			log.info("Start a fresh ingest");
 		}
 
 		// Make a note of the time before we start
@@ -163,7 +168,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				}
 
 				// log.info("Returning next - current size is "+generator_state.current_page.size());
-				// Return the next pending bib result
+				// Return the next pending bib result from the page we stashed
 				sink.next(generator_state.current_page.remove(0));
 
 				// If we have exhausted the currently cached page, and we are at the end, terminate.
