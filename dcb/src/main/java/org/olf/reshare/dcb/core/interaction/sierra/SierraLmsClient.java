@@ -133,7 +133,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Flux.generate(
 			() -> generator_state,    // initial state
 			(state, sink) -> {
-				log.info("Generating - state="+state.storred_state);
+				// log.info("Generating - state="+state.storred_state);
 
 				if ( ( generator_state.current_page == null ) || ( generator_state.current_page.size() == 0 ) ) {
 					// fetch a page of data and stash it
@@ -156,7 +156,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					log.info("Stashed a page of "+generator_state.current_page.size()+" records");
 				}
 
-				log.info("Returning next - current size is "+generator_state.current_page.size());
+				// log.info("Returning next - current size is "+generator_state.current_page.size());
 				// Return the next pending bib result
 				sink.next(generator_state.current_page.remove(0));
 
@@ -172,6 +172,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						sink.complete();
 					}
 					else {
+						log.info("Exhausted current page - update cursor and loop for next page");
 						// We have finished consuming a page of data, but there is more to come. Remember
 						// where we got up to and stash it in the DB
 						state.storred_state.put("cursor","bootstrap:"+generator_state.offset);
@@ -180,7 +181,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				}
 
 				// Store the state at the end of this run
-				log.debug("return state "+state.storred_state);
+				// log.debug("return state "+state.storred_state);
 				return state;
 			}
 		);
