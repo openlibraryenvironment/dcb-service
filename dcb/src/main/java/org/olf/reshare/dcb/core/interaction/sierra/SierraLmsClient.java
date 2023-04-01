@@ -109,6 +109,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                   current_state=new HashMap<String,Object>();
                 }
 		PubisherState generator_state = new PubisherState(current_state, null);
+		log.info("backpressureAwareBibResultGenerator - state="+current_state+" lmsid="+lms.getId());
 
 		String cursor = (String) current_state.get("cursor");
 		if ( cursor != null ) {
@@ -119,11 +120,16 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				// Bootstrap cursor is used for the initial load where we need to just page through everything
 				// from day 0
 				generator_state.offset = Integer.parseInt(components[1]);
+				log.info("Resuming bootstrap at offset "+generator_state.offset);
 			}
-			else if ( components[1].equals("delta") )  {
+			else if ( components[0].equals("delta") )  {
 				// Delta cursor is used after the initial bootstrap and lets us know the point in time
 				// from where we need to fetch records
-				generator_state.since = null;
+				generator_state.since = Instant.ofEpochMilli(Long.parseLong(components[1]));
+				log.info("Resuming delta at timestamp "+generator_state.since);
+			}
+			else {
+				log.info("Start a fresh ingest");
 			}
 		}
 
@@ -176,7 +182,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						// We have finished consuming a page of data, but there is more to come. Remember
 						// where we got up to and stash it in the DB
 						state.storred_state.put("cursor","bootstrap:"+generator_state.offset);
-						processStateService.updateState(lms.getId(),"ingest",state.storred_state);
+						processStateService.updateState(lms.getId(),"ingest",state.storred_state).share().block();
 					}
 				}
 
