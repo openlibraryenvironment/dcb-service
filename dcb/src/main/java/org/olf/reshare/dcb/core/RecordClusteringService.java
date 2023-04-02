@@ -39,14 +39,14 @@ public class RecordClusteringService {
 	}
 	
 	// Add Bib to cluster record
-	public Mono<BibRecord> addBibToClusterRecord(BibRecord bib, UUID cluserRecordId) {
-		return Mono.just(bib.setContributesTo(cluserRecordId))
+	public Mono<BibRecord> addBibToClusterRecord(BibRecord bib, ClusterRecord clusterRecord) {
+		return Mono.just(bib.setContributesTo(clusterRecord))
 			.flatMap(bibRecords::saveOrUpdate);
 	}
 	
 	// Get all bibs for cluster record id
-	public Flux<BibRecord> findBibsByClusterRecordId(UUID cluserRecordId) {
-		return Flux.from(bibRecords.findAllByContributesTo(cluserRecordId));
+	public Flux<BibRecord> findBibsByClusterRecord(ClusterRecord clusterRecord) {
+		return Flux.from(bibRecords.findAllByContributesTo(clusterRecord));
 	}
 	
         @Transactional
@@ -55,8 +55,7 @@ public class RecordClusteringService {
 		// log.debug("getOrSeedClusterRecord "+ingestRecord.getUuid());
 		
 		return Mono.justOrEmpty(ingestRecord.getUuid())
-			.flatMap( bibRecords::getClusterRecordIdForBib )
-			.flatMap( this::findById )
+			.flatMap( bibRecords::getClusterRecordForBib )
 			.defaultIfEmpty(
 					ClusterRecord.builder()
 						.id(UUID.randomUUID())

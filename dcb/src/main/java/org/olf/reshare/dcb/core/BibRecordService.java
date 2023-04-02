@@ -7,9 +7,11 @@ import java.util.UUID;
 import javax.transaction.Transactional;
 
 import org.olf.reshare.dcb.core.model.BibRecord;
+import org.olf.reshare.dcb.core.model.ClusterRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.olf.reshare.dcb.processing.ProcessingStep;
 import org.olf.reshare.dcb.storage.BibRepository;
+import org.olf.reshare.dcb.storage.ClusterRecordRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
 
 @Singleton
 public class BibRecordService {
@@ -24,9 +27,12 @@ public class BibRecordService {
 	private static Logger log = LoggerFactory.getLogger(BibRecordService.class);
 
 	private final BibRepository bibRepo;
+	private final ClusterRecordRepository clusterRepo;
 
-	BibRecordService(BibRepository bibRepo) {
+	BibRecordService(BibRepository bibRepo,
+                         ClusterRecordRepository clusterRepo) {
 		this.bibRepo = bibRepo;
+		this.clusterRepo = clusterRepo;
 	}
 
 	private BibRecord step1(final BibRecord bib, final IngestRecord imported) {
@@ -54,21 +60,24 @@ public class BibRecordService {
 	public Mono<BibRecord> getOrSeed(final IngestRecord source) {
 		return Mono.from( bibRepo.findById(source.getUuid()) )
 				.defaultIfEmpty( minimalRecord(source) )
-				.map( br -> br.setContributesTo(source.getClusterRecordId()) );
+				.zipWith(Mono.from(clusterRepo.findOneById(source.getClusterRecordId())))
+				.flatMap(TupleUtils.function(( bib_record, cluster_record ) -> {
+					return Mono.just(bib_record.setContributesTo(cluster_record));
+				}));
 	}
 
-	public Flux<BibRecord> findAllByContributesTo(final UUID clusterRecordId) {		
-		return Flux.from(bibRepo.findAllByContributesTo(clusterRecordId));
+	public Flux<BibRecord> findAllByContributesTo(final ClusterRecord clusterRecord) {		
+		return Flux.from(bibRepo.findAllByContributesTo(clusterRecord));
 	}
 	
-	public Mono<UUID> getClusterRecordIdForBib( UUID bibId ) {
+	public Mono<ClusterRecord> getClusterRecordForBib( UUID bibId ) {
 		return Mono.from( bibRepo.findContributesToById(bibId) );
 	}
 
 	@Transactional
 	public Publisher<BibRecord> process(final IngestRecord source) {
 
-		log.debug("BibRecordService::process(...clusterid={})",source.getClusterRecordId());
+		// log.debug("BibRecordService::process(...clusterid={})",source.getClusterRecordId());
 
 		// Check if existing...
 		return Mono.just(source).flatMap(this::getOrSeed).flatMap((final BibRecord bib) -> {
