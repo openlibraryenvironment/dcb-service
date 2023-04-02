@@ -105,15 +105,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private Publisher<BibResult> backpressureAwareBibResultGenerator(int limit) {
 
 		// initialise the state - use lms.id as the key into the state store
-		ProcessState ps = processStateService.getState(lms.getId(),"ingest").share().block();
-                Map<String, Object> current_state = ps != null ? ps.getProcessState() : null;
+		// We can't continue until we have any previous state in out hands. Should be refactored
+		// into a series of subcalls - getState, getGenerator
+                Map<String, Object> current_state = processStateService.getStateMap(lms.getId(),"ingest").share().block();
                 if ( current_state == null ) {
                   current_state=new HashMap<String,Object>();
                 }
 
 		// Our local object to store the state of this generator
 		PubisherState generator_state = new PubisherState(current_state, null);
-
 		log.info("backpressureAwareBibResultGenerator - state="+current_state+" lmsid="+lms.getId());
 
 		String cursor = (String) current_state.get("cursor");
@@ -146,6 +146,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			(state, sink) -> {
 				// log.info("Generating - state="+state.storred_state);
 
+				// If this is the first time through, or we have exhausted the current page get a new page of data
 				if ( ( generator_state.current_page == null ) || ( generator_state.current_page.size() == 0 ) ) {
 					// fetch a page of data and stash it
 					log.info("Fetching a page, offset="+generator_state.offset+" limit="+limit);
@@ -178,7 +179,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						// Make a note of the time at which we started this run, so we know where to pick up from
 						// next time
 						state.storred_state.put("cursor","deltaSince:"+request_start_time);
-						processStateService.updateState(lms.getId(),"ingest",state.storred_state);
+						// processStateService.updateState(lms.getId(),"ingest",state.storred_state).share().block();
+						processStateService.updateState(lms.getId(),"ingest",state.storred_state).subscribe();
 	
 						sink.complete();
 					}
@@ -187,11 +189,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						// We have finished consuming a page of data, but there is more to come. Remember
 						// where we got up to and stash it in the DB
 						state.storred_state.put("cursor","bootstrap:"+generator_state.offset);
-						processStateService.updateState(lms.getId(),"ingest",state.storred_state).share().block();
+						// processStateService.updateState(lms.getId(),"ingest",state.storred_state).share().block();
+						processStateService.updateState(lms.getId(),"ingest",state.storred_state).subscribe();
 					}
 				}
 
-				// Store the state at the end of this run
+				// pass the state at the end of this call to the next iteration
 				// log.debug("return state "+state.storred_state);
 				return state;
 			}
