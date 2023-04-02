@@ -100,6 +100,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		public boolean possiblyMore = false;
 		public int offset = 0;
 		public Instant since = null;
+		public long sinceMillis=0;
         }
 
 	private Publisher<BibResult> backpressureAwareBibResultGenerator(int limit) {
@@ -130,8 +131,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			else if ( components[0].equals("delta") )  {
 				// Delta cursor is used after the initial bootstrap and lets us know the point in time
 				// from where we need to fetch records
-				generator_state.since = Instant.ofEpochMilli(Long.parseLong(components[1]));
-				log.info("Resuming delta at timestamp "+generator_state.since);
+				generator_state.sinceMillis = Long.parseLong(components[1]);
+				generator_state.since = Instant.ofEpochMilli(generator_state.sinceMillis);
+				if ( components.length==3 ) {
+					// We're recovering from an interuption whilst processing a delta
+					generator_state.offset = Integer.parseInt(components[2]);
+				}
+				log.info("Resuming delta at timestamp "+generator_state.since+" offset="+generator_state.offset);
 			}
 		}
 		else {
@@ -140,6 +146,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		// Make a note of the time before we start
 		long request_start_time = System.currentTimeMillis();
+		log.debug("Create generator: offset={} since={}",generator_state.offset,generator_state.since);
 
 		return Flux.generate(
 			() -> generator_state,    // initial state
@@ -175,7 +182,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				// If we have exhausted the currently cached page, and we are at the end, terminate.
 				if (generator_state.current_page.size() == 0 ) {
 					if ( generator_state.possiblyMore == false ) {
-						log.info("Terminating - run out of bib results");
+						log.info("Terminating cleanly - run out of bib results - new timestamp is {}",request_start_time);
 						// Make a note of the time at which we started this run, so we know where to pick up from
 						// next time
 						state.storred_state.put("cursor","deltaSince:"+request_start_time);
@@ -188,7 +195,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						log.info("Exhausted current page - update cursor and loop for next page");
 						// We have finished consuming a page of data, but there is more to come. Remember
 						// where we got up to and stash it in the DB
-						state.storred_state.put("cursor","bootstrap:"+generator_state.offset);
+						if ( generator_state.since != null ) {
+							state.storred_state.put("cursor","deltaSince:"+generator_state.sinceMillis+":"+generator_state.offset);
+						}
+						else {
+							state.storred_state.put("cursor","bootstrap:"+generator_state.offset);
+						}
 						// processStateService.updateState(lms.getId(),"ingest",state.storred_state).share().block();
 						processStateService.updateState(lms.getId(),"ingest",state.storred_state).subscribe();
 					}

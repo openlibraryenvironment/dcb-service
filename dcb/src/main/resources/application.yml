@@ -88,7 +88,7 @@ r2dbc:
         poolName: r2dbc
         maxSize: 20
         initialSize: 5
-        maxLifeTime: PT280S
+        maxLifeTime: PT180M
         maxIdleTime: PT240S
         maxAcquireTime: PT6S
       
