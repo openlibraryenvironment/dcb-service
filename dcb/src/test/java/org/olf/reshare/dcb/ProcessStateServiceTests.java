@@ -58,5 +58,9 @@ class ProcessStateServiceTests {
                 ProcessState ps = processStateService.getState(test_context, "testProcess").block();
 
                 assert(ps.getProcessState().get("key1").equals("value1"));
+
+		// The getStateMap version is in preparation for a Hazelcast cache layer
+		Map<String, Object> pure_map = processStateService.getStateMap(test_context, "testProcess").block();
+		assert(pure_map.get("key1").equals("value1"));
 	}
 }

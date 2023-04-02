@@ -46,4 +46,13 @@ public class ProcessStateService {
 
                 return Mono.from(processStateRepository.findById(persistence_id));
         }
+
+	/**
+	 * getStateMap returns a map only in preparation for a hazelcast proxy layer where the repository only
+	 * serves as the backing store for the distributed map.
+	 */
+	public Mono<Map<String,Object>> getStateMap(UUID context, String processName) {
+		return getState(context,processName)
+			.map(ps -> ps.getProcessState());
+	}
 }
