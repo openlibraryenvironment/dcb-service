@@ -201,8 +201,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						else {
 							state.storred_state.put("cursor","bootstrap:"+generator_state.offset);
 						}
-						processStateService.updateState(lms.getId(),"ingest",state.storred_state).share().block();
-						// processStateService.updateState(lms.getId(),"ingest",state.storred_state).subscribe();
+						// processStateService.updateState(lms.getId(),"ingest",state.storred_state).share().block();
+						processStateService.updateState(lms.getId(),"ingest",state.storred_state);
 						log.info("done updating state, loop for next page of data");
 					}
 				}
