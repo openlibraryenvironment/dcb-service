@@ -45,7 +45,7 @@ public class BibRecordService {
 		return BibRecord.builder()
                         .id(imported.getUuid())
                         .title(imported.getTitle())
-			.sourceSystemId(imported.getSourceSystemId())
+			.sourceSystemId(imported.getSourceSystem().getId())
                         .sourceRecordId(imported.getSourceRecordId())
                         .recordStatus(imported.getRecordStatus())
                         .typeOfRecord(imported.getTypeOfRecord())

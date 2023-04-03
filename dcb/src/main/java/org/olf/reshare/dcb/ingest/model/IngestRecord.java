@@ -10,6 +10,7 @@ import javax.validation.constraints.NotNull;
 
 import org.olf.reshare.dcb.ingest.model.Author.AuthorBuilder;
 import org.olf.reshare.dcb.ingest.model.Identifier.IdentifierBuilder;
+import org.olf.reshare.dcb.core.model.HostLms;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
@@ -31,7 +32,7 @@ public class IngestRecord {
 
 	@NonNull
 	@NotEmpty
-	UUID sourceSystemId;
+	HostLms sourceSystem;
 
 	@NonNull
 	@NotEmpty

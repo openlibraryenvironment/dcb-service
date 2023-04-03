@@ -6,8 +6,9 @@ buildscript {
 
 plugins {
 	id("com.github.johnrengelman.shadow") version "7.1.2"
-	id("io.micronaut.application") version "3.7.4"
-	id("io.micronaut.test-resources") version "3.7.4"
+        // See https://plugins.gradle.org/plugin/io.micronaut.application
+	id("io.micronaut.application") version "3.7.7"
+	id("io.micronaut.test-resources") version "3.7.7"
 	id('jacoco')
 	id 'org.olf.reshare.dcb-bom'
 	id 'service.k_int.micronaut-multi'
