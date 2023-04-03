@@ -192,7 +192,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						sink.complete();
 					}
 					else {
-						log.info("Exhausted current page - update cursor and loop for next page");
+						log.info("Exhausted current page - update cursor and prep for loop");
 						// We have finished consuming a page of data, but there is more to come. Remember
 						// where we got up to and stash it in the DB
 						if ( generator_state.since != null ) {
@@ -201,8 +201,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						else {
 							state.storred_state.put("cursor","bootstrap:"+generator_state.offset);
 						}
-						// processStateService.updateState(lms.getId(),"ingest",state.storred_state).share().block();
-						processStateService.updateState(lms.getId(),"ingest",state.storred_state).subscribe();
+						processStateService.updateState(lms.getId(),"ingest",state.storred_state).share().block();
+						// processStateService.updateState(lms.getId(),"ingest",state.storred_state).subscribe();
+						log.info("done updating state, loop for next page of data");
 					}
 				}
 
