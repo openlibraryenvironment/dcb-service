@@ -4,6 +4,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
+import javax.transaction.Transactional;
+
 import org.olf.reshare.dcb.core.BibRecordService;
 import org.olf.reshare.dcb.core.RecordClusteringService;
 import org.olf.reshare.dcb.core.model.BibRecord;
@@ -66,6 +68,7 @@ public class IngestService implements Runnable {
 		};
 	}
 
+	@Transactional
 	public Flux<BibRecord> getBibRecordStream() {		
 		
 		return Flux.merge(

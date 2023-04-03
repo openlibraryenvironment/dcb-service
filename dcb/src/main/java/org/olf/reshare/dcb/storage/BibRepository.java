@@ -31,14 +31,15 @@ public interface BibRepository {
 	@NonNull
 	Publisher<BibRecord> findAll();
 	
-	@NonNull
-	Publisher<BibRecord> findAllByContributesTo(@NonNull UUID clusterRecordId);
+	// @NonNull
+	// Publisher<BibRecord> findAllByContributesTo(@NonNull UUID clusterRecordId) {
+	// }
 	
-	Publisher<UUID> findContributesToById( @NonNull UUID id );
+	Publisher<ClusterRecord> findContributesToById( @NonNull UUID id );
 	
 	@NonNull
 	default Publisher<BibRecord> findAllByContributesTo(ClusterRecord clusterRecord) {
-		return findAllByContributesTo( clusterRecord.getId() );
+		return findAllByContributesTo( clusterRecord );
 	}
 
 	@NonNull

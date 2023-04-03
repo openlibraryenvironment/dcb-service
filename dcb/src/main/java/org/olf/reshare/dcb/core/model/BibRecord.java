@@ -2,6 +2,7 @@ package org.olf.reshare.dcb.core.model;
 
 import java.time.Instant;
 import java.util.UUID;
+import jakarta.persistence.Column;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
@@ -13,6 +14,7 @@ import io.micronaut.data.annotation.DateCreated;
 import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
@@ -62,7 +64,10 @@ public class BibRecord {
 	private String title;
 	
 	@Nullable
-	private UUID contributesTo;
+	// private UUID contributesTo;
+        @Relation(value = Relation.Kind.MANY_TO_ONE)
+	@Column(name = "contributes_to")
+	private ClusterRecord contributesTo;
 
 	@Nullable
 	private String recordStatus;

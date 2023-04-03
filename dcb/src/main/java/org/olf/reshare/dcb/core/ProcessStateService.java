@@ -31,23 +31,28 @@ public class ProcessStateService {
                 this.processStateRepository = processStateRepository;
 	}
 	
-        public void updateState(UUID context, String processName, Map<String, Object> state) {
+        public Mono<ProcessState> updateState(UUID context, String processName, Map<String, Object> state) {
 
                 UUID persistence_id = UUIDUtils.nameUUIDFromNamespaceAndString(context,processName);
 
                 ProcessState ps = new ProcessState(persistence_id, context, processName, state);
 
-                Mono.from(processStateRepository.existsById(persistence_id))
-                        .flatMap(exists -> Mono.fromDirect(exists ? processStateRepository.update(ps) : processStateRepository.save(ps)))
-                        .block();
+               return Mono.from(processStateRepository.existsById(persistence_id))
+                        .flatMap(exists -> Mono.fromDirect(exists ? processStateRepository.update(ps) : processStateRepository.save(ps)));
         }
 
-        public Map<String, Object> getState(UUID context, String processName) {
+        public Mono<ProcessState> getState(UUID context, String processName) {
                 UUID persistence_id = UUIDUtils.nameUUIDFromNamespaceAndString(context,processName);
 
-                ProcessState ps = Mono.from(processStateRepository.findById(persistence_id))
-                        .block();
-
-                return ps.getProcessState();
+                return Mono.from(processStateRepository.findById(persistence_id));
         }
+
+	/**
+	 * getStateMap returns a map only in preparation for a hazelcast proxy layer where the repository only
+	 * serves as the backing store for the distributed map.
+	 */
+	public Mono<Map<String,Object>> getStateMap(UUID context, String processName) {
+		return getState(context,processName)
+			.map(ps -> ps.getProcessState());
+	}
 }

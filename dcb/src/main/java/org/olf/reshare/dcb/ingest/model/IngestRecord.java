@@ -69,6 +69,9 @@ public class IngestRecord {
 	@Nullable
 	String typeOfRecord;
 
+	@Nullable
+	String derivedType;
+
 //  @Nullable String edition();
 //  List<PublicationInformation> publicationInformation();
 //  List<Description> descriptions();
