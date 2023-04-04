@@ -75,8 +75,9 @@ public class PatronRequestResolutionService {
 
 	private Mono<List<org.olf.reshare.dcb.item.availability.Item>> getAvailableItems(Bib bib) {
 		log.debug("getAvailableItems({})", bib);
-		return liveAvailabilityService.getAvailableItems(bib.getBibRecordId(),
-			bib.getHostLmsCode());
+
+		return liveAvailabilityService
+			.getAvailableItems(bib.getBibRecordId(), bib.getHostLms());
 	}
 
 	private static Mono<Item> chooseFirstItem(List<org.olf.reshare.dcb.item.availability.Item> itemList) {
