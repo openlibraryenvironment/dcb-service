@@ -29,6 +29,9 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.function.Consumer;
+import java.util.function.BiConsumer;
+
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.convert.ConversionService;
@@ -36,6 +39,7 @@ import io.micronaut.core.util.StringUtils;
 import io.micronaut.json.tree.JsonNode;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.SynchronousSink;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
@@ -152,6 +156,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                 	});
 	}
 
+
+
+
+        private Consumer<PubisherState> stateConsumer() {
+                return (state) -> {
+                        log.debug("stateConsumer {}",state);
+                };
+        }
+
 	private Publisher<BibResult> backpressureAwareBibResultGenerator(int limit) {
 
 		// Start the process by loading the current state of the ingest process for this LMS id and creating a state object
@@ -221,7 +234,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				// pass the state at the end of this call to the next iteration
 				// log.debug("return state "+state.storred_state);
 				return generator_state;
-			}
+			},
+                        stateConsumer()
 		));
 	}
 
