@@ -183,6 +183,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					log.info("Stashed a page of "+generator_state.current_page.size()+" records");
 				}
 
+
 				// log.info("Returning next - current size is "+generator_state.current_page.size());
 				// Return the next pending bib result from the page we stashed
 				sink.next(generator_state.current_page.remove(0));
