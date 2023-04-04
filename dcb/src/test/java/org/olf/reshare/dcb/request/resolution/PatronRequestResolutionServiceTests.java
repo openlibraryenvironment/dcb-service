@@ -1,23 +1,27 @@
 package org.olf.reshare.dcb.request.resolution;
 
+import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
 import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
+import org.olf.reshare.dcb.core.model.FakeHostLms;
 import org.olf.reshare.dcb.core.model.PatronRequest;
-
 import org.olf.reshare.dcb.item.availability.LiveAvailability;
+import org.olf.reshare.dcb.item.availability.Location;
+import org.olf.reshare.dcb.item.availability.Status;
+
 import reactor.core.publisher.Mono;
 
 class PatronRequestResolutionServiceTests {
@@ -28,16 +32,20 @@ class PatronRequestResolutionServiceTests {
 		= new PatronRequestResolutionService(sharedIndex, liveAvailability);
 
 	@Test
-	void shouldResolveToFirstItemWithSingleBibAndSingleBib() {
+	void shouldResolveToOnlyItemForSingleBibWithSingleItem() {
 		// create a shared index with bib
-		final var bibClusterId = UUID.randomUUID();
-		org.olf.reshare.dcb.item.availability.Item item1 = createFakeItem("id0");
+		final var bibClusterId = randomUUID();
 
-		when(sharedIndex.findClusteredBib(any()))
-			.thenReturn(Mono.just(new ClusteredBib(UUID.randomUUID(), List.of(createFakeBib()))));
+		final var item = createFakeItem("78458456", "ONLY_HOST");
 
-		when(liveAvailability.getAvailableItems(any(), any()))
-			.thenReturn(Mono.just(List.of(item1)));
+		final var hostLms = createHostLms("FAKE_HOST");
+
+		when(sharedIndex.findClusteredBib(bibClusterId))
+			.thenReturn(Mono.just(new ClusteredBib(randomUUID(),
+				List.of(createFakeBib("65767547", hostLms)))));
+
+		when(liveAvailability.getAvailableItems("65767547", hostLms))
+			.thenReturn(Mono.just(List.of(item)));
 
 		// A test patron request
 		final var patronRequest = createPatronRequest(bibClusterId);
@@ -49,25 +57,29 @@ class PatronRequestResolutionServiceTests {
 		assertThat(supplierRequestRecord, is(notNullValue()));
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequestRecord.getItemId(), is("id0"));
-		assertThat(supplierRequestRecord.getHostLmsCode(), is("hostLmsCode"));
+		assertThat(supplierRequestRecord.getItemId(), is("78458456"));
+		assertThat(supplierRequestRecord.getHostLmsCode(), is("ONLY_HOST"));
 
 		// check patron request has the expected status
 		assertThat(supplierRequestRecord.getPatronRequest(), is(notNullValue()));
 		assertThat(supplierRequestRecord.getPatronRequest().getStatusCode(), is(RESOLVED));
 	}
 	@Test
-	void shouldResolveToFirstItemWhenSingleBibWithMultipleItems() {
+	void shouldResolveToFirstItemForSingleBibWithMultipleItems() {
 		// create a shared index with bib
-		final var bibClusterId = UUID.randomUUID();
-		org.olf.reshare.dcb.item.availability.Item item1 = createFakeItem("id0");
-		org.olf.reshare.dcb.item.availability.Item item2 = createFakeItem("id1");
-		org.olf.reshare.dcb.item.availability.Item item3 = createFakeItem("id2");
+		final var bibClusterId = randomUUID();
 
-		when(sharedIndex.findClusteredBib(any()))
-			.thenReturn(Mono.just(new ClusteredBib(UUID.randomUUID(), List.of(createFakeBib()))));
+		final var item1 = createFakeItem("23721346", "FOO_HOST");
+		final var item2 = createFakeItem("54737664", "BAR_HOST");
+		final var item3 = createFakeItem("28375763", "SHOE_HOST");
 
-		when(liveAvailability.getAvailableItems(any(), any()))
+		final var hostLms = createHostLms("FAKE_HOST");
+
+		when(sharedIndex.findClusteredBib(bibClusterId))
+			.thenReturn(Mono.just(new ClusteredBib(randomUUID(),
+				List.of(createFakeBib("657476765", hostLms)))));
+
+		when(liveAvailability.getAvailableItems("657476765", hostLms))
 			.thenReturn(Mono.just(List.of(item1, item2, item3)));
 
 		// A test patron request
@@ -80,8 +92,8 @@ class PatronRequestResolutionServiceTests {
 		assertThat(supplierRequestRecord, is(notNullValue()));
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequestRecord.getItemId(), is("id0"));
-		assertThat(supplierRequestRecord.getHostLmsCode(), is("hostLmsCode"));
+		assertThat(supplierRequestRecord.getItemId(), is("23721346"));
+		assertThat(supplierRequestRecord.getHostLmsCode(), is("FOO_HOST"));
 
 		// check patron request has the expected status
 		assertThat(supplierRequestRecord.getPatronRequest(), is(notNullValue()));
@@ -89,19 +101,32 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	@Test
-	void shouldResolveToFirstItemWhenMultipleBibsWithMultipleItems() {
+	void shouldResolveToFirstItemForMultipleBibsEachWithMixtureOfItems() {
 		// create a shared index with bib
-		final var bibClusterId = UUID.randomUUID();
-		org.olf.reshare.dcb.item.availability.Item item1 = createFakeItem("id0");
-		org.olf.reshare.dcb.item.availability.Item item2 = createFakeItem("id1");
-		org.olf.reshare.dcb.item.availability.Item item3 = createFakeItem("id2");
+		final var bibClusterId = randomUUID();
 
-		when(sharedIndex.findClusteredBib(any()))
-			.thenReturn(Mono.just(new ClusteredBib(UUID.randomUUID(),
-				List.of(createFakeBib(), createFakeBib(), createFakeBib()))));
+		final var item1 = createFakeItem("23721346", "FOO_HOST");
+		final var item2 = createFakeItem("54737664", "BAR_HOST");
+		final var item3 = createFakeItem("28375763", "SHOE_HOST");
 
-		when(liveAvailability.getAvailableItems(any(), any()))
-			.thenReturn(Mono.just(List.of(item1, item2, item3)));
+		final var barHost = createHostLms("BAR_HOST");
+		final var fooHost = createHostLms("FOO_HOST");
+		final var shoeHost = createHostLms("SHOE_HOST");
+
+		when(sharedIndex.findClusteredBib(bibClusterId))
+			.thenReturn(Mono.just(new ClusteredBib(randomUUID(), List.of(
+				createFakeBib("656845864", barHost),
+				createFakeBib("454973743", fooHost),
+				createFakeBib("293372649", shoeHost)))));
+
+		when(liveAvailability.getAvailableItems("656845864", barHost))
+			.thenReturn(Mono.just(List.of(item2)));
+
+		when(liveAvailability.getAvailableItems("454973743", fooHost))
+			.thenReturn(Mono.just(List.of()));
+
+		when(liveAvailability.getAvailableItems("293372649", shoeHost))
+			.thenReturn(Mono.just(List.of(item3, item1)));
 
 		// A test patron request
 		final var patronRequest = createPatronRequest(bibClusterId);
@@ -113,8 +138,8 @@ class PatronRequestResolutionServiceTests {
 		assertThat(supplierRequestRecord, is(notNullValue()));
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequestRecord.getItemId(), is("id0"));
-		assertThat(supplierRequestRecord.getHostLmsCode(), is("hostLmsCode"));
+		assertThat(supplierRequestRecord.getItemId(), is("54737664"));
+		assertThat(supplierRequestRecord.getHostLmsCode(), is("BAR_HOST"));
 
 		// check patron request has the expected status
 		assertThat(supplierRequestRecord.getPatronRequest(), is(notNullValue()));
@@ -124,7 +149,7 @@ class PatronRequestResolutionServiceTests {
 	@Test
 	void shouldFailToResolveRequestWhenBibsIsEmpty() {
 		// create a shared index with bib
-		final var bibClusterId = UUID.randomUUID();
+		final var bibClusterId = randomUUID();
 
 		final var clusteredBib = new ClusteredBib(bibClusterId, List.of());
 
@@ -135,18 +160,17 @@ class PatronRequestResolutionServiceTests {
 		final var patronRequest = createPatronRequest(bibClusterId);
 
 		// check Exception thrown is what is expected
-		final var e = assertThrows(UnableToResolvePatronRequest.class,
+		final var exception = assertThrows(UnableToResolvePatronRequest.class,
 			() -> resolutionService.resolvePatronRequest(patronRequest).block());
 
-		final var responseMsg = e.getMessage();
-
-		assertEquals("No bibs in clustered bib", responseMsg);
+		assertThat(exception, is(notNullValue()));
+		assertThat(exception.getMessage(), is("No bibs in clustered bib"));
 	}
 
 	@Test
 	void shouldFailToResolveRequestWhenBibsIsNull() {
 		// create a shared index with bib
-		final var bibClusterId = UUID.randomUUID();
+		final var bibClusterId = randomUUID();
 
 		final var clusteredBib = new ClusteredBib(bibClusterId, null);
 
@@ -157,55 +181,61 @@ class PatronRequestResolutionServiceTests {
 		final var patronRequest = createPatronRequest(bibClusterId);
 
 		// check Exception thrown is what is expected
-		final var e = assertThrows(UnableToResolvePatronRequest.class,
+		final var exception = assertThrows(UnableToResolvePatronRequest.class,
 			() -> resolutionService.resolvePatronRequest(patronRequest).block());
 
-		final var responseMsg = e.getMessage();
-
-		assertEquals("No bibs in clustered bib", responseMsg);
+		assertThat(exception, is(notNullValue()));
+		assertThat(exception.getMessage(), is("No bibs in clustered bib"));
 	}
 
 	@Test
-	void shouldFailToResolveRequestWhenItemListIsEmpty() {
+	void shouldFailToResolveRequestWhenNoItemsAreFound() {
 		// create a shared index with bib
-		final var bibClusterId = UUID.randomUUID();
+		final var bibClusterId = randomUUID();
+
+		final var hostLms = createHostLms("FAKE_HOST");
 
 		final var clusteredBib = new ClusteredBib(bibClusterId,
-			List.of(createFakeBib()));
+			List.of(createFakeBib("56547675", hostLms)));
 
 		when(sharedIndex.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
 
-		when(liveAvailability.getAvailableItems(any(), any()))
+		when(liveAvailability.getAvailableItems("56547675", hostLms))
 			.thenReturn(Mono.just(List.of()));
 
 		// A test patron request
 		final var patronRequest = createPatronRequest(bibClusterId);
 
 		// check Exception thrown is what is expected
-		final var e = assertThrows(UnableToResolvePatronRequest.class,
+		final var exception = assertThrows(UnableToResolvePatronRequest.class,
 			() -> resolutionService.resolvePatronRequest(patronRequest).block());
 
-		final var responseMsg = e.getMessage();
-
-		assertEquals("No items in bib", responseMsg);
+		assertThat(exception, is(notNullValue()));
+		assertThat(exception.getMessage(), is("No items in bib"));
 	}
 
 	private static PatronRequest createPatronRequest(UUID bibClusterId) {
-		return new PatronRequest(UUID.randomUUID(), null, null,
+		return new PatronRequest(randomUUID(), null, null,
 			"patronId", "patronAgencyCode",
 			bibClusterId, "pickupLocationCode", SUBMITTED_TO_DCB);
 	}
 
-	private static org.olf.reshare.dcb.item.availability.Item createFakeItem(String id) {
+	private static org.olf.reshare.dcb.item.availability.Item createFakeItem(
+		String id, String hostLmsCode) {
+
 		return new org.olf.reshare.dcb.item.availability.Item(id,
-			new org.olf.reshare.dcb.item.availability.Status("code", "displayText", "dueDate"),
-			new org.olf.reshare.dcb.item.availability.Location("code","name"),
-			"barcode",
-			"callNumber",
-			"hostLmsCode");
+			new Status("code", "displayText", "dueDate"),
+			new Location("code","name"),
+			"barcode", "callNumber", hostLmsCode);
 	}
-	private static Bib createFakeBib(){
-		return new Bib(UUID.randomUUID(), "bibRecordId", "hostLmsCode");
+
+	private static Bib createFakeBib(String bibRecordId, FakeHostLms hostLms) {
+		return new Bib(randomUUID(), bibRecordId, hostLms);
+	}
+
+	private static FakeHostLms createHostLms(String code) {
+		return new FakeHostLms(randomUUID(), code, "Fake Host LMS",
+			SierraLmsClient.class, Map.of());
 	}
 }

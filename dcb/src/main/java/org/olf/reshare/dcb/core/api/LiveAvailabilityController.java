@@ -6,6 +6,7 @@ import java.util.List;
 
 import javax.validation.constraints.NotNull;
 
+import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.item.availability.AvailabilityResponseView;
 import org.olf.reshare.dcb.item.availability.Item;
 import org.olf.reshare.dcb.item.availability.LiveAvailabilityService;
@@ -31,9 +32,13 @@ public class LiveAvailabilityController {
 	private static final Logger log = LoggerFactory.getLogger(LiveAvailabilityController.class);
 
 	private final LiveAvailabilityService liveAvailabilityService;
+	private final HostLmsService hostLmsService;
 
-	public LiveAvailabilityController(LiveAvailabilityService liveAvailabilityService) {
+	public LiveAvailabilityController(LiveAvailabilityService liveAvailabilityService,
+		HostLmsService hostLmsService) {
+
 		this.liveAvailabilityService = liveAvailabilityService;
+		this.hostLmsService = hostLmsService;
 	}
 
 	@SingleResult
@@ -44,8 +49,9 @@ public class LiveAvailabilityController {
 
 		log.debug("REST, getLiveAvailability: {}, {}", bibRecordId, hostLmsCode);
 
-		return liveAvailabilityService.getAvailableItems(bibRecordId, hostLmsCode)
-			.map(itemList -> mapToResponse(itemList, bibRecordId, hostLmsCode))
+		return hostLmsService.findByCode(hostLmsCode)
+			.flatMap(hostLms -> liveAvailabilityService.getAvailableItems(bibRecordId, hostLms))
+			.map(items -> mapToResponse(items, bibRecordId, hostLmsCode))
 			.map(HttpResponse::ok);
 	}
 

@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
+import static services.k_int.interaction.sierra.SierraTestUtils.mockFor;
 
 import java.util.Comparator;
 import java.util.List;
@@ -34,7 +35,6 @@ import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
-import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -49,34 +49,32 @@ class HostLmsTests {
 
 	@BeforeAll
 	static void addFakeSierraApis(MockServerClient mock) {
-
 		// Mock login to sierra
-		SierraTestUtils.mockFor(mock, "test1.com").setValidCredentials("test1-key", "test1-secret", "test1_auth_token",
-				3000L);
+		mockFor(mock, "test1.com")
+			.setValidCredentials("test1-key", "test1-secret", "test1_auth_token", 3000L);
 
-		SierraTestUtils.mockFor(mock, "test2.com").setValidCredentials("test2-key2", "test2-secret", "test2_auth_token",
-				3600L);
+		mockFor(mock, "test2.com")
+			.setValidCredentials("test2-key2", "test2-secret", "test2_auth_token", 3600L);
 
 		// Mock the response from Sierra
 		mock.when(request().withHeader("Accept", "application/json").withHeader("host", "test1.com")
-				.withHeader("Authorization", "Bearer test1_auth_token").withMethod("GET").withPath("/iii/sierra-api/v6/bibs/*"))
+			.withHeader("Authorization", "Bearer test1_auth_token").withMethod("GET").withPath("/iii/sierra-api/v6/bibs/*"))
 
-				.respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
-						.withBody(json("{" + "	\"total\": 2," + "	\"start\": 0," + "	\"entries\": [" + "		{"
-								+ "			\"id\": \"id1\"," + "			\"deleted\": false," + "			\"title\": \"Test1 record 1\","
-								+ "			\"author\": \"Wojciechowska, Maia,\"," + "			\"publishYear\": 1969" + "		}," + "		{"
-								+ "			\"id\": \"id2\"," + "			\"deleted\": false," + "			\"title\": \"Test1 record 2\","
-								+ "			\"author\": \"Smith, John,\"," + "			\"publishYear\": 2010" + "		}" + "	]" + "}")));
+		.respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
+				.withBody(json("{" + "	\"total\": 2," + "	\"start\": 0," + "	\"entries\": [" + "		{"
+					+ "			\"id\": \"id1\"," + "			\"deleted\": false," + "			\"title\": \"Test1 record 1\","
+					+ "			\"author\": \"Wojciechowska, Maia,\"," + "			\"publishYear\": 1969" + "		}," + "		{"
+					+ "			\"id\": \"id2\"," + "			\"deleted\": false," + "			\"title\": \"Test1 record 2\","
+					+ "			\"author\": \"Smith, John,\"," + "			\"publishYear\": 2010" + "		}" + "	]" + "}")));
 
 		// 2nd target
 		mock.when(request().withHeader("Accept", "application/json").withHeader("host", "test2.com")
-				.withHeader("Authorization", "Bearer test2_auth_token").withMethod("GET").withPath("/iii/sierra-api/v6/bibs/*"))
-
-				.respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
-						.withBody(json("{\n" + "	\"total\": 1,\n" + "	\"start\": 0,\n" + "	\"entries\": [\n" + "		{\n"
-								+ "			\"id\": \"1\",\n" + "			\"deleted\": false,\n" + "			\"title\": \"Test2 record\",\n"
-								+ "			\"author\": \"Wojciechowska, Maia,\",\n" + "			\"publishYear\": 1969\n" + "		}\n" + "	]\n"
-								+ "}")));
+			.withHeader("Authorization", "Bearer test2_auth_token").withMethod("GET").withPath("/iii/sierra-api/v6/bibs/*"))
+			.respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
+					.withBody(json("{\n" + "	\"total\": 1,\n" + "	\"start\": 0,\n" + "	\"entries\": [\n" + "		{\n"
+						+ "			\"id\": \"1\",\n" + "			\"deleted\": false,\n" + "			\"title\": \"Test2 record\",\n"
+						+ "			\"author\": \"Wojciechowska, Maia,\",\n" + "			\"publishYear\": 1969\n" + "		}\n" + "	]\n"
+						+ "}")));
 	}
 
 	@BeforeEach
@@ -146,7 +144,7 @@ class HostLmsTests {
 	}
 
 	@Test
-	void shouldNotFindHostWhenUnknown() {
+	void shouldNotFindHostByCodeWhenUnknown() {
 		Mono.from(hostLmsRepository.save(new DataHostLms(UUID.randomUUID(), "database-host",
 				"Database Host", SierraLmsClient.class.getName(), Map.of())))
 			.block();
@@ -156,5 +154,54 @@ class HostLmsTests {
 
 		assertThat(exception, is(notNullValue()));
 		assertThat(exception.getMessage(), is("No Host LMS found for code: unknown-host"));
+	}
+
+	@Test
+	void shouldFindHostInConfigById() {
+		// The ID of host loaded from config is generated when loaded
+		// tests could fail erroneously when finding by code fails
+		final var idFromConfig = manager.findByCode("test1").block().getId();
+
+		final var foundHost = manager.findById(idFromConfig).block();
+
+		assertThat(foundHost, is(notNullValue()));
+
+		assertThat(foundHost.getId(), is(notNullValue()));
+		assertThat(foundHost.getCode(), is("test1"));
+		assertThat(foundHost.getName(), is("test1"));
+		assertThat(foundHost.getType(), is(SierraLmsClient.class));
+	}
+
+	@Test
+	void shouldFindHostInDatabaseById() {
+		final var hostId = UUID.randomUUID();
+
+		Mono.from(hostLmsRepository.save(new DataHostLms(hostId, "database-host",
+				"Database Host", SierraLmsClient.class.getName(), Map.of())))
+			.block();
+
+		final var foundHost = manager.findById(hostId).block();
+
+		assertThat(foundHost, is(notNullValue()));
+
+		assertThat(foundHost.getId(), is(hostId));
+		assertThat(foundHost.getCode(), is("database-host"));
+		assertThat(foundHost.getName(), is("Database Host"));
+		assertThat(foundHost.getType(), is(SierraLmsClient.class));
+	}
+
+	@Test
+	void shouldNotFindHostByIdWhenUnknown() {
+		Mono.from(hostLmsRepository.save(new DataHostLms(UUID.randomUUID(), "database-host",
+				"Database Host", SierraLmsClient.class.getName(), Map.of())))
+			.block();
+
+		final var unknownHostId = UUID.randomUUID();
+
+		final var exception = assertThrows(HostLmsService.UnknownHostLmsException.class,
+			() -> manager.findById(unknownHostId).block());
+
+		assertThat(exception, is(notNullValue()));
+		assertThat(exception.getMessage(), is("No Host LMS found for ID: " + unknownHostId));
 	}
 }
