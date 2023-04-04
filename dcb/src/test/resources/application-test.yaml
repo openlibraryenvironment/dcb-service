@@ -30,6 +30,12 @@ micronaut:
           #     enabled: false
           #     url: "https://never-used-in-test"
 
+r2dbc:
+  datasources:
+    default:
+      options:
+        maxSize: 1
+        initialSize: 1
 
 #elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
 netty:
