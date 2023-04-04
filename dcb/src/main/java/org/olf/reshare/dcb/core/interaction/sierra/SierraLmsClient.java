@@ -47,6 +47,8 @@ import services.k_int.interaction.sierra.items.Result;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
+import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+
 @Prototype
 public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
 	private static final Logger log = LoggerFactory.getLogger(SierraLmsClient.class);
@@ -58,6 +60,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final HostLms lms;
 	private final SierraApiClient client;
 	private final ProcessStateService processStateService;
+	private final R2dbcOperations operations;
 	private final SierraResponseErrorMatcher sierraResponseErrorMatcher = new SierraResponseErrorMatcher();
 
 	private final RawSourceRepository rawSourceRepository;
@@ -65,7 +68,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public SierraLmsClient(@Parameter HostLms lms, 
                                HostLmsSierraApiClientFactory clientFactory, 
                                RawSourceRepository rawSourceRepository,
-                               ProcessStateService processStateService
+                               ProcessStateService processStateService,
+                               R2dbcOperations operations
                                )  {
 		this.lms = lms;
 
@@ -73,6 +77,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		client = clientFactory.createClientFor(lms);
 		this.rawSourceRepository = rawSourceRepository;
 		this.processStateService = processStateService;
+		this.operations = operations;
 	}
 
 	@Override
@@ -162,7 +167,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
         private Consumer<PubisherState> stateConsumer() {
                 return (state) -> {
                         log.debug("stateConsumer {}",state);
-                        processStateService.updateState(lms.getId(),"ingest",state.storred_state).subscribe();
+			operations.withTransaction(status ->
+                            processStateService.updateState(lms.getId(),"ingest",state.storred_state)
+                        );
 			log.info("done updating state");
                 };
         }

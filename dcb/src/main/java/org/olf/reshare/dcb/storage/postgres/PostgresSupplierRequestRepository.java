@@ -17,5 +17,4 @@ import jakarta.inject.Singleton;
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 @Transactional
 public interface PostgresSupplierRequestRepository extends ReactiveStreamsPageableRepository<SupplierRequest, UUID>, SupplierRequestRepository {
-		
 }
