@@ -91,6 +91,8 @@ r2dbc:
         maxLifeTime: PT240S
         maxIdleTime: PT240S
         maxAcquireTime: PT8S
+        validationQuery: "SELECT 1"
+        validationDepth: REMOTE
       
       # driver: postgresql
       #url: "r2dbc:postgresql://${db.host}:${db.port}/${db.database:}"
