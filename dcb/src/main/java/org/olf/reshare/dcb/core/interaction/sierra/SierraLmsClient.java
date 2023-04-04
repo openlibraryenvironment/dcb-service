@@ -188,7 +188,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					// fetch a page of data and stash it
 					log.info("Fetching a page, offset="+generator_state.offset+" limit="+limit);
 					BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit).share().block();
+					log.info("got page");
 					generator_state.current_page = bsr.entries();
+					log.info("got entries as page");
 
 					int number_of_records_returned = generator_state.current_page.size();
 					if ( number_of_records_returned == limit ) {
@@ -236,7 +238,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				return generator_state;
 			},
                         stateConsumer()
-		));
+		)
+		);
 	}
 
 	private Publisher<BibResult> pageAllResults(Instant since, int offset, int limit) {
