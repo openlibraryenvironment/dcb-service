@@ -1,15 +1,16 @@
 package org.olf.reshare.dcb.item.availability;
 
+import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.HostLmsService;
@@ -17,6 +18,8 @@ import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.interaction.Item;
 import org.olf.reshare.dcb.core.interaction.Location;
 import org.olf.reshare.dcb.core.interaction.Status;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
+import org.olf.reshare.dcb.core.model.FakeHostLms;
 
 import reactor.core.publisher.Mono;
 
@@ -28,7 +31,10 @@ public class LiveAvailabilityServiceTests {
 
 		final var liveAvailabilityService = new LiveAvailabilityService(hostLmsService);
 
-		when(hostLmsService.getClientFor("testLmsCode"))
+		final var hostLms = new FakeHostLms(randomUUID(), "hostLmsCode", "Fake Host LMS",
+			SierraLmsClient.class, Map.of());
+
+		when(hostLmsService.getClientFor(hostLms))
 			.thenAnswer(invocation -> Mono.just(hostLmsClient));
 
 		final var item = new Item("testid",
@@ -36,11 +42,11 @@ public class LiveAvailabilityServiceTests {
 			new Location("testLocationCode", "testLocationName"),
 			"testBarcode", "testCallNumber", "hostLmsCode");
 
-		when(hostLmsClient.getItemsByBibId("testBibId", "testLmsCode"))
+		when(hostLmsClient.getItemsByBibId("testBibId", "hostLmsCode"))
 			.thenAnswer(invocation -> Mono.just(List.of(item)));
 
-		final var items = liveAvailabilityService.getAvailableItems("testBibId",
-				"testLmsCode").block();
+		final var items = liveAvailabilityService
+			.getAvailableItems("testBibId", hostLms).block();
 
 		assertThat(items, is(notNullValue()));
 		assertThat(items.size(), is(1));
@@ -65,7 +71,7 @@ public class LiveAvailabilityServiceTests {
 		assertThat(location.getCode(), is("testLocationCode"));
 		assertThat(location.getName(), is("testLocationName"));
 
-		verify(hostLmsService).getClientFor(anyString());
+		verify(hostLmsService).getClientFor(hostLms);
 		verify(hostLmsClient).getItemsByBibId(any(), any());
 	}
 }

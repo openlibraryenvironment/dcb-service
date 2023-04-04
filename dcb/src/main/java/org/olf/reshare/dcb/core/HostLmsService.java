@@ -1,9 +1,10 @@
 package org.olf.reshare.dcb.core;
 
+import static java.util.stream.Collectors.toUnmodifiableMap;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
@@ -30,11 +31,20 @@ public class HostLmsService implements IngestSourcesProvider {
 		this.hostLmsRepository = hostLmsRepository;
 		this.context = context;
 		this.fromConfigById = Stream.of(confHosts)
-			.collect(Collectors.toUnmodifiableMap(HostLms::getId, item -> item));
+			.collect(toUnmodifiableMap(HostLms::getId, item -> item));
 	}
 	
 	public Mono<HostLms> findById( UUID id ) {
-		return Mono.justOrEmpty(fromConfigById.get(id));
+		return getAllHostLms()
+			.collectList()
+			.map(list -> findFirstById(id, list));
+	}
+
+	private static HostLms findFirstById(UUID id, List<HostLms> list) {
+		return list.stream()
+			.filter(hostLms -> hostLms.getId().equals(id))
+			.findFirst()
+			.orElseThrow(() -> new UnknownHostLmsException("ID", id));
 	}
 
 	public Mono<HostLms> findByCode( String code ) {
@@ -47,7 +57,7 @@ public class HostLmsService implements IngestSourcesProvider {
 		return list.stream()
 			.filter(hostLms -> hostLms.getCode().equals(code))
 			.findFirst()
-			.orElseThrow(() -> new UnknownHostLmsException(code));
+			.orElseThrow(() -> new UnknownHostLmsException("code", code));
 	}
 
 	public Mono<HostLmsClient> getClientFor( final HostLms hostLms ) {
@@ -72,8 +82,8 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	public static class UnknownHostLmsException extends RuntimeException {
-		UnknownHostLmsException(String code) {
-			super("No Host LMS found for code: " + code);
+		UnknownHostLmsException(String propertyName, Object value) {
+			super(String.format("No Host LMS found for %s: %s", propertyName, value));
 		}
 	}
 }
