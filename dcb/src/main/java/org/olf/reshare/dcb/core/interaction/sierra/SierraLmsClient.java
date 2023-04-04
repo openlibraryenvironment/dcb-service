@@ -188,7 +188,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					// fetch a page of data and stash it
 					log.info("Fetching a page, offset="+generator_state.offset+" limit="+limit);
 					BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit).share().block();
-					// BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit).toFuture().get();
 					generator_state.current_page = bsr.entries();
 
 					int number_of_records_returned = generator_state.current_page.size();

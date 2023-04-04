@@ -68,7 +68,7 @@ public class IngestService implements Runnable {
 		};
 	}
 
-	@Transactional
+	// @Transactional
 	public Flux<BibRecord> getBibRecordStream() {		
 		
 		return Flux.merge(
