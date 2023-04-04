@@ -162,6 +162,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
         private Consumer<PubisherState> stateConsumer() {
                 return (state) -> {
                         log.debug("stateConsumer {}",state);
+                        processStateService.updateState(lms.getId(),"ingest",state.storred_state).subscribe();
+			log.info("done updating state");
                 };
         }
 
@@ -208,10 +210,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						// Make a note of the time at which we started this run, so we know where to pick up from
 						// next time
 						generator_state.storred_state.put("cursor","deltaSince:"+generator_state.request_start_time);
-						// processStateService.updateState(lms.getId(),"ingest",state.storred_state).share().block();
-						processStateService.updateState(lms.getId(),"ingest",generator_state.storred_state)
-                                                                   .subscribe();
-	
 						sink.complete();
 					}
 					else {
@@ -224,10 +222,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						else {
 							generator_state.storred_state.put("cursor","bootstrap:"+generator_state.offset);
 						}
-						// processStateService.updateState(lms.getId(),"ingest",state.storred_state).share().block();
-						processStateService.updateState(lms.getId(),"ingest",generator_state.storred_state)
-                                                                   .subscribe();
-						log.info("done updating state, loop for next page of data");
 					}
 				}
 
