@@ -26,6 +26,12 @@ public class LiveAvailabilityService implements LiveAvailability {
 	public Mono<List<Item>> getAvailableItems(String bibRecordId, HostLms hostLms) {
 		log.debug("getAvailableItems({}, {})", bibRecordId, hostLms);
 
+		if (hostLms == null) {
+			log.error("hostLMS cannot be null when asking for available items");
+
+			return Mono.error(new IllegalArgumentException("hostLMS cannot be null"));
+		}
+
 		return hostLmsService.getClientFor(hostLms)
 			.flatMapMany(hostLmsClient -> getItems(bibRecordId, hostLmsClient, hostLms.getCode()))
 			.map(this::mapToAvailabilityItem)

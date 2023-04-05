@@ -19,7 +19,7 @@ public interface ClusterRecordRepository {
 	@NonNull
 	@SingleResult
 	Publisher<? extends ClusterRecord> findOneById(@NonNull UUID id);
-	
+
 	@NonNull
 	@SingleResult
 	Publisher<? extends ClusterRecord> save(@Valid @NotNull @NonNull ClusterRecord clusterRecord);

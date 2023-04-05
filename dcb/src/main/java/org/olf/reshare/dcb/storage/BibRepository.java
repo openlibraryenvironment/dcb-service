@@ -38,9 +38,7 @@ public interface BibRepository {
 	Publisher<ClusterRecord> findContributesToById( @NonNull UUID id );
 	
 	@NonNull
-	default Publisher<BibRecord> findAllByContributesTo(ClusterRecord clusterRecord) {
-		return findAllByContributesTo( clusterRecord );
-	}
+	Publisher<BibRecord> findAllByContributesTo(ClusterRecord clusterRecord);
 
 	@NonNull
 	@SingleResult

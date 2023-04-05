@@ -1,6 +1,7 @@
 package org.olf.reshare.dcb.request.resolution;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.olf.reshare.dcb.core.model.PatronRequest;
@@ -17,18 +18,21 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class PatronRequestResolutionService {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestResolutionService.class);
-	private final SharedIndexService sharedIndexService;
+	private final ClusteredBibFinder clusteredBibFinder;
 	private final LiveAvailability liveAvailabilityService;
 
-	public PatronRequestResolutionService(SharedIndexService sharedIndexService,
-		@Named("fakeLiveAvailabilityService") LiveAvailability liveAvailabilityService) {
-		this.sharedIndexService = sharedIndexService;
+	public PatronRequestResolutionService(
+		@Named("SharedIndexService") ClusteredBibFinder clusteredBibFinder,
+		@Named("LiveAvailabilityService") LiveAvailability liveAvailabilityService) {
+
+		this.clusteredBibFinder = clusteredBibFinder;
 		this.liveAvailabilityService = liveAvailabilityService;
 	}
 
-	public Mono<SupplierRequest> resolvePatronRequest(PatronRequest patronRequest) {
+	public Mono<Resolution> resolvePatronRequest(PatronRequest patronRequest) {
 		log.debug("resolvePatronRequest({})", patronRequest);
-		return sharedIndexService.findClusteredBib(patronRequest.getBibClusterId())
+
+		return clusteredBibFinder.findClusteredBib(patronRequest.getBibClusterId())
 			.filter(this::validateClusteredBib)
 			// get list of bibs from clustered bib
 			.map(ClusteredBib::getBibs)
@@ -39,22 +43,12 @@ public class PatronRequestResolutionService {
 			.flatMap(Flux::fromIterable)
 			// get list of bibs from clustered bib
 			.collectList()
-			.filter(this::validateItemList)
 			// pick first item from merged list
-			.flatMap(PatronRequestResolutionService::chooseFirstItem)
-			.map(item -> mapToSupplierRequest(item, patronRequest));
-	}
-
-
-
-	private boolean validateItemList(List<org.olf.reshare.dcb.item.availability.Item> itemList) {
-		log.debug("validateItemList({})", itemList);
-
-		if (itemList == null || itemList.isEmpty()) {
-			throw new UnableToResolvePatronRequest("No items in bib");
-		}
-
-		return true;
+			.flatMap(items -> chooseFirstItem(items, patronRequest.getBibClusterId()))
+			.map(item -> mapToSupplierRequest(item, patronRequest))
+			.map(PatronRequestResolutionService::mapToResolution)
+			.onErrorReturn(NoItemsAvailableAtAnyAgency.class,
+				resolveToNoItemsAvailable(patronRequest));
 	}
 
 	private boolean validateClusteredBib(ClusteredBib clusteredBib) {
@@ -80,10 +74,21 @@ public class PatronRequestResolutionService {
 			.getAvailableItems(bib.getBibRecordId(), bib.getHostLms());
 	}
 
-	private static Mono<Item> chooseFirstItem(List<org.olf.reshare.dcb.item.availability.Item> itemList) {
-		log.debug("chooseFirstItem({})", itemList.get(0));
+	private static Mono<Item> chooseFirstItem(
+		List<org.olf.reshare.dcb.item.availability.Item> items, UUID bibClusterId) {
+
+		log.debug("chooseFirstItem({})", items);
+
+		if (items.isEmpty()) {
+			final var message = "No items could be found for cluster record: " + bibClusterId;
+
+			log.debug(message);
+
+			return Mono.error(new NoItemsAvailableAtAnyAgency(message));
+		}
+
 		// choose first availability item and convert it into a resolution item
-		return Mono.just(itemList.get(0))
+		return Mono.just(items.get(0))
 			.map(item -> new Item(item.getId(), item.getHostLmsCode()));
 	}
 
@@ -98,5 +103,14 @@ public class PatronRequestResolutionService {
 
 		return new SupplierRequest(uuid, updatedPatronRequest,
 			item.getId(), item.getHostLmsCode());
+	}
+
+	private static Resolution resolveToNoItemsAvailable(PatronRequest patronRequest) {
+		return new Resolution(patronRequest.resolveToNoItemsAvailable(), Optional.empty());
+	}
+
+	private static Resolution mapToResolution(SupplierRequest supplierRequest) {
+		return new Resolution(supplierRequest.getPatronRequest(),
+			Optional.of(supplierRequest));
 	}
 }
