@@ -11,7 +11,7 @@ import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.request.resolution.Bib;
 import org.olf.reshare.dcb.request.resolution.ClusteredBib;
-import org.olf.reshare.dcb.request.resolution.SharedIndexService;
+import org.olf.reshare.dcb.request.resolution.ClusteredBibFinder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,8 +20,8 @@ import lombok.Data;
 import reactor.core.publisher.Mono;
 
 @Singleton
-public class FakeSharedIndexService implements SharedIndexService {
-	private static final Logger log = LoggerFactory.getLogger(FakeSharedIndexService.class);
+public class FakeClusteredBibFinder implements ClusteredBibFinder {
+	private static final Logger log = LoggerFactory.getLogger(FakeClusteredBibFinder.class);
 
 	@Override
 	public Mono<ClusteredBib> findClusteredBib(UUID bibClusterId) {

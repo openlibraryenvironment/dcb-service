@@ -1,6 +1,7 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
 public interface PatronRequestStatusConstants {
-	public static final String SUBMITTED_TO_DCB = "SUBMITTED_TO_DCB";
-	public static final String RESOLVED = "RESOLVED";
+	String SUBMITTED_TO_DCB = "SUBMITTED_TO_DCB";
+	String RESOLVED = "RESOLVED";
+	String NO_ITEMS_AVAILABLE_AT_ANY_AGENCY = "NO_ITEMS_AVAILABLE_AT_ANY_AGENCY";
 }

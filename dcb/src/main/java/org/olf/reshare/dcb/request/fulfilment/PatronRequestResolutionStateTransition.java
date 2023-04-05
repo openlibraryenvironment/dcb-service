@@ -1,10 +1,11 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import java.util.Objects;
+import java.util.Optional;
 
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.request.resolution.PatronRequestResolutionService;
+import org.olf.reshare.dcb.request.resolution.Resolution;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.olf.reshare.dcb.storage.SupplierRequestRepository;
 import org.slf4j.Logger;
@@ -35,22 +36,37 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		log.debug("makeTransition({})", patronRequest);
 
 		return patronRequestResolutionService.resolvePatronRequest(patronRequest)
+			.doOnSuccess(resolution -> log.debug("Resolved to: " + resolution))
+			.doOnError(error -> log.error("Error occurred during resolution: {}", error.getMessage()))
 			.flatMap(this::updatePatronRequest)
 			.flatMap(this::saveSupplierRequest)
 			.then();
 	}
 
-	private Mono<SupplierRequest> updatePatronRequest(SupplierRequest supplierRequest) {
-		log.debug("updatePatronRequest {}", supplierRequest.getPatronRequest().getStatusCode());
-
-		return Mono.from(patronRequestRepository.update(supplierRequest.getPatronRequest()))
-			.then(Mono.just(supplierRequest));
+	private Mono<Resolution> updatePatronRequest(Resolution resolution) {
+		return updatePatronRequest(resolution.getPatronRequest())
+			.map(patronRequest -> new Resolution(patronRequest, resolution.getOptionalSupplierRequest()));
 	}
 
-	private Mono<PatronRequest> saveSupplierRequest(SupplierRequest supplierRequest) {
+	private Mono<PatronRequest> updatePatronRequest(PatronRequest patronRequest) {
+		log.debug("updatePatronRequest {}", patronRequest);
+
+		return Mono.from(patronRequestRepository.update(patronRequest));
+	}
+
+	private Mono<Resolution> saveSupplierRequest(Resolution resolution) {
+		if (resolution.getOptionalSupplierRequest().isEmpty()) {
+			return Mono.just(resolution);
+		}
+
+		return saveSupplierRequest(resolution.getOptionalSupplierRequest().get())
+			.map(supplierRequest -> new Resolution(resolution.getPatronRequest(),
+				Optional.of(supplierRequest)));
+	}
+
+	private Mono<? extends SupplierRequest> saveSupplierRequest(SupplierRequest supplierRequest) {
 		log.debug("saveSupplierRequest {}", supplierRequest);
 
-		return Mono.from(supplierRequestRepository.save(supplierRequest))
-			.then(Mono.just(Objects.requireNonNull(supplierRequest.getPatronRequest())));
+		return Mono.from(supplierRequestRepository.save(supplierRequest));
 	}
 }

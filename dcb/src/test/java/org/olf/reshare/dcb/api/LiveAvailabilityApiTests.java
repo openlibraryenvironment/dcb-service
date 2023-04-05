@@ -1,8 +1,6 @@
 package org.olf.reshare.dcb.api;
 
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
-import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
-import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -35,7 +33,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MicronautTest(transactional = false, propertySources = { "classpath:configs/LiveAvailabilityApiTests.yml" }, rebuildContext = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LiveAvailabilityApiTests {
-	private final String ITEMS_MOCK_ROOT = "classpath:mock-responses/sierra/items";
+	private static final String ITEMS_MOCK_ROOT = "classpath:mock-responses/sierra/items";
 	private static final String SIERRA_TOKEN = "test-token-for-user";
 	@Inject
 	ResourceLoader loader;

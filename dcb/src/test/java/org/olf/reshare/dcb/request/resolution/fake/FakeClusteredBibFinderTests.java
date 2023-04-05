@@ -10,14 +10,14 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
 
-class FakeSharedIndexServiceTests {
+class FakeClusteredBibFinderTests {
 	@Test
 	void shouldAlwaysFindClusteredBib() {
-		final var sharedIndex = new FakeSharedIndexService();
+		final var clusteredBibFinder = new FakeClusteredBibFinder();
 
 		final var bibClusterId = UUID.randomUUID();
 
-		final var foundClusteredBib = sharedIndex
+		final var foundClusteredBib = clusteredBibFinder
 			.findClusteredBib(bibClusterId).block();
 
 		assertThat(foundClusteredBib, is(notNullValue()));

@@ -1,5 +1,6 @@
 package org.olf.reshare.dcb.core.model;
 
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
 import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
 
 import java.time.Instant;
@@ -66,10 +67,15 @@ public class PatronRequest {
 	private String statusCode;
 
 	public PatronRequest resolve() {
-		return new PatronRequest(id, dateCreated, dateUpdated, patronId, patronAgencyCode, bibClusterId,
-			pickupLocationCode, RESOLVED);
+		return new PatronRequest(id, dateCreated, dateUpdated, patronId,
+			patronAgencyCode, bibClusterId, pickupLocationCode, RESOLVED);
 	}
 
+	public PatronRequest resolveToNoItemsAvailable() {
+		return new PatronRequest(id, dateCreated, dateUpdated, patronId,
+			patronAgencyCode, bibClusterId, pickupLocationCode,
+			NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
+	}
 }
 
 

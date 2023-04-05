@@ -4,6 +4,7 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -24,13 +25,12 @@ import org.olf.reshare.dcb.core.model.FakeHostLms;
 import reactor.core.publisher.Mono;
 
 public class LiveAvailabilityServiceTests {
+	private final HostLmsService hostLmsService = mock(HostLmsService.class);
+	private final HostLmsClient hostLmsClient = mock(HostLmsClient.class);
+	private final LiveAvailabilityService liveAvailabilityService = new LiveAvailabilityService(hostLmsService);
+
 	@Test
 	void shouldGetAvailableItemsViaHostLmsService() {
-		final var hostLmsService = mock(HostLmsService.class);
-		final var hostLmsClient = mock(HostLmsClient.class);
-
-		final var liveAvailabilityService = new LiveAvailabilityService(hostLmsService);
-
 		final var hostLms = new FakeHostLms(randomUUID(), "hostLmsCode", "Fake Host LMS",
 			SierraLmsClient.class, Map.of());
 
@@ -73,5 +73,15 @@ public class LiveAvailabilityServiceTests {
 
 		verify(hostLmsService).getClientFor(hostLms);
 		verify(hostLmsClient).getItemsByBibId(any(), any());
+	}
+
+	@Test
+	void shouldFailWhenHostLMSIsNull() {
+		final var exception = assertThrows(IllegalArgumentException.class,
+			() -> liveAvailabilityService.getAvailableItems("34356576", null)
+				.block());
+
+		assertThat(exception, is(notNullValue()));
+		assertThat(exception.getMessage(), is("hostLMS cannot be null"));
 	}
 }
