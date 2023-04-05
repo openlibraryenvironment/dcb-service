@@ -29,6 +29,7 @@ DB connection effectively, 2 different connections - with JDBC only being used f
 | KEYCLOAK_CERT_URL                  | The URL used for validating JWTs     | https://reshare-hub-kc.libsdev.k-int.com/realms/reshare-hub/protocol/openid-connect/certs |
 | MICRONAUT_HTTP_CLIENT_READ_TIMEOUT | Default HTTP Client Timeout  | PT1M |
 | MICRONAUT_HTTP_CLIENT_MAX_CONTENT_LENGTH | Max content length  | 20971520 |
+| REACTOR_DEBUG | DEVELOPMENT FLAG! set to the string "true" to enable reactor annotated stack trace  | true |
 
 
 # API Documentation
