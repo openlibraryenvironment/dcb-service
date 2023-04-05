@@ -298,6 +298,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 
 		return Flux.from(getResources(since))
 			.flatMap(this::saveRawAndContinue)
+			.doOnError ( throwable -> log.warn("ONERROR saving raw record", throwable) )
 			.flatMap(resource -> {
 				return Mono.just( initIngestRecordBuilder( resource ) )
 					.map( ir -> {
