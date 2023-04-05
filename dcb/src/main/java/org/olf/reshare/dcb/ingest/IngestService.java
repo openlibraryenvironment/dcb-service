@@ -92,11 +92,11 @@ public class IngestService implements Runnable {
 				.map(Mono::just)
 				.flatMap(ir -> ir.zipWhen( recordClusteringService::getOrSeedClusterRecord )
 						.map(TupleUtils.function(( ingestRecord, clusterRecord ) -> ingestRecord.withClusterRecordId(clusterRecord.getId() ))))
-				.doOnError ( throwable -> log.warn("Error after clustering step", throwable) )
+				.doOnError ( throwable -> log.warn("ONERROR Error after clustering step", throwable) )
 				
 				// Interleaved source stream from all source results.
 				.flatMap(bibRecordService::process)
-				.doOnError ( throwable -> log.warn("Error after bib record processing step", throwable) )
+				.doOnError ( throwable -> log.warn("ONERROR Error after bib record processing step", throwable) )
 				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_BIBS)); // Apply any hooks for "ingest-bibs";
 	}
 
