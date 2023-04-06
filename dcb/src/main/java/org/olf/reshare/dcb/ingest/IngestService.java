@@ -21,6 +21,7 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
+import reactor.core.scheduler.Schedulers;
 
 @Refreshable
 @Singleton
@@ -81,6 +82,7 @@ public class IngestService implements Runnable {
 					return false;
 				})
 				.map(source -> source.apply(lastRun))
+				.publishOn(Schedulers.boundedElastic())
 				.onErrorResume(t -> {
 					log.error("Error ingesting data {}", t.getMessage());
 					t.printStackTrace();
@@ -97,7 +99,8 @@ public class IngestService implements Runnable {
 				// Interleaved source stream from all source results.
 				.flatMap(bibRecordService::process)
 				.doOnError ( throwable -> log.warn("ONERROR Error after bib record processing step", throwable) )
-				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_BIBS)); // Apply any hooks for "ingest-bibs";
+				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_BIBS)) // Apply any hooks for "ingest-bibs";
+				;
 	}
 
 	@Override

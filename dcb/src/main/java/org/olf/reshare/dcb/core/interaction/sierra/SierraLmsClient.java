@@ -49,6 +49,8 @@ import services.k_int.utils.UUIDUtils;
 
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 
+import reactor.core.scheduler.Schedulers;
+
 @Prototype
 public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
 	private static final Logger log = LoggerFactory.getLogger(SierraLmsClient.class);
@@ -124,7 +126,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.map(current_state -> {
 
 				PubisherState generator_state = new PubisherState(current_state, null);
-				log.info("backpressureAwareBibResultGenerator - state="+current_state+" lmsid="+lms.getId());
+				log.info("backpressureAwareBibResultGenerator - state="+current_state+" lmsid="+lms.getId()+" thread="+Thread.currentThread().getName());
 
 				String cursor = (String) current_state.get("cursor");
 				if ( cursor != null ) {
@@ -186,7 +188,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				// If this is the first time through, or we have exhausted the current page get a new page of data
 				if ( ( generator_state.current_page == null ) || ( generator_state.current_page.size() == 0 ) ) {
 					// fetch a page of data and stash it
-					log.info("Fetching a page, offset="+generator_state.offset+" limit="+limit);
+					log.info("Fetching a page, offset="+generator_state.offset+" limit="+limit+" thread="+Thread.currentThread().getName());
 					BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit).share().block();
 					log.info("got page");
 					generator_state.current_page = bsr.entries();
@@ -278,6 +280,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// The stream of imported records.
 		// return Flux.from(pageAllResults(since, 0, pageSize)).filter(sierraBib -> sierraBib.marc() != null)
 		return Flux.from(backpressureAwareBibResultGenerator(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
+				.subscribeOn(Schedulers.boundedElastic())
+				.doOnError ( throwable -> log.warn("ONERROR fetching page", throwable) )
 				.switchIfEmpty(Mono.just("No results returned. Stopping")
 						.mapNotNull(s -> {
 							log.info(s);

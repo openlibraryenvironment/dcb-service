@@ -36,7 +36,7 @@ public class BibRecordService {
 	}
 
 	private BibRecord step1(final BibRecord bib, final IngestRecord imported) {
-//		log.info("Executing step 1");
+		// log.info("Executing step 1");
 		return bib;
 	}
 
