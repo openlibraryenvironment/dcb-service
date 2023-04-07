@@ -114,6 +114,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		public long sinceMillis=0;
 		public long request_start_time=0;
 		public boolean error = false;
+		public int page_counter = 0;
         }
 
 	/**
@@ -189,7 +190,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				// If this is the first time through, or we have exhausted the current page get a new page of data
 				if ( ( generator_state.current_page == null ) || ( generator_state.current_page.size() == 0 ) ) {
 					// fetch a page of data and stash it
-					log.info("Fetching a page, offset="+generator_state.offset+" limit="+limit+" thread="+Thread.currentThread().getName());
+					log.info("Fetching["+generator_state.page_counter+"] a page, offset="+generator_state.offset+" limit="+limit+" thread="+Thread.currentThread().getName());
 					BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit)
 						.doOnError ( throwable -> log.warn("ONERROR fetching page", throwable) )
 						.share()
@@ -197,7 +198,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					log.info("got page");
 					if ( bsr != null ) {
 						generator_state.current_page = bsr.entries();
-						log.info("got entries as page");
+						log.info("got["+(generator_state.page_counter++)+"] page of data");
 
 						int number_of_records_returned = generator_state.current_page.size();
 						if ( number_of_records_returned == limit ) {
@@ -213,7 +214,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						log.info("Stashed a page of "+generator_state.current_page.size()+" records");
 					}
 					else {
-						log.warn("No response from upstream server. Cancelling");
+						log.warn("ERRROR["+(generator_state.page_counter++)+"] No response from upstream server. Cancelling");
 						
 						generator_state.current_page = new ArrayList<BibResult>();
 						// This will terminate the stream - by setting error=true we will leave the state intact
