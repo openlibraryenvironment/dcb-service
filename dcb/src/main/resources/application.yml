@@ -90,7 +90,7 @@ r2dbc:
         initialSize: 5
         maxLifeTime: PT240M
         maxIdleTime: PT240S
-        maxAcquireTime: PT2S
+        # maxAcquireTime: PT20S
         validationQuery: "SELECT 1"
         validationDepth: REMOTE
       
