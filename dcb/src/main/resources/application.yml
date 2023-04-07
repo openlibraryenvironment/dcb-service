@@ -67,7 +67,7 @@ datasources:
     schema-generate: NONE
     db-type: postgresql
     dialect: postgres
-    minimumIdol: 0
+    minimumIdle: 0
     maximumPoolSize: 1
     #username: "${db.username:}"
     #password: "${db.password:}"
@@ -88,7 +88,7 @@ r2dbc:
         poolName: r2dbc
         maxSize: 20
         initialSize: 5
-        maxLifeTime: PT240M
+        maxLifeTime: PT120M
         maxIdleTime: PT240S
         # maxAcquireTime: PT20S
         validationQuery: "SELECT 1"
