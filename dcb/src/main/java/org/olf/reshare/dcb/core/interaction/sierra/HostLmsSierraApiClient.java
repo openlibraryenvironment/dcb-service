@@ -145,6 +145,9 @@ public class HostLmsSierraApiClient implements SierraApiClient {
         		log.debug("Clearing token to trigger reauthentication");
         		this.currentToken = null;
         		break;
+		default:
+			log.warn("response error {}",e.getStatus().toString());
+        		break;
         }
 			}
 			return throwable;

@@ -193,6 +193,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					log.info("Fetching["+generator_state.page_counter+"] a page, offset="+generator_state.offset+" limit="+limit+" thread="+Thread.currentThread().getName());
 					BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit)
 						.doOnError ( throwable -> log.warn("ONERROR fetching page", throwable) )
+						.switchIfEmpty(Mono.just("No results returned. Stopping")
+                                                .mapNotNull(s -> {
+                                                        log.info(s);
+                                                        return null;
+                                                }))
 						.share()
 						.block();
 					log.info("got page");
