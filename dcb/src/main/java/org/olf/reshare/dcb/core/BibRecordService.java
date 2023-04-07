@@ -57,8 +57,10 @@ public class BibRecordService {
 				.flatMap(exists -> Mono.fromDirect(exists ? bibRepo.update(record) : bibRepo.save(record)));
 	}
 
+	// https://github.com/micronaut-projects/micronaut-data/discussions/1405
+	@Transactional
 	public Mono<BibRecord> getOrSeed(final IngestRecord source) {
-		return Mono.from( bibRepo.findById(source.getUuid()) )
+		return Mono.fromDirect( bibRepo.findById(source.getUuid()) )
 				.defaultIfEmpty( minimalRecord(source) )
 				.zipWith(Mono.from(clusterRepo.findOneById(source.getClusterRecordId())))
 				.flatMap(TupleUtils.function(( bib_record, cluster_record ) -> {
