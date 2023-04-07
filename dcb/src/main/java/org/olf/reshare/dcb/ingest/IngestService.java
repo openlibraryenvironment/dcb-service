@@ -99,7 +99,9 @@ public class IngestService implements Runnable {
 				// Interleaved source stream from all source results.
 				.flatMap(bibRecordService::process)
 				.doOnError ( throwable -> log.warn("ONERROR Error after bib record processing step", throwable) )
+
 				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_BIBS)) // Apply any hooks for "ingest-bibs";
+				.doOnError ( throwable -> log.warn("ONERROR Error after transform step", throwable) )
 				;
 	}
 

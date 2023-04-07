@@ -9,11 +9,17 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.inject.qualifiers.Qualifiers;
 import jakarta.inject.Singleton;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
 @Singleton
 public class PublisherTransformationService {
 
 	private final BeanContext beanContext;
-	
+
+        private static Logger log = LoggerFactory.getLogger(PublisherTransformationService.class);
+
 	public PublisherTransformationService( @NonNull BeanContext beanContext ) {
 		this.beanContext = beanContext;
 	}
@@ -31,6 +37,7 @@ public class PublisherTransformationService {
 		var hooks = beanContext.getBeansOfType( PublisherTransformation.class, Qualifiers.byName(type) );
 		Function<Publisher<T>, Publisher<T>> chain = ( pub ) -> pub;
 		for (var hook : hooks) {
+			log.info("Adding publisher transformation {} : {}",type,hook.getClass().getName());
 			chain = chain.andThen(hook::apply);
 		}
 		

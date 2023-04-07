@@ -29,6 +29,9 @@
 	<logger name="services.k_int" level="DEBUG"/>
 	<logger name="org.olf.reshare.dcb.ingest.marc.MarcIngestSource" level="WARN"/>
 	<logger name="io.micronaut.security.authentication" level="DEBUG" />
+	<logger name="io.r2dbc" level="INFO" />
+	<logger name="io.r2dbc.postgresql.PARAM" level="WARN" />
+	<logger name="io.r2dbc.postgresql.client.ReactorNettyClient" level="WARN" />
 
 	<root level="info">
 		<appender-ref ref="STDOUT"/>

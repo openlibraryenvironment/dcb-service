@@ -88,7 +88,7 @@ r2dbc:
         poolName: r2dbc
         maxSize: 20
         initialSize: 5
-        maxLifeTime: PT240S
+        maxLifeTime: PT240M
         maxIdleTime: PT240S
         maxAcquireTime: PT2S
         validationQuery: "SELECT 1"
