@@ -113,6 +113,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		public Instant since = null;
 		public long sinceMillis=0;
 		public long request_start_time=0;
+		public boolean error = false;
         }
 
 	/**
@@ -189,37 +190,55 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				if ( ( generator_state.current_page == null ) || ( generator_state.current_page.size() == 0 ) ) {
 					// fetch a page of data and stash it
 					log.info("Fetching a page, offset="+generator_state.offset+" limit="+limit+" thread="+Thread.currentThread().getName());
-					BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit).share().block();
+					BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit)
+						.doOnError ( throwable -> log.warn("ONERROR fetching page", throwable) )
+						.share()
+						.block();
 					log.info("got page");
-					generator_state.current_page = bsr.entries();
-					log.info("got entries as page");
+					if ( bsr != null ) {
+						generator_state.current_page = bsr.entries();
+						log.info("got entries as page");
 
-					int number_of_records_returned = generator_state.current_page.size();
-					if ( number_of_records_returned == limit ) {
-						generator_state.possiblyMore = true;
- 					}
-					else {
-						generator_state.possiblyMore = false;
+						int number_of_records_returned = generator_state.current_page.size();
+						if ( number_of_records_returned == limit ) {
+							generator_state.possiblyMore = true;
+ 						}
+						else {
+							generator_state.possiblyMore = false;
+						}
+	
+						// Increment the offset for the next fetch
+						generator_state.offset += number_of_records_returned;
+	
+						log.info("Stashed a page of "+generator_state.current_page.size()+" records");
 					}
-
-					// Increment the offset for the next fetch
-					generator_state.offset += number_of_records_returned;
-
-					log.info("Stashed a page of "+generator_state.current_page.size()+" records");
+					else {
+						log.warn("No response from upstream server. Cancelling");
+						
+						generator_state.current_page = new ArrayList<BibResult>();
+						// This will terminate the stream - by setting error=true we will leave the state intact
+						// to be picked up on the next attempt
+						generator_state.error = true;
+					}
 				}
 
 
 				// log.info("Returning next - current size is "+generator_state.current_page.size());
 				// Return the next pending bib result from the page we stashed
-				sink.next(generator_state.current_page.remove(0));
+				
+				if (generator_state.current_page.size() > 0 ) {
+					sink.next(generator_state.current_page.remove(0));
+				}
 
-				// If we have exhausted the currently cached page, and we are at the end, terminate.
+				// If we just consumed the last entry from the current page
 				if (generator_state.current_page.size() == 0 ) {
+					// If we have exhausted the currently cached page, and we are at the end, terminate.
 					if ( generator_state.possiblyMore == false ) {
 						log.info("Terminating cleanly - run out of bib results - new timestamp is {}",generator_state.request_start_time);
 						// Make a note of the time at which we started this run, so we know where to pick up from
 						// next time
-						generator_state.storred_state.put("cursor","deltaSince:"+generator_state.request_start_time);
+						if ( !generator_state.error )
+							generator_state.storred_state.put("cursor","deltaSince:"+generator_state.request_start_time);
 						sink.complete();
 					}
 					else {
