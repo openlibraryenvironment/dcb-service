@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
+import org.olf.reshare.dcb.core.api.types.ClusterRecordDTO;
 
 @Controller("/clusters")
 @Tag(name = "Cluster Records (Read only)")
@@ -28,6 +29,7 @@ public class ClusterRecordController {
 		_clusterRecordRepository = clusterRecordRepository;
 	}
 
+	/*
 	@Secured(SecurityRule.IS_ANONYMOUS)
 	@Operation(
 		summary = "Browse Cluster Records",
@@ -36,7 +38,7 @@ public class ClusterRecordController {
 			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
 			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
 	)
-	@Get("/{?pageable*}")
+	@Get("/legacy{?pageable*}")
 	public Mono<Page<ClusterRecord>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
 		if (pageable == null) {
 			pageable = Pageable.from(0, 100);
@@ -44,4 +46,37 @@ public class ClusterRecordController {
 
 		return Mono.from(_clusterRecordRepository.findAll(pageable));
 	}
+	*/
+
+        @Secured(SecurityRule.IS_ANONYMOUS)
+        @Operation(
+                summary = "Browse Cluster Records",
+                description = "Paginate through a Unified, Clustered view of the Bibliographic records",
+                parameters = {
+                        @Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
+                        @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
+        )
+        @Get("/{?pageable*}")
+        public Mono<Page<ClusterRecordDTO>> listMapped(@Parameter(hidden = true) @Valid Pageable pageable) {
+                if (pageable == null) {
+                        pageable = Pageable.from(0, 100);
+                }
+
+                return Mono.from(_clusterRecordRepository.findAll(pageable))
+                          .map(this::mapPageClusterRecordToDTO);
+        }
+
+
+	private ClusterRecordDTO mapClusterRecordToDTO(ClusterRecord cr) {
+		return ClusterRecordDTO
+				.builder()
+				.clusterId(cr.getId())
+				.title(cr.getTitle())
+				.build();
+	}
+
+	private Page<ClusterRecordDTO> mapPageClusterRecordToDTO(Page<ClusterRecord> pcr) {
+		return pcr.map(this::mapClusterRecordToDTO);
+	}
+	
 }
