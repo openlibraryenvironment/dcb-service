@@ -173,11 +173,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                         log.debug("stateConsumer {}",state);
 			// operations.withConnection( connection ->
                         //    processStateService.updateState(lms.getId(),"ingest",state.storred_state)
-	                operations.withTransaction(status ->
+	                Mono.from(operations.withTransaction(status ->
                                 processStateService.updateState(lms.getId(),"ingest",state.storred_state)
 				.concatWith(status.getConnection().commitTransaction())
-                        );
-			log.info("done updating state");
+                        )).subscribe();
                 };
         }
 
@@ -192,6 +191,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 				// If this is the first time through, or we have exhausted the current page get a new page of data
 				if ( ( generator_state.current_page == null ) || ( generator_state.current_page.size() == 0 ) ) {
+
+					// Trial in-process updating of process state - We use the current transactional context
+					// and execute a commit to flush work to this state.
+					log.debug("Intermediate state update "+lms.getId());
+	                		Mono.from(operations.withTransaction(status ->
+                             			processStateService.updateState(lms.getId(),"ingest",generator_state.storred_state)
+						.concatWith( Mono.from(status.getConnection().commitTransaction()))
+					)).subscribe();
+	
 					// fetch a page of data and stash it
 					log.info("Fetching page="+generator_state.page_counter+
                                                        " offset="+generator_state.offset+
@@ -223,14 +231,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						// Increment the offset for the next fetch
 						generator_state.offset += number_of_records_returned;
 
-						// Trial in-process updating of process state - We use the current transactional context
-						// and execute a commit to flush work to this state.
-						log.debug("Intermediate state update");
-	                			operations.withTransaction(status ->
-                             				processStateService.updateState(lms.getId(),"ingest",generator_state.storred_state)
-							.concatWith(status.getConnection().commitTransaction())
-						);
-	
 	
 						log.info("Stashed a page of "+generator_state.current_page.size()+" records");
 					}
