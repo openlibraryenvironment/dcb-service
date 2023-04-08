@@ -171,8 +171,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
         private Consumer<PubisherState> stateConsumer() {
                 return (state) -> {
                         log.debug("stateConsumer {}",state);
-			operations.withTransaction(status ->
-                            processStateService.updateState(lms.getId(),"ingest",state.storred_state)
+			// operations.withConnection( connection ->
+                        //    processStateService.updateState(lms.getId(),"ingest",state.storred_state)
+	                operations.withTransaction(status ->
+                                processStateService.updateState(lms.getId(),"ingest",state.storred_state)
+				.concatWith(status.getConnection().commitTransaction())
                         );
 			log.info("done updating state");
                 };
@@ -220,11 +223,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						// Increment the offset for the next fetch
 						generator_state.offset += number_of_records_returned;
 
-						// Trial in-process updating of process state
+						// Trial in-process updating of process state - We use the current transactional context
+						// and execute a commit to flush work to this state.
 						log.debug("Intermediate state update");
-	                                        operations.withTransaction(status ->
-        			                	processStateService.updateState(lms.getId(),"ingest",generator_state.storred_state)
-        	        			);
+	                			operations.withTransaction(status ->
+                             				processStateService.updateState(lms.getId(),"ingest",generator_state.storred_state)
+							.concatWith(status.getConnection().commitTransaction())
+						);
 	
 	
 						log.info("Stashed a page of "+generator_state.current_page.size()+" records");
