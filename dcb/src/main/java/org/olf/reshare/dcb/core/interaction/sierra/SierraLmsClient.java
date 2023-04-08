@@ -190,7 +190,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				// If this is the first time through, or we have exhausted the current page get a new page of data
 				if ( ( generator_state.current_page == null ) || ( generator_state.current_page.size() == 0 ) ) {
 					// fetch a page of data and stash it
-					log.info("Fetching["+generator_state.page_counter+"] a page, offset="+generator_state.offset+" limit="+limit+" thread="+Thread.currentThread().getName());
+					log.info("Fetching page="+generator_state.page_counter+
+                                                       " offset="+generator_state.offset+
+                                                       " limit="+ limit+
+                                                       " elapsed="+ (System.currentTimeMillis() - generator_state.request_start_time) +
+                                                       "ms thread="+ Thread.currentThread().getName());
 					BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit)
 						.doOnError ( throwable -> log.warn("ONERROR fetching page", throwable) )
 						.switchIfEmpty(Mono.just("No results returned. Stopping")
@@ -215,6 +219,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	
 						// Increment the offset for the next fetch
 						generator_state.offset += number_of_records_returned;
+
+						// Trial in-process updating of process state
+						log.debug("Intermediate state update");
+	                                        operations.withTransaction(status ->
+        			                	processStateService.updateState(lms.getId(),"ingest",generator_state.storred_state)
+        	        			);
+	
 	
 						log.info("Stashed a page of "+generator_state.current_page.size()+" records");
 					}
