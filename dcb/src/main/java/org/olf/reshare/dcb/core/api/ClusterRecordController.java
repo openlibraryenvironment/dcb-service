@@ -3,7 +3,9 @@ package org.olf.reshare.dcb.core.api;
 import javax.validation.Valid;
 
 import org.olf.reshare.dcb.core.model.ClusterRecord;
+import org.olf.reshare.dcb.core.model.BibRecord;
 import org.olf.reshare.dcb.storage.ClusterRecordRepository;
+import org.olf.reshare.dcb.storage.BibRepository;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -17,16 +19,21 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 import org.olf.reshare.dcb.core.api.types.ClusterRecordDTO;
+import org.olf.reshare.dcb.core.api.types.BibRecordDTO;
 
 @Controller("/clusters")
 @Tag(name = "Cluster Records (Read only)")
 public class ClusterRecordController {
 
 	private final ClusterRecordRepository _clusterRecordRepository;
+	private final BibRepository _bibRepository;
 
-	public ClusterRecordController(ClusterRecordRepository clusterRecordRepository) {
+	public ClusterRecordController(ClusterRecordRepository clusterRecordRepository,
+					BibRepository bibRepository) {
 		_clusterRecordRepository = clusterRecordRepository;
+		_bibRepository = bibRepository;
 	}
 
 	/*
@@ -72,11 +79,21 @@ public class ClusterRecordController {
 				.builder()
 				.clusterId(cr.getId())
 				.title(cr.getTitle())
+				// This isn't right.. need to ask MJ or Steve
+				// .bibs( (Flux.from(_bibRepository.findAllByContributesTo(cr)).map(this::mapBibToDTO)).collectList().block())
 				.build();
 	}
 
 	private Page<ClusterRecordDTO> mapPageClusterRecordToDTO(Page<ClusterRecord> pcr) {
 		return pcr.map(this::mapClusterRecordToDTO);
+	}
+
+	private BibRecordDTO mapBibToDTO(BibRecord br) {
+		return BibRecordDTO
+				.builder()
+				.bibId(br.getId())
+				.title(br.getTitle())
+				.build();
 	}
 	
 }

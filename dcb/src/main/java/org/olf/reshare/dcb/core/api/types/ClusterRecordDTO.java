@@ -20,6 +20,6 @@ public class ClusterRecordDTO {
 
 	UUID clusterId;
 	String title;
-	List<HostLmsDTO> foundAt;
+	List<BibRecordDTO> bibs;
 
 }
