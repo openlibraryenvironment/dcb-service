@@ -74,4 +74,7 @@ public class BibRecord {
 
 	@Nullable
 	private String typeOfRecord;
+
+	@Nullable
+	private String derivedType;
 }

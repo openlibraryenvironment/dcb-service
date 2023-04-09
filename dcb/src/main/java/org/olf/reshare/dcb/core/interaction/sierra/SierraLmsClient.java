@@ -141,7 +141,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						generator_state.offset = Integer.parseInt(components[1]);
 						log.info("Resuming bootstrap at offset "+generator_state.offset);
 					}
-					else if ( components[0].equals("delta") )  {
+					else if ( components[0].equals("deltaSince") )  {
 						// Delta cursor is used after the initial bootstrap and lets us know the point in time
 						// from where we need to fetch records
 						generator_state.sinceMillis = Long.parseLong(components[1]);

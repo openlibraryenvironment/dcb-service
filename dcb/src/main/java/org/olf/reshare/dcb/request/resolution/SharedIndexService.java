@@ -50,8 +50,12 @@ public class SharedIndexService implements ClusteredBibFinder {
 
 	private ClusteredBib mapToClusteredBibWithBib(ClusterRecord clusterRecord,
 		List<Bib> bibs) {
-
-		return new ClusteredBib(clusterRecord.getId(), bibs);
+		return new ClusteredBib()
+				.builder()
+				.id(clusterRecord.getId())
+				.title(clusterRecord.getTitle())
+				.bibs(bibs)
+				.build();
 	}
 
 	private Mono<List<Bib>> findBibRecords(ClusterRecord clusteredBib) {
