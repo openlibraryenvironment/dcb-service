@@ -94,11 +94,18 @@ public class ClusterRecordController {
 
 	private ClusterRecordDTO mapClusterRecordToDTO(ClusterRecord cr) {
 
+		List<BibRecordDTO> bibs = new java.util.ArrayList();
+		java.util.Set<BibRecord> bibs_from_db = cr.getBibs();
+		for ( BibRecord br : bibs_from_db ){
+			bibs.add(mapBibToDTO(br));
+		}
+
 		// New cluster DTO
 		return ClusterRecordDTO
 				.builder()
 				.clusterId(cr.getId())
-				.title("MAPPED"+cr.getTitle())
+				.title(cr.getTitle())
+				.bibs(bibs)
 				.build();
 	}
 
