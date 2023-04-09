@@ -41,7 +41,7 @@ class PatronRequestResolutionServiceTests {
 		final var hostLms = createHostLms("FAKE_HOST");
 
 		when(clusteredBibFinder.findClusteredBib(bibClusterId))
-			.thenReturn(Mono.just(new ClusteredBib(randomUUID(),
+			.thenReturn(Mono.just(new ClusteredBib(randomUUID(), "Fake Title",
 				List.of(createFakeBib("65767547", hostLms)))));
 
 		when(liveAvailability.getAvailableItems("65767547", hostLms))
@@ -76,7 +76,7 @@ class PatronRequestResolutionServiceTests {
 		final var hostLms = createHostLms("FAKE_HOST");
 
 		when(clusteredBibFinder.findClusteredBib(bibClusterId))
-			.thenReturn(Mono.just(new ClusteredBib(randomUUID(),
+			.thenReturn(Mono.just(new ClusteredBib(randomUUID(), "Fake Title",
 				List.of(createFakeBib("657476765", hostLms)))));
 
 		when(liveAvailability.getAvailableItems("657476765", hostLms))
@@ -114,7 +114,7 @@ class PatronRequestResolutionServiceTests {
 		final var shoeHost = createHostLms("SHOE_HOST");
 
 		when(clusteredBibFinder.findClusteredBib(bibClusterId))
-			.thenReturn(Mono.just(new ClusteredBib(randomUUID(), List.of(
+			.thenReturn(Mono.just(new ClusteredBib(randomUUID(), "Fake Title", List.of(
 				createFakeBib("656845864", barHost),
 				createFakeBib("454973743", fooHost),
 				createFakeBib("293372649", shoeHost)))));
@@ -153,7 +153,7 @@ class PatronRequestResolutionServiceTests {
 
 		final var hostLms = createHostLms("FAKE_HOST");
 
-		final var clusteredBib = new ClusteredBib(bibClusterId,
+		final var clusteredBib = new ClusteredBib(bibClusterId, "Fake Title",
 			List.of(createFakeBib("56547675", hostLms)));
 
 		when(clusteredBibFinder.findClusteredBib(bibClusterId))
@@ -179,7 +179,7 @@ class PatronRequestResolutionServiceTests {
 
 		final var hostLms = createHostLms("FAKE_HOST");
 
-		final var clusteredBib = new ClusteredBib(bibClusterId,
+		final var clusteredBib = new ClusteredBib(bibClusterId, "Fake Title",
 			List.of(createFakeBib("37436728", hostLms)));
 
 		when(clusteredBibFinder.findClusteredBib(bibClusterId))
@@ -205,7 +205,7 @@ class PatronRequestResolutionServiceTests {
 	void shouldFailToResolveRequestWhenBibsIsEmpty() {
 		final var bibClusterId = randomUUID();
 
-		final var clusteredBib = new ClusteredBib(bibClusterId, List.of());
+		final var clusteredBib = new ClusteredBib(bibClusterId, "Fake Title", List.of());
 
 		when(clusteredBibFinder.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
@@ -224,7 +224,7 @@ class PatronRequestResolutionServiceTests {
 	void shouldFailToResolveRequestWhenBibsIsNull() {
 		final var bibClusterId = randomUUID();
 
-		final var clusteredBib = new ClusteredBib(bibClusterId, null);
+		final var clusteredBib = new ClusteredBib(bibClusterId, null, null);
 
 		when(clusteredBibFinder.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
