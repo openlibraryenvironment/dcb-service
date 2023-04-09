@@ -114,6 +114,12 @@ public class ClusterRecordController {
 				.builder()
 				.bibId(br.getId())
 				.title(br.getTitle())
+        			.sourceRecordId(br.getSourceRecordId())
+        			.sourceSystemId(br.getSourceSystemId())
+        			.sourceSystemCode(""+(br.getSourceSystemId()))
+        			.recordStatus(br.getRecordStatus())
+        			.typeOfRecord(br.getTypeOfRecord())
+        			.derivedType(br.getDerivedType())
 				.build();
 	}
 

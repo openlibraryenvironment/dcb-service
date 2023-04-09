@@ -20,6 +20,11 @@ public class BibRecordDTO {
 
 	UUID bibId;
 	String title;
-	String hostLMSCode;
+	String sourceRecordId;
+	UUID sourceSystemId;
+	String sourceSystemCode;
+	String recordStatus;
+	String typeOfRecord;
+	String derivedType;
 
 }

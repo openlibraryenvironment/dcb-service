@@ -145,7 +145,7 @@ class SharedIndexServiceTests {
 		String sourceRecordId, ClusterRecord clusterRecord) {
 
 		Mono.from(bibRepository.save(new BibRecord(bibRecordId, now(), now(),
-			sourceSystemId, sourceRecordId, "Brain of the Firm", clusterRecord, "", "")))
+			sourceSystemId, sourceRecordId, "Brain of the Firm", clusterRecord, "", "", "Book" )))
 			.block();
 	}
 }

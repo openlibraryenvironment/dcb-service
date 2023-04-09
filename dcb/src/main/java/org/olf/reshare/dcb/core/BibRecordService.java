@@ -49,6 +49,7 @@ public class BibRecordService {
                         .sourceRecordId(imported.getSourceRecordId())
                         .recordStatus(imported.getRecordStatus())
                         .typeOfRecord(imported.getTypeOfRecord())
+                        .derivedType(imported.getDerivedType())
                         .build();
 	}
 
