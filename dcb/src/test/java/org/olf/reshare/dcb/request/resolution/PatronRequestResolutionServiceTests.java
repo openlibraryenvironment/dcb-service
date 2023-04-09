@@ -239,6 +239,23 @@ class PatronRequestResolutionServiceTests {
 		assertThat(exception.getMessage(), is("No bibs in clustered bib"));
 	}
 
+	@Test
+	void failWhenClusteredBibIsEmpty() {
+		final var bibClusterId = randomUUID();
+
+		when(clusteredBibFinder.findClusteredBib(bibClusterId))
+			.thenReturn(Mono.empty());
+
+		final var patronRequest = createPatronRequest(bibClusterId);
+
+		final var exception = assertThrows(UnableToResolvePatronRequest.class,
+			() -> resolve(patronRequest));
+
+		assertThat(exception, is(notNullValue()));
+		assertThat(exception.getMessage(),
+			is("Unable to find clustered record: " + bibClusterId));
+	}
+
 	private Resolution resolve(PatronRequest patronRequest) {
 		return resolutionService.resolvePatronRequest(patronRequest).block();
 	}

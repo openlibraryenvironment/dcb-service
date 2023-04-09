@@ -1,5 +1,7 @@
 package org.olf.reshare.dcb.request.resolution;
 
+import static org.olf.reshare.dcb.utils.PublisherErrors.failWhenEmpty;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,19 +43,9 @@ public class SharedIndexService implements ClusteredBibFinder {
 		return Mono.from(clusterRecordRepository.findOneById(bibClusterId))
 			.map(Optional::ofNullable)
 			.defaultIfEmpty(Optional.empty())
-			.map(optionalClusterRecord -> failWhenEmpty(optionalClusterRecord, bibClusterId))
+			.map(optionalClusterRecord -> failWhenEmpty(optionalClusterRecord,
+				() -> new CannotFindClusterRecordException(bibClusterId)))
 			.zipWhen(this::findBibRecords, this::mapToClusteredBibWithBib);
-	}
-
-	private ClusterRecord failWhenEmpty(
-		Optional<? extends ClusterRecord> optionalClusterRecord, UUID clusterRecordId) {
-
-		if (optionalClusterRecord.isEmpty()) {
-			throw new CannotFindClusterRecordException(clusterRecordId);
-		}
-		else {
-			return optionalClusterRecord.get();
-		}
 	}
 
 	private ClusteredBib mapToClusteredBibWithBib(ClusterRecord clusterRecord,

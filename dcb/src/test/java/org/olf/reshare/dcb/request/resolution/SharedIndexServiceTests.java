@@ -1,6 +1,5 @@
 package org.olf.reshare.dcb.request.resolution;
 
-import static java.time.Instant.now;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -8,32 +7,36 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.util.Map;
-import java.util.UUID;
-
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.HostLmsService.UnknownHostLmsException;
-import org.olf.reshare.dcb.core.model.BibRecord;
-import org.olf.reshare.dcb.core.model.ClusterRecord;
-import org.olf.reshare.dcb.core.model.DataHostLms;
-import org.olf.reshare.dcb.storage.BibRepository;
-import org.olf.reshare.dcb.storage.ClusterRecordRepository;
-import org.olf.reshare.dcb.storage.HostLmsRepository;
+import org.olf.reshare.dcb.test.BibRecordFixture;
+import org.olf.reshare.dcb.test.ClusterRecordFixture;
 import org.olf.reshare.dcb.test.DcbTest;
+import org.olf.reshare.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
-import reactor.core.publisher.Mono;
 
 @DcbTest
 class SharedIndexServiceTests {
 	@Inject
 	private SharedIndexService sharedIndexService;
+
 	@Inject
-	private ClusterRecordRepository clusterRecordRepository;
+	private ClusterRecordFixture clusterRecordFixture;
+
 	@Inject
-	private BibRepository bibRepository;
+	private BibRecordFixture bibRecordFixture;
+
 	@Inject
-	private HostLmsRepository hostLmsRepository;
+	private HostLmsFixture hostLmsFixture;
+
+	@BeforeEach
+	void beforeEach() {
+		bibRecordFixture.deleteAllBibRecords();
+		clusterRecordFixture.deleteAllClusterRecords();
+		hostLmsFixture.deleteAllHostLMS();
+	}
 
 	@Test
 	void canFindClusterRecordWithAssociatedBibs() {
@@ -45,13 +48,16 @@ class SharedIndexServiceTests {
 		final var firstBibRecordId = randomUUID();
 		final var secondBibRecordId = randomUUID();
 
-		final var clusterRecord = createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 
-		createHostLms(firstHostLmsId, "FIRST-HOST-LMS");
-		createHostLms(secondHostLmsId, "SECOND-HOST-LMS");
+		hostLmsFixture.createHostLms(firstHostLmsId, "FIRST-HOST-LMS");
+		hostLmsFixture.createHostLms(secondHostLmsId, "SECOND-HOST-LMS");
 
-		createBibRecord(firstBibRecordId, secondHostLmsId, "798472", clusterRecord);
-		createBibRecord(secondBibRecordId, firstHostLmsId, "896857", clusterRecord);
+		bibRecordFixture.createBibRecord(firstBibRecordId, secondHostLmsId,
+			"798472", clusterRecord);
+
+		bibRecordFixture.createBibRecord(secondBibRecordId, firstHostLmsId,
+			"896857", clusterRecord);
 
 		final var clusteredBib = sharedIndexService
 			.findClusteredBib(clusterRecordId).block();
@@ -87,7 +93,7 @@ class SharedIndexServiceTests {
 	void canFindClusterRecordWithNoAssociatedBibs() {
 		final var clusterRecordId = randomUUID();
 
-		createClusterRecord(clusterRecordId);
+		clusterRecordFixture.createClusterRecord(clusterRecordId);
 
 		final var clusteredBib = sharedIndexService
 			.findClusteredBib(clusterRecordId).block();
@@ -119,9 +125,10 @@ class SharedIndexServiceTests {
 		final var bibRecordId = randomUUID();
 		final var unknownHostId = randomUUID();
 
-		final var clusterRecord = createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 
-		createBibRecord(bibRecordId, unknownHostId, "7657673", clusterRecord);
+		bibRecordFixture.createBibRecord(bibRecordId, unknownHostId,
+			"7657673", clusterRecord);
 
 		final var exception = assertThrows(UnknownHostLmsException.class,
 			() -> sharedIndexService.findClusteredBib(clusterRecordId).block());
@@ -129,23 +136,5 @@ class SharedIndexServiceTests {
 		assertThat(exception, is(notNullValue()));
 		assertThat(exception.getMessage(), is(
 			"No Host LMS found for ID: " + unknownHostId));
-	}
-
-	private ClusterRecord createClusterRecord(UUID clusterRecordId) {
-		return Mono.from(clusterRecordRepository.save(new ClusterRecord(clusterRecordId,
-			now(), now(), "Brain of the Firm"))).block();
-	}
-
-	private void createHostLms(UUID id, String code) {
-		Mono.from(hostLmsRepository.save(new DataHostLms(id, code,
-			"Test Host LMS", "", Map.of()))).block();
-	}
-
-	private void createBibRecord(UUID bibRecordId, UUID sourceSystemId,
-		String sourceRecordId, ClusterRecord clusterRecord) {
-
-		Mono.from(bibRepository.save(new BibRecord(bibRecordId, now(), now(),
-			sourceSystemId, sourceRecordId, "Brain of the Firm", clusterRecord, "", "")))
-			.block();
 	}
 }

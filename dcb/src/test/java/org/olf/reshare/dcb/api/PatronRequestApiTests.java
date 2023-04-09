@@ -3,7 +3,6 @@ package org.olf.reshare.dcb.api;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.HttpStatus.NOT_FOUND;
 import static io.micronaut.http.HttpStatus.OK;
-import static java.time.Instant.now;
 import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -15,9 +14,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockserver.model.HttpResponse.response;
-import static org.mockserver.model.JsonBody.json;
-import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
 import java.util.UUID;
 
@@ -28,12 +24,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.reshare.dcb.core.HostLmsService;
-import org.olf.reshare.dcb.core.model.BibRecord;
-import org.olf.reshare.dcb.core.model.ClusterRecord;
-import org.olf.reshare.dcb.storage.BibRepository;
-import org.olf.reshare.dcb.storage.ClusterRecordRepository;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.reshare.dcb.test.BibRecordFixture;
+import org.olf.reshare.dcb.test.ClusterRecordFixture;
 import org.olf.reshare.dcb.test.DcbTest;
-import org.olf.reshare.dcb.test.PatronRequestsDataAccess;
+import org.olf.reshare.dcb.test.PatronRequestsFixture;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
@@ -45,7 +40,6 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import net.minidev.json.JSONObject;
-import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -53,28 +47,26 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MockServerMicronautTest
 @MicronautTest(transactional = false, propertySources = { "classpath:configs/PatronRequestApiTests.yml" }, rebuildContext = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class PatronRequestTests {
-	private static final String ITEMS_MOCK_ROOT = "classpath:mock-responses/sierra/items";
-
+class PatronRequestApiTests {
 	private static final String SIERRA_TOKEN = "test-token-for-user";
 
 	@Inject
 	ResourceLoader loader;
 
 	@Inject
-	private PatronRequestsDataAccess patronRequestsDataAccess;
-
-	@Inject
-	private ClusterRecordRepository clusterRecordRepository;
-
-	@Inject
-	private PatronRequestApiClient patronRequestApiClient;
-
-	@Inject
-	private BibRepository bibRepository;
+	private PatronRequestsFixture patronRequestsFixture;
 
 	@Inject
 	private HostLmsService hostLmsService;
+
+	@Inject
+	private ClusterRecordFixture clusterRecordFixture;
+
+	@Inject
+	private BibRecordFixture bibRecordFixture;
+
+	@Inject
+	private PatronRequestApiClient patronRequestApiClient;
 
 	@Inject
 	private AdminApiClient adminApiClient;
@@ -96,52 +88,36 @@ class PatronRequestTests {
 	@BeforeAll
 	@SneakyThrows
 	public void addFakeSierraApis(MockServerClient mock) {
-		var mockSierra = SierraTestUtils
-			.mockFor(mock, sierraHost)
+		SierraTestUtils.mockFor(mock, sierraHost)
 			.setValidCredentials(sierraUser, sierraPass, SIERRA_TOKEN, 60);
 
-		// Fake response with multiple items for positive case
-		mockSierra.whenRequest(req -> req.withMethod("GET")
-				.withPath("/iii/sierra-api/v6/items")
-				.withQueryStringParameter("deleted", "false")
-				.withQueryStringParameter("bibIds", "798472"))
-			.respond(response()
-				.withStatusCode(200)
-				.withContentType(APPLICATION_JSON)
-				.withBody(json(new String(loader
-					.getResourceAsStream(ITEMS_MOCK_ROOT + "/sierra-api-items-bibIds.json")
-					.orElseThrow()
-					.readAllBytes()))));
+		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 
-		// Fake response with zero items for negative case
-		mockSierra.whenRequest(req -> req.withMethod("GET")
-				.withPath("/iii/sierra-api/v6/items")
-				.withQueryStringParameter("deleted", "false")
-				.withQueryStringParameter("bibIds", "565382"))
-			.respond(response()
-				.withStatusCode(404)
-				.withContentType(APPLICATION_JSON)
-				.withBody(json(new String(loader
-					.getResourceAsStream(ITEMS_MOCK_ROOT + "/sierra-api-items-0.json")
-					.orElseThrow()
-					.readAllBytes()))));
+		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
 
+		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");
 	}
 
 	@BeforeEach
 	void beforeEach() {
-		patronRequestsDataAccess.deleteAllPatronRequests();
+		patronRequestsFixture.deleteAllPatronRequests();
+
+		bibRecordFixture.deleteAllBibRecords();
+		clusterRecordFixture.deleteAllClusterRecords();
 	}
 
 	@Test
-	void canPlacePatronRequestViaApiAndGetPatronRequestViaAdminApi() {
+	void canPlacePatronRequest() {
 		final var clusterRecordId = randomUUID();
 
-		final var clusterRecord = createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 
 		final var testHostLms = hostLmsService.findByCode("test1").block();
 
-		createBibRecord(clusterRecordId, testHostLms.getId(), "798472", clusterRecord);
+		UUID sourceSystemId = testHostLms.getId();
+
+		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId,
+			"798472", clusterRecord);
 
 		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(clusterRecordId,
 			"jane-smith", "RGX12", "ABC123");
@@ -184,11 +160,14 @@ class PatronRequestTests {
 	void cannotFulfilPatronRequestNoAvailableItemsAreFound() {
 		final var clusterRecordId = randomUUID();
 
-		final var clusterRecord = createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 
 		final var testHostLms = hostLmsService.findByCode("test1").block();
 
-		createBibRecord(clusterRecordId, testHostLms.getId(), "565382", clusterRecord);
+		UUID sourceSystemId = testHostLms.getId();
+
+		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId,
+			"565382", clusterRecord);
 
 		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(clusterRecordId,
 			"jane-smith", "RGX12", "ABC123");
@@ -248,24 +227,11 @@ class PatronRequestTests {
 		assertThat(response.getStatus(), is(NOT_FOUND));
 	}
 
-	private ClusterRecord createClusterRecord(UUID clusterRecordId) {
-		return Mono.from(clusterRecordRepository.save(new ClusterRecord(clusterRecordId,
-			now(), now(), "Brain of the Firm"))).block();
-	}
-
 	private static Matcher<Object> isResolved() {
 		return hasProperty("statusCode", is("RESOLVED"));
 	}
 
 	private static Matcher<Object> isNotAvailableToRequest() {
 		return hasProperty("statusCode", is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY"));
-	}
-
-	private void createBibRecord(UUID bibRecordId, UUID sourceSystemId,
-		String sourceRecordId, ClusterRecord clusterRecord) {
-
-		Mono.from(bibRepository.save(new BibRecord(bibRecordId, now(), now(),
-				sourceSystemId, sourceRecordId, "Brain of the Firm", clusterRecord, "", "")))
-			.block();
 	}
 }

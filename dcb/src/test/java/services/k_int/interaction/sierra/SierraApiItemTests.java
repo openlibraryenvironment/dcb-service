@@ -3,14 +3,12 @@ package services.k_int.interaction.sierra;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockserver.model.HttpRequest.request;
-import static org.mockserver.model.HttpResponse.response;
-import static org.mockserver.model.JsonBody.json;
-import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 
 import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
@@ -22,8 +20,6 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 class SierraApiItemTests {
-	private final String MOCK_ROOT = "classpath:mock-responses/sierra/items";
-
 	@Inject
 	private SierraApiClient client;
 
@@ -36,25 +32,21 @@ class SierraApiItemTests {
 	@Test
 	@SneakyThrows
 	void sierraCanRespondWithMultipleItems(MockServerClient mock) {
+		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 
-		// Mock the response from Sierra
-		mock.when(
-			request()
-				.withMethod("GET")
-				.withPath("/iii/sierra-api/v6/items/")
-				.withQueryStringParameter("limit", "3")
-				.withQueryStringParameter("suppressed", "false")
-				.withQueryStringParameter("offset", "1")
-				.withQueryStringParameter("deleted", "false")
-				.withQueryStringParameter("fields", "id,updatedDate,createdDate,deleted,bibIds,location,status,volumes,barcode,callNumber")
-				.withQueryStringParameter("status", "-"))
-			.respond(response()
-				.withStatusCode(200)
-				.withContentType(APPLICATION_JSON)
-				.withBody(json(new String(loader
-					.getResourceAsStream(MOCK_ROOT + "/sierra-api-items-N.json")
-					.orElseThrow()
-					.readAllBytes()))));
+		// Does not use the fixture for request due to a variation of the path
+		// between these tests and other tests
+		// (the trailing forward slash is not present for other tests)
+		mock.when(request()
+			.withMethod("GET")
+			.withPath("/iii/sierra-api/v6/items/")
+			.withQueryStringParameter("limit", "3")
+			.withQueryStringParameter("suppressed", "false")
+			.withQueryStringParameter("offset", "1")
+			.withQueryStringParameter("deleted", "false")
+			.withQueryStringParameter("fields", "id,updatedDate,createdDate,deleted,bibIds,location,status,volumes,barcode,callNumber")
+			.withQueryStringParameter("status", "-"))
+		.respond(sierraItemsAPIFixture.threeItemsResponse());
 
 		// Fetch from sierra and block
 		var response = Mono.from(client.items(

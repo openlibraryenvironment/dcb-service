@@ -6,19 +6,19 @@ import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.olf.reshare.dcb.storage.SupplierRequestRepository;
 import org.reactivestreams.Publisher;
 
-import jakarta.inject.Singleton;
+import io.micronaut.context.annotation.Prototype;
 
-@Singleton
-public class PatronRequestsDataAccess {
-	private final DataAccess dataAccess;
+@Prototype
+public class PatronRequestsFixture {
+	private final DataAccess dataAccess = new DataAccess();
+
 	private final PatronRequestRepository patronRequestRepository;
 	private final SupplierRequestRepository supplierRequestRepository;
 
-	public PatronRequestsDataAccess(
+	public PatronRequestsFixture(
 		PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository) {
 
-		dataAccess = new DataAccess();
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 	}
