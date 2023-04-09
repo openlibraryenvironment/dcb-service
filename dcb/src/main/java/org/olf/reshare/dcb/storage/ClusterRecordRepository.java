@@ -15,7 +15,6 @@ import io.micronaut.data.model.Pageable;
 import reactor.core.publisher.Mono;
 
 public interface ClusterRecordRepository {
-
 	@NonNull
 	@SingleResult
 	Publisher<? extends ClusterRecord> findOneById(@NonNull UUID id);
@@ -40,5 +39,12 @@ public interface ClusterRecordRepository {
 	@SingleResult
 	Publisher<Boolean> existsById( @NonNull UUID id );
 
+	@NonNull
+	Publisher<ClusterRecord> findAll();
+
 	Publisher<Page<ClusterRecord>> findAll(@Valid Pageable pageable);
+
+	@NonNull
+	@SingleResult
+	Publisher<Void> delete(@NonNull UUID id);
 }

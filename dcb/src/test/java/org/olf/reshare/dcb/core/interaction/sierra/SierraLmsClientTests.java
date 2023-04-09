@@ -6,12 +6,6 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockserver.model.HttpRequest.request;
-import static org.mockserver.model.HttpResponse.notFoundResponse;
-import static org.mockserver.model.HttpResponse.response;
-import static org.mockserver.model.JsonBody.json;
-import static org.mockserver.model.MediaType.APPLICATION_JSON;
-import static org.mockserver.model.MediaType.TEXT_PLAIN;
 
 import java.util.List;
 
@@ -19,9 +13,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.mockserver.client.ForwardChainExpectation;
 import org.mockserver.client.MockServerClient;
-import org.mockserver.model.HttpResponse;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.interaction.Item;
@@ -31,7 +23,6 @@ import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
-import lombok.SneakyThrows;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -40,12 +31,6 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(Lifecycle.PER_CLASS)
 class SierraLmsClientTests {
 	private static final String SIERRA_TOKEN = "test-token-for-user";
-
-	@Inject
-	ResourceLoader loader;
-
-	@Inject
-	HostLmsService hostLmsService;
 
 	// Properties should line up with included property source for the spec.
 	@Property(name = "hosts.test1.client.base-url")
@@ -57,24 +42,25 @@ class SierraLmsClientTests {
 	@Property(name = "hosts.test1.client.secret")
 	private String sierraPass;
 
-	private static final String CP_RESOURCES = "classpath:mock-responses/sierra/";
+	@Inject
+	private ResourceLoader loader;
 
-	@SneakyThrows
-	private String getResourceAsString(String resourceName) {
-		return new String(loader.getResourceAsStream(CP_RESOURCES + resourceName).get().readAllBytes());
-	}
+	@Inject
+	private HostLmsService hostLmsService;
+
+	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
 		SierraTestUtils.mockFor(mock, sierraHost)
 			.setValidCredentials(sierraUser, sierraPass, SIERRA_TOKEN, 60);
+
+		sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 	}
 
 	@Test
-	void shouldProvideMultipleItemsWhenSierraRespondsWithMultipleItems(MockServerClient mock) {
-		mockGetItemsForBibId(mock, "4564554664")
-			.respond(
-				withSierraResponse(response(), 200, "items/sierra-api-items-N.json"));
+	void shouldProvideMultipleItemsWhenSierraRespondsWithMultipleItems() {
+		sierraItemsAPIFixture.threeItemsResponseForBibId("4564554664");
 
 		final var client = hostLmsService.getClientFor("test1").block();
 
@@ -100,27 +86,19 @@ class SierraLmsClientTests {
 	}
 
 	@Test
-	void shouldProvideNoItemsWhenSierraRespondsWithNoRecordsFoundError(MockServerClient mock) {
-		mockGetItemsForBibId(mock, "0")
-		.respond(
-			withSierraResponse(notFoundResponse(), 404, "items/sierra-api-items-0.json"));
+	void shouldProvideNoItemsWhenSierraRespondsWithNoRecordsFoundError() {
+		sierraItemsAPIFixture.zeroItemsResponseForBibId("65423515");
 
 		final var client = hostLmsService.getClientFor("test1").block();
 
-		final var items = getItemsByBibId(client, "0", "HostLmsCode");
+		final var items = getItemsByBibId(client, "65423515", "HostLmsCode");
 
 		assertThat(items, hasSize(0));
 	}
 
 	@Test
-	void shouldReportErrorWhenSierraRespondsWithInternalServerError(MockServerClient mock) {
-		// This is a made up response (rather than captured from the sandbox)
-		// in order to demonstrate that general failures of the API are propagated
-		mockGetItemsForBibId(mock, "565496")
-			.respond(notFoundResponse()
-				.withStatusCode(500)
-				.withContentType(TEXT_PLAIN)
-				.withBody("Broken"));
+	void shouldReportErrorWhenSierraRespondsWithInternalServerError() {
+		sierraItemsAPIFixture.serverErrorResponseForBibId("565496");
 
 		final var client = hostLmsService.getClientFor("test1").block();
 
@@ -141,28 +119,9 @@ class SierraLmsClientTests {
 		assertThat(body, is("Broken"));
 	}
 
-	private static ForwardChainExpectation mockGetItemsForBibId(
-		MockServerClient mock, String bibId) {
+	private static List<Item> getItemsByBibId(HostLmsClient client, String bibId,
+		String hostLmsCode) {
 
-		return mock.when(
-			request()
-				.withMethod("GET")
-				.withPath("/iii/sierra-api/v6/items")
-				.withQueryStringParameter("bibIds", bibId)
-				.withQueryStringParameter("deleted", "false")
-				.withHeader("Accept", "application/json"));
-	}
-
-	private HttpResponse withSierraResponse(HttpResponse response, int statusCode,
-		String resourceName) {
-
-		return response
-		 .withStatusCode(statusCode)
-		 .withContentType(APPLICATION_JSON)
-		 .withBody(json(getResourceAsString(resourceName)));
-	}
-
-	private static List<Item> getItemsByBibId(HostLmsClient client, String bibId, String hostLmsCode) {
 		return client.getItemsByBibId(bibId, hostLmsCode).block();
 	}
 }

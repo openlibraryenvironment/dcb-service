@@ -48,25 +48,17 @@ public class AdminController {
 		log.debug("REST, get patron request by id: {}", id);
 
 		return patronRequestService.findById(id)
-			.flatMap(this::findSupplierRequests)
-			.map(AdminController::mapToView)
+			.zipWhen(this::findSupplierRequests, this::mapToView)
 			.map(HttpResponse::ok);
 	}
 
-	private Mono<PatronRequestAndSupplierRequests> findSupplierRequests(
-		PatronRequest patronRequest) {
-
-		return supplierRequestService.findAllSupplierRequestsFor(patronRequest)
-			.map(supplierRequests -> new PatronRequestAndSupplierRequests(
-				patronRequest, supplierRequests));
+	private Mono<List<SupplierRequest>> findSupplierRequests(PatronRequest patronRequest) {
+		return supplierRequestService.findAllSupplierRequestsFor(patronRequest);
 	}
 
-	private static PatronRequestAdminView mapToView(
-		PatronRequestAndSupplierRequests pair) {
+	private PatronRequestAdminView mapToView(
+		PatronRequest patronRequest, List<SupplierRequest> supplierRequests) {
 
-		return PatronRequestAdminView.from(pair.patronRequest, pair.supplierRequests);
+		return PatronRequestAdminView.from(patronRequest, supplierRequests);
 	}
-
-	private record PatronRequestAndSupplierRequests(PatronRequest patronRequest,
-		List<SupplierRequest> supplierRequests) { }
 }

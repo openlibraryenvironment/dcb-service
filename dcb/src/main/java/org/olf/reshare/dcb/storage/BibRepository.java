@@ -31,10 +31,6 @@ public interface BibRepository {
 	@NonNull
 	Publisher<BibRecord> findAll();
 	
-	// @NonNull
-	// Publisher<BibRecord> findAllByContributesTo(@NonNull UUID clusterRecordId) {
-	// }
-	
 	Publisher<ClusterRecord> findContributesToById( @NonNull UUID id );
 	
 	@NonNull
@@ -47,12 +43,16 @@ public interface BibRepository {
 	@NonNull
 	@SingleResult
 	Publisher<Boolean> existsById(@NonNull UUID id);
+
+	@NonNull
+	@SingleResult
+	Publisher<Void> delete(@NonNull UUID id);
+
+	@NonNull
+	@SingleResult
+	Publisher<Void> cleanUp();
 	
 	@NonNull
 	@SingleResult
-	public Publisher<Void> cleanUp();
-	
-	@NonNull
-	@SingleResult
-	public Publisher<Void> commit();
+	Publisher<Void> commit();
 }
