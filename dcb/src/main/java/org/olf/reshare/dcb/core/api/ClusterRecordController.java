@@ -22,10 +22,18 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 import org.olf.reshare.dcb.core.api.types.ClusterRecordDTO;
 import org.olf.reshare.dcb.core.api.types.BibRecordDTO;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 @Controller("/clusters")
 @Tag(name = "Cluster Records (Read only)")
 public class ClusterRecordController {
+
+        private static final Logger log = LoggerFactory.getLogger(ClusterRecordController.class);
+
 
 	private final ClusterRecordRepository _clusterRecordRepository;
 	private final BibRepository _bibRepository;
@@ -65,27 +73,33 @@ public class ClusterRecordController {
         )
         @Get("/{?pageable*}")
         public Mono<Page<ClusterRecordDTO>> listMapped(@Parameter(hidden = true) @Valid Pageable pageable) {
+
                 if (pageable == null) {
                         pageable = Pageable.from(0, 100);
                 }
 
-                return Mono.from(_clusterRecordRepository.findAll(pageable))
-                          .map(this::mapPageClusterRecordToDTO);
+                return Mono.from( _clusterRecordRepository.findAll(pageable) )
+			.flatMap( page -> Mono.just(convertPage(page) )	); // Convert Page<ClusterRecord> into Page<ClusterDTO>
+			
         }
 
+	private Flux<ClusterRecordDTO> getFluxForPage(Page<ClusterRecordDTO> page) {
+		return Flux.fromIterable(page);
+	}
+
+	private ClusterRecordDTO enrichClusterRecordWithBibs(ClusterRecordDTO input) {
+		input.setTitle("ENRICHED: "+input.getTitle());
+		return input;
+	}
 
 	private ClusterRecordDTO mapClusterRecordToDTO(ClusterRecord cr) {
+
+		// New cluster DTO
 		return ClusterRecordDTO
 				.builder()
 				.clusterId(cr.getId())
-				.title(cr.getTitle())
-				// This isn't right.. need to ask MJ or Steve
-				// .bibs( (Flux.from(_bibRepository.findAllByContributesTo(cr)).map(this::mapBibToDTO)).collectList().block())
+				.title("MAPPED"+cr.getTitle())
 				.build();
-	}
-
-	private Page<ClusterRecordDTO> mapPageClusterRecordToDTO(Page<ClusterRecord> pcr) {
-		return pcr.map(this::mapClusterRecordToDTO);
 	}
 
 	private BibRecordDTO mapBibToDTO(BibRecord br) {
@@ -94,6 +108,10 @@ public class ClusterRecordController {
 				.bibId(br.getId())
 				.title(br.getTitle())
 				.build();
+	}
+
+	private Page<ClusterRecordDTO> convertPage(Page<ClusterRecord> cr) {
+		return cr.map(this::mapClusterRecordToDTO);
 	}
 	
 }

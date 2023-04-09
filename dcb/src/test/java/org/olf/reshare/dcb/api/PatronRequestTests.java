@@ -250,7 +250,7 @@ class PatronRequestTests {
 
 	private ClusterRecord createClusterRecord(UUID clusterRecordId) {
 		return Mono.from(clusterRecordRepository.save(new ClusterRecord(clusterRecordId,
-			now(), now(), "Brain of the Firm"))).block();
+			now(), now(), "Brain of the Firm", new java.util.HashSet()))).block();
 	}
 
 	private static Matcher<Object> isResolved() {
