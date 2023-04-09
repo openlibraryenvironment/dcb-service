@@ -33,7 +33,6 @@ import org.olf.reshare.dcb.core.model.ClusterRecord;
 import org.olf.reshare.dcb.storage.BibRepository;
 import org.olf.reshare.dcb.storage.ClusterRecordRepository;
 import org.olf.reshare.dcb.test.DcbTest;
-import org.olf.reshare.dcb.test.PatronRequestsDataAccess;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;

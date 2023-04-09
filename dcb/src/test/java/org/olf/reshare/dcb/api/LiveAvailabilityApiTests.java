@@ -6,14 +6,12 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockserver.model.HttpResponse.response;
-import static org.mockserver.model.JsonBody.json;
-import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
@@ -33,13 +31,15 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MicronautTest(transactional = false, propertySources = { "classpath:configs/LiveAvailabilityApiTests.yml" }, rebuildContext = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LiveAvailabilityApiTests {
-	private static final String ITEMS_MOCK_ROOT = "classpath:mock-responses/sierra/items";
 	private static final String SIERRA_TOKEN = "test-token-for-user";
+
 	@Inject
 	ResourceLoader loader;
+
 	@Inject
 	@Client("/")
 	HttpClient client;
+
 	// Properties should line up with included property source for the spec.
 	@Property(name = "hosts.test1.client.base-url")
 	private String sierraHost;
@@ -51,34 +51,14 @@ class LiveAvailabilityApiTests {
 	@BeforeAll
 	@SneakyThrows
 	public void addFakeSierraApis(MockServerClient mock) {
-		var mockSierra = SierraTestUtils
-			.mockFor(mock, sierraHost)
+		SierraTestUtils.mockFor(mock, sierraHost)
 			.setValidCredentials(sierraUser, sierraPass, SIERRA_TOKEN, 60);
 
-		// Mock items returned by the sierra system for ingest.
-		mockSierra.whenRequest(req -> req.withMethod("GET")
-				.withPath("/iii/sierra-api/v6/items")
-				.withQueryStringParameter("deleted", "false")
-				.withQueryStringParameter("bibIds", "807f604a-37c2-4c76-86f3-220082ada83f"))
-			.respond(response()
-				.withStatusCode(200)
-				.withContentType(APPLICATION_JSON)
-				.withBody(json(new String(loader
-					.getResourceAsStream(ITEMS_MOCK_ROOT + "/sierra-api-items-bibIds.json")
-					.orElseThrow()
-					.readAllBytes()))));
+		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 
-		mockSierra.whenRequest(req -> req.withMethod("GET")
-			.withPath("/iii/sierra-api/v6/items")
-				.withQueryStringParameter("deleted", "false")
-				.withQueryStringParameter("bibIds", "test"))
-			.respond(response()
-				.withStatusCode(404)
-				.withContentType(APPLICATION_JSON)
-				.withBody(json(new String(loader
-					.getResourceAsStream(ITEMS_MOCK_ROOT + "/sierra-api-items-0.json")
-					.orElseThrow()
-					.readAllBytes()))));
+		sierraItemsAPIFixture.twoItemsResponseForBibId("807f604a-37c2-4c76-86f3-220082ada83f");
+
+		sierraItemsAPIFixture.zeroItemsResponseForBibId("test");
 	}
 
 	@Test
