@@ -95,7 +95,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 			if (since != null) {
 				params.updatedDate(dtr -> {
-					dtr.to(LocalDateTime.now()).fromDate(LocalDateTime.from(since));
+					// dtr.to(LocalDateTime.now()).fromDate(LocalDateTime.from(since));
+					dtr.to(LocalDateTime.now()).fromDate(since.atZone(java.time.ZoneId.of("UTC")).toLocalDateTime());
 				});
 			}
 		}));
