@@ -207,8 +207,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                                                        " limit="+ limit+
                                                        " elapsed="+ (System.currentTimeMillis() - generator_state.request_start_time) +
                                                        "ms thread="+ Thread.currentThread().getName());
+
+					// We have to block here in order to wait for the page of data before we can return the next item to
+					// the caller - thats why this is now done using a different scheduler
 					BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit)
-						.doOnError ( throwable -> log.warn("ONERROR fetching page", throwable) )
+						.onErrorResume(t -> {
+							log.error("Error ingesting data {}", t.getMessage());
+							t.printStackTrace();
+							return Mono.empty();
+         					})
 						.switchIfEmpty(Mono.just("No results returned. Stopping")
                                                 .mapNotNull(s -> {
                                                         log.info(s);
@@ -216,6 +223,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                                                 }))
 						.share()
 						.block();
+
 					log.info("got page");
 					if ( bsr != null ) {
 						generator_state.current_page = bsr.entries();
@@ -323,7 +331,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// return Flux.from(pageAllResults(since, 0, pageSize)).filter(sierraBib -> sierraBib.marc() != null)
 		return Flux.from(backpressureAwareBibResultGenerator(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
 				.subscribeOn(Schedulers.boundedElastic())
-				.doOnError ( throwable -> log.warn("ONERROR fetching page", throwable) )
+                                .onErrorResume(t -> {
+                                        log.error("Error ingesting data {}", t.getMessage());
+                                        t.printStackTrace();
+                                        return Mono.empty();
+                                })
 				.switchIfEmpty(Mono.just("No results returned. Stopping")
 						.mapNotNull(s -> {
 							log.info(s);
