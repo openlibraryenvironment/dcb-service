@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.olf.reshare.dcb.core.model.Item;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.item.availability.LiveAvailability;
@@ -39,10 +40,8 @@ public class PatronRequestResolutionService {
 
 		return findClusterRecord(clusterRecordId)
 			.map(this::validateClusteredBib)
-			.flatMap(this::getAvailableItems)
-			.map(items -> validateItems(items, clusterRecordId))
-			.map(PatronRequestResolutionService::chooseFirstItem)
-			.map(PatronRequestResolutionService::mapToResolutionItem)
+			.flatMap(this::getItems)
+			.map(items -> chooseFirstAvailableItem(items, clusterRecordId))
 			.map(item -> mapToSupplierRequest(item, patronRequest))
 			.map(PatronRequestResolutionService::mapToResolution)
 			.onErrorReturn(NoItemsAvailableAtAnyAgency.class,
@@ -77,9 +76,7 @@ public class PatronRequestResolutionService {
 		return clusteredBib;
 	}
 
-	private Mono<List<org.olf.reshare.dcb.item.availability.Item>> getAvailableItems(
-		ClusteredBib clusteredBib) {
-
+	private Mono<List<Item>> getItems(ClusteredBib clusteredBib) {
 		log.debug("getAvailableItems({})", clusteredBib);
 
 		return Mono.just(clusteredBib)
@@ -87,52 +84,35 @@ public class PatronRequestResolutionService {
 			.map(ClusteredBib::getBibs)
 			.flatMapMany(Flux::fromIterable)
 			// from each bib get list of items
-			.flatMap(this::getAvailableItems)
+			.flatMap(this::getItems)
 			// merge list of bibs of list of items into 1 list of items
 			.flatMap(Flux::fromIterable)
 			// get list of bibs from clustered bib
 			.collectList();
 	}
 
-	private Mono<List<org.olf.reshare.dcb.item.availability.Item>> getAvailableItems(
-		Bib bib) {
-
-		log.debug("getAvailableItems({})", bib);
+	private Mono<List<Item>> getItems(Bib bib) {
+		log.debug("getItems({})", bib);
 
 		return liveAvailabilityService
 			.getAvailableItems(bib.getBibRecordId(), bib.getHostLms());
 	}
 
-
-	private static List<org.olf.reshare.dcb.item.availability.Item> validateItems(
-		List<org.olf.reshare.dcb.item.availability.Item> items, UUID bibClusterId) {
-
-		log.debug("validateItems({})", items);
-
-		if (items.isEmpty()) {
-			final var message = "No items could be found for cluster record: " + bibClusterId;
-
-			log.debug(message);
-
-			throw new NoItemsAvailableAtAnyAgency(message);
-		}
-
-		return items;
-	}
-
-	private static org.olf.reshare.dcb.item.availability.Item chooseFirstItem(
-		List<org.olf.reshare.dcb.item.availability.Item> items) {
+	private Item chooseFirstAvailableItem(List<Item> items, UUID clusterRecordId) {
+		final var NO_AVAILABLE_ITEMS_MESSAGE
+			= "No available items could be found for cluster record: " + clusterRecordId;
 
 		log.debug("chooseFirstItem({})", items);
 
-		return items.get(0);
+		return items.stream()
+			.filter(Item::isAvailable)
+			.findFirst()
+			.orElseThrow(() -> new NoItemsAvailableAtAnyAgency(NO_AVAILABLE_ITEMS_MESSAGE));
 	}
 
-	private static Item mapToResolutionItem(org.olf.reshare.dcb.item.availability.Item item) {
-		return new Item(item.getId(), item.getHostLmsCode());
-	}
+	private static SupplierRequest mapToSupplierRequest(Item item,
+		PatronRequest patronRequest) {
 
-	private static SupplierRequest mapToSupplierRequest(Item item, PatronRequest patronRequest) {
 		log.debug("mapToSupplierRequest({}}, {})", item, patronRequest);
 
 		final var uuid = UUID.randomUUID();

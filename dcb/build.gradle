@@ -102,6 +102,7 @@ dependencies {
 	
 	testImplementation("io.micronaut.test:micronaut-test-junit5")
 	testImplementation('org.mock-server:mockserver-junit-jupiter')
+	testImplementation('org.junit.jupiter:junit-jupiter-params')
 	testImplementation('org.mockito:mockito-core')
 	testImplementation('org.hamcrest:hamcrest')
 	testImplementation('org.awaitility:awaitility')

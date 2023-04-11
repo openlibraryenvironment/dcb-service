@@ -9,17 +9,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import javax.validation.constraints.NotNull;
 
 import org.marc4j.marc.Record;
 import org.olf.reshare.dcb.core.ProcessStateService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
-import org.olf.reshare.dcb.core.interaction.Item;
-import org.olf.reshare.dcb.core.interaction.Location;
-import org.olf.reshare.dcb.core.interaction.Status;
 import org.olf.reshare.dcb.core.model.HostLms;
-import org.olf.reshare.dcb.core.model.ProcessState;
+import org.olf.reshare.dcb.core.model.Item;
 import org.olf.reshare.dcb.ingest.marc.MarcIngestSource;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
@@ -29,27 +27,20 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.function.Consumer;
-import java.util.function.BiConsumer;
-
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.util.StringUtils;
+import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.json.tree.JsonNode;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.SynchronousSink;
+import reactor.core.scheduler.Schedulers;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
-import services.k_int.interaction.sierra.items.Result;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
-
-import io.micronaut.data.r2dbc.operations.R2dbcOperations;
-
-import reactor.core.scheduler.Schedulers;
 
 @Prototype
 public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
@@ -63,9 +54,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final SierraApiClient client;
 	private final ProcessStateService processStateService;
 	private final R2dbcOperations operations;
-	private final SierraResponseErrorMatcher sierraResponseErrorMatcher = new SierraResponseErrorMatcher();
-
 	private final RawSourceRepository rawSourceRepository;
+	private final SierraResponseErrorMatcher sierraResponseErrorMatcher = new SierraResponseErrorMatcher();
+	private final ItemResultToItemMapper itemResultToItemMapper = new ItemResultToItemMapper();
 
 	public SierraLmsClient(@Parameter HostLms lms, 
                                HostLmsSierraApiClientFactory clientFactory, 
@@ -403,26 +394,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode) {
-		log.info("getItemsByBibId({})", bibId);
+		log.debug("getItemsByBibId({})", bibId);
 
 		return Flux.from(client.items(params -> params
 				.deleted(false)
 				.bibIds(List.of(bibId))))
 			.flatMap(results -> Flux.fromIterable(results.getEntries()))
-			.map(result -> mapResultToItem(result, hostLmsCode))
+			.map(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode))
 			.collectList()
 			.onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError, List.of());
-	}
-
-	private static Item mapResultToItem(Result result, String hostLmsCode) {
-		return new Item(result.getId(),
-			new Status(result.getStatus().getCode(),
-				result.getStatus().getDisplay(),
-				result.getStatus().getDuedate()),
-			new Location(result.getLocation().getCode(),
-				result.getLocation().getName()),
-			result.getBarcode(), result.getCallNumber(),
-			hostLmsCode);
 	}
 
 	@Override

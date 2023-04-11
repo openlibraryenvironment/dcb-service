@@ -27,13 +27,11 @@ public class FakeClusteredBibFinder implements ClusteredBibFinder {
 	public Mono<ClusteredBib> findClusteredBib(UUID bibClusterId) {
 		log.debug("findClusteredBib({})", bibClusterId);
 
-		return Mono.just(new ClusteredBib()
-					.builder()
-					.id(bibClusterId)
-					.title("fakeTitle")
-					.bibs(List.of(createFakeBib(), createFakeBib(), createFakeBib()))
-					.build()
-				);
+		return Mono.just(ClusteredBib.builder()
+			.id(bibClusterId)
+			.title("fakeTitle")
+			.bibs(List.of(createFakeBib(), createFakeBib(), createFakeBib()))
+			.build());
 	}
 
 	private static Bib createFakeBib() {

@@ -2,13 +2,10 @@ package org.olf.reshare.dcb.core.api;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
-import java.util.List;
-
 import javax.validation.constraints.NotNull;
 
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.item.availability.AvailabilityResponseView;
-import org.olf.reshare.dcb.item.availability.Item;
 import org.olf.reshare.dcb.item.availability.LiveAvailabilityService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,17 +48,7 @@ public class LiveAvailabilityController {
 
 		return hostLmsService.findByCode(hostLmsCode)
 			.flatMap(hostLms -> liveAvailabilityService.getAvailableItems(bibRecordId, hostLms))
-			.map(items -> mapToResponse(items, bibRecordId, hostLmsCode))
+			.map(items -> AvailabilityResponseView.from(items, bibRecordId, hostLmsCode))
 			.map(HttpResponse::ok);
-	}
-
-	private AvailabilityResponseView mapToResponse(List<Item> itemList,
-		String bibRecordId, String hostLmsCode) {
-
-		final var view = new AvailabilityResponseView(itemList, bibRecordId, hostLmsCode);
-
-		log.debug("mapToResponse: {}", view);
-
-		return view;
 	}
 }
