@@ -104,7 +104,8 @@ public interface MarcIngestSource<T> extends IngestSource {
 						break;
 					// a,c,d or m = Books
 					// b,i or s = Continuing Resources
-				}
+				}       
+                                break;
 			case 'c':
 			case 'd':
 			case 'i':
