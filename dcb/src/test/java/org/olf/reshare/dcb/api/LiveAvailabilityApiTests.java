@@ -86,13 +86,12 @@ class LiveAvailabilityApiTests {
 		assertThat(firstItem.getId(), is("67e91c1c-ada2-40cc-92dc-75db59d776a5"));
 		assertThat(firstItem.getBarcode(), is("30800005238487"));
 		assertThat(firstItem.getCallNumber(), is("HD9787.U5 M43 1969"));
+		assertThat(firstItem.getDueDate(), is("2021-02-25T12:00:00Z"));
 
 		final var firstItemStatus = firstItem.getStatus();
 
 		assertThat(firstItemStatus, is(notNullValue()));
-		assertThat(firstItemStatus.getCode(), is("-"));
-		assertThat(firstItemStatus.getDisplayText(), is("AVAILABLE"));
-		assertThat(firstItemStatus.getDueDate(), is("2021-02-25T12:00:00Z"));
+		assertThat(firstItemStatus.getCode(), is("CHECKED_OUT"));
 
 		final var firstItemLocation = firstItem.getLocation();
 
@@ -106,13 +105,12 @@ class LiveAvailabilityApiTests {
 		assertThat(secondItem.getId(), is("5e9a80f9-c105-4984-a267-f9160caafd3b"));
 		assertThat(secondItem.getBarcode(), is("9849123490"));
 		assertThat(secondItem.getCallNumber(), is("BL221 .C48"));
+		assertThat(secondItem.getDueDate(), is(nullValue()));
 
 		final var secondItemStatus = secondItem.getStatus();
 
 		assertThat(secondItemStatus, is(notNullValue()));
-		assertThat(secondItemStatus.getCode(), is("-"));
-		assertThat(secondItemStatus.getDisplayText(), is("AVAILABLE"));
-		assertThat(secondItemStatus.getDueDate(), is(nullValue()));
+		assertThat(secondItemStatus.getCode(), is("AVAILABLE"));
 
 		final var secondItemLocation = secondItem.getLocation();
 

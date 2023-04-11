@@ -3,7 +3,9 @@ package org.olf.reshare.dcb.request.resolution.fake;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
 
 import java.util.Map;
 
@@ -33,12 +35,11 @@ public class FakeLiveAvailabilityServiceTests {
 		assertThat(returnedItem.getId(), is("FAKE_ID_0"));
 		assertThat(returnedItem.getBarcode(), is("FAKE_BARCODE"));
 		assertThat(returnedItem.getCallNumber(), is("FAKE_CALL_NUMBER"));
+		assertThat(returnedItem.getDueDate(), is(nullValue()));
 
 		final var itemStatus = returnedItem.getStatus();
 
-		assertThat(itemStatus.getCode(), is("FAKE_STATUS_CODE"));
-		assertThat(itemStatus.getDisplayText(), is("FAKE_STATUS_DISPLAY_TEXT"));
-		assertThat(itemStatus.getDueDate(), is("FAKE_STATUS_DUE_DATE"));
+		assertThat(itemStatus.getCode(), is(AVAILABLE));
 
 		final var itemLocation = returnedItem.getLocation();
 

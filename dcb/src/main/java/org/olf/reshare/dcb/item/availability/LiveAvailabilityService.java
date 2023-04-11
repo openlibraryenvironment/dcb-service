@@ -5,6 +5,7 @@ import java.util.List;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.model.HostLms;
+import org.olf.reshare.dcb.core.model.Item;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,23 +35,15 @@ public class LiveAvailabilityService implements LiveAvailability {
 
 		return hostLmsService.getClientFor(hostLms)
 			.flatMapMany(hostLmsClient -> getItems(bibRecordId, hostLmsClient, hostLms.getCode()))
-			.map(this::mapToAvailabilityItem)
 			.collectList();
 	}
 
-	private static Flux<org.olf.reshare.dcb.core.interaction.Item> getItems(
+	private static Flux<Item> getItems(
 		String bibRecordId, HostLmsClient hostLmsClient, String hostLmsCode) {
 
 		log.debug("getItems({}, {}, {})", bibRecordId, hostLmsClient, hostLmsCode);
 
 		return hostLmsClient.getItemsByBibId(bibRecordId, hostLmsCode)
 			.flatMapMany(Flux::fromIterable);
-	}
-
-	private Item mapToAvailabilityItem(org.olf.reshare.dcb.core.interaction.Item item) {
-		return new Item(item.getId(), new Status(item.getStatus().getCode(),
-			item.getStatus().getDisplayText(), item.getStatus().getDueDate()),
-			new Location(item.getLocation().getCode(), item.getLocation().getName()),
-			item.getBarcode(), item.getCallNumber(), item.getHostLmsCode());
 	}
 }

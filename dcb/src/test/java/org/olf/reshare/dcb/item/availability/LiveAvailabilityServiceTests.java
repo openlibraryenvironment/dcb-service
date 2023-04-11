@@ -9,18 +9,20 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
-import org.olf.reshare.dcb.core.interaction.Item;
-import org.olf.reshare.dcb.core.interaction.Location;
-import org.olf.reshare.dcb.core.interaction.Status;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.reshare.dcb.core.model.FakeHostLms;
+import org.olf.reshare.dcb.core.model.Item;
+import org.olf.reshare.dcb.core.model.ItemStatus;
+import org.olf.reshare.dcb.core.model.Location;
 
 import reactor.core.publisher.Mono;
 
@@ -31,15 +33,16 @@ public class LiveAvailabilityServiceTests {
 
 	@Test
 	void shouldGetAvailableItemsViaHostLmsService() {
-		final var hostLms = new FakeHostLms(randomUUID(), "hostLmsCode", "Fake Host LMS",
-			SierraLmsClient.class, Map.of());
+		final var hostLms = new FakeHostLms(randomUUID(), "hostLmsCode",
+			"Fake Host LMS", SierraLmsClient.class, Map.of());
 
 		when(hostLmsService.getClientFor(hostLms))
 			.thenAnswer(invocation -> Mono.just(hostLmsClient));
 
-		final var item = new Item("testid",
-			new Status("testCode", "testText", "testDate"),
-			new Location("testLocationCode", "testLocationName"),
+		final var dueDate = ZonedDateTime.now();
+
+		final var item = new Item("testid", new ItemStatus(AVAILABLE), dueDate,
+			Location.builder().code("testLocationCode").name("testLocationName").build(),
 			"testBarcode", "testCallNumber", "hostLmsCode");
 
 		when(hostLmsClient.getItemsByBibId("testBibId", "hostLmsCode"))
@@ -57,13 +60,12 @@ public class LiveAvailabilityServiceTests {
 		assertThat(onlyItem.getBarcode(), is("testBarcode"));
 		assertThat(onlyItem.getCallNumber(), is("testCallNumber"));
 		assertThat(onlyItem.getHostLmsCode(), is("hostLmsCode"));
+		assertThat(onlyItem.getDueDate(), is(dueDate));
 
 		final var status = onlyItem.getStatus();
 
 		assertThat(status, is(notNullValue()));
-		assertThat(status.getCode(), is("testCode"));
-		assertThat(status.getDisplayText(), is("testText"));
-		assertThat(status.getDueDate(), is("testDate"));
+		assertThat(status.getCode(), is(AVAILABLE));
 
 		final var location = onlyItem.getLocation();
 

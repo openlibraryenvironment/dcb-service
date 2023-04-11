@@ -3,10 +3,14 @@ package org.olf.reshare.dcb.core.interaction.sierra;
 import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.reshare.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -16,7 +20,7 @@ import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.mockserver.client.MockServerClient;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
-import org.olf.reshare.dcb.core.interaction.Item;
+import org.olf.reshare.dcb.core.model.Item;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
@@ -73,16 +77,49 @@ class SierraLmsClientTests {
 
 		assertThat(firstItem, is(notNullValue()));
 		assertThat(firstItem.getId(), is("f2010365-e1b1-4a5d-b431-a3c65b5f23fb"));
+		assertThat(firstItem.getHostLmsCode(), is("hostLmsCode"));
+		assertThat(firstItem.getBarcode(), is("9849123490"));
+		assertThat(firstItem.getCallNumber(), is("BL221 .C48"));
+		assertThat(firstItem.getDueDate(), is(ZonedDateTime.parse("2023-04-22T15:55:13Z")));
+
+		assertThat(firstItem.getStatus(), is(notNullValue()));
+		assertThat(firstItem.getStatus().getCode(), is(CHECKED_OUT));
+
+		assertThat(firstItem.getLocation(), is(notNullValue()));
+		assertThat(firstItem.getLocation().getName(), is("King 6th Floor"));
+		assertThat(firstItem.getLocation().getCode(), is("ab6"));
 
 		final var secondItem = items.get(1);
 
 		assertThat(secondItem, is(notNullValue()));
 		assertThat(secondItem.getId(), is("c5bc9cd0-fc23-48be-9d52-647cea8c63ca"));
+		assertThat(secondItem.getHostLmsCode(), is("hostLmsCode"));
+		assertThat(secondItem.getBarcode(), is("30800005315459"));
+		assertThat(secondItem.getCallNumber(), is("HX157 .H8"));
+		assertThat(secondItem.getDueDate(), is(nullValue()));
+
+		assertThat(secondItem.getStatus(), is(notNullValue()));
+		assertThat(secondItem.getStatus().getCode(), is(AVAILABLE));
+
+		assertThat(secondItem.getLocation(), is(notNullValue()));
+		assertThat(secondItem.getLocation().getName(), is("King 7th Floor"));
+		assertThat(secondItem.getLocation().getCode(), is("ab7"));
 
 		final var thirdItem = items.get(2);
 
 		assertThat(thirdItem, is(notNullValue()));
 		assertThat(thirdItem.getId(), is("69415d0a-ace5-49e4-96fd-f63855235bf0"));
+		assertThat(thirdItem.getHostLmsCode(), is("hostLmsCode"));
+		assertThat(thirdItem.getBarcode(), is("30800005208449"));
+		assertThat(thirdItem.getCallNumber(), is("HC336.2 .S74 1969"));
+		assertThat(thirdItem.getDueDate(), is(nullValue()));
+
+		assertThat(thirdItem.getStatus(), is(notNullValue()));
+		assertThat(thirdItem.getStatus().getCode(), is(AVAILABLE));
+
+		assertThat(thirdItem.getLocation(), is(notNullValue()));
+		assertThat(thirdItem.getLocation().getName(), is("King 6th Floor"));
+		assertThat(thirdItem.getLocation().getCode(), is("ab6"));
 	}
 
 	@Test

@@ -16,7 +16,8 @@
 			},
 			"status": {
 				"code": "-",
-				"display": "AVAILABLE"
+				"display": "AVAILABLE",
+				"duedate": "2023-04-22T15:55:13Z"
 			},
 			"volumes": [],
 			"barcode": "9849123490",
