@@ -96,3 +96,21 @@ create table raw_source (
 );
 CREATE INDEX idx_rs_host_lms ON raw_source(host_lms_id);
 CREATE INDEX idx_rs_remote_id ON raw_source(remote_id);
+
+create table patron (
+	id uuid NOT NULL,
+	date_created timestamp,
+	date_updated timestamp,
+	CONSTRAINT patron_pkey PRIMARY KEY (id)
+);
+
+create table patron_identity (
+	id uuid NOT NULL,
+	date_created timestamp,
+	date_updated timestamp,
+	identity_of uuid,
+	on_host_system uuid,
+	local_id varchar(200),
+	CONSTRAINT patron_identity_pkey PRIMARY KEY (id)
+);
+CREATE INDEX idx_pi_patron ON patron_identity(identity_of);
