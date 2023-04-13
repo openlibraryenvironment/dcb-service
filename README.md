@@ -30,7 +30,7 @@ DB connection effectively, 2 different connections - with JDBC only being used f
 | MICRONAUT_HTTP_CLIENT_READ_TIMEOUT | Default HTTP Client Timeout  | PT1M |
 | MICRONAUT_HTTP_CLIENT_MAX_CONTENT_LENGTH | Max content length  | 20971520 |
 | REACTOR_DEBUG | DEVELOPMENT FLAG! set to the string "true" to enable reactor annotated stack trace  | true |
-
+| DCB_SHEDULED_TASKS_ENABLED | perform scheduled tasks | true |
 
 # API Documentation
 
