@@ -136,19 +136,20 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		
 		return current.onErrorMap(throwable -> {
 			// On a 401 we should clear the token before propagating the error.
+			// Sierra returns 404 if a search returns no results ( :explodinghead: ) need to find a way to handle that gracefully
 			if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
-        HttpClientResponseException e = (HttpClientResponseException) throwable;
-        int code = e.getStatus().getCode();
+				HttpClientResponseException e = (HttpClientResponseException) throwable;
+				int code = e.getStatus().getCode();
         
-        switch (code) {
-        	case 401:
-        		log.debug("Clearing token to trigger reauthentication");
-        		this.currentToken = null;
-        		break;
-		default:
-			log.warn("response error {}",e.getStatus().toString());
-        		break;
-        }
+				switch (code) {
+					case 401:
+						log.debug("Clearing token to trigger reauthentication");
+						this.currentToken = null;
+						break;
+					default:
+						log.warn("response error {}",e.getStatus().toString());
+						break;
+				}
 			}
 			return throwable;
 		});
