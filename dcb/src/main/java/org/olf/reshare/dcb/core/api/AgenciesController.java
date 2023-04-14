@@ -87,6 +87,11 @@ public class AgenciesController {
 
 		// Convert AgencyDTO into DataAgency with correctly linked HostLMS
 		DataHostLms lms = Mono.from(hostLmsRepository.findByCode(agency.hostLMSCode())).block();
+
+		if ( lms == null ) {
+			log.error("Unable to locate lms with code {}",agency.hostLMSCode());
+		}
+
                 DataAgency da = new DataAgency(agency.id(),
                                                agency.code(),
                                                agency.name(),
