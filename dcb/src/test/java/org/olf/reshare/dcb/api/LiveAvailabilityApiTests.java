@@ -1,6 +1,7 @@
 package org.olf.reshare.dcb.api;
 
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
+import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -8,9 +9,11 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 
 import io.micronaut.context.annotation.Property;
@@ -24,8 +27,12 @@ import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
+import org.olf.reshare.dcb.test.BibRecordFixture;
+import org.olf.reshare.dcb.test.ClusterRecordFixture;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.UUID;
 
 @MockServerMicronautTest
 @MicronautTest(transactional = false, propertySources = { "classpath:configs/LiveAvailabilityApiTests.yml" }, rebuildContext = true)
@@ -39,6 +46,12 @@ class LiveAvailabilityApiTests {
 	@Inject
 	@Client("/")
 	HttpClient client;
+	@Inject
+	private ClusterRecordFixture clusterRecordFixture;
+	@Inject
+	private BibRecordFixture bibRecordFixture;
+	@Inject
+	private HostLmsService hostLmsService;
 
 	// Properties should line up with included property source for the spec.
 	@Property(name = "hosts.test1.client.base-url")
@@ -56,16 +69,25 @@ class LiveAvailabilityApiTests {
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 
-		sierraItemsAPIFixture.twoItemsResponseForBibId("807f604a-37c2-4c76-86f3-220082ada83f");
+		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
 
-		sierraItemsAPIFixture.zeroItemsResponseForBibId("test");
+		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");
+	}
+
+	@BeforeEach
+	void beforeEach() {
+		bibRecordFixture.deleteAllBibRecords();
+		clusterRecordFixture.deleteAllClusterRecords();
 	}
 
 	@Test
 	void canProvideAListOfAvailableItemsViaLiveAvailabilityApi() {
+		final var clusterRecordId = randomUUID();
+
+		createClusterRecordAndBibRecord(clusterRecordId, "798472");
+
 		final var uri = UriBuilder.of("/items/availability")
-			.queryParam("bibRecordId", "807f604a-37c2-4c76-86f3-220082ada83f")
-			.queryParam("hostLmsCode", "test1")
+			.queryParam("clusteredBibId", clusterRecordId)
 			.build();
 
 		final var availabilityResponse = client.toBlocking()
@@ -77,8 +99,7 @@ class LiveAvailabilityApiTests {
 
 		assertThat(items, is(notNullValue()));
 		assertThat(items.size(), is(2));
-		assertThat(availabilityResponse.getBibRecordId(), is("807f604a-37c2-4c76-86f3-220082ada83f"));
-		assertThat(availabilityResponse.getHostLmsCode(), is("test1"));
+		assertThat(availabilityResponse.getClusteredBibId(), is(clusterRecordId));
 
 		final var firstItem = items.get(0);
 
@@ -121,16 +142,18 @@ class LiveAvailabilityApiTests {
 
 	@Test
 	void reportsNoItemsWhenSierraRespondsWithNoRecordsFoundError() {
+		final var clusterRecordId = randomUUID();
+
+		createClusterRecordAndBibRecord(clusterRecordId,"565382");
+
 		final var uri = UriBuilder.of("/items/availability")
-			.queryParam("bibRecordId", "test")
-			.queryParam("hostLmsCode", "test1")
+			.queryParam("clusteredBibId", clusterRecordId)
 			.build();
 
 		final var availabilityResponse = client.toBlocking()
 			.retrieve(HttpRequest.GET(uri), AvailabilityResponse.class);
 
-		assertThat(availabilityResponse.getBibRecordId(), is("test"));
-		assertThat(availabilityResponse.getHostLmsCode(), is("test1"));
+		assertThat(availabilityResponse.getClusteredBibId(), is(clusterRecordId));
 
 		// Empty lists does not get serialised to JSON
 		assertThat(availabilityResponse.getItemList(), is(nullValue()));
@@ -138,9 +161,16 @@ class LiveAvailabilityApiTests {
 
 	@Test
 	void failsWhenHostLmsCannotBeFound() {
+		final var clusterRecordId = randomUUID();
+		final var sourceSystemId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+
+		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId,
+			"565382", clusterRecord);
+
 		final var uri = UriBuilder.of("/items/availability")
-			.queryParam("bibRecordId", "54354656")
-			.queryParam("hostLmsCode", "unknown-host")
+			.queryParam("clusteredBibId", clusterRecordId)
 			.build();
 
 		// These are separate variables to only have single invocation in assertThrows
@@ -161,6 +191,55 @@ class LiveAvailabilityApiTests {
 
 		final var body = optionalBody.get();
 
-		assertThat(body, is("No Host LMS found for code: unknown-host"));
+		assertThat(body, is("No Host LMS found for ID: " + sourceSystemId));
+	}
+
+	@Test
+	void noBibsInClusteredBibShouldReturnEmptyList() {
+		final var clusterRecordId = randomUUID();
+
+		clusterRecordFixture.createClusterRecord(clusterRecordId);
+
+		final var uri = UriBuilder.of("/items/availability")
+			.queryParam("clusteredBibId", clusterRecordId)
+			.build();
+
+		final var availabilityResponse = client.toBlocking()
+			.retrieve(HttpRequest.GET(uri), AvailabilityResponse.class);
+
+		assertThat(availabilityResponse.getClusteredBibId(), is(clusterRecordId));
+
+		// Empty lists does not get serialised to JSON
+		assertThat(availabilityResponse.getItemList(), is(nullValue()));
+	}
+
+	@Test
+	void nullBibsInClusteredBibShouldReturnEmptyList() {
+		final var clusterRecordId = randomUUID();
+
+		clusterRecordFixture.createClusterRecordNullBibs(clusterRecordId);
+
+		final var uri = UriBuilder.of("/items/availability")
+			.queryParam("clusteredBibId", clusterRecordId)
+			.build();
+
+		final var availabilityResponse = client.toBlocking()
+			.retrieve(HttpRequest.GET(uri), AvailabilityResponse.class);
+
+		assertThat(availabilityResponse.getClusteredBibId(), is(clusterRecordId));
+
+		// Empty lists does not get serialised to JSON
+		assertThat(availabilityResponse.getItemList(), is(nullValue()));
+	}
+
+	private void createClusterRecordAndBibRecord(UUID clusterRecordId, String sourceRecordId) {
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+
+		final var testHostLms = hostLmsService.findByCode("test1").block();
+
+		UUID sourceSystemId = testHostLms.getId();
+
+		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId,
+			sourceRecordId, clusterRecord);
 	}
 }

@@ -4,11 +4,11 @@ import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
 
 import java.util.List;
 
-import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.core.model.Item;
 import org.olf.reshare.dcb.core.model.ItemStatus;
 import org.olf.reshare.dcb.core.model.Location;
 import org.olf.reshare.dcb.item.availability.LiveAvailability;
+import org.olf.reshare.dcb.request.resolution.ClusteredBib;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,11 +20,10 @@ public class FakeLiveAvailabilityService implements LiveAvailability {
 	private static final Logger log = LoggerFactory.getLogger(FakeLiveAvailabilityService.class);
 
 	@Override
-	public Mono<List<Item>> getAvailableItems(String bibRecordId, HostLms hostLms) {
-		log.debug("getAvailableItems({}, {})", bibRecordId, hostLms);
+	public Mono<List<Item>> getAvailableItems(ClusteredBib clusteredBib) {
+		log.debug("getAvailableItems({})", clusteredBib);
 
-		String hostLmsCode = hostLms.getCode();
-		log.debug("getAvailableItems({}, {})", bibRecordId, hostLmsCode);
+		String hostLmsCode = "hostLmsCode";
 
 		return Mono.just(List.of(
 			createFakeItem("FAKE_ID_0", hostLmsCode),

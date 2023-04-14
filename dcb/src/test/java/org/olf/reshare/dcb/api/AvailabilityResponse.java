@@ -1,6 +1,7 @@
 package org.olf.reshare.dcb.api;
 
 import java.util.List;
+import java.util.UUID;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
@@ -12,9 +13,7 @@ public class AvailabilityResponse {
 	@Nullable
 	private final List<Item> itemList;
 	@Nullable
-	private final String bibRecordId;
-	@Nullable
-	private final String hostLmsCode;
+	private final UUID clusteredBibId;
 
 	@Data
 	@Serdeable

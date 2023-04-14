@@ -4,6 +4,7 @@ import static java.util.stream.Collectors.toList;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 
@@ -15,11 +16,10 @@ import lombok.Data;
 @Serdeable
 public class AvailabilityResponseView {
 	private final List<Item> itemList;
-	private final String bibRecordId;
-	private final String hostLmsCode;
+	private final UUID clusteredBibId;
 
 	public static AvailabilityResponseView from(List<org.olf.reshare.dcb.core.model.Item> items,
-		String bibRecordId, String hostLmsCode) {
+		UUID clusteredBibId) {
 
 		final var mappedItems = items.stream()
 			.map(item -> new Item(item.getId(),
@@ -28,7 +28,7 @@ public class AvailabilityResponseView {
 				item.getBarcode(), item.getCallNumber(), item.getHostLmsCode()))
 			.collect(toList());
 
-		return new AvailabilityResponseView(mappedItems, bibRecordId, hostLmsCode);
+		return new AvailabilityResponseView(mappedItems, clusteredBibId);
 	}
 
 	@Data

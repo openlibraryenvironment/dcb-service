@@ -40,19 +40,20 @@ class PatronRequestResolutionServiceTests {
 
 	@Test
 	void shouldResolveToOnlyItemForSingleBibWithSingleAvailableItem() {
-		final var bibClusterId = randomUUID();
-
 		final var item = createFakeItem("78458456", "FAKE_HOST");
 
 		final var hostLms = createHostLms("FAKE_HOST");
 
-		when(clusteredBibFinder.findClusteredBib(bibClusterId))
-			.thenReturn(Mono.just(createClusteredBib(List.of(createFakeBib("65767547", hostLms)))));
+		final var clusteredBib = createClusteredBib(List.of(createFakeBib("65767547", hostLms)));
+		final var clusteredBibId = clusteredBib.getId();
 
-		when(liveAvailability.getAvailableItems("65767547", hostLms))
+		when(clusteredBibFinder.findClusteredBib(clusteredBibId))
+			.thenReturn(Mono.just(clusteredBib));
+
+		when(liveAvailability.getAvailableItems(clusteredBib))
 			.thenReturn(Mono.just(List.of(item)));
 
-		final var patronRequest = createPatronRequest(bibClusterId);
+		final var patronRequest = createPatronRequest(clusteredBibId);
 
 		final var resolution = resolve(patronRequest);
 
@@ -73,7 +74,6 @@ class PatronRequestResolutionServiceTests {
 
 	@Test
 	void shouldResolveToFirstItemForSingleBibWithMultipleItems() {
-		final var bibClusterId = randomUUID();
 
 		final var item1 = createFakeItem("23721346", "FAKE_HOST", AVAILABLE);
 		final var item2 = createFakeItem("54737664", "FAKE_HOST", AVAILABLE);
@@ -81,13 +81,16 @@ class PatronRequestResolutionServiceTests {
 
 		final var hostLms = createHostLms("FAKE_HOST");
 
-		when(clusteredBibFinder.findClusteredBib(bibClusterId))
-			.thenReturn(Mono.just(createClusteredBib(List.of(createFakeBib("657476765", hostLms)))));
+		final var clusteredBib = createClusteredBib(List.of(createFakeBib("65767547", hostLms)));
+		final var clusteredBibId = clusteredBib.getId();
 
-		when(liveAvailability.getAvailableItems("657476765", hostLms))
+		when(clusteredBibFinder.findClusteredBib(clusteredBibId))
+			.thenReturn(Mono.just(clusteredBib));
+
+		when(liveAvailability.getAvailableItems(clusteredBib))
 			.thenReturn(Mono.just(List.of(item1, item2, item3)));
 
-		final var patronRequest = createPatronRequest(bibClusterId);
+		final var patronRequest = createPatronRequest(clusteredBibId);
 
 		final var resolution = resolve(patronRequest);
 
@@ -108,7 +111,6 @@ class PatronRequestResolutionServiceTests {
 
 	@Test
 	void shouldResolveToFirstAvailableItemForSingleBibWithMultipleItems() {
-		final var bibClusterId = randomUUID();
 
 		final var unavailableItem = createFakeItem("23721346", "FAKE_HOST", UNAVAILABLE);
 		final var unknownStatusItem = createFakeItem("54737664", "FAKE_HOST", UNKNOWN);
@@ -118,14 +120,17 @@ class PatronRequestResolutionServiceTests {
 
 		final var hostLms = createHostLms("FAKE_HOST");
 
-		when(clusteredBibFinder.findClusteredBib(bibClusterId))
-			.thenReturn(Mono.just(createClusteredBib(List.of(createFakeBib("657476765", hostLms)))));
+		final var clusteredBib = createClusteredBib(List.of(createFakeBib("65767547", hostLms)));
+		final var clusteredBibId = clusteredBib.getId();
 
-		when(liveAvailability.getAvailableItems("657476765", hostLms))
+		when(clusteredBibFinder.findClusteredBib( clusteredBibId ))
+			.thenReturn(Mono.just(clusteredBib));
+
+		when(liveAvailability.getAvailableItems( clusteredBib ))
 			.thenReturn(Mono.just(List.of(unavailableItem, unknownStatusItem, checkedOutItem,
 				firstAvailableItem, secondAvailableItem)));
 
-		final var patronRequest = createPatronRequest(bibClusterId);
+		final var patronRequest = createPatronRequest( clusteredBibId );
 
 		final var resolution = resolve(patronRequest);
 
@@ -146,7 +151,6 @@ class PatronRequestResolutionServiceTests {
 
 	@Test
 	void shouldResolveToFirstAvailableItemForMultipleBibsEachWithDifferentNumberOfItems() {
-		final var bibClusterId = randomUUID();
 
 		final var item1 = createFakeItem("23721346", "FOO_HOST");
 		final var item2 = createFakeItem("54737664", "BAR_HOST");
@@ -156,22 +160,26 @@ class PatronRequestResolutionServiceTests {
 		final var fooHost = createHostLms("FOO_HOST");
 		final var shoeHost = createHostLms("SHOE_HOST");
 
-		when(clusteredBibFinder.findClusteredBib(bibClusterId))
-			.thenReturn(Mono.just(createClusteredBib(List.of(
-				createFakeBib("656845864", barHost),
-				createFakeBib("454973743", fooHost),
-				createFakeBib("293372649", shoeHost)))));
+		final var clusteredBib = createClusteredBib(List.of(
+			createFakeBib("656845864", barHost),
+			createFakeBib("454973743", fooHost),
+			createFakeBib("293372649", shoeHost)));
 
-		when(liveAvailability.getAvailableItems("656845864", barHost))
+		final var clusteredBibId = clusteredBib.getId();
+
+		when(clusteredBibFinder.findClusteredBib( clusteredBibId ))
+			.thenReturn(Mono.just(clusteredBib));
+
+		when(liveAvailability.getAvailableItems( clusteredBib ))
 			.thenReturn(Mono.just(List.of(item2)));
 
-		when(liveAvailability.getAvailableItems("454973743", fooHost))
+		when(liveAvailability.getAvailableItems( clusteredBib ))
 			.thenReturn(Mono.just(List.of()));
 
-		when(liveAvailability.getAvailableItems("293372649", shoeHost))
-			.thenReturn(Mono.just(List.of(item3, item1)));
+		when(liveAvailability.getAvailableItems( clusteredBib ))
+			.thenReturn(Mono.just(List.of(item1, item3)));
 
-		final var patronRequest = createPatronRequest(bibClusterId);
+		final var patronRequest = createPatronRequest( clusteredBibId );
 
 		final var resolution = resolve(patronRequest);
 
@@ -182,8 +190,8 @@ class PatronRequestResolutionServiceTests {
 		final var supplierRequest = resolution.getOptionalSupplierRequest().get();
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequest.getItemId(), is("54737664"));
-		assertThat(supplierRequest.getHostLmsCode(), is("BAR_HOST"));
+		assertThat(supplierRequest.getItemId(), is("23721346"));
+		assertThat(supplierRequest.getHostLmsCode(), is("FOO_HOST"));
 
 		// check patron request has the expected status
 		assertThat(resolution.getPatronRequest(), is(notNullValue()));
@@ -206,7 +214,7 @@ class PatronRequestResolutionServiceTests {
 		when(clusteredBibFinder.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
 
-		when(liveAvailability.getAvailableItems("56547675", hostLms))
+		when(liveAvailability.getAvailableItems(clusteredBib))
 			.thenReturn(Mono.just(List.of(unavailableItem, unknownStatusItem, checkedOutItem)));
 
 		final var patronRequest = createPatronRequest(bibClusterId);
@@ -232,7 +240,7 @@ class PatronRequestResolutionServiceTests {
 		when(clusteredBibFinder.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
 
-		when(liveAvailability.getAvailableItems("56547675", hostLms))
+		when(liveAvailability.getAvailableItems(clusteredBib))
 			.thenReturn(Mono.just(List.of()));
 
 		final var patronRequest = createPatronRequest(bibClusterId);
@@ -258,8 +266,8 @@ class PatronRequestResolutionServiceTests {
 		when(clusteredBibFinder.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
 
-		when(liveAvailability.getAvailableItems("37436728", hostLms))
-			.thenReturn(Mono.empty());
+		when(liveAvailability.getAvailableItems(clusteredBib))
+			.thenReturn(Mono.just(List.of()));
 
 		final var patronRequest = createPatronRequest(bibClusterId);
 
