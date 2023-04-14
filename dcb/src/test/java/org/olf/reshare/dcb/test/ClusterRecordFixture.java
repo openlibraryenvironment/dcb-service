@@ -26,6 +26,12 @@ public class ClusterRecordFixture {
 			.block();
 	}
 
+	public ClusterRecord createClusterRecordNullBibs(UUID clusterRecordId) {
+		return Mono.from(clusterRecordRepository.save(new ClusterRecord(clusterRecordId,
+				now(), now(), "Brain of the Firm", null)))
+			.block();
+	}
+
 	public void deleteAllClusterRecords() {
 		dataAccess.deleteAll(clusterRecordRepository.findAll(),
 			clusterRecord -> clusterRecordRepository.delete(clusterRecord.getId()));

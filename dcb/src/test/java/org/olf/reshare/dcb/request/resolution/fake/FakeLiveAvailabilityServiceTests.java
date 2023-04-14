@@ -7,25 +7,21 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
 
-import java.util.Map;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
-import org.olf.reshare.dcb.core.model.FakeHostLms;
+import org.olf.reshare.dcb.request.resolution.ClusteredBib;
 
 public class FakeLiveAvailabilityServiceTests {
 	@Test
 	void shouldAlwaysReturnListOfItems() {
 		final var fakeLiveAvailabilityService = new FakeLiveAvailabilityService();
 
-		final var bibRecordId = randomUUID().toString();
-		final var hostLmsCode = "hostLmsCode";
-
-		final var hostLms = new FakeHostLms(randomUUID(), hostLmsCode, "Fake Host LMS",
-			SierraLmsClient.class, Map.of());
+		final var clusteredBib =
+			new ClusteredBib(randomUUID(), "title", List.of());
 
 		final var items = fakeLiveAvailabilityService
-			.getAvailableItems(bibRecordId, hostLms).block();
+			.getAvailableItems(clusteredBib).block();
 
 		assertThat(items, is(notNullValue()));
 		assertThat(items.size(), is(3));

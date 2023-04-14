@@ -4,9 +4,11 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 import javax.validation.constraints.NotNull;
 
-import org.olf.reshare.dcb.core.HostLmsService;
+import org.olf.reshare.dcb.core.model.Item;
 import org.olf.reshare.dcb.item.availability.AvailabilityResponseView;
 import org.olf.reshare.dcb.item.availability.LiveAvailabilityService;
+import org.olf.reshare.dcb.request.resolution.ClusteredBib;
+import org.olf.reshare.dcb.request.resolution.SharedIndexService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +23,10 @@ import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+
 @Validated
 @Secured(SecurityRule.IS_ANONYMOUS)
 @Controller
@@ -29,26 +35,34 @@ public class LiveAvailabilityController {
 	private static final Logger log = LoggerFactory.getLogger(LiveAvailabilityController.class);
 
 	private final LiveAvailabilityService liveAvailabilityService;
-	private final HostLmsService hostLmsService;
+	private final SharedIndexService sharedIndexService;
 
 	public LiveAvailabilityController(LiveAvailabilityService liveAvailabilityService,
-		HostLmsService hostLmsService) {
-
+		SharedIndexService sharedIndexService) {
 		this.liveAvailabilityService = liveAvailabilityService;
-		this.hostLmsService = hostLmsService;
+		this.sharedIndexService = sharedIndexService;
 	}
 
 	@SingleResult
 	@Get(value = "/items/availability", produces = APPLICATION_JSON)
 	public Mono<HttpResponse<AvailabilityResponseView>> getLiveAvailability(
-		@NotNull @QueryValue("bibRecordId") final String bibRecordId,
-		@NotNull @QueryValue("hostLmsCode") final String hostLmsCode) {
+		@NotNull @QueryValue("clusteredBibId") final UUID clusteredBibId) {
 
-		log.debug("REST, getLiveAvailability: {}, {}", bibRecordId, hostLmsCode);
+		log.debug("REST, getLiveAvailability: {}", clusteredBibId);
 
-		return hostLmsService.findByCode(hostLmsCode)
-			.flatMap(hostLms -> liveAvailabilityService.getAvailableItems(bibRecordId, hostLms))
-			.map(items -> AvailabilityResponseView.from(items, bibRecordId, hostLmsCode))
+		return sharedIndexService.findClusteredBib(clusteredBibId)
+			.flatMap(this::getAvailableItemsOrEmptyList)
+			.map(items -> AvailabilityResponseView.from(items, clusteredBibId))
 			.map(HttpResponse::ok);
+	}
+
+	private Mono<List<Item>> getAvailableItemsOrEmptyList(ClusteredBib clusteredBib) {
+
+		log.debug("getAvailableItemsOrEmptyList: {}", clusteredBib);
+
+		return Mono.just(clusteredBib)
+			// don't call service if bibs empty
+			.flatMap(clusteredRecord -> clusteredRecord.getBibs().isEmpty() ?
+				Mono.just(Collections.emptyList()) : liveAvailabilityService.getAvailableItems(clusteredRecord));
 	}
 }

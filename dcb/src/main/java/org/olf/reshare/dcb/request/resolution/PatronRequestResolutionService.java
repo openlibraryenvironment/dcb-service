@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Singleton
@@ -79,23 +78,7 @@ public class PatronRequestResolutionService {
 	private Mono<List<Item>> getItems(ClusteredBib clusteredBib) {
 		log.debug("getAvailableItems({})", clusteredBib);
 
-		return Mono.just(clusteredBib)
-			// get list of bibs from clustered bib
-			.map(ClusteredBib::getBibs)
-			.flatMapMany(Flux::fromIterable)
-			// from each bib get list of items
-			.flatMap(this::getItems)
-			// merge list of bibs of list of items into 1 list of items
-			.flatMap(Flux::fromIterable)
-			// get list of bibs from clustered bib
-			.collectList();
-	}
-
-	private Mono<List<Item>> getItems(Bib bib) {
-		log.debug("getItems({})", bib);
-
-		return liveAvailabilityService
-			.getAvailableItems(bib.getBibRecordId(), bib.getHostLms());
+		return liveAvailabilityService.getAvailableItems(clusteredBib);
 	}
 
 	private Item chooseFirstAvailableItem(List<Item> items, UUID clusterRecordId) {

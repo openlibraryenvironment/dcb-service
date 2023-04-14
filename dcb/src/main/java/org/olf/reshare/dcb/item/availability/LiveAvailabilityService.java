@@ -4,8 +4,9 @@ import java.util.List;
 
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
-import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.core.model.Item;
+import org.olf.reshare.dcb.request.resolution.Bib;
+import org.olf.reshare.dcb.request.resolution.ClusteredBib;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,17 +25,45 @@ public class LiveAvailabilityService implements LiveAvailability {
 	}
 
 	@Override
-	public Mono<List<Item>> getAvailableItems(String bibRecordId, HostLms hostLms) {
-		log.debug("getAvailableItems({}, {})", bibRecordId, hostLms);
+	public Mono<List<Item>> getAvailableItems(ClusteredBib clusteredBib) {
+		log.debug("getAvailableItems({})", clusteredBib);
 
-		if (hostLms == null) {
+		return Mono.just(clusteredBib)
+			.flatMapMany(this::getBibs)
+			.flatMap(this::getBibItemsByHostLms)
+			// merge lists
+			.flatMap(Flux::fromIterable)
+			.collectList();
+	}
+
+	private Flux<Bib> getBibs(ClusteredBib clusteredBib) {
+
+		log.debug("getBibs: {}", clusteredBib);
+
+		if (clusteredBib.getBibs() == null) {
+			log.error("Bibs cannot be null when asking for available items");
+
+			return Flux.error(new IllegalArgumentException("Bibs cannot be null"));
+		}
+
+		return Mono.just(clusteredBib)
+			// get list of bibs
+			.map(ClusteredBib::getBibs)
+			.flatMapMany(Flux::fromIterable);
+	}
+
+	public Mono<List<Item>> getBibItemsByHostLms(Bib bib) {
+
+		log.debug("getBibItemsByHostLms({}, {})", bib.getBibRecordId(), bib.getHostLms());
+
+		if (bib.getHostLms() == null) {
 			log.error("hostLMS cannot be null when asking for available items");
 
 			return Mono.error(new IllegalArgumentException("hostLMS cannot be null"));
 		}
 
-		return hostLmsService.getClientFor(hostLms)
-			.flatMapMany(hostLmsClient -> getItems(bibRecordId, hostLmsClient, hostLms.getCode()))
+		return hostLmsService.getClientFor(bib.getHostLms())
+			.flatMapMany(hostLmsClient -> getItems(bib.getBibRecordId(), hostLmsClient, bib.getHostLms().getCode()))
 			.collectList();
 	}
 
