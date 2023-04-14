@@ -114,3 +114,17 @@ create table patron_identity (
 	CONSTRAINT patron_identity_pkey PRIMARY KEY (id)
 );
 CREATE INDEX idx_pi_patron ON patron_identity(identity_of);
+
+
+create table shelving_location (
+        id uuid NOT NULL,
+        date_created timestamp,
+        date_updated timestamp,
+        code varchar(64),
+        name varchar(64),
+        host_system uuid,
+        agency uuid,
+        CONSTRAINT shelving_location_pk PRIMARY KEY (id)
+);
+CREATE INDEX idx_sl_host_system ON shelving_location(host_system);
+CREATE INDEX idx_sl_agency ON shelving_location(agency);
