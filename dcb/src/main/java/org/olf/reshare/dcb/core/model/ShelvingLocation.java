@@ -20,7 +20,15 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
+@Data
+@Serdeable
+@ExcludeFromGeneratedCoverageReport
+@MappedEntity(value = "agency")
+@NoArgsConstructor(onConstructor_ = @Creator())
+@AllArgsConstructor
+@Builder
 public class ShelvingLocation {
 
         @NonNull
@@ -51,4 +59,13 @@ public class ShelvingLocation {
 	@Nullable
         @Relation(value = Relation.Kind.MANY_TO_ONE)
         private DataAgency agency;
+
+	/**
+	 * Specify a loan policy for this shelvingLocation - null means no specific policy
+	 * "LOANABLE" - items from this shelving location can be loaned as a general rule - a positive assertion
+	 * "REFERENCE" - a reference only collection which cannot be loaned - a negative assertion
+	 * "
+	 */
+	@Nullable
+	private String loanPolicy;
 }
