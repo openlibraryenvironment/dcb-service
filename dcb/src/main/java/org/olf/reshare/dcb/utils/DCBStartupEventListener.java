@@ -58,14 +58,15 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		// Enumerate any host LMS entries and create corresponding DB entries
 		for ( HostLms hostLms : confHosts ) {
 			log.debug("make sure {} exists in DB",hostLms.getId());
-			DataHostLms db_representation = new DataHostLms()
-								.builder()
-								.id(hostLms.getId())
-								.code(hostLms.getCode())
-								.name(hostLms.getName())
-								.lmsClientClass(hostLms.getType().getClass().getName())
-								.clientConfig(hostLms.getClientConfig())
-								.build();
+			// DataHostLms db_representation = new DataHostLms()
+			// 					.builder()
+			// 					.id(hostLms.getId())
+			// 					.code(hostLms.getCode())
+			// 					.name(hostLms.getName())
+			// 					.lmsClientClass(hostLms.getType().getClass().getName())
+			// 					.clientConfig(hostLms.getClientConfig())
+			// 					.build();
+			// upsertHostLms(db_representation).subscribe( i -> log.info("Saved hostlms {}",i.getId()) );
 		} 
 
 		log.info("Exit onApplicationEvent");
