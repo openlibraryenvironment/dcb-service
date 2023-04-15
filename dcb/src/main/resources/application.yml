@@ -14,6 +14,9 @@ micronaut:
       redoc:
         paths: classpath:META-INF/swagger/views/redoc
         mapping: /openapi/redoc/**
+  data:
+    pageable:
+      max-page-size: 1000
 
   security:
     authentication: idtoken
@@ -112,5 +115,4 @@ netty:
 
 jackson:
   date-format: "yyyy-MM-dd'T'HH:mm:ssZ"
-
 
