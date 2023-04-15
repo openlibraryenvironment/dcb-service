@@ -112,6 +112,8 @@ dependencies {
 	testImplementation(platform("org.testcontainers:testcontainers-bom"))
 	
 	testRuntimeOnly("org.testcontainers:postgresql")
+
+	implementation("io.micronaut.graphql:micronaut-graphql")
 }
 
 //configurations.all {

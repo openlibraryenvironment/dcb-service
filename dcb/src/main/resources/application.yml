@@ -30,6 +30,12 @@ micronaut:
       - pattern: "/openapi/**"
         access:
           - isAnonymous()
+      - pattern: "/graphiql/**"
+        access:
+          - isAnonymous()
+      - pattern: "/graphql/**"
+        access:
+          - isAnonymous()
   http:
     client:
       read-timeout: PT1M
@@ -115,4 +121,13 @@ netty:
 
 jackson:
   date-format: "yyyy-MM-dd'T'HH:mm:ssZ"
+
+
+
+
+graphql:
+  enabled: true
+  graphiql: # enables the /graphiql endpoint to test calls against your graph.
+    enabled: true
+
 
