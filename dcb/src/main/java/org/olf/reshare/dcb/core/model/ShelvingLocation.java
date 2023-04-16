@@ -37,7 +37,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Data
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
-@MappedEntity(value = "agency")
+@MappedEntity
 @NoArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
 @Builder
