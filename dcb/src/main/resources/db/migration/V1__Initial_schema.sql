@@ -124,6 +124,7 @@ create table shelving_location (
         name varchar(64),
         host_system uuid,
         agency uuid,
+	loan_policy varchar(32),
         CONSTRAINT shelving_location_pk PRIMARY KEY (id)
 );
 CREATE INDEX idx_sl_host_system ON shelving_location(host_system);

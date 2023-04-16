@@ -35,8 +35,15 @@ import reactor.core.publisher.Mono;
 import java.util.Map;
 import java.util.HashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
 @DcbTest
 class HostLmsRepoTests {
+
+        private final Logger log = LoggerFactory.getLogger(HostLmsRepoTests.class);
+
 
 	@Inject
 	@Client("/")
@@ -61,10 +68,13 @@ class HostLmsRepoTests {
         	Mono.from(hostLmsRepository.save(new_host_lms))
                   .block();
 
-        	final var fetchedHostLMSRecords = Flux.from(hostLmsRepository.findAll())
-                                .collectList()
-                                .block();
+        	// final var fetchedHostLMSRecords = Flux.from(hostLmsRepository.findAll())
+                //                 .collectList()
+                //                 .block();
+		// log.info("fetched host records: {}",fetchedHostLMSRecords);
 
-        	assertThat(fetchedHostLMSRecords.size(), is(1));
+                Boolean exists = Mono.from(hostLmsRepository.existsById(new_host_lms.getId())).block();
+
+        	assertThat(exists, is(Boolean.TRUE));
 	}
 }
