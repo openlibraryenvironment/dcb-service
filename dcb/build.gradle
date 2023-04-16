@@ -113,7 +113,7 @@ dependencies {
 	
 	testRuntimeOnly("org.testcontainers:postgresql")
 
-	implementation("io.micronaut.graphql:micronaut-graphql")
+	implementation("io.micronaut.graphql:micronaut-graphql:3.2.0")
 }
 
 //configurations.all {

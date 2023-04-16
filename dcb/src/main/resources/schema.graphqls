@@ -1,9 +1,3 @@
 type Query {
     hello(name: String): String!
-    agencies: [Agency!]!
-}
-
-type Agency {
-    id: ID!
-    name: String!
 }
