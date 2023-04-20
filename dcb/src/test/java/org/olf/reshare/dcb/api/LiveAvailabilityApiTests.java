@@ -114,6 +114,8 @@ class LiveAvailabilityApiTests {
 		assertThat(firstItemStatus, is(notNullValue()));
 		assertThat(firstItemStatus.getCode(), is("CHECKED_OUT"));
 
+		assertThat(firstItem.getIsRequestable(), is(false));
+
 		final var firstItemLocation = firstItem.getLocation();
 
 		assertThat(firstItemLocation, is(notNullValue()));
@@ -132,6 +134,8 @@ class LiveAvailabilityApiTests {
 
 		assertThat(secondItemStatus, is(notNullValue()));
 		assertThat(secondItemStatus.getCode(), is("AVAILABLE"));
+
+		assertThat(secondItem.getIsRequestable(), is(true));
 
 		final var secondItemLocation = secondItem.getLocation();
 

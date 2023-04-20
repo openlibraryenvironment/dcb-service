@@ -27,9 +27,10 @@ public class LiveAvailabilityServiceTests {
 	private final HostLmsService hostLmsService = mock(HostLmsService.class);
 	private final SharedIndexService sharedIndexService = mock(SharedIndexService.class);
 	private final HostLmsClient hostLmsClient = mock(HostLmsClient.class);
+	private final RequestableItemService requestableItemService = mock(RequestableItemService.class);
 
 	private final LiveAvailabilityService liveAvailabilityService =
-		new LiveAvailabilityService(hostLmsService);
+		new LiveAvailabilityService(hostLmsService, requestableItemService);
 
 	@Test
 	void shouldGetAvailableItemsViaHostLmsService() {
@@ -51,10 +52,15 @@ public class LiveAvailabilityServiceTests {
 
 		final var item = new Item("testid", new ItemStatus(AVAILABLE), dueDate,
 			Location.builder().code("testLocationCode").name("testLocationName").build(),
-			"testBarcode", "testCallNumber", "hostLmsCode");
+			"testBarcode", "testCallNumber", "hostLmsCode", true);
+
+		final var listOfItems = List.of(item);
 
 		when(hostLmsClient.getItemsByBibId("bibRecordId", "hostLmsCode"))
-			.thenAnswer(invocation -> Mono.just(List.of(item)));
+			.thenAnswer(invocation -> Mono.just(listOfItems));
+
+		when(requestableItemService.determineRequestable(List.of(item)))
+			.thenAnswer(invocation -> listOfItems);
 
 		final var items = liveAvailabilityService
 			.getAvailableItems(clusterRecord).block();

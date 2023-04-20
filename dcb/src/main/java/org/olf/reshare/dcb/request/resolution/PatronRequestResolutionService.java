@@ -40,10 +40,10 @@ public class PatronRequestResolutionService {
 		return findClusterRecord(clusterRecordId)
 			.map(this::validateClusteredBib)
 			.flatMap(this::getItems)
-			.map(items -> chooseFirstAvailableItem(items, clusterRecordId))
+			.map(items -> chooseFirstRequestableItem(items, clusterRecordId))
 			.map(item -> mapToSupplierRequest(item, patronRequest))
 			.map(PatronRequestResolutionService::mapToResolution)
-			.onErrorReturn(NoItemsAvailableAtAnyAgency.class,
+			.onErrorReturn(NoItemsRequestableAtAnyAgency.class,
 				resolveToNoItemsAvailable(patronRequest));
 	}
 
@@ -81,16 +81,13 @@ public class PatronRequestResolutionService {
 		return liveAvailabilityService.getAvailableItems(clusteredBib);
 	}
 
-	private Item chooseFirstAvailableItem(List<Item> items, UUID clusterRecordId) {
-		final var NO_AVAILABLE_ITEMS_MESSAGE
-			= "No available items could be found for cluster record: " + clusterRecordId;
-
-		log.debug("chooseFirstItem({})", items);
+	private Item chooseFirstRequestableItem(List<Item> items, UUID clusterRecordId) {
+		log.debug("chooseFirstRequestableItem({})", items);
 
 		return items.stream()
-			.filter(Item::isAvailable)
+			.filter(Item::getIsRequestable)
 			.findFirst()
-			.orElseThrow(() -> new NoItemsAvailableAtAnyAgency(NO_AVAILABLE_ITEMS_MESSAGE));
+			.orElseThrow(() -> new NoItemsRequestableAtAnyAgency(clusterRecordId));
 	}
 
 	private static SupplierRequest mapToSupplierRequest(Item item,

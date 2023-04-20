@@ -14,14 +14,17 @@ import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+
 @Singleton
 public class LiveAvailabilityService implements LiveAvailability {
 	private static final Logger log = LoggerFactory.getLogger(LiveAvailabilityService.class);
-
 	private final HostLmsService hostLmsService;
+	private final RequestableItemService requestableItemService;
 
-	public LiveAvailabilityService(HostLmsService hostLmsService) {
+	public LiveAvailabilityService(HostLmsService hostLmsService,
+		RequestableItemService requestableItemService) {
 		this.hostLmsService = hostLmsService;
+		this.requestableItemService = requestableItemService;
 	}
 
 	@Override
@@ -31,6 +34,7 @@ public class LiveAvailabilityService implements LiveAvailability {
 		return Mono.just(clusteredBib)
 			.flatMapMany(this::getBibs)
 			.flatMap(this::getBibItemsByHostLms)
+			.map(requestableItemService::determineRequestable)
 			// merge lists
 			.flatMap(Flux::fromIterable)
 			.collectList();
@@ -67,7 +71,7 @@ public class LiveAvailabilityService implements LiveAvailability {
 			.collectList();
 	}
 
-	private static Flux<Item> getItems(
+	private Flux<Item> getItems(
 		String bibRecordId, HostLmsClient hostLmsClient, String hostLmsCode) {
 
 		log.debug("getItems({}, {}, {})", bibRecordId, hostLmsClient, hostLmsCode);

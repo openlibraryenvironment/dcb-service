@@ -157,7 +157,7 @@ class PatronRequestApiTests {
 	}
 
 	@Test
-	void cannotFulfilPatronRequestNoAvailableItemsAreFound() {
+	void cannotFulfilPatronRequestWhenNoRequestableItemsAreFound() {
 		final var clusterRecordId = randomUUID();
 
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
