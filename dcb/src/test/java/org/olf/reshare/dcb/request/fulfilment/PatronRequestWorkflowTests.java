@@ -1,10 +1,7 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 import java.time.Duration;
@@ -18,32 +15,57 @@ import reactor.core.publisher.Mono;
 
 public class PatronRequestWorkflowTests {
 	@Test
-	void shouldAttemptTransitionAsynchronously() {
+	void shouldAttemptTransitionAsynchronouslyWhenStatusSubmittedToDcb() {
 		final var transition = mock(PatronRequestResolutionStateTransition.class);
 		final var backgroundExecutor = mock(BackgroundExecutor.class);
 
-		final var patronRequest = createPatronRequest();
+		final var patronRequest = createPatronRequestWithStatus(SUBMITTED_TO_DCB);
 
 		final var monoFromTransition = Mono.empty().then();
 
-		when(transition.attempt(any())).thenReturn(monoFromTransition);
+		when(transition.attempt(patronRequest)).thenReturn(monoFromTransition);
 
-		final var stateTransitionDelay = Duration.ofSeconds(5);
+		final var stateTransitionDelay = Duration.ofSeconds(1);
 
 		final var requestWorkflow = new PatronRequestWorkflow(transition,
 			backgroundExecutor, stateTransitionDelay);
 
 		requestWorkflow.initiate(patronRequest);
 		
-		verify(transition).attempt(any());
+		verify(transition).attempt(patronRequest);
 
 		verify(backgroundExecutor)
 			.executeAsynchronously(eq(monoFromTransition), eq(stateTransitionDelay));
 	}
 
-	private static PatronRequest createPatronRequest() {
+	@Test
+	void shouldNotAttemptTransitionWhenUnrecognisedStatus() {
+		final var transition = mock(PatronRequestResolutionStateTransition.class);
+		final var backgroundExecutor = mock(BackgroundExecutor.class);
+		final var UNRECOGNISED_STATUS = "UNRECOGNISED_STATUS";
+
+		final var patronRequest = createPatronRequestWithStatus(UNRECOGNISED_STATUS);
+
+		final var monoFromTransition = Mono.empty().then();
+
+		when(transition.attempt(patronRequest)).thenReturn(monoFromTransition);
+
+		final var stateTransitionDelay = Duration.ofSeconds(0);
+
+		final var requestWorkflow = new PatronRequestWorkflow(transition,
+			backgroundExecutor, stateTransitionDelay);
+
+		requestWorkflow.initiate(patronRequest);
+
+		verify(transition, times(0)).attempt(patronRequest);
+
+		verify(backgroundExecutor, times(0))
+			.executeAsynchronously(eq(monoFromTransition), eq(stateTransitionDelay));
+	}
+
+	private static PatronRequest createPatronRequestWithStatus(String status) {
 		return new PatronRequest(UUID.randomUUID(), null, null,
 			"patronId", "patronAgencyCode",
-			UUID.randomUUID(), "pickupLocationCode", SUBMITTED_TO_DCB);
+			UUID.randomUUID(), "pickupLocationCode", status);
 	}
 }

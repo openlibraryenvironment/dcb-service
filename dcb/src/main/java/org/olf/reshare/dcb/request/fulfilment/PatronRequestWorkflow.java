@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
 
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
+
 @Singleton
 public class PatronRequestWorkflow {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestWorkflow.class);
@@ -37,7 +39,14 @@ public class PatronRequestWorkflow {
 
 	public void initiate(PatronRequest patronRequest) {
 		log.debug("initializeRequestWorkflow({})", patronRequest);
+		String status = patronRequest.getStatusCode();
+		switch (status) {
+			case SUBMITTED_TO_DCB -> resolvePatronRequestTransition(patronRequest);
+			default -> log.debug("Cannot make transition with status: " + status);
+		};
+	}
 
+	private void resolvePatronRequestTransition(PatronRequest patronRequest){
 		backgroundExecutor.executeAsynchronously(
 			patronRequestResolutionStateTransition.attempt(patronRequest),
 			stateTransitionDelay);
