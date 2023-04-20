@@ -1,3 +1,14 @@
+dcb:
+  requestability:
+    location:
+      filtering: true
+      codes:
+        allowed:
+        - ABC123
+        - RGX12
+        - ab6
+        - ab7
+
 hosts:
   test1:
     type: org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient

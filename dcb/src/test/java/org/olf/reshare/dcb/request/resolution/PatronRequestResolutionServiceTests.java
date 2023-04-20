@@ -39,7 +39,7 @@ class PatronRequestResolutionServiceTests {
 		= new PatronRequestResolutionService(clusteredBibFinder, liveAvailability);
 
 	@Test
-	void shouldResolveToOnlyItemForSingleBibWithSingleAvailableItem() {
+	void shouldResolveToOnlyItemForSingleBibWithSingleRequestableItem() {
 		final var item = createFakeItem("78458456", "FAKE_HOST");
 
 		final var hostLms = createHostLms("FAKE_HOST");
@@ -75,9 +75,9 @@ class PatronRequestResolutionServiceTests {
 	@Test
 	void shouldResolveToFirstItemForSingleBibWithMultipleItems() {
 
-		final var item1 = createFakeItem("23721346", "FAKE_HOST", AVAILABLE);
-		final var item2 = createFakeItem("54737664", "FAKE_HOST", AVAILABLE);
-		final var item3 = createFakeItem("28375763", "FAKE_HOST", AVAILABLE);
+		final var item1 = createFakeItem("23721346", "FAKE_HOST", AVAILABLE, true);
+		final var item2 = createFakeItem("54737664", "FAKE_HOST", AVAILABLE, true);
+		final var item3 = createFakeItem("28375763", "FAKE_HOST", AVAILABLE, true);
 
 		final var hostLms = createHostLms("FAKE_HOST");
 
@@ -110,13 +110,14 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	@Test
-	void shouldResolveToFirstAvailableItemForSingleBibWithMultipleItems() {
+	void shouldResolveToFirstRequestableItemForSingleBibWithMultipleItems() {
 
-		final var unavailableItem = createFakeItem("23721346", "FAKE_HOST", UNAVAILABLE);
-		final var unknownStatusItem = createFakeItem("54737664", "FAKE_HOST", UNKNOWN);
-		final var checkedOutItem = createFakeItem("28375763", "FAKE_HOST", CHECKED_OUT);
-		final var firstAvailableItem = createFakeItem("47463572", "FAKE_HOST", AVAILABLE);
-		final var secondAvailableItem = createFakeItem("97848745", "FAKE_HOST", AVAILABLE);
+		final var unavailableItem = createFakeItem("23721346", "FAKE_HOST", UNAVAILABLE, false);
+		final var unknownStatusItem = createFakeItem("54737664", "FAKE_HOST", UNKNOWN, false);
+		final var checkedOutItem = createFakeItem("28375763", "FAKE_HOST", CHECKED_OUT, false);
+		final var firstAvailableItem = createFakeItem("47463572", "FAKE_HOST", AVAILABLE, true);
+		final var secondAvailableItem = createFakeItem("97848745", "FAKE_HOST", AVAILABLE, true);
+
 
 		final var hostLms = createHostLms("FAKE_HOST");
 
@@ -150,7 +151,7 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	@Test
-	void shouldResolveToFirstAvailableItemForMultipleBibsEachWithDifferentNumberOfItems() {
+	void shouldResolveToFirstRequestableItemForMultipleBibsEachWithDifferentNumberOfItems() {
 
 		final var item1 = createFakeItem("23721346", "FOO_HOST");
 		final var item2 = createFakeItem("54737664", "BAR_HOST");
@@ -202,9 +203,9 @@ class PatronRequestResolutionServiceTests {
 	void shouldResolveRequestToNoAvailableItemsWhenNoAvailableItemsAreFound() {
 		final var bibClusterId = randomUUID();
 
-		final var unavailableItem = createFakeItem("23721346", "FAKE_HOST", UNAVAILABLE);
-		final var unknownStatusItem = createFakeItem("54737664", "FAKE_HOST", UNKNOWN);
-		final var checkedOutItem = createFakeItem("28375763", "FAKE_HOST", CHECKED_OUT);
+		final var unavailableItem = createFakeItem("23721346", "FAKE_HOST", UNAVAILABLE, false);
+		final var unknownStatusItem = createFakeItem("54737664", "FAKE_HOST", UNKNOWN, false);
+		final var checkedOutItem = createFakeItem("28375763", "FAKE_HOST", CHECKED_OUT, false);
 
 		final var hostLms = createHostLms("FAKE_HOST");
 
@@ -359,18 +360,18 @@ class PatronRequestResolutionServiceTests {
 
 	private static Item createFakeItem(
 		String id, String hostLmsCode) {
-		return createFakeItem(id, hostLmsCode, AVAILABLE);
+		return createFakeItem(id, hostLmsCode, AVAILABLE, true);
 	}
 
 	private static Item createFakeItem(
-		String id, String hostLmsCode, ItemStatusCode statusCode) {
+		String id, String hostLmsCode, ItemStatusCode statusCode, Boolean requestable) {
 
 		return new Item(id,
 			new ItemStatus(statusCode), null, Location.builder()
 				.code("code")
 				.name("name")
 				.build(),
-			"barcode", "callNumber", hostLmsCode);
+			"barcode", "callNumber", hostLmsCode, requestable);
 	}
 
 	private static Bib createFakeBib(String bibRecordId, FakeHostLms hostLms) {

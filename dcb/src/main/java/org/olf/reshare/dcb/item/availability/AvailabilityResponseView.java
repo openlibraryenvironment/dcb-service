@@ -25,7 +25,7 @@ public class AvailabilityResponseView {
 			.map(item -> new Item(item.getId(),
 				new Status(item.getStatus().getCode().name()), item.getDueDate(),
 				new Location(item.getLocation().getCode(), item.getLocation().getName()),
-				item.getBarcode(), item.getCallNumber(), item.getHostLmsCode()))
+				item.getBarcode(), item.getCallNumber(), item.getHostLmsCode(), item.getIsRequestable()))
 			.collect(toList());
 
 		return new AvailabilityResponseView(mappedItems, clusteredBibId);
@@ -43,6 +43,7 @@ public class AvailabilityResponseView {
 		private final String barcode;
 		private final String callNumber;
 		private final String hostLmsCode;
+		private final Boolean isRequestable;
 	}
 
 	@Data

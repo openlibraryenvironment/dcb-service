@@ -19,6 +19,7 @@ public class Item {
 	private final String barcode;
 	private final String callNumber;
 	private final String hostLmsCode;
+	private final Boolean isRequestable;
 
 	public boolean isAvailable() {
 		return getStatus().getCode() == AVAILABLE;

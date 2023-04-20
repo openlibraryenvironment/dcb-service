@@ -37,6 +37,7 @@ public class FakeLiveAvailabilityService implements LiveAvailability {
 				.name("FAKE_LOCATION_NAME")
 				.code("FAKE_LOCATION_CODE")
 				.build(),
-			"FAKE_BARCODE", "FAKE_CALL_NUMBER", hostLmsCode);
+			"FAKE_BARCODE", "FAKE_CALL_NUMBER",
+			hostLmsCode, true);
 	}
 }

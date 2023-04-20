@@ -30,6 +30,8 @@ public class AvailabilityResponse {
 		private final String barcode;
 		@Nullable
 		private final String callNumber;
+		@Nullable
+		private final Boolean isRequestable;
 	}
 
 	@Data
