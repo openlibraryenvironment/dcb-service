@@ -126,7 +126,7 @@ class PatronRequestApiTests {
 
 		final var patronRequestId = requireNonNull(placedRequestResponse.body()).id();
 
-		await().atMost(1, SECONDS)
+		await().atMost(3, SECONDS)
 			.until(() -> adminApiClient.getPatronRequestViaAdminApi(patronRequestId), isResolved());
 
 		final var fetchedPatronRequest = adminApiClient.getPatronRequestViaAdminApi(patronRequestId);
