@@ -21,7 +21,7 @@ import reactor.core.publisher.Mono;
 
 @Singleton
 public class HostLmsService implements IngestSourcesProvider {
-	private final Map<UUID, HostLms> fromConfigById;
+	// private final Map<UUID, HostLms> fromConfigById;
 	private final BeanContext context;
 	private final HostLmsRepository hostLmsRepository;
 
@@ -30,8 +30,8 @@ public class HostLmsService implements IngestSourcesProvider {
 
 		this.hostLmsRepository = hostLmsRepository;
 		this.context = context;
-		this.fromConfigById = Stream.of(confHosts)
-			.collect(toUnmodifiableMap(HostLms::getId, item -> item));
+		//this.fromConfigById = Stream.of(confHosts)
+		//	.collect(toUnmodifiableMap(HostLms::getId, item -> item));
 	}
 	
 	public Mono<HostLms> findById( UUID id ) {
@@ -70,7 +70,8 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	public Flux<HostLms> getAllHostLms() {
-		return Flux.merge(Flux.fromIterable( fromConfigById.values() ), hostLmsRepository.findAll());
+		// return Flux.merge(Flux.fromIterable( fromConfigById.values() ), hostLmsRepository.findAll());
+		return Flux.from(hostLmsRepository.findAll());
 	}
 
 	@Override

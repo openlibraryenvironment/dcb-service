@@ -12,7 +12,7 @@ import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.olf.reshare.dcb.configuration.ConfigurationRecord;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
@@ -89,4 +89,10 @@ public class GokbIngestSource implements IngestSource {
 	public String getName() {
 		return this.getClass().getName();
 	}
+
+        @Override
+        public Publisher<ConfigurationRecord> getConfigStream() {
+                return Flux.empty();
+        }
 }
+

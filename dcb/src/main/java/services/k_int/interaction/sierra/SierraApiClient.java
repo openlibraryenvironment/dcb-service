@@ -26,6 +26,7 @@ import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.retry.annotation.Retryable;
 import services.k_int.interaction.auth.AuthToken;
+import services.k_int.interaction.sierra.configuration.BranchResultSet;
 import services.k_int.interaction.sierra.bibs.BibParams;
 import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
@@ -134,4 +135,10 @@ public interface SierraApiClient {
 	default Publisher<AuthToken> login( final String key, final String secret ) {
 		return login(new BasicAuth(key, secret));
 	}
+
+        @SingleResult
+        @Retryable
+        @Get("/branches/")
+        public Publisher<BranchResultSet> branches(Integer limit, Integer offset, Iterable<String> fields );
+
 }

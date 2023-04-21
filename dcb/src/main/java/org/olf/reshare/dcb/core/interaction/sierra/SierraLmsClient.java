@@ -13,11 +13,13 @@ import java.util.function.Consumer;
 
 import javax.validation.constraints.NotNull;
 
+import org.checkerframework.checker.units.qual.N;
 import org.marc4j.marc.Record;
 import org.olf.reshare.dcb.core.ProcessStateService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.core.model.Item;
+import org.olf.reshare.dcb.configuration.ConfigurationRecord;
 import org.olf.reshare.dcb.ingest.marc.MarcIngestSource;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
@@ -39,6 +41,8 @@ import reactor.core.scheduler.Schedulers;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
+import services.k_int.interaction.sierra.configuration.BranchResultSet;
+import services.k_int.interaction.sierra.configuration.BranchInfo;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
@@ -415,8 +419,55 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(Boolean.TRUE);
 	}
 
+	public UUID uuid5ForBranch(@NotNull final String hostLmsCode, @NotNull final String localBranchId) {
+
+		final String concat = UUID5_PREFIX + ":BRANCH:" + hostLmsCode +":" + localBranchId;
+		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
+	}
+
+	public UUID uuid5ForShelvingLocation(@NotNull final String hostLmsCode,
+																			 @NotNull final String localBranchId,
+																			 @NotNull final String locationCode) {
+		final String concat = UUID5_PREFIX + ":SL:" + hostLmsCode +":" + localBranchId+":"+locationCode;
+		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
+	}
+
 	@Override
 	public RawSourceRepository getRawSourceRepository() {
 		return rawSourceRepository;
 	}
+
+
+        private ConfigurationRecord mapSierraBranchToBranchConfigurationRecord(BranchInfo bi) {
+                List<org.olf.reshare.dcb.configuration.ShelvingLocationRecord> locations = new ArrayList<org.olf.reshare.dcb.configuration.ShelvingLocationRecord>();
+                if ( bi.locations() != null ) {
+                  for ( Map<String,String> shelving_location : bi.locations() ) {
+                    locations.add(new org.olf.reshare.dcb.configuration.ShelvingLocationRecord(uuid5ForShelvingLocation(lms.getCode(), bi.id(), shelving_location.get("code")),
+											shelving_location.get("code"),
+											shelving_location.get("name")));
+                  }
+                }
+
+                return new org.olf.reshare.dcb.configuration.BranchRecord()
+                                        .builder()
+																				.id(uuid5ForBranch(lms.getCode(),bi.id()))
+																				.lms(lms)
+																				.localBranchId(bi.id())
+                                        .branchName(bi.name())
+                                        .lat(bi.latitude() != null ? Float.valueOf(bi.latitude()) : null)
+                                        .lon(bi.longitude() != null ? Float.valueOf(bi.longitude()) : null)
+                                        .shelvingLocations(locations)
+                                        .build();
+        }
+
+        @Override
+        public Publisher<ConfigurationRecord> getConfigStream() {
+                // return Flux.empty();
+                Iterable<String> fields = List.of("name","address","emailSource","emailReplyTo","latitude","longitude","locations");
+                return Flux.from(client.branches(Integer.valueOf(100), Integer.valueOf(0), fields))
+                        .flatMap( results -> Flux.fromIterable(results.entries()))
+                        .map( result -> mapSierraBranchToBranchConfigurationRecord(result) );
+
+        }
+
 }

@@ -57,26 +57,27 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 
 		// Enumerate any host LMS entries and create corresponding DB entries
 		for ( HostLms hostLms : confHosts ) {
-			log.debug("make sure {} exists in DB",hostLms.getId());
-			// DataHostLms db_representation = new DataHostLms()
-			// 					.builder()
-			// 					.id(hostLms.getId())
-			// 					.code(hostLms.getCode())
-			// 					.name(hostLms.getName())
-			// 					.lmsClientClass(hostLms.getType().getClass().getName())
-			// 					.clientConfig(hostLms.getClientConfig())
-			// 					.build();
-			// upsertHostLms(db_representation).subscribe( i -> log.info("Saved hostlms {}",i.getId()) );
+			log.debug("make sure {}/{} exists in DB",hostLms.getId(),hostLms.getName());
+			DataHostLms db_representation = new DataHostLms()
+								.builder()
+								.id(hostLms.getId())
+								.code(hostLms.getCode())
+								.name(hostLms.getName())
+								.lmsClientClass(hostLms.getType().getName())
+								.clientConfig(hostLms.getClientConfig())
+								.build();
+
+			// we don't want to proceed until this is done
+			upsertHostLms(db_representation).block(); // subscribe( i -> log.info("Saved hostlms {}",i.getId()) );
+			log.debug("Save complete");
 		} 
 
 		log.info("Exit onApplicationEvent");
 	}
-
-        
-        private Mono<DataHostLms> upsertHostLms(DataHostLms hostLMS) {
+	private Mono<DataHostLms> upsertHostLms(DataHostLms hostLMS) {
 		log.debug("upsertHostLms {}",hostLMS);
-                return Mono.from(hostLmsRepository.existsById(hostLMS.getId()))
-                        .flatMap(exists -> Mono.fromDirect(exists ? hostLmsRepository.update(hostLMS) : hostLmsRepository.save(hostLMS)));
-        }
+  		return Mono.from(hostLmsRepository.existsById(hostLMS.getId()))
+               .flatMap(exists -> Mono.fromDirect(exists ? hostLmsRepository.update(hostLMS) : hostLmsRepository.save(hostLMS)));
+	}
 
 }

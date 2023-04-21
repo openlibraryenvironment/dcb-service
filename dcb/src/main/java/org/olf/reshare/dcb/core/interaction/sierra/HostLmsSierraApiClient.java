@@ -39,6 +39,7 @@ import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.SierraError;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
+import services.k_int.interaction.sierra.configuration.BranchResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
 
 @Secondary
@@ -68,7 +69,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	@Creator
 	public HostLmsSierraApiClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client) {
 		
-		log.debug("Creating Sierra HostLms client for HostLms {}", hostLms.getName());
+		log.debug("Creating Sierra HostLms client for HostLms {}", hostLms);
 		
 		URI hostUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
 		rootUri = resolve(hostUri, UriBuilder.of("/iii/sierra-api/v6/").build());
@@ -101,6 +102,23 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.flatMap(this::ensureToken)
 			.flatMap(req ->	doRetrieve(req, BibResultSet.class) );
 	}
+
+        @SingleResult
+        @Retryable
+        @Get("branches")
+        public Publisher<BranchResultSet> branches(Integer limit, Integer offset, Iterable<String> fields ) {
+
+                return getRequest("branches")
+                        .map(req -> req.uri(theUri -> {
+                                theUri
+                                        .queryParam("limit", limit)
+                                        .queryParam("offset", offset)
+                                        .queryParam("fields", iterableToArray(fields))
+                                        ;
+                        }))
+                        .flatMap(this::ensureToken)
+                        .flatMap(req -> doRetrieve(req, BranchResultSet.class) );
+        }
 
 	@Override
 	@SingleResult
