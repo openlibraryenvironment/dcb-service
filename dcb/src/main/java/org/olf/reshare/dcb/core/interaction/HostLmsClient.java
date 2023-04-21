@@ -10,9 +10,12 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public interface HostLmsClient {
+
 	HostLms getHostLms();
 
 	Flux<Map<String, ?>> getAllBibData();
 
 	Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode);
+
+        // Flux<?> getAllAgencies();
 }

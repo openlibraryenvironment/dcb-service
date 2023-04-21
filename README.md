@@ -20,17 +20,17 @@ DB connection effectively, 2 different connections - with JDBC only being used f
 
 | ENV                                | Description       | Example                               |
 |------------------------------------|-------------------|---------------------------------------|
-| r2dbc_datasources_default_url      | R2DBC Connect URL | r2dbc:postgresql://localhost:5432/dcb |
-| r2dbc_datasources_default_username | R2DBC Username    | dcb                                   |
-| r2dbc_datasources_default_password | R2DBC Password    | dcb                                   
-| datasources_default_url            | JDBC Connect URL  | jdbc:postgresql://localhost:5432/dcb  |
-| datasources_default_username       | JDBC Username     | dcb                                   |
-| datasources_default_password       | JDBC Password     | dcb                                   |
+| R2DBC_DATASOURCES_DEFAULT_URL      | R2DBC Connect URL | r2dbc:postgresql://localhost:5432/dcb |
+| R2DBC_DATASOURCES_DEFAULT_USERNAME | R2DBC Username    | dcb                                   |
+| R2DBC_DATASOURCES_DEFAULT_PASSWORD | R2DBC Password    | dcb                                   
+| DATASOURCES_DEFAULT_URL            | JDBC Connect URL  | jdbc:postgresql://localhost:5432/dcb  |
+| DATASOURCES_DEFAULT_USERNAME       | JDBC Username     | dcb                                   |
+| DATASOURCES_DEFAULT_PASSWORD       | JDBC Password     | dcb                                   |
 | KEYCLOAK_CERT_URL                  | The URL used for validating JWTs     | https://reshare-hub-kc.libsdev.k-int.com/realms/reshare-hub/protocol/openid-connect/certs |
 | MICRONAUT_HTTP_CLIENT_READ_TIMEOUT | Default HTTP Client Timeout  | PT1M |
 | MICRONAUT_HTTP_CLIENT_MAX_CONTENT_LENGTH | Max content length  | 20971520 |
-| REACTOR_DEBUG | DEVELOPMENT FLAG! set to the string "true" to enable reactor annotated stack trace  | true |
 | DCB_SHEDULED_TASKS_ENABLED | perform scheduled tasks | true |
+| REACTOR_DEBUG | DEVELOPMENT FLAG! set to the string "true" to enable reactor annotated stack trace  | true |
 
 # API Documentation
 

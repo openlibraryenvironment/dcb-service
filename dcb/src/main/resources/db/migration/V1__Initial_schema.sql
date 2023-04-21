@@ -122,10 +122,10 @@ create table shelving_location (
         date_updated timestamp,
         code varchar(64),
         name varchar(64),
-        host_system uuid,
-        agency uuid,
+        host_system_id uuid,
+        agency_id uuid,
 	loan_policy varchar(32),
         CONSTRAINT shelving_location_pk PRIMARY KEY (id)
 );
-CREATE INDEX idx_sl_host_system ON shelving_location(host_system);
-CREATE INDEX idx_sl_agency ON shelving_location(agency);
+CREATE INDEX idx_sl_host_system ON shelving_location(host_system_id);
+CREATE INDEX idx_sl_agency ON shelving_location(agency_id);

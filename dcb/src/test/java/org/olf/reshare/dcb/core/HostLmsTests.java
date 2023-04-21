@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -79,53 +80,24 @@ class HostLmsTests {
 
 	@BeforeEach
 	void beforeEach() {
+		// Care is needed here - hostLMS records from config are now converted into DB entries by a bootstrap/startup class.
+		// This delete will wipe out any config set up as a part of app initiailisation so your tests here must rely upon
+		// manually created hostLms entries
 		dataAccess.deleteAll(hostLmsRepository.findAll(),
 			hostLms -> hostLmsRepository.delete(hostLms.getId()));
 	}
+
+        @AfterEach
+        void afterEach() {
+                dataAccess.deleteAll(hostLmsRepository.findAll(),
+                        hostLms -> hostLmsRepository.delete(hostLms.getId()));
+        }
 
 	@Inject
 	ResourceLoader loader;
 
 	@Inject
 	HostLmsService manager;
-
-	@Test
-	void hostLmsFromConfigLoaded() {
-		// Get the list of configured host LMS
-		List<HostLms> allLms = manager.getAllHostLms().sort(
-				Comparator.comparing(HostLms::getName))
-			.collect(Collectors.toUnmodifiableList()).block();
-
-		assertEquals(2, allLms.size());
-
-		final HostLms test1 = allLms.get(0);
-//		assertEquals(2, test1.getAgencies().size());
-
-		final HostLms test2 = allLms.get(1);
-//		assertEquals(2, test2.getAgencies().size());
-
-		List<Map<String, ?>> results = manager.getClientFor(test1).flatMapMany(client -> client.getAllBibData())
-				.collect(Collectors.toList()).block();
-
-		assertEquals(2, results.size());
-
-		results = manager.getClientFor(test2).flatMapMany(client -> client.getAllBibData()).collect(Collectors.toList())
-				.block();
-
-		assertEquals(1, results.size());
-	}
-
-	@Test
-	void shouldFindHostInConfigByCode() {
-		final var foundHost = manager.findByCode("test1").block();
-
-		assertThat(foundHost, is(notNullValue()));
-
-		assertThat(foundHost.getId(), is(notNullValue()));
-		assertThat(foundHost.getCode(), is("test1"));
-		assertThat(foundHost.getName(), is("test1"));
-		assertThat(foundHost.getType(), is(SierraLmsClient.class));
-	}
 
 	@Test
 	void shouldFindHostInDatabaseByCode() {
@@ -154,22 +126,6 @@ class HostLmsTests {
 
 		assertThat(exception, is(notNullValue()));
 		assertThat(exception.getMessage(), is("No Host LMS found for code: unknown-host"));
-	}
-
-	@Test
-	void shouldFindHostInConfigById() {
-		// The ID of host loaded from config is generated when loaded
-		// tests could fail erroneously when finding by code fails
-		final var idFromConfig = manager.findByCode("test1").block().getId();
-
-		final var foundHost = manager.findById(idFromConfig).block();
-
-		assertThat(foundHost, is(notNullValue()));
-
-		assertThat(foundHost.getId(), is(notNullValue()));
-		assertThat(foundHost.getCode(), is("test1"));
-		assertThat(foundHost.getName(), is("test1"));
-		assertThat(foundHost.getType(), is(SierraLmsClient.class));
 	}
 
 	@Test

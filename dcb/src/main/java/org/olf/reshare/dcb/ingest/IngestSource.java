@@ -3,6 +3,7 @@ package org.olf.reshare.dcb.ingest;
 import java.time.Instant;
 import java.util.function.Function;
 
+import org.olf.reshare.dcb.configuration.ConfigurationRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.reactivestreams.Publisher;
 
@@ -23,4 +24,6 @@ public interface IngestSource extends Function<Instant, Publisher<IngestRecord>>
 	 */
 	@Override
 	Publisher<IngestRecord> apply(@Nullable Instant changedSince);
+
+        Publisher<ConfigurationRecord> getConfigStream();
 }

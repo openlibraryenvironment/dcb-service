@@ -106,7 +106,7 @@ public class IngestService implements Runnable {
 	}
 
 	@Override
-	@Scheduled(initialDelay = "10s", fixedDelay = "${dcb.ingest.interval:1h}")
+	@Scheduled(initialDelay = "20s", fixedDelay = "${dcb.ingest.interval:1h}")
 	@AppTask
 	public void run() {
 
