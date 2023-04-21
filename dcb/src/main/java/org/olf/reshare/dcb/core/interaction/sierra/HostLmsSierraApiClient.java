@@ -1,6 +1,7 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
 import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
+import static java.util.Collections.emptyList;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -45,17 +46,19 @@ import services.k_int.interaction.sierra.items.ResultSet;
 @Secondary
 @Prototype
 public class HostLmsSierraApiClient implements SierraApiClient {
-	
 	private final Logger log = LoggerFactory.getLogger(HostLmsSierraApiClient.class);
 	
 	private static final String CLIENT_SECRET = "secret";
 	private static final String CLIENT_KEY = "key";
 	private static final String CLIENT_BASE_URL = "base-url";
-	private AuthToken currentToken;
+	private static final Argument<SierraError> ERROR_TYPE = Argument.of(SierraError.class);
+
 	private final URI rootUri;
 	private final HostLms lms;
 	private final HttpClient client;
-	private static final Argument<SierraError> errorType = Argument.of(SierraError.class);
+	private final SierraResponseErrorMatcher sierraResponseErrorMatcher = new SierraResponseErrorMatcher();
+
+	private AuthToken currentToken;
 
 	public HostLmsSierraApiClient() {
 		
@@ -147,7 +150,9 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				.queryParam("suppressed", suppressed)
 				.queryParam("locations", iterableToArray(locations))))
 			.flatMap(this::ensureToken)
-			.flatMap(req ->	doRetrieve(req, ResultSet.class));
+			.flatMap(req ->	doRetrieve(req, ResultSet.class))
+			.onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError,
+				ResultSet.builder().entries(emptyList()).build());
 	}
 	
 	private <T> Mono<T> handleResponseErrors ( final Mono<T> current ) {
@@ -178,7 +183,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	}
 	
 	private <T> Mono<T> doRetrieve( MutableHttpRequest<?> request, Class<T> type, boolean mapErrors) {
-		var response = Mono.from( client.retrieve(request, Argument.of(type), errorType) );
+		var response = Mono.from( client.retrieve(request, Argument.of(type), ERROR_TYPE) );
 		return mapErrors ? handleResponseErrors( response ) : response;
 	}
 	

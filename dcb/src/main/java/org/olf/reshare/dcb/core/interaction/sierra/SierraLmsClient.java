@@ -59,7 +59,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final ProcessStateService processStateService;
 	private final R2dbcOperations operations;
 	private final RawSourceRepository rawSourceRepository;
-	private final SierraResponseErrorMatcher sierraResponseErrorMatcher = new SierraResponseErrorMatcher();
 	private final ItemResultToItemMapper itemResultToItemMapper = new ItemResultToItemMapper();
 
 	public SierraLmsClient(@Parameter HostLms lms, 
@@ -405,8 +404,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				.bibIds(List.of(bibId))))
 			.flatMap(results -> Flux.fromIterable(results.getEntries()))
 			.map(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode))
-			.collectList()
-			.onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError, List.of());
+			.collectList();
 	}
 
 	@Override
