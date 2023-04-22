@@ -1,16 +1,11 @@
 package org.olf.reshare.dcb.configuration;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 
-import javax.transaction.Transactional;
-
-import org.olf.reshare.dcb.core.BibRecordService;
-import org.olf.reshare.dcb.core.RecordClusteringService;
 import org.olf.reshare.dcb.core.model.*;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.storage.AgencyRepository;
+import org.olf.reshare.dcb.storage.LocationRepository;
 import org.olf.reshare.dcb.storage.ShelvingLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,11 +18,7 @@ import jakarta.inject.Singleton;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.function.TupleUtils;
-import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
-import reactor.core.scheduler.Schedulers;
-import services.k_int.utils.UUIDUtils;
 
 
 /**
@@ -47,12 +38,16 @@ public class ConfigurationService implements Runnable {
 
     private final AgencyRepository agencyRepository;
 
+    private final LocationRepository locationRepository;
+
     public ConfigurationService(List<IngestSourcesProvider> sourceProviders,
                                 ShelvingLocationRepository shelvingLocationRepository,
-                                AgencyRepository agencyRepository) {
+                                AgencyRepository agencyRepository,
+                                LocationRepository locationRepository) {
         this.sourceProviders = sourceProviders;
         this.shelvingLocationRepository = shelvingLocationRepository;
         this.agencyRepository = agencyRepository;
+        this.locationRepository = locationRepository;
     }
 
 
@@ -93,7 +88,7 @@ public class ConfigurationService implements Runnable {
                 .builder()
                 .id(slr.getId())
                 .code(slr.getCode())
-                .name(slr.getCode())
+                .name(slr.getName())
                 .hostSystem((DataHostLms) br.getLms())
                 .agency(da)
                 .build();
@@ -147,6 +142,28 @@ public class ConfigurationService implements Runnable {
         }
     }
 
+    private Mono<Location> handlePickupLocation(PickupLocationRecord pickupLocationRecord) {
+        log.debug("handlePickupLocation {}",pickupLocationRecord);
+        if (pickupLocationRecord.getLms() instanceof DataHostLms) {
+            Location upsert_location = new Location()
+                    .builder()
+                    .id(pickupLocationRecord.getId())
+                    .code(pickupLocationRecord.getCode())
+                    .name(pickupLocationRecord.getName())
+                    .hostSystem((DataHostLms) pickupLocationRecord.getLms())
+                    .isPickup(true)
+                    .type("PICKUP")
+                    .build();
+
+            return Mono.from(locationRepository.existsById(upsert_location.getId()))
+                    .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(upsert_location) : locationRepository.save(upsert_location)))
+                    .thenReturn(upsert_location);
+        } else {
+            log.warn("Unable to save agency for statically configured HostLMS");
+            return Mono.empty();
+        }
+    }
+
     /**
      * We don't know what kinds of configuration records a hostLms might emit, so here we handle all the
      * different possible cases. At the moment BranchRecords and PickupLocations.
@@ -161,6 +178,7 @@ public class ConfigurationService implements Runnable {
                 .flatMap(confrec -> {
                     return switch (confrec.getRecordType()) {
                         case BranchRecord.RECORD_TYPE -> handleBranchRecord((BranchRecord) confrec);
+                        case PickupLocationRecord.RECORD_TYPE -> handlePickupLocation((PickupLocationRecord) confrec);
                         default -> Mono.empty();
                     };
                 })

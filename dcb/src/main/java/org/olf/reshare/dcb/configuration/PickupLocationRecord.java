@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.olf.reshare.dcb.core.model.HostLms;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 import java.util.UUID;
@@ -17,15 +18,17 @@ import java.util.UUID;
 @AllArgsConstructor
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
-public class ShelvingLocationRecord implements ConfigurationRecord {
+public class PickupLocationRecord implements ConfigurationRecord {
 
-    public static final String RECORD_TYPE = "SHELVING_LOCATION";
+    public static final String RECORD_TYPE = "PICKUP_LOCATION";
 
     private UUID id;
 
     private String code;
 
     private String name;
+
+    private HostLms lms;
 
     public String getRecordType() {
         return RECORD_TYPE;

@@ -55,11 +55,19 @@ public class Location {
 	@Size(max = 32)
 	private String type;
 
-	// The UUID of the agency that owns this location record
+	// The UUID of the agency that owns this location record - We may not be able to infer this, so it's nullable
+    // in order that a human can establish the correct relationship after initial discovery
 	@Column(name = "agency_fk")
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private DataAgency agency;
 
-	// List this location in the pickup location lists
+    /**
+     * The host system on which this location is managed
+     */
+    @NonNull
+    @Relation(value = Relation.Kind.MANY_TO_ONE)
+    private DataHostLms hostSystem;
+
+    // List this location in the pickup location lists
 	private Boolean isPickup;
 }

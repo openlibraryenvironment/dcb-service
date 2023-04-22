@@ -32,9 +32,10 @@ create table location (
 	id uuid primary key,
 	code varchar(200),
 	name varchar(255),
-  type varchar(32),
-  agency_fk uuid,
-  is_pickup boolean
+	type varchar(32),
+	agency_fk uuid,
+	host_system_id uuid,
+	is_pickup boolean
 );
 
 create table patron_request (
