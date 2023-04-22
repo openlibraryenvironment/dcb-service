@@ -77,4 +77,9 @@ public class BibRecord {
 
 	@Nullable
 	private String derivedType;
+
+    // Generate a string which might be useful in blocking titles
+    // for stage one of deduplication
+    @Nullable
+    private String blockingTitle;
 }

@@ -95,9 +95,7 @@ public class ConfigurationService implements Runnable {
     }
 
     private Mono<ShelvingLocation> upsertShelvingLocation(ShelvingLocation sl) {
-
-        log.debug("upsertShelvingLocation {}", sl);
-
+        // log.debug("upsertShelvingLocation {}", sl);
         return Mono.from(shelvingLocationRepository.existsById(sl.getId()))
                 .flatMap(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)));
     }
@@ -143,7 +141,7 @@ public class ConfigurationService implements Runnable {
     }
 
     private Mono<Location> handlePickupLocation(PickupLocationRecord pickupLocationRecord) {
-        log.debug("handlePickupLocation {}",pickupLocationRecord);
+        // log.debug("handlePickupLocation {}",pickupLocationRecord);
         if (pickupLocationRecord.getLms() instanceof DataHostLms) {
             Location upsert_location = new Location()
                     .builder()

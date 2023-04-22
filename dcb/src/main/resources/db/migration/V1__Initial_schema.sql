@@ -16,6 +16,7 @@ create table bib_record (
 	record_status varchar(8),
 	type_of_record varchar(8),
 	derived_type varchar(32),
+	blocking_title text,
   CONSTRAINT fk_contributes_to FOREIGN KEY (contributes_to) REFERENCES cluster_record(id)
 );
 CREATE INDEX idx_bib_source_system ON bib_record(source_system_id);
@@ -24,8 +25,10 @@ CREATE INDEX idx_bib_contributes_to ON bib_record(contributes_to);
 
 create table bib_identifier (
 	id uuid primary key,
+	owner_id uuid,
 	value varchar(255),
-	namespace varchar(255)
+	namespace varchar(255),
+	CONSTRAINT fk_owner FOREIGN KEY(owner_id) REFERENCES bib_record(id)
 );
 
 create table location (

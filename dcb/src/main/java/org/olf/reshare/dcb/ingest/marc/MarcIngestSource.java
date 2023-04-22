@@ -313,6 +313,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 	
 	@Transactional
 	public default Mono<T> saveRawAndContinue(T resource) {
+        log.debug("Save raw {}",resource);
 		return Mono.just(resource)
 			.zipWhen(res -> Mono.just(resourceToRawSource(res)))
 			.flatMap(TupleUtils.function(( res, raw ) -> {
