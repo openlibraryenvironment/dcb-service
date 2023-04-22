@@ -4,13 +4,26 @@ import java.util.UUID;
 
 import javax.validation.constraints.NotNull;
 
+import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
+
+@Data
+@Builder
+@NoArgsConstructor(onConstructor_ = @Creator())
+@AllArgsConstructor
+@Serdeable
 @ExcludeFromGeneratedCoverageReport
 @MappedEntity
 public class BibIdentifier {
@@ -21,29 +34,10 @@ public class BibIdentifier {
 	@TypeDef( type = DataType.UUID)
 	private UUID id;
 
-	public UUID getId() {
-		return id;
-	}
-
-	public void setId(UUID id) {
-		this.id = id;
-	}
-
-	public String getValue() {
-		return value;
-	}
-
-	public void setValue(String value) {
-		this.value = value;
-	}
-
-	public String getNamespace() {
-		return namespace;
-	}
-
-	public void setNamespace(String namespace) {
-		this.namespace = namespace;
-	}
+    @NotNull
+    @NonNull
+    @Relation(value = Relation.Kind.MANY_TO_ONE)
+    private BibRecord owner;
 
 	@NotNull
 	@NonNull
