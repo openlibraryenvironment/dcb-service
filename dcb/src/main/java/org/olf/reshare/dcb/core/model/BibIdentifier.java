@@ -3,6 +3,7 @@ package org.olf.reshare.dcb.core.model;
 import java.util.UUID;
 
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
@@ -41,9 +42,11 @@ public class BibIdentifier {
 
 	@NotNull
 	@NonNull
+        @Size(max=255)
 	private String value;
 
 	@NotNull
 	@NonNull
+        @Size(max=255)
 	private String namespace;
 }
