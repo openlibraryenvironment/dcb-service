@@ -52,7 +52,9 @@ public class LiveAvailabilityServiceTests {
 
 		final var item = new Item("testid", new ItemStatus(AVAILABLE), dueDate,
 			Location.builder().code("testLocationCode").name("testLocationName").build(),
-			"testBarcode", "testCallNumber", "hostLmsCode", true);
+			"testBarcode", "testCallNumber",
+			"hostLmsCode", true,
+			0);
 
 		final var listOfItems = List.of(item);
 
@@ -75,6 +77,7 @@ public class LiveAvailabilityServiceTests {
 		assertThat(onlyItem.getCallNumber(), is("testCallNumber"));
 		assertThat(onlyItem.getHostLmsCode(), is("hostLmsCode"));
 		assertThat(onlyItem.getDueDate(), is(dueDate));
+		assertThat(onlyItem.getHoldCount(), is(0));
 
 		final var status = onlyItem.getStatus();
 

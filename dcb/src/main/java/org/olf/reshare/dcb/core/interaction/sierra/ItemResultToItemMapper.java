@@ -30,6 +30,7 @@ class ItemResultToItemMapper {
 				.name(result.getLocation().getName())
 				.build(),
 			result.getBarcode(), result.getCallNumber(),
-			hostLmsCode, null);
+			hostLmsCode, null,
+			result.getHoldCount());
 	}
 }

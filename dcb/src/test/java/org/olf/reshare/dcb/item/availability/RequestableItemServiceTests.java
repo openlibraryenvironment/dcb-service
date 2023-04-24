@@ -37,6 +37,7 @@ public class RequestableItemServiceTests {
 
 		assertThat(onlyItem.getId(), is("id"));
 		assertThat(onlyItem.getIsRequestable(), is(true));
+		assertThat(onlyItem.getHoldCount(), is(0));
 	}
 
 	@Test
@@ -55,6 +56,7 @@ public class RequestableItemServiceTests {
 
 		assertThat(onlyItem.getId(), is("id"));
 		assertThat(onlyItem.getIsRequestable(), is(false));
+		assertThat(onlyItem.getHoldCount(), is(0));
 	}
 
 	@Test
@@ -76,11 +78,14 @@ public class RequestableItemServiceTests {
 
 		assertThat(requestableItem1.getId(), is("id1"));
 		assertThat(requestableItem1.getIsRequestable(), is(false));
+		assertThat(requestableItem1.getHoldCount(), is(0));
 
 		final var requestableItem2 = requestableItems.get(1);
 
 		assertThat(requestableItem2.getId(), is("id2"));
 		assertThat(requestableItem2.getIsRequestable(), is(false));
+		assertThat(requestableItem2.getHoldCount(), is(0));
+
 	}
 
 	@Test
@@ -104,11 +109,13 @@ public class RequestableItemServiceTests {
 
 		assertThat(requestableItem1.getId(), is("id1"));
 		assertThat(requestableItem1.getIsRequestable(), is(false));
+		assertThat(requestableItem1.getHoldCount(), is(0));
 
 		final var requestableItem2 = requestableItems.get(1);
 
 		assertThat(requestableItem2.getId(), is("id2"));
 		assertThat(requestableItem2.getIsRequestable(), is(true));
+		assertThat(requestableItem2.getHoldCount(), is(0));
 	}
 
 	private static Item createFakeItem(
@@ -121,6 +128,6 @@ public class RequestableItemServiceTests {
 			.name("name")
 			.build(),
 			"barcode", "callNumber",
-			hostLmsCode, null);
+			hostLmsCode, null, 0);
 	}
 }
