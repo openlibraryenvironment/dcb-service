@@ -32,6 +32,8 @@ public class AvailabilityResponse {
 		private final String callNumber;
 		@Nullable
 		private final Boolean isRequestable;
+		@Nullable
+		private final Integer holdCount;
 	}
 
 	@Data

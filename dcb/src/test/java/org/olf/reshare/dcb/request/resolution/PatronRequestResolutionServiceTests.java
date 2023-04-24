@@ -371,7 +371,9 @@ class PatronRequestResolutionServiceTests {
 				.code("code")
 				.name("name")
 				.build(),
-			"barcode", "callNumber", hostLmsCode, requestable);
+			"barcode", "callNumber",
+			hostLmsCode, requestable,
+			0);
 	}
 
 	private static Bib createFakeBib(String bibRecordId, FakeHostLms hostLms) {

@@ -69,6 +69,7 @@ public class RequestableItemService {
 				.name(item.getLocation().getName())
 				.build(),
 			item.getBarcode(), item.getCallNumber(),
-			item.getHostLmsCode(), requestability);
+			item.getHostLmsCode(), requestability,
+			item.getHoldCount());
 	}
 }
