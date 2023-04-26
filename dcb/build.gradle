@@ -95,6 +95,8 @@ dependencies {
 	
 	// Also required to enable endpoint
 	implementation "io.micronaut:micronaut-management"
+	
+	implementation 'info.debatty:java-string-similarity'
 
 	// Tests
 	testCompileOnly 'org.projectlombok:lombok'

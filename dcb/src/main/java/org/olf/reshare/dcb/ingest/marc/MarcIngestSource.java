@@ -1,14 +1,17 @@
 package org.olf.reshare.dcb.ingest.marc;
 
+import static services.k_int.integration.marc4j.Marc4jRecordUtils.concatSubfieldData;
+import static services.k_int.integration.marc4j.Marc4jRecordUtils.extractOrderedSubfields;
+import static services.k_int.integration.marc4j.Marc4jRecordUtils.typeFromLeader;
+
 import java.time.Instant;
-import java.util.Comparator;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.transaction.Transactional;
@@ -18,12 +21,12 @@ import javax.validation.constraints.NotNull;
 import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
-import org.marc4j.marc.Subfield;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.ingest.model.Identifier;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.olf.reshare.dcb.ingest.model.RawSource;
+import org.olf.reshare.dcb.processing.matching.goldrush.GoldrushKey;
 import org.olf.reshare.dcb.storage.RawSourceRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -36,291 +39,233 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
 public interface MarcIngestSource<T> extends IngestSource {
-	
-	final static String REGEX_NAMESPACE_ID_PAIR = "^((\\(([^)]+)\\))|(([^:]+):))(.*)$";
+
+	final static Pattern REGEX_NAMESPACE_ID_PAIR = Pattern.compile("^((\\(([^)]+)\\))|(([^:]+):))(.*)$");
+	final static Pattern REGEX_LINKAGE_245_880 = Pattern.compile("^880-(\\d+)");
 
 	static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
-	
-	static Comparator<Subfield> createSubFieldComparator(final HashMap<Character, Integer> sortValues) {
-		return ( sf1, sf2 ) -> {
-			int weight1 = Objects.requireNonNullElse(sortValues.get(sf1.getCode()), sortValues.size());
-			int weight2 = Objects.requireNonNullElse(sortValues.get(sf2.getCode()), sortValues.size());
-			
-			return Integer.compare(weight1, weight2);
-		};
-	}
 
-	default IngestRecordBuilder populateRecordFromMarc ( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
+	default IngestRecordBuilder populateRecordFromMarc(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
 
 		// Leader fields
 		enrichWithLeaderInformation(ingestRecord, marcRecord);
-			
+
 		// Title(s)
 		enrichWithTitleInformation(ingestRecord, marcRecord);
-		
+
 		// Identifiers
 		enrichWithIdentifiers(ingestRecord, marcRecord);
-		
+
 		// Author(s)
 		enrichWithAuthorInformation(ingestRecord, marcRecord);
-		
+
 		return ingestRecord;
 	}
-	
+
 	@NonNull
 	@NotNull
 	String getDefaultControlIdNamespace();
-	
-	default IngestRecordBuilder enrichWithLeaderInformation ( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
 
-		// This page has useful info for how to convert leader character position 06 into a value that can be used to interpret 008 fields
+	default IngestRecordBuilder enrichWithLeaderInformation(final IngestRecordBuilder ingestRecord,
+			final Record marcRecord) {
+
+		// This page has useful info for how to convert leader character position 06
+		// into a value that can be used to interpret 008 fields
 		// https://www.itsmarc.com/crs/mergedprojects/helptop1/helptop1/directory_and_leader/idh_leader_06_bib.htm
-		
+
 //		var typeCode = marcRecord.getLeader().getTypeOfRecord();
-		
-		
+
 		ingestRecord.recordStatus(String.valueOf(marcRecord.getLeader().getRecordStatus()));
 		ingestRecord.typeOfRecord(String.valueOf(marcRecord.getLeader().getTypeOfRecord()));
-                // marcRecord.getLeader.getImplDefined1() will give us 2 characters needed to work out kind of resource - Marc variant specific
-                // In marc21 07 is Bibliographic Level
-                ingestRecord.derivedType( deriveType(marcRecord.getLeader()));
+		// marcRecord.getLeader.getImplDefined1() will give us 2 characters needed to
+		// work out kind of resource - Marc variant specific
+		// In marc21 07 is Bibliographic Level
+		ingestRecord.derivedType(typeFromLeader(marcRecord.getLeader()));
 		return ingestRecord;
 	}
 
-	private String deriveType(org.marc4j.marc.Leader leader) {
-		String result = null;
-		switch ( leader.getTypeOfRecord() ) {
-			case 'a':
-				char[] implDefined1 = leader.getImplDefined1();
-				switch ( implDefined1[0] ) {
-					case 'a':
-					case 'c':
-					case 'd':
-					case 'm':
-						result = "Books";
-						break;
-					default:
-						result = "Continuing Resources";
-						break;
-					// a,c,d or m = Books
-					// b,i or s = Continuing Resources
-				}       
-                                break;
-			case 'c':
-			case 'd':
-			case 'i':
-			case 'j':
-				result = "Music";
-				break;
-			case 'e':
-			case 'f':
-				result = "Maps";
-				break;
-			case 'g':
-			case 'k':
-			case 'o':
-			case 'r':
-				result = "Visual Materials";
-				break;
-			case 'm':
-				result = "Computer Flile";
-				break;
-			case 'p':
-				result = "Mixed Materials";
-				break;
-			case 't':
-				result = "Books";
-				break;
-			default:
-				result = "Unknown";
-				break;
-		}
-		return result;
-	}
+	default IngestRecordBuilder enrichWithAuthorInformation(final IngestRecordBuilder ingestRecord,
+			final Record marcRecord) {
 
-	default IngestRecordBuilder enrichWithAuthorInformation ( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
-		
-		Stream.of( "100", "110", "700", "710")
-			.map( tag -> marcRecord.getVariableField(tag) )
-			.filter( Objects::nonNull )
-			.map( DataField.class::cast )
-			.map( df -> {
-				String authorName;
-				switch (df.getTag()) {
-					case "100":
-					case "700":
-						authorName = extractSubfieldData(marcRecord, df.getTag(), "abc", ", ").findFirst().orElse(null);
-						break;
-					default: 
-						authorName = df.getSubfieldsAsString("a");
-				}
-				
-				// Build an ID
-				return StringUtils.isEmpty(authorName) ? null : Identifier.build(id -> {
-					id.value(authorName)
-					.namespace(
-							Objects.requireNonNullElse(df.getSubfieldsAsString("0"), "M" + df.getTag()) );
-				});
-			})
-			.filter( Objects::nonNull )
-			.forEach( ingestRecord::addIdentifiers );
-		
+		Stream.of("100", "110", "700", "710").map(tag -> marcRecord.getVariableField(tag)).filter(Objects::nonNull)
+				.map(DataField.class::cast).map(df -> {
+
+					String authorName = switch (df.getTag()) {
+					case "100", "700" -> concatSubfieldData(marcRecord, df.getTag(), "abc", ", ").findFirst().orElse(null);
+					default -> df.getSubfieldsAsString("a");
+					};
+
+					// Build an ID
+					return StringUtils.isEmpty(authorName) ? null : Identifier.build(id -> {
+						id.value(authorName).namespace(Objects.requireNonNullElse(df.getSubfieldsAsString("0"), "M" + df.getTag()));
+					});
+				}).filter(Objects::nonNull).forEach(ingestRecord::addIdentifiers);
+
 		return ingestRecord;
 	}
-	
-	default IngestRecordBuilder enrichWithTitleInformation ( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
+
+	default IngestRecordBuilder enrichWithTitleInformation(final IngestRecordBuilder ingestRecord,
+			final Record marcRecord) {
 		// Initial title.
-		final String title = Stream.of( "245", "243", "240", "246", "222", "210", "240", "247", "130" )
-			.filter( Objects::nonNull )
-			.flatMap( tag -> extractSubfieldData(marcRecord, tag, "abc") )
-			.filter( StringUtils::isNotEmpty )
-			.reduce( ingestRecord.build().getTitle(), ( current, item ) -> {
-				if (StringUtils.isEmpty( current )) {
-					ingestRecord.title(item);
-					return item;
-				}
-				
-				ingestRecord.otherTitle(item);
-				
-				// Keep returning the first title that was set. 
-				return current;
-			});
-		
+		final String title = Stream.of("245", "243", "240", "246", "222", "210", "240", "247", "130")
+				.filter(Objects::nonNull).flatMap(tag -> concatSubfieldData(marcRecord, tag, "abc"))
+				.filter(StringUtils::isNotEmpty).reduce(ingestRecord.build().getTitle(), (current, item) -> {
+					if (StringUtils.isEmpty(current)) {
+						ingestRecord.title(item);
+						return item;
+					}
+
+					ingestRecord.otherTitle(item);
+
+					// Keep returning the first title that was set.
+					return current;
+				});
+
 		log.debug("Title used: {}", title);
 		return ingestRecord;
 	}
-	
-	default IngestRecordBuilder handleControlNumber( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
-		// Grab the pair of 001 and 003. These contain the identifier value and namespace respectively
-		
-		Optional.ofNullable(marcRecord.getControlNumber())
-			.filter( StringUtils::isNotEmpty )
-			.flatMap( cn -> {
-				final String cnAuthority = extractControlData(marcRecord, "003")
-						.findFirst()
-						.orElse(getDefaultControlIdNamespace());
-				
-				return Optional.ofNullable( StringUtils.isEmpty(cnAuthority) ? null : Identifier.build(id -> {
-						id.namespace(cnAuthority)
-							.value(cn);
-					}));
-			})
-			.ifPresent(ingestRecord::addIdentifiers);
-		
+
+	default IngestRecordBuilder handleControlNumber(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
+		// Grab the pair of 001 and 003. These contain the identifier value and
+		// namespace respectively
+
+		Optional.ofNullable(marcRecord.getControlNumber()).filter(StringUtils::isNotEmpty).flatMap(cn -> {
+			final String cnAuthority = extractControlData(marcRecord, "003").findFirst()
+					.orElse(getDefaultControlIdNamespace());
+
+			return Optional.ofNullable(StringUtils.isEmpty(cnAuthority) ? null : Identifier.build(id -> {
+				id.namespace(cnAuthority).value(cn);
+			}));
+		}).ifPresent(ingestRecord::addIdentifiers);
+
 		return ingestRecord;
 	}
-	
-	default IngestRecordBuilder handleSystemControlNumber( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
-		extractSubfieldData(marcRecord, "035", "a")
-			.forEach( val -> {
-				final Pattern pattern = Pattern.compile(REGEX_NAMESPACE_ID_PAIR);
-        final Matcher matcher = pattern.matcher(val);
-        
-        if (matcher.matches()) {
-        	ingestRecord.addIdentifier(id -> {
-        		id.namespace( Objects.requireNonNullElse(matcher.group(3), matcher.group(5)) )
-        			.value(matcher.group(6));
-        	});
-        }
-			});
-		
+
+	default IngestRecordBuilder handleSystemControlNumber(final IngestRecordBuilder ingestRecord,
+			final Record marcRecord) {
+		concatSubfieldData(marcRecord, "035", "a").forEach(val -> {
+			final Matcher matcher = REGEX_NAMESPACE_ID_PAIR.matcher(val);
+
+			if (matcher.matches()) {
+				ingestRecord.addIdentifier(id -> {
+					id.namespace(Objects.requireNonNullElse(matcher.group(3), matcher.group(5))).value(matcher.group(6));
+				});
+			}
+		});
+
 		return ingestRecord;
 	}
-	
-	static final Map<String, String> IDENTIFIER_FIELD_NAMESPACE = Map.of(
-		"010", "LCCN",
-		"020", "ISBN",
-		"022", "ISSN",
-		"027", "STRN"
-	);
-	
-	default IngestRecordBuilder enrichWithIdentifiers( final IngestRecordBuilder ingestRecord, final Record marcRecord ) {
-		
+
+	static final Map<String, String> IDENTIFIER_FIELD_NAMESPACE = Map.of("010", "LCCN", "020", "ISBN", "022", "ISSN",
+			"027", "STRN");
+
+	default IngestRecordBuilder enrichWithIdentifiers(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
+
 		handleControlNumber(ingestRecord, marcRecord);
 		handleSystemControlNumber(ingestRecord, marcRecord);
-		
-		IDENTIFIER_FIELD_NAMESPACE.keySet().stream()
-			.flatMap( tag -> marcRecord.getVariableFields(tag).stream() )
-			.filter( Objects::nonNull )
-			.map( DataField.class::cast )
-			.forEach(df -> {
-				Optional.ofNullable(df.getSubfieldsAsString("a"))
-					.filter( StringUtils::isNotEmpty )
-					.ifPresent(sfs -> {
+
+		IDENTIFIER_FIELD_NAMESPACE.keySet().stream().flatMap(tag -> marcRecord.getVariableFields(tag).stream())
+				.filter(Objects::nonNull).map(DataField.class::cast).forEach(df -> {
+					Optional.ofNullable(df.getSubfieldsAsString("a")).filter(StringUtils::isNotEmpty).ifPresent(sfs -> {
 						ingestRecord.addIdentifier(id -> {
-							id.namespace(IDENTIFIER_FIELD_NAMESPACE.get(df.getTag()))
-								.value(sfs);
+							id.namespace(IDENTIFIER_FIELD_NAMESPACE.get(df.getTag())).value(sfs);
 						});
 					});
-			});
-		
+				});
+
 		return ingestRecord;
 	}
-	
-	private static Stream<String> extractControlData( final Record marcRecord, @NotEmpty final String tag ) {
-		
-		return marcRecord.getVariableFields(tag).stream()
-			.filter( Objects::nonNull )
-			.map( ControlField.class::cast )
-			.map( field -> field.getData() );
+
+	private static Stream<String> extractControlData(final Record marcRecord, @NotEmpty final String tag) {
+
+		return marcRecord.getVariableFields(tag).stream().filter(Objects::nonNull).map(ControlField.class::cast)
+				.map(field -> field.getData());
 	}
-	
-	private static Stream<String> extractSubfieldData(final Record marcRecord, @NotEmpty final String tag, @NotEmpty final String subfields) {
-		return extractSubfieldData(marcRecord, tag, subfields, " ");
-	}
-	
-	private static Stream<String> extractSubfieldData(final Record marcRecord, @NotEmpty final String tag, @NotEmpty final String subfields, @NotNull final String delimiter) {
-		
-		final HashMap<Character, Integer> sortValues = new HashMap<>(subfields.length());
-		subfields.chars()
-			.forEachOrdered(cint -> {
-				sortValues.put((char)cint, sortValues.size());
-			});
-	
-		return marcRecord.getVariableFields(tag).stream()
-			.filter( Objects::nonNull )
-			.map( DataField.class::cast )
-			.map( field -> field.getSubfields(subfields)
-					.stream()
-					// Ensure requested order is maintained, then order defined.
-					.sorted(createSubFieldComparator(sortValues))
-					.map( sf -> sf.getData() )
-					.collect(Collectors.joining(delimiter)));
-	}
-	
-	Publisher<T> getResources( Instant since );
-	IngestRecordBuilder initIngestRecordBuilder ( T resource );
-	Record resourceToMarc( T resource );
+
+	Publisher<T> getResources(Instant since);
+
+	IngestRecordBuilder initIngestRecordBuilder(T resource);
+
+	Record resourceToMarc(T resource);
 
 	@Override
-	public default Publisher<IngestRecord> apply( Instant since ) {
+	public default Publisher<IngestRecord> apply(Instant since) {
 
 		log.info("Read from the marc source and publish a stream of IngestRecords");
 
-		return Flux.from(getResources(since))
-			.flatMap(this::saveRawAndContinue)
-			.doOnError ( throwable -> log.warn("ONERROR saving raw record", throwable) )
-			.flatMap(resource -> {
-				return Mono.just( initIngestRecordBuilder( resource ) )
-					.map( ir -> {
-						Record marcRecord = resourceToMarc( resource );
-						return populateRecordFromMarc(ir, marcRecord).build();
-					});
-			});
+		return Flux.from(getResources(since)).flatMap(this::saveRawAndContinue)
+				.doOnError(throwable -> log.warn("ONERROR saving raw record", throwable))
+				.flatMap(resource -> {
+					return Mono.just(initIngestRecordBuilder(resource))
+							.zipWith(Mono.just( resourceToMarc(resource) )
+									.map( this::createMatchKey ))
+							.map(TupleUtils.function(( ir, marcRecord ) -> {
+								return populateRecordFromMarc(ir, marcRecord).build();
+							}));
+				});
 	}
-	
+
 	RawSourceRepository getRawSourceRepository();
-	
+
 	@Transactional
 	public default Mono<T> saveRawAndContinue(T resource) {
-        log.debug("Save raw {}",resource);
-		return Mono.just(resource)
-			.zipWhen(res -> Mono.just(resourceToRawSource(res)))
-			.flatMap(TupleUtils.function(( res, raw ) -> {
-				return Mono.from(getRawSourceRepository().saveOrUpdate(raw))
-					.thenReturn(res);
-			}));
+		log.debug("Save raw {}", resource);
+		return Mono.just(resource).zipWhen(res -> Mono.just(resourceToRawSource(res)))
+				.flatMap(TupleUtils.function((res, raw) -> {
+					return Mono.from(getRawSourceRepository().saveOrUpdate(raw)).thenReturn(res);
+				}));
 	}
 
 	RawSource resourceToRawSource(T resource);
+
+	private static void parseFromSingleSubfield(Record marcRecord, String fieldTag, char subField,
+			Consumer<String> consumer) {
+		extractOrderedSubfields((DataField) marcRecord.getVariableField(fieldTag), "" + subField).limit(1).findFirst()
+				.ifPresent(consumer);
+	}
+
+	public default Record createMatchKey(final Record marcRecord) {
+
+		GoldrushKey grk = new GoldrushKey();
+
+		// Start with 245. If there is a linkage to a 880, then swap to that instead.
+		final DataField field245 = (DataField) marcRecord.getVariableField("245");
+		final DataField fieldForTitle = extractOrderedSubfields(field245, "6")
+			.map( REGEX_LINKAGE_245_880::matcher )
+			.filter( Matcher::matches )
+			.findFirst()
+			.map( match -> match.group(1) )
+			.flatMap( occNum -> {
+				final Pattern linked880 = Pattern.compile("^245-" + occNum);
+				return marcRecord.getVariableFields("880")
+						.stream()
+						.map( DataField.class::cast )
+						.filter(field880 ->
+							extractOrderedSubfields(field880, "6")
+								.anyMatch(linked880.asMatchPredicate()))
+						.findFirst();
+			})
+			.orElseGet(() -> field245);
+		
+		List<String> fields = extractOrderedSubfields(fieldForTitle, "ab").limit(2)
+				.toList();
+
+		if (fields.size() > 0) {
+			grk.parseTitle(fields.get(0), fields.size() > 1 ? fields.get(1) : null);
+		}
+
+		parseFromSingleSubfield(marcRecord, "245", 'h', grk::parseMediaDesignation);
+		parseFromSingleSubfield(marcRecord, "260", 'c', grk::parsePubYear);
+		parseFromSingleSubfield(marcRecord, "300", 'a', grk::parsePagination);
+		parseFromSingleSubfield(marcRecord, "250", 'a', grk::parseEdition);
+		parseFromSingleSubfield(marcRecord, "260", 'b', grk::parsePublisher);
+		parseFromSingleSubfield(marcRecord, "245", 'p', grk::parseTitlePart);
+		parseFromSingleSubfield(marcRecord, "245", 'n', grk::parseTitleNumber);
+
+		char type = marcRecord.getLeader().getTypeOfRecord();
+		grk.setRecordType(type);
+//		System.out.println( grk.toString() );
+//		System.out.println( grk.getText() );
+		return marcRecord;
+	}
 }
