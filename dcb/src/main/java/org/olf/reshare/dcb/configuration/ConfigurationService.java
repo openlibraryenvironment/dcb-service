@@ -116,6 +116,7 @@ public class ConfigurationService implements Runnable {
      * @return
      */
     private Mono<Agency> handleBranchRecord(BranchRecord br) {
+        log.debug("handleBranchRecord {}",br);
         // Different host LMS systems will have different policies on how BranchRecords map to agencies
         // In a multi-tenant sierra for example, branch records represent institutions and we should create
         // an agency for each branch record. This method will take account of policies configured for the
@@ -141,7 +142,7 @@ public class ConfigurationService implements Runnable {
     }
 
     private Mono<Location> handlePickupLocation(PickupLocationRecord pickupLocationRecord) {
-        // log.debug("handlePickupLocation {}",pickupLocationRecord);
+        log.debug("handlePickupLocation {}",pickupLocationRecord);
         if (pickupLocationRecord.getLms() instanceof DataHostLms) {
             Location upsert_location = new Location()
                     .builder()
