@@ -26,6 +26,7 @@ import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.SierraError;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchResultSet;
+import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.items.ResultSet;
 
@@ -118,6 +119,22 @@ public class HostLmsSierraApiClient implements SierraApiClient {
                 .flatMap(req -> doRetrieve(req, BibResultSet.class));
     }
 
+
+    @SingleResult
+    @Retryable
+    @Get("patrons/metadata")
+    public Publisher<List<PatronMetadata>> patronMetadata() {
+      return getRequest("patrons/metadata")
+              .map(req -> req.uri(theuri -> {
+                  theuri.queryParam("offset", 0)
+                          .queryParam("limit",1000)
+                          .queryParam("deleted", false);
+
+              }))
+              .flatMap(this::ensureToken)
+              .flatMap( req -> Mono.from(client.retrieve(req, Argument.listOf(PatronMetadata.class), ERROR_TYPE )));
+    }
+
     @SingleResult
     @Retryable
     @Get("branches/pickupLocations")
@@ -144,8 +161,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
                                         .queryParam("fields", iterableToArray(fields))
                                         ;
                         }))
-                        .flatMap(this::ensureToken)
-                        .flatMap(req -> doRetrieve(req, BranchResultSet.class) );
+                .flatMap(this::ensureToken)
+                .flatMap(req -> doRetrieve(req, BranchResultSet.class) );
         }
 
     @Override

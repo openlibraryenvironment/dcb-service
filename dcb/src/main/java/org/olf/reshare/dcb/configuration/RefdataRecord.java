@@ -34,6 +34,8 @@ public class RefdataRecord implements ConfigurationRecord {
 
     private String value;
 
+    private String label;
+
     public String getRecordType() {
         return RECORD_TYPE;
     }

@@ -31,6 +31,7 @@ import services.k_int.interaction.sierra.configuration.BranchResultSet;
 import services.k_int.interaction.sierra.bibs.BibParams;
 import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
+import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.items.Params;
 import services.k_int.interaction.sierra.items.ResultSet;
@@ -138,14 +139,19 @@ public interface SierraApiClient {
 		return login(new BasicAuth(key, secret));
 	}
 
-        @SingleResult
-        @Retryable
-        @Get("/branches/")
-        public Publisher<BranchResultSet> branches(Integer limit, Integer offset, Iterable<String> fields );
+    @SingleResult
+    @Retryable
+    @Get("/branches/")
+    public Publisher<BranchResultSet> branches(Integer limit, Integer offset, Iterable<String> fields );
 
     @SingleResult
     @Retryable
     @Get("/branches/pickupLocations")
     public Publisher<List<PickupLocationInfo>> pickupLocations();
+
+    @SingleResult
+    @Retryable
+    @Get("/patrons/metadata")
+    public Publisher<List<PatronMetadata>> patronMetadata();
 
 }

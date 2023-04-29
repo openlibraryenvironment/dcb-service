@@ -9,6 +9,7 @@ import io.micronaut.json.tree.JsonNode;
 import org.marc4j.marc.Record;
 import org.olf.reshare.dcb.configuration.ConfigurationRecord;
 import org.olf.reshare.dcb.configuration.PickupLocationRecord;
+import org.olf.reshare.dcb.configuration.RefdataRecord;
 import org.olf.reshare.dcb.core.ProcessStateService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.model.HostLms;
@@ -24,10 +25,12 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import reactor.util.function.Tuples;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchInfo;
+import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
@@ -453,6 +456,33 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                 .map( result -> mapSierraPickupLocationToPickupLocationRecord(result) );
     }
 
+    private Publisher<ConfigurationRecord> getPatronMetadata() {
+        return Flux.from(client.patronMetadata())
+                .flatMap(results -> Flux.fromIterable(results))
+                .flatMap( result ->
+                        Flux.fromIterable(result.values())
+                                .flatMap(item -> Mono.just(Tuples.of(item, result.field())))
+                )
+                .map(tuple -> mapSierraPatronMetadataToConfigurationRecord(tuple.getT1(), tuple.getT2()));
+    }
+
+    private ConfigurationRecord mapSierraPatronMetadataToConfigurationRecord(Map <String,Object> rdv, String field) {
+        return new RefdataRecord()
+                .builder()
+                .context(field)
+                .id(uuid5ForConfigRecord(field, rdv.get("code").toString()))
+                .lms(lms)
+                .key(rdv.get("code").toString())
+                .value(rdv.get("desc").toString())
+                .label(rdv.get("desc").toString())
+                .build();
+    }
+
+    private UUID uuid5ForConfigRecord(String field, String code) {
+        final String concat = UUID5_PREFIX + ":RDV:" + lms.getCode() + ":" + field +":"+code;
+        return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
+    }
+
     class PubisherState {
         public Map storred_state;
         public List<BibResult> current_page;
@@ -473,7 +503,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
     @Override
         public Publisher<ConfigurationRecord> getConfigStream() {
                 return Flux.from(getBranches())
-                      .concatWith(getPickupLocations());
+                        .concatWith(getPickupLocations())
+                        .concatWith(getPatronMetadata());
         }
 
 }

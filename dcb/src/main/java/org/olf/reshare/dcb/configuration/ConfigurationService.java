@@ -178,10 +178,16 @@ public class ConfigurationService implements Runnable {
                     return switch (confrec.getRecordType()) {
                         case BranchRecord.RECORD_TYPE -> handleBranchRecord((BranchRecord) confrec);
                         case PickupLocationRecord.RECORD_TYPE -> handlePickupLocation((PickupLocationRecord) confrec);
+                        case RefdataRecord.RECORD_TYPE -> handleRefdataRecord((RefdataRecord) confrec);
                         default -> Mono.empty();
                     };
                 })
                 .thenReturn(cr);
+    }
+
+    private Mono<RefdataValue> handleRefdataRecord(RefdataRecord refdataRecord) {
+        log.debug("handleRefdataRecord {}",refdataRecord);
+        return Mono.empty();
     }
 
     @Override
