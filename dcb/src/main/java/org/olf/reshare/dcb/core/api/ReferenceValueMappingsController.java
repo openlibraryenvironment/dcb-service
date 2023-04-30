@@ -1,9 +1,10 @@
 package org.olf.reshare.dcb.core.api;
-
 import javax.validation.Valid;
 
 import org.olf.reshare.dcb.core.model.RefdataValue;
+import org.olf.reshare.dcb.core.model.ReferenceValueMapping;
 import org.olf.reshare.dcb.storage.RefdataValueRepository;
+import org.olf.reshare.dcb.storage.ReferenceValueMappingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,15 +26,15 @@ import java.util.UUID;
 @Validated
 @Secured({"ADMIN"})
 @Controller("/hostlmss")
-@Tag(name = "ReferenceDataValues")
-public class RefdataValueController {
+@Tag(name = "HostLMSs")
+public class ReferenceValueMappingsController {
 
-    private static final Logger log = LoggerFactory.getLogger(RefdataValueController.class);
+    private static final Logger log = LoggerFactory.getLogger(ReferenceValueMappingsController.class);
 
-    private RefdataValueRepository refdataValueRepository;
+    private ReferenceValueMappingRepository referenceValueMappingRepository;
 
-    public RefdataValueController(RefdataValueRepository refdataValueRepository) {
-        this.refdataValueRepository = refdataValueRepository;
+    public ReferenceValueMappingsController(ReferenceValueMappingRepository referenceValueMappingRepository) {
+        this.referenceValueMappingRepository = referenceValueMappingRepository;
     }
 
     @Operation(
@@ -44,17 +45,18 @@ public class RefdataValueController {
                     @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
     )
     @Get("/{?pageable*}")
-    public Mono<Page<RefdataValue>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
+    public Mono<Page<ReferenceValueMapping>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
         if (pageable == null) {
             pageable = Pageable.from(0, 100);
         }
 
-        return Mono.from(refdataValueRepository.findAll(pageable));
+        return Mono.from(referenceValueMappingRepository.findAll(pageable));
     }
 
     @Get("/{id}")
-    public Mono<RefdataValue> show(UUID id) {
-        return Mono.from(refdataValueRepository.findById(id));
+    public Mono<ReferenceValueMapping> show(UUID id) {
+        return Mono.from(referenceValueMappingRepository.findById(id));
     }
+
 
 }

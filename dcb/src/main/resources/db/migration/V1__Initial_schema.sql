@@ -142,4 +142,16 @@ create table refdata_value (
 	label varchar(255),
 	CONSTRAINT refdata_value_pk PRIMARY KEY (id)
 );
-CREATE INDEX idx_rdv ON refdata_value(category,context)
+CREATE INDEX idx_rdv ON refdata_value(category,context);
+
+create table reference_value_mapping (
+	 id uuid NOT NULL,
+	 from_context varchar(64),
+	 from_category varchar(64),
+	 from_value varchar(255),
+	 to_context varchar(64),
+	 to_category varchar(64),
+	 to_value varchar(255),
+   CONSTRAINT pk_reference_value_mapping primary key (id)
+);
+CREATE INDEX idx_rvm_mapping on reference_value_mapping(from_context,from_category,from_value,to_context);
