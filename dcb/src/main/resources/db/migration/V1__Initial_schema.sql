@@ -134,20 +134,12 @@ create table shelving_location (
 CREATE INDEX idx_sl_host_system ON shelving_location(host_system_id);
 CREATE INDEX idx_sl_agency ON shelving_location(agency_id);
 
-create table refdata_category (
-	id uuid NOT NULL,
-	date_created timestamp,
-	date_updated timestamp,
-	context varchar(64),
-	category varchar(64),
-	CONSTRAINT refdata_category_pk PRIMARY KEY (id)
-);
-
 create table refdata_value (
 	id uuid NOT NULL,
-	owner UUID,
+	context varchar(64),
+	category varchar(64),
 	value varchar(255),
 	label varchar(255),
-	CONSTRAINT refdata_value_pk PRIMARY KEY (id),
-	CONSTRAINT fk_refdata_value_refdata_category FOREIGN KEY (owner) REFERENCES refdata_category(id)
+	CONSTRAINT refdata_value_pk PRIMARY KEY (id)
 );
+CREATE INDEX idx_rdv ON refdata_value(category,context)

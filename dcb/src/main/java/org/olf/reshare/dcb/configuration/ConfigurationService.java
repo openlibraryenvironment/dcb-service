@@ -6,6 +6,7 @@ import org.olf.reshare.dcb.core.model.*;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.storage.AgencyRepository;
 import org.olf.reshare.dcb.storage.LocationRepository;
+import org.olf.reshare.dcb.storage.RefdataValueRepository;
 import org.olf.reshare.dcb.storage.ShelvingLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,14 +41,18 @@ public class ConfigurationService implements Runnable {
 
     private final LocationRepository locationRepository;
 
+    private final RefdataValueRepository refdataValueRepository;
+
     public ConfigurationService(List<IngestSourcesProvider> sourceProviders,
                                 ShelvingLocationRepository shelvingLocationRepository,
                                 AgencyRepository agencyRepository,
-                                LocationRepository locationRepository) {
+                                LocationRepository locationRepository,
+                                RefdataValueRepository refdataValueRepository) {
         this.sourceProviders = sourceProviders;
         this.shelvingLocationRepository = shelvingLocationRepository;
         this.agencyRepository = agencyRepository;
         this.locationRepository = locationRepository;
+        this.refdataValueRepository = refdataValueRepository;
     }
 
 
@@ -187,7 +192,16 @@ public class ConfigurationService implements Runnable {
 
     private Mono<RefdataValue> handleRefdataRecord(RefdataRecord refdataRecord) {
         log.debug("handleRefdataRecord {}",refdataRecord);
-        return Mono.empty();
+        RefdataValue rdv = RefdataValue
+                .builder()
+                .id(refdataRecord.getId())
+                .category(refdataRecord.getCategory())
+                .context(refdataRecord.getContext())
+                .label(refdataRecord.getLabel())
+                .value(refdataRecord.getValue())
+                .build();
+        return Mono.from(refdataValueRepository.existsById(rdv.getId()))
+                .flatMap(exists -> Mono.fromDirect(exists ? refdataValueRepository.update(rdv) : refdataValueRepository.save(rdv)));
     }
 
     @Override

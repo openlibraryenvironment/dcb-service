@@ -469,11 +469,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
     private ConfigurationRecord mapSierraPatronMetadataToConfigurationRecord(Map <String,Object> rdv, String field) {
         return new RefdataRecord()
                 .builder()
-                .context(field)
+                .category(field)
+                .context(lms.getCode())
                 .id(uuid5ForConfigRecord(field, rdv.get("code").toString()))
                 .lms(lms)
-                .key(rdv.get("code").toString())
-                .value(rdv.get("desc").toString())
+                .value(rdv.get("code").toString())
                 .label(rdv.get("desc").toString())
                 .build();
     }

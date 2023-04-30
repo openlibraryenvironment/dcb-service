@@ -28,9 +28,11 @@ public class RefdataRecord implements ConfigurationRecord {
     // The host LMS system which managed this shelving location
     private HostLms lms;
 
+    // In essence a code for the LMS holding this value
     private String context;
 
-    private String key;
+    // What is the domain of this refata - e.g. patronType
+    private String category;
 
     private String value;
 

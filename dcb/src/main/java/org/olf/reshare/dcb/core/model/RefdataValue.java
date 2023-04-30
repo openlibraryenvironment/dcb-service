@@ -39,8 +39,13 @@ public class RefdataValue {
 
     @NotNull
     @NonNull
-    @Relation(value = Relation.Kind.MANY_TO_ONE)
-    private RefdataCategory owner;
+    @Size(max=64)
+    private String category;
+
+    @NotNull
+    @NonNull
+    @Size(max=64)
+    private String context;
 
     @NotNull
     @NonNull
