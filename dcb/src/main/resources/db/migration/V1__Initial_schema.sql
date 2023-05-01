@@ -121,15 +121,37 @@ CREATE INDEX idx_pi_patron ON patron_identity(identity_of);
 
 
 create table shelving_location (
-        id uuid NOT NULL,
-        date_created timestamp,
-        date_updated timestamp,
-        code varchar(64),
-        name varchar(64),
-        host_system_id uuid,
-        agency_id uuid,
+	id uuid NOT NULL,
+	date_created timestamp,
+	date_updated timestamp,
+	code varchar(64),
+	name varchar(64),
+	host_system_id uuid,
+	agency_id uuid,
 	loan_policy varchar(32),
-        CONSTRAINT shelving_location_pk PRIMARY KEY (id)
+  CONSTRAINT shelving_location_pk PRIMARY KEY (id)
 );
 CREATE INDEX idx_sl_host_system ON shelving_location(host_system_id);
 CREATE INDEX idx_sl_agency ON shelving_location(agency_id);
+
+create table refdata_value (
+	id uuid NOT NULL,
+	context varchar(64),
+	category varchar(64),
+	value varchar(255),
+	label varchar(255),
+	CONSTRAINT refdata_value_pk PRIMARY KEY (id)
+);
+CREATE INDEX idx_rdv ON refdata_value(category,context);
+
+create table reference_value_mapping (
+	 id uuid NOT NULL,
+	 from_context varchar(64),
+	 from_category varchar(64),
+	 from_value varchar(255),
+	 to_context varchar(64),
+	 to_category varchar(64),
+	 to_value varchar(255),
+   CONSTRAINT pk_reference_value_mapping primary key (id)
+);
+CREATE INDEX idx_rvm_mapping on reference_value_mapping(from_context,from_category,from_value,to_context);

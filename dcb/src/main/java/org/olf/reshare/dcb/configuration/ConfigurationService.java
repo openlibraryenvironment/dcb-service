@@ -6,6 +6,7 @@ import org.olf.reshare.dcb.core.model.*;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.storage.AgencyRepository;
 import org.olf.reshare.dcb.storage.LocationRepository;
+import org.olf.reshare.dcb.storage.RefdataValueRepository;
 import org.olf.reshare.dcb.storage.ShelvingLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,14 +41,18 @@ public class ConfigurationService implements Runnable {
 
     private final LocationRepository locationRepository;
 
+    private final RefdataValueRepository refdataValueRepository;
+
     public ConfigurationService(List<IngestSourcesProvider> sourceProviders,
                                 ShelvingLocationRepository shelvingLocationRepository,
                                 AgencyRepository agencyRepository,
-                                LocationRepository locationRepository) {
+                                LocationRepository locationRepository,
+                                RefdataValueRepository refdataValueRepository) {
         this.sourceProviders = sourceProviders;
         this.shelvingLocationRepository = shelvingLocationRepository;
         this.agencyRepository = agencyRepository;
         this.locationRepository = locationRepository;
+        this.refdataValueRepository = refdataValueRepository;
     }
 
 
@@ -116,6 +121,7 @@ public class ConfigurationService implements Runnable {
      * @return
      */
     private Mono<Agency> handleBranchRecord(BranchRecord br) {
+        log.debug("handleBranchRecord {}",br);
         // Different host LMS systems will have different policies on how BranchRecords map to agencies
         // In a multi-tenant sierra for example, branch records represent institutions and we should create
         // an agency for each branch record. This method will take account of policies configured for the
@@ -141,7 +147,7 @@ public class ConfigurationService implements Runnable {
     }
 
     private Mono<Location> handlePickupLocation(PickupLocationRecord pickupLocationRecord) {
-        // log.debug("handlePickupLocation {}",pickupLocationRecord);
+        log.debug("handlePickupLocation {}",pickupLocationRecord);
         if (pickupLocationRecord.getLms() instanceof DataHostLms) {
             Location upsert_location = new Location()
                     .builder()
@@ -177,10 +183,25 @@ public class ConfigurationService implements Runnable {
                     return switch (confrec.getRecordType()) {
                         case BranchRecord.RECORD_TYPE -> handleBranchRecord((BranchRecord) confrec);
                         case PickupLocationRecord.RECORD_TYPE -> handlePickupLocation((PickupLocationRecord) confrec);
+                        case RefdataRecord.RECORD_TYPE -> handleRefdataRecord((RefdataRecord) confrec);
                         default -> Mono.empty();
                     };
                 })
                 .thenReturn(cr);
+    }
+
+    private Mono<RefdataValue> handleRefdataRecord(RefdataRecord refdataRecord) {
+        log.debug("handleRefdataRecord {}",refdataRecord);
+        RefdataValue rdv = RefdataValue
+                .builder()
+                .id(refdataRecord.getId())
+                .category(refdataRecord.getCategory())
+                .context(refdataRecord.getContext())
+                .label(refdataRecord.getLabel())
+                .value(refdataRecord.getValue())
+                .build();
+        return Mono.from(refdataValueRepository.existsById(rdv.getId()))
+                .flatMap(exists -> Mono.fromDirect(exists ? refdataValueRepository.update(rdv) : refdataValueRepository.save(rdv)));
     }
 
     @Override
