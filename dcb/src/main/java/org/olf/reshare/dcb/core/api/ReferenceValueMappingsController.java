@@ -25,8 +25,8 @@ import java.util.UUID;
 
 @Validated
 @Secured({"ADMIN"})
-@Controller("/hostlmss")
-@Tag(name = "HostLMSs")
+@Controller("/referenceValueMappings")
+@Tag(name = "Reference Value mappings")
 public class ReferenceValueMappingsController {
 
     private static final Logger log = LoggerFactory.getLogger(ReferenceValueMappingsController.class);

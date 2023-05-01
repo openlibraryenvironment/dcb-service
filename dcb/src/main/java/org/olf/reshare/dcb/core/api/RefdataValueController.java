@@ -24,7 +24,7 @@ import java.util.UUID;
 
 @Validated
 @Secured({"ADMIN"})
-@Controller("/hostlmss")
+@Controller("/refdata")
 @Tag(name = "ReferenceDataValues")
 public class RefdataValueController {
 
