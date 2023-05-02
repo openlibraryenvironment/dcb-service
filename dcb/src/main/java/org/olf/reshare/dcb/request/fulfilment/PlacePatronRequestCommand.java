@@ -5,11 +5,10 @@ import java.util.UUID;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
-import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
-public record PlacePatronRequestCommand(@Nullable UUID id,
+public record PlacePatronRequestCommand(
 	@NotNull @NotBlank Citation citation,
 	@NotNull @NotBlank PickupLocation pickupLocation,
 	@NotNull @NotBlank Requestor requestor) {
@@ -21,5 +20,5 @@ public record PlacePatronRequestCommand(@Nullable UUID id,
 	@Serdeable
 	public record Agency(String code) { }
 	@Serdeable
-	public record Requestor(String identifier, Agency agency) { }
+	public record Requestor(Agency agency, String localId, String localSystemCode) { }
 }

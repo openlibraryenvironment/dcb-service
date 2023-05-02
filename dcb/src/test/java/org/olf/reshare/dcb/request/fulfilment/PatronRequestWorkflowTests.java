@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.utils.BackgroundExecutor;
 
@@ -65,7 +66,7 @@ public class PatronRequestWorkflowTests {
 
 	private static PatronRequest createPatronRequestWithStatus(String status) {
 		return new PatronRequest(UUID.randomUUID(), null, null,
-			"patronId", "patronAgencyCode",
+			new Patron(), "patronAgencyCode",
 			UUID.randomUUID(), "pickupLocationCode", status);
 	}
 }

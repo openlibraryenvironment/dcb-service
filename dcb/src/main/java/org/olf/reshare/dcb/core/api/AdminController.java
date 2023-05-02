@@ -33,8 +33,8 @@ public class AdminController {
 	private final PatronRequestService patronRequestService;
 	private final SupplierRequestService supplierRequestService;
 
-	public AdminController(PatronRequestService patronRequestService,
-		SupplierRequestService supplierRequestService) {
+
+	public AdminController(PatronRequestService patronRequestService, SupplierRequestService supplierRequestService) {
 
 		this.patronRequestService = patronRequestService;
 		this.supplierRequestService = supplierRequestService;
@@ -42,8 +42,7 @@ public class AdminController {
 
 	@SingleResult
 	@Get(value = "/admin/patrons/requests/{id}", produces = APPLICATION_JSON)
-	public Mono<HttpResponse<PatronRequestAdminView>> getPatronRequest(
-		@PathVariable("id") final UUID id) {
+	public Mono<HttpResponse<PatronRequestAdminView>> getPatronRequest(@PathVariable("id") final UUID id) {
 
 		log.debug("REST, get patron request by id: {}", id);
 

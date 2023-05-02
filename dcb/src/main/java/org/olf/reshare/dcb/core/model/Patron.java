@@ -4,6 +4,7 @@ import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstant
 import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import javax.validation.constraints.NotNull;
@@ -20,6 +21,8 @@ import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.OneToMany;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -53,5 +56,7 @@ public class Patron {
 	@DateUpdated
 	private Instant dateUpdated;
 
+	@OneToMany(mappedBy = "patronId")
+	private List<PatronIdentity> patronIdentities;
 }
 

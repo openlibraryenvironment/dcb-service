@@ -4,7 +4,9 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 import javax.validation.Valid;
 
+import io.micronaut.http.MutableHttpResponse;
 import org.olf.reshare.dcb.request.fulfilment.PatronRequestService;
+import org.olf.reshare.dcb.request.fulfilment.PatronService;
 import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
@@ -39,25 +41,34 @@ public class PatronRequestController {
 
 	private final PatronRequestService patronRequestService;
 	private final PatronRequestRepository patronRequestRepository;
+private final PatronService patronService;
 
-	public PatronRequestController(PatronRequestService patronRequestService, PatronRequestRepository patronRequestRepository) {
+	public PatronRequestController(PatronRequestService patronRequestService,
+		PatronRequestRepository patronRequestRepository, PatronService patronService) {
 		this.patronRequestService = patronRequestService;
 		this.patronRequestRepository = patronRequestRepository;
+		this.patronService = patronService;
 	}
 
 	@SingleResult
 	@Post(value = "/place", consumes = APPLICATION_JSON)
-	public Mono<HttpResponse<PatronRequestView>> placePatronRequest(
+	public Mono<MutableHttpResponse<PatronRequestView>> placePatronRequest(
 		@Body @Valid PlacePatronRequestCommand command) {
 
 		log.debug("REST, place patron request: {}", command);
 
 		return patronRequestService.placePatronRequest(command)
-			.map(PatronRequestView::from)
+			.flatMap(this::toPatronRequestView)
 			.map(HttpResponse::ok);
 	}
 
-        @Secured(SecurityRule.IS_ANONYMOUS)
+	private Mono<PatronRequestView> toPatronRequestView(PatronRequest patronRequest) {
+		log.debug("toPatronRequestView({})", patronRequest);
+		return patronService.addPatronIdentitiesAndHostLms(patronRequest)
+			.map(PatronRequestView::from);
+	}
+
+	@Secured(SecurityRule.IS_ANONYMOUS)
         @Operation(
                 summary = "Browse Requests",
                 description = "Paginate through the list of Patron Requests",

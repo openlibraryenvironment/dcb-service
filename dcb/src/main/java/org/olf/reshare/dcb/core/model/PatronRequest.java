@@ -12,11 +12,7 @@ import javax.validation.constraints.Size;
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
-import io.micronaut.data.annotation.DateCreated;
-import io.micronaut.data.annotation.DateUpdated;
-import io.micronaut.data.annotation.Id;
-import io.micronaut.data.annotation.MappedEntity;
-import io.micronaut.data.annotation.TypeDef;
+import io.micronaut.data.annotation.*;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
@@ -48,8 +44,9 @@ public class PatronRequest {
 	@DateUpdated
 	private Instant dateUpdated;
 
-	@Size(max = 200)
-	private String patronId;
+	@Nullable
+	@Relation(value = Relation.Kind.MANY_TO_ONE)
+	private Patron patron;
 
 	@Size(max = 200)
 	private String patronAgencyCode;
@@ -67,12 +64,12 @@ public class PatronRequest {
 	private String statusCode;
 
 	public PatronRequest resolve() {
-		return new PatronRequest(id, dateCreated, dateUpdated, patronId,
+		return new PatronRequest(id, dateCreated, dateUpdated, patron,
 			patronAgencyCode, bibClusterId, pickupLocationCode, RESOLVED);
 	}
 
 	public PatronRequest resolveToNoItemsAvailable() {
-		return new PatronRequest(id, dateCreated, dateUpdated, patronId,
+		return new PatronRequest(id, dateCreated, dateUpdated, patron,
 			patronAgencyCode, bibClusterId, pickupLocationCode,
 			NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
 	}
