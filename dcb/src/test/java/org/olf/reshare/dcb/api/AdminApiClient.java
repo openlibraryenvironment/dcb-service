@@ -30,10 +30,13 @@ class AdminApiClient {
 		record Citation(@Nullable UUID bibClusterId) { }
 
 		@Serdeable
-		record Requestor(String identifier, @Nullable Agency agency) { }
+		record Requestor(String id, @Nullable Agency agency, @Nullable List<Identity> identities) { }
 
 		@Serdeable
 		record Agency(String code) { }
+
+		@Serdeable
+		record Identity(String localId, String hostLmsCode, Boolean homeIdentity) { }
 
 		@Serdeable
 		record PickupLocation(String code) { }

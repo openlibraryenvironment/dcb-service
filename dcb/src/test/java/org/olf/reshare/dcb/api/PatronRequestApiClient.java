@@ -23,57 +23,36 @@ class PatronRequestApiClient {
 	}
 
 	HttpResponse<PlacedPatronRequest> placePatronRequest(UUID bibClusterId,
-		String requestorIdentifier, String agencyCode, String pickupLocationCode) {
+		String localId, String agencyCode, String pickupLocationCode, String localSystemCode) {
 
 		return placePatronRequest(createPlacePatronRequestCommand(bibClusterId,
-			requestorIdentifier, agencyCode, pickupLocationCode));
+			localId, agencyCode, pickupLocationCode, localSystemCode));
 	}
 
 	private static JSONObject createPlacePatronRequestCommand(
-		final UUID bibClusterId, final String requestorIdentifier,
-		final String agencyCode, final String pickupLocationCode) {
-
+		final UUID bibClusterId, final String localId,
+		final String agencyCode, final String pickupLocationCode,
+		final String localSystemCode) {
 		return new JSONObject() {{
-			// citation
-			final var citation = new JSONObject() {{
-				put("bibClusterId", bibClusterId.toString());
-			}};
-			put("citation", citation);
-			// requestor
-			final var requestor = new JSONObject() {{
-				put("identifier", requestorIdentifier);
-				final var agency = new JSONObject() {{
-					put("code", agencyCode);
-				}};
-				put("agency", agency);
-			}};
-			put("requestor", requestor);
-			// pickup location
-			final var pickupLocation = new JSONObject() {{
-				put("code", pickupLocationCode);
-			}};
-			put("pickupLocation", pickupLocation);
+			put("citation", new JSONObject() {{ put("bibClusterId", bibClusterId.toString()); }} );
+			put("requestor", new JSONObject() {{
+				put("localId", localId);
+				put("agency", new JSONObject() {{ put("code", agencyCode); }} );
+				put("localSystemCode", localSystemCode); }});
+			put("pickupLocation", new JSONObject() {{ put("code", pickupLocationCode); }} );
 		}};
 	}
 
 	@Serdeable
-	static
-	record PlacedPatronRequest(@Nullable UUID id, @Nullable Citation citation,
-		@Nullable Requestor requestor, @Nullable PickupLocation pickupLocation,
-	 	@Nullable Status status) {
-
+	record PlacedPatronRequest(UUID id, Citation citation, Requestor requestor, PickupLocation pickupLocation, @Nullable Status status) {
 		@Serdeable
-		record Citation(@Nullable UUID bibClusterId) { }
-
+		record Citation(UUID bibClusterId) { }
 		@Serdeable
-		record Requestor(String identifier, @Nullable Agency agency) { }
-
+		record Requestor(String localId, String localSystemCode, Agency agency) { }
 		@Serdeable
 		record Agency(String code) { }
-
 		@Serdeable
 		record PickupLocation(String code) { }
-
 		@Serdeable
 		record Status(String code) { }
 	}

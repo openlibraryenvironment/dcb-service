@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import io.micronaut.core.annotation.Nullable;
+import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 
 import io.micronaut.serde.annotation.Serdeable;
@@ -19,8 +21,9 @@ record PatronRequestAdminView(UUID id, Citation citation,
 		return new PatronRequestAdminView(patronRequest.getId(),
 			new Citation(patronRequest.getBibClusterId()),
 			new PickupLocation(patronRequest.getPickupLocationCode()),
-			new Requestor(patronRequest.getPatronId(),
-				new Agency(patronRequest.getPatronAgencyCode())),
+			new Requestor(patronRequest.getPatron().getId().toString(),
+				new Agency(patronRequest.getPatronAgencyCode()),
+				Identity.fromList(patronRequest.getPatron().getPatronIdentities())),
 			SupplierRequest.fromList(supplierRequests),
 			new Status(patronRequest.getStatusCode()));
 	}
@@ -34,8 +37,24 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	@Serdeable
 	record Agency(String code) { }
 
+
 	@Serdeable
-	record Requestor(String identifier, Agency agency) { }
+	record Requestor(String id, Agency agency, @Nullable List<Identity> identities) { }
+
+	@Serdeable
+	record Identity(String localId, String hostLmsCode, Boolean homeIdentity) {
+
+		private static Identity from(PatronIdentity patronIdentity) {
+			return new Identity(patronIdentity.getLocalId(), patronIdentity.getHostLms().code,
+				patronIdentity.getHomeIdentity());
+		}
+		public static List<Identity> fromList(List<PatronIdentity> patronIdentities) {
+			return patronIdentities.stream()
+				.map(Identity::from)
+				.collect(Collectors.toList());
+		}
+	}
+
 
 	@Serdeable
 	record SupplierRequest(UUID id, Item item, String hostLmsCode) {

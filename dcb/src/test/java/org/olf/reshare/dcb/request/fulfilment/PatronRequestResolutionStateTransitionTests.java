@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.request.resolution.PatronRequestResolutionService;
@@ -101,7 +102,7 @@ class PatronRequestResolutionStateTransitionTests {
 
 	private static PatronRequest createPatronRequest(UUID id, String status) {
 		return new PatronRequest(id, now(), now(),
-			"patronId", "patronAgencyCode",
+			new Patron(), "patronAgencyCode",
 			randomUUID(), "pickupLocationCode", status);
 	}
 }

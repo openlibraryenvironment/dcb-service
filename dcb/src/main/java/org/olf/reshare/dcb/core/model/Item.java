@@ -6,6 +6,7 @@ import java.time.ZonedDateTime;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
 import lombok.Data;
 
 @Data
