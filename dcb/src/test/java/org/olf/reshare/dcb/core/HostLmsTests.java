@@ -12,6 +12,7 @@ import static services.k_int.interaction.sierra.SierraTestUtils.mockFor;
 import java.util.Map;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
@@ -78,6 +79,11 @@ class HostLmsTests {
 		// Care is needed here - hostLMS records from config are now converted into DB entries by a bootstrap/startup class.
 		// This delete will wipe out any config set up as a part of app initiailisation so your tests here must rely upon
 		// manually created hostLms entries
+		hostLmsFixture.deleteAllHostLMS();
+	}
+
+	@AfterEach
+	void afterEach() {
 		hostLmsFixture.deleteAllHostLMS();
 	}
 
