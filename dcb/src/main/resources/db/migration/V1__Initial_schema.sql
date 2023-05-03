@@ -61,8 +61,8 @@ CREATE TABLE patron_identity (
 	id uuid NOT NULL,
 	date_created timestamp,
 	date_updated timestamp,
-	patron_id uuid,
-	host_lms_id uuid,
+	patron_id uuid REFERENCES patron (id),
+	host_lms_id uuid REFERENCES host_lms (id),
 	local_id varchar(200),
 	home_identity boolean,
 	CONSTRAINT patron_identity_pkey PRIMARY KEY (id)
@@ -71,26 +71,11 @@ CREATE TABLE patron_identity (
 CREATE INDEX idx_pi_patron ON patron_identity(patron_id);
 CREATE INDEX idx_hli_patron ON patron_identity(host_lms_id);
 
--- Add foreign key constraint to the patron_id column
-ALTER TABLE patron_identity
-	ADD CONSTRAINT fk_pi_patron
-		FOREIGN KEY (patron_id)
-			REFERENCES patron (id)
-			ON DELETE CASCADE;
-
--- Add foreign key constraint to the host_lms_id column
-ALTER TABLE patron_identity
-	ADD CONSTRAINT fk_pi_host_lms
-		FOREIGN KEY (host_lms_id)
-			REFERENCES host_lms (id)
-			ON DELETE CASCADE;
-
-
 CREATE TABLE patron_request (
 	id uuid primary key,
 	date_created timestamp,
 	date_updated timestamp,
-	patron_id uuid,
+	patron_id uuid REFERENCES patron (id),
 	patron_agency_code varchar(200),
 	bib_cluster_id uuid,
 	pickup_location_code varchar(200),
@@ -98,13 +83,6 @@ CREATE TABLE patron_request (
 );
 
 CREATE INDEX idx_pr_patron ON patron_request(patron_id);
-
--- Add foreign key constraint to the patron_id column
-ALTER TABLE patron_request
-	ADD CONSTRAINT fk_pr_patron
-		FOREIGN KEY (patron_id)
-			REFERENCES patron (id)
-			ON DELETE CASCADE;
 
 CREATE TABLE supplier_request (
 	id uuid primary key,
