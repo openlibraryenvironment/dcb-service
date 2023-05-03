@@ -26,6 +26,7 @@ import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.storage.HostLmsRepository;
 import org.olf.reshare.dcb.storage.PatronIdentityRepository;
 import org.olf.reshare.dcb.test.DataAccess;
+import org.olf.reshare.dcb.test.HostLmsFixture;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
@@ -45,6 +46,9 @@ class HostLmsTests {
 
 	@Inject
 	private PatronIdentityRepository patronIdentityRepository;
+
+	@Inject
+	private HostLmsFixture hostLmsFixture;
 
 	@BeforeAll
 	static void addFakeSierraApis(MockServerClient mock) {
@@ -85,8 +89,7 @@ class HostLmsTests {
 		// Care is needed here - hostLMS records from config are now converted into DB entries by a bootstrap/startup class.
 		// This delete will wipe out any config set up as a part of app initiailisation so your tests here must rely upon
 		// manually created hostLms entries
-		dataAccess.deleteAll(hostLmsRepository.findAll(),
-			hostLms -> hostLmsRepository.delete(hostLms.getId()));
+		hostLmsFixture.deleteAllHostLMS();
 	}
 
 	@Inject
