@@ -88,31 +88,31 @@ CREATE TABLE supplier_request (
 );
 
 CREATE TABLE agency (
-        id uuid PRIMARY KEY,
-        code varchar(32),
-        name varchar(200),
-        host_lms_id uuid REFERENCES host_lms(id)
+	id uuid PRIMARY KEY,
+	code varchar(32),
+	name varchar(200),
+	host_lms_id uuid REFERENCES host_lms(id)
 );
 
 CREATE TABLE location_symbol (
-        id uuid PRIMARY KEY,
-        authority varchar(32),
-        code varchar(64),
-        owning_location_fk uuid REFERENCES location(id)
+	id uuid PRIMARY KEY,
+	authority varchar(32),
+	code varchar(64),
+	owning_location_fk uuid REFERENCES location(id)
 );
 
 CREATE TABLE process_state (
-        id uuid PRIMARY KEY,
-        context uuid,
-        process_name varchar(200),
-        process_state JSONB
+	id uuid PRIMARY KEY,
+	context uuid,
+	process_name varchar(200),
+	process_state JSONB
 );
 
 CREATE TABLE raw_source (
-    id uuid PRIMARY KEY,
-    host_lms_id uuid NOT NULL,
-    remote_id varchar(255) NOT NULL,
-    json jsonb NOT NULL
+	id uuid PRIMARY KEY,
+	host_lms_id uuid NOT NULL,
+	remote_id varchar(255) NOT NULL,
+	json jsonb NOT NULL
 );
 
 CREATE INDEX idx_rs_host_lms ON raw_source(host_lms_id);
@@ -143,13 +143,13 @@ CREATE TABLE refdata_value (
 CREATE INDEX idx_rdv ON refdata_value(category,context);
 
 CREATE TABLE reference_value_mapping (
-	 id uuid PRIMARY KEY,
-	 from_context varchar(64),
-	 from_category varchar(64),
-	 from_value varchar(255),
-	 to_context varchar(64),
-	 to_category varchar(64),
-	 to_value varchar(255)
+	id uuid PRIMARY KEY,
+	from_context varchar(64),
+	from_category varchar(64),
+	from_value varchar(255),
+	to_context varchar(64),
+	to_category varchar(64),
+	to_value varchar(255)
 );
 
 CREATE INDEX idx_rvm_mapping on reference_value_mapping(from_context,from_category,from_value,to_context);
