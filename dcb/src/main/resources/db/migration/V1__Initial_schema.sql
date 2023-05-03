@@ -5,6 +5,8 @@ CREATE TABLE cluster_record (
 	title text
 );
 
+CREATE INDEX idx_cluster_date_updated on cluster_record(date_updated);
+
 CREATE TABLE bib_record (
 	id uuid PRIMARY KEY,
 	date_created timestamp,
