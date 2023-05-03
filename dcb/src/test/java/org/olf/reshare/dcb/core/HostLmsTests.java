@@ -24,8 +24,6 @@ import org.mockserver.model.MediaType;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.storage.HostLmsRepository;
-import org.olf.reshare.dcb.storage.PatronIdentityRepository;
-import org.olf.reshare.dcb.test.DataAccess;
 import org.olf.reshare.dcb.test.HostLmsFixture;
 
 import io.micronaut.core.io.ResourceLoader;
@@ -39,13 +37,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(Lifecycle.PER_CLASS)
 @TestMethodOrder(OrderAnnotation.class)
 class HostLmsTests {
-	private final DataAccess dataAccess = new DataAccess();
-
 	@Inject
 	private HostLmsRepository hostLmsRepository;
-
-	@Inject
-	private PatronIdentityRepository patronIdentityRepository;
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
@@ -82,10 +75,6 @@ class HostLmsTests {
 
 	@BeforeEach
 	void beforeEach() {
-		// Need to delete dependencies on host LMS prior to deleting host LMS
-		dataAccess.deleteAll(patronIdentityRepository.findAll(),
-			patronIdentity -> patronIdentityRepository.delete(patronIdentity.getId()));
-
 		// Care is needed here - hostLMS records from config are now converted into DB entries by a bootstrap/startup class.
 		// This delete will wipe out any config set up as a part of app initiailisation so your tests here must rely upon
 		// manually created hostLms entries

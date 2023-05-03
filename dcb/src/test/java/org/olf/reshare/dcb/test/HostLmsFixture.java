@@ -15,8 +15,13 @@ public class HostLmsFixture {
 
 	private final HostLmsRepository hostLmsRepository;
 
-	public HostLmsFixture(HostLmsRepository hostLmsRepository) {
+	private final PatronIdentityFixture patronIdentityFixture;
+
+	public HostLmsFixture(HostLmsRepository hostLmsRepository,
+		PatronIdentityFixture patronIdentityFixture) {
+
 		this.hostLmsRepository = hostLmsRepository;
+		this.patronIdentityFixture = patronIdentityFixture;
 	}
 
 	public void createHostLms(UUID id, String code) {
@@ -26,6 +31,8 @@ public class HostLmsFixture {
 	}
 
 	public void deleteAllHostLMS() {
+		patronIdentityFixture.deleteAllPatronIdentities();
+
 		dataAccess.deleteAll(hostLmsRepository.findAll(),
 			hostLms -> hostLmsRepository.delete(hostLms.getId()));
 	}
