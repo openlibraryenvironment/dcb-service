@@ -42,6 +42,42 @@ CREATE TABLE location (
 	is_pickup boolean
 );
 
+CREATE TABLE patron (
+	id uuid NOT NULL,
+	date_created timestamp,
+	date_updated timestamp,
+	CONSTRAINT patron_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE patron_identity (
+	id uuid NOT NULL,
+	date_created timestamp,
+	date_updated timestamp,
+	patron_id uuid,
+	host_lms_id uuid,
+	local_id varchar(200),
+	home_identity boolean,
+	CONSTRAINT patron_identity_pkey PRIMARY KEY (id)
+);
+
+CREATE INDEX idx_pi_patron ON patron_identity(patron_id);
+CREATE INDEX idx_hli_patron ON patron_identity(host_lms_id);
+
+-- Add foreign key constraint to the patron_id column
+ALTER TABLE patron_identity
+	ADD CONSTRAINT fk_pi_patron
+		FOREIGN KEY (patron_id)
+			REFERENCES patron (id)
+			ON DELETE CASCADE;
+
+-- Add foreign key constraint to the host_lms_id column
+ALTER TABLE patron_identity
+	ADD CONSTRAINT fk_pi_host_lms
+		FOREIGN KEY (host_lms_id)
+			REFERENCES host_lms (id)
+			ON DELETE CASCADE;
+
+
 CREATE TABLE patron_request (
 	id uuid primary key,
 	date_created timestamp,
@@ -54,6 +90,13 @@ CREATE TABLE patron_request (
 );
 
 CREATE INDEX idx_pr_patron ON patron_request(patron_id);
+
+-- Add foreign key constraint to the patron_id column
+ALTER TABLE patron_request
+	ADD CONSTRAINT fk_pr_patron
+		FOREIGN KEY (patron_id)
+			REFERENCES patron (id)
+			ON DELETE CASCADE;
 
 CREATE TABLE supplier_request (
 	id uuid primary key,
@@ -101,29 +144,9 @@ CREATE TABLE raw_source (
     json jsonb NOT NULL,
     CONSTRAINT raw_source_pkey PRIMARY KEY (id)
 );
+
 CREATE INDEX idx_rs_host_lms ON raw_source(host_lms_id);
 CREATE INDEX idx_rs_remote_id ON raw_source(remote_id);
-
-CREATE TABLE patron (
-	id uuid NOT NULL,
-	date_created timestamp,
-	date_updated timestamp,
-	CONSTRAINT patron_pkey PRIMARY KEY (id)
-);
-
-CREATE TABLE patron_identity (
-	id uuid NOT NULL,
-	date_created timestamp,
-	date_updated timestamp,
-	patron_id uuid,
-	host_lms_id uuid,
-	local_id varchar(200),
-	home_identity boolean,
-	CONSTRAINT patron_identity_pkey PRIMARY KEY (id)
-);
-CREATE INDEX idx_pi_patron ON patron_identity(patron_id);
-CREATE INDEX idx_hli_patron ON patron_identity(host_lms_id);
-
 
 CREATE TABLE shelving_location (
 	id uuid NOT NULL,
@@ -136,29 +159,9 @@ CREATE TABLE shelving_location (
 	loan_policy varchar(32),
   CONSTRAINT shelving_location_pk PRIMARY KEY (id)
 );
+
 CREATE INDEX idx_sl_host_system ON shelving_location(host_system_id);
 CREATE INDEX idx_sl_agency ON shelving_location(agency_id);
-
--- Add foreign key constraint to the patron_id column
-ALTER TABLE patron_identity
-ADD CONSTRAINT fk_pi_patron
-FOREIGN KEY (patron_id)
-REFERENCES patron (id)
-ON DELETE CASCADE;
-
--- Add foreign key constraint to the host_lms_id column
-ALTER TABLE patron_identity
-ADD CONSTRAINT fk_pi_host_lms
-FOREIGN KEY (host_lms_id)
-REFERENCES host_lms (id)
-ON DELETE CASCADE;
-
--- Add foreign key constraint to the patron_id column
-ALTER TABLE patron_request
-ADD CONSTRAINT fk_pr_patron
-FOREIGN KEY (patron_id)
-REFERENCES patron (id)
-ON DELETE CASCADE;
 
 CREATE TABLE refdata_value (
 	id uuid NOT NULL,
@@ -168,6 +171,7 @@ CREATE TABLE refdata_value (
 	label varchar(255),
 	CONSTRAINT refdata_value_pk PRIMARY KEY (id)
 );
+
 CREATE INDEX idx_rdv ON refdata_value(category,context);
 
 CREATE TABLE reference_value_mapping (
@@ -180,4 +184,5 @@ CREATE TABLE reference_value_mapping (
 	 to_value varchar(255),
    CONSTRAINT pk_reference_value_mapping primary key (id)
 );
+
 CREATE INDEX idx_rvm_mapping on reference_value_mapping(from_context,from_category,from_value,to_context);
