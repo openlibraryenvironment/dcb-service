@@ -12,7 +12,6 @@ import static services.k_int.interaction.sierra.SierraTestUtils.mockFor;
 import java.util.Map;
 import java.util.UUID;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
@@ -25,6 +24,7 @@ import org.mockserver.model.MediaType;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.storage.HostLmsRepository;
+import org.olf.reshare.dcb.storage.PatronIdentityRepository;
 import org.olf.reshare.dcb.test.DataAccess;
 
 import io.micronaut.core.io.ResourceLoader;
@@ -42,6 +42,9 @@ class HostLmsTests {
 
 	@Inject
 	private HostLmsRepository hostLmsRepository;
+
+	@Inject
+	private PatronIdentityRepository patronIdentityRepository;
 
 	@BeforeAll
 	static void addFakeSierraApis(MockServerClient mock) {
@@ -75,15 +78,13 @@ class HostLmsTests {
 
 	@BeforeEach
 	void beforeEach() {
+		// Need to delete dependencies on host LMS prior to deleting host LMS
+		dataAccess.deleteAll(patronIdentityRepository.findAll(),
+			patronIdentity -> patronIdentityRepository.delete(patronIdentity.getId()));
+
 		// Care is needed here - hostLMS records from config are now converted into DB entries by a bootstrap/startup class.
 		// This delete will wipe out any config set up as a part of app initiailisation so your tests here must rely upon
 		// manually created hostLms entries
-		dataAccess.deleteAll(hostLmsRepository.findAll(),
-			hostLms -> hostLmsRepository.delete(hostLms.getId()));
-	}
-
-	@AfterEach
-	void afterEach() {
 		dataAccess.deleteAll(hostLmsRepository.findAll(),
 			hostLms -> hostLmsRepository.delete(hostLms.getId()));
 	}
