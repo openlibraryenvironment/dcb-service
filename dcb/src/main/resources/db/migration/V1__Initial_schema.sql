@@ -12,12 +12,11 @@ CREATE TABLE bib_record (
 	source_system_id uuid,
 	source_record_id varchar(256),
 	title text,
-	contributes_to uuid NOT NULL,
+	contributes_to uuid NOT NULL REFERENCES cluster_record(id),
 	record_status varchar(8),
 	type_of_record varchar(8),
 	derived_type varchar(32),
-	blocking_title text,
-  CONSTRAINT fk_contributes_to FOREIGN KEY (contributes_to) REFERENCES cluster_record(id)
+	blocking_title text
 );
 
 CREATE INDEX idx_bib_source_system ON bib_record(source_system_id);
@@ -26,10 +25,9 @@ CREATE INDEX idx_bib_contributes_to ON bib_record(contributes_to);
 
 CREATE TABLE bib_identifier (
 	id uuid primary key,
-	owner_id uuid,
+	owner_id uuid REFERENCES bib_record(id),
 	value varchar(255),
-	namespace varchar(255),
-	CONSTRAINT fk_owner FOREIGN KEY(owner_id) REFERENCES bib_record(id)
+	namespace varchar(255)
 );
 
 CREATE TABLE host_lms (
@@ -86,26 +84,23 @@ CREATE INDEX idx_pr_patron ON patron_request(patron_id);
 
 CREATE TABLE supplier_request (
 	id uuid primary key,
-	patron_request_id uuid,
+	patron_request_id uuid REFERENCES patron_request(id),
 	item_id varchar(200),
-	host_lms_code varchar(200),
-	CONSTRAINT fk_patron_request FOREIGN KEY (patron_request_id) REFERENCES patron_request(id)
+	host_lms_code varchar(200)
 );
 
 CREATE TABLE agency (
         id uuid primary key,
         code varchar(32),
         name varchar(200),
-        host_lms_id uuid,
-        CONSTRAINT fk_host_lms FOREIGN KEY (host_lms_id) REFERENCES host_lms(id)
+        host_lms_id uuid REFERENCES host_lms(id)
 );
 
 CREATE TABLE location_symbol (
         id uuid primary key,
         authority varchar(32),
         code varchar(64),
-        owning_location_fk uuid,
-        CONSTRAINT fk_location FOREIGN KEY (owning_location_fk) REFERENCES location(id)
+        owning_location_fk uuid REFERENCES location(id)
 );
 
 CREATE TABLE process_state (
