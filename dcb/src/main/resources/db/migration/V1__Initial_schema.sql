@@ -1,11 +1,11 @@
-create table cluster_record (
+CREATE TABLE cluster_record (
 	id uuid primary key,
 	date_created timestamp,
 	date_updated timestamp,
 	title text
 );
 
-create table bib_record (
+CREATE TABLE bib_record (
 	id uuid primary key,
 	date_created timestamp,
 	date_updated timestamp,
@@ -19,11 +19,12 @@ create table bib_record (
 	blocking_title text,
   CONSTRAINT fk_contributes_to FOREIGN KEY (contributes_to) REFERENCES cluster_record(id)
 );
+
 CREATE INDEX idx_bib_source_system ON bib_record(source_system_id);
 CREATE INDEX idx_bib_source_id ON bib_record(source_record_id);
 CREATE INDEX idx_bib_contributes_to ON bib_record(contributes_to);
 
-create table bib_identifier (
+CREATE TABLE bib_identifier (
 	id uuid primary key,
 	owner_id uuid,
 	value varchar(255),
@@ -31,7 +32,7 @@ create table bib_identifier (
 	CONSTRAINT fk_owner FOREIGN KEY(owner_id) REFERENCES bib_record(id)
 );
 
-create table location (
+CREATE TABLE location (
 	id uuid primary key,
 	code varchar(200),
 	name varchar(255),
@@ -41,7 +42,7 @@ create table location (
 	is_pickup boolean
 );
 
-create table patron_request (
+CREATE TABLE patron_request (
 	id uuid primary key,
 	date_created timestamp,
 	date_updated timestamp,
@@ -51,9 +52,10 @@ create table patron_request (
 	pickup_location_code varchar(200),
 	status_code varchar(200)
 );
+
 CREATE INDEX idx_pr_patron ON patron_request(patron_id);
 
-create table supplier_request (
+CREATE TABLE supplier_request (
 	id uuid primary key,
 	patron_request_id uuid,
 	item_id varchar(200),
@@ -61,7 +63,7 @@ create table supplier_request (
 	CONSTRAINT fk_patron_request FOREIGN KEY (patron_request_id) REFERENCES patron_request(id)
 );
 
-create table host_lms (
+CREATE TABLE host_lms (
         id uuid primary key,
         code varchar(32),
         name varchar(200),
@@ -69,7 +71,7 @@ create table host_lms (
         client_config JSONB
 );
 
-create table agency (
+CREATE TABLE agency (
         id uuid primary key,
         code varchar(32),
         name varchar(200),
@@ -77,7 +79,7 @@ create table agency (
         CONSTRAINT fk_host_lms FOREIGN KEY (host_lms_id) REFERENCES host_lms(id)
 );
 
-create table location_symbol (
+CREATE TABLE location_symbol (
         id uuid primary key,
         authority varchar(32),
         code varchar(64),
@@ -85,14 +87,14 @@ create table location_symbol (
         CONSTRAINT fk_location FOREIGN KEY (owning_location_fk) REFERENCES location(id)
 );
 
-create table process_state (
+CREATE TABLE process_state (
         id uuid primary key,
         context uuid,
         process_name varchar(200),
         process_state JSONB
 );
 
-create table raw_source (
+CREATE TABLE raw_source (
     id uuid NOT NULL,
     host_lms_id uuid NOT NULL,
     remote_id varchar(255) NOT NULL,
@@ -102,14 +104,14 @@ create table raw_source (
 CREATE INDEX idx_rs_host_lms ON raw_source(host_lms_id);
 CREATE INDEX idx_rs_remote_id ON raw_source(remote_id);
 
-create table patron (
+CREATE TABLE patron (
 	id uuid NOT NULL,
 	date_created timestamp,
 	date_updated timestamp,
 	CONSTRAINT patron_pkey PRIMARY KEY (id)
 );
 
-create table patron_identity (
+CREATE TABLE patron_identity (
 	id uuid NOT NULL,
 	date_created timestamp,
 	date_updated timestamp,
@@ -123,7 +125,7 @@ CREATE INDEX idx_pi_patron ON patron_identity(patron_id);
 CREATE INDEX idx_hli_patron ON patron_identity(host_lms_id);
 
 
-create table shelving_location (
+CREATE TABLE shelving_location (
 	id uuid NOT NULL,
 	date_created timestamp,
 	date_updated timestamp,
@@ -158,7 +160,7 @@ FOREIGN KEY (patron_id)
 REFERENCES patron (id)
 ON DELETE CASCADE;
 
-create table refdata_value (
+CREATE TABLE refdata_value (
 	id uuid NOT NULL,
 	context varchar(64),
 	category varchar(64),
@@ -168,7 +170,7 @@ create table refdata_value (
 );
 CREATE INDEX idx_rdv ON refdata_value(category,context);
 
-create table reference_value_mapping (
+CREATE TABLE reference_value_mapping (
 	 id uuid NOT NULL,
 	 from_context varchar(64),
 	 from_category varchar(64),
