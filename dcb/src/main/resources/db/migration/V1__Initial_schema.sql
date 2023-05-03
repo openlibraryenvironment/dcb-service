@@ -32,6 +32,14 @@ CREATE TABLE bib_identifier (
 	CONSTRAINT fk_owner FOREIGN KEY(owner_id) REFERENCES bib_record(id)
 );
 
+CREATE TABLE host_lms (
+	id uuid primary key,
+	code varchar(32),
+	name varchar(200),
+	lms_client_class varchar(200),
+	client_config JSONB
+);
+
 CREATE TABLE location (
 	id uuid primary key,
 	code varchar(200),
@@ -104,14 +112,6 @@ CREATE TABLE supplier_request (
 	item_id varchar(200),
 	host_lms_code varchar(200),
 	CONSTRAINT fk_patron_request FOREIGN KEY (patron_request_id) REFERENCES patron_request(id)
-);
-
-CREATE TABLE host_lms (
-        id uuid primary key,
-        code varchar(32),
-        name varchar(200),
-        lms_client_class varchar(200),
-        client_config JSONB
 );
 
 CREATE TABLE agency (
