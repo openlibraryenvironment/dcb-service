@@ -9,7 +9,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
-
 import java.util.List;
 
 @Builder
@@ -19,6 +18,8 @@ import java.util.List;
 public class ClusterRecordDTO {
 
 	UUID clusterId;
+	String dateCreated;
+	String dateUpdated;
 	String title;
 	List<BibRecordDTO> bibs;
 
