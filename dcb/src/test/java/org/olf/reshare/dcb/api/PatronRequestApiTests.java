@@ -10,11 +10,17 @@ import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.hamcrest.Matcher;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
@@ -243,6 +249,55 @@ class PatronRequestApiTests {
 		// Then a bad request response should be returned
 		final var response = exception.getResponse();
 		assertThat("Should return a bad request status", response.getStatus(), is(BAD_REQUEST));
+	}
+
+	@Test
+	void cannotPlaceRequestForPatronAtUnknownLocalSystem() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var testHostLms = hostLmsService.findByCode("test1").block();
+		final var sourceSystemId = testHostLms.getId();
+
+		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+
+		// Act
+
+		// Given an empty request body
+		final var requestBody = new JSONObject() {{
+			put("citation", new JSONObject() {{
+				put("bibClusterId", clusterRecordId.toString());
+			}});
+			put("requestor", new JSONObject() {{
+				put("localId", "43546");
+				put("agency", new JSONObject() {{
+					put("code", "RGX12");
+				}});
+				put("localSystemCode", "unknown-system");
+			}});
+			put("pickupLocation", new JSONObject() {{
+				put("code", "ABC123");
+			}});
+		}};
+
+		final var request = HttpRequest.POST("/patrons/requests/place", requestBody);
+
+		// When placing a request for a patron at an unknown local system
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> client.toBlocking().exchange(request));
+
+		// Then a bad request response should be returned
+		final var response = exception.getResponse();
+
+		assertThat("Should return a bad request status", response.getStatus(), is(BAD_REQUEST));
+
+		final var optionalBody = response.getBody(String.class);
+
+		assertThat("Response should have a body",
+			optionalBody.isPresent(), is(true));
+
+		assertThat("Body should report no Host LMS found error",
+			optionalBody.get(), is("No Host LMS found for code: unknown-system"));
 	}
 
 	@Test
