@@ -12,8 +12,6 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.naming.Named;
 import io.micronaut.core.util.Toggleable;
 
-public interface TrackingSource extends Supplier<Publisher<TrackingRecord>>, Toggleable, Named {
-
-        @Override
-        Publisher<TrackingRecord> get();
+public interface TrackingSource {
+        public Publisher<TrackingRecord> getTrackingData();
 }

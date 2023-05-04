@@ -41,13 +41,16 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Consumer;
 
+import org.olf.reshare.dcb.tracking.TrackingSource;
+import org.olf.reshare.dcb.tracking.model.TrackingRecord;
+
 import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
 /**
  * See: https://sandbox.iii.com/iii/sierra-api/swagger/index.html
  */
 @Prototype
-public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
+public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult>, TrackingSource {
     private static final Logger log = LoggerFactory.getLogger(SierraLmsClient.class);
 
     private static final int MAX_BUFFERED_ITEMS = 2000;
@@ -506,5 +509,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                         .concatWith(getPickupLocations())
                         .concatWith(getPatronMetadata());
         }
+
+    @Override
+    public Publisher<TrackingRecord> getTrackingData() {
+      return null;
+    }
 
 }

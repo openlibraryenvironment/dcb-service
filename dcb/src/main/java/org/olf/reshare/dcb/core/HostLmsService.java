@@ -19,8 +19,11 @@ import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import org.olf.reshare.dcb.tracking.TrackingSourcesProvider;
+import org.olf.reshare.dcb.tracking.TrackingSource;
+
 @Singleton
-public class HostLmsService implements IngestSourcesProvider {
+public class HostLmsService implements IngestSourcesProvider,  TrackingSourcesProvider {
 	// private final Map<UUID, HostLms> fromConfigById;
 	private final BeanContext context;
 	private final HostLmsRepository hostLmsRepository;
@@ -87,4 +90,12 @@ public class HostLmsService implements IngestSourcesProvider {
 			super(String.format("No Host LMS found for %s: %s", propertyName, value));
 		}
 	}
+
+	public Publisher<TrackingSource> getTrackingSources() {
+                return getAllHostLms()
+                        .filter( hlms -> TrackingSource.class.isAssignableFrom( hlms.getType() ))
+                        .flatMap(this::getClientFor)
+                        .cast(TrackingSource.class);
+	}
+
 }
