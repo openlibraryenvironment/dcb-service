@@ -72,7 +72,7 @@ public class TrackingService implements Runnable {
 
         // @AppTask
         @Override
-        @Scheduled(initialDelay = "1m", fixedDelay = "${dcb.ingest.interval:1h}")
+        @Scheduled(initialDelay = "1m", fixedDelay = "${dcb.tracking.interval:1h}")
         public void run() {
                 log.debug("DCB Tracking Service run");
 
