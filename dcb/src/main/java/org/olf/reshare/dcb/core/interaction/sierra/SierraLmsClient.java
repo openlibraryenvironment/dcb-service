@@ -33,6 +33,7 @@ import services.k_int.interaction.sierra.configuration.BranchInfo;
 import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
@@ -511,32 +512,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                         .concatWith(getPatronMetadata());
         }
 
+	public TrackingRecord sierraPatronHoldToTrackingData(SierraPatronHold sph) {
+		return new TrackingRecord();
+	}
+
     @Override
     public Publisher<TrackingRecord> getTrackingData() {
-
-
-	// Stage 1 - just return a page
-	// SierraPatronHoldResultSet phrs = client.getAllPatronHolds(2000,0);
-
-	// TODO
-        // Convert .items to TrackingRecords
-
-        return Mono.just(new TrackingRecord());
-
-      // Flux<Page> pages = Flux.just(startPage); // start with the first page
-      // int numPages = 10; // the number of pages to iterate over
-
-      // pages
-      //     .expand(page -> {
-      //         if (page.getPageNumber() >= numPages) {
-      //             return Mono.empty(); // stop iterating if we've reached the last page
-      //         } else {
-      //             return getPage(page.getPageNumber() + 1); // get the next page asynchronously
-      //         }
-      //     })
-      //     .flatMap(page -> processPage(page)) // process each page asynchronously
-      //     .subscribe(); // start processing the pages
-//	return client.trackingRecords();
+  	return Flux.from(client.getAllPatronHolds(2000,0))
+		.flatMap( r -> Flux.fromIterable(r.entries()) )
+		.map( ri -> sierraPatronHoldToTrackingData(ri) );
     }
 
 }
