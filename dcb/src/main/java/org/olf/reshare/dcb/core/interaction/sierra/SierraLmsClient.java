@@ -512,7 +512,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
     @Override
     public Publisher<TrackingRecord> getTrackingData() {
-      return null;
+      return Mono.just(new TrackingRecord());
     }
 
 }
