@@ -35,6 +35,7 @@ import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.items.Params;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 
 @Client(value = "${" + SierraApiClient.CONFIG_ROOT + ".api.url:/iii/sierra-api/v6}", errorType = SierraError.class)
@@ -158,7 +159,7 @@ public interface SierraApiClient {
 	@SingleResult
 	@Retryable
 	@Get("/patrons/holds")
-	public Publisher<SierraResultSet<SierraPatronHold>> getAllPatronHolds(
+	public Publisher<SierraPatronHoldResultSet> getAllPatronHolds(
                         @Nullable @QueryValue("limit") final Integer limit,
                         @Nullable @QueryValue("offset") final Integer offset);
 }

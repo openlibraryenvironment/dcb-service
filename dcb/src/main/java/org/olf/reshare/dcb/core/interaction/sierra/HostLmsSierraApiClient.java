@@ -22,7 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
-import services.k_int.interaction.sierra.SierraResultSet;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.SierraError;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
@@ -30,6 +29,7 @@ import services.k_int.interaction.sierra.configuration.BranchResultSet;
 import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 
 import java.net.URI;
@@ -303,11 +303,20 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
         @SingleResult
         @Retryable
-        @Get("/patrons/holds")
-        public Publisher<SierraResultSet<SierraPatronHold>> getAllPatronHolds(
+        @Get("patrons/holds")
+        public Publisher<SierraPatronHoldResultSet> getAllPatronHolds(
                         final Integer limit,
                         final Integer offset) {
-		return Mono.empty();
+		// return Mono.empty();
+        return getRequest("patrons/holds")
+                .map(req -> req.uri(theUri -> {
+                    theUri
+                            .queryParam("limit", limit)
+                            .queryParam("offset", offset)
+                                        ;
+                        }))
+                .flatMap(this::ensureToken)
+                .flatMap(req -> doRetrieve(req, SierraPatronHoldResultSet.class) );
 	}
 
 }
