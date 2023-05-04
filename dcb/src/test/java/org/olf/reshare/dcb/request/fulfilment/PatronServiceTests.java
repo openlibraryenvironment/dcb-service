@@ -1,25 +1,33 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.olf.reshare.dcb.core.model.DataHostLms;
-import org.olf.reshare.dcb.core.model.Patron;
-import org.olf.reshare.dcb.core.model.PatronIdentity;
-import org.olf.reshare.dcb.storage.HostLmsRepository;
-import org.olf.reshare.dcb.storage.PatronIdentityRepository;
-import org.olf.reshare.dcb.storage.PatronRepository;
-import reactor.core.publisher.Mono;
+import static java.util.Collections.emptyList;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.UUID;
 
-import static java.util.Collections.emptyList;
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.olf.reshare.dcb.core.HostLmsService;
+import org.olf.reshare.dcb.core.model.DataHostLms;
+import org.olf.reshare.dcb.core.model.Patron;
+import org.olf.reshare.dcb.core.model.PatronIdentity;
+import org.olf.reshare.dcb.storage.PatronIdentityRepository;
+import org.olf.reshare.dcb.storage.PatronRepository;
+
+import reactor.core.publisher.Mono;
 
 public class PatronServiceTests {
 
@@ -29,8 +37,10 @@ public class PatronServiceTests {
 		// Arrange
 		final var patronRepository = mock(PatronRepository.class);
 		final var patronIdentityRepository = mock(PatronIdentityRepository.class);
-		final var hostLmsRepository = mock(HostLmsRepository.class);
-		final var patronService = new PatronService(patronRepository, patronIdentityRepository, hostLmsRepository);
+		final var hostLmsService = mock(HostLmsService.class);
+
+		final var patronService = new PatronService(patronRepository,
+			patronIdentityRepository, hostLmsService);
 
 		final var agencyCode = "code";
 		final var localSystemCode = "localSystemCode";
@@ -42,7 +52,7 @@ public class PatronServiceTests {
 		final var patron = new Patron(patronId, null, null, List.of());
 		final var patronIdentity = new PatronIdentity(patronIdentityId, null, null, patron, dataHostLms, localId, true);
 
-		when(hostLmsRepository.findByCode(any()))
+		when(hostLmsService.findByCode(any()))
 			.thenAnswer(invocation -> Mono.just(dataHostLms));
 
 		when(patronIdentityRepository.findOneByLocalIdAndHostLmsAndHomeIdentity(any(), any(), any()))
@@ -70,8 +80,10 @@ public class PatronServiceTests {
 		// Arrange
 		final var patronRepository = mock(PatronRepository.class);
 		final var patronIdentityRepository = mock(PatronIdentityRepository.class);
-		final var hostLmsRepository = mock(HostLmsRepository.class);
-		final var patronService = new PatronService(patronRepository, patronIdentityRepository, hostLmsRepository);
+		final var hostLmsService = mock(HostLmsService.class);
+
+		final var patronService = new PatronService(patronRepository,
+			patronIdentityRepository, hostLmsService);
 
 		final var agencyCode = "code";
 		final var localSystemCode = "localSystemCode";
@@ -79,7 +91,7 @@ public class PatronServiceTests {
 		final var dataHostLms = new DataHostLms();
 		final var requestor = new PlacePatronRequestCommand.Requestor(new PlacePatronRequestCommand.Agency(agencyCode), localId, localSystemCode);
 
-		when(hostLmsRepository.findByCode(any()))
+		when(hostLmsService.findByCode(any()))
 			.thenAnswer(invocation -> Mono.just(dataHostLms));
 
 		when(patronIdentityRepository.findOneByLocalIdAndHostLmsAndHomeIdentity(any(), any(), any()))
@@ -103,8 +115,10 @@ public class PatronServiceTests {
 		// Arrange
 		final var patronRepository = mock(PatronRepository.class);
 		final var patronIdentityRepository = mock(PatronIdentityRepository.class);
-		final var hostLmsRepository = mock(HostLmsRepository.class);
-		final var patronService = new PatronService(patronRepository, patronIdentityRepository, hostLmsRepository);
+		final var hostLmsService = mock(HostLmsService.class);
+
+		final var patronService = new PatronService(patronRepository,
+			patronIdentityRepository, hostLmsService);
 
 		final var agencyCode = "code";
 		final var localSystemCode = "localSystemCode";
@@ -119,7 +133,7 @@ public class PatronServiceTests {
 		when(patronRepository.save(any()))
 			.thenAnswer(invocation -> Mono.just(patron));
 
-		when(hostLmsRepository.findByCode(any()))
+		when(hostLmsService.findByCode(any()))
 			.thenAnswer(invocation -> Mono.just(dataHostLms));
 
 		when(patronIdentityRepository.save(any()))

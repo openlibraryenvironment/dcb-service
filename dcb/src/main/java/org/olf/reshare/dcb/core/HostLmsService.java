@@ -1,13 +1,10 @@
 package org.olf.reshare.dcb.core;
 
-import static java.util.stream.Collectors.toUnmodifiableMap;
-
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Stream;
 
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
+import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.ingest.IngestSourcesProvider;
@@ -21,39 +18,34 @@ import reactor.core.publisher.Mono;
 
 @Singleton
 public class HostLmsService implements IngestSourcesProvider {
-	// private final Map<UUID, HostLms> fromConfigById;
 	private final BeanContext context;
 	private final HostLmsRepository hostLmsRepository;
 
-	HostLmsService(HostLms[] confHosts, BeanContext context,
-		HostLmsRepository hostLmsRepository) {
-
+	HostLmsService(BeanContext context, HostLmsRepository hostLmsRepository) {
 		this.hostLmsRepository = hostLmsRepository;
 		this.context = context;
-		//this.fromConfigById = Stream.of(confHosts)
-		//	.collect(toUnmodifiableMap(HostLms::getId, item -> item));
 	}
 	
-	public Mono<HostLms> findById( UUID id ) {
+	public Mono<DataHostLms> findById(UUID id) {
 		return getAllHostLms()
 			.collectList()
 			.map(list -> findFirstById(id, list));
 	}
 
-	private static HostLms findFirstById(UUID id, List<HostLms> list) {
+	private static DataHostLms findFirstById(UUID id, List<DataHostLms> list) {
 		return list.stream()
 			.filter(hostLms -> hostLms.getId().equals(id))
 			.findFirst()
 			.orElseThrow(() -> new UnknownHostLmsException("ID", id));
 	}
 
-	public Mono<HostLms> findByCode( String code ) {
+	public Mono<DataHostLms> findByCode(String code) {
 		return getAllHostLms()
 			.collectList()
 			.map(list -> findFirstByCode(code, list));
 	}
 
-	private static HostLms findFirstByCode(String code, List<HostLms> list) {
+	private static DataHostLms findFirstByCode(String code, List<DataHostLms> list) {
 		return list.stream()
 			.filter(hostLms -> hostLms.getCode().equals(code))
 			.findFirst()
@@ -69,8 +61,7 @@ public class HostLmsService implements IngestSourcesProvider {
 			.flatMap(this::getClientFor);
 	}
 
-	public Flux<HostLms> getAllHostLms() {
-		// return Flux.merge(Flux.fromIterable( fromConfigById.values() ), hostLmsRepository.findAll());
+	public Flux<DataHostLms> getAllHostLms() {
 		return Flux.from(hostLmsRepository.findAll());
 	}
 
