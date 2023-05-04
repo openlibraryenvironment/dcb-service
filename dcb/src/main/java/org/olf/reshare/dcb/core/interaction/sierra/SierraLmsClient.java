@@ -32,6 +32,7 @@ import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchInfo;
 import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
+import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
@@ -512,7 +513,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
     @Override
     public Publisher<TrackingRecord> getTrackingData() {
-      return Mono.just(new TrackingRecord());
+
+
+	// Stage 1 - just return a page
+	// SierraPatronHoldResultSet phrs = client.getAllPatronHolds(2000,0);
+
+	// TODO
+        // Convert .items to TrackingRecords
+
+        return Mono.just(new TrackingRecord());
 
       // Flux<Page> pages = Flux.just(startPage); // start with the first page
       // int numPages = 10; // the number of pages to iterate over
