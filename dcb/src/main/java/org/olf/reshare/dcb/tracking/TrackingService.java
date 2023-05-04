@@ -32,15 +32,15 @@ public class TrackingService implements Runnable {
 
         private static Logger log = LoggerFactory.getLogger(TrackingService.class);
 
-        private final List<IngestSourcesProvider> sourceProviders;
+        private final List<TrackingSourcesProvider> sourceProviders;
 
-        TrackingService(List<IngestSourcesProvider> sourceProviders) {
+        TrackingService(List<TrackingSourcesProvider> sourceProviders) {
                 this.sourceProviders = sourceProviders;
         }
 
         @javax.annotation.PostConstruct
         private void init() {
-                log.info("IngestService::init - providers:{}",sourceProviders.toString());
+                log.info("TrackingService::init - providers:{}",sourceProviders.toString());
         }
 
         @Override
