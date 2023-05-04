@@ -513,6 +513,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
     @Override
     public Publisher<TrackingRecord> getTrackingData() {
       return Mono.just(new TrackingRecord());
+
+      // Flux<Page> pages = Flux.just(startPage); // start with the first page
+      // int numPages = 10; // the number of pages to iterate over
+
+      // pages
+      //     .expand(page -> {
+      //         if (page.getPageNumber() >= numPages) {
+      //             return Mono.empty(); // stop iterating if we've reached the last page
+      //         } else {
+      //             return getPage(page.getPageNumber() + 1); // get the next page asynchronously
+      //         }
+      //     })
+      //     .flatMap(page -> processPage(page)) // process each page asynchronously
+      //     .subscribe(); // start processing the pages
+//	return client.trackingRecords();
     }
 
 }

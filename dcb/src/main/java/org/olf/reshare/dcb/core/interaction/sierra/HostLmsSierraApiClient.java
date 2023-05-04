@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
+import services.k_int.interaction.sierra.SierraResultSet;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.SierraError;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
@@ -29,6 +30,7 @@ import services.k_int.interaction.sierra.configuration.BranchResultSet;
 import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -298,5 +300,14 @@ public class HostLmsSierraApiClient implements SierraApiClient {
     private URI resolve(URI relativeURI) {
         return resolve(rootUri, relativeURI);
     }
+
+        @SingleResult
+        @Retryable
+        @Get("/patrons/holds")
+        public Publisher<SierraResultSet<SierraPatronHold>> getAllPatronHolds(
+                        final Integer limit,
+                        final Integer offset) {
+		return Mono.empty();
+	}
 
 }
