@@ -59,7 +59,7 @@ class PatronRequestResolutionServiceTests {
 		final var supplierRequest = resolution.getOptionalSupplierRequest().get();
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequest.getItemId(), is("78458456"));
+		assertThat(supplierRequest.getLocalItemId(), is("78458456"));
 		assertThat(supplierRequest.getHostLmsCode(), is("FAKE_HOST"));
 
 		// check patron request has the expected status
@@ -96,7 +96,7 @@ class PatronRequestResolutionServiceTests {
 		final var supplierRequest = resolution.getOptionalSupplierRequest().get();
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequest.getItemId(), is("23721346"));
+		assertThat(supplierRequest.getLocalItemId(), is("23721346"));
 		assertThat(supplierRequest.getHostLmsCode(), is("FAKE_HOST"));
 
 		// check patron request has the expected status
@@ -137,7 +137,7 @@ class PatronRequestResolutionServiceTests {
 		final var supplierRequest = resolution.getOptionalSupplierRequest().get();
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequest.getItemId(), is("47463572"));
+		assertThat(supplierRequest.getLocalItemId(), is("47463572"));
 		assertThat(supplierRequest.getHostLmsCode(), is("FAKE_HOST"));
 
 		// check patron request has the expected status
@@ -186,7 +186,7 @@ class PatronRequestResolutionServiceTests {
 		final var supplierRequest = resolution.getOptionalSupplierRequest().get();
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequest.getItemId(), is("23721346"));
+		assertThat(supplierRequest.getLocalItemId(), is("23721346"));
 		assertThat(supplierRequest.getHostLmsCode(), is("FOO_HOST"));
 
 		// check patron request has the expected status

@@ -42,7 +42,7 @@ public class SupplierRequest {
 	@NonNull
 	@Size(max = 200)
 	@Column(name = "item_id")
-	private final String itemId;
+	private final String localItemId;
 
 	@NotNull
 	@NonNull
