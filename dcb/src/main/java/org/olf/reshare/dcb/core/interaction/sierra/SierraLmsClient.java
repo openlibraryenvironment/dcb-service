@@ -30,10 +30,9 @@ import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchInfo;
-import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
-import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
+import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
@@ -45,6 +44,8 @@ import java.util.function.Consumer;
 
 import org.olf.reshare.dcb.tracking.TrackingSource;
 import org.olf.reshare.dcb.tracking.model.TrackingRecord;
+
+import reactor.core.publisher.BufferOverflowStrategy;
 
 import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
@@ -517,11 +518,30 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return new TrackingRecord();
 	}
 
+/*
     @Override
     public Publisher<TrackingRecord> getTrackingData() {
   	return Flux.from(client.getAllPatronHolds(2000,0))
 		.flatMap( r -> Flux.fromIterable(r.entries()) )
 		.map( ri -> sierraPatronHoldToTrackingData(ri) );
     }
+*/
+
+    public Publisher<TrackingRecord> getTrackingData() {
+	Integer o = Integer.valueOf(0);
+        SierraPatronHoldResultSet init = new SierraPatronHoldResultSet(0,0,new ArrayList<SierraPatronHold>());
+    	return Flux.just(init)
+            .expand(lastPage -> {
+                Mono<SierraPatronHoldResultSet> pageMono = Mono.from(client.getAllPatronHolds(10, lastPage.start()+lastPage.total()))
+                        .filter( m -> m.entries().size() > 0 )
+                        .switchIfEmpty(Mono.empty())
+                        .subscribeOn(Schedulers.boundedElastic());
+                return pageMono;
+            })
+            .flatMapIterable(page -> page.entries()) // <- prefer this to this ->.flatMapIterable(Function.identity())
+	        .map( ri -> sierraPatronHoldToTrackingData(ri) )
+            .onBackpressureBuffer(100, null, BufferOverflowStrategy.ERROR);
+    }
+
 
 }
