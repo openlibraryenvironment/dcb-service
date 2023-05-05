@@ -85,7 +85,7 @@ CREATE INDEX idx_pr_patron ON patron_request(patron_id);
 CREATE TABLE supplier_request (
 	id uuid PRIMARY KEY,
 	patron_request_id uuid REFERENCES patron_request(id),
-	item_id varchar(200),
+	local_item_id varchar(200),
 	host_lms_code varchar(200)
 );
 
