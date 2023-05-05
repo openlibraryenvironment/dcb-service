@@ -533,17 +533,19 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
         SierraPatronHoldResultSet init = new SierraPatronHoldResultSet(0,0,new ArrayList<SierraPatronHold>());
     	return Flux.just(init)
             .expand(lastPage -> {
-		log.debug("Fetch a pages of data from offset {}",lastPage.start());
-                Mono<SierraPatronHoldResultSet> pageMono = Mono.from(client.getAllPatronHolds(10, lastPage.start()+lastPage.total()))
+		log.debug("Fetch pages of data from offset {}",lastPage.start(),lastPage.total());
+                Mono<SierraPatronHoldResultSet> pageMono = Mono.from(client.getAllPatronHolds(250, lastPage.start()+lastPage.entries().size()))
                         .filter( m -> m.entries().size() > 0 )
-                        .switchIfEmpty(Mono.empty())
-                        .subscribeOn(Schedulers.boundedElastic());
+                        .switchIfEmpty(Mono.empty());
+                        // .subscribeOn(Schedulers.boundedElastic());
 		log.debug("processing");
                 return pageMono;
             })
             .flatMapIterable(page -> page.entries()) // <- prefer this to this ->.flatMapIterable(Function.identity())
-	        .map( ri -> sierraPatronHoldToTrackingData(ri) )
-            .onBackpressureBuffer(100, null, BufferOverflowStrategy.ERROR);
+	    // Note to self: *Don't do this* it turns the expand above into an eager hot publisher that will kill the system
+            // .onBackpressureBuffer(100, null, BufferOverflowStrategy.ERROR)
+	    .map( ri -> sierraPatronHoldToTrackingData(ri) )
+	;
     }
 
 
