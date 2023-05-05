@@ -528,14 +528,17 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 */
 
     public Publisher<TrackingRecord> getTrackingData() {
+	log.debug("getTrackingData");
 	Integer o = Integer.valueOf(0);
         SierraPatronHoldResultSet init = new SierraPatronHoldResultSet(0,0,new ArrayList<SierraPatronHold>());
     	return Flux.just(init)
             .expand(lastPage -> {
+		log.debug("Fetch a pages of data from offset {}",lastPage.start());
                 Mono<SierraPatronHoldResultSet> pageMono = Mono.from(client.getAllPatronHolds(10, lastPage.start()+lastPage.total()))
                         .filter( m -> m.entries().size() > 0 )
                         .switchIfEmpty(Mono.empty())
                         .subscribeOn(Schedulers.boundedElastic());
+		log.debug("processing");
                 return pageMono;
             })
             .flatMapIterable(page -> page.entries()) // <- prefer this to this ->.flatMapIterable(Function.identity())
