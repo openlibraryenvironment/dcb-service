@@ -25,8 +25,9 @@ import org.olf.reshare.dcb.core.api.types.BibRecordDTO;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Controller("/clusters")
 @Tag(name = "Cluster Records (Read only)")
@@ -69,16 +70,31 @@ public class ClusterRecordController {
                 description = "Paginate through a Unified, Clustered view of the Bibliographic records",
                 parameters = {
                         @Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
-                        @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
+                        @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100"),
+                        @Parameter(in = ParameterIn.QUERY, name = "since", description = "since", schema = @Schema(type = "string"))}
         )
-        @Get("/{?pageable*}")
-        public Mono<Page<ClusterRecordDTO>> listMapped(@Parameter(hidden = true) @Valid Pageable pageable) {
+        @Get("/{?pageable*,since}")
+        public Mono<Page<ClusterRecordDTO>> listMapped(@Parameter(hidden = true) @Valid Pageable pageable, Optional<String> since) {
 
                 if (pageable == null) {
                         pageable = Pageable.from(0, 100);
                 }
 
-                return Mono.from( _clusterRecordRepository.findAll(pageable) )
+		Instant i = null;
+                if ( since.isPresent() ) {
+                	log.debug("Since is present");
+                	// Since is a timestamp formatted as 2023-05-03T18:56:40.872444Z
+			i = Instant.parse(since.get());
+			log.debug("Using instant: {}",i.toString());
+                }
+                else {
+                	log.debug("Since is not present");
+			i = java.time.Instant.ofEpochMilli(0L);
+                }
+
+
+                // return Mono.from( _clusterRecordRepository.findAll(pageable) )
+                return Mono.from( _clusterRecordRepository.findByDateUpdatedGreaterThanOrderByDateUpdated(i,pageable) )
 			.flatMap( page -> Mono.just(convertPage(page) )	); // Convert Page<ClusterRecord> into Page<ClusterDTO>
 			
         }
@@ -87,22 +103,21 @@ public class ClusterRecordController {
 		return Flux.fromIterable(page);
 	}
 
-	private ClusterRecordDTO enrichClusterRecordWithBibs(ClusterRecordDTO input) {
-		input.setTitle("ENRICHED: "+input.getTitle());
-		return input;
-	}
-
 	private ClusterRecordDTO mapClusterRecordToDTO(ClusterRecord cr) {
 
 		List<BibRecordDTO> bibs = new java.util.ArrayList();
 		java.util.Set<BibRecord> bibs_from_db = cr.getBibs();
-		for ( BibRecord br : bibs_from_db ){
-			bibs.add(mapBibToDTO(br));
-		}
+                if ( bibs_from_db != null ) {
+			for ( BibRecord br : bibs_from_db ){
+				bibs.add(mapBibToDTO(br));
+			}
+          	}
 
 		// New cluster DTO
 		return ClusterRecordDTO
 				.builder()
+				.dateUpdated(cr.getDateUpdated().toString())
+				.dateCreated(cr.getDateCreated().toString())
 				.clusterId(cr.getId())
 				.title(cr.getTitle())
 				.bibs(bibs)

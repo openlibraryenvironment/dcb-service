@@ -1,4 +1,4 @@
-package services.k_int.serde;
+package services.k_int.integration.marc4j;
 
 import java.io.IOException;
 import java.util.Optional;

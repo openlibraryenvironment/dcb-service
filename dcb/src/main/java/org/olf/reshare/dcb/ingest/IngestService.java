@@ -4,8 +4,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
-import javax.transaction.Transactional;
-
 import org.olf.reshare.dcb.core.BibRecordService;
 import org.olf.reshare.dcb.core.RecordClusteringService;
 import org.olf.reshare.dcb.core.model.BibRecord;
@@ -18,10 +16,10 @@ import jakarta.inject.Singleton;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.function.TupleUtils;
 import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
-import reactor.core.scheduler.Schedulers;
 
 @Refreshable
 @Singleton

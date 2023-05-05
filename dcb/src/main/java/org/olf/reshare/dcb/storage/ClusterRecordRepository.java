@@ -13,6 +13,8 @@ import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import reactor.core.publisher.Mono;
+import java.time.Instant;
+
 
 public interface ClusterRecordRepository {
 	@NonNull
@@ -43,6 +45,8 @@ public interface ClusterRecordRepository {
 	Publisher<ClusterRecord> findAll();
 
 	Publisher<Page<ClusterRecord>> findAll(@Valid Pageable pageable);
+
+	Publisher<Page<ClusterRecord>> findByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);
 
 	@NonNull
 	@SingleResult

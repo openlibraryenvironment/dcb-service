@@ -18,6 +18,7 @@ import org.reactivestreams.Publisher;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import javax.validation.Valid;
+import java.time.Instant;
 
 
 @SuppressWarnings("unchecked")
@@ -28,5 +29,9 @@ public interface PostgresClusterRecordRepository extends ReactiveStreamsPageable
 
 	@Join("bibs")
         Publisher<Page<ClusterRecord>> findAll(@Valid Pageable pageable);
+
+	@Join("bibs")
+        Publisher<Page<ClusterRecord>> findByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);
+
 }
 
