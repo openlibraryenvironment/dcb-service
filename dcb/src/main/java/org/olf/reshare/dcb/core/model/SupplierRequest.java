@@ -25,14 +25,12 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Data
 @MappedEntity
 @RequiredArgsConstructor(onConstructor_ = @Creator())
-// @AllArgsConstructor
 @Builder
 public class SupplierRequest {
-
 	@NotNull
 	@NonNull
 	@Id
-	@TypeDef( type = DataType.UUID)
+	@TypeDef(type = DataType.UUID)
 	private final UUID id;
 
 	@Nullable
@@ -43,6 +41,7 @@ public class SupplierRequest {
 	@NotNull
 	@NonNull
 	@Size(max = 200)
+	@Column(name = "item_id")
 	private final String itemId;
 
 	@NotNull
