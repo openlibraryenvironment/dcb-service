@@ -29,6 +29,8 @@ import services.k_int.interaction.sierra.configuration.BranchResultSet;
 import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -298,5 +300,24 @@ public class HostLmsSierraApiClient implements SierraApiClient {
     private URI resolve(URI relativeURI) {
         return resolve(rootUri, relativeURI);
     }
+
+        @SingleResult
+        @Retryable
+        @Get("patrons/holds")
+        public Publisher<SierraPatronHoldResultSet> getAllPatronHolds(
+                        final Integer limit,
+                        final Integer offset) {
+		// return Mono.empty();
+	log.debug("getAllPatronHolds(limit:{},offset:{})",limit,offset);
+        return getRequest("patrons/holds")
+                .map(req -> req.uri(theUri -> {
+                    theUri
+                            .queryParam("limit", limit)
+                            .queryParam("offset", offset)
+                                        ;
+                        }))
+                .flatMap(this::ensureToken)
+                .flatMap(req -> doRetrieve(req, SierraPatronHoldResultSet.class) );
+	}
 
 }

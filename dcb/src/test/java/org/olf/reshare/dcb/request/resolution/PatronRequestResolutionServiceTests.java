@@ -350,7 +350,7 @@ class PatronRequestResolutionServiceTests {
 	private static PatronRequest createPatronRequest(UUID bibClusterId) {
 		return new PatronRequest(randomUUID(), null, null,
 			new Patron(), "patronAgencyCode",
-			bibClusterId, "pickupLocationCode", SUBMITTED_TO_DCB);
+			bibClusterId, "pickupLocationCode", SUBMITTED_TO_DCB, null);
 	}
 
 	private static Item createFakeItem(

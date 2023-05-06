@@ -71,10 +71,19 @@ public class ShelvingLocation {
      * institution.
      */
     @Nullable
-        @Relation(value = Relation.Kind.MANY_TO_ONE)
-        private DataAgency agency;
+		@Relation(value = Relation.Kind.MANY_TO_ONE)
+		private DataAgency agency;
 
-    /**
+		/**
+		 * A shelving location resides at a location - Stacks at Main library. We may not be able to infer this
+		 * relationship when we create the shelving location, so this is nullable
+		 */
+		@Nullable
+		@Relation(value = Relation.Kind.MANY_TO_ONE)
+		private Location location;
+
+
+	/**
      * Specify a loan policy for this shelvingLocation - null means no specific policy
      * "LOANABLE" - items from this shelving location can be loaned as a general rule - a positive assertion
      * "REFERENCE" - a reference only collection which cannot be loaned - a negative assertion

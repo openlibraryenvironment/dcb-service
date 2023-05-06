@@ -67,6 +67,6 @@ public class PatronRequestWorkflowTests {
 	private static PatronRequest createPatronRequestWithStatus(String status) {
 		return new PatronRequest(UUID.randomUUID(), null, null,
 			new Patron(), "patronAgencyCode",
-			UUID.randomUUID(), "pickupLocationCode", status);
+			UUID.randomUUID(), "pickupLocationCode", status, null);
 	}
 }

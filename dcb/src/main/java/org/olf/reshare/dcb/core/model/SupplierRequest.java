@@ -47,5 +47,11 @@ public class SupplierRequest {
 	@NonNull
 	@Size(max = 200)
 	private final String hostLmsCode;
+
+	// Once we have placed a hold at the lending system, track that hold by storring it's ID here
+	// this will only be unique within the context of a hostLmsCode
+	@Nullable
+	@Size(max = 200)
+	private final String lenderLocalSystemHoldId;
 }
 
