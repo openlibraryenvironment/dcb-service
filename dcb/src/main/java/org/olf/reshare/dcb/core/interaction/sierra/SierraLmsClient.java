@@ -70,8 +70,11 @@ import reactor.core.publisher.BufferOverflowStrategy;
 import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
 
+import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+
 /**
  * See: https://sandbox.iii.com/iii/sierra-api/swagger/index.html
+ * https://gitlab.com/knowledge-integration/libraries/reshare-dcb-service/-/raw/68fd93de0f84f928597481b16d2887bd7e58f455/dcb/src/main/java/org/olf/reshare/dcb/core/interaction/sierra/SierraLmsClient.java
  */
 @Prototype
 public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult>, TrackingSource {
@@ -83,17 +86,19 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final HostLms lms;
 	private final SierraApiClient client;
 	private final ProcessStateService processStateService;
+        private final R2dbcOperations operations;
 	private final RawSourceRepository rawSourceRepository;
 	private final ItemResultToItemMapper itemResultToItemMapper = new ItemResultToItemMapper();
 
 	public SierraLmsClient(@Parameter HostLms lms, HostLmsSierraApiClientFactory clientFactory,
-			RawSourceRepository rawSourceRepository, ProcessStateService processStateService) {//, R2dbcOperations operations) {
+			RawSourceRepository rawSourceRepository, ProcessStateService processStateService, R2dbcOperations operations) {
 		this.lms = lms;
 
 		// Get a sierra api client.
 		client = clientFactory.createClientFor(lms);
 		this.rawSourceRepository = rawSourceRepository;
 		this.processStateService = processStateService;
+		this.operations = operations;
 	}
 
 	@Override
@@ -173,6 +178,132 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				.thenReturn(state);
 	}
 	
+
+
+	/** Ian: Re=adding state consumer and backpressureAwareBibResultGenerator temporarily */
+
+
+        private Consumer<PubisherState> stateConsumer() {
+                return (state) -> {
+                        log.debug("stateConsumer {}",state);
+                    // operations.withConnection( connection ->
+                    //    processStateService.updateState(lms.getId(),"ingest",state.storred_state)
+                    Mono.from(operations.withTransaction(status ->
+                            processStateService.updateState(lms.getId(), "ingest", state.storred_state)
+                    )).subscribe();
+                };
+        }
+
+
+    private Publisher<BibResult> backpressureAwareBibResultGenerator(int limit) {
+
+        // Start the process by loading the current state of the ingest process for this LMS id and creating a state object
+        // we can use in this generator. Flat map it and pass it into Flux.generate
+        return getInitialState(lms.getId(), "ingest").flatMapMany(initialState ->
+                Flux.generate(
+                        () -> initialState, (generator_state, sink) -> {
+                            // log.info("Generating - state="+state.storred_state);
+
+                            // If this is the first time through, or we have exhausted the current page get a new page of data
+                            if ((generator_state.current_page == null) || (generator_state.current_page.size() == 0)) {
+
+                                // Trial in-process updating of process state - We use the current transactional context
+                                // and execute a commit to flush work to this state.
+                                log.debug("Intermediate state update " + lms.getId());
+                                Mono.from(operations.withTransaction(status ->
+                                        processStateService.updateState(lms.getId(), "ingest", generator_state.storred_state)
+                                )).subscribe();
+
+                                // fetch a page of data and stash it
+                                log.info("Fetching page=" + generator_state.page_counter +
+                                        " offset=" + generator_state.offset +
+                                        " limit=" + limit +
+                                        " elapsed=" + (System.currentTimeMillis() - generator_state.request_start_time) +
+                                        "ms thread=" + Thread.currentThread().getName());
+
+                                // We have to block here in order to wait for the page of data before we can return the next item to
+                                // the caller - thats why this is now done using a different scheduler
+                                BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit)
+                                        .onErrorResume(t -> {
+                                            log.error("Error ingesting data {}", t.getMessage());
+                                            t.printStackTrace();
+                                            return Mono.empty();
+                                        })
+                                        .switchIfEmpty(Mono.just("No results returned. Stopping")
+                                                .mapNotNull(s -> {
+                                                    log.info(s);
+                                                    return null;
+                                                }))
+                                        .share()
+                                        .block();
+
+                                log.info("got page");
+                                if (bsr != null) {
+                                    generator_state.current_page = bsr.entries();
+                                    log.info("got[" + (generator_state.page_counter++) + "] page of data");
+
+                                    int number_of_records_returned = generator_state.current_page.size();
+                                    generator_state.possiblyMore = number_of_records_returned == limit;
+
+                                    // Increment the offset for the next fetch
+                                    generator_state.offset += number_of_records_returned;
+
+
+                                    log.info("Stashed a page of " + generator_state.current_page.size() + " records");
+                                } else {
+                                    log.warn("ERRROR[" + (generator_state.page_counter++) + "] No response from upstream server. Cancelling");
+
+                                    generator_state.current_page = new ArrayList<BibResult>();
+                                    // This will terminate the stream - by setting error=true we will leave the state intact
+                                    // to be picked up on the next attempt
+                                    generator_state.error = true;
+                                }
+                            }
+
+
+                            // log.info("Returning next - current size is "+generator_state.current_page.size());
+                            // Return the next pending bib result from the page we stashed
+
+                            if (generator_state.current_page.size() > 0) {
+				// This is THE key line in the backpressureAware generator - it works because the execution of
+				// this producer will essentially pause on this call until the consumer has removed the item
+				// at which point we continue. If we have exhausted the buffer we fetch more, otherwise
+				// we keep on feeding items from the buffer.
+                                sink.next(generator_state.current_page.remove(0));
+                            }
+
+                            // If we just consumed the last entry from the current page
+                            if (generator_state.current_page.size() == 0) {
+                                // If we have exhausted the currently cached page, and we are at the end, terminate.
+                                if (!generator_state.possiblyMore) {
+                                    log.info("Terminating cleanly - run out of bib results - new timestamp is {}", generator_state.request_start_time);
+                                    // Make a note of the time at which we started this run, so we know where to pick up from
+                                    // next time
+                                    if (!generator_state.error)
+                                        generator_state.storred_state.put("cursor", "deltaSince:" + generator_state.request_start_time);
+                                    sink.complete();
+                                } else {
+                                    log.info("Exhausted current page - update cursor and prep for loop");
+                                    // We have finished consuming a page of data, but there is more to come. Remember
+                                    // where we got up to and stash it in the DB
+                                    if (generator_state.since != null) {
+                                        generator_state.storred_state.put("cursor", "deltaSince:" + generator_state.sinceMillis + ":" + generator_state.offset);
+                                    } else {
+                                        generator_state.storred_state.put("cursor", "bootstrap:" + generator_state.offset);
+                                    }
+                                }
+                            }
+
+                            // pass the state at the end of this call to the next iteration
+                            // log.debug("return state "+state.storred_state);
+                            return generator_state;
+                        },
+                        stateConsumer()
+                )
+        );
+      }
+
+
 	private Publisher<BibResult> pageAllResults(int limit) {
 
 		return getInitialState(lms.getId(), "ingest")
@@ -241,7 +372,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// The stream of imported records.
 		// return Flux.from(pageAllResults(since, 0, pageSize)).filter(sierraBib ->
 		// sierraBib.marc() != null)
-		return Flux.from(pageAllResults(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
+		// return Flux.from(pageAllResults(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
+                return Flux.from(backpressureAwareBibResultGenerator(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
 				.subscribeOn(Schedulers.boundedElastic()).onErrorResume(t -> {
 					log.error("Error ingesting data {}", t.getMessage());
 					t.printStackTrace();
