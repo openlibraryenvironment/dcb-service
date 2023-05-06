@@ -81,7 +81,7 @@ public class TrackingService implements Runnable {
 	public void run() {
 		log.debug("DCB Tracking Service run");
 
-		if ( this.mutex != null && !this.mutex.isDisposed() && true ) {
+		if ( ( this.mutex != null && !this.mutex.isDisposed() ) || true ) {
 			log.info("Ingest already running skipping. Mutex: {}", this.mutex);
 			return;
 		}
