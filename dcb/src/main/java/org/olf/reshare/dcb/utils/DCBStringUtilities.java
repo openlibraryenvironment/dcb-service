@@ -92,7 +92,7 @@ public class DCBStringUtilities {
 			int last_slash_position = uri.lastIndexOf('/');
 			if ( last_slash_position >= 0 )
 				result = uri.substring(last_slash_position+1);
-			else 
+			else
 				result = uri;
 		}
 		return result;

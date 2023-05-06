@@ -87,7 +87,7 @@ public class ConfigurationService implements Runnable {
                         }));
     }
 
-    private ShelvingLocation mapShelvingLocationRecordToShelvingLocation(ShelvingLocationRecord slr, DataAgency da, BranchRecord br) {
+    private ShelvingLocation mapShelvingLocationRecordToShelvingLocation(ShelvingLocationRecord slr, Location l, BranchRecord br) {
         // log.debug("create ShelvingLocation for {}",slr);
         return new ShelvingLocation()
                 .builder()
@@ -95,7 +95,7 @@ public class ConfigurationService implements Runnable {
                 .code(slr.getCode())
                 .name(slr.getName())
                 .hostSystem((DataHostLms) br.getLms())
-                .agency(da)
+                .location(l)
                 .build();
     }
 
@@ -105,12 +105,38 @@ public class ConfigurationService implements Runnable {
                 .flatMap(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)));
     }
 
-    private Mono<Void> createShelvingLocations(DataAgency da, BranchRecord br) {
+    private Mono<Void> createShelvingLocations(Location l, BranchRecord br) {
         return Flux.fromIterable(br.getShelvingLocations())
-                .map(slr -> mapShelvingLocationRecordToShelvingLocation(slr, da, br))
+                .map(slr -> mapShelvingLocationRecordToShelvingLocation(slr, l, br))
                 .flatMap(sl -> upsertShelvingLocation(sl))
                 .then(Mono.empty());
     }
+
+	private Mono<Agency> handleAgencyRecord(BranchRecord br) {
+		log.debug("handleBranchRecord {}",br);
+		// Different host LMS systems will have different policies on how BranchRecords map to agencies
+		// In a multi-tenant sierra for example, branch records represent institutions and we should create
+		// an agency for each branch record. This method will take account of policies configured for the
+		// host LMS and return the appropriate agency for a given branch record.
+		// There seems to be some hidden link between a sierra agency and sierra branch
+		if (br.getLms() instanceof DataHostLms) {
+			DataAgency upsert_agency = DataAgency
+				.builder()
+				.id(br.getId())
+				.code(br.getLms().getCode() + "-BR-" + br.getLocalBranchId())
+				.name(br.getBranchName())
+				.hostLms((DataHostLms) br.getLms())
+				.build();
+
+			// log.debug("upsertAgency {}", br);
+			return Mono.from(agencyRepository.existsById(upsert_agency.getId()))
+				.flatMap(exists -> Mono.fromDirect(exists ? agencyRepository.update(upsert_agency) : agencyRepository.save(upsert_agency)))
+				.thenReturn(upsert_agency);
+		} else {
+			log.warn("Unable to save agency for statically configured HostLMS");
+			return Mono.empty();
+		}
+	}
 
     /**
      * Given a BranchRecord which includes a UUID5 that globally and consistently identifies the branch (In the context of a HostLMS)
@@ -120,28 +146,25 @@ public class ConfigurationService implements Runnable {
      * @param br
      * @return
      */
-    private Mono<Agency> handleBranchRecord(BranchRecord br) {
+    private Mono<Location> handleBranchRecord(BranchRecord br) {
         log.debug("handleBranchRecord {}",br);
-        // Different host LMS systems will have different policies on how BranchRecords map to agencies
-        // In a multi-tenant sierra for example, branch records represent institutions and we should create
-        // an agency for each branch record. This method will take account of policies configured for the
-        // host LMS and return the appropriate agency for a given branch record.
+				// Branch records map onto Location (Type=Branch) records for us
         if (br.getLms() instanceof DataHostLms) {
-            DataAgency upsert_agency = new DataAgency()
-                    .builder()
-                    .id(br.getId())
-                    .code(br.getLms().getCode() + "-BR-" + br.getLocalBranchId())
-                    .name(br.getBranchName())
-                    .hostLms((DataHostLms) br.getLms())
-                    .build();
+					Location l = Location.builder()
+						.id(br.getId())
+						.code(br.getLocalBranchId())
+						.name(br.getBranchName())
+						.hostSystem((DataHostLms) br.getLms())
+						.type("BRANCH")
+						.build();
 
-            // log.debug("upsertAgency {}", br);
-            return Mono.from(agencyRepository.existsById(upsert_agency.getId()))
-                    .flatMap(exists -> Mono.fromDirect(exists ? agencyRepository.update(upsert_agency) : agencyRepository.save(upsert_agency)))
-                    .flatMap(savedAgency -> createShelvingLocations(savedAgency, br))
-                    .thenReturn(upsert_agency);
-        } else {
-            log.warn("Unable to save agency for statically configured HostLMS");
+					return Mono.from(locationRepository.existsById(l.getId()))
+						.flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)))
+						.flatMap(savedLocation -> createShelvingLocations(savedLocation, br))
+						.thenReturn(l);
+
+				} else {
+            log.warn("Unable to save location for statically configured HostLMS");
             return Mono.empty();
         }
     }
@@ -149,7 +172,7 @@ public class ConfigurationService implements Runnable {
     private Mono<Location> handlePickupLocation(PickupLocationRecord pickupLocationRecord) {
         log.debug("handlePickupLocation {}",pickupLocationRecord);
         if (pickupLocationRecord.getLms() instanceof DataHostLms) {
-            Location upsert_location = new Location()
+            Location upsert_location = Location
                     .builder()
                     .id(pickupLocationRecord.getId())
                     .code(pickupLocationRecord.getCode())

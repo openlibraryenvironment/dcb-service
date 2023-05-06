@@ -345,6 +345,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		List<ShelvingLocationRecord> locations = new ArrayList<>();
 		if (bi.locations() != null) {
 			for (Map<String, String> shelving_location : bi.locations()) {
+				// It appears these are not only shelving locations but more general location records attached to the location
 				locations.add(new org.olf.reshare.dcb.configuration.ShelvingLocationRecord(
 						uuid5ForShelvingLocation(lms.getCode(), bi.id(), shelving_location.get("code")),
 						shelving_location.get("code"), shelving_location.get("name")));
