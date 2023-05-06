@@ -62,7 +62,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 			org.olf.reshare.dcb.core.model.SupplierRequest supplierRequest) {
 
 		return new SupplierRequest(supplierRequest.getId(),
-			new Item(supplierRequest.getItemId()),
+			new Item(supplierRequest.getLocalItemId()),
 			supplierRequest.getHostLmsCode());
 	}
 
