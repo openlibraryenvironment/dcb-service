@@ -12,6 +12,8 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.naming.Named;
 import io.micronaut.core.util.Toggleable;
 
-public interface TrackingSource {
+public interface TrackingSource extends Named {
         public Publisher<TrackingRecord> getTrackingData();
+
+				public boolean isEnabled();
 }

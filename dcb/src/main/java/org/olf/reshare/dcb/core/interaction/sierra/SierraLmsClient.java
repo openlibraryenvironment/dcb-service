@@ -29,6 +29,9 @@ import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.olf.reshare.dcb.ingest.model.RawSource;
 import org.olf.reshare.dcb.storage.RawSourceRepository;
+import org.olf.reshare.dcb.tracking.model.LenderTrackingEvent;
+import org.olf.reshare.dcb.tracking.model.PatronTrackingEvent;
+import org.olf.reshare.dcb.tracking.model.PickupTrackingEvent;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +68,7 @@ import org.olf.reshare.dcb.tracking.model.TrackingRecord;
 import reactor.core.publisher.BufferOverflowStrategy;
 
 import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
 
 /**
  * See: https://sandbox.iii.com/iii/sierra-api/swagger/index.html
@@ -412,8 +416,43 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	public TrackingRecord sierraPatronHoldToTrackingData(SierraPatronHold sph) {
-		log.debug("Convert {}",sph);
-		return new TrackingRecord();
+		// log.debug("Convert {}",sph);
+		TrackingRecord result = null;
+		if ( sph.patron().contains("@")) {
+			// The patron identifier contains a % - this hold is either a supplier OR a pickup Hold
+			if ( sph.record().contains("@")) {
+				// The record contains a remote reference also - this is a pickup record
+				result = PickupTrackingEvent.builder()
+					.hostLmsCode(lms.getCode())
+					.build();
+			}
+			else{
+				// This is a lender hold - shipping an item to a pickup location or direct to a patron home
+				result = LenderTrackingEvent.builder()
+					.hostLmsCode(lms.getCode())
+					.normalisedRecordType(sph.recordType())
+					.localHoldId(deRestify(sph.id()))
+					.localPatronReference(deRestify(sph.patron()))
+					.localRecordId(deRestify(sph.record()))
+					.localHoldStatusCode(sph.status().code())
+					.localHoldStatusName(sph.status().name())
+					.pickupLocationCode(sph.pickupLocation() != null ? sph.pickupLocation().code() : null )
+					.pickupLocationName(sph.pickupLocation() != null ? sph.pickupLocation().name() : null )
+					.build();
+			}
+		}
+		else if ( sph.record().contains("@")) {
+			// patron does not contain % but record does - this is a request from a remote site to
+			// a patron at this system
+			result = PatronTrackingEvent.builder()
+				.hostLmsCode(lms.getCode())
+				.build();
+		}
+		else {
+			// Hold record relates to internal activity and can be skipped
+			// log.debug("No remote indications for this hold {}/{}/{}",sph.patron(),sph.record(),sph.pickupLocation());
+		}
+		return result;
 	}
 
     public Publisher<TrackingRecord> getTrackingData() {
@@ -422,19 +461,24 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
         SierraPatronHoldResultSet init = new SierraPatronHoldResultSet(0,0,new ArrayList<SierraPatronHold>());
     	return Flux.just(init)
             .expand(lastPage -> {
-		log.debug("Fetch pages of data from offset {}",lastPage.start(),lastPage.total());
+							log.debug("Fetch pages of data from offset {}",lastPage.start(),lastPage.total());
                 Mono<SierraPatronHoldResultSet> pageMono = Mono.from(client.getAllPatronHolds(250, lastPage.start()+lastPage.entries().size()))
                         .filter( m -> m.entries().size() > 0 )
                         .switchIfEmpty(Mono.empty());
                         // .subscribeOn(Schedulers.boundedElastic());
-		log.debug("processing");
                 return pageMono;
             })
             .flatMapIterable(page -> page.entries()) // <- prefer this to this ->.flatMapIterable(Function.identity())
 	    // Note to self: *Don't do this* it turns the expand above into an eager hot publisher that will kill the system
             // .onBackpressureBuffer(100, null, BufferOverflowStrategy.ERROR)
-	    .map( ri -> sierraPatronHoldToTrackingData(ri) )
-	;
+	    .flatMap( ri -> {
+				TrackingRecord tr = sierraPatronHoldToTrackingData(ri);
+				if ( tr != null )
+					return Mono.just(tr);
+				else
+					return Mono.empty();
+			} )
+			;
     }
 
 
