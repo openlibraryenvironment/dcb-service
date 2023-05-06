@@ -75,13 +75,13 @@ public class TrackingService implements Runnable {
 	}
 
 
-	// @AppTask
+	@AppTask
 	@Override
 	@Scheduled(initialDelay = "1m", fixedDelay = "${dcb.tracking.interval:1h}")
 	public void run() {
 		log.debug("DCB Tracking Service run");
 
-		if (this.mutex != null && !this.mutex.isDisposed() ) {
+		if (this.mutex != null && !this.mutex.isDisposed() && false ) {
 			log.info("Ingest already running skipping. Mutex: {}", this.mutex);
 			return;
 		}
