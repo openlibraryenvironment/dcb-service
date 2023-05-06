@@ -81,12 +81,12 @@ public class TrackingService implements Runnable {
 	public void run() {
 		log.debug("DCB Tracking Service run");
 
-		if (this.mutex != null && !this.mutex.isDisposed() && false ) {
+		if ( this.mutex != null && !this.mutex.isDisposed() && true ) {
 			log.info("Ingest already running skipping. Mutex: {}", this.mutex);
 			return;
 		}
 
-		log.info("Scheduled Ingest");
+		log.info("Scheduled Tracking Ingest");
 
 		final long start = System.currentTimeMillis();
 
@@ -115,4 +115,3 @@ public class TrackingService implements Runnable {
 			.subscribe();
 	}
 }
-
