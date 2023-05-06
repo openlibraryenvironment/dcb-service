@@ -3,22 +3,18 @@ package org.olf.reshare.dcb.core;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static services.k_int.interaction.sierra.SierraTestUtils.mockFor;
 
-import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -28,9 +24,8 @@ import org.mockserver.client.MockServerClient;
 import org.mockserver.model.MediaType;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.reshare.dcb.core.model.DataHostLms;
-import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.storage.HostLmsRepository;
-import org.olf.reshare.dcb.test.DataAccess;
+import org.olf.reshare.dcb.test.HostLmsFixture;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
@@ -43,10 +38,11 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(Lifecycle.PER_CLASS)
 @TestMethodOrder(OrderAnnotation.class)
 class HostLmsTests {
-	private final DataAccess dataAccess = new DataAccess();
-
 	@Inject
 	private HostLmsRepository hostLmsRepository;
+
+	@Inject
+	private HostLmsFixture hostLmsFixture;
 
 	@BeforeAll
 	static void addFakeSierraApis(MockServerClient mock) {
@@ -83,15 +79,13 @@ class HostLmsTests {
 		// Care is needed here - hostLMS records from config are now converted into DB entries by a bootstrap/startup class.
 		// This delete will wipe out any config set up as a part of app initiailisation so your tests here must rely upon
 		// manually created hostLms entries
-		dataAccess.deleteAll(hostLmsRepository.findAll(),
-			hostLms -> hostLmsRepository.delete(hostLms.getId()));
+		hostLmsFixture.deleteAllHostLMS();
 	}
 
-        @AfterEach
-        void afterEach() {
-                dataAccess.deleteAll(hostLmsRepository.findAll(),
-                        hostLms -> hostLmsRepository.delete(hostLms.getId()));
-        }
+	@AfterEach
+	void afterEach() {
+		hostLmsFixture.deleteAllHostLMS();
+	}
 
 	@Inject
 	ResourceLoader loader;

@@ -1,14 +1,17 @@
 package org.olf.reshare.dcb.storage;
 
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.async.annotation.SingleResult;
+import java.util.UUID;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.reactivestreams.Publisher;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.async.annotation.SingleResult;
 
 public interface PatronIdentityRepository {
 	@NonNull
@@ -21,4 +24,10 @@ public interface PatronIdentityRepository {
 
 	@NonNull
 	Publisher<PatronIdentity> findAllByPatron(Patron patron);
+
+	@NonNull
+	Publisher<PatronIdentity> findAll();
+
+	@NonNull
+	Publisher<Void> delete(UUID id);
 }
