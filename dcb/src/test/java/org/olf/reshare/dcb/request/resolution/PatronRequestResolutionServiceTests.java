@@ -59,7 +59,7 @@ class PatronRequestResolutionServiceTests {
 		final var supplierRequest = resolution.getOptionalSupplierRequest().get();
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequest.getItemId(), is("78458456"));
+		assertThat(supplierRequest.getLocalItemId(), is("78458456"));
 		assertThat(supplierRequest.getHostLmsCode(), is("FAKE_HOST"));
 
 		// check patron request has the expected status
@@ -96,7 +96,7 @@ class PatronRequestResolutionServiceTests {
 		final var supplierRequest = resolution.getOptionalSupplierRequest().get();
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequest.getItemId(), is("23721346"));
+		assertThat(supplierRequest.getLocalItemId(), is("23721346"));
 		assertThat(supplierRequest.getHostLmsCode(), is("FAKE_HOST"));
 
 		// check patron request has the expected status
@@ -137,7 +137,7 @@ class PatronRequestResolutionServiceTests {
 		final var supplierRequest = resolution.getOptionalSupplierRequest().get();
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequest.getItemId(), is("47463572"));
+		assertThat(supplierRequest.getLocalItemId(), is("47463572"));
 		assertThat(supplierRequest.getHostLmsCode(), is("FAKE_HOST"));
 
 		// check patron request has the expected status
@@ -186,7 +186,7 @@ class PatronRequestResolutionServiceTests {
 		final var supplierRequest = resolution.getOptionalSupplierRequest().get();
 
 		// check supplier request has the item we expected
-		assertThat(supplierRequest.getItemId(), is("23721346"));
+		assertThat(supplierRequest.getLocalItemId(), is("23721346"));
 		assertThat(supplierRequest.getHostLmsCode(), is("FOO_HOST"));
 
 		// check patron request has the expected status
@@ -350,7 +350,7 @@ class PatronRequestResolutionServiceTests {
 	private static PatronRequest createPatronRequest(UUID bibClusterId) {
 		return new PatronRequest(randomUUID(), null, null,
 			new Patron(), "patronAgencyCode",
-			bibClusterId, "pickupLocationCode", SUBMITTED_TO_DCB);
+			bibClusterId, "pickupLocationCode", SUBMITTED_TO_DCB, null);
 	}
 
 	private static Item createFakeItem(

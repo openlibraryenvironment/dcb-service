@@ -7,6 +7,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.HostLmsService.UnknownHostLmsException;
@@ -33,6 +34,13 @@ class SharedIndexServiceTests {
 
 	@BeforeEach
 	void beforeEach() {
+		bibRecordFixture.deleteAllBibRecords();
+		clusterRecordFixture.deleteAllClusterRecords();
+		hostLmsFixture.deleteAllHostLMS();
+	}
+
+	@AfterEach
+	void afterEach() {
 		bibRecordFixture.deleteAllBibRecords();
 		clusterRecordFixture.deleteAllClusterRecords();
 		hostLmsFixture.deleteAllHostLMS();

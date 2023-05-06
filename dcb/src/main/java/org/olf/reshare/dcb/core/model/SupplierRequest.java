@@ -25,14 +25,12 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Data
 @MappedEntity
 @RequiredArgsConstructor(onConstructor_ = @Creator())
-// @AllArgsConstructor
 @Builder
 public class SupplierRequest {
-
 	@NotNull
 	@NonNull
 	@Id
-	@TypeDef( type = DataType.UUID)
+	@TypeDef(type = DataType.UUID)
 	private final UUID id;
 
 	@Nullable
@@ -43,11 +41,17 @@ public class SupplierRequest {
 	@NotNull
 	@NonNull
 	@Size(max = 200)
-	private final String itemId;
+	private final String localItemId;
 
 	@NotNull
 	@NonNull
 	@Size(max = 200)
 	private final String hostLmsCode;
+
+	// Once we have placed a hold at the lending system, track that hold by storring it's ID here
+	// this will only be unique within the context of a hostLmsCode
+	@Nullable
+	@Size(max = 200)
+	private final String lenderLocalSystemHoldId;
 }
 

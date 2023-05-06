@@ -56,7 +56,8 @@ public class PatronRequestService {
 			command.requestor().agency().code(),
 			command.citation().bibClusterId(),
 			command.pickupLocation().code(),
-			SUBMITTED_TO_DCB);
+			SUBMITTED_TO_DCB,
+                        null);
 	}
 
 	private Mono<? extends PatronRequest> savePatronRequest(

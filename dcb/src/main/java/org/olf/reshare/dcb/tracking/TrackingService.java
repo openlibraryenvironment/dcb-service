@@ -3,12 +3,14 @@ package org.olf.reshare.dcb.tracking;
 import io.micronaut.runtime.context.scope.Refreshable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
+import org.olf.reshare.dcb.tracking.model.LenderTrackingEvent;
 import org.olf.reshare.dcb.tracking.model.TrackingRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import services.k_int.micronaut.scheduling.processor.AppTask;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -35,7 +37,15 @@ public class TrackingService implements Runnable {
 	}
 
 	private TrackingRecord processTrackingRecord(TrackingRecord tr) {
-		log.debug("processTrackingRecord {}",tr);
+		switch ( tr.getTrackigRecordType() ) {
+			case LenderTrackingEvent.LENDER_TRACKING_RECORD:
+				log.debug("Try to resolve lender tracking record {}",tr);
+				break;
+			default:
+				log.debug("Unhadled tracking record {}",tr);
+				break;
+		}
+
 		return tr;
 	}
 
@@ -71,7 +81,7 @@ public class TrackingService implements Runnable {
 	public void run() {
 		log.debug("DCB Tracking Service run");
 
-		if (this.mutex != null && !this.mutex.isDisposed()) {
+		if (this.mutex != null && !this.mutex.isDisposed() ) {
 			log.info("Ingest already running skipping. Mutex: {}", this.mutex);
 			return;
 		}
