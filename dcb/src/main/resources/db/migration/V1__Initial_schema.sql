@@ -77,7 +77,8 @@ CREATE TABLE patron_request (
 	patron_agency_code varchar(200),
 	bib_cluster_id uuid,
 	pickup_location_code varchar(200),
-	status_code varchar(200)
+	status_code varchar(200),
+	local_system_hold_id varchar(200)
 );
 
 CREATE INDEX idx_pr_patron ON patron_request(patron_id);
@@ -86,8 +87,11 @@ CREATE TABLE supplier_request (
 	id uuid PRIMARY KEY,
 	patron_request_id uuid REFERENCES patron_request(id),
 	local_item_id varchar(200),
-	host_lms_code varchar(200)
+	host_lms_code varchar(200),
+	lender_local_system_hold_id varchar(200)
 );
+
+CREATE INDEX idx_lender_hold on supplier_request(host_lms_code, lender_local_system_hold_id);
 
 CREATE TABLE agency (
 	id uuid PRIMARY KEY,
@@ -128,7 +132,10 @@ CREATE TABLE shelving_location (
 	name varchar(64),
 	host_system_id uuid,
 	agency_id uuid,
-	loan_policy varchar(32)
+	location_id uuid,
+	loan_policy varchar(32),
+	CONSTRAINT fk_agency FOREIGN KEY (agency_id) REFERENCES agency(id),
+	CONSTRAINT fk_location FOREIGN KEY (location_id) REFERENCES location(id)
 );
 
 CREATE INDEX idx_sl_host_system ON shelving_location(host_system_id);

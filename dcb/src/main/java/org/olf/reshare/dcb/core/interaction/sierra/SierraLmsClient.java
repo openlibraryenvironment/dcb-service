@@ -29,6 +29,9 @@ import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.olf.reshare.dcb.ingest.model.RawSource;
 import org.olf.reshare.dcb.storage.RawSourceRepository;
+import org.olf.reshare.dcb.tracking.model.LenderTrackingEvent;
+import org.olf.reshare.dcb.tracking.model.PatronTrackingEvent;
+import org.olf.reshare.dcb.tracking.model.PickupTrackingEvent;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,23 +51,38 @@ import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchInfo;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
+import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
+
+import javax.validation.constraints.NotNull;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.function.Consumer;
+
+import org.olf.reshare.dcb.tracking.TrackingSource;
+import org.olf.reshare.dcb.tracking.model.TrackingRecord;
+
+import reactor.core.publisher.BufferOverflowStrategy;
+
+import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
 
 /**
  * See: https://sandbox.iii.com/iii/sierra-api/swagger/index.html
  */
 @Prototype
-public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
+public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult>, TrackingSource {
+
 	private static final Logger log = LoggerFactory.getLogger(SierraLmsClient.class);
 
-//	private static final int MAX_BUFFERED_ITEMS = 2000;
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
 	private final ConversionService<?> conversionService = ConversionService.SHARED;
 	private final HostLms lms;
 	private final SierraApiClient client;
 	private final ProcessStateService processStateService;
-//	private final R2dbcOperations operations;
 	private final RawSourceRepository rawSourceRepository;
 	private final ItemResultToItemMapper itemResultToItemMapper = new ItemResultToItemMapper();
 
@@ -76,7 +94,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		client = clientFactory.createClientFor(lms);
 		this.rawSourceRepository = rawSourceRepository;
 		this.processStateService = processStateService;
-//		this.operations = operations;
 	}
 
 	@Override
@@ -147,122 +164,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					return generator_state;
 				});
 	}
-
-//	private Consumer<PubisherState> stateConsumer() {
-//		return (state) -> {
-//			log.debug("stateConsumer {}", state);
-//			// operations.withConnection( connection ->
-//			// processStateService.updateState(lms.getId(),"ingest",state.storred_state)
-//			Mono.from(operations
-//					.withTransaction(status -> processStateService.updateState(lms.getId(), "ingest", state.storred_state)
-//							.concatWith(status.getConnection().commitTransaction())))
-//					.subscribe();
-//		};
-//	}
-
-	
-//	private Publisher<BibResult> backpressureAwareBibResultGenerator(int limit) {
-//
-//		// Start the process by loading the current state of the ingest process for this
-//		// LMS id and creating a state object
-//		// we can use in this generator. Flat map it and pass it into Flux.generate
-//		return getInitialState(lms.getId(), "ingest")
-//				.flatMapMany(initialState -> Flux.generate(() -> initialState, (generator_state, sink) -> {
-//					// log.info("Generating - state="+state.storred_state);
-//
-//					// If this is the first time through, or we have exhausted the current page get
-//					// a new page of data
-//					if ((generator_state.current_page == null) || (generator_state.current_page.size() == 0)) {
-//
-//						// Trial in-process updating of process state - We use the current transactional
-//						// context
-//						// and execute a commit to flush work to this state.
-//						log.debug("Intermediate state update " + lms.getId());
-//						Mono.from(operations.withTransaction(
-//								status -> processStateService.updateState(lms.getId(), "ingest", generator_state.storred_state)
-//										.concatWith(Mono.from(status.getConnection().commitTransaction()))))
-//								.subscribe();
-//
-//						// fetch a page of data and stash it
-//						log.info("Fetching page=" + generator_state.page_counter + " offset=" + generator_state.offset + " limit="
-//								+ limit + " elapsed=" + (System.currentTimeMillis() - generator_state.request_start_time) + "ms thread="
-//								+ Thread.currentThread().getName());
-//
-//						// We have to block here in order to wait for the page of data before we can
-//						// return the next item to
-//						// the caller - thats why this is now done using a different scheduler
-//						BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit).onErrorResume(t -> {
-//							log.error("Error ingesting data {}", t.getMessage());
-//							t.printStackTrace();
-//							return Mono.empty();
-//						}).switchIfEmpty(Mono.just("No results returned. Stopping").mapNotNull(s -> {
-//							log.info(s);
-//							return null;
-//						})).share().block();
-//
-//						log.info("got page");
-//						if (bsr != null) {
-//							generator_state.current_page = bsr.entries();
-//							log.info("got[" + (generator_state.page_counter++) + "] page of data");
-//
-//							int number_of_records_returned = generator_state.current_page.size();
-//							generator_state.possiblyMore = number_of_records_returned == limit;
-//
-//							// Increment the offset for the next fetch
-//							generator_state.offset += number_of_records_returned;
-//
-//							log.info("Stashed a page of " + generator_state.current_page.size() + " records");
-//						} else {
-//							log.warn("ERRROR[" + (generator_state.page_counter++) + "] No response from upstream server. Cancelling");
-//
-//							generator_state.current_page = new ArrayList<BibResult>();
-//							// This will terminate the stream - by setting error=true we will leave the
-//							// state intact
-//							// to be picked up on the next attempt
-//							generator_state.error = true;
-//						}
-//					}
-//
-//					// log.info("Returning next - current size is
-//					// "+generator_state.current_page.size());
-//					// Return the next pending bib result from the page we stashed
-//
-//					if (generator_state.current_page.size() > 0) {
-//						sink.next(generator_state.current_page.remove(0));
-//					}
-//
-//					// If we just consumed the last entry from the current page
-//					if (generator_state.current_page.size() == 0) {
-//						// If we have exhausted the currently cached page, and we are at the end,
-//						// terminate.
-//						if (!generator_state.possiblyMore) {
-//							log.info("Terminating cleanly - run out of bib results - new timestamp is {}",
-//									generator_state.request_start_time);
-//							// Make a note of the time at which we started this run, so we know where to
-//							// pick up from
-//							// next time
-//							if (!generator_state.error)
-//								generator_state.storred_state.put("cursor", "deltaSince:" + generator_state.request_start_time);
-//							sink.complete();
-//						} else {
-//							log.info("Exhausted current page - update cursor and prep for loop");
-//							// We have finished consuming a page of data, but there is more to come.
-//							// Remember
-//							// where we got up to and stash it in the DB
-//							if (generator_state.since != null) {
-//								generator_state.storred_state.put("cursor",
-//										"deltaSince:" + generator_state.sinceMillis + ":" + generator_state.offset);
-//							} else {
-//								generator_state.storred_state.put("cursor", "bootstrap:" + generator_state.offset);
-//							}
-//						}
-//					}
-//
-//					// pass the state at the end of this call to the next iteration
-//					// log.debug("return state "+state.storred_state);
-//					return generator_state;
-//				}, stateConsumer()));
-//	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	protected Mono<PubisherState> saveState( PubisherState state ) {
@@ -444,6 +345,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		List<ShelvingLocationRecord> locations = new ArrayList<>();
 		if (bi.locations() != null) {
 			for (Map<String, String> shelving_location : bi.locations()) {
+				// It appears these are not only shelving locations but more general location records attached to the location
 				locations.add(new org.olf.reshare.dcb.configuration.ShelvingLocationRecord(
 						uuid5ForShelvingLocation(lms.getCode(), bi.id(), shelving_location.get("code")),
 						shelving_location.get("code"), shelving_location.get("name")));
@@ -513,5 +415,72 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Publisher<ConfigurationRecord> getConfigStream() {
 		return Flux.from(getBranches()).concatWith(getPickupLocations()).concatWith(getPatronMetadata());
 	}
+
+	public TrackingRecord sierraPatronHoldToTrackingData(SierraPatronHold sph) {
+		// log.debug("Convert {}",sph);
+		TrackingRecord result = null;
+		if ( sph.patron().contains("@")) {
+			// The patron identifier contains a % - this hold is either a supplier OR a pickup Hold
+			if ( sph.record().contains("@")) {
+				// The record contains a remote reference also - this is a pickup record
+				result = PickupTrackingEvent.builder()
+					.hostLmsCode(lms.getCode())
+					.build();
+			}
+			else{
+				// This is a lender hold - shipping an item to a pickup location or direct to a patron home
+				result = LenderTrackingEvent.builder()
+					.hostLmsCode(lms.getCode())
+					.normalisedRecordType(sph.recordType())
+					.localHoldId(deRestify(sph.id()))
+					.localPatronReference(deRestify(sph.patron()))
+					.localRecordId(deRestify(sph.record()))
+					.localHoldStatusCode(sph.status().code())
+					.localHoldStatusName(sph.status().name())
+					.pickupLocationCode(sph.pickupLocation() != null ? sph.pickupLocation().code() : null )
+					.pickupLocationName(sph.pickupLocation() != null ? sph.pickupLocation().name() : null )
+					.build();
+			}
+		}
+		else if ( sph.record().contains("@")) {
+			// patron does not contain % but record does - this is a request from a remote site to
+			// a patron at this system
+			result = PatronTrackingEvent.builder()
+				.hostLmsCode(lms.getCode())
+				.build();
+		}
+		else {
+			// Hold record relates to internal activity and can be skipped
+			// log.debug("No remote indications for this hold {}/{}/{}",sph.patron(),sph.record(),sph.pickupLocation());
+		}
+		return result;
+	}
+
+    public Publisher<TrackingRecord> getTrackingData() {
+	log.debug("getTrackingData");
+	Integer o = Integer.valueOf(0);
+        SierraPatronHoldResultSet init = new SierraPatronHoldResultSet(0,0,new ArrayList<SierraPatronHold>());
+    	return Flux.just(init)
+            .expand(lastPage -> {
+							log.debug("Fetch pages of data from offset {}",lastPage.start(),lastPage.total());
+                Mono<SierraPatronHoldResultSet> pageMono = Mono.from(client.getAllPatronHolds(250, lastPage.start()+lastPage.entries().size()))
+                        .filter( m -> m.entries().size() > 0 )
+                        .switchIfEmpty(Mono.empty());
+                        // .subscribeOn(Schedulers.boundedElastic());
+                return pageMono;
+            })
+            .flatMapIterable(page -> page.entries()) // <- prefer this to this ->.flatMapIterable(Function.identity())
+	    // Note to self: *Don't do this* it turns the expand above into an eager hot publisher that will kill the system
+            // .onBackpressureBuffer(100, null, BufferOverflowStrategy.ERROR)
+	    .flatMap( ri -> {
+				TrackingRecord tr = sierraPatronHoldToTrackingData(ri);
+				if ( tr != null )
+					return Mono.just(tr);
+				else
+					return Mono.empty();
+			} )
+			;
+    }
+
 
 }

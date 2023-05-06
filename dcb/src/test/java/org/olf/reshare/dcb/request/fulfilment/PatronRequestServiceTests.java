@@ -74,7 +74,7 @@ class PatronRequestServiceTests {
 				patronId.toString(), localSystemCode));
 
 		final var patronRequest = new PatronRequest(requestId, null, null, patron,
-			patronAgencyCode, citationId, pickupLocationCode, SUBMITTED_TO_DCB);
+			patronAgencyCode, citationId, pickupLocationCode, SUBMITTED_TO_DCB, null);
 
 		// Set up mocks
 		when(patronService.getOrCreatePatronForRequestor(any()))

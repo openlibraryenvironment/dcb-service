@@ -84,4 +84,18 @@ public class DCBStringUtilities {
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
+	// In Sierra, the APIs return a URI with the actual identifier at the end. this is great for HATEOS style
+	// interactions, but sucks for storage in the DB. Strip  off the identifier part and return just that
+	public static final String deRestify(String uri) {
+		String result = null;
+		if ( uri != null ) {
+			int last_slash_position = uri.lastIndexOf('/');
+			if ( last_slash_position >= 0 )
+				result = uri.substring(last_slash_position+1);
+			else
+				result = uri;
+		}
+		return result;
+	}
+
 }

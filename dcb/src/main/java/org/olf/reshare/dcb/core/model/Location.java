@@ -56,7 +56,7 @@ public class Location {
 	private String type;
 
 	// The UUID of the agency that owns this location record - We may not be able to infer this, so it's nullable
-    // in order that a human can establish the correct relationship after initial discovery
+	// in order that a human can establish the correct relationship after initial discovery
 	@Column(name = "agency_fk")
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private DataAgency agency;
