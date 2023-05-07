@@ -30,18 +30,19 @@ import java.time.Instant;
 @Transactional
 public interface PostgresClusterRecordRepository extends ReactiveStreamsPageableRepository<ClusterRecord, UUID>, ClusterRecordRepository {
 
-	@Join("bibs")
+	/* @Join("bibs")  we don't need the bibs, just the record from the primary bib*/
         Publisher<Page<ClusterRecord>> findAll(@Valid Pageable pageable);
 
 	/*
+	// Doing the join can cause recursion in the graph
 	@Join("bibs")
         Publisher<? extends ClusterRecord> findOneById(@NonNull UUID id);
-	*/
 
 	@Join("bibs")
         Publisher<ClusterRecord> findById(@NotNull UUID id);
+	*/
 
-	@Join("bibs")
+	/* @Join("bibs") */
         Publisher<Page<ClusterRecord>> findByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);
 
 }
