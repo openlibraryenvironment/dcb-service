@@ -33,8 +33,10 @@ public interface PostgresClusterRecordRepository extends ReactiveStreamsPageable
 	@Join("bibs")
         Publisher<Page<ClusterRecord>> findAll(@Valid Pageable pageable);
 
+	/*
 	@Join("bibs")
         Publisher<? extends ClusterRecord> findOneById(@NonNull UUID id);
+	*/
 
 	@Join("bibs")
         Publisher<ClusterRecord> findById(@NotNull UUID id);
