@@ -44,4 +44,10 @@ public class BibController {
 
 		return Mono.from(_bibRepository.findAll(pageable));
 	}
+
+        @Get("/{id}")
+        public Mono<BibRecord> show(UUID id) {
+                return Mono.from(_bibRepository.findById(id));
+        }
+
 }

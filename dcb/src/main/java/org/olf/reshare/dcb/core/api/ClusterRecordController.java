@@ -142,4 +142,9 @@ public class ClusterRecordController {
 		return cr.map(this::mapClusterRecordToDTO);
 	}
 	
+        @Get("/{id}")
+        public Mono<ClusterRecord> show(UUID id) {
+                return Mono.from(_clusterRecordRepository.findById(id));
+        }
+
 }
