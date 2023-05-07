@@ -45,25 +45,6 @@ public class ClusterRecordController {
 		_bibRepository = bibRepository;
 	}
 
-	/*
-	@Secured(SecurityRule.IS_ANONYMOUS)
-	@Operation(
-		summary = "Browse Cluster Records",
-		description = "Paginate through a Unified, Clustered view of the Bibliographic records",
-		parameters = {
-			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
-			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
-	)
-	@Get("/legacy{?pageable*}")
-	public Mono<Page<ClusterRecord>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
-		if (pageable == null) {
-			pageable = Pageable.from(0, 100);
-		}
-
-		return Mono.from(_clusterRecordRepository.findAll(pageable));
-	}
-	*/
-
         @Secured(SecurityRule.IS_ANONYMOUS)
         @Operation(
                 summary = "Browse Cluster Records",
@@ -142,8 +123,10 @@ public class ClusterRecordController {
 		return cr.map(this::mapClusterRecordToDTO);
 	}
 	
+        @Secured(SecurityRule.IS_ANONYMOUS)
         @Get("/{id}")
         public Mono<ClusterRecord> show(UUID id) {
+		log.debug("ClusterRecordController::show({})",id);
                 return Mono.from(_clusterRecordRepository.findById(id));
         }
 

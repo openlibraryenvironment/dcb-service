@@ -61,8 +61,9 @@ public class BibRecord {
 	@TypeDef(type = DataType.STRING)
 	private String title;
 	
+	// might have to think about adding serialize = false to @Relation to prevent cycles
 	@Nullable
-  @Relation(value = Relation.Kind.MANY_TO_ONE)
+	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	@Column(name = "contributes_to")
 	private ClusterRecord contributesTo;
 
