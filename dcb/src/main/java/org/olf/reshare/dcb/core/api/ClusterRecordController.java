@@ -144,6 +144,7 @@ public class ClusterRecordController {
 	
         @Get("/{id}")
         public Mono<ClusterRecord> show(UUID id) {
+		log.debug("ClusterRecordController::show({})",id);
                 return Mono.from(_clusterRecordRepository.findById(id));
         }
 

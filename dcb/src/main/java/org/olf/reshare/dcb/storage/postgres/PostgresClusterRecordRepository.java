@@ -3,6 +3,9 @@ package org.olf.reshare.dcb.storage.postgres;
 import java.util.UUID;
 
 import javax.transaction.Transactional;
+import javax.validation.constraints.NotNull;
+import io.micronaut.core.annotation.NonNull;
+
 
 import org.olf.reshare.dcb.core.model.ClusterRecord;
 import org.olf.reshare.dcb.storage.ClusterRecordRepository;
@@ -29,6 +32,12 @@ public interface PostgresClusterRecordRepository extends ReactiveStreamsPageable
 
 	@Join("bibs")
         Publisher<Page<ClusterRecord>> findAll(@Valid Pageable pageable);
+
+	@Join("bibs")
+        Publisher<? extends ClusterRecord> findOneById(@NonNull UUID id);
+
+	@Join("bibs")
+        Publisher<ClusterRecord> findById(@NotNull UUID id);
 
 	@Join("bibs")
         Publisher<Page<ClusterRecord>> findByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);
