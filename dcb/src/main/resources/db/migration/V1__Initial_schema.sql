@@ -2,7 +2,8 @@ CREATE TABLE cluster_record (
 	id uuid PRIMARY KEY,
 	date_created timestamp,
 	date_updated timestamp,
-	title text
+	title text,
+	selected_bib uuid
 );
 
 CREATE INDEX idx_cluster_date_updated on cluster_record(date_updated);
@@ -18,7 +19,8 @@ CREATE TABLE bib_record (
 	record_status varchar(8),
 	type_of_record varchar(8),
 	derived_type varchar(32),
-	blocking_title text
+	blocking_title text,
+	canonical_metadata JSONB
 );
 
 CREATE INDEX idx_bib_source_system ON bib_record(source_system_id);

@@ -22,13 +22,13 @@ public class ClusterRecordFixture {
 
 	public ClusterRecord createClusterRecord(UUID clusterRecordId) {
 		return Mono.from(clusterRecordRepository.save(new ClusterRecord(clusterRecordId,
-				now(), now(), "Brain of the Firm", new java.util.HashSet())))
+				now(), now(), "Brain of the Firm", new java.util.HashSet(), null)))
 			.block();
 	}
 
 	public ClusterRecord createClusterRecordNullBibs(UUID clusterRecordId) {
 		return Mono.from(clusterRecordRepository.save(new ClusterRecord(clusterRecordId,
-				now(), now(), "Brain of the Firm", null)))
+				now(), now(), "Brain of the Firm", null, null)))
 			.block();
 	}
 

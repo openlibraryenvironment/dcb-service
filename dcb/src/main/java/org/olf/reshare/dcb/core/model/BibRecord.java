@@ -1,6 +1,7 @@
 package org.olf.reshare.dcb.core.model;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 import jakarta.persistence.Column;
 
@@ -18,10 +19,7 @@ import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import lombok.experimental.Accessors;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
@@ -64,8 +62,7 @@ public class BibRecord {
 	private String title;
 	
 	@Nullable
-	// private UUID contributesTo;
-        @Relation(value = Relation.Kind.MANY_TO_ONE)
+  @Relation(value = Relation.Kind.MANY_TO_ONE)
 	@Column(name = "contributes_to")
 	private ClusterRecord contributesTo;
 
@@ -78,8 +75,12 @@ public class BibRecord {
 	@Nullable
 	private String derivedType;
 
-    // Generate a string which might be useful in blocking titles
-    // for stage one of deduplication
-    @Nullable
-    private String blockingTitle;
+	// Generate a string which might be useful in blocking titles
+	// for stage one of deduplication
+	@Nullable
+	private String blockingTitle;
+
+	@Nullable
+	@TypeDef(type = DataType.JSON)
+	Map<String, Object> canonicalMetadata;
 }

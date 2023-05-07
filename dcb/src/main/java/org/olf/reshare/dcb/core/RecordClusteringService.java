@@ -86,6 +86,7 @@ public class RecordClusteringService {
 					ClusterRecord.builder()
 						.id(UUID.randomUUID())
 						.title(ingestRecord.getTitle())
+						.selectedBib(ingestRecord.getUuid())
 						.build())
 			.map( clusterRecords::saveOrUpdate )
 			.flatMap( Mono::from );

@@ -53,4 +53,8 @@ public class ClusterRecord {
 	@Nullable
 	@Relation(value = Relation.Kind.ONE_TO_MANY, mappedBy="contributesTo")
 	private Set<BibRecord> bibs;
+
+	// The UUID of the bib record selected to "Represent" this cluster (could be the first record)
+	@Nullable
+	private final UUID selectedBib;
 }
