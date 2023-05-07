@@ -34,7 +34,7 @@ public class DCBStringUtilities {
 			"en", "end", "eo", "ep", "eq", "er", "es", "et", "et-al", "eu", "ev", "ey", "f", "f2", "fa", "far", "fc", "ff",
 			"fi", "fj", "fl", "fn", "fo", "fy", "g", "ga", "gi", "gj", "gl", "gr", "gs", "gy", "h", "h2", "h3", "hj", "ho",
 			"hr", "hs", "http", "hu", "hy", "i", "i2", "i3", "i4", "i6", "i7", "i8", "ia", "ib", "ibid", "ic", "id", "i'd",
-			"ie", "ig", "ih", "ii", "ij", "il", "i'll", "im", "i'm", "io", "ip", "iq", "ir", "ix", "iy", "iz", "j", "jj",
+			"ie", "ig", "ih", "ii", "ij", "il", "i'll", "im", "i'm","in", "io", "ip", "iq", "ir", "ix", "iy", "iz", "j", "jj",
 			"jr", "js", "jt", "ju", "k", "ke", "kg", "kj", "km", "ko", "l", "l2", "la", "lb", "lc", "le", "lj", "ll", "ll",
 			"ln", "lo", "lr", "ls", "lt", "ltd", "m", "m2", "ma", "ml", "mn", "mo", "n", "n2", "na", "nc", "nd", "ne", "ng",
 			"ni", "nj", "nl", "nn", "nr", "ns", "nt", "ny", "o", "oa", "ob", "oc", "od", "of", "og", "oh", "oi", "oj", "ok",
@@ -42,7 +42,7 @@ public class DCBStringUtilities {
 			"ph", "pi", "pj", "pk", "pl", "pm", "pn", "po", "pp", "pq", "pr", "pu", "py", "q", "qj", "qu", "qv", "r", "r2",
 			"ra", "rc", "rd", "re", "ref", "refs", "rf", "rh", "ri", "rj", "rl", "rm", "rn", "ro", "rq", "rr", "rs", "rt",
 			"ru", "rv", "ry", "s", "s2", "sa", "sc", "sd", "se", "sf", "sj", "sl", "sm", "sn", "sp", "sq", "sr", "ss", "st",
-			"sy", "sz", "t", "t1", "t2", "t3", "tb", "tc", "td", "te", "tf", "th", "ti", "tj", "tl", "tm", "tn", "to", "tp",
+			"sy", "sz", "t", "t1", "t2", "t3", "tb", "tc", "td", "te", "tf", "th", "the", "ti", "tj", "tl", "tm", "tn", "to", "tp",
 			"tq", "tr", "ts", "t's", "tt", "tv", "u", "u201d", "ue", "ui", "uj", "uk", "um", "un", "uo", "ur", "ut", "v",
 			"va", "vd", "ve", "ve", "vj", "vo", "vq", "vs", "vt", "vu", "w", "wa", "wi", "wo", "x", "x1", "x2", "x3", "xf",
 			"xi", "xj", "xk", "xl", "xn", "xo", "xs", "xt", "xv", "xx", "y", "y2", "yj", "yl", "yr", "ys", "yt", "z", "zi",
@@ -63,19 +63,24 @@ public class DCBStringUtilities {
 				.collect(Collectors.joining(" "));
 	}
 
-//	public static final String generateBlockingString(String inputString) {
-//
-//		if (inputString == null)
-//			return null;
-//
-//		List<String> words = Arrays
-//				.stream(Normalizer.normalize(inputString, Normalizer.Form.NFD).replaceAll("\\p{M}", "")
-//						.replaceAll("[^\\p{Alnum}\\s]", "").toLowerCase().split("\\s+"))
-//				.filter(word -> !stopwords.contains(word)).distinct().collect(Collectors.toList());
-//
-//		words.sort(String::compareTo);
-//		return String.join(" ", words);
-//	}
+	public static final String generateOldBlockingString(String inputString, List<String> qualifiers) {
+		if (inputString == null)
+			return null;
+		
+		// If we have additional qualifying terms, blend them here. If the terms have come from Marc, they
+		// could have all kinds of punc and diacritics so adding them now will let the normalisation take care
+		// of them cleanly.
+		if ( ( qualifiers != null ) && ( qualifiers.size() > 0 ) )
+			inputString = inputString + " " + String.join(" ", qualifiers);
+
+		List<String> words = Arrays
+				.stream(Normalizer.normalize(inputString, Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+						.replaceAll("[^\\p{Alnum}\\s]", "").toLowerCase().split("\\s+"))
+				.filter(word -> !stopwords.contains(word)).distinct().collect(Collectors.toList());
+
+		words.sort(String::compareTo);
+		return String.join(" ", words);
+	}
 
 	public static final UUID uuid5ForIdentifier(@NotNull final String namespace, @NotNull final String value,
 			@NotNull final UUID ownerId) {

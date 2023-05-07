@@ -5,10 +5,7 @@ import static services.k_int.integration.marc4j.Marc4jRecordUtils.extractOrdered
 import static services.k_int.integration.marc4j.Marc4jRecordUtils.typeFromLeader;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -21,6 +18,7 @@ import javax.validation.constraints.NotNull;
 import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
+import org.marc4j.marc.VariableField;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.ingest.model.Identifier;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
@@ -28,6 +26,7 @@ import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.olf.reshare.dcb.ingest.model.RawSource;
 import org.olf.reshare.dcb.processing.matching.goldrush.GoldrushKey;
 import org.olf.reshare.dcb.storage.RawSourceRepository;
+import org.olf.reshare.dcb.utils.DCBStringUtilities;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +58,8 @@ public interface MarcIngestSource<T> extends IngestSource {
 		// Author(s)
 		enrichWithAuthorInformation(ingestRecord, marcRecord);
 
+		enrichWithGoldrush(ingestRecord, marcRecord);
+
 		return ingestRecord;
 	}
 
@@ -87,6 +88,9 @@ public interface MarcIngestSource<T> extends IngestSource {
 	default IngestRecordBuilder enrichWithAuthorInformation(final IngestRecordBuilder ingestRecord,
 			final Record marcRecord) {
 
+		// II: This block was adding author names as identifiers. Whilst we do want to extract author names,
+		// I don't think we want them in identifiers, so commenting out for now.
+		/*
 		Stream.of("100", "110", "700", "710").map(tag -> marcRecord.getVariableField(tag)).filter(Objects::nonNull)
 				.map(DataField.class::cast).map(df -> {
 
@@ -100,6 +104,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 						id.value(authorName).namespace(Objects.requireNonNullElse(df.getSubfieldsAsString("0"), "M" + df.getTag()));
 					});
 				}).filter(Objects::nonNull).forEach(ingestRecord::addIdentifiers);
+		 */
 
 		return ingestRecord;
 	}
@@ -112,10 +117,26 @@ public interface MarcIngestSource<T> extends IngestSource {
 				.filter(StringUtils::isNotEmpty).reduce(ingestRecord.build().getTitle(), (current, item) -> {
 					if (StringUtils.isEmpty(current)) {
 						ingestRecord.title(item);
+						ingestRecord.addIdentifier(id -> {
+							// This allows us to add in important discriminators into the blocking title - edition being
+							// the most obvious one for now. Ideally we would normalised this tho into a canonical string
+							List<String> qualifiers = new ArrayList();
+							String edition = null;
+							DataField edition_field = (DataField) marcRecord.getVariableField("250");
+							if ( edition_field != null ) {
+								qualifiers.add(edition_field.getSubfieldsAsString("a"));
+							}
+							// The old style blocking titles arranged words alphabetically, removed duplicates and didn't
+							// suffer with double spacing, so using that here as it provides cleaner matching.
+							id.namespace("BLOCKING_TITLE").value(
+								DCBStringUtilities.generateOldBlockingString(item, qualifiers)
+							);
+						});
 						return item;
 					}
 
 					ingestRecord.otherTitle(item);
+
 
 					// Keep returning the first title that was set.
 					return current;
@@ -176,7 +197,16 @@ public interface MarcIngestSource<T> extends IngestSource {
 		return ingestRecord;
 	}
 
-	private static Stream<String> extractControlData(final Record marcRecord, @NotEmpty final String tag) {
+	default IngestRecordBuilder enrichWithGoldrush(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
+		GoldrushKey grk = getGoldrushKey(marcRecord);
+		ingestRecord.addIdentifier( id -> {
+			id.namespace("GOLDRUSH").value(grk.getText());
+		});
+		return ingestRecord;
+	}
+
+
+		private static Stream<String> extractControlData(final Record marcRecord, @NotEmpty final String tag) {
 
 		return marcRecord.getVariableFields(tag).stream().filter(Objects::nonNull).map(ControlField.class::cast)
 				.map(field -> field.getData());
@@ -197,8 +227,8 @@ public interface MarcIngestSource<T> extends IngestSource {
 				.doOnError(throwable -> log.warn("ONERROR saving raw record", throwable))
 				.flatMap(resource -> {
 					return Mono.just(initIngestRecordBuilder(resource))
-							.zipWith(Mono.just( resourceToMarc(resource) )
-									.map( this::createMatchKey ))
+							.zipWith(Mono.just( resourceToMarc(resource) ) )
+									// .map( this::createMatchKey ))
 							.map(TupleUtils.function(( ir, marcRecord ) -> {
 								return populateRecordFromMarc(ir, marcRecord).build();
 							}));
@@ -225,7 +255,11 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 
 	public default Record createMatchKey(final Record marcRecord) {
+		GoldrushKey grk = getGoldrushKey(marcRecord);
+		return marcRecord;
+	}
 
+	public default GoldrushKey getGoldrushKey(final Record marcRecord) {
 		GoldrushKey grk = new GoldrushKey();
 
 		// Start with 245. If there is a linkage to a 880, then swap to that instead.
@@ -266,6 +300,6 @@ public interface MarcIngestSource<T> extends IngestSource {
 		grk.setRecordType(type);
 //		System.out.println( grk.toString() );
 //		System.out.println( grk.getText() );
-		return marcRecord;
+		return grk;
 	}
 }
