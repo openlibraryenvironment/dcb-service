@@ -5,6 +5,7 @@ import java.util.UUID;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
+import io.micronaut.data.annotation.Query;
 import org.olf.reshare.dcb.core.model.BibRecord;
 import org.olf.reshare.dcb.core.model.ClusterRecord;
 import org.reactivestreams.Publisher;
@@ -55,4 +56,9 @@ public interface BibRepository {
 	@NonNull
 	@SingleResult
 	Publisher<Void> commit();
+
+	// @Query(value = "SELECT b.contributes_to from bib_record b join bib_identifier bi on ( bi.owner_id = b.id ) where bi.value = :blockingTitle and bi.namespace='BLOCKING_TITLE' limit 1", nativeQuery = true)
+
+	@Query(value = "SELECT cr.* from bib_record b join bib_identifier bi on ( bi.owner_id = b.id ) join cluster_record cr on (cr.id = b.contributes_to) where bi.value = :blockingTitle and bi.namespace='BLOCKING_TITLE' limit 1", nativeQuery = true)
+	Publisher<ClusterRecord> findContributesToByBlockingTitle(String blockingTitle);
 }
