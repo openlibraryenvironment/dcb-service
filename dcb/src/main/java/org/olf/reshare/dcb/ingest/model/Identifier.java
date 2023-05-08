@@ -7,7 +7,9 @@ import javax.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Value;
+import io.micronaut.serde.annotation.Serdeable;
 
+@Serdeable
 @Builder
 @Value
 @Data

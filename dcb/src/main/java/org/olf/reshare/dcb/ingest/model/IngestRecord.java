@@ -2,6 +2,7 @@ package org.olf.reshare.dcb.ingest.model;
 
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -72,6 +73,11 @@ public class IngestRecord {
 
 	@Nullable
 	String derivedType;
+
+	// Create an internal version of the object for easy access to common bib properties
+	@With
+	@Nullable
+	Map<String, Object> canonicalMetadata;
 
 //  @Nullable String edition();
 //  List<PublicationInformation> publicationInformation();
