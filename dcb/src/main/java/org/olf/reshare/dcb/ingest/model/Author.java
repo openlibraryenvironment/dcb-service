@@ -11,7 +11,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.Singular;
 import lombok.Value;
+import io.micronaut.serde.annotation.Serdeable;
 
+@Serdeable
 @Data
 @Builder
 @Value

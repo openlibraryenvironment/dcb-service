@@ -18,6 +18,7 @@ import javax.validation.constraints.NotNull;
 import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
+import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.ingest.model.Identifier;
@@ -59,6 +60,8 @@ public interface MarcIngestSource<T> extends IngestSource {
 		enrichWithAuthorInformation(ingestRecord, marcRecord);
 
 		enrichWithGoldrush(ingestRecord, marcRecord);
+
+		enrichWithCanonicalRecord(ingestRecord, marcRecord);
 
 		return ingestRecord;
 	}
@@ -301,5 +304,41 @@ public interface MarcIngestSource<T> extends IngestSource {
 //		System.out.println( grk.toString() );
 //		System.out.println( grk.getText() );
 		return grk;
+	}
+
+	public default IngestRecordBuilder enrichWithCanonicalRecord(final IngestRecordBuilder irb, final Record marcRecord) {
+		Map<String,Object> canonical_metadata = new HashMap();
+		IngestRecord ir = irb.build();
+		canonical_metadata.put("title",ir.getTitle());
+		canonical_metadata.put("identifiers",ir.getIdentifiers());
+		canonical_metadata.put("derivedType",ir.getDerivedType());
+		canonical_metadata.put("recordStatus",ir.getRecordStatus());
+		// canonical_metadata.put("typeOfRecord",ir.getTypeOfRecord());
+		// canonical_metadata.put("bibLevel",ir.getBibLevel());
+		// canonical_metadata.put("materialType",ir.getMaterialType());
+		canonical_metadata.put("author",ir.getAuthor());
+		canonical_metadata.put("otherAuthors",ir.getOtherAuthors());
+
+		DataField publisher = (DataField) marcRecord.getVariableField("260");
+		if ( publisher != null ) {
+			setIfSubfieldPresent(publisher,'a',canonical_metadata,"placeOfPublication");
+			setIfSubfieldPresent(publisher,'b',canonical_metadata,"publisher");
+			setIfSubfieldPresent(publisher,'c',canonical_metadata,"dateOfPublication");
+		}
+
+		irb.canonicalMetadata(canonical_metadata);
+		return irb;
+	}
+
+	private void setIfSubfieldPresent(DataField f, char subfield, Map target, String key) {
+		Subfield subfield_v = f.getSubfield(subfield);
+		if ( subfield_v != null ) {
+			target.put(key,tidy(subfield_v.getData()));
+		}
+			
+	}
+
+	private String tidy(String inputstr) {
+		return inputstr.replaceAll("\\p{Punct}", "");
 	}
 }

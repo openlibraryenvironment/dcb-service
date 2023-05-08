@@ -58,6 +58,7 @@ public class BibRecordService {
                 .typeOfRecord(imported.getTypeOfRecord())
                 .derivedType(imported.getDerivedType())
                 .blockingTitle(generateBlockingString(imported.getTitle()))
+                .canonicalMetadata(imported.getCanonicalMetadata())
                 .build();
     }
 
