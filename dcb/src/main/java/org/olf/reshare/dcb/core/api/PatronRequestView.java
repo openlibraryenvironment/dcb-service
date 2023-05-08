@@ -12,11 +12,11 @@ record PatronRequestView(UUID id, Citation citation, PickupLocation pickupLocati
 
 	static PatronRequestView from(PatronRequest patronRequest) {
 		final var identity = Identity.fromList(patronRequest.getPatron().getPatronIdentities());
+
 		return new PatronRequestView(patronRequest.getId(),
 			new Citation(patronRequest.getBibClusterId()),
 			new PickupLocation(patronRequest.getPickupLocationCode()),
-			new Requestor(identity.localId, identity.localSystemCode,
-				new Agency(patronRequest.getPatronAgencyCode())));
+			new Requestor(identity.localId, identity.localSystemCode));
 	}
 
 	@Serdeable
@@ -24,9 +24,6 @@ record PatronRequestView(UUID id, Citation citation, PickupLocation pickupLocati
 
 	@Serdeable
 	record Citation(UUID bibClusterId) { }
-
-	@Serdeable
-	record Agency(String code) { }
 
 	@Serdeable
 	public record Identity(String localId, String localSystemCode) {
@@ -45,5 +42,5 @@ record PatronRequestView(UUID id, Citation citation, PickupLocation pickupLocati
 	}
 
 	@Serdeable
-	record Requestor(String localId, String localSystemCode, Agency agency) { }
+	record Requestor(String localId, String localSystemCode) { }
 }

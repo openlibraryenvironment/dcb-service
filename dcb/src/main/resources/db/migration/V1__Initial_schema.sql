@@ -76,7 +76,6 @@ CREATE TABLE patron_request (
 	date_created timestamp,
 	date_updated timestamp,
 	patron_id uuid REFERENCES patron (id),
-	patron_agency_code varchar(200),
 	bib_cluster_id uuid,
 	pickup_location_code varchar(200),
 	status_code varchar(200),
