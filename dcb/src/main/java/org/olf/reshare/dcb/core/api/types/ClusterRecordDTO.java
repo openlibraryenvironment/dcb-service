@@ -21,6 +21,6 @@ public class ClusterRecordDTO {
 	String dateCreated;
 	String dateUpdated;
 	String title;
-	List<BibRecordDTO> bibs;
-
+	UUID selectedBibId;
+	BibRecordDTO selectedBib;
 }

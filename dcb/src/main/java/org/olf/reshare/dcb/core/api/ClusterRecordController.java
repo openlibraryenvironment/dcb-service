@@ -76,7 +76,26 @@ public class ClusterRecordController {
 
                 // return Mono.from( _clusterRecordRepository.findAll(pageable) )
                 return Mono.from( _clusterRecordRepository.findByDateUpdatedGreaterThanOrderByDateUpdated(i,pageable) )
-			.flatMap( page -> Mono.just(convertPage(page) )	); // Convert Page<ClusterRecord> into Page<ClusterDTO>
+			.flatMap( page -> Mono.just(convertPage(page) )	)
+			.flatMap( pageOfClusterDTO -> {
+				List<ClusterRecordDTO> clusterRecords = pageOfClusterDTO.getContent();
+				return Flux.fromIterable(clusterRecords)
+					.flatMap(clusterRecord -> {
+						// go fetch the bib record here and attach it if we find one	
+                                                return Mono.from(_bibRepository.findById(clusterRecord.getSelectedBibId()))
+                                                        .flatMap( bib -> {
+                                                                if ( bib != null ) {
+                                                                        clusterRecord.setSelectedBib(mapBibToDTO(bib));
+                                                                }
+                                                                return Mono.just(clusterRecord);
+                                                        });
+						// return Mono.just(clusterRecord);
+					})
+					.collectList()
+					.map(enrichedClusterRecords -> {
+						return Page.of(enrichedClusterRecords, pageOfClusterDTO.getPageable(), pageOfClusterDTO.getTotalSize());
+					});
+			});
 			
         }
 
@@ -86,13 +105,8 @@ public class ClusterRecordController {
 
 	private ClusterRecordDTO mapClusterRecordToDTO(ClusterRecord cr) {
 
-		List<BibRecordDTO> bibs = new java.util.ArrayList();
-		java.util.Set<BibRecord> bibs_from_db = cr.getBibs();
-                if ( bibs_from_db != null ) {
-			for ( BibRecord br : bibs_from_db ){
-				bibs.add(mapBibToDTO(br));
-			}
-          	}
+		// Mono<BibRecord> br = Mono.from(_bibRepository.findById(cr.getSelectedBib()));
+		// BibRecordDTO selectedBib = mapBibToDTO(br.block());
 
 		// New cluster DTO
 		return ClusterRecordDTO
@@ -101,7 +115,7 @@ public class ClusterRecordController {
 				.dateCreated(cr.getDateCreated().toString())
 				.clusterId(cr.getId())
 				.title(cr.getTitle())
-				.bibs(bibs)
+				.selectedBibId(cr.getSelectedBib())
 				.build();
 	}
 
@@ -116,6 +130,7 @@ public class ClusterRecordController {
         			.recordStatus(br.getRecordStatus())
         			.typeOfRecord(br.getTypeOfRecord())
         			.derivedType(br.getDerivedType())
+        			.canonicalMetadata(br.getCanonicalMetadata())
 				.build();
 	}
 
