@@ -10,6 +10,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
+import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand.Citation;
+import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand.PickupLocation;
+import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand.Requestor;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import reactor.core.publisher.Mono;
 
@@ -25,11 +28,8 @@ class PatronRequestServiceTests {
 			patronRequestRepository, requestWorkflow, patronService);
 
 		final var command = new PlacePatronRequestCommand(
-			new PlacePatronRequestCommand.Citation(UUID.randomUUID()),
-			new PlacePatronRequestCommand.PickupLocation("code"),
-			new PlacePatronRequestCommand.Requestor(
-				new PlacePatronRequestCommand.Agency("ABC-123"),
-				"43546", "localSystemCode"));
+			new Citation(UUID.randomUUID()), new PickupLocation("code"),
+			new Requestor("43546", "localSystemCode"));
 
 		when(patronRequestRepository.save(any()))
 			.thenThrow(new RuntimeException("saving failed"));
@@ -67,14 +67,12 @@ class PatronRequestServiceTests {
 		final var patron = new Patron();
 
 		final var command = new PlacePatronRequestCommand(
-			new PlacePatronRequestCommand.Citation(citationId),
-			new PlacePatronRequestCommand.PickupLocation(pickupLocationCode),
-			new PlacePatronRequestCommand.Requestor(
-				new PlacePatronRequestCommand.Agency(patronAgencyCode),
-				patronId.toString(), localSystemCode));
+			new Citation(citationId),
+			new PickupLocation(pickupLocationCode),
+			new Requestor(patronId.toString(), localSystemCode));
 
-		final var patronRequest = new PatronRequest(requestId, null, null, patron,
-			patronAgencyCode, citationId, pickupLocationCode, SUBMITTED_TO_DCB, null);
+		final var patronRequest = new PatronRequest(requestId, null, null,
+			patron, citationId, pickupLocationCode, SUBMITTED_TO_DCB, null);
 
 		// Set up mocks
 		when(patronService.getOrCreatePatronForRequestor(any()))

@@ -20,5 +20,5 @@ public record PlacePatronRequestCommand(
 	@Serdeable
 	public record Agency(String code) { }
 	@Serdeable
-	public record Requestor(Agency agency, String localId, String localSystemCode) { }
+	public record Requestor(String localId, String localSystemCode) { }
 }

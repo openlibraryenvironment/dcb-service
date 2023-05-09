@@ -22,18 +22,16 @@ class AdminApiClient {
 	}
 
 	@Serdeable
-	static public record AdminAccessPatronRequest(@Nullable UUID id, @Nullable Citation citation,
-		@Nullable Requestor requestor, @Nullable PickupLocation pickupLocation,
+	public record AdminAccessPatronRequest(@Nullable UUID id,
+		@Nullable Citation citation, @Nullable Requestor requestor,
+		@Nullable PickupLocation pickupLocation,
 		@Nullable List<SupplierRequest> supplierRequests, @Nullable Status status) {
 
 		@Serdeable
 		record Citation(@Nullable UUID bibClusterId) { }
 
 		@Serdeable
-		record Requestor(String id, @Nullable Agency agency, @Nullable List<Identity> identities) { }
-
-		@Serdeable
-		record Agency(String code) { }
+		record Requestor(String id, @Nullable List<Identity> identities) { }
 
 		@Serdeable
 		record Identity(String localId, String hostLmsCode, Boolean homeIdentity) { }

@@ -24,6 +24,9 @@ import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
+import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand.Citation;
+import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand.PickupLocation;
+import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand.Requestor;
 import org.olf.reshare.dcb.storage.PatronIdentityRepository;
 import org.olf.reshare.dcb.storage.PatronRepository;
 
@@ -42,11 +45,13 @@ public class PatronServiceTests {
 		final var patronService = new PatronService(patronRepository,
 			patronIdentityRepository, hostLmsService);
 
-		final var agencyCode = "code";
 		final var localSystemCode = "localSystemCode";
 		final var localId = "localId";
 		final var dataHostLms = new DataHostLms();
-		final var command = new PlacePatronRequestCommand(new PlacePatronRequestCommand.Citation(UUID.randomUUID()), new PlacePatronRequestCommand.PickupLocation("code"), new PlacePatronRequestCommand.Requestor(new PlacePatronRequestCommand.Agency(agencyCode), localId, localSystemCode));
+		final var command = new PlacePatronRequestCommand(
+			new Citation(UUID.randomUUID()), new PickupLocation("code"),
+			new Requestor(localId, localSystemCode));
+
 		final var patronId = randomUUID();
 		final var patronIdentityId = randomUUID();
 		final var patron = new Patron(patronId, null, null, List.of());
@@ -85,11 +90,10 @@ public class PatronServiceTests {
 		final var patronService = new PatronService(patronRepository,
 			patronIdentityRepository, hostLmsService);
 
-		final var agencyCode = "code";
 		final var localSystemCode = "localSystemCode";
 		final var localId = "localId";
 		final var dataHostLms = new DataHostLms();
-		final var requestor = new PlacePatronRequestCommand.Requestor(new PlacePatronRequestCommand.Agency(agencyCode), localId, localSystemCode);
+		final var requestor = new Requestor(localId, localSystemCode);
 
 		when(hostLmsService.findByCode(any()))
 			.thenAnswer(invocation -> Mono.just(dataHostLms));
@@ -120,11 +124,14 @@ public class PatronServiceTests {
 		final var patronService = new PatronService(patronRepository,
 			patronIdentityRepository, hostLmsService);
 
-		final var agencyCode = "code";
 		final var localSystemCode = "localSystemCode";
 		final var localId = "localId";
 		final var dataHostLms = new DataHostLms();
-		final var command = new PlacePatronRequestCommand(new PlacePatronRequestCommand.Citation(UUID.randomUUID()), new PlacePatronRequestCommand.PickupLocation("code"), new PlacePatronRequestCommand.Requestor(new PlacePatronRequestCommand.Agency(agencyCode), localId, localSystemCode));
+
+		final var command = new PlacePatronRequestCommand(
+			new Citation(UUID.randomUUID()), new PickupLocation("code"),
+			new Requestor(localId, localSystemCode));
+
 		final var patronId = randomUUID();
 		final var patronIdentityId = randomUUID();
 		final var patron = new Patron(patronId, null, null, List.of());

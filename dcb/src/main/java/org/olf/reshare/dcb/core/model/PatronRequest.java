@@ -48,9 +48,6 @@ public class PatronRequest {
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private Patron patron;
 
-	@Size(max = 200)
-	private String patronAgencyCode;
-
 	@Nullable
 	@TypeDef( type = DataType.UUID)
 	private UUID bibClusterId;
@@ -69,12 +66,12 @@ public class PatronRequest {
 
 	public PatronRequest resolve() {
 		return new PatronRequest(id, dateCreated, dateUpdated, patron,
-			patronAgencyCode, bibClusterId, pickupLocationCode, RESOLVED, localSystemHoldId);
+			bibClusterId, pickupLocationCode, RESOLVED, localSystemHoldId);
 	}
 
 	public PatronRequest resolveToNoItemsAvailable() {
 		return new PatronRequest(id, dateCreated, dateUpdated, patron,
-			patronAgencyCode, bibClusterId, pickupLocationCode,
+			bibClusterId, pickupLocationCode,
 			NO_ITEMS_AVAILABLE_AT_ANY_AGENCY, localSystemHoldId);
 	}
 }

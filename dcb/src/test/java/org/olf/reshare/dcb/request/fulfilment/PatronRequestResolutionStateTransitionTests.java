@@ -102,7 +102,7 @@ class PatronRequestResolutionStateTransitionTests {
 
 	private static PatronRequest createPatronRequest(UUID id, String status) {
 		return new PatronRequest(id, now(), now(),
-			new Patron(), "patronAgencyCode",
-			randomUUID(), "pickupLocationCode", status,null);
+			new Patron(), randomUUID(), "pickupLocationCode",
+			status,null);
 	}
 }

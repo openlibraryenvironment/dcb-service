@@ -4,10 +4,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import io.micronaut.core.annotation.Nullable;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
@@ -22,7 +22,6 @@ record PatronRequestAdminView(UUID id, Citation citation,
 			new Citation(patronRequest.getBibClusterId()),
 			new PickupLocation(patronRequest.getPickupLocationCode()),
 			new Requestor(patronRequest.getPatron().getId().toString(),
-				new Agency(patronRequest.getPatronAgencyCode()),
 				Identity.fromList(patronRequest.getPatron().getPatronIdentities())),
 			SupplierRequest.fromList(supplierRequests),
 			new Status(patronRequest.getStatusCode()));
@@ -35,11 +34,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	record Citation(UUID bibClusterId) { }
 
 	@Serdeable
-	record Agency(String code) { }
-
-
-	@Serdeable
-	record Requestor(String id, Agency agency, @Nullable List<Identity> identities) { }
+	record Requestor(String id, @Nullable List<Identity> identities) { }
 
 	@Serdeable
 	record Identity(String localId, String hostLmsCode, Boolean homeIdentity) {

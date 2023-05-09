@@ -43,21 +43,17 @@ public class PatronRequestService {
 		PlacePatronRequestCommand command) {
 
 		final var uuid = UUID.randomUUID();
-		log.debug(String.format("create pr %s %s %s %s %s %s",uuid,
+		log.debug(String.format("create pr %s %s %s %s %s",uuid,
 			patron,
-			command.requestor().agency().code(),
 			command.citation().bibClusterId(),
 			command.pickupLocation().code(),
 			SUBMITTED_TO_DCB));
 
 		log.debug("Setting request status {}", SUBMITTED_TO_DCB);
 		return new PatronRequest(uuid, null, null,
-			patron,
-			command.requestor().agency().code(),
-			command.citation().bibClusterId(),
+			patron, command.citation().bibClusterId(),
 			command.pickupLocation().code(),
-			SUBMITTED_TO_DCB,
-                        null);
+			SUBMITTED_TO_DCB, null);
 	}
 
 	private Mono<? extends PatronRequest> savePatronRequest(
