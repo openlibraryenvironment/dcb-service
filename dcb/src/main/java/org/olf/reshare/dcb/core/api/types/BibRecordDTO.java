@@ -1,6 +1,7 @@
 package org.olf.reshare.dcb.core.api.types;
 
 import java.util.UUID;
+import java.util.Map;
 import org.olf.reshare.dcb.core.model.Location;
 import io.micronaut.serde.annotation.Serdeable;
 
@@ -26,5 +27,6 @@ public class BibRecordDTO {
 	String recordStatus;
 	String typeOfRecord;
 	String derivedType;
+	Map<String,Object> canonicalMetadata;
 
 }
