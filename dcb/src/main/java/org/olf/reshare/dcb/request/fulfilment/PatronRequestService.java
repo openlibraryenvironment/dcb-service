@@ -79,6 +79,16 @@ public class PatronRequestService {
 
 	public Mono<PatronRequest> findById(UUID id) {
 		return Mono.from(patronRequestRepository.findById(id))
-			.flatMap(patronService::addPatronIdentitiesAndHostLms);
+			.zipWhen(this::findPatron, PatronRequestService::addPatron);
+	}
+
+	private Mono<Patron> findPatron(PatronRequest patronRequest) {
+		return patronService.findById(patronRequest.getPatron().getId());
+	}
+
+	private static PatronRequest addPatron(PatronRequest patronRequest, Patron patron) {
+		patronRequest.setPatron(patron);
+
+		return patronRequest;
 	}
 }
