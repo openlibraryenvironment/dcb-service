@@ -10,21 +10,26 @@ import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.inject.Singleton;
+import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 
-@Singleton
+@Prototype
 public class PatronRequestService {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestService.class);
+
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestWorkflow requestWorkflow;
 	private final PatronService patronService;
+	private final FindOrCreatePatronService findOrCreatePatronService;
 
 	public PatronRequestService(PatronRequestRepository patronRequestRepository,
-		PatronRequestWorkflow requestWorkflow, PatronService patronService) {
+		PatronRequestWorkflow requestWorkflow, PatronService patronService,
+		FindOrCreatePatronService findOrCreatePatronService) {
+		
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflow = requestWorkflow;
 		this.patronService = patronService;
+		this.findOrCreatePatronService = findOrCreatePatronService;
 	}
 
 	public Mono<? extends PatronRequest> placePatronRequest(
@@ -33,10 +38,17 @@ public class PatronRequestService {
 		log.debug("placePatronRequest({})", command);
 
 		return Mono.just(command)
-			.flatMap(patronService::getOrCreatePatronForRequestor)
+			.flatMap(this::findOrCreatePatron)
 			.map(patron -> mapToPatronRequest(patron, command))
 			.flatMap(this::savePatronRequest)
 			.doOnSuccess(requestWorkflow::initiate);
+	}
+
+	private Mono<Patron> findOrCreatePatron(PlacePatronRequestCommand command) {
+		final var requestor = command.requestor();
+
+		return findOrCreatePatronService.findOrCreatePatron(requestor.localSystemCode(),
+			requestor.localId());
 	}
 
 	private static PatronRequest mapToPatronRequest(Patron patron,
