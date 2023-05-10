@@ -24,18 +24,20 @@ class PatronRequestServiceTests {
 		final var patronRequestRepository = mock(PatronRequestRepository.class);
 		final var requestWorkflow = mock(PatronRequestWorkflow.class);
 		final var patronService = mock(PatronService.class);
+		final var findOrCreatePatronService = mock(FindOrCreatePatronService.class);
+
 		final var patronRequestService = new PatronRequestService(
-			patronRequestRepository, requestWorkflow, patronService);
+			patronRequestRepository, requestWorkflow, patronService, findOrCreatePatronService);
 
 		final var command = new PlacePatronRequestCommand(
 			new Citation(UUID.randomUUID()), new PickupLocation("code"),
 			new Requestor("43546", "localSystemCode"));
 
+		when(findOrCreatePatronService.findOrCreatePatron(any(), any()))
+			.thenAnswer(invocation -> Mono.just(new Patron()));
+
 		when(patronRequestRepository.save(any()))
 			.thenThrow(new RuntimeException("saving failed"));
-
-		when(patronService.getOrCreatePatronForRequestor(any()))
-			.thenAnswer(invocation -> Mono.just( new Patron() ));
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
@@ -43,25 +45,24 @@ class PatronRequestServiceTests {
 
 		// Assert
 		assertEquals("saving failed", exception.getMessage());
-		verify(requestWorkflow, times(0)).initiate(any());
-	}
 
+		verify(requestWorkflow, never()).initiate(any());
+	}
 
 	@Test
 	void shouldInitiateRequestWorkflow() {
-		// Set up mocks
-		PatronRequestRepository patronRequestRepository = mock(PatronRequestRepository.class);
-		PatronRequestWorkflow requestWorkflow = mock(PatronRequestWorkflow.class);
-		PatronService patronService = mock(PatronService.class);
+		// Arrange
+		final var patronRequestRepository = mock(PatronRequestRepository.class);
+		final var requestWorkflow = mock(PatronRequestWorkflow.class);
+		final var patronService = mock(PatronService.class);
+		final var findOrCreatePatronService = mock(FindOrCreatePatronService.class);
 
-		PatronRequestService patronRequestService = new PatronRequestService(patronRequestRepository,
-			requestWorkflow, patronService);
+		PatronRequestService patronRequestService = new PatronRequestService(
+			patronRequestRepository, requestWorkflow, patronService, findOrCreatePatronService);
 
-		// Create necessary test objects
 		final var citationId = UUID.randomUUID();
 		final var patronId = UUID.randomUUID();
 		final var localSystemCode = "localSystemCode";
-		final var patronAgencyCode = "patronAgencyCode";
 		final var requestId = UUID.randomUUID();
 		final var pickupLocationCode = "pickupLocationCode";
 		final var patron = new Patron();
@@ -74,17 +75,16 @@ class PatronRequestServiceTests {
 		final var patronRequest = new PatronRequest(requestId, null, null,
 			patron, citationId, pickupLocationCode, SUBMITTED_TO_DCB, null);
 
-		// Set up mocks
-		when(patronService.getOrCreatePatronForRequestor(any()))
+		when(findOrCreatePatronService.findOrCreatePatron(any(), any()))
 			.thenAnswer(invocation -> Mono.just(patron));
 
 		when(patronRequestRepository.save(any()))
 			.thenAnswer(invocation -> Mono.just(patronRequest));
 
-		// Call the service method
+		// Act
 		patronRequestService.placePatronRequest(command).block();
 
-		// Verify that the workflow was initiated
+		// Assert
 		verify(requestWorkflow).initiate(any());
 	}
 }

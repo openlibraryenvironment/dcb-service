@@ -15,11 +15,11 @@ import org.olf.reshare.dcb.storage.PatronRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.inject.Singleton;
+import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-@Singleton
+@Prototype
 public class PatronService {
 	private static final Logger log = LoggerFactory.getLogger(PatronService.class);
 
@@ -35,20 +35,8 @@ public class PatronService {
 		this.hostLmsService = hostLmsService;
 	}
 
-	public Mono<Patron> getOrCreatePatronForRequestor(PlacePatronRequestCommand placePatronRequestCommand) {
-		log.debug("getOrCreatePatronForRequestor({})", placePatronRequestCommand);
-		return findPatronFor(placePatronRequestCommand.requestor())
-			// Continue with the found patron
-			.flatMap(Mono::just)
-			// Create a new patron if not found
-			.switchIfEmpty(Mono.defer(() -> createPatronFor(placePatronRequestCommand.requestor())));
-	}
-
-	public Mono<Patron> findPatronFor(PlacePatronRequestCommand.Requestor requestor) {
-		log.debug("findPatronFor({})", requestor);
-
-		final String localId = requestor.localId();
-		final String localSystemCode = requestor.localSystemCode();
+	public Mono<Patron> findPatronFor(String localSystemCode, String localId) {
+		log.debug("FindPatronFor({}, {})", localSystemCode, localId);
 
 		return fetchDataHostLmsByLocalSystemCode(localSystemCode)
 			.flatMap(dataHostLms -> fetchPatronIdentityByHomeIdentity(localId, dataHostLms))
@@ -61,20 +49,12 @@ public class PatronService {
 			});
 	}
 
-	private Mono<PatronIdentity> fetchPatronIdentityByHomeIdentity(String localId, DataHostLms hostLms) {
-		log.debug("fetchPatronIdentityByHomeLibrary({}, {})", localId, hostLms);
-		return Mono.from(patronIdentityRepository.findOneByLocalIdAndHostLmsAndHomeIdentity(localId, hostLms, true));
-	}
+	public Mono<Patron> createPatron(String localSystemCode, String localId) {
+		log.debug("createPatron({}, {})", localSystemCode, localId);
 
-	public Mono<Patron> createPatronFor(PlacePatronRequestCommand.Requestor requestor) {
-		log.debug("createPatronFor({})", requestor);
-
-		final String localSystemCode = requestor.localSystemCode();
-		final String localId = requestor.localId();
-
-		return Mono.fromCallable(this::createNewPatron)
+		return Mono.fromCallable(this::createPatron)
 			.flatMap(this::savePatron)
-			.flatMap(repoPatron -> fetchDataHostLmsByLocalSystemCode( localSystemCode )
+			.flatMap(repoPatron -> fetchDataHostLmsByLocalSystemCode(localSystemCode)
 				.flatMap(dataHostLms -> savePatronIdentity(createNewPatronIdentity(repoPatron, dataHostLms, localId))
 					.thenReturn(repoPatron)));
 	}
@@ -88,6 +68,15 @@ public class PatronService {
 			.collectList()
 			.doOnNext(patron::setPatronIdentities)
 			.thenReturn(patronRequest);
+	}
+
+	private Mono<PatronIdentity> fetchPatronIdentityByHomeIdentity(
+		String localId, DataHostLms hostLms) {
+
+		log.debug("fetchPatronIdentityByHomeLibrary({}, {})", localId, hostLms);
+
+		return Mono.from(patronIdentityRepository
+			.findOneByLocalIdAndHostLmsAndHomeIdentity(localId, hostLms, true));
 	}
 
 	private Flux<PatronIdentity> findAllPatronIdentitiesByPatron(Patron patron) {
@@ -108,7 +97,7 @@ public class PatronService {
 			.thenReturn(patronIdentity);
 	}
 
-	private Patron createNewPatron() {
+	private Patron createPatron() {
 		return new Patron(randomUUID(), null, null, new ArrayList<>());
 	}
 
@@ -119,11 +108,11 @@ public class PatronService {
 			localPatronIdentifier, true);
 	}
 
-	public Mono<DataHostLms> fetchDataHostLmsByLocalSystemCode(String localSystemCode) {
+	private Mono<DataHostLms> fetchDataHostLmsByLocalSystemCode(String localSystemCode) {
 		return Mono.from(hostLmsService.findByCode(localSystemCode));
 	}
 
-	public Mono<DataHostLms> fetchDataHostLmsByHostLmsId(UUID hostLmsId) {
+	private Mono<DataHostLms> fetchDataHostLmsByHostLmsId(UUID hostLmsId) {
 		return Mono.from(hostLmsService.findById(hostLmsId));
 	}
 
