@@ -79,8 +79,8 @@ public class IngestService implements Runnable {
 
 					return false;
 				})
-				.map(source -> source.apply(lastRun))
 				.publishOn(Schedulers.boundedElastic())
+				.map(source -> source.apply(lastRun))
 				.onErrorResume(t -> {
 					log.error("Error ingesting data {}", t.getMessage());
 					t.printStackTrace();
