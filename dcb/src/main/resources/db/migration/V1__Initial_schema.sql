@@ -20,7 +20,9 @@ CREATE TABLE bib_record (
 	type_of_record varchar(8),
 	derived_type varchar(32),
 	blocking_title text,
-	canonical_metadata JSONB
+	canonical_metadata JSONB,
+        metadata_score integer,
+        process_version integer
 );
 
 CREATE INDEX idx_bib_source_system ON bib_record(source_system_id);
