@@ -1,8 +1,5 @@
 package org.olf.reshare.dcb.core.model;
 
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -17,11 +14,9 @@ import io.micronaut.data.annotation.DateCreated;
 import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
-import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.OneToMany;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,7 +26,8 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 
 /**
- * A patron is the canonical record that links together all the different patron identitites for a user across the network.
+ * A patron is the canonical record that links together all the different patron
+ * identities for a user across the network.
  */
 @Builder
 @Data
@@ -56,7 +52,10 @@ public class Patron {
 	@DateUpdated
 	private Instant dateUpdated;
 
+	@Nullable
+	@Size(max = 200)
+	private String homeLibraryCode;
+
 	@OneToMany(mappedBy = "patronId")
 	private List<PatronIdentity> patronIdentities;
 }
-

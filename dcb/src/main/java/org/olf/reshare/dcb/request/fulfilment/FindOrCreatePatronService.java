@@ -13,8 +13,11 @@ public class FindOrCreatePatronService {
 		this.patronService = patronService;
 	}
 
-	public Mono<Patron> findOrCreatePatron(String localSystemCode, String localId) {
+	public Mono<Patron> findOrCreatePatron(String localSystemCode, String localId,
+		String homeLibraryCode) {
+
 		return patronService.findPatronFor(localSystemCode, localId)
-			.switchIfEmpty(Mono.defer(() -> patronService.createPatron(localSystemCode, localId)));
+			.switchIfEmpty(Mono.defer(() ->
+				patronService.createPatron(localSystemCode, localId, homeLibraryCode)));
 	}
 }

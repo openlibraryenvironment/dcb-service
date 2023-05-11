@@ -28,6 +28,7 @@ import org.olf.reshare.dcb.request.fulfilment.PatronService;
 import org.olf.reshare.dcb.test.BibRecordFixture;
 import org.olf.reshare.dcb.test.ClusterRecordFixture;
 import org.olf.reshare.dcb.test.DcbTest;
+import org.olf.reshare.dcb.test.PatronFixture;
 import org.olf.reshare.dcb.test.PatronRequestsFixture;
 
 import io.micronaut.context.annotation.Property;
@@ -55,6 +56,9 @@ class PatronRequestApiTests {
 
 	@Inject
 	private PatronRequestsFixture patronRequestsFixture;
+
+	@Inject
+	private PatronFixture patronFixture;
 
 	@Inject
 	private HostLmsService hostLmsService;
@@ -105,6 +109,8 @@ class PatronRequestApiTests {
 	void beforeEach() {
 		patronRequestsFixture.deleteAllPatronRequests();
 
+		patronFixture.deleteAllPatrons();
+
 		bibRecordFixture.deleteAllBibRecords();
 		clusterRecordFixture.deleteAllClusterRecords();
 	}
@@ -121,27 +127,39 @@ class PatronRequestApiTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		// Act
-		var placedRequestResponse = patronRequestApiClient.placePatronRequest(clusterRecordId, "43546",
-			"ABC123", "test1");
-
-		var fetchedPatronRequest = await().atMost(3, SECONDS)
-			.until(() -> adminApiClient.getPatronRequestViaAdminApi(requireNonNull(placedRequestResponse.body()).id()),
-				isResolved());
+		var placedRequestResponse = patronRequestApiClient.placePatronRequest(
+			clusterRecordId, "872321", "ABC123", "test1", "home-library");
 
 		// Assert
 		assertThat(placedRequestResponse.getStatus(), is(OK));
+
+		final var placedPatronRequest = placedRequestResponse.body();
+
+		assertThat(placedPatronRequest.requestor(), is(notNullValue()));
+		assertThat(placedPatronRequest.requestor().homeLibraryCode(), is("home-library"));
+		assertThat(placedPatronRequest.requestor().localSystemCode(), is("test1"));
+		assertThat(placedPatronRequest.requestor().localId(), is("872321"));
+
+		var fetchedPatronRequest = await().atMost(3, SECONDS)
+			.until(() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.id()),
+				isResolved());
 
 		assertThat(fetchedPatronRequest, is(notNullValue()));
 		assertThat(fetchedPatronRequest.citation().bibClusterId(), is(clusterRecordId));
 		assertThat(fetchedPatronRequest.pickupLocation().code(), is("ABC123"));
 		assertThat(fetchedPatronRequest.status().code(), is("RESOLVED"));
 		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
+
+		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.requestor().homeLibraryCode(), is("home-library"));
+
+		assertThat(fetchedPatronRequest.requestor().identities(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(1));
 
 		final var identity = fetchedPatronRequest.requestor().identities().get(0);
 		assertThat(identity.homeIdentity(), is(true));
 		assertThat(identity.hostLmsCode(), is("test1"));
-		assertThat(identity.localId(), is("43546"));
+		assertThat(identity.localId(), is("872321"));
 
 		final var supplierRequest = fetchedPatronRequest.supplierRequests().get(0);
 		assertThat(supplierRequest.id(), is(notNullValue()));
@@ -160,24 +178,37 @@ class PatronRequestApiTests {
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
-		patronService.createPatron("test1", "43546").block();
+		patronService.createPatron("test1", "43546",
+			"home-library").block();
 
 		// Act
 		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, "43546", "ABC123", "test1");
-
-		var fetchedPatronRequest = await().atMost(3, SECONDS)
-			.until(() -> adminApiClient.getPatronRequestViaAdminApi( requireNonNull(placedRequestResponse.body()).id() ),
-				isResolved());
+			clusterRecordId, "43546", "ABC123", "test1", "home-library");
 
 		// Assert
 		assertThat(placedRequestResponse.getStatus(), is(OK));
+
+		final var placedPatronRequest = placedRequestResponse.body();
+
+		assertThat(placedPatronRequest.requestor(), is(notNullValue()));
+		assertThat(placedPatronRequest.requestor().homeLibraryCode(), is("home-library"));
+		assertThat(placedPatronRequest.requestor().localSystemCode(), is("test1"));
+		assertThat(placedPatronRequest.requestor().localId(), is("43546"));
+
+		var fetchedPatronRequest = await().atMost(3, SECONDS)
+			.until(() -> adminApiClient.getPatronRequestViaAdminApi(requireNonNull(placedRequestResponse.body()).id()),
+				isResolved());
 
 		assertThat(fetchedPatronRequest, is(notNullValue()));
 		assertThat(fetchedPatronRequest.citation().bibClusterId(), is(clusterRecordId));
 		assertThat(fetchedPatronRequest.pickupLocation().code(), is("ABC123"));
 		assertThat(fetchedPatronRequest.status().code(), is("RESOLVED"));
 		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
+
+		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.requestor().homeLibraryCode(), is("home-library"));
+
+		assertThat(fetchedPatronRequest.requestor().identities(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(1));
 
 		final var identity = fetchedPatronRequest.requestor().identities().get(0);
@@ -202,8 +233,8 @@ class PatronRequestApiTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "565382", clusterRecord);
 
 		// Act
-		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(clusterRecordId, "43546",
-			"ABC123", "test1");
+		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
+			clusterRecordId, "83475", "ABC123", "test1", "home-library");
 
 		// Need a longer timeout because retrying the Sierra API,
 		// which happens when the zero items 404 response is received,
@@ -224,7 +255,7 @@ class PatronRequestApiTests {
 		final var identity = fetchedPatronRequest.requestor().identities().get(0);
 		assertThat(identity.homeIdentity(), is(true));
 		assertThat(identity.hostLmsCode(), is("test1"));
-		assertThat(identity.localId(), is("43546"));
+		assertThat(identity.localId(), is("83475"));
 
 		// No supplier request
 		assertThat(fetchedPatronRequest.supplierRequests(), is(nullValue()));
@@ -256,18 +287,14 @@ class PatronRequestApiTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		// Act
-
-		// Given an empty request body
 		final var requestBody = new JSONObject() {{
 			put("citation", new JSONObject() {{
 				put("bibClusterId", clusterRecordId.toString());
 			}});
 			put("requestor", new JSONObject() {{
-				put("localId", "43546");
-				put("agency", new JSONObject() {{
-					put("code", "RGX12");
-				}});
+				put("localId", "73825");
 				put("localSystemCode", "unknown-system");
+				put("homeLibraryCode", "home-library-code");
 			}});
 			put("pickupLocation", new JSONObject() {{
 				put("code", "ABC123");
@@ -283,7 +310,8 @@ class PatronRequestApiTests {
 		// Then a bad request response should be returned
 		final var response = exception.getResponse();
 
-		assertThat("Should return a bad request status", response.getStatus(), is(BAD_REQUEST));
+		assertThat("Should return a bad request status",
+			response.getStatus(), is(BAD_REQUEST));
 
 		final var optionalBody = response.getBody(String.class);
 

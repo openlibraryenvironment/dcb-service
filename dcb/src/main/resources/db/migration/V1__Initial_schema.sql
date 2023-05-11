@@ -54,6 +54,7 @@ CREATE TABLE location (
 
 CREATE TABLE patron (
 	id uuid PRIMARY KEY,
+	home_library_code varchar(200),
 	date_created timestamp,
 	date_updated timestamp
 );

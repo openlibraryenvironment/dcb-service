@@ -6,6 +6,8 @@ import java.util.stream.Collectors;
 
 import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.core.model.PatronRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
@@ -15,14 +17,21 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	PickupLocation pickupLocation, Requestor requestor,
 	List<SupplierRequest> supplierRequests, Status status) {
 
+	private static final Logger log = LoggerFactory.getLogger(PatronRequestAdminView.class);
+
 	static PatronRequestAdminView from(PatronRequest patronRequest,
 		List<org.olf.reshare.dcb.core.model.SupplierRequest> supplierRequests) {
+
+		log.debug("Mapping patron request to view: {}", patronRequest);
+		log.debug("Mapping supplier requests to view: {}", supplierRequests);
+
+		final var patron = patronRequest.getPatron();
 
 		return new PatronRequestAdminView(patronRequest.getId(),
 			new Citation(patronRequest.getBibClusterId()),
 			new PickupLocation(patronRequest.getPickupLocationCode()),
-			new Requestor(patronRequest.getPatron().getId().toString(),
-				Identity.fromList(patronRequest.getPatron().getPatronIdentities())),
+			new Requestor(patron.getId().toString(), patron.getHomeLibraryCode(),
+				Identity.fromList(patron.getPatronIdentities())),
 			SupplierRequest.fromList(supplierRequests),
 			new Status(patronRequest.getStatusCode()));
 	}
@@ -34,7 +43,8 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	record Citation(UUID bibClusterId) { }
 
 	@Serdeable
-	record Requestor(String id, @Nullable List<Identity> identities) { }
+	record Requestor(String id, String homeLibraryCode,
+		@Nullable List<Identity> identities) { }
 
 	@Serdeable
 	record Identity(String localId, String hostLmsCode, Boolean homeIdentity) {
