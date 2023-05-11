@@ -25,7 +25,6 @@ import org.mockserver.client.MockServerClient;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.reshare.dcb.request.fulfilment.PatronService;
-import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand.Requestor;
 import org.olf.reshare.dcb.test.BibRecordFixture;
 import org.olf.reshare.dcb.test.ClusterRecordFixture;
 import org.olf.reshare.dcb.test.DcbTest;
@@ -158,14 +157,14 @@ class PatronRequestApiTests {
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 		final var testHostLms = hostLmsService.findByCode("test1").block();
 		final var sourceSystemId = testHostLms.getId();
-		final var requestor = new Requestor("43546", "test1");
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
-		patronService.createPatronFor(requestor).block();
+
+		patronService.createPatron("test1", "43546").block();
 
 		// Act
-		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(clusterRecordId, "43546",
-			"ABC123", "test1");
+		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
+			clusterRecordId, "43546", "ABC123", "test1");
 
 		var fetchedPatronRequest = await().atMost(3, SECONDS)
 			.until(() -> adminApiClient.getPatronRequestViaAdminApi( requireNonNull(placedRequestResponse.body()).id() ),

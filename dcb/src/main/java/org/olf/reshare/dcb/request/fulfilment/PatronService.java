@@ -3,23 +3,23 @@ package org.olf.reshare.dcb.request.fulfilment;
 import static java.util.UUID.randomUUID;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
-import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.storage.PatronIdentityRepository;
 import org.olf.reshare.dcb.storage.PatronRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.inject.Singleton;
+import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-@Singleton
+@Prototype
 public class PatronService {
 	private static final Logger log = LoggerFactory.getLogger(PatronService.class);
 
@@ -35,25 +35,13 @@ public class PatronService {
 		this.hostLmsService = hostLmsService;
 	}
 
-	public Mono<Patron> getOrCreatePatronForRequestor(PlacePatronRequestCommand placePatronRequestCommand) {
-		log.debug("getOrCreatePatronForRequestor({})", placePatronRequestCommand);
-		return findPatronFor(placePatronRequestCommand.requestor())
-			// Continue with the found patron
-			.flatMap(Mono::just)
-			// Create a new patron if not found
-			.switchIfEmpty(Mono.defer(() -> createPatronFor(placePatronRequestCommand.requestor())));
-	}
-
-	public Mono<Patron> findPatronFor(PlacePatronRequestCommand.Requestor requestor) {
-		log.debug("findPatronFor({})", requestor);
-
-		final String localId = requestor.localId();
-		final String localSystemCode = requestor.localSystemCode();
+	public Mono<Patron> findPatronFor(String localSystemCode, String localId) {
+		log.debug("FindPatronFor({}, {})", localSystemCode, localId);
 
 		return fetchDataHostLmsByLocalSystemCode(localSystemCode)
 			.flatMap(dataHostLms -> fetchPatronIdentityByHomeIdentity(localId, dataHostLms))
 			.map(PatronIdentity::getPatron)
-			.flatMap(patron -> fetchPatronByPatronId( patron.getId() ))
+			.flatMap(patron -> findById(patron.getId()))
 			// logs that null was returned from the repo (dev purposes only)
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred: {}", error.getMessage());
@@ -61,54 +49,52 @@ public class PatronService {
 			});
 	}
 
-	private Mono<PatronIdentity> fetchPatronIdentityByHomeIdentity(String localId, DataHostLms hostLms) {
-		log.debug("fetchPatronIdentityByHomeLibrary({}, {})", localId, hostLms);
-		return Mono.from(patronIdentityRepository.findOneByLocalIdAndHostLmsAndHomeIdentity(localId, hostLms, true));
+	public Mono<Patron> findById(UUID patronId) {
+		return Mono.from(patronRepository.findById(patronId))
+			.zipWhen(patron -> findAllPatronIdentitiesByPatron(patron).collectList(),
+				this::addIdentities);
 	}
 
-	public Mono<Patron> createPatronFor(PlacePatronRequestCommand.Requestor requestor) {
-		log.debug("createPatronFor({})", requestor);
+	public Mono<Patron> createPatron(String localSystemCode, String localId) {
+		log.debug("createPatron({}, {})", localSystemCode, localId);
 
-		final String localSystemCode = requestor.localSystemCode();
-		final String localId = requestor.localId();
-
-		return Mono.fromCallable(this::createNewPatron)
+		return Mono.fromCallable(this::createPatron)
 			.flatMap(this::savePatron)
-			.flatMap(repoPatron -> fetchDataHostLmsByLocalSystemCode( localSystemCode )
-				.flatMap(dataHostLms -> savePatronIdentity(createNewPatronIdentity(repoPatron, dataHostLms, localId))
-					.thenReturn(repoPatron)));
+			.flatMap(repoPatron -> savePatronIdentity(repoPatron, localSystemCode, localId));
 	}
 
-	public Mono<PatronRequest> addPatronIdentitiesAndHostLms(PatronRequest patronRequest) {
-		log.debug("addPatronIdentitiesAndHostLms({})", patronRequest);
+	private Mono<PatronIdentity> fetchPatronIdentityByHomeIdentity(
+		String localId, DataHostLms hostLms) {
 
-		Patron patron = patronRequest.getPatron();
-		return findAllPatronIdentitiesByPatron(patron)
-			.flatMap(this::addHostLmsToPatronIdentities)
-			.collectList()
-			.doOnNext(patron::setPatronIdentities)
-			.thenReturn(patronRequest);
+		log.debug("fetchPatronIdentityByHomeLibrary({}, {})", localId, hostLms);
+
+		return Mono.from(patronIdentityRepository
+			.findOneByLocalIdAndHostLmsAndHomeIdentity(localId, hostLms, true));
 	}
 
 	private Flux<PatronIdentity> findAllPatronIdentitiesByPatron(Patron patron) {
 		log.debug("findAllPatronIdentitiesByPatron({})", patron);
-		return Flux.from(patronIdentityRepository.findAllByPatron(patron));
+
+		return Flux.from(patronIdentityRepository.findAllByPatron(patron))
+			.flatMap(this::addHostLmsToPatronIdentities);
 	}
 
 	private Mono<PatronIdentity> addHostLmsToPatronIdentities(PatronIdentity patronIdentity) {
 		log.debug("addHostLmsToPatronIdentities({})", patronIdentity);
+
 		return Mono.just(patronIdentity)
 			.flatMap(this::getHostLmsOfPatronIdentity);
 	}
 
 	private Mono<PatronIdentity> getHostLmsOfPatronIdentity(PatronIdentity patronIdentity) {
 		log.debug("getHostLmsOfPatronIdentity({})", patronIdentity);
+
 		return fetchDataHostLmsByHostLmsId(patronIdentity.getHostLms().id)
 			.doOnNext(patronIdentity::setHostLms)
 			.thenReturn(patronIdentity);
 	}
 
-	private Patron createNewPatron() {
+	private Patron createPatron() {
 		return new Patron(randomUUID(), null, null, new ArrayList<>());
 	}
 
@@ -119,23 +105,36 @@ public class PatronService {
 			localPatronIdentifier, true);
 	}
 
-	public Mono<DataHostLms> fetchDataHostLmsByLocalSystemCode(String localSystemCode) {
+	private Mono<DataHostLms> fetchDataHostLmsByLocalSystemCode(String localSystemCode) {
 		return Mono.from(hostLmsService.findByCode(localSystemCode));
 	}
 
-	public Mono<DataHostLms> fetchDataHostLmsByHostLmsId(UUID hostLmsId) {
+	private Mono<DataHostLms> fetchDataHostLmsByHostLmsId(UUID hostLmsId) {
 		return Mono.from(hostLmsService.findById(hostLmsId));
-	}
-
-	private Mono<PatronIdentity> savePatronIdentity(PatronIdentity patronIdentity) {
-		return Mono.from(patronIdentityRepository.save(patronIdentity));
 	}
 
 	private Mono<Patron> savePatron(Patron patron) {
 		return Mono.from(patronRepository.save(patron));
 	}
 
-	private Mono<Patron> fetchPatronByPatronId(UUID patronId) {
-		return Mono.from(patronRepository.findById(patronId));
+	private Mono<Patron> savePatronIdentity(Patron patron,
+		String localSystemCode, String localId) {
+
+		return fetchDataHostLmsByLocalSystemCode(localSystemCode)
+			.flatMap(hostLms -> savePatronIdentity(
+				createNewPatronIdentity(patron, hostLms, localId)))
+			.map(identity -> addIdentities(patron, List.of(identity)));
+	}
+
+	private Mono<PatronIdentity> savePatronIdentity(PatronIdentity patronIdentity) {
+		return Mono.from(patronIdentityRepository.save(patronIdentity));
+	}
+
+	private Patron addIdentities(Patron patron, List<PatronIdentity> identities) {
+		log.debug("addIdentities({}, {})", patron, identities);
+
+		patron.setPatronIdentities(identities);
+
+		return patron;
 	}
 }

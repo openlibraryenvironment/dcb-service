@@ -284,8 +284,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 			})
 			.orElseGet(() -> field245);
 		
-		List<String> fields = extractOrderedSubfields(fieldForTitle, "ab").limit(2)
-				.toList();
+		List<String> fields = extractOrderedSubfields(fieldForTitle, "ab").limit(2).toList();
 
 		if (fields.size() > 0) {
 			grk.parseTitle(fields.get(0), fields.size() > 1 ? fields.get(1) : null);
@@ -298,6 +297,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 		parseFromSingleSubfield(marcRecord, "260", 'b', grk::parsePublisher);
 		parseFromSingleSubfield(marcRecord, "245", 'p', grk::parseTitlePart);
 		parseFromSingleSubfield(marcRecord, "245", 'n', grk::parseTitleNumber);
+
 
 		char type = marcRecord.getLeader().getTypeOfRecord();
 		grk.setRecordType(type);
@@ -326,6 +326,32 @@ public interface MarcIngestSource<T> extends IngestSource {
 			setIfSubfieldPresent(publisher,'c',canonical_metadata,"dateOfPublication");
 		}
 
+                // Extract some subject metadata
+                addToCanonicalMetadata("subjects","600","personal-name",marcRecord,canonical_metadata);
+                addToCanonicalMetadata("subjects","610","corporate-name",marcRecord,canonical_metadata);
+                addToCanonicalMetadata("subjects","611","meeting-name",marcRecord,canonical_metadata);
+                addToCanonicalMetadata("subjects","630","uniform-name",marcRecord,canonical_metadata);
+                addToCanonicalMetadata("subjects","647","named-event",marcRecord,canonical_metadata);
+                addToCanonicalMetadata("subjects","648","chronological-term",marcRecord,canonical_metadata);
+                addToCanonicalMetadata("subjects","650","topical-term",marcRecord,canonical_metadata);
+                addToCanonicalMetadata("subjects","653","index-term-uncontrolled",marcRecord,canonical_metadata);
+                addToCanonicalMetadata("subjects","654","faceted",marcRecord,canonical_metadata);
+                addToCanonicalMetadata("subjects","662","hierarchial-place-name",marcRecord,canonical_metadata);
+
+                addToCanonicalMetadata("agents","100","name-personal",marcRecord,canonical_metadata);
+                addToCanonicalMetadata("agents","110","name-corporate",marcRecord,canonical_metadata);
+                addToCanonicalMetadata("agents","111","name-meeting",marcRecord,canonical_metadata);
+                addToCanonicalMetadata("agents","130","uniform-title",marcRecord,canonical_metadata);
+
+                addToCanonicalMetadata("physical-description","300",null,marcRecord,canonical_metadata);
+                addToCanonicalMetadata("content-type","336",null,marcRecord,canonical_metadata);
+                addToCanonicalMetadata("media-type","337",null,marcRecord,canonical_metadata);
+
+                DataField edition_field = (DataField) marcRecord.getVariableField("250");
+                if ( edition_field != null ) {
+                        canonical_metadata.put("edition",tidy(edition_field.getSubfieldsAsString("a")));
+                }
+
 		irb.canonicalMetadata(canonical_metadata);
 		return irb;
 	}
@@ -341,4 +367,25 @@ public interface MarcIngestSource<T> extends IngestSource {
 	private String tidy(String inputstr) {
 		return inputstr.replaceAll("\\p{Punct}", "");
 	}
+
+        private void addToCanonicalMetadata(String property, String tag, String subtype, Record marcRecord, Map<String,Object> canonical_metadata) {
+
+                List the_values = (List) canonical_metadata.get(property);
+
+                if ( the_values == null )
+                        the_values = new java.util.ArrayList();
+
+		for ( VariableField vf : marcRecord.getVariableFields(tag) ) {
+                        DataField df = (DataField) vf;
+                        Map the_entry = new java.util.HashMap();
+                        if ( subtype != null )
+                                the_entry.put("subtype",subtype);
+                        the_entry.put("label", df.getSubfieldsAsString("abcdefg"));
+                        the_values.add(the_entry);
+                };
+
+                if ( the_values.size() > 0) {
+                        canonical_metadata.put(property, the_values);
+                }
+        }
 }

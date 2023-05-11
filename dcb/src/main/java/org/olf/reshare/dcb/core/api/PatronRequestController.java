@@ -4,11 +4,10 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 import javax.validation.Valid;
 
-import io.micronaut.http.MutableHttpResponse;
+import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.request.fulfilment.PatronRequestService;
 import org.olf.reshare.dcb.request.fulfilment.PatronService;
 import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand;
-import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +16,7 @@ import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
@@ -29,7 +29,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
 import reactor.core.publisher.Mono;
 
 @Validated
@@ -58,14 +57,8 @@ private final PatronService patronService;
 		log.debug("REST, place patron request: {}", command);
 
 		return patronRequestService.placePatronRequest(command)
-			.flatMap(this::toPatronRequestView)
+			.map(PatronRequestView::from)
 			.map(HttpResponse::ok);
-	}
-
-	private Mono<PatronRequestView> toPatronRequestView(PatronRequest patronRequest) {
-		log.debug("toPatronRequestView({})", patronRequest);
-		return patronService.addPatronIdentitiesAndHostLms(patronRequest)
-			.map(PatronRequestView::from);
 	}
 
 	@Secured(SecurityRule.IS_ANONYMOUS)
