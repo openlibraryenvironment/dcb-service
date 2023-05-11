@@ -283,6 +283,23 @@ class PatronServiceTests {
 		when(patronIdentityRepository.save(any()))
 			.thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
 
+		when(patronRepository.findById(any()))
+			.thenAnswer(invocation -> Mono.just(createPatron(randomUUID(),
+				"home-library-code")));
+
+		// Patron identity repository does not fetch host LMS as well
+		final var hostLmsWithOnlyId = createHostLmsWithIdOnly(randomUUID());
+
+		when(patronIdentityRepository.findAllByPatron(any()))
+			.thenAnswer(invocation -> Flux.fromIterable(List.of(
+				createIdentity(randomUUID(), createPatron(randomUUID(), null),
+					hostLmsWithOnlyId, "localId", true))));
+
+		final var foundHostLms = createHostLms("localSystemCode");
+
+		when(hostLmsService.findById(any()))
+			.thenAnswer(invocation -> Mono.just(foundHostLms));
+
 		// Act
 		final var createdPatron = patronService
 			.createPatron("localSystemCode", "localId", "home-library-code")
@@ -308,7 +325,7 @@ class PatronServiceTests {
 			onlyIdentity.getPatron(), is(not(createdPatron)));
 
 		assertThat("Shallow patron associated with an identity should not have any identities",
-			onlyIdentity.getPatron().getPatronIdentities(), is(nullValue()));
+			onlyIdentity.getPatron().getPatronIdentities(), hasSize(0));
 
 		assertThat("Should have local ID",
 			onlyIdentity.getLocalId(), is("localId"));
@@ -318,14 +335,21 @@ class PatronServiceTests {
 
 		assertThat("Should be home identity",
 			onlyIdentity.getHomeIdentity(), is(true));
+
+		verify(patronRepository).save(any());
+		verify(patronRepository).findById(any());
+
+		verify(patronIdentityRepository).save(any());
+		verify(patronIdentityRepository).findAllByPatron(any());
+
+		verify(hostLmsService).findById(any());
+		verify(hostLmsService).findByCode(any());
+
+		verifyNoMoreInteractions(hostLmsService, patronIdentityRepository, patronRepository);
 	}
 
 	private Patron createPatron(UUID id, String homeLibraryCode) {
 		return new Patron(id, null, null, homeLibraryCode, List.of());
-	}
-
-	private Patron createPatronWithOnlyID(UUID id) {
-		return createPatron(id, null);
 	}
 
 	private DataHostLms createHostLms(UUID id, String localSystemCode) {

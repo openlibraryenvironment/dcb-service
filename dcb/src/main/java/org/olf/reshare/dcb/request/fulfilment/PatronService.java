@@ -61,7 +61,8 @@ public class PatronService {
 		log.debug("createPatron({}, {}, {})", localSystemCode, localId, homeLibraryCode);
 
 		return savePatron(createPatron(homeLibraryCode))
-			.flatMap(patron -> savePatronIdentity(patron, localSystemCode, localId));
+			.flatMap(patron -> savePatronIdentity(patron, localSystemCode, localId))
+			.flatMap(patronIdentity -> findById(patronIdentity.getPatron().getId()));
 	}
 
 	private Mono<PatronIdentity> fetchPatronIdentityByHomeIdentity(
@@ -119,12 +120,11 @@ public class PatronService {
 		return Mono.from(patronRepository.save(patron));
 	}
 
-	private Mono<Patron> savePatronIdentity(Patron patron,
+	private Mono<PatronIdentity> savePatronIdentity(Patron patron,
 		String localSystemCode, String localId) {
 
 		return fetchDataHostLmsByLocalSystemCode(localSystemCode)
-			.flatMap(hostLms -> savePatronIdentity(patron, localId, hostLms))
-			.map(identity -> addIdentities(patron, List.of(identity)));
+			.flatMap(hostLms -> savePatronIdentity(patron, localId, hostLms));
 	}
 
 	private Mono<PatronIdentity> savePatronIdentity(Patron patron, String localId,
