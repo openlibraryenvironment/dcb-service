@@ -34,6 +34,8 @@ public class BibRecordService {
     private final BibIdentifierRepository bibIdentifierRepo;
     private final ClusterRecordRepository clusterRepo;
 
+    public static final int PROCESS_VERSION = 1;
+
     BibRecordService(BibRepository bibRepo,
                      BibIdentifierRepository bibIdentifierRepository,
                      ClusterRecordRepository clusterRepo) {
@@ -44,6 +46,7 @@ public class BibRecordService {
 
     private BibRecord step1(final BibRecord bib, final IngestRecord imported) {
         // log.info("Executing step 1");
+        bib.setProcessVersion(PROCESS_VERSION);
         return bib;
     }
 
@@ -59,6 +62,7 @@ public class BibRecordService {
                 .derivedType(imported.getDerivedType())
                 .blockingTitle(generateBlockingString(imported.getTitle()))
                 .canonicalMetadata(imported.getCanonicalMetadata())
+                .metadataScore(imported.getMetadataScore())
                 .build();
     }
 

@@ -59,9 +59,14 @@ public interface MarcIngestSource<T> extends IngestSource {
 		// Author(s)
 		enrichWithAuthorInformation(ingestRecord, marcRecord);
 
+                // Goldrush key
 		enrichWithGoldrush(ingestRecord, marcRecord);
 
+                // A canonical representation of the metadata
 		enrichWithCanonicalRecord(ingestRecord, marcRecord);
+
+                // Calculate a score for the quality of this record
+                enrichWithMetadataScore(ingestRecord, marcRecord);
 
 		return ingestRecord;
 	}
@@ -355,6 +360,23 @@ public interface MarcIngestSource<T> extends IngestSource {
 		irb.canonicalMetadata(canonical_metadata);
 		return irb;
 	}
+
+	public default IngestRecordBuilder enrichWithMetadataScore(final IngestRecordBuilder irb, final Record marcRecord) {
+                int score = 0;
+                Map<String,Object> canonical_metadata = irb.build().getCanonicalMetadata();
+                if ( canonical_metadata != null ) {
+                        // Record has metadata - have a point!
+                        score++;
+                        List subjects = (List) canonical_metadata.get("subjects");
+                        if ( subjects != null )
+                                score += subjects.size();
+                        List names = (List) canonical_metadata.get("agents");
+                        if ( names != null )
+                                score += names.size();
+                }
+                irb.metadataScore(Integer.valueOf(score));
+                return irb;
+        }
 
 	private void setIfSubfieldPresent(DataField f, char subfield, Map target, String key) {
 		Subfield subfield_v = f.getSubfield(subfield);

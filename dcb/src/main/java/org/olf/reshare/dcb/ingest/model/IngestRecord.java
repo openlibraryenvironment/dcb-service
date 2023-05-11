@@ -79,6 +79,9 @@ public class IngestRecord {
 	@Nullable
 	Map<String, Object> canonicalMetadata;
 
+	@Nullable
+        Integer metadataScore;
+
 //  @Nullable String edition();
 //  List<PublicationInformation> publicationInformation();
 //  List<Description> descriptions();
