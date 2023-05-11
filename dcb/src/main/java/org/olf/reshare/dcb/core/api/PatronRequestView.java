@@ -8,7 +8,8 @@ import org.olf.reshare.dcb.core.model.PatronRequest;
 import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
-record PatronRequestView(UUID id, Citation citation, PickupLocation pickupLocation, Requestor requestor) {
+record PatronRequestView(UUID id, Citation citation, PickupLocation pickupLocation,
+	Requestor requestor) {
 
 	static PatronRequestView from(PatronRequest patronRequest) {
 		final var identity = Identity.fromList(patronRequest.getPatron().getPatronIdentities());
@@ -16,7 +17,8 @@ record PatronRequestView(UUID id, Citation citation, PickupLocation pickupLocati
 		return new PatronRequestView(patronRequest.getId(),
 			new Citation(patronRequest.getBibClusterId()),
 			new PickupLocation(patronRequest.getPickupLocationCode()),
-			new Requestor(identity.localId, identity.localSystemCode));
+			new Requestor(identity.localId, identity.localSystemCode,
+				patronRequest.getPatron().getHomeLibraryCode()));
 	}
 
 	@Serdeable
@@ -42,5 +44,5 @@ record PatronRequestView(UUID id, Citation citation, PickupLocation pickupLocati
 	}
 
 	@Serdeable
-	record Requestor(String localId, String localSystemCode) { }
+	record Requestor(String localId, String localSystemCode, String homeLibraryCode) { }
 }

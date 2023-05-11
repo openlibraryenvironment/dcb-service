@@ -55,12 +55,13 @@ public class PatronService {
 				this::addIdentities);
 	}
 
-	public Mono<Patron> createPatron(String localSystemCode, String localId) {
-		log.debug("createPatron({}, {})", localSystemCode, localId);
+	public Mono<Patron> createPatron(String localSystemCode, String localId,
+		String homeLibraryCode) {
 
-		return Mono.fromCallable(this::createPatron)
-			.flatMap(this::savePatron)
-			.flatMap(repoPatron -> savePatronIdentity(repoPatron, localSystemCode, localId));
+		log.debug("createPatron({}, {}, {})", localSystemCode, localId, homeLibraryCode);
+
+		return savePatron(createPatron(homeLibraryCode))
+			.flatMap(patron -> savePatronIdentity(patron, localSystemCode, localId));
 	}
 
 	private Mono<PatronIdentity> fetchPatronIdentityByHomeIdentity(
@@ -94,8 +95,9 @@ public class PatronService {
 			.thenReturn(patronIdentity);
 	}
 
-	private Patron createPatron() {
-		return new Patron(randomUUID(), null, null, new ArrayList<>());
+	private Patron createPatron(String homeLibraryCode) {
+		return new Patron(randomUUID(), null, null,
+			homeLibraryCode, new ArrayList<>());
 	}
 
 	private PatronIdentity createNewPatronIdentity(Patron patron, DataHostLms dataHostLms,
@@ -121,13 +123,26 @@ public class PatronService {
 		String localSystemCode, String localId) {
 
 		return fetchDataHostLmsByLocalSystemCode(localSystemCode)
-			.flatMap(hostLms -> savePatronIdentity(
-				createNewPatronIdentity(patron, hostLms, localId)))
+			.flatMap(hostLms -> savePatronIdentity(patron, localId, hostLms))
 			.map(identity -> addIdentities(patron, List.of(identity)));
+	}
+
+	private Mono<PatronIdentity> savePatronIdentity(Patron patron, String localId,
+		DataHostLms hostLms) {
+
+		return savePatronIdentity(createNewPatronIdentity(
+			// Patron associated with an identity has to be shallow, to avoid a circular loop
+			createPatronWithOnlyId(patron.getId()), hostLms, localId));
 	}
 
 	private Mono<PatronIdentity> savePatronIdentity(PatronIdentity patronIdentity) {
 		return Mono.from(patronIdentityRepository.save(patronIdentity));
+	}
+
+	private static Patron createPatronWithOnlyId(UUID id) {
+		return Patron.builder()
+			.id(id)
+			.build();
 	}
 
 	private Patron addIdentities(Patron patron, List<PatronIdentity> identities) {

@@ -18,7 +18,6 @@ public record PlacePatronRequestCommand(
 	@Serdeable
 	public record Citation(UUID bibClusterId) { }
 	@Serdeable
-	public record Agency(String code) { }
-	@Serdeable
-	public record Requestor(String localId, String localSystemCode) { }
+	public record Requestor(String localId, String localSystemCode,
+		String homeLibraryCode) { }
 }

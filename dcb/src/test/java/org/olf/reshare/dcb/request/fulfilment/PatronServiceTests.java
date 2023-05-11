@@ -2,6 +2,7 @@ package org.olf.reshare.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -43,7 +44,7 @@ class PatronServiceTests {
 			patronIdentityRepository, hostLmsService);
 
 		final var patronId = randomUUID();
-		final var patron = createPatron(patronId);
+		final var patron = createPatron(patronId, "home-library-code");
 
 		final var homeHostLmsId = randomUUID();
 		final var homeHostLms = createHostLms(homeHostLmsId, "localSystemCode");
@@ -89,6 +90,9 @@ class PatronServiceTests {
 			foundPatron, is(notNullValue()));
 
 		assertThat("Unexpected patron ID", foundPatron.getId(), is(patronId));
+		assertThat("Unexpected home library code",
+			foundPatron.getHomeLibraryCode(), is("home-library-code"));
+
 		assertThat("Should include only identity",
 			foundPatron.getPatronIdentities(), hasSize(2));
 
@@ -178,7 +182,7 @@ class PatronServiceTests {
 
 		final var patronId = randomUUID();
 		final var patronIdentityId = randomUUID();
-		final var patron = createPatron(patronId);
+		final var patron = createPatron(patronId, "home-library-code");
 
 		// Patron identity repository does not fetch host LMS as well
 		final var hostLmsWithOnlyId = createHostLmsWithIdOnly(randomUUID());
@@ -205,6 +209,9 @@ class PatronServiceTests {
 			foundPatron, is(notNullValue()));
 
 		assertThat("Unexpected patron ID", foundPatron.getId(), is(patronId));
+		assertThat("Unexpected home library code",
+			foundPatron.getHomeLibraryCode(), is("home-library-code"));
+
 		assertThat("Should include only identity",
 			foundPatron.getPatronIdentities(), hasSize(1));
 
@@ -265,35 +272,43 @@ class PatronServiceTests {
 
 		final var dataHostLms = createHostLms("localSystemCode");
 
-		final var patronId = randomUUID();
-		final var patron = createPatron(patronId);
-
-		final var patronIdentityId = randomUUID();
-		final var patronIdentity = createIdentity(patronIdentityId, patron,
-			dataHostLms, "localId", true);
-
+		// Return the same patron as gets passed in
 		when(patronRepository.save(any()))
-			.thenAnswer(invocation -> Mono.just(patron));
+			.thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
 
 		when(hostLmsService.findByCode(any()))
 			.thenAnswer(invocation -> Mono.just(dataHostLms));
 
+		// Return the same patron as gets passed in
 		when(patronIdentityRepository.save(any()))
-			.thenAnswer(invocation -> Mono.just(patronIdentity));
+			.thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
 
 		// Act
 		final var createdPatron = patronService
-			.createPatron("localSystemCode", "localId").block();
+			.createPatron("localSystemCode", "localId", "home-library-code")
+			.block();
 
 		// Assert
 		assertThat("Expected a patron to be returned, but was null",
 			createdPatron, is(notNullValue()));
 
-		assertThat("Unexpected patron ID", createdPatron.getId(), is(patronId));
+		assertThat("Should have a home library code",
+			createdPatron.getHomeLibraryCode(), is("home-library-code"));
+
+		assertThat("Should have an ID", createdPatron.getId(), is(notNullValue()));
 		assertThat("Should include only identity",
 			createdPatron.getPatronIdentities(), hasSize(1));
 
 		final var onlyIdentity = createdPatron.getPatronIdentities().get(0);
+
+		assertThat("Patron associated with an identity should not be null",
+			onlyIdentity.getPatron(), is(notNullValue()));
+
+		assertThat("Patron associated with an identity must be shallow, to avoid a circular loop",
+			onlyIdentity.getPatron(), is(not(createdPatron)));
+
+		assertThat("Shallow patron associated with an identity should not have any identities",
+			onlyIdentity.getPatron().getPatronIdentities(), is(nullValue()));
 
 		assertThat("Should have local ID",
 			onlyIdentity.getLocalId(), is("localId"));
@@ -305,8 +320,12 @@ class PatronServiceTests {
 			onlyIdentity.getHomeIdentity(), is(true));
 	}
 
-	private static Patron createPatron(UUID patronId) {
-		return new Patron(patronId, null, null, List.of());
+	private Patron createPatron(UUID id, String homeLibraryCode) {
+		return new Patron(id, null, null, homeLibraryCode, List.of());
+	}
+
+	private Patron createPatronWithOnlyID(UUID id) {
+		return createPatron(id, null);
 	}
 
 	private DataHostLms createHostLms(UUID id, String localSystemCode) {

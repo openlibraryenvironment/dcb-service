@@ -48,7 +48,7 @@ public class PatronRequestService {
 		final var requestor = command.requestor();
 
 		return findOrCreatePatronService.findOrCreatePatron(requestor.localSystemCode(),
-			requestor.localId());
+			requestor.localId(), requestor.homeLibraryCode());
 	}
 
 	private static PatronRequest mapToPatronRequest(Patron patron,

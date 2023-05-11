@@ -31,22 +31,26 @@ class AdminApiClient {
 		record Citation(@Nullable UUID bibClusterId) { }
 
 		@Serdeable
-		record Requestor(String id, @Nullable List<Identity> identities) { }
+		record Requestor(@Nullable String id, @Nullable String homeLibraryCode,
+			@Nullable List<Identity> identities) {
+		}
 
 		@Serdeable
-		record Identity(String localId, String hostLmsCode, Boolean homeIdentity) { }
+		record Identity(@Nullable String localId, @Nullable String hostLmsCode,
+			@Nullable Boolean homeIdentity) { }
 
 		@Serdeable
-		record PickupLocation(String code) { }
+		record PickupLocation(@Nullable String code) { }
 
 		@Serdeable
-		record SupplierRequest(UUID id, Item item, String hostLmsCode) {}
+		record SupplierRequest(@Nullable UUID id, @Nullable Item item,
+			@Nullable String hostLmsCode) {}
 
 		@Serdeable
-		record Item(String id) {}
+		record Item(@Nullable String id) {}
 
 		@Serdeable
-		record Status(String code) { }
+		record Status(@Nullable String code) { }
 
 		// Workaround: records do not support been style properties
 		public String getStatusCode() {

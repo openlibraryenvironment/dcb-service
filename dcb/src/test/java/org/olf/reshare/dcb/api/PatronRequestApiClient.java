@@ -23,36 +23,42 @@ class PatronRequestApiClient {
 	}
 
 	HttpResponse<PlacedPatronRequest> placePatronRequest(UUID bibClusterId,
-		String localId, String pickupLocationCode, String localSystemCode) {
+		String localId, String pickupLocationCode, String localSystemCode,
+		String homeLibraryCode) {
 
 		return placePatronRequest(createPlacePatronRequestCommand(bibClusterId,
-			localId, pickupLocationCode, localSystemCode));
+			localId, pickupLocationCode, localSystemCode, homeLibraryCode));
 	}
 
 	private static JSONObject createPlacePatronRequestCommand(final UUID bibClusterId,
-		final String localId, final String pickupLocationCode, final String localSystemCode) {
+		final String localId, final String pickupLocationCode, final String localSystemCode,
+		String homeLibraryCode) {
 
 		return new JSONObject() {{
 			put("citation", new JSONObject() {{ put("bibClusterId", bibClusterId.toString()); }} );
 			put("requestor", new JSONObject() {{
 				put("localId", localId);
-				put("localSystemCode", localSystemCode); }});
+				put("localSystemCode", localSystemCode);
+				put("homeLibraryCode", homeLibraryCode);
+			}});
 			put("pickupLocation", new JSONObject() {{ put("code", pickupLocationCode); }} );
 		}};
 	}
 
 	@Serdeable
-	record PlacedPatronRequest(UUID id, @Nullable Citation citation,
+	record PlacedPatronRequest(@Nullable UUID id, @Nullable Citation citation,
 		@Nullable Requestor requestor, @Nullable PickupLocation pickupLocation,
 		@Nullable Status status) {
 
 		@Serdeable
-		record Citation(UUID bibClusterId) { }
+		record Citation(@Nullable UUID bibClusterId) { }
 		@Serdeable
-		record Requestor(String localId, String localSystemCode) { }
+		record Requestor(@Nullable String localId, @Nullable String localSystemCode,
+			@Nullable String homeLibraryCode) { }
+
 		@Serdeable
-		record PickupLocation(String code) { }
+		record PickupLocation(@Nullable String code) { }
 		@Serdeable
-		record Status(String code) { }
+		record Status(@Nullable String code) { }
 	}
 }

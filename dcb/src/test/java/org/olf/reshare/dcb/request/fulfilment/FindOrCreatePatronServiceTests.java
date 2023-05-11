@@ -25,14 +25,17 @@ class FindOrCreatePatronServiceTests {
 
 		final var findOrCreatePatronService = new FindOrCreatePatronService(patronService);
 
-		final var existingPatron = createPatron();
+		final var existingPatron = createPatron(null);
 
 		when(patronService.findPatronFor("localSystemCode", "localId"))
 			.thenAnswer(invocation -> Mono.just(existingPatron));
 
 		// Act
+
+		// Pass a different home library code to demonstrate that it isn't used
 		final var foundPatron = findOrCreatePatronService
-			.findOrCreatePatron("localSystemCode", "localId").block();
+			.findOrCreatePatron("localSystemCode", "localId", "other-library-code")
+			.block();
 
 		// Assert
 		assertThat("Should be same patron as found by patron service",
@@ -53,25 +56,30 @@ class FindOrCreatePatronServiceTests {
 		when(patronService.findPatronFor("localSystemCode", "localId"))
 			.thenAnswer(invocation -> Mono.empty());
 
-		final var createdPatron = createPatron();
+		final var createdPatron = createPatron("home-library-code");
 
-		when(patronService.createPatron("localSystemCode", "localId"))
+		when(patronService.createPatron("localSystemCode", "localId",
+			"home-library-code"))
 			.thenAnswer(invocation -> Mono.just(createdPatron));
 
 		// Act
 		final var foundPatron = findOrCreatePatronService
-			.findOrCreatePatron("localSystemCode", "localId").block();
+			.findOrCreatePatron("localSystemCode", "localId", "home-library-code")
+			.block();
 
 		// Assert
 		assertThat("Should be same patron as created by patron service",
 			foundPatron, is(createdPatron));
 
 		verify(patronService).findPatronFor("localSystemCode", "localId");
-		verify(patronService).createPatron("localSystemCode", "localId");
+		verify(patronService).createPatron("localSystemCode", "localId",
+			"home-library-code");
+
 		verifyNoMoreInteractions(patronService);
 	}
 
-	private static Patron createPatron() {
-		return new Patron(randomUUID(), null, null, List.of());
+	private static Patron createPatron(String homeLibraryCode) {
+		return new Patron(randomUUID(), null, null,
+			homeLibraryCode, List.of());
 	}
 }

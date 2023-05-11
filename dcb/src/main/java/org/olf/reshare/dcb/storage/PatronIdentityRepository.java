@@ -20,7 +20,9 @@ public interface PatronIdentityRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<PatronIdentity> findOneByLocalIdAndHostLmsAndHomeIdentity(@NotNull String localId, @NotNull DataHostLms hostLmsId, @NotNull Boolean homeIdentity);
+	Publisher<PatronIdentity> findOneByLocalIdAndHostLmsAndHomeIdentity(
+		@NotNull String localId, @NotNull DataHostLms hostLmsId,
+		@NotNull Boolean homeIdentity);
 
 	@NonNull
 	Publisher<PatronIdentity> findAllByPatron(Patron patron);

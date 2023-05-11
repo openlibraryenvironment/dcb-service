@@ -1,6 +1,14 @@
 package org.olf.reshare.dcb.storage;
 
-import jakarta.inject.Inject;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+
+import java.util.List;
+import java.util.Map;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
@@ -8,17 +16,12 @@ import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.test.DcbTest;
+
+import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.Map;
-
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.MatcherAssert.assertThat;
-
 @DcbTest
-public class PatronIdentityRepoTests {
+class PatronIdentityRepoTests {
 
 	@Inject
 	private PatronRepository patronRepository;
@@ -39,7 +42,7 @@ public class PatronIdentityRepoTests {
 		final var patronId = randomUUID();
 		final var patronIdentityId = randomUUID();
 		final var localId = "localId";
-		final var patron = new Patron(patronId, null, null, List.of());
+		final var patron = new Patron(patronId, null, null, null, List.of());
 		final var patronIdentity = new PatronIdentity(patronIdentityId, null, null, patron, dataHostLms, localId, true);
 
 		Mono.from(hostLmsRepository.save(dataHostLms)).block();
@@ -66,7 +69,7 @@ public class PatronIdentityRepoTests {
 		final var patronId = randomUUID();
 		final var patronIdentityId = randomUUID();
 		final var localId = "localId";
-		final var patron = new Patron(patronId, null, null, List.of());
+		final var patron = new Patron(patronId, null, null, null, List.of());
 		final var patronIdentity = new PatronIdentity(patronIdentityId, null, null, patron, dataHostLms, localId, false);
 
 		Mono.from(hostLmsRepository.save(dataHostLms)).block();
@@ -90,7 +93,7 @@ public class PatronIdentityRepoTests {
 		final var patronId = randomUUID();
 		final var patronIdentityId = randomUUID();
 		final var localId = "localId";
-		final var patron = new Patron(patronId, null, null, List.of());
+		final var patron = new Patron(patronId, null, null, null, List.of());
 		final var patronIdentity = new PatronIdentity(patronIdentityId, null, null, patron, dataHostLms, localId, true);
 
 		Mono.from(hostLmsRepository.save(dataHostLms)).block();
@@ -117,7 +120,7 @@ public class PatronIdentityRepoTests {
 		final var patronId = randomUUID();
 		final var patronIdentityId = randomUUID();
 		final var localId = "localId";
-		final var patron = new Patron(patronId, null, null, List.of());
+		final var patron = new Patron(patronId, null, null, null, List.of());
 		final var patronIdentity = new PatronIdentity(patronIdentityId, null, null, patron, dataHostLms1, localId, true);
 
 		Mono.from(hostLmsRepository.save(dataHostLms1)).block();
