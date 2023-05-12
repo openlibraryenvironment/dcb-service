@@ -37,7 +37,7 @@ class PatronRequestResolutionStateTransitionTests {
 
 	private final PatronRequestResolutionStateTransition patronRequestResolutionStateTransition
 		= new PatronRequestResolutionStateTransition(patronRequestResolutionService,
-			patronRequestRepository, supplierRequestRepository);
+		patronRequestRepository, supplierRequestRepository);
 
 	@Test
 	void shouldSavePatronRequestAndSupplierRequestWhenResolvedToSupplierRequest() {

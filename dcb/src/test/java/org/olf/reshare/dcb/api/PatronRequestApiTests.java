@@ -14,6 +14,9 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockserver.model.HttpRequest.request;
+import static org.mockserver.model.HttpResponse.response;
+import static org.mockserver.model.JsonBody.json;
 
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
@@ -22,14 +25,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.mockserver.model.MediaType;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.reshare.dcb.request.fulfilment.PatronService;
-import org.olf.reshare.dcb.test.BibRecordFixture;
-import org.olf.reshare.dcb.test.ClusterRecordFixture;
-import org.olf.reshare.dcb.test.DcbTest;
-import org.olf.reshare.dcb.test.PatronFixture;
-import org.olf.reshare.dcb.test.PatronRequestsFixture;
+import org.olf.reshare.dcb.test.*;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
@@ -50,6 +51,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PatronRequestApiTests {
 	private static final String SIERRA_TOKEN = "test-token-for-user";
+
+	private final String MOCK_ROOT = "classpath:mock-responses/sierra/patrons";
 
 	@Inject
 	ResourceLoader loader;
@@ -92,6 +95,7 @@ class PatronRequestApiTests {
 	@Property(name = "hosts.test1.client.secret")
 	private String sierraPass;
 
+
 	@BeforeAll
 	@SneakyThrows
 	public void addFakeSierraApis(MockServerClient mock) {
@@ -103,6 +107,16 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
 
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");
+
+		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@home-library");
+
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("43546@home-library");
+
+		sierraPatronsAPIFixture.postPatronResponse("872321@home-library");
+
+		sierraPatronsAPIFixture.postPatronResponse("43546@home-library");
 	}
 
 	@BeforeEach
@@ -142,24 +156,29 @@ class PatronRequestApiTests {
 
 		var fetchedPatronRequest = await().atMost(3, SECONDS)
 			.until(() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.id()),
-				isResolved());
+				isPlacedAtSupplyingAgency());
 
 		assertThat(fetchedPatronRequest, is(notNullValue()));
 		assertThat(fetchedPatronRequest.citation().bibClusterId(), is(clusterRecordId));
 		assertThat(fetchedPatronRequest.pickupLocation().code(), is("ABC123"));
-		assertThat(fetchedPatronRequest.status().code(), is("RESOLVED"));
+		assertThat(fetchedPatronRequest.status().code(), is("REQUEST_PLACED_AT_SUPPLYING_AGENCY"));
 		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
 
 		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.requestor().homeLibraryCode(), is("home-library"));
 
 		assertThat(fetchedPatronRequest.requestor().identities(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(1));
+		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(2));
 
-		final var identity = fetchedPatronRequest.requestor().identities().get(0);
-		assertThat(identity.homeIdentity(), is(true));
-		assertThat(identity.hostLmsCode(), is("test1"));
-		assertThat(identity.localId(), is("872321"));
+		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(0);
+		assertThat(homeIdentity.homeIdentity(), is(true));
+		assertThat(homeIdentity.hostLmsCode(), is("test1"));
+		assertThat(homeIdentity.localId(), is("872321"));
+
+		final var supplierIdentity = fetchedPatronRequest.requestor().identities().get(1);
+		assertThat(supplierIdentity.homeIdentity(), is(false));
+		assertThat(supplierIdentity.hostLmsCode(), is("test1"));
+		assertThat(supplierIdentity.localId(), is("2745326"));
 
 		final var supplierRequest = fetchedPatronRequest.supplierRequests().get(0);
 		assertThat(supplierRequest.id(), is(notNullValue()));
@@ -197,30 +216,36 @@ class PatronRequestApiTests {
 
 		var fetchedPatronRequest = await().atMost(3, SECONDS)
 			.until(() -> adminApiClient.getPatronRequestViaAdminApi(requireNonNull(placedRequestResponse.body()).id()),
-				isResolved());
+				isPlacedAtSupplyingAgency());
 
 		assertThat(fetchedPatronRequest, is(notNullValue()));
 		assertThat(fetchedPatronRequest.citation().bibClusterId(), is(clusterRecordId));
 		assertThat(fetchedPatronRequest.pickupLocation().code(), is("ABC123"));
-		assertThat(fetchedPatronRequest.status().code(), is("RESOLVED"));
+		assertThat(fetchedPatronRequest.status().code(), is("REQUEST_PLACED_AT_SUPPLYING_AGENCY"));
 		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
 
 		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.requestor().homeLibraryCode(), is("home-library"));
 
 		assertThat(fetchedPatronRequest.requestor().identities(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(1));
+		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(2));
 
-		final var identity = fetchedPatronRequest.requestor().identities().get(0);
-		assertThat(identity.homeIdentity(), is(true));
-		assertThat(identity.hostLmsCode(), is("test1"));
-		assertThat(identity.localId(), is("43546"));
+		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(0);
+		assertThat(homeIdentity.homeIdentity(), is(true));
+		assertThat(homeIdentity.hostLmsCode(), is("test1"));
+		assertThat(homeIdentity.localId(), is("43546"));
+
+		final var supplierIdentity = fetchedPatronRequest.requestor().identities().get(1);
+		assertThat(supplierIdentity.homeIdentity(), is(false));
+		assertThat(supplierIdentity.hostLmsCode(), is("test1"));
+		assertThat(supplierIdentity.localId(), is("2745326"));
 
 		final var supplierRequest = fetchedPatronRequest.supplierRequests().get(0);
 		assertThat(supplierRequest.id(), is(notNullValue()));
 		assertThat(supplierRequest.hostLmsCode(), is("test1"));
 		assertThat(supplierRequest.item().id(), is(notNullValue()));
 	}
+
 
 	@Test
 	void cannotFulfilPatronRequestWhenNoRequestableItemsAreFound() {
@@ -233,8 +258,8 @@ class PatronRequestApiTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "565382", clusterRecord);
 
 		// Act
-		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, "83475", "ABC123", "test1", "home-library");
+		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(clusterRecordId, "43546",
+			"ABC123", "test1", "homeLibraryCode");
 
 		// Need a longer timeout because retrying the Sierra API,
 		// which happens when the zero items 404 response is received,
@@ -252,10 +277,10 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.status().code(), is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY"));
 		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(1));
 
-		final var identity = fetchedPatronRequest.requestor().identities().get(0);
-		assertThat(identity.homeIdentity(), is(true));
-		assertThat(identity.hostLmsCode(), is("test1"));
-		assertThat(identity.localId(), is("83475"));
+		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(0);
+		assertThat(homeIdentity.homeIdentity(), is(true));
+		assertThat(homeIdentity.hostLmsCode(), is("test1"));
+		assertThat(homeIdentity.localId(), is("43546"));
 
 		// No supplier request
 		assertThat(fetchedPatronRequest.supplierRequests(), is(nullValue()));
@@ -322,6 +347,7 @@ class PatronRequestApiTests {
 			optionalBody.get(), is("No Host LMS found for code: unknown-system"));
 	}
 
+
 	@Test
 	void cannotFindPatronRequestForUnknownId() {
 		final var exception = assertThrows(HttpClientResponseException.class,
@@ -332,8 +358,8 @@ class PatronRequestApiTests {
 		assertThat(response.getStatus(), is(NOT_FOUND));
 	}
 
-	private static Matcher<Object> isResolved() {
-		return hasProperty("statusCode", is("RESOLVED"));
+	private static Matcher<Object> isPlacedAtSupplyingAgency() {
+		return hasProperty("statusCode", is("REQUEST_PLACED_AT_SUPPLYING_AGENCY"));
 	}
 
 	private static Matcher<Object> isNotAvailableToRequest() {

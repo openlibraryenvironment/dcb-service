@@ -40,7 +40,7 @@ public class PatronRequestController {
 
 	private final PatronRequestService patronRequestService;
 	private final PatronRequestRepository patronRequestRepository;
-private final PatronService patronService;
+	private final PatronService patronService;
 
 	public PatronRequestController(PatronRequestService patronRequestService,
 		PatronRequestRepository patronRequestRepository, PatronService patronService) {
@@ -62,20 +62,20 @@ private final PatronService patronService;
 	}
 
 	@Secured(SecurityRule.IS_ANONYMOUS)
-        @Operation(
-                summary = "Browse Requests",
-                description = "Paginate through the list of Patron Requests",
-                parameters = {
-                        @Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
-                        @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
-        )
-        @Get("/{?pageable*}")
-        public Mono<Page<PatronRequest>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
-                if (pageable == null) {
-                        pageable = Pageable.from(0, 100);
-                }
+	@Operation(
+		summary = "Browse Requests",
+		description = "Paginate through the list of Patron Requests",
+		parameters = {
+			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
+			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
+	)
+	@Get("/{?pageable*}")
+	public Mono<Page<PatronRequest>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
+		if (pageable == null) {
+			pageable = Pageable.from(0, 100);
+		}
 
-                return Mono.from(patronRequestRepository.findAll(pageable));
-        }
+		return Mono.from(patronRequestRepository.findAll(pageable));
+	}
 
 }

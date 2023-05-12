@@ -4,5 +4,5 @@ import org.olf.reshare.dcb.core.model.PatronRequest;
 import reactor.core.publisher.Mono;
 
 public interface PatronRequestStateTransition {
-	Mono<Void> attempt(PatronRequest patronRequest);
+	Mono<PatronRequest> attempt(PatronRequest patronRequest);
 }

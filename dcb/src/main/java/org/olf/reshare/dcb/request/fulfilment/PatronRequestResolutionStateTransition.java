@@ -2,6 +2,7 @@ package org.olf.reshare.dcb.request.fulfilment;
 
 import java.util.Optional;
 
+import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.request.resolution.PatronRequestResolutionService;
@@ -14,13 +15,15 @@ import org.slf4j.LoggerFactory;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
-@Singleton
+@Prototype
 public class PatronRequestResolutionStateTransition implements PatronRequestStateTransition {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestResolutionStateTransition.class);
 
 	private final PatronRequestResolutionService patronRequestResolutionService;
 	private final PatronRequestRepository patronRequestRepository;
 	private final SupplierRequestRepository supplierRequestRepository;
+
+
 	public PatronRequestResolutionStateTransition(
 		PatronRequestResolutionService patronRequestResolutionService,
 		PatronRequestRepository patronRequestRepository,
@@ -32,7 +35,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	}
 
 	@Override
-	public Mono<Void> attempt(PatronRequest patronRequest) {
+	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
 		log.debug("makeTransition({})", patronRequest);
 
 		return patronRequestResolutionService.resolvePatronRequest(patronRequest)
@@ -40,7 +43,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.doOnError(error -> log.error("Error occurred during resolution: {}", error.getMessage()))
 			.flatMap(this::updatePatronRequest)
 			.flatMap(this::saveSupplierRequest)
-			.then();
+			.map(Resolution::getPatronRequest);
 	}
 
 	private Mono<Resolution> updatePatronRequest(Resolution resolution) {
