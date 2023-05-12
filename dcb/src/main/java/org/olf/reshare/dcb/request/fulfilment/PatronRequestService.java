@@ -77,6 +77,13 @@ public class PatronRequestService {
 		return Mono.from(patronRequestRepository.save(patronRequest));
 	}
 
+	public Mono<PatronRequest> updatePatronRequest(PatronRequest patronRequest) {
+		log.debug("updatePatronRequest {}", patronRequest);
+
+		return Mono.from(patronRequestRepository.update(patronRequest))
+			.zipWhen(this::findPatron, PatronRequestService::addPatron);
+	}
+
 	public Mono<PatronRequest> findById(UUID id) {
 		return Mono.from(patronRequestRepository.findById(id))
 			.zipWhen(this::findPatron, PatronRequestService::addPatron);

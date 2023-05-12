@@ -8,6 +8,7 @@ import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.*;
+import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Produces;
@@ -15,6 +16,7 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.json.tree.JsonNode;
 import io.micronaut.retry.annotation.Retryable;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.reactivestreams.Publisher;
@@ -29,8 +31,11 @@ import services.k_int.interaction.sierra.configuration.BranchResultSet;
 import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.patrons.*;
+
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
+
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -38,6 +43,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
 import static java.util.Collections.emptyList;
 
@@ -198,6 +204,49 @@ public class HostLmsSierraApiClient implements SierraApiClient {
                 .onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError,
                         ResultSet.builder().entries(emptyList()).build());
     }
+
+		@SingleResult
+		@Post("patrons")
+		@Produces(value = APPLICATION_JSON)
+		public Publisher<PatronResult> patrons(@Body PatronPatch body) {
+
+			// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Create_a_patron_record_post_0
+			return postRequest("patrons")
+				.map(req -> req.body(body))
+				.flatMap(this::ensureToken)
+				.flatMap(req -> doRetrieve(req, PatronResult.class) );
+		}
+
+		@SingleResult
+		@Post("patrons/query")
+		@Produces(value = APPLICATION_JSON)
+		public Publisher<QueryResultSet> patronQuery(Integer limit, Integer offset, @Body PatronQueryBody body) {
+
+			// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Filter_the_records_by_a_query_in_JSON_format_post_13
+			return postRequest("patrons/query")
+				.map(req -> req.uri(theUri -> theUri
+					.queryParam("limit", limit)
+					.queryParam("offset", offset)))
+				.map(req -> req.body(body))
+				.flatMap(this::ensureToken)
+				.flatMap(req -> doRetrieve(req, QueryResultSet.class) );
+		}
+
+		@SingleResult
+		@Get("patrons/find")
+		@Produces(value = APPLICATION_JSON)
+		public Publisher<Result> patronFind(String varFieldTag, String varFieldContent) {
+
+			// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Find_a_patron_by_varField_fieldTag_and_varField_content_get_6
+			return getRequest("patrons/find")
+				.map(req -> req.uri(theUri -> theUri
+					.queryParam("varFieldTag", varFieldTag)
+					.queryParam("varFieldContent", varFieldContent)))
+				.flatMap(this::ensureToken)
+				.flatMap(req -> doRetrieve(req, Result.class) )
+				.onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError,
+					new Result());
+		}
 
     private <T> Mono<T> handleResponseErrors ( final Mono<T> current ) {
 

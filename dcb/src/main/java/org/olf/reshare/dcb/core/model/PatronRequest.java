@@ -1,8 +1,5 @@
 package org.olf.reshare.dcb.core.model;
 
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
-
 import java.time.Instant;
 import java.util.UUID;
 
@@ -20,6 +17,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.*;
 
 @Builder
 @Data
@@ -67,6 +66,12 @@ public class PatronRequest {
 	public PatronRequest resolve() {
 		return new PatronRequest(id, dateCreated, dateUpdated, patron,
 			bibClusterId, pickupLocationCode, RESOLVED, localSystemHoldId);
+	}
+
+	public PatronRequest placedAtSupplyingAgency() {
+		return new PatronRequest(id, dateCreated, dateUpdated, patron,
+			bibClusterId, pickupLocationCode,
+			REQUEST_PLACED_AT_SUPPLYING_AGENCY, localSystemHoldId);
 	}
 
 	public PatronRequest resolveToNoItemsAvailable() {

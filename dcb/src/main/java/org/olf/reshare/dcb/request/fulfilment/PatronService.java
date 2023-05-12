@@ -101,11 +101,20 @@ public class PatronService {
 			homeLibraryCode, new ArrayList<>());
 	}
 
-	private PatronIdentity createNewPatronIdentity(Patron patron, DataHostLms dataHostLms,
-		String localPatronIdentifier) {
+	public PatronIdentity createNewPatronIdentity(Patron patron, DataHostLms dataHostLms,
+		String localPatronIdentifier, Boolean homeIdentity) {
 
 		return new PatronIdentity(randomUUID(), null, null, patron, dataHostLms,
-			localPatronIdentifier, true);
+			localPatronIdentifier, homeIdentity);
+	}
+
+	public Mono<PatronIdentity> createPatronIdentity(Patron patron, String localId, String hostLmsCode,
+		Boolean homeIdentity) {
+		log.debug("createPatronIdentity({}, {}, {}, {})", patron, hostLmsCode, localId, homeIdentity);
+
+		return fetchDataHostLmsByLocalSystemCode( hostLmsCode )
+			.map(dataHostLms -> createNewPatronIdentity(patron, dataHostLms, localId, homeIdentity))
+			.flatMap(this::savePatronIdentity);
 	}
 
 	private Mono<DataHostLms> fetchDataHostLmsByLocalSystemCode(String localSystemCode) {
@@ -114,10 +123,6 @@ public class PatronService {
 
 	private Mono<DataHostLms> fetchDataHostLmsByHostLmsId(UUID hostLmsId) {
 		return Mono.from(hostLmsService.findById(hostLmsId));
-	}
-
-	private Mono<Patron> savePatron(Patron patron) {
-		return Mono.from(patronRepository.save(patron));
 	}
 
 	private Mono<PatronIdentity> savePatronIdentity(Patron patron,
@@ -132,11 +137,15 @@ public class PatronService {
 
 		return savePatronIdentity(createNewPatronIdentity(
 			// Patron associated with an identity has to be shallow, to avoid a circular loop
-			createPatronWithOnlyId(patron.getId()), hostLms, localId));
+			createPatronWithOnlyId(patron.getId()), hostLms, localId, true));
 	}
 
 	private Mono<PatronIdentity> savePatronIdentity(PatronIdentity patronIdentity) {
 		return Mono.from(patronIdentityRepository.save(patronIdentity));
+	}
+
+	private Mono<Patron> savePatron(Patron patron) {
+		return Mono.from(patronRepository.save(patron));
 	}
 
 	private static Patron createPatronWithOnlyId(UUID id) {

@@ -24,6 +24,7 @@ import org.olf.reshare.dcb.core.ProcessStateService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.core.model.Item;
+import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.ingest.marc.MarcIngestSource;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
@@ -53,6 +54,7 @@ import services.k_int.interaction.sierra.configuration.BranchInfo;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
+import services.k_int.interaction.sierra.patrons.*;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
@@ -86,12 +88,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final HostLms lms;
 	private final SierraApiClient client;
 	private final ProcessStateService processStateService;
-        private final R2dbcOperations operations;
+	private final R2dbcOperations operations;
 	private final RawSourceRepository rawSourceRepository;
 	private final ItemResultToItemMapper itemResultToItemMapper = new ItemResultToItemMapper();
 
 	public SierraLmsClient(@Parameter HostLms lms, HostLmsSierraApiClientFactory clientFactory,
-			RawSourceRepository rawSourceRepository, ProcessStateService processStateService, R2dbcOperations operations) {
+		RawSourceRepository rawSourceRepository, ProcessStateService processStateService, R2dbcOperations operations) {
 		this.lms = lms;
 
 		// Get a sierra api client.
@@ -110,7 +112,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.info("Fetching batch from Sierra API with since={} offset={} limit={}", since, offset, limit);
 		return Mono.from(client.bibs(params -> {
 			params.deleted(false).offset(offset).limit(limit)
-					.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "deleted", "marc"));
+				.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "deleted", "marc"));
 
 			if (since != null) {
 				params.updatedDate(dtr -> {
@@ -129,179 +131,179 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	 */
 	private Mono<PubisherState> getInitialState(UUID context, String process) {
 		return processStateService.getStateMap(context, process).defaultIfEmpty(new HashMap<String, Object>())
-				.map(current_state -> {
+			.map(current_state -> {
 
-					PubisherState generator_state = new PubisherState(current_state, null);
-					log.info("backpressureAwareBibResultGenerator - state=" + current_state + " lmsid=" + lms.getId() + " thread="
-							+ Thread.currentThread().getName());
+				PubisherState generator_state = new PubisherState(current_state, null);
+				log.info("backpressureAwareBibResultGenerator - state=" + current_state + " lmsid=" + lms.getId() + " thread="
+					+ Thread.currentThread().getName());
 
-					String cursor = (String) current_state.get("cursor");
-					if (cursor != null) {
-						log.debug("Cursor: " + cursor);
-						String[] components = cursor.split(":");
+				String cursor = (String) current_state.get("cursor");
+				if (cursor != null) {
+					log.debug("Cursor: " + cursor);
+					String[] components = cursor.split(":");
 
-						if (components[0].equals("bootstrap")) {
-							// Bootstrap cursor is used for the initial load where we need to just page
-							// through everything
-							// from day 0
-							generator_state.offset = Integer.parseInt(components[1]);
-							log.info("Resuming bootstrap at offset " + generator_state.offset);
-						} else if (components[0].equals("deltaSince")) {
-							// Delta cursor is used after the initial bootstrap and lets us know the point
-							// in time
-							// from where we need to fetch records
-							generator_state.sinceMillis = Long.parseLong(components[1]);
-							generator_state.since = Instant.ofEpochMilli(generator_state.sinceMillis);
-							if (components.length == 3) {
-								// We're recovering from an interuption whilst processing a delta
-								generator_state.offset = Integer.parseInt(components[2]);
-							}
-							log.info("Resuming delta at timestamp " + generator_state.since + " offset=" + generator_state.offset);
+					if (components[0].equals("bootstrap")) {
+						// Bootstrap cursor is used for the initial load where we need to just page
+						// through everything
+						// from day 0
+						generator_state.offset = Integer.parseInt(components[1]);
+						log.info("Resuming bootstrap at offset " + generator_state.offset);
+					} else if (components[0].equals("deltaSince")) {
+						// Delta cursor is used after the initial bootstrap and lets us know the point
+						// in time
+						// from where we need to fetch records
+						generator_state.sinceMillis = Long.parseLong(components[1]);
+						generator_state.since = Instant.ofEpochMilli(generator_state.sinceMillis);
+						if (components.length == 3) {
+							// We're recovering from an interuption whilst processing a delta
+							generator_state.offset = Integer.parseInt(components[2]);
 						}
-					} else {
-						log.info("Start a fresh ingest");
+						log.info("Resuming delta at timestamp " + generator_state.since + " offset=" + generator_state.offset);
 					}
+				} else {
+					log.info("Start a fresh ingest");
+				}
 
-					// Make a note of the time before we start
-					generator_state.request_start_time = System.currentTimeMillis();
-					log.debug("Create generator: offset={} since={}", generator_state.offset, generator_state.since);
+				// Make a note of the time before we start
+				generator_state.request_start_time = System.currentTimeMillis();
+				log.debug("Create generator: offset={} since={}", generator_state.offset, generator_state.since);
 
-					return generator_state;
-				});
+				return generator_state;
+			});
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	protected Mono<PubisherState> saveState( PubisherState state ) {
 		log.debug("Update state " + lms.getId());
-		
+
 		return Mono.from(processStateService.updateState(lms.getId(), "ingest", state.storred_state))
-				.thenReturn(state);
+			.thenReturn(state);
 	}
-	
+
 
 
 	/** Ian: Re=adding state consumer and backpressureAwareBibResultGenerator temporarily */
 
 
-        private Consumer<PubisherState> stateConsumer() {
-                return (state) -> {
-                        log.debug("stateConsumer {}",state);
-                    // operations.withConnection( connection ->
-                    //    processStateService.updateState(lms.getId(),"ingest",state.storred_state)
-                    Mono.from(operations.withTransaction(status ->
-                            processStateService.updateState(lms.getId(), "ingest", state.storred_state)
-                    )).subscribe();
-                };
-        }
+	private Consumer<PubisherState> stateConsumer() {
+		return (state) -> {
+			log.debug("stateConsumer {}",state);
+			// operations.withConnection( connection ->
+			//    processStateService.updateState(lms.getId(),"ingest",state.storred_state)
+			Mono.from(operations.withTransaction(status ->
+				processStateService.updateState(lms.getId(), "ingest", state.storred_state)
+			)).subscribe();
+		};
+	}
 
 
-    private Publisher<BibResult> backpressureAwareBibResultGenerator(int limit) {
+	private Publisher<BibResult> backpressureAwareBibResultGenerator(int limit) {
 
-        // Start the process by loading the current state of the ingest process for this LMS id and creating a state object
-        // we can use in this generator. Flat map it and pass it into Flux.generate
-        return getInitialState(lms.getId(), "ingest").flatMapMany(initialState ->
-                Flux.generate(
-                        () -> initialState, (generator_state, sink) -> {
-                            // log.info("Generating - state="+state.storred_state);
+		// Start the process by loading the current state of the ingest process for this LMS id and creating a state object
+		// we can use in this generator. Flat map it and pass it into Flux.generate
+		return getInitialState(lms.getId(), "ingest").flatMapMany(initialState ->
+			Flux.generate(
+				() -> initialState, (generator_state, sink) -> {
+					// log.info("Generating - state="+state.storred_state);
 
-                            // If this is the first time through, or we have exhausted the current page get a new page of data
-                            if ((generator_state.current_page == null) || (generator_state.current_page.size() == 0)) {
+					// If this is the first time through, or we have exhausted the current page get a new page of data
+					if ((generator_state.current_page == null) || (generator_state.current_page.size() == 0)) {
 
-                                // Trial in-process updating of process state - We use the current transactional context
-                                // and execute a commit to flush work to this state.
-                                log.debug("Intermediate state update " + lms.getId());
-                                Mono.from(operations.withTransaction(status ->
-                                        processStateService.updateState(lms.getId(), "ingest", generator_state.storred_state)
-                                )).subscribe();
+						// Trial in-process updating of process state - We use the current transactional context
+						// and execute a commit to flush work to this state.
+						log.debug("Intermediate state update " + lms.getId());
+						Mono.from(operations.withTransaction(status ->
+							processStateService.updateState(lms.getId(), "ingest", generator_state.storred_state)
+						)).subscribe();
 
-                                // fetch a page of data and stash it
-                                log.info("Fetching page=" + generator_state.page_counter +
-                                        " offset=" + generator_state.offset +
-                                        " limit=" + limit +
-                                        " elapsed=" + (System.currentTimeMillis() - generator_state.request_start_time) +
-                                        "ms thread=" + Thread.currentThread().getName());
+						// fetch a page of data and stash it
+						log.info("Fetching page=" + generator_state.page_counter +
+							" offset=" + generator_state.offset +
+							" limit=" + limit +
+							" elapsed=" + (System.currentTimeMillis() - generator_state.request_start_time) +
+							"ms thread=" + Thread.currentThread().getName());
 
-                                // We have to block here in order to wait for the page of data before we can return the next item to
-                                // the caller - thats why this is now done using a different scheduler
-                                BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit)
-                                        .onErrorResume(t -> {
-                                            log.error("Error ingesting data {}", t.getMessage());
-                                            t.printStackTrace();
-                                            return Mono.empty();
-                                        })
-                                        .switchIfEmpty(Mono.just("No results returned. Stopping")
-                                                .mapNotNull(s -> {
-                                                    log.info(s);
-                                                    return null;
-                                                }))
-                                        .share()
-                                        .block();
+						// We have to block here in order to wait for the page of data before we can return the next item to
+						// the caller - thats why this is now done using a different scheduler
+						BibResultSet bsr = fetchPage(generator_state.since, generator_state.offset, limit)
+							.onErrorResume(t -> {
+								log.error("Error ingesting data {}", t.getMessage());
+								t.printStackTrace();
+								return Mono.empty();
+							})
+							.switchIfEmpty(Mono.just("No results returned. Stopping")
+								.mapNotNull(s -> {
+									log.info(s);
+									return null;
+								}))
+							.share()
+							.block();
 
-                                log.info("got page");
-                                if (bsr != null) {
-                                    generator_state.current_page = bsr.entries();
-                                    log.info("got[" + (generator_state.page_counter++) + "] page of data");
+						log.info("got page");
+						if (bsr != null) {
+							generator_state.current_page = bsr.entries();
+							log.info("got[" + (generator_state.page_counter++) + "] page of data");
 
-                                    int number_of_records_returned = generator_state.current_page.size();
-                                    generator_state.possiblyMore = number_of_records_returned == limit;
+							int number_of_records_returned = generator_state.current_page.size();
+							generator_state.possiblyMore = number_of_records_returned == limit;
 
-                                    // Increment the offset for the next fetch
-                                    generator_state.offset += number_of_records_returned;
-
-
-                                    log.info("Stashed a page of " + generator_state.current_page.size() + " records");
-                                } else {
-                                    log.warn("ERRROR[" + (generator_state.page_counter++) + "] No response from upstream server. Cancelling");
-
-                                    generator_state.current_page = new ArrayList<BibResult>();
-                                    // This will terminate the stream - by setting error=true we will leave the state intact
-                                    // to be picked up on the next attempt
-                                    generator_state.error = true;
-                                }
-                            }
+							// Increment the offset for the next fetch
+							generator_state.offset += number_of_records_returned;
 
 
-                            // log.info("Returning next - current size is "+generator_state.current_page.size());
-                            // Return the next pending bib result from the page we stashed
+							log.info("Stashed a page of " + generator_state.current_page.size() + " records");
+						} else {
+							log.warn("ERRROR[" + (generator_state.page_counter++) + "] No response from upstream server. Cancelling");
 
-                            if (generator_state.current_page.size() > 0) {
-				// This is THE key line in the backpressureAware generator - it works because the execution of
-				// this producer will essentially pause on this call until the consumer has removed the item
-				// at which point we continue. If we have exhausted the buffer we fetch more, otherwise
-				// we keep on feeding items from the buffer.
-                                sink.next(generator_state.current_page.remove(0));
-                            }
+							generator_state.current_page = new ArrayList<BibResult>();
+							// This will terminate the stream - by setting error=true we will leave the state intact
+							// to be picked up on the next attempt
+							generator_state.error = true;
+						}
+					}
 
-                            // If we just consumed the last entry from the current page
-                            if (generator_state.current_page.size() == 0) {
-                                // If we have exhausted the currently cached page, and we are at the end, terminate.
-                                if (!generator_state.possiblyMore) {
-                                    log.info("Terminating cleanly - run out of bib results - new timestamp is {}", generator_state.request_start_time);
-                                    // Make a note of the time at which we started this run, so we know where to pick up from
-                                    // next time
-                                    if (!generator_state.error)
-                                        generator_state.storred_state.put("cursor", "deltaSince:" + generator_state.request_start_time);
-                                    sink.complete();
-                                } else {
-                                    log.info("Exhausted current page - update cursor and prep for loop");
-                                    // We have finished consuming a page of data, but there is more to come. Remember
-                                    // where we got up to and stash it in the DB
-                                    if (generator_state.since != null) {
-                                        generator_state.storred_state.put("cursor", "deltaSince:" + generator_state.sinceMillis + ":" + generator_state.offset);
-                                    } else {
-                                        generator_state.storred_state.put("cursor", "bootstrap:" + generator_state.offset);
-                                    }
-                                }
-                            }
 
-                            // pass the state at the end of this call to the next iteration
-                            // log.debug("return state "+state.storred_state);
-                            return generator_state;
-                        },
-                        stateConsumer()
-                )
-        );
-      }
+					// log.info("Returning next - current size is "+generator_state.current_page.size());
+					// Return the next pending bib result from the page we stashed
+
+					if (generator_state.current_page.size() > 0) {
+						// This is THE key line in the backpressureAware generator - it works because the execution of
+						// this producer will essentially pause on this call until the consumer has removed the item
+						// at which point we continue. If we have exhausted the buffer we fetch more, otherwise
+						// we keep on feeding items from the buffer.
+						sink.next(generator_state.current_page.remove(0));
+					}
+
+					// If we just consumed the last entry from the current page
+					if (generator_state.current_page.size() == 0) {
+						// If we have exhausted the currently cached page, and we are at the end, terminate.
+						if (!generator_state.possiblyMore) {
+							log.info("Terminating cleanly - run out of bib results - new timestamp is {}", generator_state.request_start_time);
+							// Make a note of the time at which we started this run, so we know where to pick up from
+							// next time
+							if (!generator_state.error)
+								generator_state.storred_state.put("cursor", "deltaSince:" + generator_state.request_start_time);
+							sink.complete();
+						} else {
+							log.info("Exhausted current page - update cursor and prep for loop");
+							// We have finished consuming a page of data, but there is more to come. Remember
+							// where we got up to and stash it in the DB
+							if (generator_state.since != null) {
+								generator_state.storred_state.put("cursor", "deltaSince:" + generator_state.sinceMillis + ":" + generator_state.offset);
+							} else {
+								generator_state.storred_state.put("cursor", "bootstrap:" + generator_state.offset);
+							}
+						}
+					}
+
+					// pass the state at the end of this call to the next iteration
+					// log.debug("return state "+state.storred_state);
+					return generator_state;
+				},
+				stateConsumer()
+			)
+		);
+	}
 
 
 	private Publisher<BibResult> pageAllResults(int limit) {
@@ -309,27 +311,27 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return getInitialState(lms.getId(), "ingest")
 			.flatMap(state -> Mono.zip(Mono.just(state), fetchPage(state.since, state.offset, limit)))
 			.expand(TupleUtils.function(( state, results ) -> {
-				
+
 				var bibs = results.entries();
 				log.info("Fetched a chunk of {} records", bibs.size());
-				
+
 				state.current_page = bibs;
-				
+
 				log.info("got[{}] page of data, containing {} results", state.page_counter++, bibs.size());
 				state.possiblyMore = bibs.size() == limit;
 
 				// Increment the offset for the next fetch
 				state.offset += bibs.size();
-				
+
 				// If we have exhausted the currently cached page, and we are at the end,
 				// terminate.
 				if (!state.possiblyMore) {
 					log.info("Terminating cleanly - run out of bib results - new timestamp is {}", state.request_start_time);
-					
+
 					// Make a note of the time at which we started this run, so we know where
 					// to pick up from next time
 					state.storred_state.put("cursor", "deltaSince:" + state.request_start_time);
-					
+
 				} else {
 					log.info("Exhausted current page, prep next");
 					// We have finished consuming a page of data, but there is more to come.
@@ -340,15 +342,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						state.storred_state.put("cursor", "bootstrap:" + state.offset);
 					}
 				}
-				
-				// Create a new mono that first saves the state and then uses it to fetch another page. 
+
+				// Create a new mono that first saves the state and then uses it to fetch another page.
 				return saveState(state)
 					.flatMap(updatedState -> {
 						if (!state.possiblyMore) {
 							log.info("No more results to fetch");
 							return Mono.empty();
 						}
-						
+
 						return Mono.just(updatedState).zipWith(fetchPage(updatedState.since, updatedState.offset, limit));
 					});
 			}))
@@ -367,21 +369,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.info("Fetching MARC JSON from Sierra for {}", lms.getName());
 
 		final int pageSize = MapUtils.getAsOptionalString(lms.getClientConfig(), "page-size").map(Integer::parseInt)
-				.orElse(DEFAULT_PAGE_SIZE);
+			.orElse(DEFAULT_PAGE_SIZE);
 
 		// The stream of imported records.
 		// return Flux.from(pageAllResults(since, 0, pageSize)).filter(sierraBib ->
 		// sierraBib.marc() != null)
 		// return Flux.from(pageAllResults(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
-                return Flux.from(backpressureAwareBibResultGenerator(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
-				.subscribeOn(Schedulers.boundedElastic()).onErrorResume(t -> {
-					log.error("Error ingesting data {}", t.getMessage());
-					t.printStackTrace();
-					return Mono.empty();
-				}).switchIfEmpty(Mono.just("No results returned. Stopping").mapNotNull(s -> {
-					log.info(s);
-					return null;
-				}));
+		return Flux.from(backpressureAwareBibResultGenerator(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
+			.subscribeOn(Schedulers.boundedElastic()).onErrorResume(t -> {
+				log.error("Error ingesting data {}", t.getMessage());
+				t.printStackTrace();
+				return Mono.empty();
+			}).switchIfEmpty(Mono.just("No results returned. Stopping").mapNotNull(s -> {
+				log.info(s);
+				return null;
+			}));
 	}
 
 	public UUID uuid5ForBibResult(@NotNull final BibResult result) {
@@ -412,7 +414,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		final Map<String, ?> rawJsonString = conversionService.convertRequired(rawJson, Map.class);
 
 		RawSource raw = RawSource.builder().id(uuid5ForRawJson(resource)).hostLmsId(lms.getId()).remoteId(resource.id())
-				.json(rawJsonString).build();
+			.json(rawJsonString).build();
 
 		return raw;
 	}
@@ -425,11 +427,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	public Flux<Map<String, ?>> getAllBibData() {
 		return Flux.from(client.bibs(params -> params.deleted(false)))
-				.flatMap(results -> Flux.fromIterable(results.entries())).map(bibRes -> {
-					Map<String, Object> map = new HashMap<>();
-					map.put("id", bibRes.id());
-					return map;
-				});
+			.flatMap(results -> Flux.fromIterable(results.entries())).map(bibRes -> {
+				Map<String, Object> map = new HashMap<>();
+				map.put("id", bibRes.id());
+				return map;
+			});
 	}
 
 	@Override
@@ -437,8 +439,55 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("getItemsByBibId({})", bibId);
 
 		return Flux.from(client.items(params -> params.deleted(false).bibIds(List.of(bibId))))
-				.flatMap(results -> Flux.fromIterable(results.getEntries()))
-				.map(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode)).collectList();
+			.flatMap(results -> Flux.fromIterable(results.getEntries()))
+			.map(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode)).collectList();
+	}
+
+	@Override
+	public Mono<String> postPatron(String uniqueId, Integer patronType) {
+	log.debug("postPatron({}, {})", uniqueId, patronType);
+
+	final PatronPatch patronPatch = createPatronPatch( uniqueId, patronType );
+
+	return Mono.from(client.patrons(patronPatch)).map(result -> {
+			log.debug("the result of postPatron({})", result);
+			return result;
+		})
+		.map(patronResult -> extractIdFromUrl( patronResult.getLink() ))
+		.onErrorResume(NullPointerException.class, error -> {
+			log.debug("NullPointerException occurred when creating Patron: {}", error.getMessage());
+			return Mono.empty();
+		});
+	}
+
+	private PatronPatch createPatronPatch(String uniqueId, Integer patronType) {
+	PatronPatch patronPatch = new PatronPatch();
+	patronPatch.setPatronType(patronType);
+	patronPatch.setUniqueIds(new String[]{uniqueId});
+	return patronPatch;
+	}
+
+	@Override
+	public Mono<String> patronFind(String varFieldContent) {
+	log.debug("patronFind({})", varFieldContent);
+
+	return Mono.from(client.patronFind("u", varFieldContent))
+		.map(result -> {
+			log.debug("the result of patronFind({})", result);
+			return result;
+		})
+		.map(Result::getId)
+		.map(Object::toString)
+		.onErrorResume(NullPointerException.class, error -> {
+			log.debug("NullPointerException occurred when finding Patron: {}", error.getMessage());
+			return Mono.empty();
+		});
+	}
+
+	public String extractIdFromUrl(String url) {
+	// example: "https://sandbox.iii.com/iii/sierra-api/v6/patrons/2745325"
+	int lastSlashIndex = url.lastIndexOf("/");
+	return url.substring(lastSlashIndex + 1);
 	}
 
 	@Override
@@ -458,7 +507,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	public UUID uuid5ForShelvingLocation(@NotNull final String hostLmsCode, @NotNull final String localBranchId,
-			@NotNull final String locationCode) {
+		@NotNull final String locationCode) {
 		final String concat = UUID5_PREFIX + ":SL:" + hostLmsCode + ":" + localBranchId + ":" + locationCode;
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
@@ -479,40 +528,40 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			for (Map<String, String> shelving_location : bi.locations()) {
 				// It appears these are not only shelving locations but more general location records attached to the location
 				locations.add(new org.olf.reshare.dcb.configuration.ShelvingLocationRecord(
-						uuid5ForShelvingLocation(lms.getCode(), bi.id(), shelving_location.get("code")),
-						shelving_location.get("code"), shelving_location.get("name")));
+					uuid5ForShelvingLocation(lms.getCode(), bi.id(), shelving_location.get("code")),
+					shelving_location.get("code"), shelving_location.get("name")));
 			}
 		}
 
 		return BranchRecord.builder().id(uuid5ForBranch(lms.getCode(), bi.id()))
-				.lms(lms).localBranchId(bi.id()).branchName(bi.name())
-				.lat(bi.latitude() != null ? Float.valueOf(bi.latitude()) : null)
-				.lon(bi.longitude() != null ? Float.valueOf(bi.longitude()) : null).shelvingLocations(locations).build();
+			.lms(lms).localBranchId(bi.id()).branchName(bi.name())
+			.lat(bi.latitude() != null ? Float.valueOf(bi.latitude()) : null)
+			.lon(bi.longitude() != null ? Float.valueOf(bi.longitude()) : null).shelvingLocations(locations).build();
 	}
 
 	private ConfigurationRecord mapSierraPickupLocationToPickupLocationRecord(PickupLocationInfo pli) {
 		return PickupLocationRecord.builder().id(uuid5ForPickupLocation(lms.getCode(), pli.code())).lms(lms)
-				.code(pli.code()).name(pli.name()).build();
+			.code(pli.code()).name(pli.name()).build();
 	}
 
 	private Publisher<ConfigurationRecord> getBranches() {
 		Iterable<String> fields = List.of("name", "address", "emailSource", "emailReplyTo", "latitude", "longitude",
-				"locations");
+			"locations");
 		return Flux.from(client.branches(Integer.valueOf(100), Integer.valueOf(0), fields))
-				.flatMap(results -> Flux.fromIterable(results.entries()))
-				.map(result -> mapSierraBranchToBranchConfigurationRecord(result));
+			.flatMap(results -> Flux.fromIterable(results.entries()))
+			.map(result -> mapSierraBranchToBranchConfigurationRecord(result));
 	}
 
 	private Publisher<ConfigurationRecord> getPickupLocations() {
 		return Flux.from(client.pickupLocations()).flatMap(results -> Flux.fromIterable(results))
-				.map(result -> mapSierraPickupLocationToPickupLocationRecord(result));
+			.map(result -> mapSierraPickupLocationToPickupLocationRecord(result));
 	}
 
 	private Publisher<ConfigurationRecord> getPatronMetadata() {
 		return Flux.from(client.patronMetadata()).flatMap(results -> Flux.fromIterable(results))
-				.flatMap(
-						result -> Flux.fromIterable(result.values()).flatMap(item -> Mono.just(Tuples.of(item, result.field()))))
-				.map(tuple -> mapSierraPatronMetadataToConfigurationRecord(tuple.getT1(), tuple.getT2()));
+			.flatMap(
+				result -> Flux.fromIterable(result.values()).flatMap(item -> Mono.just(Tuples.of(item, result.field()))))
+			.map(tuple -> mapSierraPatronMetadataToConfigurationRecord(tuple.getT1(), tuple.getT2()));
 	}
 
 	private ConfigurationRecord mapSierraPatronMetadataToConfigurationRecord(Map<String, Object> rdv, String field) {
@@ -593,23 +642,23 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return result;
 	}
 
-    public Publisher<TrackingRecord> getTrackingData() {
-	log.debug("getTrackingData");
-	Integer o = Integer.valueOf(0);
-        SierraPatronHoldResultSet init = new SierraPatronHoldResultSet(0,0,new ArrayList<SierraPatronHold>());
-    	return Flux.just(init)
-            .expand(lastPage -> {
-							log.debug("Fetch pages of data from offset {}",lastPage.start(),lastPage.total());
-                Mono<SierraPatronHoldResultSet> pageMono = Mono.from(client.getAllPatronHolds(250, lastPage.start()+lastPage.entries().size()))
-                        .filter( m -> m.entries().size() > 0 )
-                        .switchIfEmpty(Mono.empty());
-                        // .subscribeOn(Schedulers.boundedElastic());
-                return pageMono;
-            })
-            .flatMapIterable(page -> page.entries()) // <- prefer this to this ->.flatMapIterable(Function.identity())
-	    // Note to self: *Don't do this* it turns the expand above into an eager hot publisher that will kill the system
-            // .onBackpressureBuffer(100, null, BufferOverflowStrategy.ERROR)
-	    .flatMap( ri -> {
+	public Publisher<TrackingRecord> getTrackingData() {
+		log.debug("getTrackingData");
+		Integer o = Integer.valueOf(0);
+		SierraPatronHoldResultSet init = new SierraPatronHoldResultSet(0,0,new ArrayList<SierraPatronHold>());
+		return Flux.just(init)
+			.expand(lastPage -> {
+				log.debug("Fetch pages of data from offset {}",lastPage.start(),lastPage.total());
+				Mono<SierraPatronHoldResultSet> pageMono = Mono.from(client.getAllPatronHolds(250, lastPage.start()+lastPage.entries().size()))
+					.filter( m -> m.entries().size() > 0 )
+					.switchIfEmpty(Mono.empty());
+				// .subscribeOn(Schedulers.boundedElastic());
+				return pageMono;
+			})
+			.flatMapIterable(page -> page.entries()) // <- prefer this to this ->.flatMapIterable(Function.identity())
+			// Note to self: *Don't do this* it turns the expand above into an eager hot publisher that will kill the system
+			// .onBackpressureBuffer(100, null, BufferOverflowStrategy.ERROR)
+			.flatMap( ri -> {
 				TrackingRecord tr = sierraPatronHoldToTrackingData(ri);
 				if ( tr != null )
 					return Mono.just(tr);
@@ -617,7 +666,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					return Mono.empty();
 			} )
 			;
-    }
+	}
 
 
 }

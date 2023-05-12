@@ -2,6 +2,8 @@ package org.olf.reshare.dcb.core.api;
 
 import java.util.List;
 import java.util.UUID;
+
+import jakarta.annotation.Nullable;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 
