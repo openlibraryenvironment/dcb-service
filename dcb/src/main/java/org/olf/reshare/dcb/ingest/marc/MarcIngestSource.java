@@ -321,8 +321,8 @@ public interface MarcIngestSource<T> extends IngestSource {
 		// canonical_metadata.put("typeOfRecord",ir.getTypeOfRecord());
 		// canonical_metadata.put("bibLevel",ir.getBibLevel());
 		// canonical_metadata.put("materialType",ir.getMaterialType());
-		canonical_metadata.put("author",ir.getAuthor());
-		canonical_metadata.put("otherAuthors",ir.getOtherAuthors());
+		// canonical_metadata.put("author",ir.getAuthor());
+		// canonical_metadata.put("otherAuthors",ir.getOtherAuthors());
 
 		DataField publisher = (DataField) marcRecord.getVariableField("260");
 		if ( publisher != null ) {
@@ -346,7 +346,7 @@ public interface MarcIngestSource<T> extends IngestSource {
                 addToCanonicalMetadata("agents","100","name-personal",marcRecord,canonical_metadata);
                 addToCanonicalMetadata("agents","110","name-corporate",marcRecord,canonical_metadata);
                 addToCanonicalMetadata("agents","111","name-meeting",marcRecord,canonical_metadata);
-                addToCanonicalMetadata("agents","130","uniform-title",marcRecord,canonical_metadata);
+                addToCanonicalMetadata("notes","130","uniform-title",marcRecord,canonical_metadata);
 
                 addToCanonicalMetadata("physical-description","300",null,marcRecord,canonical_metadata);
                 addToCanonicalMetadata("content-type","336",null,marcRecord,canonical_metadata);
@@ -390,7 +390,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 
 	private String tidy(String inputstr) {
-		return inputstr.replaceAll("\\p{Punct}", "");
+		return inputstr.replaceAll("\\p{Punct}", " ").replaceAll("\\s+", " ").trim();
 	}
 
         private void addToCanonicalMetadata(String property, String tag, String subtype, Record marcRecord, Map<String,Object> canonical_metadata) {
