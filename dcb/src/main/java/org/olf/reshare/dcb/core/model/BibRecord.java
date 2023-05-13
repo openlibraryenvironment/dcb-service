@@ -95,5 +95,4 @@ public class BibRecord {
         // updgrade a system.
 	@Nullable
         Integer processVersion;
-
 }

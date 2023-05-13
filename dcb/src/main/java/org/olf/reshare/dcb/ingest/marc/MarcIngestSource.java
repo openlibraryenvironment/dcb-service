@@ -374,6 +374,9 @@ public interface MarcIngestSource<T> extends IngestSource {
                         if ( names != null )
                                 score += names.size();
                 }
+                else {
+                        // Record has metadata - have a point!
+                }
                 irb.metadataScore(Integer.valueOf(score));
                 return irb;
         }

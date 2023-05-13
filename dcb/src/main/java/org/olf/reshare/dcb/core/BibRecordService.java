@@ -71,6 +71,25 @@ public class BibRecordService {
                 .flatMap(exists -> Mono.fromDirect(exists ? bibRepo.update(record) : bibRepo.save(record)));
     }
 
+    // Set the selected bib on the cluster to the bib with the highest metadata score,
+    private Mono<BibRecord> freshenClusterFor(BibRecord br) {
+			UUID cluster_uuid = br.getContributesTo().getId();
+			// log.debug("freshenCluster {}",cluster_uuid);
+      return Mono.from(bibRepo.findFirstBibRecordInClusterByHighestScore(cluster_uuid))
+                .flatMap( best_bib -> {
+                        // log.debug("got best bib {}",best_bib);
+                        br.getContributesTo().setSelectedBib(best_bib.getId());
+                        return Mono.from(clusterRepo.saveOrUpdate(br.getContributesTo()));
+                })
+				.thenReturn(br);
+    }
+
+    private Mono<BibRecord> addBibToCluster(ClusterRecord cr, BibRecord br) {
+      // log.debug("addBibToCluster {} {}",cr.getId(), br.getId());
+      return Mono.just(br.setContributesTo(cr))
+                .thenReturn(br);
+    }
+
     // https://github.com/micronaut-projects/micronaut-data/discussions/1405
     @Transactional
     public Mono<BibRecord> getOrSeed(final IngestRecord source) {
@@ -78,7 +97,8 @@ public class BibRecordService {
                 .defaultIfEmpty( minimalRecord(source) )
                 .zipWith(Mono.from(clusterRepo.findOneById(source.getClusterRecordId())))
                 .flatMap(TupleUtils.function(( bib_record, cluster_record ) -> {
-                    return Mono.just(bib_record.setContributesTo(cluster_record));
+                    // return Mono.just(bib_record.setContributesTo(cluster_record));
+                    return addBibToCluster(cluster_record, bib_record);
                 }));
     }
 
@@ -128,6 +148,11 @@ public class BibRecordService {
                 })
                 .flatMap(this::saveOrUpdate)
                 .flatMap(savedBib -> this.saveIdentifiers(savedBib, source))
+								// We have to wait until the bib is saved to be able to see if it has the highest metadata score
+								// it may be that it's way more efficient to do this outside the main ingest thread... this is likely
+								// the heaviest operation in the ingest pipeline now as it needs to do a query over all bibs in the
+								// cluster. MAybe adding the score to that index will make the query resolvable from index only
+								.flatMap(savedBib -> this.freshenClusterFor(savedBib))
                 ;
     }
 
