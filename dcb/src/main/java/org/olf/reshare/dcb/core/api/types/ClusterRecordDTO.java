@@ -1,14 +1,13 @@
 package org.olf.reshare.dcb.core.api.types;
 
 import java.util.UUID;
-import org.olf.reshare.dcb.core.model.Location;
+
 import io.micronaut.serde.annotation.Serdeable;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
-import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+
 import java.util.List;
 
 @Builder
@@ -23,4 +22,5 @@ public class ClusterRecordDTO {
 	String title;
 	UUID selectedBibId;
 	BibRecordDTO selectedBib;
+	List<UUID> bibIds;
 }
