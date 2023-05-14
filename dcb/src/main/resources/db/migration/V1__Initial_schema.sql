@@ -36,6 +36,8 @@ CREATE TABLE bib_identifier (
 	namespace varchar(255)
 );
 
+CREATE INDEX bib_identifier_value_idx on bib_identifier(value,namespace);
+
 CREATE TABLE host_lms (
 	id uuid PRIMARY KEY,
 	code varchar(32),

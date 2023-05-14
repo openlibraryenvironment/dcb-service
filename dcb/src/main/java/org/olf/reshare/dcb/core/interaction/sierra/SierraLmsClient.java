@@ -24,7 +24,7 @@ import org.olf.reshare.dcb.core.ProcessStateService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.core.model.Item;
-import org.olf.reshare.dcb.core.model.PatronRequest;
+import org.olf.reshare.dcb.ingest.IngestHealthIndicator;
 import org.olf.reshare.dcb.ingest.marc.MarcIngestSource;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
@@ -92,8 +92,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final RawSourceRepository rawSourceRepository;
 	private final ItemResultToItemMapper itemResultToItemMapper = new ItemResultToItemMapper();
 
+	private IngestHealthIndicator ingestHealthIndicator;
+
 	public SierraLmsClient(@Parameter HostLms lms, HostLmsSierraApiClientFactory clientFactory,
-		RawSourceRepository rawSourceRepository, ProcessStateService processStateService, R2dbcOperations operations) {
+			RawSourceRepository rawSourceRepository, ProcessStateService processStateService, R2dbcOperations operations,
+												 IngestHealthIndicator ingestHealthIndicator) {
 		this.lms = lms;
 
 		// Get a sierra api client.
@@ -101,6 +104,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		this.rawSourceRepository = rawSourceRepository;
 		this.processStateService = processStateService;
 		this.operations = operations;
+		this.ingestHealthIndicator = ingestHealthIndicator;
 	}
 
 	@Override
@@ -131,7 +135,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	 */
 	private Mono<PubisherState> getInitialState(UUID context, String process) {
 		return processStateService.getStateMap(context, process).defaultIfEmpty(new HashMap<String, Object>())
-			.map(current_state -> {
+				.map(current_state -> {
+					ingestHealthIndicator.notifyIngestStatus(lms.getCode(), "STARTING");
 
 				PubisherState generator_state = new PubisherState(current_state, null);
 				log.info("backpressureAwareBibResultGenerator - state=" + current_state + " lmsid=" + lms.getId() + " thread="
@@ -312,6 +317,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.flatMap(state -> Mono.zip(Mono.just(state), fetchPage(state.since, state.offset, limit)))
 			.expand(TupleUtils.function(( state, results ) -> {
 
+				ingestHealthIndicator.notifyIngestStatus(lms.getCode(),
+					"PROCESSING",
+					state.offset,
+					state.page_counter);
+
 				var bibs = results.entries();
 				log.info("Fetched a chunk of {} records", bibs.size());
 
@@ -331,7 +341,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					// Make a note of the time at which we started this run, so we know where
 					// to pick up from next time
 					state.storred_state.put("cursor", "deltaSince:" + state.request_start_time);
-
+					ingestHealthIndicator.notifyIngestStatus(lms.getCode(), "COMPLETED");
 				} else {
 					log.info("Exhausted current page, prep next");
 					// We have finished consuming a page of data, but there is more to come.
@@ -374,16 +384,16 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// The stream of imported records.
 		// return Flux.from(pageAllResults(since, 0, pageSize)).filter(sierraBib ->
 		// sierraBib.marc() != null)
-		// return Flux.from(pageAllResults(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
-		return Flux.from(backpressureAwareBibResultGenerator(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
-			.subscribeOn(Schedulers.boundedElastic()).onErrorResume(t -> {
-				log.error("Error ingesting data {}", t.getMessage());
-				t.printStackTrace();
-				return Mono.empty();
-			}).switchIfEmpty(Mono.just("No results returned. Stopping").mapNotNull(s -> {
-				log.info(s);
-				return null;
-			}));
+		// return Flux.from(backpressureAwareBibResultGenerator(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
+		return Flux.from(pageAllResults(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
+				.subscribeOn(Schedulers.boundedElastic()).onErrorResume(t -> {
+					log.error("Error ingesting data {}", t.getMessage());
+					t.printStackTrace();
+					return Mono.empty();
+				}).switchIfEmpty(Mono.just("No results returned. Stopping").mapNotNull(s -> {
+					log.info(s);
+					return null;
+				}));
 	}
 
 	public UUID uuid5ForBibResult(@NotNull final BibResult result) {

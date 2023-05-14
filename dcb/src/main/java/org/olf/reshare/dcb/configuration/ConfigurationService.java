@@ -113,7 +113,7 @@ public class ConfigurationService implements Runnable {
     }
 
 	private Mono<Agency> handleAgencyRecord(BranchRecord br) {
-		log.debug("handleBranchRecord {}",br);
+		//log.debug("handleBranchRecord {}",br);
 		// Different host LMS systems will have different policies on how BranchRecords map to agencies
 		// In a multi-tenant sierra for example, branch records represent institutions and we should create
 		// an agency for each branch record. This method will take account of policies configured for the
@@ -147,7 +147,7 @@ public class ConfigurationService implements Runnable {
      * @return
      */
     private Mono<Location> handleBranchRecord(BranchRecord br) {
-        log.debug("handleBranchRecord {}",br);
+        //log.debug("handleBranchRecord {}",br);
 				// Branch records map onto Location (Type=Branch) records for us
         if (br.getLms() instanceof DataHostLms) {
 					Location l = Location.builder()
@@ -170,7 +170,7 @@ public class ConfigurationService implements Runnable {
     }
 
     private Mono<Location> handlePickupLocation(PickupLocationRecord pickupLocationRecord) {
-        log.debug("handlePickupLocation {}",pickupLocationRecord);
+        //log.debug("handlePickupLocation {}",pickupLocationRecord);
         if (pickupLocationRecord.getLms() instanceof DataHostLms) {
             Location upsert_location = Location
                     .builder()
@@ -214,7 +214,7 @@ public class ConfigurationService implements Runnable {
     }
 
     private Mono<RefdataValue> handleRefdataRecord(RefdataRecord refdataRecord) {
-        log.debug("handleRefdataRecord {}",refdataRecord);
+        //log.debug("handleRefdataRecord {}",refdataRecord);
         RefdataValue rdv = RefdataValue
                 .builder()
                 .id(refdataRecord.getId())

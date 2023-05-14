@@ -1,25 +1,9 @@
 package org.olf.reshare.dcb.ingest.marc;
 
-import static services.k_int.integration.marc4j.Marc4jRecordUtils.concatSubfieldData;
-import static services.k_int.integration.marc4j.Marc4jRecordUtils.extractOrderedSubfields;
-import static services.k_int.integration.marc4j.Marc4jRecordUtils.typeFromLeader;
-
-import java.time.Instant;
-import java.util.*;
-import java.util.function.Consumer;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
-
-import javax.transaction.Transactional;
-import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.NotNull;
-
-import org.marc4j.marc.ControlField;
-import org.marc4j.marc.DataField;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.util.StringUtils;
 import org.marc4j.marc.Record;
-import org.marc4j.marc.Subfield;
-import org.marc4j.marc.VariableField;
+import org.marc4j.marc.*;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.ingest.model.Identifier;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
@@ -31,19 +15,50 @@ import org.olf.reshare.dcb.utils.DCBStringUtilities;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.util.StringUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
+import javax.transaction.Transactional;
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
+import java.time.Instant;
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
+
+import static services.k_int.integration.marc4j.Marc4jRecordUtils.*;
+
 public interface MarcIngestSource<T> extends IngestSource {
 
-	final static Pattern REGEX_NAMESPACE_ID_PAIR = Pattern.compile("^((\\(([^)]+)\\))|(([^:]+):))(.*)$");
-	final static Pattern REGEX_LINKAGE_245_880 = Pattern.compile("^880-(\\d+)");
+	Pattern REGEX_NAMESPACE_ID_PAIR = Pattern.compile("^((\\(([^)]+)\\))|(([^:]+):))(.*)$");
+	Pattern REGEX_LINKAGE_245_880 = Pattern.compile("^880-(\\d+)");
 
-	static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
+	Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
+	Map<String, String> IDENTIFIER_FIELD_NAMESPACE = Map.of("010", "LCCN", "020", "ISBN", "022", "ISSN",
+		"027", "STRN");
+
+	// There are all kinds of crazy things out there... lets try to make some sense of the more
+	// common issues
+	private String normaliseNamespace(String incoming_namespace) {
+		String result = incoming_namespace.toUpperCase();
+		if ( result.startsWith("OCLC"))
+			result="OCLC";
+		return result;
+	}
+	private static Stream<String> extractControlData(final Record marcRecord, @NotEmpty final String tag) {
+
+		return marcRecord.getVariableFields(tag).stream().filter(Objects::nonNull).map(ControlField.class::cast)
+			.map(field -> field.getData());
+	}
+
+	private static void parseFromSingleSubfield(Record marcRecord, String fieldTag, char subField,
+																							Consumer<String> consumer) {
+		extractOrderedSubfields((DataField) marcRecord.getVariableField(fieldTag), String.valueOf(subField)).limit(1).findFirst()
+			.ifPresent(consumer);
+	}
 
 	default IngestRecordBuilder populateRecordFromMarc(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
 
@@ -56,17 +71,14 @@ public interface MarcIngestSource<T> extends IngestSource {
 		// Identifiers
 		enrichWithIdentifiers(ingestRecord, marcRecord);
 
-		// Author(s)
-		enrichWithAuthorInformation(ingestRecord, marcRecord);
-
-                // Goldrush key
+		// Goldrush key
 		enrichWithGoldrush(ingestRecord, marcRecord);
 
-                // A canonical representation of the metadata
+		// A canonical representation of the metadata
 		enrichWithCanonicalRecord(ingestRecord, marcRecord);
 
-                // Calculate a score for the quality of this record
-                enrichWithMetadataScore(ingestRecord, marcRecord);
+		// Calculate a score for the quality of this record
+		enrichWithMetadataScore(ingestRecord, marcRecord);
 
 		return ingestRecord;
 	}
@@ -76,7 +88,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 	String getDefaultControlIdNamespace();
 
 	default IngestRecordBuilder enrichWithLeaderInformation(final IngestRecordBuilder ingestRecord,
-			final Record marcRecord) {
+																													final Record marcRecord) {
 
 		// This page has useful info for how to convert leader character position 06
 		// into a value that can be used to interpret 008 fields
@@ -93,62 +105,38 @@ public interface MarcIngestSource<T> extends IngestSource {
 		return ingestRecord;
 	}
 
-	default IngestRecordBuilder enrichWithAuthorInformation(final IngestRecordBuilder ingestRecord,
-			final Record marcRecord) {
-
-		// II: This block was adding author names as identifiers. Whilst we do want to extract author names,
-		// I don't think we want them in identifiers, so commenting out for now.
-		/*
-		Stream.of("100", "110", "700", "710").map(tag -> marcRecord.getVariableField(tag)).filter(Objects::nonNull)
-				.map(DataField.class::cast).map(df -> {
-
-					String authorName = switch (df.getTag()) {
-					case "100", "700" -> concatSubfieldData(marcRecord, df.getTag(), "abc", ", ").findFirst().orElse(null);
-					default -> df.getSubfieldsAsString("a");
-					};
-
-					// Build an ID
-					return StringUtils.isEmpty(authorName) ? null : Identifier.build(id -> {
-						id.value(authorName).namespace(Objects.requireNonNullElse(df.getSubfieldsAsString("0"), "M" + df.getTag()));
-					});
-				}).filter(Objects::nonNull).forEach(ingestRecord::addIdentifiers);
-		 */
-
-		return ingestRecord;
-	}
-
 	default IngestRecordBuilder enrichWithTitleInformation(final IngestRecordBuilder ingestRecord,
-			final Record marcRecord) {
+																												 final Record marcRecord) {
 		// Initial title.
 		final String title = Stream.of("245", "243", "240", "246", "222", "210", "240", "247", "130")
-				.filter(Objects::nonNull).flatMap(tag -> concatSubfieldData(marcRecord, tag, "abc"))
-				.filter(StringUtils::isNotEmpty).reduce(ingestRecord.build().getTitle(), (current, item) -> {
-					if (StringUtils.isEmpty(current)) {
-						ingestRecord.title(item);
-						ingestRecord.addIdentifier(id -> {
-							// This allows us to add in important discriminators into the blocking title - edition being
-							// the most obvious one for now. Ideally we would normalised this tho into a canonical string
-							List<String> qualifiers = new ArrayList();
-							String edition = null;
-							DataField edition_field = (DataField) marcRecord.getVariableField("250");
-							if ( edition_field != null ) {
-								qualifiers.add(edition_field.getSubfieldsAsString("a"));
-							}
-							// The old style blocking titles arranged words alphabetically, removed duplicates and didn't
-							// suffer with double spacing, so using that here as it provides cleaner matching.
-							id.namespace("BLOCKING_TITLE").value(
-								DCBStringUtilities.generateOldBlockingString(item, qualifiers)
-							);
-						});
-						return item;
-					}
+			.filter(Objects::nonNull).flatMap(tag -> concatSubfieldData(marcRecord, tag, "abc"))
+			.filter(StringUtils::isNotEmpty).reduce(ingestRecord.build().getTitle(), (current, item) -> {
+				if (StringUtils.isEmpty(current)) {
+					ingestRecord.title(item);
+					ingestRecord.addIdentifier(id -> {
+						// This allows us to add in important discriminators into the blocking title - edition being
+						// the most obvious one for now. Ideally we would normalised this tho into a canonical string
+						List<String> qualifiers = new ArrayList();
+						String edition = null;
+						DataField edition_field = (DataField) marcRecord.getVariableField("250");
+						if (edition_field != null) {
+							qualifiers.add(edition_field.getSubfieldsAsString("a"));
+						}
+						// The old style blocking titles arranged words alphabetically, removed duplicates and didn't
+						// suffer with double spacing, so using that here as it provides cleaner matching.
+						id.namespace("BLOCKING_TITLE").value(
+							DCBStringUtilities.generateOldBlockingString(item, qualifiers)
+						);
+					});
+					return item;
+				}
 
-					ingestRecord.otherTitle(item);
+				ingestRecord.otherTitle(item);
 
 
-					// Keep returning the first title that was set.
-					return current;
-				});
+				// Keep returning the first title that was set.
+				return current;
+			});
 
 		log.debug("Title used: {}", title);
 		return ingestRecord;
@@ -160,10 +148,10 @@ public interface MarcIngestSource<T> extends IngestSource {
 
 		Optional.ofNullable(marcRecord.getControlNumber()).filter(StringUtils::isNotEmpty).flatMap(cn -> {
 			final String cnAuthority = extractControlData(marcRecord, "003").findFirst()
-					.orElse(getDefaultControlIdNamespace());
+				.orElse(getDefaultControlIdNamespace());
 
 			return Optional.ofNullable(StringUtils.isEmpty(cnAuthority) ? null : Identifier.build(id -> {
-				id.namespace(cnAuthority).value(cn);
+				id.namespace(normaliseNamespace(cnAuthority)).value(cn);
 			}));
 		}).ifPresent(ingestRecord::addIdentifiers);
 
@@ -171,22 +159,24 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 
 	default IngestRecordBuilder handleSystemControlNumber(final IngestRecordBuilder ingestRecord,
-			final Record marcRecord) {
+																												final Record marcRecord) {
 		concatSubfieldData(marcRecord, "035", "a").forEach(val -> {
 			final Matcher matcher = REGEX_NAMESPACE_ID_PAIR.matcher(val);
 
 			if (matcher.matches()) {
-				ingestRecord.addIdentifier(id -> {
-					id.namespace(Objects.requireNonNullElse(matcher.group(3), matcher.group(5))).value(matcher.group(6));
-				});
+				String namespace = normaliseNamespace(Objects.requireNonNullElse(matcher.group(3), matcher.group(5)));
+				// Ian: Added this - seeing some weird namespaces appearing, probably dodgy records, so now making
+				// the assumption that a namespace value of more than 15 characters is likely duff data
+				if ( namespace.length() < 15 ) {
+					ingestRecord.addIdentifier(id -> {
+						id.namespace(namespace).value(matcher.group(6));
+					});
+				}
 			}
 		});
 
 		return ingestRecord;
 	}
-
-	static final Map<String, String> IDENTIFIER_FIELD_NAMESPACE = Map.of("010", "LCCN", "020", "ISBN", "022", "ISSN",
-			"027", "STRN");
 
 	default IngestRecordBuilder enrichWithIdentifiers(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
 
@@ -194,30 +184,23 @@ public interface MarcIngestSource<T> extends IngestSource {
 		handleSystemControlNumber(ingestRecord, marcRecord);
 
 		IDENTIFIER_FIELD_NAMESPACE.keySet().stream().flatMap(tag -> marcRecord.getVariableFields(tag).stream())
-				.filter(Objects::nonNull).map(DataField.class::cast).forEach(df -> {
-					Optional.ofNullable(df.getSubfieldsAsString("a")).filter(StringUtils::isNotEmpty).ifPresent(sfs -> {
-						ingestRecord.addIdentifier(id -> {
-							id.namespace(IDENTIFIER_FIELD_NAMESPACE.get(df.getTag())).value(sfs);
-						});
+			.filter(Objects::nonNull).map(DataField.class::cast).forEach(df -> {
+				Optional.ofNullable(df.getSubfieldsAsString("a")).filter(StringUtils::isNotEmpty).ifPresent(sfs -> {
+					ingestRecord.addIdentifier(id -> {
+						id.namespace(IDENTIFIER_FIELD_NAMESPACE.get(df.getTag())).value(sfs);
 					});
 				});
+			});
 
 		return ingestRecord;
 	}
 
 	default IngestRecordBuilder enrichWithGoldrush(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
 		GoldrushKey grk = getGoldrushKey(marcRecord);
-		ingestRecord.addIdentifier( id -> {
+		ingestRecord.addIdentifier(id -> {
 			id.namespace("GOLDRUSH").value(grk.getText());
 		});
 		return ingestRecord;
-	}
-
-
-		private static Stream<String> extractControlData(final Record marcRecord, @NotEmpty final String tag) {
-
-		return marcRecord.getVariableFields(tag).stream().filter(Objects::nonNull).map(ControlField.class::cast)
-				.map(field -> field.getData());
 	}
 
 	Publisher<T> getResources(Instant since);
@@ -227,68 +210,62 @@ public interface MarcIngestSource<T> extends IngestSource {
 	Record resourceToMarc(T resource);
 
 	@Override
-	public default Publisher<IngestRecord> apply(Instant since) {
+	default Publisher<IngestRecord> apply(Instant since) {
 
 		log.info("Read from the marc source and publish a stream of IngestRecords");
 
 		return Flux.from(getResources(since)).flatMap(this::saveRawAndContinue)
-				.doOnError(throwable -> log.warn("ONERROR saving raw record", throwable))
-				.flatMap(resource -> {
-					return Mono.just(initIngestRecordBuilder(resource))
-							.zipWith(Mono.just( resourceToMarc(resource) ) )
-									// .map( this::createMatchKey ))
-							.map(TupleUtils.function(( ir, marcRecord ) -> {
-								return populateRecordFromMarc(ir, marcRecord).build();
-							}));
-				});
+			.doOnError(throwable -> log.warn("ONERROR saving raw record", throwable))
+			.flatMap(resource -> {
+				return Mono.just(initIngestRecordBuilder(resource))
+					.zipWith(Mono.just(resourceToMarc(resource)))
+					// .map( this::createMatchKey ))
+					.map(TupleUtils.function((ir, marcRecord) -> {
+						return populateRecordFromMarc(ir, marcRecord).build();
+					}));
+			});
 	}
 
 	RawSourceRepository getRawSourceRepository();
 
 	@Transactional
-	public default Mono<T> saveRawAndContinue(T resource) {
+	default Mono<T> saveRawAndContinue(T resource) {
 		log.debug("Save raw {}", resource);
 		return Mono.just(resource).zipWhen(res -> Mono.just(resourceToRawSource(res)))
-				.flatMap(TupleUtils.function((res, raw) -> {
-					return Mono.from(getRawSourceRepository().saveOrUpdate(raw)).thenReturn(res);
-				}));
+			.flatMap(TupleUtils.function((res, raw) -> {
+				return Mono.from(getRawSourceRepository().saveOrUpdate(raw)).thenReturn(res);
+			}));
 	}
 
 	RawSource resourceToRawSource(T resource);
 
-	private static void parseFromSingleSubfield(Record marcRecord, String fieldTag, char subField,
-			Consumer<String> consumer) {
-		extractOrderedSubfields((DataField) marcRecord.getVariableField(fieldTag), "" + subField).limit(1).findFirst()
-				.ifPresent(consumer);
-	}
-
-	public default Record createMatchKey(final Record marcRecord) {
+	default Record createMatchKey(final Record marcRecord) {
 		GoldrushKey grk = getGoldrushKey(marcRecord);
 		return marcRecord;
 	}
 
-	public default GoldrushKey getGoldrushKey(final Record marcRecord) {
+	default GoldrushKey getGoldrushKey(final Record marcRecord) {
 		GoldrushKey grk = new GoldrushKey();
 
 		// Start with 245. If there is a linkage to a 880, then swap to that instead.
 		final DataField field245 = (DataField) marcRecord.getVariableField("245");
 		final DataField fieldForTitle = extractOrderedSubfields(field245, "6")
-			.map( REGEX_LINKAGE_245_880::matcher )
-			.filter( Matcher::matches )
+			.map(REGEX_LINKAGE_245_880::matcher)
+			.filter(Matcher::matches)
 			.findFirst()
-			.map( match -> match.group(1) )
-			.flatMap( occNum -> {
+			.map(match -> match.group(1))
+			.flatMap(occNum -> {
 				final Pattern linked880 = Pattern.compile("^245-" + occNum);
 				return marcRecord.getVariableFields("880")
-						.stream()
-						.map( DataField.class::cast )
-						.filter(field880 ->
-							extractOrderedSubfields(field880, "6")
-								.anyMatch(linked880.asMatchPredicate()))
-						.findFirst();
+					.stream()
+					.map(DataField.class::cast)
+					.filter(field880 ->
+						extractOrderedSubfields(field880, "6")
+							.anyMatch(linked880.asMatchPredicate()))
+					.findFirst();
 			})
 			.orElseGet(() -> field245);
-		
+
 		List<String> fields = extractOrderedSubfields(fieldForTitle, "ab").limit(2).toList();
 
 		if (fields.size() > 0) {
@@ -311,13 +288,13 @@ public interface MarcIngestSource<T> extends IngestSource {
 		return grk;
 	}
 
-	public default IngestRecordBuilder enrichWithCanonicalRecord(final IngestRecordBuilder irb, final Record marcRecord) {
-		Map<String,Object> canonical_metadata = new HashMap();
+	default IngestRecordBuilder enrichWithCanonicalRecord(final IngestRecordBuilder irb, final Record marcRecord) {
+		Map<String, Object> canonical_metadata = new HashMap();
 		IngestRecord ir = irb.build();
-		canonical_metadata.put("title",ir.getTitle());
-		canonical_metadata.put("identifiers",ir.getIdentifiers());
-		canonical_metadata.put("derivedType",ir.getDerivedType());
-		canonical_metadata.put("recordStatus",ir.getRecordStatus());
+		canonical_metadata.put("title", ir.getTitle());
+		canonical_metadata.put("identifiers", ir.getIdentifiers());
+		canonical_metadata.put("derivedType", ir.getDerivedType());
+		canonical_metadata.put("recordStatus", ir.getRecordStatus());
 		// canonical_metadata.put("typeOfRecord",ir.getTypeOfRecord());
 		// canonical_metadata.put("bibLevel",ir.getBibLevel());
 		// canonical_metadata.put("materialType",ir.getMaterialType());
@@ -325,92 +302,96 @@ public interface MarcIngestSource<T> extends IngestSource {
 		// canonical_metadata.put("otherAuthors",ir.getOtherAuthors());
 
 		DataField publisher = (DataField) marcRecord.getVariableField("260");
-		if ( publisher != null ) {
-			setIfSubfieldPresent(publisher,'a',canonical_metadata,"placeOfPublication");
-			setIfSubfieldPresent(publisher,'b',canonical_metadata,"publisher");
-			setIfSubfieldPresent(publisher,'c',canonical_metadata,"dateOfPublication");
+		if (publisher != null) {
+			setIfSubfieldPresent(publisher, 'a', canonical_metadata, "placeOfPublication");
+			setIfSubfieldPresent(publisher, 'b', canonical_metadata, "publisher");
+			setIfSubfieldPresent(publisher, 'c', canonical_metadata, "dateOfPublication");
 		}
 
-                // Extract some subject metadata
-                addToCanonicalMetadata("subjects","600","personal-name",marcRecord,canonical_metadata);
-                addToCanonicalMetadata("subjects","610","corporate-name",marcRecord,canonical_metadata);
-                addToCanonicalMetadata("subjects","611","meeting-name",marcRecord,canonical_metadata);
-                addToCanonicalMetadata("subjects","630","uniform-name",marcRecord,canonical_metadata);
-                addToCanonicalMetadata("subjects","647","named-event",marcRecord,canonical_metadata);
-                addToCanonicalMetadata("subjects","648","chronological-term",marcRecord,canonical_metadata);
-                addToCanonicalMetadata("subjects","650","topical-term",marcRecord,canonical_metadata);
-                addToCanonicalMetadata("subjects","653","index-term-uncontrolled",marcRecord,canonical_metadata);
-                addToCanonicalMetadata("subjects","654","faceted",marcRecord,canonical_metadata);
-                addToCanonicalMetadata("subjects","662","hierarchial-place-name",marcRecord,canonical_metadata);
+		// Extract some subject metadata
+		addToCanonicalMetadata("subjects", "600", "personal-name", "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "610", "corporate-name", "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "611", "meeting-name", "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "630", "uniform-name", "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "647", "named-event", "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "648", "chronological-term", "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "650", "topical-term", "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "653", "index-term-uncontrolled", "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "654", "faceted", "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "662", "hierarchial-place-name", "abcdefg", marcRecord, canonical_metadata);
 
-                addToCanonicalMetadata("agents","100","name-personal",marcRecord,canonical_metadata);
-                addToCanonicalMetadata("agents","110","name-corporate",marcRecord,canonical_metadata);
-                addToCanonicalMetadata("agents","111","name-meeting",marcRecord,canonical_metadata);
-                addToCanonicalMetadata("notes","130","uniform-title",marcRecord,canonical_metadata);
+		addToCanonicalMetadata("agents", "100", "name-personal", "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("agents", "110", "name-corporate", "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("agents", "111", "name-meeting", "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("notes", "130", "uniform-title", "abcdefg", marcRecord, canonical_metadata);
 
-                addToCanonicalMetadata("physical-description","300",null,marcRecord,canonical_metadata);
-                addToCanonicalMetadata("content-type","336",null,marcRecord,canonical_metadata);
-                addToCanonicalMetadata("media-type","337",null,marcRecord,canonical_metadata);
+		addToCanonicalMetadata("physical-description", "300", null, "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("content-type", "336", null, "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("media-type", "337", null, "abcdefg", marcRecord, canonical_metadata);
 
-                DataField edition_field = (DataField) marcRecord.getVariableField("250");
-                if ( edition_field != null ) {
-                        canonical_metadata.put("edition",tidy(edition_field.getSubfieldsAsString("a")));
-                }
+		DataField edition_field = (DataField) marcRecord.getVariableField("250");
+		if (edition_field != null) {
+			canonical_metadata.put("edition", tidy(edition_field.getSubfieldsAsString("a")));
+		}
 
 		irb.canonicalMetadata(canonical_metadata);
 		return irb;
 	}
 
-	public default IngestRecordBuilder enrichWithMetadataScore(final IngestRecordBuilder irb, final Record marcRecord) {
-                int score = 0;
-                Map<String,Object> canonical_metadata = irb.build().getCanonicalMetadata();
-                if ( canonical_metadata != null ) {
-                        // Record has metadata - have a point!
-                        score++;
-                        List subjects = (List) canonical_metadata.get("subjects");
-                        if ( subjects != null )
-                                score += subjects.size();
-                        List names = (List) canonical_metadata.get("agents");
-                        if ( names != null )
-                                score += names.size();
-                }
-                else {
-                        // Record has metadata - have a point!
-                }
-                irb.metadataScore(Integer.valueOf(score));
-                return irb;
-        }
+	default IngestRecordBuilder enrichWithMetadataScore(final IngestRecordBuilder irb, final Record marcRecord) {
+		int score = 0;
+		Map<String, Object> canonical_metadata = irb.build().getCanonicalMetadata();
+		if (canonical_metadata != null) {
+			// Record has metadata - have a point!
+			score++;
+			List subjects = (List) canonical_metadata.get("subjects");
+			if (subjects != null)
+				score += subjects.size();
+			List names = (List) canonical_metadata.get("agents");
+			if (names != null)
+				score += names.size();
+		} else {
+			// Record has metadata - have a point!
+		}
+		irb.metadataScore(Integer.valueOf(score));
+		return irb;
+	}
 
 	private void setIfSubfieldPresent(DataField f, char subfield, Map target, String key) {
 		Subfield subfield_v = f.getSubfield(subfield);
-		if ( subfield_v != null ) {
-			target.put(key,tidy(subfield_v.getData()));
+		if (subfield_v != null) {
+			target.put(key, tidy(subfield_v.getData()));
 		}
-			
+
 	}
 
 	private String tidy(String inputstr) {
 		return inputstr.replaceAll("\\p{Punct}", " ").replaceAll("\\s+", " ").trim();
 	}
 
-        private void addToCanonicalMetadata(String property, String tag, String subtype, Record marcRecord, Map<String,Object> canonical_metadata) {
+	private void addToCanonicalMetadata(String property,
+																			String tag,
+																			String subtype,
+																			String subfields,
+																			Record marcRecord,
+																			Map<String, Object> canonical_metadata) {
 
-                List the_values = (List) canonical_metadata.get(property);
+		List the_values = (List) canonical_metadata.get(property);
 
-                if ( the_values == null )
-                        the_values = new java.util.ArrayList();
+		if (the_values == null)
+			the_values = new java.util.ArrayList();
 
-		for ( VariableField vf : marcRecord.getVariableFields(tag) ) {
-                        DataField df = (DataField) vf;
-                        Map the_entry = new java.util.HashMap();
-                        if ( subtype != null )
-                                the_entry.put("subtype",subtype);
-                        the_entry.put("label", df.getSubfieldsAsString("abcdefg"));
-                        the_values.add(the_entry);
-                };
+		for (VariableField vf : marcRecord.getVariableFields(tag)) {
+			DataField df = (DataField) vf;
+			Map the_entry = new java.util.HashMap();
+			if (subtype != null)
+				the_entry.put("subtype", subtype);
+			the_entry.put("label", df.getSubfieldsAsString(subfields));
+			the_values.add(the_entry);
+		}
 
-                if ( the_values.size() > 0) {
-                        canonical_metadata.put(property, the_values);
-                }
-        }
+		if (the_values.size() > 0) {
+			canonical_metadata.put(property, the_values);
+		}
+	}
 }

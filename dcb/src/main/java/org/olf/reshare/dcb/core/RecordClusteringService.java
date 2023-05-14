@@ -53,6 +53,44 @@ public class RecordClusteringService {
 	public Flux<BibRecord> findBibsByClusterRecord(ClusterRecord clusterRecord) {
 		return Flux.from(bibRecords.findAllByContributesTo(clusterRecord));
 	}
+
+	// Placeholder to validate switchIfEmptyApproach below
+	Mono<ClusterRecord>  attemptClusterOnIdentifier(IngestRecord ingestRecord, String namespace) {
+		Optional<Identifier> identifier = ingestRecord
+			.getIdentifiers()
+			.stream()
+			.filter(id -> id.getNamespace() == namespace)
+			.findFirst();
+
+		Mono<ClusterRecord> identified_cluster = Mono.empty();
+		// String blocking_title = null;
+		if ( identifier.isPresent()) {
+			String identifier_str = identifier.get().getValue();
+			// log.debug("Cluster this bib using the blocking title {}",blocking_title_str);
+			if ( identifier_str != null)
+				identified_cluster = Mono.from(bibRepository.findContributesToIdAndNS(identifier_str, namespace));
+		}
+		return identified_cluster;
+
+	}
+
+	Mono<ClusterRecord> attemptClusterOnBlockingTitle(IngestRecord ingestRecord) {
+		Optional<Identifier> blocking_title_identifier = ingestRecord
+			.getIdentifiers()
+			.stream()
+			.filter(id -> id.getNamespace() == "BLOCKING_TITLE")
+			.findFirst();
+
+		Mono<ClusterRecord> identified_cluster = Mono.empty();
+		// String blocking_title = null;
+		if ( blocking_title_identifier.isPresent()) {
+			String blocking_title_str = blocking_title_identifier.get().getValue();
+			// log.debug("Cluster this bib using the blocking title {}",blocking_title_str);
+			if ( blocking_title_str != null)
+				identified_cluster = Mono.from(bibRepository.findContributesToByBlockingTitle(blocking_title_str));
+		}
+		return identified_cluster;
+	}
 	
         @Transactional
 	public Mono<ClusterRecord> getOrSeedClusterRecord( IngestRecord ingestRecord ) {
@@ -64,24 +102,15 @@ public class RecordClusteringService {
 			 	 3) ... Start experimenting
 			 	   3a) Put records with the same goldrush ID in the same cluster
 			 	   3b) Apply some rules to records with a matching blocking title
+			 	 Intent is to use
+        	.switchIfEmpty(() -> method2(identifier))
+         pattern to
 		 */
-		Optional<Identifier> blocking_title_identifier = ingestRecord
-			.getIdentifiers()
-			.stream()
-			.filter(id -> id.getNamespace() == "BLOCKING_TITLE")
-			.findFirst();
-
-		Mono<ClusterRecord> blocking_title = Mono.empty();
-		// String blocking_title = null;
-		if ( blocking_title_identifier.isPresent()) {
-			String blocking_title_str = blocking_title_identifier.get().getValue();
-			// log.debug("Cluster this bib using the blocking title {}",blocking_title_str);
-			if ( blocking_title_str != null)
-				blocking_title = Mono.from(bibRepository.findContributesToByBlockingTitle(blocking_title_str));
-		}
-
-		// log.debug("getOrSeedClusterRecord "+ingestRecord.getUuid());
-		return blocking_title
+		return attemptClusterOnIdentifier(ingestRecord,"OCOLC")
+			.switchIfEmpty( attemptClusterOnIdentifier(ingestRecord,"OCLC") )
+			.switchIfEmpty( attemptClusterOnIdentifier(ingestRecord,"LCCN") )
+			.switchIfEmpty( attemptClusterOnIdentifier(ingestRecord,"GOLDRUSH") )
+			.switchIfEmpty( attemptClusterOnBlockingTitle(ingestRecord) )
 			.defaultIfEmpty(
 					ClusterRecord.builder()
 						.id(UUID.randomUUID())
@@ -91,19 +120,7 @@ public class RecordClusteringService {
 			.map( clusterRecords::saveOrUpdate )
 			.flatMap( Mono::from );
 
-		/*
-		return Mono.justOrEmpty(ingestRecord.getUuid())
-			.flatMap( bibRecords::getClusterRecordForBib )
-			.defaultIfEmpty(
-					ClusterRecord.builder()
-						.id(UUID.randomUUID())
-						.title(ingestRecord.getTitle())
-						.build())
-			.map( clusterRecords::saveOrUpdate )
-			.flatMap( Mono::from )
-		;
-		*/
 	}
-	
+
 	// Generate keys
 }
