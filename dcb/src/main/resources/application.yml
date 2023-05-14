@@ -78,6 +78,7 @@ datasources:
     dialect: postgres
     minimumIdle: 0
     maximumPoolSize: 1
+    reconnect: true
     #username: "${db.username:}"
     #password: "${db.password:}"
 
@@ -88,6 +89,7 @@ r2dbc:
       # https://micronaut-projects.github.io/micronaut-test-resources/latest/guide/
       # Specify db-type so test resources knows what to provision
       db-type: postgresql
+      reconnect: true
       # url: ${DB_URL:`r2dbc:postgresql://localhost:5432/postgres`}
       # username: ${DB_USER:`postgres`}
       # password: ${DB_PASSWORD:`pass`}
