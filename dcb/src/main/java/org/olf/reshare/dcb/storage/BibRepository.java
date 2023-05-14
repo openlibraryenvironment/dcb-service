@@ -68,4 +68,7 @@ public interface BibRepository {
 
 	@Query(value="select b.id from bib_record b where b.contributes_to = :clusterId", nativeQuery = true)
 	Publisher<UUID> findBibIdsForCluster(@NonNull UUID clusterId);
+
+	@Query(value = "SELECT cr.* from bib_record b join bib_identifier bi on ( bi.owner_id = b.id ) join cluster_record cr on (cr.id = b.contributes_to) where bi.value = :identifierStr and bi.namespace=:namespace limit 1", nativeQuery = true)
+	Publisher<ClusterRecord>  findContributesToIdAndNS(String identifierStr, String namespace);
 }

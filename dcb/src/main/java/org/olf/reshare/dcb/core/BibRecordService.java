@@ -136,24 +136,24 @@ public class BibRecordService {
     @Transactional
     public Publisher<BibRecord> process(final IngestRecord source) {
 
-        // log.debug("BibRecordService::process(...clusterid={})",source.getClusterRecordId());
+			// log.debug("BibRecordService::process(...clusterid={})",source.getClusterRecordId());
 
-        // Check if existing...
-        return Mono.just(source)
-                .flatMap(this::getOrSeed)
-                .flatMap((final BibRecord bib) -> {
-                    final List<ProcessingStep> pipeline = new ArrayList<>();
-                    pipeline.add(this::step1);
-                    return Flux.fromIterable(pipeline).reduce(bib, (theBib, step) -> step.apply(bib, source));
-                })
-                .flatMap(this::saveOrUpdate)
-                .flatMap(savedBib -> this.saveIdentifiers(savedBib, source))
-								// We have to wait until the bib is saved to be able to see if it has the highest metadata score
-								// it may be that it's way more efficient to do this outside the main ingest thread... this is likely
-								// the heaviest operation in the ingest pipeline now as it needs to do a query over all bibs in the
-								// cluster. MAybe adding the score to that index will make the query resolvable from index only
-								.flatMap(savedBib -> this.freshenClusterFor(savedBib))
-                ;
+			// Check if existing...
+			return Mono.just(source)
+							.flatMap(this::getOrSeed)
+							.flatMap((final BibRecord bib) -> {
+									final List<ProcessingStep> pipeline = new ArrayList<>();
+									pipeline.add(this::step1);
+									return Flux.fromIterable(pipeline).reduce(bib, (theBib, step) -> step.apply(bib, source));
+							})
+							.flatMap(this::saveOrUpdate)
+							.flatMap(savedBib -> this.saveIdentifiers(savedBib, source))
+							// We have to wait until the bib is saved to be able to see if it has the highest metadata score
+							// it may be that it's way more efficient to do this outside the main ingest thread... this is likely
+							// the heaviest operation in the ingest pipeline now as it needs to do a query over all bibs in the
+							// cluster. MAybe adding the score to that index will make the query resolvable from index only
+							.flatMap(savedBib -> this.freshenClusterFor(savedBib))
+							;
     }
 
     public Publisher<Void> cleanup() {

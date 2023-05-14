@@ -46,6 +46,12 @@ micronaut:
 endpoints:
   prometheus:
     sensitive: false
+  health:
+    enabled: true
+    sensitive: false # non-secured endpoint
+    details-visible: ANONYMOUS # show details for everyone
+    ingest:
+      enabled: true
 
 flyway:
   enabled: true
