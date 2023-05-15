@@ -62,8 +62,8 @@ public class SierraApiPatronTests {
 	void shouldReportErrorWhenPlacingAPatronRespondsWithInternalServerError() {
 		// Arrange
 		final var patronPatch = new PatronPatch();
-		patronPatch.setUniqueIds(new String[]{"1234567890"});
-		sierraPatronsAPIFixture.postPatronErrorResponse("1234567890");
+		patronPatch.setUniqueIds(new String[]{"0987654321"});
+		sierraPatronsAPIFixture.postPatronErrorResponse("0987654321");
 		final var sierraApiClient = createClient();
 
 		// Act
