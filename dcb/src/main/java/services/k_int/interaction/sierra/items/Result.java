@@ -1,8 +1,9 @@
 package services.k_int.interaction.sierra.items;
 
-import jakarta.annotation.Nullable;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Data;
+
 @Data
 @Serdeable
 public class Result {

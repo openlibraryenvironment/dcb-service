@@ -1,10 +1,13 @@
 package services.k_int.interaction.sierra;
 
+import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -53,6 +56,33 @@ public class SierraApiPatronTests {
 			.setValidCredentials(sierraUser, sierraPass, SIERRA_TOKEN, 60);
 
 		sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+	}
+
+	@Test
+	void shouldReportErrorWhenPlacingAPatronRespondsWithInternalServerError() {
+		// Arrange
+		final var patronPatch = new PatronPatch();
+		patronPatch.setUniqueIds(new String[]{"1234567890"});
+		sierraPatronsAPIFixture.postPatronErrorResponse("1234567890");
+		final var sierraApiClient = createClient();
+
+		// Act
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> Mono.from(sierraApiClient.patrons(patronPatch)).block());
+
+		// Assert
+		final var response = exception.getResponse();
+
+		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
+		assertThat(response.code(), is(500));
+
+		final var optionalBody = response.getBody(String.class);
+
+		assertThat(optionalBody.isPresent(), is(true));
+
+		final var body = optionalBody.get();
+
+		assertThat(body, is("Broken"));
 	}
 
 	@Test
