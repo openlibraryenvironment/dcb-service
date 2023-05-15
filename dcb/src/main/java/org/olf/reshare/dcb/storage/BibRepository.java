@@ -64,7 +64,7 @@ public interface BibRepository {
 
 
 	@Query(value = "SELECT b.* from bib_record b where b.contributes_to = :id order by b.metadata_score desc limit 1", nativeQuery = true)
-        Publisher<BibRecord> findFirstBibRecordInClusterByHighestScore(@NonNull UUID id );
+	Publisher<BibRecord> findFirstBibRecordInClusterByHighestScore(@NonNull UUID id );
 
 	@Query(value="select b.id from bib_record b where b.contributes_to = :clusterId", nativeQuery = true)
 	Publisher<UUID> findBibIdsForCluster(@NonNull UUID clusterId);

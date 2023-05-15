@@ -53,5 +53,10 @@ public class SupplierRequest {
 	@Nullable
 	@Size(max = 200)
 	private final String lenderLocalSystemHoldId;
+
+	@Nullable
+	@Size(max = 32)
+	private final String lenderLocalSystemHoldStatus;
+
 }
 

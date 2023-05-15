@@ -16,6 +16,7 @@ CREATE TABLE bib_record (
 	source_record_id varchar(256),
 	title text,
 	contributes_to uuid NOT NULL REFERENCES cluster_record(id),
+	cluster_reason varchar(128),
 	record_status varchar(8),
 	type_of_record varchar(8),
 	derived_type varchar(32),
@@ -84,7 +85,8 @@ CREATE TABLE patron_request (
 	bib_cluster_id uuid,
 	pickup_location_code varchar(200),
 	status_code varchar(200),
-	local_system_hold_id varchar(200)
+	local_system_hold_id varchar(200),
+	local_system_hold_status varchar(32)
 );
 
 CREATE INDEX idx_pr_patron ON patron_request(patron_id);
@@ -94,7 +96,8 @@ CREATE TABLE supplier_request (
 	patron_request_id uuid REFERENCES patron_request(id),
 	local_item_id varchar(200),
 	host_lms_code varchar(200),
-	lender_local_system_hold_id varchar(200)
+	lender_local_system_hold_id varchar(200),
+	lender_local_system_hold_status varchar(32)
 );
 
 CREATE INDEX idx_lender_hold on supplier_request(host_lms_code, lender_local_system_hold_id);

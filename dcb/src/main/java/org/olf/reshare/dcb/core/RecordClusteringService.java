@@ -66,9 +66,14 @@ public class RecordClusteringService {
 		// String blocking_title = null;
 		if ( identifier.isPresent()) {
 			String identifier_str = identifier.get().getValue();
-			// log.debug("Cluster this bib using the blocking title {}",blocking_title_str);
 			if ( identifier_str != null)
-				identified_cluster = Mono.from(bibRepository.findContributesToIdAndNS(identifier_str, namespace));
+				identified_cluster = Mono.from(bibRepository.findContributesToIdAndNS(identifier_str, namespace))
+							.flatMap( (ClusterRecord cr) -> {
+								ingestRecord.setClusterReason("Match cluster "+cr.getId()+" on "+namespace+ " with" +
+									identifier_str.substring(0, Math.min(identifier_str.length(), 30)));
+								return Mono.just(cr);
+							});
+
 		}
 		return identified_cluster;
 
@@ -106,11 +111,13 @@ public class RecordClusteringService {
         	.switchIfEmpty(() -> method2(identifier))
          pattern to
 		 */
+					// .switchIfEmpty( attemptClusterOnBlockingTitle(ingestRecord) )
+
 		return attemptClusterOnIdentifier(ingestRecord,"OCOLC")
 			.switchIfEmpty( attemptClusterOnIdentifier(ingestRecord,"OCLC") )
 			.switchIfEmpty( attemptClusterOnIdentifier(ingestRecord,"LCCN") )
 			.switchIfEmpty( attemptClusterOnIdentifier(ingestRecord,"GOLDRUSH") )
-			.switchIfEmpty( attemptClusterOnBlockingTitle(ingestRecord) )
+			.switchIfEmpty( attemptClusterOnIdentifier(ingestRecord,"BLOCKING_TITLE") )
 			.defaultIfEmpty(
 					ClusterRecord.builder()
 						.id(UUID.randomUUID())

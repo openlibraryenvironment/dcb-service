@@ -63,6 +63,7 @@ public class BibRecordService {
                 .blockingTitle(generateBlockingString(imported.getTitle()))
                 .canonicalMetadata(imported.getCanonicalMetadata())
                 .metadataScore(imported.getMetadataScore())
+								.clusterReason(imported.getClusterReason())
                 .build();
     }
 
@@ -142,6 +143,14 @@ public class BibRecordService {
 			return Mono.just(source)
 							.flatMap(this::getOrSeed)
 							.flatMap((final BibRecord bib) -> {
+								  // this really should be outed to a pipeline step. If in our processing
+								  // the bib was assigned to a cluster, the assigning code should have set
+								  // clusterReason. Existing bibs can be re-clustered, so we re-set that value here
+								  if ( ( source.getClusterReason() == null ) ||
+										   ( bib.getClusterReason() == null ) ||
+										   ( ! bib.getClusterReason().equals(source.getClusterReason())) )
+								  	bib.setClusterReason(source.getClusterReason());
+
 									final List<ProcessingStep> pipeline = new ArrayList<>();
 									pipeline.add(this::step1);
 									return Flux.fromIterable(pipeline).reduce(bib, (theBib, step) -> step.apply(bib, source));

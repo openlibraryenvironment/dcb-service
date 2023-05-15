@@ -61,7 +61,7 @@ class SupplyingAgencyServiceTests {
 		patron.setPatronIdentities(List.of(patronIdentity));
 
 		supplierRequest = new SupplierRequest(randomUUID(),
-			patronRequest, "itemId", "supplierHostLmsCode", null);
+			patronRequest, "itemId", "supplierHostLmsCode", null, null);
 
 		patronRequest = createPatronRequest(randomUUID(), RESOLVED, patron);
 		updatedPatronRequest = createPatronRequest(randomUUID(), REQUEST_PLACED_AT_SUPPLYING_AGENCY, patron);
@@ -203,6 +203,6 @@ class SupplyingAgencyServiceTests {
 	private static PatronRequest createPatronRequest(UUID id, String status, Patron patron) {
 		return new PatronRequest(id, now(), now(),
 			patron, randomUUID(), "pickupLocationCode",
-			status, null);
+			status, null, null);
 	}
 }
