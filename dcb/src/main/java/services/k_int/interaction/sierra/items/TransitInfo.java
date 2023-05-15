@@ -1,7 +1,7 @@
 package services.k_int.interaction.sierra.items;
 
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
-import jakarta.annotation.Nullable;
 import lombok.Builder;
 import lombok.Data;
 

@@ -5,6 +5,7 @@ import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
+import static org.mockserver.model.MediaType.TEXT_PLAIN;
 
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
@@ -28,6 +29,10 @@ public class SierraPatronsAPIFixture {
 		mock.when(postPatronRequest(uniqueId)).respond( patronPlacedResponse() );
 	}
 
+	public void postPatronErrorResponse(String uniqueId) {
+		mock.when(postPatronRequest(uniqueId)).respond( patronPlacedErrorResponse() );
+	}
+
 	public void patronResponseForUniqueId(String uniqueId) {
 		mock.when(getPatronFindRequest(uniqueId)).respond( patronFoundResponse() );
 	}
@@ -42,6 +47,10 @@ public class SierraPatronsAPIFixture {
 
 	private HttpResponse patronFoundResponse() {
 		return withSierraResponse(response(), 200, "patrons/sierra-api-patron-found.json");
+	}
+
+	private HttpResponse patronPlacedErrorResponse() {
+		return serverErrorResponse(response(), 500);
 	}
 
 	private HttpResponse patronPlacedResponse() {
@@ -64,6 +73,15 @@ public class SierraPatronsAPIFixture {
 			.withStatusCode(statusCode)
 			.withContentType(APPLICATION_JSON)
 			.withBody(json(getResourceAsString(resourceName)));
+	}
+
+	public HttpResponse serverErrorResponse(HttpResponse response, int statusCode) {
+		// This is a made up response (rather than captured from the sandbox)
+		// in order to demonstrate that general failures of the API are propagated
+		return response
+				.withStatusCode(statusCode)
+				.withContentType(TEXT_PLAIN)
+				.withBody("Broken");
 	}
 
 	private HttpRequest postPatronRequest(String uniqueId) {

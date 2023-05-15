@@ -1,10 +1,9 @@
 package services.k_int.interaction.sierra.bibs;
 
-import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import jakarta.annotation.Nullable;
+import io.micronaut.core.annotation.Nullable;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Singular;
