@@ -67,6 +67,10 @@ public class BibRecord {
 	@Column(name = "contributes_to")
 	private ClusterRecord contributesTo;
 
+	// A note about why we made the clustering decision we made
+	@Nullable
+	private String clusterReason;
+
 	@Nullable
 	private String recordStatus;
 

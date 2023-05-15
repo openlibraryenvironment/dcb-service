@@ -24,7 +24,7 @@ import lombok.experimental.Accessors;
 
 @Data
 @Builder
-@Value
+// @Value II: I'd like to be able to accumulate information here as the ingest record passes through stages
 @Accessors(chain = true)
 public class IngestRecord {
 	@NonNull
@@ -81,6 +81,9 @@ public class IngestRecord {
 
 	@Nullable
         Integer metadataScore;
+
+	@Nullable
+	String clusterReason;
 
 //  @Nullable String edition();
 //  List<PublicationInformation> publicationInformation();

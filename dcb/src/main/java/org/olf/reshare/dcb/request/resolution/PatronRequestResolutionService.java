@@ -102,7 +102,7 @@ public class PatronRequestResolutionService {
 		final var updatedPatronRequest = patronRequest.resolve();
 
 		return new SupplierRequest(uuid, updatedPatronRequest,
-			item.getId(), item.getHostLmsCode(), null);
+			item.getId(), item.getHostLmsCode(), null, null);
 	}
 
 	private static Resolution resolveToNoItemsAvailable(PatronRequest patronRequest) {

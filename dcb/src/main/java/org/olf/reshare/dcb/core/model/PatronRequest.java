@@ -63,21 +63,24 @@ public class PatronRequest {
 	@Nullable
 	private String localSystemHoldId;
 
+	@Nullable
+	private String localSystemHoldStatus;
+
 	public PatronRequest resolve() {
 		return new PatronRequest(id, dateCreated, dateUpdated, patron,
-			bibClusterId, pickupLocationCode, RESOLVED, localSystemHoldId);
+			bibClusterId, pickupLocationCode, RESOLVED, localSystemHoldId, localSystemHoldStatus);
 	}
 
 	public PatronRequest placedAtSupplyingAgency() {
 		return new PatronRequest(id, dateCreated, dateUpdated, patron,
 			bibClusterId, pickupLocationCode,
-			REQUEST_PLACED_AT_SUPPLYING_AGENCY, localSystemHoldId);
+			REQUEST_PLACED_AT_SUPPLYING_AGENCY, localSystemHoldId, localSystemHoldStatus);
 	}
 
 	public PatronRequest resolveToNoItemsAvailable() {
 		return new PatronRequest(id, dateCreated, dateUpdated, patron,
 			bibClusterId, pickupLocationCode,
-			NO_ITEMS_AVAILABLE_AT_ANY_AGENCY, localSystemHoldId);
+			NO_ITEMS_AVAILABLE_AT_ANY_AGENCY, localSystemHoldId, localSystemHoldStatus);
 	}
 }
 

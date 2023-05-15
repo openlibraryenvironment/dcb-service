@@ -75,7 +75,7 @@ class PatronRequestServiceTests {
 				"home-library-code"));
 
 		final var patronRequest = new PatronRequest(requestId, null, null,
-			patron, citationId, pickupLocationCode, SUBMITTED_TO_DCB, null);
+			patron, citationId, pickupLocationCode, SUBMITTED_TO_DCB, null, null);
 
 		when(findOrCreatePatronService.findOrCreatePatron(any(), any(), any()))
 			.thenAnswer(invocation -> Mono.just(patron));

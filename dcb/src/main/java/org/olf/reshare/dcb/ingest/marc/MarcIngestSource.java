@@ -327,7 +327,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 
 		addToCanonicalMetadata("physical-description", "300", null, "abcdefg", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("content-type", "336", null, "abcdefg", marcRecord, canonical_metadata);
-		addToCanonicalMetadata("media-type", "337", null, "abcdefg", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("media-type", "337", null, "a", marcRecord, canonical_metadata);
 
 		DataField edition_field = (DataField) marcRecord.getVariableField("250");
 		if (edition_field != null) {
