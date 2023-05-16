@@ -18,19 +18,32 @@ The module is deployed as a docker container which supports the following runtim
 Note: Today flyway does not support r2dbc datasources, so we need to configure both JDBC and R2DBC datasources - same
 DB connection effectively, 2 different connections - with JDBC only being used for database migrations.
 
-| ENV                                | Description       | Example                               |
-|------------------------------------|-------------------|---------------------------------------|
-| R2DBC_DATASOURCES_DEFAULT_URL      | R2DBC Connect URL | r2dbc:postgresql://localhost:5432/dcb |
-| R2DBC_DATASOURCES_DEFAULT_USERNAME | R2DBC Username    | dcb                                   |
-| R2DBC_DATASOURCES_DEFAULT_PASSWORD | R2DBC Password    | dcb                                   
-| DATASOURCES_DEFAULT_URL            | JDBC Connect URL  | jdbc:postgresql://localhost:5432/dcb  |
-| DATASOURCES_DEFAULT_USERNAME       | JDBC Username     | dcb                                   |
-| DATASOURCES_DEFAULT_PASSWORD       | JDBC Password     | dcb                                   |
-| KEYCLOAK_CERT_URL                  | The URL used for validating JWTs     | https://reshare-hub-kc.libsdev.k-int.com/realms/reshare-hub/protocol/openid-connect/certs |
-| MICRONAUT_HTTP_CLIENT_READ_TIMEOUT | Default HTTP Client Timeout  | PT1M |
-| MICRONAUT_HTTP_CLIENT_MAX_CONTENT_LENGTH | Max content length  | 20971520 |
-| DCB_SHEDULED_TASKS_ENABLED | perform scheduled tasks | true |
-| REACTOR_DEBUG | DEVELOPMENT FLAG! set to the string "true" to enable reactor annotated stack trace  | true |
+| ENV                                      | Description                                                                        | Example                                                                                   |
+|------------------------------------------|------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| R2DBC_DATASOURCES_DEFAULT_URL            | R2DBC Connect URL                                                                  | r2dbc:postgresql://localhost:5432/dcb                                                     |
+| R2DBC_DATASOURCES_DEFAULT_USERNAME       | R2DBC Username                                                                     | dcb                                                                                       |
+| R2DBC_DATASOURCES_DEFAULT_PASSWORD       | R2DBC Password                                                                     | dcb                                                                                       |
+| DATASOURCES_DEFAULT_URL                  | JDBC Connect URL                                                                   | jdbc:postgresql://localhost:5432/dcb                                                      |
+| DATASOURCES_DEFAULT_USERNAME             | JDBC Username                                                                      | dcb                                                                                       |
+| DATASOURCES_DEFAULT_PASSWORD             | JDBC Password                                                                      | dcb                                                                                       |
+| KEYCLOAK_CERT_URL                        | The URL used for validating JWTs                                                   | https://reshare-hub-kc.libsdev.k-int.com/realms/reshare-hub/protocol/openid-connect/certs |
+| MICRONAUT_HTTP_CLIENT_READ_TIMEOUT       | Default HTTP Client Timeout                                                        | PT1M                                                                                      |
+| MICRONAUT_HTTP_CLIENT_MAX_CONTENT_LENGTH | Max content length                                                                 | 20971520                                                                                  |
+| DCB_SHEDULED_TASKS_ENABLED               | perform scheduled tasks                                                            | true                                                                                      |
+| REACTOR_DEBUG                            | DEVELOPMENT FLAG! set to the string "true" to enable reactor annotated stack trace | true                                                                                      |
+
+# Configuration
+
+Additional optional configuration values. These may be set in configuration files or using environment variables.
+
+| Name                                        | Description                                                                       | Format                                                                               | Default |
+|---------------------------------------------|-----------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|---------|
+| dcb.demo.ingest.limit                       | Maximum number of records to ingest when running in demo environment              | Integer value                                                                        | 1000    |
+| dcb.requestability.location.codes.allowed   | Location codes allow list for item requestability                                 | List                                                                                 | None    |
+| dcb.requestability.location.filtering       | Whether items should be filtered by location code when determining requestability | Boolean                                                                              | false   |
+| dcb.request-workflow.state-transition-delay | Delay between transitions in the request workflow                                 | [ISO-8601 format](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html) | PT0.0S  |
+| dcb.requests.supplying.patron-type          | Fixed patron type for supplying agency virtual patrons                            | Integer                                                                              | 210     |
+
 
 # API Documentation
 

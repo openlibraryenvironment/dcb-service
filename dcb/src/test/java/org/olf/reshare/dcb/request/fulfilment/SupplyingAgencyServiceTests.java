@@ -1,5 +1,21 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
+import static java.time.Instant.now;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,20 +25,14 @@ import org.mockito.MockitoAnnotations;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
-import org.olf.reshare.dcb.core.model.*;
+import org.olf.reshare.dcb.core.model.DataHostLms;
+import org.olf.reshare.dcb.core.model.Patron;
+import org.olf.reshare.dcb.core.model.PatronIdentity;
+import org.olf.reshare.dcb.core.model.PatronRequest;
+import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.request.resolution.SupplierRequestService;
+
 import reactor.core.publisher.Mono;
-
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import static java.time.Instant.now;
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.mockito.Mockito.*;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.*;
 
 class SupplyingAgencyServiceTests {
 	@Mock
@@ -35,6 +45,9 @@ class SupplyingAgencyServiceTests {
 	HostLmsClient hostLmsClient;
 	@Mock
 	PatronRequestService patronRequestService;
+	@Mock
+	PatronTypeService patronTypeService;
+
 	@InjectMocks
 	SupplyingAgencyService supplyingAgencyService;
 
@@ -48,6 +61,8 @@ class SupplyingAgencyServiceTests {
 	@BeforeEach
 	void setup() {
 		MockitoAnnotations.initMocks(this);
+
+		when(patronTypeService.determinePatronType()).thenReturn(100);
 
 		dataHostLms = new DataHostLms(randomUUID(), "homeHostLmsCode",
 			"Fake Host LMS", SierraLmsClient.class.toString(), Map.of());
