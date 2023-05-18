@@ -28,7 +28,6 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @AllArgsConstructor
 @Builder
 public class Location {
-
 	@NotNull
 	@NonNull
 	@Id

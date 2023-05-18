@@ -10,12 +10,11 @@ import org.olf.reshare.dcb.request.resolution.ClusteredBib;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.inject.Singleton;
+import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-
-@Singleton
+@Prototype
 public class LiveAvailabilityService implements LiveAvailability {
 	private static final Logger log = LoggerFactory.getLogger(LiveAvailabilityService.class);
 	private final HostLmsService hostLmsService;
@@ -37,11 +36,11 @@ public class LiveAvailabilityService implements LiveAvailability {
 			.map(requestableItemService::determineRequestable)
 			// merge lists
 			.flatMap(Flux::fromIterable)
-			.collectList();
+			.collectList()
+			.map(items -> items.stream().sorted().toList());
 	}
 
 	private Flux<Bib> getBibs(ClusteredBib clusteredBib) {
-
 		log.debug("getBibs: {}", clusteredBib);
 
 		if (clusteredBib.getBibs() == null) {
@@ -56,8 +55,7 @@ public class LiveAvailabilityService implements LiveAvailability {
 			.flatMapMany(Flux::fromIterable);
 	}
 
-	public Mono<List<Item>> getBibItemsByHostLms(Bib bib) {
-
+	private Mono<List<Item>> getBibItemsByHostLms(Bib bib) {
 		log.debug("getBibItemsByHostLms({}, {})", bib.getBibRecordId(), bib.getHostLms());
 
 		if (bib.getHostLms() == null) {
@@ -71,8 +69,8 @@ public class LiveAvailabilityService implements LiveAvailability {
 			.collectList();
 	}
 
-	private Flux<Item> getItems(
-		String bibRecordId, HostLmsClient hostLmsClient, String hostLmsCode) {
+	private Flux<Item> getItems(String bibRecordId, HostLmsClient hostLmsClient,
+		String hostLmsCode) {
 
 		log.debug("getItems({}, {}, {})", bibRecordId, hostLmsClient, hostLmsCode);
 

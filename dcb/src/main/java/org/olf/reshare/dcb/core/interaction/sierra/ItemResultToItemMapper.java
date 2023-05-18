@@ -23,14 +23,18 @@ class ItemResultToItemMapper {
 			? ZonedDateTime.parse(dueDate)
 			:null;
 
-		return new org.olf.reshare.dcb.core.model.Item(result.getId(),
-			itemStatusMapper.mapStatus(result.getStatus()), parsedDueDate,
-			org.olf.reshare.dcb.core.model.Location.builder()
+		return org.olf.reshare.dcb.core.model.Item.builder()
+			.id(result.getId())
+			.status(itemStatusMapper.mapStatus(result.getStatus()))
+			.dueDate(parsedDueDate)
+			.location(org.olf.reshare.dcb.core.model.Location.builder()
 				.code(result.getLocation().getCode())
 				.name(result.getLocation().getName())
-				.build(),
-			result.getBarcode(), result.getCallNumber(),
-			hostLmsCode, null,
-			result.getHoldCount());
+				.build())
+			.barcode(result.getBarcode())
+			.callNumber(result.getCallNumber())
+			.hostLmsCode(hostLmsCode)
+			.holdCount(result.getHoldCount())
+			.build();
 	}
 }
