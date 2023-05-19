@@ -159,11 +159,12 @@ public class ConfigurationService implements Runnable {
     protected Mono<Location> handleBranchRecord(BranchRecord br) {
         //log.debug("handleBranchRecord {}",br);
 				// Branch records map onto Location (Type=Branch) records for us
-        if (br.getLms() instanceof DataHostLms) {
+        if ( ( br.getLms() instanceof DataHostLms) &&
+             ( br.getLocalBranchId() != null ) )  {
 					Location l = Location.builder()
 						.id(br.getId())
 						.code(br.getLocalBranchId())
-						.name(br.getBranchName())
+						.name(br.getBranchName() != null ? br.getBranchName() : br.getLocalBranchId() )
 						.hostSystem((DataHostLms) br.getLms())
 						.type("BRANCH")
 						.build();
