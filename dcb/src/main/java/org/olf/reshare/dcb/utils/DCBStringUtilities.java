@@ -3,8 +3,7 @@ package org.olf.reshare.dcb.utils;
 import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
 import java.text.Normalizer;
-import java.util.Arrays;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -16,7 +15,6 @@ import java.util.stream.Stream;
 
 import javax.validation.constraints.NotNull;
 
-import io.micronaut.core.util.StringUtils;
 import services.k_int.utils.UUIDUtils;
 
 public class DCBStringUtilities {
@@ -49,38 +47,57 @@ public class DCBStringUtilities {
 			"zz").collect(Collectors.toUnmodifiableSet());
 
 	private static final Pattern DIACRITIC_AND_NONE_ALPHANUMERIC = Pattern.compile("([^\\p{Alnum}\\s]|\\p{M})");
+	private static final Pattern SPLITTING_DELIMETER = Pattern.compile("((\\s*\\&\\s*)|\\s+)+");
+	private static final Pattern NAMES = Pattern.compile("\\s*\\b([\\w\\.]+) *,(( *?\\b((\\w\\.)|([\\w\\-]+)))+)");
 
 	public static final String toNoneDiacriticAlphaNumeric(final String source) {
 
-		return Optional.ofNullable(source).map(text -> Normalizer.normalize(source, Normalizer.Form.NFKD))
-				.map(text -> DIACRITIC_AND_NONE_ALPHANUMERIC.matcher(source).replaceAll("")).orElseGet(() -> null);
-
+		return Optional.ofNullable(source)
+				.map(text -> Normalizer.normalize(text, Normalizer.Form.NFKD))
+				.map(text -> DIACRITIC_AND_NONE_ALPHANUMERIC.matcher(text).replaceAll(""))
+				.orElseGet(() -> null);
 	}
 
 	public static String generateBlockingString(final String inputString) {
-		return Stream.ofNullable(toNoneDiacriticAlphaNumeric(inputString)).filter(StringUtils::isNotEmpty).map(String::toLowerCase)
-				.filter(Predicate.not(stopwords::contains)).sorted(String::compareTo).distinct()
-				.collect(Collectors.joining(" "));
+		return generateBlockingString(inputString, Collections.emptyList());
 	}
-
-	public static final String generateOldBlockingString(String inputString, List<String> qualifiers) {
+	
+	public static String generateBlockingString(final String inputString, @NotNull List<String> qualifiers) {
 		if (inputString == null)
 			return null;
 		
-		// If we have additional qualifying terms, blend them here. If the terms have come from Marc, they
-		// could have all kinds of punc and diacritics so adding them now will let the normalisation take care
-		// of them cleanly.
-		if ( ( qualifiers != null ) && ( qualifiers.size() > 0 ) )
-			inputString = inputString + " " + String.join(" ", qualifiers);
-
-		List<String> words = Arrays
-				.stream(Normalizer.normalize(inputString, Normalizer.Form.NFD).replaceAll("\\p{M}", "")
-						.replaceAll("[^\\p{Alnum}\\s]", "").toLowerCase().split("\\s+"))
-				.filter(word -> !stopwords.contains(word)).distinct().collect(Collectors.toList());
-
-		words.sort(String::compareTo);
-		return String.join(" ", words);
+		// Replace Names
+		
+		return Stream.concat(
+			qualifiers.stream()
+				.map(DCBStringUtilities::toNoneDiacriticAlphaNumeric),
+			Stream.of(NAMES.matcher(toNoneDiacriticAlphaNumeric(inputString)).replaceAll("$2 $1"))
+		)
+		.map(String::trim)														// Trim
+		.map(String::toLowerCase)											// Lowercase
+		.flatMap(SPLITTING_DELIMETER::splitAsStream)	// Split
+		.filter(Predicate.not(stopwords::contains)) 	// Remove stop words
+		.collect(Collectors.joining(" "));						// Rejoin with single spacing.
 	}
+
+//	public static final String generateOldBlockingString(String inputString, List<String> qualifiers) {
+//		if (inputString == null)
+//			return null;
+//		
+//		// If we have additional qualifying terms, blend them here. If the terms have come from Marc, they
+//		// could have all kinds of punc and diacritics so adding them now will let the normalisation take care
+//		// of them cleanly.
+//		if ( ( qualifiers != null ) && ( qualifiers.size() > 0 ) )
+//			inputString = inputString + " " + String.join(" ", qualifiers);
+//
+//		List<String> words = Arrays
+//				.stream(Normalizer.normalize(inputString, Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+//						.replaceAll("[^\\p{Alnum}\\s]", "").toLowerCase().split("\\s+"))
+//				.filter(word -> !stopwords.contains(word)).distinct().collect(Collectors.toList());
+//
+//		words.sort(String::compareTo);
+//		return String.join(" ", words);
+//	}
 
 	public static final UUID uuid5ForIdentifier(@NotNull final String namespace, @NotNull final String value,
 			@NotNull final UUID ownerId) {

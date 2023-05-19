@@ -4,7 +4,7 @@ import static java.time.Instant.now;
 
 import java.util.UUID;
 
-import org.olf.reshare.dcb.core.model.ClusterRecord;
+import org.olf.reshare.dcb.core.model.clustering.ClusterRecord;
 import org.olf.reshare.dcb.storage.ClusterRecordRepository;
 
 import io.micronaut.context.annotation.Prototype;

@@ -19,7 +19,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
-
 @Data
 @Builder
 @NoArgsConstructor(onConstructor_ = @Creator())
@@ -32,21 +31,21 @@ public class BibIdentifier {
 	@NotNull
 	@NonNull
 	@Id
-	@TypeDef( type = DataType.UUID)
+	@TypeDef(type = DataType.UUID)
 	private UUID id;
-
-    @NotNull
-    @NonNull
-    @Relation(value = Relation.Kind.MANY_TO_ONE)
-    private BibRecord owner;
 
 	@NotNull
 	@NonNull
-        @Size(max=255)
+	@Relation(value = Relation.Kind.MANY_TO_ONE)
+	private BibRecord owner;
+
+	@NotNull
+	@NonNull
+	@Size(max = 255)
 	private String value;
 
 	@NotNull
 	@NonNull
-        @Size(max=255)
+	@Size(max = 255)
 	private String namespace;
 }

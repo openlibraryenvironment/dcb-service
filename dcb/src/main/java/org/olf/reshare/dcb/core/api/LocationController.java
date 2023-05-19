@@ -1,18 +1,16 @@
 package org.olf.reshare.dcb.core.api;
 
-import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import java.util.UUID;
+
 import javax.validation.Valid;
 
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import org.olf.reshare.dcb.core.api.types.LocationDTO;
 import org.olf.reshare.dcb.core.model.DataAgency;
 import org.olf.reshare.dcb.core.model.Location;
+import org.olf.reshare.dcb.storage.AgencyRepository;
+import org.olf.reshare.dcb.storage.LocationRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -28,10 +26,6 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
-import services.k_int.utils.UUIDUtils;
-import org.olf.reshare.dcb.core.api.types.LocationDTO;
-import org.olf.reshare.dcb.storage.LocationRepository;
-import org.olf.reshare.dcb.storage.AgencyRepository;
 
 
 @Controller("/locations")

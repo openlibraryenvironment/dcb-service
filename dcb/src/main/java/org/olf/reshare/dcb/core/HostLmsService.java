@@ -9,15 +9,14 @@ import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.ingest.IngestSourcesProvider;
 import org.olf.reshare.dcb.storage.HostLmsRepository;
+import org.olf.reshare.dcb.tracking.TrackingSource;
+import org.olf.reshare.dcb.tracking.TrackingSourcesProvider;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.context.BeanContext;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import org.olf.reshare.dcb.tracking.TrackingSourcesProvider;
-import org.olf.reshare.dcb.tracking.TrackingSource;
 
 @Singleton
 public class HostLmsService implements IngestSourcesProvider,  TrackingSourcesProvider {

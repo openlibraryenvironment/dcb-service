@@ -1,5 +1,21 @@
 package org.olf.reshare.dcb.core.api;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import javax.validation.Valid;
+
+import org.olf.reshare.dcb.core.api.types.BibRecordDTO;
+import org.olf.reshare.dcb.core.api.types.ClusterRecordDTO;
+import org.olf.reshare.dcb.core.model.BibRecord;
+import org.olf.reshare.dcb.core.model.clustering.ClusterRecord;
+import org.olf.reshare.dcb.storage.BibRepository;
+import org.olf.reshare.dcb.storage.ClusterRecordRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.annotation.Controller;
@@ -11,23 +27,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.olf.reshare.dcb.core.api.types.BibRecordDTO;
-import org.olf.reshare.dcb.core.api.types.ClusterRecordDTO;
-import org.olf.reshare.dcb.core.model.BibRecord;
-import org.olf.reshare.dcb.core.model.ClusterRecord;
-import org.olf.reshare.dcb.storage.BibRepository;
-import org.olf.reshare.dcb.storage.ClusterRecordRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import javax.validation.Valid;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 
 @Controller("/clusters")
 @Tag(name = "Cluster Records (Read only)")
@@ -111,9 +112,9 @@ public class ClusterRecordController {
 			.collectList();
 	}
 
-	private Flux<ClusterRecordDTO> getFluxForPage(Page<ClusterRecordDTO> page) {
-		return Flux.fromIterable(page);
-	}
+//	private Flux<ClusterRecordDTO> getFluxForPage(Page<ClusterRecordDTO> page) {
+//		return Flux.fromIterable(page);
+//	}
 
 	private ClusterRecordDTO mapClusterRecordToDTO(ClusterRecord cr) {
 

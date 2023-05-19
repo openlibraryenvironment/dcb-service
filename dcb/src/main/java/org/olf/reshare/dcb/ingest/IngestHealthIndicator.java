@@ -1,17 +1,17 @@
 package org.olf.reshare.dcb.ingest;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.reactivestreams.Publisher;
+
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.health.HealthStatus;
 import io.micronaut.management.endpoint.health.HealthEndpoint;
 import io.micronaut.management.health.indicator.HealthIndicator;
 import io.micronaut.management.health.indicator.HealthResult;
 import jakarta.inject.Singleton;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 
 @Singleton
 // Only create bean when configuration property

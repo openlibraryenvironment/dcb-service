@@ -3,13 +3,12 @@ package org.olf.reshare.dcb.request.resolution;
 import java.util.List;
 import java.util.UUID;
 
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.Data;
-import lombok.Builder;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
-import lombok.AllArgsConstructor;
 import io.micronaut.core.annotation.Creator;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @NoArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor

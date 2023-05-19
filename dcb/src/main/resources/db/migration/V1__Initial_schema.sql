@@ -15,7 +15,7 @@ CREATE TABLE bib_record (
 	source_system_id uuid,
 	source_record_id varchar(256),
 	title text,
-	contributes_to uuid NOT NULL REFERENCES cluster_record(id),
+	contributes_to uuid REFERENCES cluster_record(id),
 	cluster_reason varchar(128),
 	record_status varchar(8),
 	type_of_record varchar(8),
@@ -171,3 +171,13 @@ CREATE TABLE reference_value_mapping (
 );
 
 CREATE INDEX idx_rvm_mapping on reference_value_mapping(from_context,from_category,from_value,to_context);
+
+CREATE TABLE match_point (
+  id uuid PRIMARY KEY,
+  bib_id uuid NOT NULL,
+  value uuid NOT NULL,
+  CONSTRAINT fk_bib_id FOREIGN KEY (bib_id) REFERENCES public.bib_record (id)
+);
+
+CREATE INDEX idx_fk_bib_id ON match_point (bib_id);
+CREATE INDEX idx_value ON match_point (value);

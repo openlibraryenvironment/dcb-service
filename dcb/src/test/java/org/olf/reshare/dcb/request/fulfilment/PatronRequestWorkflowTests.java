@@ -2,7 +2,10 @@ package org.olf.reshare.dcb.request.fulfilment;
 
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
 import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
@@ -13,7 +16,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
-import org.olf.reshare.dcb.utils.BackgroundExecutor;
 
 import reactor.core.publisher.Mono;
 

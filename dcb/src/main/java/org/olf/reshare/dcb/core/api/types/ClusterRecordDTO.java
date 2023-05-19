@@ -1,14 +1,12 @@
 package org.olf.reshare.dcb.core.api.types;
 
+import java.util.List;
 import java.util.UUID;
 
 import io.micronaut.serde.annotation.Serdeable;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-
-import java.util.List;
 
 @Builder
 @Data

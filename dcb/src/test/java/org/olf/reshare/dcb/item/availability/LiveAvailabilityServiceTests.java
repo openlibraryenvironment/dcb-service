@@ -1,11 +1,15 @@
 package org.olf.reshare.dcb.item.availability;
 
 import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
 
 import java.time.ZonedDateTime;
@@ -16,11 +20,15 @@ import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
-import org.olf.reshare.dcb.core.model.*;
+import org.olf.reshare.dcb.core.model.FakeHostLms;
+import org.olf.reshare.dcb.core.model.HostLms;
+import org.olf.reshare.dcb.core.model.Item;
+import org.olf.reshare.dcb.core.model.ItemStatus;
+import org.olf.reshare.dcb.core.model.Location;
 import org.olf.reshare.dcb.request.resolution.Bib;
 import org.olf.reshare.dcb.request.resolution.ClusteredBib;
-
 import org.olf.reshare.dcb.request.resolution.SharedIndexService;
+
 import reactor.core.publisher.Mono;
 
 public class LiveAvailabilityServiceTests {

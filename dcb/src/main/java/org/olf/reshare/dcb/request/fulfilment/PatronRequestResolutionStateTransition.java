@@ -2,7 +2,6 @@ package org.olf.reshare.dcb.request.fulfilment;
 
 import java.util.Optional;
 
-import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.request.resolution.PatronRequestResolutionService;
@@ -12,7 +11,7 @@ import org.olf.reshare.dcb.storage.SupplierRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.inject.Singleton;
+import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 
 @Prototype

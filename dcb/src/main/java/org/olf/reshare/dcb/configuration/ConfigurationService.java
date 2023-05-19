@@ -2,16 +2,23 @@ package org.olf.reshare.dcb.configuration;
 
 import java.util.List;
 
-import org.olf.reshare.dcb.core.model.*;
+import javax.transaction.Transactional;
+import javax.transaction.Transactional.TxType;
+
+import org.olf.reshare.dcb.core.model.Agency;
+import org.olf.reshare.dcb.core.model.DataAgency;
+import org.olf.reshare.dcb.core.model.DataHostLms;
+import org.olf.reshare.dcb.core.model.Location;
+import org.olf.reshare.dcb.core.model.RefdataValue;
+import org.olf.reshare.dcb.core.model.ShelvingLocation;
 import org.olf.reshare.dcb.ingest.IngestSource;
+import org.olf.reshare.dcb.ingest.IngestSourcesProvider;
 import org.olf.reshare.dcb.storage.AgencyRepository;
 import org.olf.reshare.dcb.storage.LocationRepository;
 import org.olf.reshare.dcb.storage.RefdataValueRepository;
 import org.olf.reshare.dcb.storage.ShelvingLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.olf.reshare.dcb.ingest.IngestSourcesProvider;
 
 import io.micronaut.runtime.context.scope.Refreshable;
 import io.micronaut.scheduling.annotation.Scheduled;
@@ -146,7 +153,9 @@ public class ConfigurationService implements Runnable {
      * @param br
      * @return
      */
-    private Mono<Location> handleBranchRecord(BranchRecord br) {
+
+  	@Transactional(value = TxType.REQUIRED)
+    protected Mono<Location> handleBranchRecord(BranchRecord br) {
         //log.debug("handleBranchRecord {}",br);
 				// Branch records map onto Location (Type=Branch) records for us
         if (br.getLms() instanceof DataHostLms) {
@@ -169,7 +178,8 @@ public class ConfigurationService implements Runnable {
         }
     }
 
-    private Mono<Location> handlePickupLocation(PickupLocationRecord pickupLocationRecord) {
+    @Transactional(value = TxType.REQUIRED)
+    protected Mono<Location> handlePickupLocation(PickupLocationRecord pickupLocationRecord) {
         //log.debug("handlePickupLocation {}",pickupLocationRecord);
         if (pickupLocationRecord.getLms() instanceof DataHostLms) {
             Location upsert_location = Location
@@ -198,6 +208,7 @@ public class ConfigurationService implements Runnable {
      * @param cr - A canonical branch record which tries to minimise the differences between different host systems
      * @return the same config record but processed
      */
+    @Transactional(value = TxType.REQUIRES_NEW)
     public Mono<ConfigurationRecord> handleConfigRecord(ConfigurationRecord cr) {
         // log.debug("handleConfigRecord({})",cr);
         return Mono.just(cr)
@@ -213,7 +224,8 @@ public class ConfigurationService implements Runnable {
                 .thenReturn(cr);
     }
 
-    private Mono<RefdataValue> handleRefdataRecord(RefdataRecord refdataRecord) {
+    @Transactional(value = TxType.REQUIRED)
+    protected Mono<RefdataValue> handleRefdataRecord(RefdataRecord refdataRecord) {
         //log.debug("handleRefdataRecord {}",refdataRecord);
         RefdataValue rdv = RefdataValue
                 .builder()

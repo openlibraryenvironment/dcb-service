@@ -1,5 +1,6 @@
 package org.olf.reshare.dcb.core.model;
 
+import java.util.Map;
 import java.util.UUID;
 
 import javax.validation.constraints.Size;
@@ -8,7 +9,6 @@ import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
-import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
@@ -19,7 +19,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
-import java.util.Map;
 
 
 /**

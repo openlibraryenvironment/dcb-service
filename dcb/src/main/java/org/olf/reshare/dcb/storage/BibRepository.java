@@ -1,17 +1,18 @@
 package org.olf.reshare.dcb.storage;
 
+import java.util.Collection;
 import java.util.UUID;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
-import io.micronaut.data.annotation.Query;
 import org.olf.reshare.dcb.core.model.BibRecord;
-import org.olf.reshare.dcb.core.model.ClusterRecord;
+import org.olf.reshare.dcb.core.model.clustering.ClusterRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 
@@ -35,7 +36,7 @@ public interface BibRepository {
 	Publisher<ClusterRecord> findContributesToById( @NonNull UUID id );
 	
 	@NonNull
-	Publisher<BibRecord> findAllByContributesTo(ClusterRecord clusterRecord);
+	Publisher<BibRecord> findAllByContributesTo( ClusterRecord clusterRecord );
 
 	@NonNull
 	@SingleResult
@@ -48,6 +49,10 @@ public interface BibRepository {
 	@NonNull
 	@SingleResult
 	Publisher<Void> delete(@NonNull UUID id);
+	
+	@NonNull
+	@SingleResult
+	Publisher<Void> updateByContributesToInList(@NonNull Collection<ClusterRecord> contributesToList, @NonNull ClusterRecord contributesTo);
 
 	@NonNull
 	@SingleResult

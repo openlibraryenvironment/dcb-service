@@ -3,7 +3,6 @@ package org.olf.reshare.dcb.core.api;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
 import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.slf4j.Logger;

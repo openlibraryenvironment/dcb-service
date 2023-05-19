@@ -1,20 +1,21 @@
 package org.olf.reshare.dcb.item.availability;
 
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import jakarta.inject.Inject;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.reshare.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.model.Item;
 import org.olf.reshare.dcb.core.model.ItemStatus;
 import org.olf.reshare.dcb.core.model.ItemStatusCode;
 import org.olf.reshare.dcb.core.model.Location;
 
-import java.util.List;
-
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
-import static org.olf.reshare.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import jakarta.inject.Inject;
 
 @MicronautTest(transactional = false, propertySources = { "classpath:configs/RequestableItemServiceTests.yml" }, rebuildContext = true)
 public class RequestableItemServiceTests {

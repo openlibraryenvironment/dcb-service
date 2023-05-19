@@ -1,20 +1,21 @@
 package org.olf.reshare.dcb.tracking;
 
-import io.micronaut.runtime.context.scope.Refreshable;
-import io.micronaut.scheduling.annotation.Scheduled;
-import jakarta.inject.Singleton;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+
 import org.olf.reshare.dcb.tracking.model.LenderTrackingEvent;
 import org.olf.reshare.dcb.tracking.model.TrackingRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.micronaut.runtime.context.scope.Refreshable;
+import io.micronaut.scheduling.annotation.Scheduled;
+import jakarta.inject.Singleton;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.micronaut.scheduling.processor.AppTask;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
 
 @Refreshable
 @Singleton

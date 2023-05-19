@@ -1,6 +1,8 @@
 package org.olf.reshare.dcb.configuration;
 
 
+import java.util.UUID;
+
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
@@ -8,8 +10,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
-
-import java.util.UUID;
 
 @Builder
 @Data

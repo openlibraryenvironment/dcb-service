@@ -1,18 +1,12 @@
 ### Development config
 
-hosts:
-  SANDBOX:
-    name: SANDBOX
-    type: org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient
-    client:
-      base-url: "https://sandbox.iii.com"
-      ingest: true
-  KCTOWERS:
-    name: KCTOWERS
-    type: org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient
-    client:
-      base-url: "https://kc-towers.searchmobius.org:443"
-
+#hosts:
+#  SANDBOX:
+#    name: SANDBOX
+#    type: org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient
+#    client:
+#      base-url: "https://sandbox.iii.com"
+#      ingest: true
     
 # agencies:
 #   testAgency1:

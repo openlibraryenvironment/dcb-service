@@ -10,7 +10,6 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Produces;
 import io.micronaut.security.annotation.Secured;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
 import lombok.extern.slf4j.Slf4j;
 
 /**

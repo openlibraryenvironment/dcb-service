@@ -1,5 +1,20 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
+import static java.util.Collections.emptyList;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.olf.reshare.dcb.core.model.HostLms;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.context.annotation.Secondary;
@@ -7,7 +22,12 @@ import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
-import io.micronaut.http.*;
+import io.micronaut.http.BasicAuth;
+import io.micronaut.http.HttpHeaders;
+import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.MediaType;
+import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
@@ -16,12 +36,7 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
-import io.micronaut.json.tree.JsonNode;
 import io.micronaut.retry.annotation.Retryable;
-import org.olf.reshare.dcb.core.model.HostLms;
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.SierraApiClient;
@@ -30,22 +45,13 @@ import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchResultSet;
 import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
-import services.k_int.interaction.sierra.items.ResultSet;
-import services.k_int.interaction.sierra.patrons.*;
-
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
-import services.k_int.interaction.sierra.holds.SierraPatronHold;
-
-
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
-import static java.util.Collections.emptyList;
+import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.patrons.PatronPatch;
+import services.k_int.interaction.sierra.patrons.PatronQueryBody;
+import services.k_int.interaction.sierra.patrons.PatronResult;
+import services.k_int.interaction.sierra.patrons.QueryResultSet;
+import services.k_int.interaction.sierra.patrons.Result;
 
 @Secondary
 @Prototype

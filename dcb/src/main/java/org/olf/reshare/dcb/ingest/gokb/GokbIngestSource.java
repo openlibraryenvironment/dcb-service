@@ -7,12 +7,13 @@ import java.util.UUID;
 
 import javax.validation.constraints.NotNull;
 
+import org.olf.reshare.dcb.configuration.ConfigurationRecord;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.olf.reshare.dcb.configuration.ConfigurationRecord;
+
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;

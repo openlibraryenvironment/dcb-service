@@ -1,133 +1,215 @@
 package org.olf.reshare.dcb.core;
 
-import java.util.Optional;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.transaction.Transactional;
+
+import org.olf.reshare.dcb.core.model.BibIdentifier;
 
 // import javax.transaction.Transactional.TxType;
 // @Transactional(value=TxType.REQUIRES_NEW)
 
 import org.olf.reshare.dcb.core.model.BibRecord;
-import org.olf.reshare.dcb.core.model.ClusterRecord;
-import org.olf.reshare.dcb.ingest.model.Identifier;
-import org.olf.reshare.dcb.ingest.model.IngestRecord;
-import org.olf.reshare.dcb.storage.BibRepository;
+import org.olf.reshare.dcb.core.model.clustering.ClusterRecord;
+import org.olf.reshare.dcb.core.model.clustering.MatchPoint;
 import org.olf.reshare.dcb.storage.ClusterRecordRepository;
-
+import org.olf.reshare.dcb.storage.MatchPointRepository;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 @Singleton
 public class RecordClusteringService {
 
-        private static final Logger log = LoggerFactory.getLogger(RecordClusteringService.class);
+	private static final String MATCHPOINT_ID = "id";
+	private static final String MATCHPOINT_TITLE = "title";
 
-	
+	private static final Logger log = LoggerFactory.getLogger(RecordClusteringService.class);
+
 	final ClusterRecordRepository clusterRecords;
-	final BibRepository bibRepository;
 	final BibRecordService bibRecords;
-	
-	public RecordClusteringService(ClusterRecordRepository clusterRecordRepository, BibRepository bibRepository, BibRecordService bibRecordService) {
+	final MatchPointRepository matchPointRepository;
+
+	public RecordClusteringService(
+			ClusterRecordRepository clusterRecordRepository,
+			BibRecordService bibRecordService, MatchPointRepository matchPointRepository) {
 		this.clusterRecords = clusterRecordRepository;
-		this.bibRepository = bibRepository;
 		this.bibRecords = bibRecordService;
+		this.matchPointRepository = matchPointRepository;
 	}
-	
+
 	// Get cluster record by id
-	public Mono<ClusterRecord> findById( UUID id ) {
-		return Mono.from( clusterRecords.findOneById(id) );
+	public Mono<ClusterRecord> findById(UUID id) {
+		return Mono.from(clusterRecords.findOneById(id));
 	}
-	
+
 	// Add Bib to cluster record
-	public Mono<BibRecord> addBibToClusterRecord(BibRecord bib, ClusterRecord clusterRecord) {
-		return Mono.just(bib.setContributesTo(clusterRecord))
-			.flatMap(bibRecords::saveOrUpdate);
-	}
-	
+//	public Mono<BibRecord> addBibToClusterRecord(BibRecord bib, ClusterRecord clusterRecord) {
+//		return Mono.just(bib.setContributesTo(clusterRecord)).flatMap(bibRecords::saveOrUpdate);
+//	}
+
 	// Get all bibs for cluster record id
 	public Flux<BibRecord> findBibsByClusterRecord(ClusterRecord clusterRecord) {
 		return Flux.from(bibRecords.findAllByContributesTo(clusterRecord));
 	}
-
-	// Placeholder to validate switchIfEmptyApproach below
-	Mono<ClusterRecord>  attemptClusterOnIdentifier(IngestRecord ingestRecord, String namespace) {
-		Optional<Identifier> identifier = ingestRecord
-			.getIdentifiers()
-			.stream()
-			.filter(id -> id.getNamespace() == namespace)
-			.findFirst();
-
-		Mono<ClusterRecord> identified_cluster = Mono.empty();
-		// String blocking_title = null;
-		if ( identifier.isPresent()) {
-			String identifier_str = identifier.get().getValue();
-			if ( identifier_str != null)
-				identified_cluster = Mono.from(bibRepository.findContributesToIdAndNS(identifier_str, namespace))
-							.flatMap( (ClusterRecord cr) -> {
-								ingestRecord.setClusterReason("Match cluster "+cr.getId()+" on "+namespace+ " with" +
-									identifier_str.substring(0, Math.min(identifier_str.length(), 30)));
-								return Mono.just(cr);
-							});
-
-		}
-		return identified_cluster;
-
-	}
-
-	Mono<ClusterRecord> attemptClusterOnBlockingTitle(IngestRecord ingestRecord) {
-		Optional<Identifier> blocking_title_identifier = ingestRecord
-			.getIdentifiers()
-			.stream()
-			.filter(id -> id.getNamespace() == "BLOCKING_TITLE")
-			.findFirst();
-
-		Mono<ClusterRecord> identified_cluster = Mono.empty();
-		// String blocking_title = null;
-		if ( blocking_title_identifier.isPresent()) {
-			String blocking_title_str = blocking_title_identifier.get().getValue();
-			// log.debug("Cluster this bib using the blocking title {}",blocking_title_str);
-			if ( blocking_title_str != null)
-				identified_cluster = Mono.from(bibRepository.findContributesToByBlockingTitle(blocking_title_str));
-		}
-		return identified_cluster;
+	
+	private boolean completeIdentifiersPredicate ( BibIdentifier bibId ) {
+		return bibId.getNamespace() != null &&
+				bibId.getValue() != null;
 	}
 	
-        @Transactional
-	public Mono<ClusterRecord> getOrSeedClusterRecord( IngestRecord ingestRecord ) {
+	private Mono<Tuple2<List<MatchPoint>, List<ClusterRecord>>> collectClusterRecords(Publisher<MatchPoint> matchPoints) {
+		 return Flux.from( matchPoints )
+		 	.collectList()
+		 	.flatMap( mps -> {
+		 		var ids = mps.stream()
+		 			.map( MatchPoint::getValue )
+		 			.collect(Collectors.toUnmodifiableSet());
+		 		
+		 		return Flux.from( clusterRecords.findAllByMatchPoints( ids ) )
+		 				.collectList()
+		 				.map( crs -> Tuples.of( mps, crs ));
+		 	});
+	}
+	
+	private Mono<ClusterRecord> mergeClusterRecords( ClusterRecord to, Collection<ClusterRecord> from ) {
+		
+		return Mono.fromDirect( bibRecords.moveBetweenClusterRecords(from, to) )
+			.then( Mono.fromDirect(
+					clusterRecords.deleteByIdInList(
+							from
+								.stream()
+								.map(ClusterRecord::getId)
+								.toList())))
+			.thenReturn( to );
+	}
+	
+	private Mono<ClusterRecord> reduceClusterRecords( final int pointsCreated,  final List<ClusterRecord> clusterList ) {
+		final int matches = clusterList.size();
+		
+		return switch (matches) {
+			case 0 -> Mono.empty();
+			
+			case 1 -> {
+				
+				if (pointsCreated > 2) {
+					log.trace("Match point - Match ratio too low. Cannot quick match");
+					yield Mono.empty();
+				}
+				
+				// Single match point.
+				log.trace("Low number of match points, but found single match.");
+				yield Mono.just( clusterList.get(0) );
+			}
+			
+			default -> {
+				
+				final LinkedHashSet<ClusterRecord> clusters = new LinkedHashSet<>(clusterList);
+				yield switch ( clusters.size() ) {
+					case 1 -> {
+						log.trace("Single cluster matched by multiple match points.");
+						yield Mono.just( clusters.iterator().next() );
+					}
+					default -> {
+						log.info("Multiple cluster matched. Use first cluster and merge others");
+						
+						// Pop the first item.
+						var items = clusters.iterator();
+						Set<ClusterRecord> toRemove = new HashSet<>();
+						
+						var primary = items.next();
+						items.forEachRemaining(toRemove::add);
+						
+						yield mergeClusterRecords(primary, toRemove);
+					}
+				};
+			}
+		};
+		
+	}
+	
+	private Mono<ClusterRecord> saveMatchPointsAndMergeClusters(List<MatchPoint> matchPoints, List<ClusterRecord> clusters) {
+		return Flux.from( matchPointRepository.saveAll(matchPoints) )
+			.then( Mono.just( Tuples.of( matchPoints.size(), clusters ))
+					.flatMap( TupleUtils.function( this::reduceClusterRecords )));
+	}
+	
 
-		/* ingestRecord now has BLOCKING_TITLE and GOLDRUSH addied to BibIdentifier
-			 Deduplication priorities:
-			 	 1) If there is an explicit same-as mapping, use it
-			 	 2) If there are multiple records with the same OCLC number or LCCN put them in the same cluster
-			 	 3) ... Start experimenting
-			 	   3a) Put records with the same goldrush ID in the same cluster
-			 	   3b) Apply some rules to records with a matching blocking title
-			 	 Intent is to use
-        	.switchIfEmpty(() -> method2(identifier))
-         pattern to
-		 */
-					// .switchIfEmpty( attemptClusterOnBlockingTitle(ingestRecord) )
+	
+	private Flux<MatchPoint> idMatchPoints( BibRecord bib ) {
+		return bibRecords.findAllIdentifiersForBib( bib )
+				.filter( this::completeIdentifiersPredicate )
+				.map( id -> String.format("%s:%s:%s", MATCHPOINT_ID, id.getNamespace(), id.getValue()) )
+				.map( MatchPoint::buildFromString ) ;
+	}
+	
+	
 
-		return attemptClusterOnIdentifier(ingestRecord,"OCOLC")
-			.switchIfEmpty( attemptClusterOnIdentifier(ingestRecord,"OCLC") )
-			.switchIfEmpty( attemptClusterOnIdentifier(ingestRecord,"LCCN") )
-			.switchIfEmpty( attemptClusterOnIdentifier(ingestRecord,"GOLDRUSH") )
-			.switchIfEmpty( attemptClusterOnIdentifier(ingestRecord,"BLOCKING_TITLE") )
-			.defaultIfEmpty(
-					ClusterRecord.builder()
-						.id(UUID.randomUUID())
-						.title(ingestRecord.getTitle())
-						.selectedBib(ingestRecord.getUuid())
-						.build())
-			.map( clusterRecords::saveOrUpdate )
-			.flatMap( Mono::from );
-
+	private Flux<MatchPoint> recordMatchPoints ( BibRecord bib ) {
+		
+		return Mono.justOrEmpty( bib.getBlockingTitle() )
+			.map( bt -> String.format("%s:%s", MATCHPOINT_TITLE, bt) )
+			.map( MatchPoint::buildFromString )
+			.as(Flux::from);
+	}
+	
+	private Flux<MatchPoint> collectMatchPoints ( final BibRecord bib ) {
+		return Flux.concat(
+				this.idMatchPoints(bib),
+				this.recordMatchPoints(bib))
+					.map( mp -> mp.toBuilder()
+						.bibId( bib.getId() )
+						.build());
+	}
+	
+	private Mono<ClusterRecord> createMinimalCluster( BibRecord bib ) {
+		var cluster = ClusterRecord.builder()
+				.id(UUID.randomUUID())
+				.title( bib.getTitle() )
+				.selectedBib( bib.getId() )
+				.build();
+		
+		return Mono.just ( cluster )
+			.map( clusterRecords::save )
+			.flatMap( Mono::fromDirect );
 	}
 
-	// Generate keys
+	@Transactional
+	public Mono<BibRecord> clusterBib ( final BibRecord bib ) {
+		
+		// Generate MatchPoints
+		return Mono.justOrEmpty( bib )
+			.flatMap( theBib -> Mono.fromDirect( matchPointRepository.deleteAllByBibId( theBib.getId()))
+					.thenReturn( theBib ) )
+			.map( this::collectMatchPoints )
+			.flatMap( this::collectClusterRecords )
+			.flatMap(TupleUtils.function( this::saveMatchPointsAndMergeClusters ))
+			.switchIfEmpty( createMinimalCluster(bib) )
+			.flatMap( cr -> {
+				final var linkedBib = bib.toBuilder()
+					.contributesTo(cr)
+					.build();
+				
+				return Mono.fromDirect( bibRecords.update(linkedBib) );
+			});
+		
+		// Find all clusters matching MatchPoints (via bibs)
+		// Take lastUpdated Cluster record as match
+		// -> Asynchronously merge other Cluster Records
+		// Add matchkeys, and cluster to bib.
+		// Save and return bib.
+	}
 }

@@ -1,19 +1,18 @@
 package org.olf.reshare.dcb.utils;
 
-import io.micronaut.context.event.ApplicationEventListener;
-import io.micronaut.context.event.StartupEvent;
-import reactor.core.publisher.Hooks;
-import io.micronaut.context.env.Environment;
-import jakarta.inject.Singleton;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.olf.reshare.dcb.core.model.DataHostLms;
+import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.storage.AgencyRepository;
 import org.olf.reshare.dcb.storage.HostLmsRepository;
-import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.micronaut.context.env.Environment;
+import io.micronaut.context.event.ApplicationEventListener;
+import io.micronaut.context.event.StartupEvent;
+import jakarta.inject.Singleton;
+import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.Flux;
-import org.olf.reshare.dcb.core.model.HostLms;
 
 @Singleton
 public class DCBStartupEventListener implements ApplicationEventListener<StartupEvent> {
