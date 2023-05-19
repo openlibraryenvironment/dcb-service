@@ -9,6 +9,7 @@ import javax.validation.Valid;
 
 import org.olf.reshare.dcb.core.api.types.BibRecordDTO;
 import org.olf.reshare.dcb.core.api.types.ClusterRecordDTO;
+import org.olf.reshare.dcb.core.api.types.ClusterBibDTO;
 import org.olf.reshare.dcb.core.model.BibRecord;
 import org.olf.reshare.dcb.core.model.clustering.ClusterRecord;
 import org.olf.reshare.dcb.storage.BibRepository;
@@ -27,8 +28,20 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.olf.reshare.dcb.storage.BibRepository;
+import org.olf.reshare.dcb.storage.ClusterRecordRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import javax.validation.Valid;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Controller("/clusters")
 @Tag(name = "Cluster Records (Read only)")
@@ -93,9 +106,9 @@ public class ClusterRecordController {
 					.flatMap(clusterRecord -> {
 						// Add in the IDs of the bib records that compose this cluster - so we can find cluster records
 						// by the id of their members
-						return getBibIdsForCluster(clusterRecord.getClusterId())
-							.flatMap(bib_ids -> {
-								clusterRecord.setBibIds(bib_ids);
+						return getBibsForCluster(clusterRecord.getClusterId())
+							.flatMap(bibs -> {
+								clusterRecord.setBibs(bibs);
 								return Mono.just(clusterRecord);
 							});
 					})
@@ -107,8 +120,23 @@ public class ClusterRecordController {
 
 	}
 
-	private Mono<List<UUID>> getBibIdsForCluster(UUID cluster_id) {
-		return Flux.from(_bibRepository.findBibIdsForCluster(cluster_id))
+        private ClusterBibDTO clusterBibFromMemberBib(BibRepository.MemberBib bibProjection) {
+                return ClusterBibDTO
+                           .builder()
+                           .bibId(bibProjection.bibid())
+                           .title(bibProjection.title())
+                           .sourceRecordId(bibProjection.sourcerecordid())
+                           .sourceSystem(bibProjection.sourcesystem())
+                           .metadataScore(bibProjection.metadatascore())
+                           .clusterReason(bibProjection.clusterreason())
+                           .build();
+        }
+
+	private Mono<List<ClusterBibDTO>> getBibsForCluster(UUID cluster_id) {
+                // b.id, b.title, b.sourceRecordId, b.metadataScore, b.cluster_reason, h.code
+		return Flux.from(_bibRepository.findMemberBibsForCluster(cluster_id))
+                        .map( bibProjection -> { log.debug("got info {}",bibProjection); return bibProjection; } )
+                        .map( bibProjection -> clusterBibFromMemberBib(bibProjection) )
 			.collectList();
 	}
 
