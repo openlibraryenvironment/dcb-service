@@ -16,7 +16,6 @@ import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
-import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

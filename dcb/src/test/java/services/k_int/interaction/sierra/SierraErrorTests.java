@@ -1,8 +1,9 @@
 package services.k_int.interaction.sierra;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
 
 public class SierraErrorTests {
 

@@ -1,15 +1,14 @@
 package org.olf.reshare.dcb.core.api;
 
-import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import java.util.UUID;
+
 import javax.validation.Valid;
 
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.olf.reshare.dcb.core.model.LocationSymbol;
+import org.olf.reshare.dcb.core.api.types.LocationSymbolDTO;
 import org.olf.reshare.dcb.core.model.Location;
+import org.olf.reshare.dcb.core.model.LocationSymbol;
+import org.olf.reshare.dcb.storage.LocationRepository;
+import org.olf.reshare.dcb.storage.LocationSymbolRepository;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -25,10 +24,6 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
-import services.k_int.utils.UUIDUtils;
-import org.olf.reshare.dcb.storage.LocationRepository;
-import org.olf.reshare.dcb.storage.LocationSymbolRepository;
-import org.olf.reshare.dcb.core.api.types.LocationSymbolDTO;
 
 
 @Controller("/symbols")

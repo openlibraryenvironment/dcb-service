@@ -1,5 +1,7 @@
 package org.olf.reshare.dcb.core.api;
 
+import java.util.UUID;
+
 import javax.validation.Valid;
 
 import org.olf.reshare.dcb.core.model.RefdataValue;
@@ -19,8 +21,6 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
-
-import java.util.UUID;
 
 @Validated
 @Secured({"ADMIN"})

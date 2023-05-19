@@ -1,18 +1,19 @@
 package org.olf.reshare.dcb.core.api;
 
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import java.util.UUID;
 
 import javax.validation.Valid;
 
-import org.olf.reshare.dcb.request.fulfilment.PatronRequestService;
-import org.olf.reshare.dcb.request.fulfilment.PlacePatronRequestCommand;
+import org.olf.reshare.dcb.core.api.types.AgencyDTO;
+import org.olf.reshare.dcb.core.model.DataAgency;
+import org.olf.reshare.dcb.core.model.DataHostLms;
+import org.olf.reshare.dcb.storage.AgencyRepository;
+import org.olf.reshare.dcb.storage.HostLmsRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
-import io.micronaut.core.async.annotation.SingleResult;
-import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
@@ -26,14 +27,6 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
-import org.olf.reshare.dcb.core.model.DataAgency;
-import org.olf.reshare.dcb.core.model.DataHostLms;
-import org.olf.reshare.dcb.storage.AgencyRepository;
-import org.olf.reshare.dcb.storage.HostLmsRepository;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.UUID;
-import org.olf.reshare.dcb.core.api.types.AgencyDTO;
 
 @Validated
 @Secured(SecurityRule.IS_ANONYMOUS)

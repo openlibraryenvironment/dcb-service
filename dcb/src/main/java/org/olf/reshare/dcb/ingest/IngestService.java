@@ -11,13 +11,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.runtime.context.scope.Refreshable;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
-import reactor.function.TupleUtils;
 import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
@@ -68,35 +68,34 @@ public class IngestService implements Runnable {
 	}
 
 	// @Transactional
-	public Flux<BibRecord> getBibRecordStream() {		
-		
+	@ExecuteOn(TaskExecutors.IO)
+	public Flux<BibRecord> getBibRecordStream() {
 		return Flux.merge(
 				Flux.fromIterable(sourceProviders)
-				.concatMap(provider -> provider.getIngestSources())
+				.flatMap(provider -> provider.getIngestSources())
 				.filter(source -> {
 					if ( source.isEnabled() ) return true;
 					log.info ("Ingest from source: {} has been disabled in config", source.getName());
 
 					return false;
 				})
-				.publishOn(Schedulers.boundedElastic())
 				.map(source -> source.apply(lastRun))
 				.onErrorResume(t -> {
 					log.error("Error ingesting data {}", t.getMessage());
 					t.printStackTrace();
 					return Mono.empty();
 				}))
+				.limitRate(8000, 6000) // Prefetch 
 				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_RECORDS)) // Apply any hooks for "ingest-records"
-				
 				// Cluster record got or seeded inline.
-				.map(Mono::just)
-				.flatMap(ir -> ir.zipWhen( recordClusteringService::getOrSeedClusterRecord )
-						.map(TupleUtils.function(( ingestRecord, clusterRecord ) -> ingestRecord.withClusterRecordId(clusterRecord.getId() ))))
-				.doOnError ( throwable -> log.warn("ONERROR Error after clustering step", throwable) )
 				
 				// Interleaved source stream from all source results.
 				.flatMap(bibRecordService::process)
 				.doOnError ( throwable -> log.warn("ONERROR Error after bib record processing step", throwable) )
+				
+				.flatMap(recordClusteringService::clusterBib)
+				
+				.doOnError ( throwable -> log.warn("ONERROR Error after clustering step", throwable) )
 
 				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_BIBS)) // Apply any hooks for "ingest-bibs";
 				.doOnError ( throwable -> log.warn("ONERROR Error after transform step", throwable) )

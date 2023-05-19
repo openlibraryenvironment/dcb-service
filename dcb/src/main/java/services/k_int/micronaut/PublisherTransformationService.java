@@ -3,14 +3,13 @@ package services.k_int.micronaut;
 import java.util.function.Function;
 
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.BeanContext;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.inject.qualifiers.Qualifiers;
 import jakarta.inject.Singleton;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 @Singleton

@@ -6,13 +6,8 @@ import java.util.Map;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.core.model.Item;
 
-import org.olf.reshare.dcb.core.model.PatronIdentity;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.PatronResult;
-import services.k_int.interaction.sierra.patrons.QueryResultSet;
-import services.k_int.interaction.sierra.patrons.Result;
 
 public interface HostLmsClient {
 

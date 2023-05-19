@@ -1,14 +1,16 @@
 package org.olf.reshare.dcb.storage.postgres;
 
+import java.util.UUID;
+
+import javax.transaction.Transactional;
+
+import org.olf.reshare.dcb.core.model.Patron;
+import org.olf.reshare.dcb.storage.PatronRepository;
+
 import io.micronaut.data.model.query.builder.sql.Dialect;
 import io.micronaut.data.r2dbc.annotation.R2dbcRepository;
 import io.micronaut.data.repository.reactive.ReactiveStreamsPageableRepository;
 import jakarta.inject.Singleton;
-import org.olf.reshare.dcb.core.model.Patron;
-import org.olf.reshare.dcb.storage.PatronRepository;
-
-import javax.transaction.Transactional;
-import java.util.UUID;
 
 @SuppressWarnings("unchecked")
 @Singleton

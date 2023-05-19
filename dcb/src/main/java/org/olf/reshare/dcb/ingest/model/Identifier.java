@@ -4,10 +4,10 @@ import java.util.function.Consumer;
 
 import javax.validation.constraints.NotNull;
 
+import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Value;
-import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
 @Builder

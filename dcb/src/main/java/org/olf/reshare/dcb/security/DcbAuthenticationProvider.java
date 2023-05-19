@@ -1,5 +1,7 @@
 package org.olf.reshare.dcb.security;
 
+import java.util.List;
+
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.Nullable;
@@ -10,7 +12,6 @@ import io.micronaut.security.authentication.AuthenticationResponse;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
-import java.util.List;
 
 @io.micronaut.context.annotation.Requires(env = {io.micronaut.context.env.Environment.DEVELOPMENT, io.micronaut.context.env.Environment.TEST, "development"})
 @Singleton

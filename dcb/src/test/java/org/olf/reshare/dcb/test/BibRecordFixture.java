@@ -6,9 +6,10 @@ import static org.olf.reshare.dcb.utils.DCBStringUtilities.generateBlockingStrin
 import java.util.UUID;
 
 import org.olf.reshare.dcb.core.model.BibRecord;
-import org.olf.reshare.dcb.core.model.ClusterRecord;
-import org.olf.reshare.dcb.storage.BibRepository;
+import org.olf.reshare.dcb.core.model.clustering.ClusterRecord;
 import org.olf.reshare.dcb.storage.BibIdentifierRepository;
+import org.olf.reshare.dcb.storage.BibRepository;
+import org.olf.reshare.dcb.storage.MatchPointRepository;
 
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
@@ -19,10 +20,12 @@ public class BibRecordFixture {
 
 	private final BibRepository bibRepository;
 	private final BibIdentifierRepository bibIdentifierRepository;
+	private final MatchPointRepository matchPointRepository;
 
-	public BibRecordFixture(BibRepository bibRepository, BibIdentifierRepository bibIdentifierRepository) {
+	public BibRecordFixture(BibRepository bibRepository, BibIdentifierRepository bibIdentifierRepository, MatchPointRepository matchPointRepository) {
 		this.bibRepository = bibRepository;
 		this.bibIdentifierRepository = bibIdentifierRepository;
+		this.matchPointRepository = matchPointRepository;
 	}
 
 	public void createBibRecord(UUID bibRecordId, UUID sourceSystemId,
@@ -48,6 +51,10 @@ public class BibRecordFixture {
 	}
 
 	public void deleteAllBibRecords() {
+
+		dataAccess.deleteAll(matchPointRepository.findAll(),
+			bibIdentifierRecord -> matchPointRepository.delete(bibIdentifierRecord.getId()));
+		
 		dataAccess.deleteAll(bibIdentifierRepository.findAll(),
 			bibIdentifierRecord -> bibIdentifierRepository.delete(bibIdentifierRecord.getId()));
 		dataAccess.deleteAll(bibRepository.findAll(),

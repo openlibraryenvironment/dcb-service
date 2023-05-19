@@ -3,10 +3,11 @@ package org.olf.reshare.dcb.core.model;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
-import jakarta.persistence.Column;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+
+import org.olf.reshare.dcb.core.model.clustering.ClusterRecord;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
@@ -19,11 +20,15 @@ import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
-import lombok.*;
+import jakarta.persistence.Column;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
-@Builder
+@Builder(toBuilder = true)
 @Data
 @NoArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
@@ -62,7 +67,8 @@ public class BibRecord {
 	private String title;
 	
 	// might have to think about adding serialize = false to @Relation to prevent cycles
-	@Nullable
+//	@NonNull
+//	@NotNull
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	@Column(name = "contributes_to")
 	private ClusterRecord contributesTo;

@@ -7,11 +7,11 @@ import javax.validation.constraints.NotEmpty;
 
 import org.olf.reshare.dcb.ingest.model.Identifier.IdentifierBuilder;
 
+import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Singular;
 import lombok.Value;
-import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
 @Data

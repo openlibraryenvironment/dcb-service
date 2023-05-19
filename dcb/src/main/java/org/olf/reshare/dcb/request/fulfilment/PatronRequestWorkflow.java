@@ -1,20 +1,18 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
+
 import java.time.Duration;
 
-import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.model.PatronRequest;
-import org.olf.reshare.dcb.utils.BackgroundExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.context.annotation.Prototype;
 import io.micronaut.context.annotation.Value;
-import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 @Prototype
 public class PatronRequestWorkflow {

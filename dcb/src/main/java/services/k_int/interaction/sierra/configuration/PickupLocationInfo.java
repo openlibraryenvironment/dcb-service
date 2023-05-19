@@ -1,7 +1,8 @@
 package services.k_int.interaction.sierra.configuration;
 
-import io.micronaut.serde.annotation.Serdeable;
 import javax.validation.constraints.NotEmpty;
+
+import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
 public record PickupLocationInfo(

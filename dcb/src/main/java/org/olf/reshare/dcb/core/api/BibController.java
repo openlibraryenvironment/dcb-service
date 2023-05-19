@@ -1,10 +1,12 @@
 package org.olf.reshare.dcb.core.api;
 
+import java.util.UUID;
+
 import javax.validation.Valid;
 
 import org.olf.reshare.dcb.core.model.BibRecord;
 import org.olf.reshare.dcb.storage.BibRepository;
-import java.util.UUID;
+
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.annotation.Controller;
@@ -45,9 +47,9 @@ public class BibController {
 		return Mono.from(_bibRepository.findAll(pageable));
 	}
 
-        @Get("/{id}")
-        public Mono<BibRecord> show(UUID id) {
-                return Mono.from(_bibRepository.findById(id));
-        }
+	@Get("/{id}")
+	public Mono<BibRecord> show(UUID id) {
+		return Mono.from(_bibRepository.findById(id));
+	}
 
 }

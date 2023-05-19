@@ -8,7 +8,7 @@ import java.util.UUID;
 
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.model.BibRecord;
-import org.olf.reshare.dcb.core.model.ClusterRecord;
+import org.olf.reshare.dcb.core.model.clustering.ClusterRecord;
 import org.olf.reshare.dcb.storage.BibRepository;
 import org.olf.reshare.dcb.storage.ClusterRecordRepository;
 import org.reactivestreams.Publisher;

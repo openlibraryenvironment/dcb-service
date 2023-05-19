@@ -1,7 +1,14 @@
 package org.olf.reshare.dcb.storage.postgres;
 
+import static javax.transaction.Transactional.TxType.NOT_SUPPORTED;
+
 import java.util.UUID;
+
 import javax.transaction.Transactional;
+
+import org.olf.reshare.dcb.core.model.BibIdentifier;
+import org.olf.reshare.dcb.storage.BibIdentifierRepository;
+import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
@@ -9,12 +16,7 @@ import io.micronaut.data.model.query.builder.sql.Dialect;
 import io.micronaut.data.r2dbc.annotation.R2dbcRepository;
 import io.micronaut.data.repository.reactive.ReactiveStreamsPageableRepository;
 import jakarta.inject.Singleton;
-import org.olf.reshare.dcb.core.model.BibIdentifier;
-import org.olf.reshare.dcb.storage.BibIdentifierRepository;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
-
-import static javax.transaction.Transactional.TxType.NOT_SUPPORTED;
 
 @SuppressWarnings("unchecked")
 @Singleton

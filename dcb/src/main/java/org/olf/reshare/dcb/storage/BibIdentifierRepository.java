@@ -4,8 +4,11 @@ import java.util.UUID;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+
 import org.olf.reshare.dcb.core.model.BibIdentifier;
+import org.olf.reshare.dcb.core.model.BibRecord;
 import org.reactivestreams.Publisher;
+
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 
@@ -22,6 +25,9 @@ public interface BibIdentifierRepository {
     @NonNull
     @SingleResult
     Publisher<BibIdentifier> findById(@NonNull UUID id);
+    
+    @NonNull
+    Publisher<BibIdentifier> findAllByOwner(@NonNull BibRecord owner);
 
     @NonNull
     Publisher<BibIdentifier> findAll();

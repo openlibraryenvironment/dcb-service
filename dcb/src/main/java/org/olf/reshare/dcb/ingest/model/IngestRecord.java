@@ -1,17 +1,17 @@
 package org.olf.reshare.dcb.ingest.model;
 
 import java.util.List;
-import java.util.Set;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 
+import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.ingest.model.Author.AuthorBuilder;
 import org.olf.reshare.dcb.ingest.model.Identifier.IdentifierBuilder;
-import org.olf.reshare.dcb.core.model.HostLms;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
@@ -23,8 +23,8 @@ import lombok.With;
 import lombok.experimental.Accessors;
 
 @Data
-@Builder
-// @Value II: I'd like to be able to accumulate information here as the ingest record passes through stages
+@Builder( toBuilder = true )
+@Value
 @Accessors(chain = true)
 public class IngestRecord {
 	@NonNull
@@ -78,12 +78,6 @@ public class IngestRecord {
 	@With
 	@Nullable
 	Map<String, Object> canonicalMetadata;
-
-	@Nullable
-        Integer metadataScore;
-
-	@Nullable
-	String clusterReason;
 
 //  @Nullable String edition();
 //  List<PublicationInformation> publicationInformation();
