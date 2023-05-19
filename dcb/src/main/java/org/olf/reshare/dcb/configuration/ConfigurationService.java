@@ -95,7 +95,7 @@ public class ConfigurationService implements Runnable {
     }
 
     private ShelvingLocation mapShelvingLocationRecordToShelvingLocation(ShelvingLocationRecord slr, Location l, BranchRecord br) {
-        // log.debug("create ShelvingLocation for {}",slr);
+        log.debug("create ShelvingLocation for {} at {}",slr,l);
         return new ShelvingLocation()
                 .builder()
                 .id(slr.getId())
@@ -107,12 +107,13 @@ public class ConfigurationService implements Runnable {
     }
 
     private Mono<ShelvingLocation> upsertShelvingLocation(ShelvingLocation sl) {
-        // log.debug("upsertShelvingLocation {}", sl);
+        log.debug("upsertShelvingLocation {}", sl);
         return Mono.from(shelvingLocationRepository.existsById(sl.getId()))
                 .flatMap(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)));
     }
 
     private Mono<Void> createShelvingLocations(Location l, BranchRecord br) {
+	log.debug("Create shelving locations at {} for {}",l,br);
         return Flux.fromIterable(br.getShelvingLocations())
                 .map(slr -> mapShelvingLocationRecordToShelvingLocation(slr, l, br))
                 .flatMap(sl -> upsertShelvingLocation(sl))
