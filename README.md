@@ -31,6 +31,7 @@ DB connection effectively, 2 different connections - with JDBC only being used f
 | MICRONAUT_HTTP_CLIENT_MAX_CONTENT_LENGTH | Max content length                                                                 | 20971520                                                                                  |
 | DCB_SHEDULED_TASKS_ENABLED               | perform scheduled tasks                                                            | true                                                                                      |
 | REACTOR_DEBUG                            | DEVELOPMENT FLAG! set to the string "true" to enable reactor annotated stack trace | true                                                                                      |
+| POD_NAME                            | In K8S environments, set to metadata.name (And decide if you want deployments or statefulsets). Elsewhere set this to the name you want to appear by this instance of DCB for stats logging. Be aware that multiple instances may be running for load balancing | INGEST-DCB-0001
 
 # Configuration
 

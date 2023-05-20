@@ -18,6 +18,7 @@ import org.olf.reshare.dcb.core.model.BibIdentifier;
 import org.olf.reshare.dcb.core.model.BibRecord;
 import org.olf.reshare.dcb.core.model.clustering.ClusterRecord;
 import org.olf.reshare.dcb.core.model.clustering.MatchPoint;
+import org.olf.reshare.dcb.stats.StatsService;
 import org.olf.reshare.dcb.storage.ClusterRecordRepository;
 import org.olf.reshare.dcb.storage.MatchPointRepository;
 import org.reactivestreams.Publisher;
@@ -43,12 +44,15 @@ public class RecordClusteringService {
 	final BibRecordService bibRecords;
 	final MatchPointRepository matchPointRepository;
 
+	final StatsService statsService;
+
 	public RecordClusteringService(
-			ClusterRecordRepository clusterRecordRepository,
-			BibRecordService bibRecordService, MatchPointRepository matchPointRepository) {
+		ClusterRecordRepository clusterRecordRepository,
+		BibRecordService bibRecordService, MatchPointRepository matchPointRepository, StatsService statsService) {
 		this.clusterRecords = clusterRecordRepository;
 		this.bibRecords = bibRecordService;
 		this.matchPointRepository = matchPointRepository;
+		this.statsService = statsService;
 	}
 
 	// Get cluster record by id
@@ -189,7 +193,7 @@ public class RecordClusteringService {
 
 	@Transactional
 	public Mono<BibRecord> clusterBib ( final BibRecord bib ) {
-		
+
 		// Generate MatchPoints
 		return Mono.justOrEmpty( bib )
 			.flatMap( theBib -> Mono.fromDirect( matchPointRepository.deleteAllByBibId( theBib.getId()))
@@ -202,7 +206,7 @@ public class RecordClusteringService {
 				final var linkedBib = bib.toBuilder()
 					.contributesTo(cr)
 					.build();
-				
+
 				return Mono.fromDirect( bibRecords.update(linkedBib) );
 			});
 		
