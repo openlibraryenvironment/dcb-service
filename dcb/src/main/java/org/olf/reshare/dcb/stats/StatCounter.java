@@ -20,7 +20,7 @@ public class StatCounter {
 
 	private int current_minute = -1;
 	private int current_hour = -1;
-	private int current_day = 31;
+	private int current_day = -1;
 
 	public StatCounter(String id) {
 		this.id = id;
@@ -28,8 +28,8 @@ public class StatCounter {
 	String id;
 
 	public void increment() {
-		// log.debug("Doing increment");
 		// Work out the current minute, hour and day of month
+
     Calendar cal = Calendar.getInstance();
     cal.setTimeInMillis(System.currentTimeMillis());
     cal.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -39,7 +39,9 @@ public class StatCounter {
 
 		current_minute = incrementCounter(lastHoursCounts, minute, current_minute);
 		current_hour = incrementCounter(lastDaysCounts, hour, current_hour);
-		current_day = incrementCounter(lastMonthsCounts, dom, current_day);
+
+		// Remember day of month starts at 1 not 0 :)
+		current_day = incrementCounter(lastMonthsCounts, dom-1, current_day);
 	}
 
 	/**
@@ -52,25 +54,36 @@ public class StatCounter {
 	 * been incrementing 26 previously, when the new signal for 27 comes in, we know we have moved on.
 	 */
 	private int incrementCounter(long[] buffer, int bucket_now, int currently_logging_to_bucket) {
-		if ( bucket_now == currently_logging_to_bucket )
+		if ( bucket_now == currently_logging_to_bucket ) {
 			// The easy case - this is just another value in a counter we are already incrementing
 			buffer[currently_logging_to_bucket]++;
+		}
 		else {
 			// The bucket has rolled over, wind forward, clearing any counts between that cell and now
 			while ( currently_logging_to_bucket != bucket_now ) {
-				if ( currently_logging_to_bucket == buffer.length )
-					// We're winding over the end of the ring buffer, reset to 0
-					currently_logging_to_bucket = 0;
+				// log.debug("Wind bucket forwards current={} now={}",currently_logging_to_bucket,bucket_now);
+
+				if ( currently_logging_to_bucket != -1 )
+					log.info("Bucket rollover {}[{}] = {}",id,currently_logging_to_bucket,buffer[currently_logging_to_bucket]);
+
+				// log.debug("increment current bucket");
 				currently_logging_to_bucket++;
 
-				if ( currently_logging_to_bucket == bucket_now )
-					// We have wound forward to the current moment
-					buffer[currently_logging_to_bucket] = 1;
-				else
-					// We have skipped over a bucket - there were no increments in between so zero out the counters
-					buffer[currently_logging_to_bucket] = 0;
+				// log.debug("incremented current bucket to {}",currently_logging_to_bucket);
+				if ( currently_logging_to_bucket == buffer.length ) {
+					// We're winding over the end of the ring buffer, reset to 0
+					// log.debug("Reset to 0");
+					currently_logging_to_bucket = 0;
+				}
+
+				buffer[currently_logging_to_bucket] = 0;
+				// log.debug("Wound forward one bucket now at {} target is {}",currently_logging_to_bucket,bucket_now);
 			}
+
+			// We have wound forward to the current moment
+			buffer[currently_logging_to_bucket] = 1;
 		}
+
 		return currently_logging_to_bucket;
 	}
 

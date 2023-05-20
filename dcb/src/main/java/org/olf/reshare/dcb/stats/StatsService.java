@@ -59,7 +59,9 @@ public class StatsService {
 	public void notifyEvent(String event, String context) {
 		// log.debug("notifyEvent {} {}",event,context); Check
 		StatCounter sc = getCounter(event+":"+context);
-		sc.increment();
+		synchronized (sc) {
+			sc.increment();
+		}
 	}
 
 	public Report getReport() {
