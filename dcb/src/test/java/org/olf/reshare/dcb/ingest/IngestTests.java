@@ -80,7 +80,9 @@ public class IngestTests {
 		// Run the ingest process
 		List<BibRecord> bibs =  ingestService.getBibRecordStream().collectList().block();
 		
-		assertEquals(10, bibs.size());
+		// Assertion changed to 9 after adding filter condition to bib record processing. We now drop records
+		// with a null title on the floor. 10 input records, 1 with a null title = 9 records after ingest.
+		assertEquals(9, bibs.size());
 	}
 	
 	@Test
@@ -90,8 +92,8 @@ public class IngestTests {
 		// Run the ingest process again, but with the limiter bean.
 		List<BibRecord> bibs =  ingestService.getBibRecordStream().collectList().block();
 		
-		// Should limit the returned items to 5.
-		assertEquals(5, bibs.size());
+		// Should limit the returned items to 5 but because one of them has a null title, we drop it giving a count of 4
+		assertEquals(4, bibs.size());
 	}
 	
 	@MockBean

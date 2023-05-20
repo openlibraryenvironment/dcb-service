@@ -9,6 +9,7 @@ import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.request.fulfilment.PatronRequestService;
 import org.olf.reshare.dcb.request.resolution.SupplierRequestService;
+import org.olf.reshare.dcb.stats.StatsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,11 +34,16 @@ public class AdminController {
 	private final PatronRequestService patronRequestService;
 	private final SupplierRequestService supplierRequestService;
 
+	private final StatsService statsService;
 
-	public AdminController(PatronRequestService patronRequestService, SupplierRequestService supplierRequestService) {
+
+	public AdminController(PatronRequestService patronRequestService,
+												 SupplierRequestService supplierRequestService,
+												 StatsService statsService) {
 
 		this.patronRequestService = patronRequestService;
 		this.supplierRequestService = supplierRequestService;
+		this.statsService = statsService;
 	}
 
 	@SingleResult
@@ -59,5 +65,13 @@ public class AdminController {
 		PatronRequest patronRequest, List<SupplierRequest> supplierRequests) {
 
 		return PatronRequestAdminView.from(patronRequest, supplierRequests);
+	}
+
+	@SingleResult
+	@Get(value="/statistics", produces = APPLICATION_JSON)
+	public Mono<StatsService.Report> getStatsReport() {
+		StatsService.Report report =statsService.getReport();
+		log.debug("report: {}",report);
+		return Mono.just(report);
 	}
 }

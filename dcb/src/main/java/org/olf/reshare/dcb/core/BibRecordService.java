@@ -17,6 +17,7 @@ import org.olf.reshare.dcb.core.model.clustering.ClusterRecord;
 import org.olf.reshare.dcb.ingest.model.Identifier;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.olf.reshare.dcb.processing.ProcessingStep;
+import org.olf.reshare.dcb.stats.StatsService;
 import org.olf.reshare.dcb.storage.BibIdentifierRepository;
 import org.olf.reshare.dcb.storage.BibRepository;
 import org.reactivestreams.Publisher;
@@ -36,9 +37,14 @@ public class BibRecordService {
 
 	private final BibIdentifierRepository bibIdentifierRepo;
 
-	BibRecordService(BibRepository bibRepo, BibIdentifierRepository bibIdentifierRepository) {
+	private final StatsService statsService;
+
+	BibRecordService(BibRepository bibRepo,
+									 BibIdentifierRepository bibIdentifierRepository,
+									 StatsService statsService) {
 		this.bibRepo = bibRepo;
 		this.bibIdentifierRepo = bibIdentifierRepository;
+		this.statsService = statsService;
 	}
 
 	private BibRecord step1(final BibRecord bib, final IngestRecord imported) {
@@ -90,6 +96,22 @@ public class BibRecordService {
 				.flatMap(this::saveOrUpdateIdentifier).then(Mono.just(savedBib));
 	}
 
+	protected Mono<BibRecord> updateStatistics(BibRecord savedBib, IngestRecord source, long start_time) {
+
+		long elapsed = System.currentTimeMillis() - start_time;
+
+		// log.debug("update statistics {} {} {} {}",elapsed, savedBib.getId(), savedBib.getDateCreated(), savedBib.getDateUpdated());
+		if ( savedBib.getDateCreated().equals(savedBib.getDateUpdated())) {
+			statsService.notifyEvent("BibInsert",source.getSourceSystem().getCode());
+			// insert
+		}
+		else {
+			statsService.notifyEvent("BibUpdate",source.getSourceSystem().getCode());
+			// update
+		}
+		return Mono.just(savedBib);
+	}
+
 	@Transactional
 	protected Mono<BibIdentifier> saveOrUpdateIdentifier(BibIdentifier bibIdentifier) {
 		// log.debug("saveOrupdateIdentifier {}
@@ -115,14 +137,29 @@ public class BibRecordService {
 
 		// log.debug("BibRecordService::process(...clusterid={})",source.getClusterRecordId());
 
+		statsService.notifyEvent("IngestRecord",source.getSourceSystem().getCode());
+
+		// we could possibly use .elapsed() for this in the future
+		long start_time = System.currentTimeMillis();
+
+		// Add in some processing to abort if we dont have a title - probably we should treat this as a delete signal
+		if ( ( source.getTitle() == null ) || ( source.getTitle().length() == 0 ) ) {
+			// Future development: We should probably signal this records source:id as 
+			// a delete and look in bib_records for a record corresponding to this one, so we can mark it deleted
+			// If we have no such record, all is well, continue.
+			statsService.notifyEvent("DroppedTitle",source.getSourceSystem().getCode());
+			log.warn("Record {} with empty title - bailing",source);
+			return Mono.empty();
+		}
+
 		// Check if existing...
 		return Mono.just(source).flatMap(this::getOrSeed).flatMap((final BibRecord bib) -> {
 			final List<ProcessingStep> pipeline = new ArrayList<>();
 			pipeline.add(this::step1);
 			return Flux.fromIterable(pipeline).reduce(bib, (theBib, step) -> step.apply(bib, source));
 		})
-
-				.flatMap(this::saveOrUpdate).flatMap(savedBib -> this.saveIdentifiers(savedBib, source));
+		.flatMap(this::saveOrUpdate).flatMap(savedBib -> this.saveIdentifiers(savedBib, source))
+		.flatMap( finalBib -> this.updateStatistics(finalBib, source, start_time) );
 	}
 
 	public Publisher<Void> cleanup() {

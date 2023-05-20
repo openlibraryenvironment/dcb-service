@@ -123,4 +123,3 @@ netty:
 
 jackson:
   date-format: "yyyy-MM-dd'T'HH:mm:ssZ"
-
