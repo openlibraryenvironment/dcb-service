@@ -38,6 +38,7 @@ CREATE TABLE bib_identifier (
 );
 
 CREATE INDEX bib_identifier_value_idx on bib_identifier(value,namespace);
+CREATE INDEX bib_identifier_owner_fk on bib_identifier(owner_id);
 
 CREATE TABLE host_lms (
 	id uuid PRIMARY KEY,

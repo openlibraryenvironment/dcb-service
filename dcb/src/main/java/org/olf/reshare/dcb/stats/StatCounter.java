@@ -59,9 +59,10 @@ public class StatCounter {
 			buffer[currently_logging_to_bucket]++;
 		}
 		else {
+			// log.debug("Wind bucket forwards current={} now={}",currently_logging_to_bucket,bucket_now);
+
 			// The bucket has rolled over, wind forward, clearing any counts between that cell and now
 			while ( currently_logging_to_bucket != bucket_now ) {
-				// log.debug("Wind bucket forwards current={} now={}",currently_logging_to_bucket,bucket_now);
 
 				if ( currently_logging_to_bucket != -1 )
 					log.info("Bucket rollover {}[{}] = {}",id,currently_logging_to_bucket,buffer[currently_logging_to_bucket]);
