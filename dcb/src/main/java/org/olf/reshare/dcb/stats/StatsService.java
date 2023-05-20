@@ -10,10 +10,10 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.hazelcast.config.Config;
-import com.hazelcast.core.Hazelcast;
-import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.map.IMap;
+// import com.hazelcast.config.Config;
+// import com.hazelcast.core.Hazelcast;
+// import com.hazelcast.core.HazelcastInstance;
+// import com.hazelcast.map.IMap;
 
 /**
  * The purpose of this class is to collect statistics across this instance of DCB. Devs should be
@@ -28,18 +28,18 @@ public class StatsService {
 
 	private static final Logger log = LoggerFactory.getLogger(StatsService.class);
 
-  private HazelcastInstance instance = null;
-  private IMap<String, StatCounter> stat_counters = null;
+  // private HazelcastInstance instance = null;
+  // private IMap<String, StatCounter> stat_counters = null;
 
 	// This needs to be a hazelcast map ideally
-	// Map<String, StatCounter> stat_counters = new HashMap<String, StatCounter>();
+	Map<String, StatCounter> stat_counters = new HashMap<String, StatCounter>();
 
 
   @javax.annotation.PostConstruct
   public void init() {
-    Config cfg = new Config("DCB");
-    instance = Hazelcast.getOrCreateHazelcastInstance(cfg);
-    stat_counters = instance.getMap("stats");
+    // Config cfg = new Config("DCB");
+    // instance = Hazelcast.getOrCreateHazelcastInstance(cfg);
+    // stat_counters = instance.getMap("stats");
   }
 
 	private StatCounter getCounter(String id) {
