@@ -168,7 +168,8 @@ CREATE TABLE reference_value_mapping (
 	from_value varchar(255),
 	to_context varchar(64),
 	to_category varchar(64),
-	to_value varchar(255)
+	to_value varchar(255),
+	reciprocal boolean
 );
 
 CREATE INDEX idx_rvm_mapping on reference_value_mapping(from_context,from_category,from_value,to_context);

@@ -7,6 +7,7 @@ import javax.validation.constraints.Size;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.annotation.TypeDef;
@@ -67,4 +68,6 @@ public class ReferenceValueMapping {
     @Size(max=255)
     private String toValue;
 
+    @Nullable
+    private Boolean reciprocal;
 }

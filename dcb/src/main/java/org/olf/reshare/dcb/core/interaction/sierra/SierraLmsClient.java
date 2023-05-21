@@ -101,7 +101,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.info("Creating subscribeable batch;  since={} offset={} limit={}", since, offset, limit);
 		return Mono.from(client.bibs(params -> {
 			params.deleted(false).offset(offset).limit(limit)
-					.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "deleted", "marc"));
+					.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "deleted", "marc", "suppressed"));
 
 			if (since != null) {
 				params.updatedDate(dtr -> {
@@ -270,7 +270,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public IngestRecordBuilder initIngestRecordBuilder(BibResult resource) {
 
 		// Use the host LMS as the
-		return IngestRecord.builder().uuid(uuid5ForBibResult(resource)).sourceSystem(lms).sourceRecordId(resource.id());
+		return IngestRecord.builder()
+				.uuid(uuid5ForBibResult(resource))
+				.sourceSystem(lms)
+				.sourceRecordId(resource.id())
+				.suppressFromDiscovery(resource.suppressed())
+				.deleted(resource.deleted());
 	}
 
 	public UUID uuid5ForRawJson(@NotNull final BibResult result) {

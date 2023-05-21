@@ -28,6 +28,8 @@ public record BibResult(
 
 	@NotNull boolean deleted,
 
+	@Nullable Boolean suppressed,
+
 	@Nullable Record marc) {
 
 }

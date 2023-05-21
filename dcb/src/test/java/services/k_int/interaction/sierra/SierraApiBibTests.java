@@ -168,7 +168,7 @@ public class SierraApiBibTests {
 		assertNotNull(response);
 		assertEquals(response.getClass(), BibResultSet.class);
 
-		BibResult bibResult = new BibResult("1000001", LocalDateTime.of(2022,2,15,14,18,5), LocalDateTime.of(2003,5,8,15,55), null, false, null);
+		BibResult bibResult = new BibResult("1000001", LocalDateTime.of(2022,2,15,14,18,5), LocalDateTime.of(2003,5,8,15,55), null, false, Boolean.FALSE, null);
 		BibResultSet bibResultSet = new BibResultSet(1, 0, List.of(bibResult));
 		assertEquals(response, bibResultSet);
 	}
