@@ -95,7 +95,7 @@ public class ConfigurationService implements Runnable {
     }
 
     private ShelvingLocation mapShelvingLocationRecordToShelvingLocation(ShelvingLocationRecord slr, Location l, BranchRecord br) {
-        log.debug("create ShelvingLocation for {} at {}",slr,l);
+        // log.debug("create ShelvingLocation for {} at {}",slr,l);
         return new ShelvingLocation()
                 .builder()
                 .id(slr.getId())
@@ -106,21 +106,24 @@ public class ConfigurationService implements Runnable {
                 .build();
     }
 
-    private Mono<ShelvingLocation> upsertShelvingLocation(ShelvingLocation sl) {
+  	@Transactional(value = TxType.REQUIRED)
+    public Mono<ShelvingLocation> upsertShelvingLocation(ShelvingLocation sl) {
         log.debug("upsertShelvingLocation {}", sl);
         return Mono.from(shelvingLocationRepository.existsById(sl.getId()))
                 .flatMap(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)));
     }
 
-    private Mono<Void> createShelvingLocations(Location l, BranchRecord br) {
-	log.debug("Create shelving locations at {} for {}",l,br);
+  	@Transactional(value = TxType.REQUIRED)
+    public Mono<Void> createShelvingLocations(Location l, BranchRecord br) {
+	// log.debug("Create shelving locations at {} for {}",l,br);
         return Flux.fromIterable(br.getShelvingLocations())
                 .map(slr -> mapShelvingLocationRecordToShelvingLocation(slr, l, br))
                 .flatMap(sl -> upsertShelvingLocation(sl))
                 .then(Mono.empty());
     }
 
-	private Mono<Agency> handleAgencyRecord(BranchRecord br) {
+  	@Transactional(value = TxType.REQUIRED)
+	public Mono<Agency> handleAgencyRecord(BranchRecord br) {
 		//log.debug("handleBranchRecord {}",br);
 		// Different host LMS systems will have different policies on how BranchRecords map to agencies
 		// In a multi-tenant sierra for example, branch records represent institutions and we should create
@@ -156,7 +159,7 @@ public class ConfigurationService implements Runnable {
      */
 
   	@Transactional(value = TxType.REQUIRED)
-    protected Mono<Location> handleBranchRecord(BranchRecord br) {
+    public Mono<Location> handleBranchRecord(BranchRecord br) {
         //log.debug("handleBranchRecord {}",br);
 				// Branch records map onto Location (Type=Branch) records for us
         if ( ( br.getLms() instanceof DataHostLms) &&
@@ -195,8 +198,8 @@ public class ConfigurationService implements Runnable {
                     .build();
 
             return Mono.from(locationRepository.existsById(upsert_location.getId()))
-                    .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(upsert_location) : locationRepository.save(upsert_location)))
-                    .thenReturn(upsert_location);
+                    .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(upsert_location) : locationRepository.save(upsert_location)));
+                    // .thenReturn(upsert_location);
         } else {
             log.warn("Unable to save agency for statically configured HostLMS");
             return Mono.empty();

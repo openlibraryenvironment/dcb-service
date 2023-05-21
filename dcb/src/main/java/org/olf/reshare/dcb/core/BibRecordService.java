@@ -143,12 +143,15 @@ public class BibRecordService {
 		long start_time = System.currentTimeMillis();
 
 		// Add in some processing to abort if we dont have a title - probably we should treat this as a delete signal
-		if ( ( source.getTitle() == null ) || ( source.getTitle().length() == 0 ) ) {
+		if ( ( source.getTitle() == null ) || 
+                     ( source.getTitle().length() == 0 ) ||
+                     ( ( source.getSuppressFromDiscovery() != null ) && ( source.getSuppressFromDiscovery().equals(Boolean.TRUE) ) ) ||
+                     ( ( source.getDeleted() != null ) && ( source.getDeleted().equals(Boolean.TRUE) ) ) ) {
 			// Future development: We should probably signal this records source:id as 
 			// a delete and look in bib_records for a record corresponding to this one, so we can mark it deleted
 			// If we have no such record, all is well, continue.
 			statsService.notifyEvent("DroppedTitle",source.getSourceSystem().getCode());
-			log.warn("Record {} with empty title - bailing",source);
+			// log.warn("Record {} with empty title - bailing",source);
 			return Mono.empty();
 		}
 

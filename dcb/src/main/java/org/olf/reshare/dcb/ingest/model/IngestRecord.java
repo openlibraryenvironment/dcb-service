@@ -74,6 +74,12 @@ public class IngestRecord {
 	@Nullable
 	String derivedType;
 
+	@Nullable
+	Boolean suppressFromDiscovery;
+
+	@Nullable
+	Boolean deleted;
+
 	// Create an internal version of the object for easy access to common bib properties
 	@With
 	@Nullable

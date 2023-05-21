@@ -179,7 +179,8 @@ public class RecordClusteringService {
 						.build());
 	}
 	
-	private Mono<ClusterRecord> createMinimalCluster( BibRecord bib ) {
+	@Transactional
+	public Mono<ClusterRecord> createMinimalCluster( BibRecord bib ) {
 		var cluster = ClusterRecord.builder()
 				.id(UUID.randomUUID())
 				.title( bib.getTitle() )

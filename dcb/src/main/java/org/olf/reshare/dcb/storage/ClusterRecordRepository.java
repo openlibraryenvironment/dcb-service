@@ -15,8 +15,12 @@ import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import reactor.core.publisher.Mono;
+import io.micronaut.data.annotation.QueryHint;
+
 
 public interface ClusterRecordRepository {
+
+	@QueryHint(name="javax.persistence.FlushModeType", value="AUTO")
 	@NonNull
 	@SingleResult
 	Publisher<? extends ClusterRecord> findOneById(@NonNull UUID id);
