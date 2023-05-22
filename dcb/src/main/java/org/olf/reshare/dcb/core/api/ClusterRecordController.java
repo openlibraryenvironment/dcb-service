@@ -77,12 +77,12 @@ public class ClusterRecordController {
 
 		Instant i = null;
 		if (since.isPresent()) {
-			log.debug("Since is present");
+			// log.debug("Since is present");
 			// Since is a timestamp formatted as 2023-05-03T18:56:40.872444Z
 			i = Instant.parse(since.get());
-			log.debug("Using instant: {}", i.toString());
+			// log.debug("Using instant: {}", i.toString());
 		} else {
-			log.debug("Since is not present");
+			// log.debug("Since is not present");
 			i = java.time.Instant.ofEpochMilli(0L);
 		}
 
@@ -135,7 +135,6 @@ public class ClusterRecordController {
 	private Mono<List<ClusterBibDTO>> getBibsForCluster(UUID cluster_id) {
                 // b.id, b.title, b.sourceRecordId, b.metadataScore, b.cluster_reason, h.code
 		return Flux.from(_bibRepository.findMemberBibsForCluster(cluster_id))
-                        .map( bibProjection -> { log.debug("got info {}",bibProjection); return bibProjection; } )
                         .map( bibProjection -> clusterBibFromMemberBib(bibProjection) )
 			.collectList();
 	}
