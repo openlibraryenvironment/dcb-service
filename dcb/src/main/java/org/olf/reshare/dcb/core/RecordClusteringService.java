@@ -66,6 +66,7 @@ public class RecordClusteringService {
 //	}
 
 	// Get all bibs for cluster record id
+
 	public Flux<BibRecord> findBibsByClusterRecord(ClusterRecord clusterRecord) {
 		return Flux.from(bibRecords.findAllByContributesTo(clusterRecord));
 	}
@@ -75,6 +76,7 @@ public class RecordClusteringService {
 				bibId.getValue() != null;
 	}
 	
+	@Transactional
 	private Mono<Tuple2<List<MatchPoint>, List<ClusterRecord>>> collectClusterRecords(Publisher<MatchPoint> matchPoints) {
 		 return Flux.from( matchPoints )
 		 	.collectList()
@@ -89,6 +91,7 @@ public class RecordClusteringService {
 		 	});
 	}
 	
+	@Transactional
 	private Mono<ClusterRecord> mergeClusterRecords( ClusterRecord to, Collection<ClusterRecord> from ) {
 		
 		return Mono.fromDirect( bibRecords.moveBetweenClusterRecords(from, to) )
@@ -101,6 +104,7 @@ public class RecordClusteringService {
 			.thenReturn( to );
 	}
 	
+	@Transactional
 	private Mono<ClusterRecord> reduceClusterRecords( final int pointsCreated,  final List<ClusterRecord> clusterList ) {
 		final int matches = clusterList.size();
 		
@@ -145,14 +149,14 @@ public class RecordClusteringService {
 		
 	}
 	
+	@Transactional
 	private Mono<ClusterRecord> saveMatchPointsAndMergeClusters(List<MatchPoint> matchPoints, List<ClusterRecord> clusters) {
 		return Flux.from( matchPointRepository.saveAll(matchPoints) )
 			.then( Mono.just( Tuples.of( matchPoints.size(), clusters ))
 					.flatMap( TupleUtils.function( this::reduceClusterRecords )));
 	}
 	
-
-	
+	@Transactional
 	private Flux<MatchPoint> idMatchPoints( BibRecord bib ) {
 		return bibRecords.findAllIdentifiersForBib( bib )
 				.filter( this::completeIdentifiersPredicate )

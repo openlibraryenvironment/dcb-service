@@ -108,7 +108,7 @@ public class ConfigurationService implements Runnable {
 
   	@Transactional(value = TxType.REQUIRED)
     public Mono<ShelvingLocation> upsertShelvingLocation(ShelvingLocation sl) {
-        log.debug("upsertShelvingLocation {}", sl);
+        // log.debug("upsertShelvingLocation {}", sl);
         return Mono.from(shelvingLocationRepository.existsById(sl.getId()))
                 .flatMap(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)));
     }
@@ -231,7 +231,7 @@ public class ConfigurationService implements Runnable {
 
     @Transactional(value = TxType.REQUIRED)
     protected Mono<RefdataValue> handleRefdataRecord(RefdataRecord refdataRecord) {
-        //log.debug("handleRefdataRecord {}",refdataRecord);
+        log.debug("handleRefdataRecord {}",refdataRecord);
         RefdataValue rdv = RefdataValue
                 .builder()
                 .id(refdataRecord.getId())
