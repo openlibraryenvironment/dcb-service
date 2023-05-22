@@ -44,7 +44,7 @@ public interface PostgresClusterRecordRepository extends ReactiveStreamsPageable
 	@Query(value = "SELECT cr_.*, mp_.value mp_val FROM cluster_record cr_"
 			+ "	INNER JOIN bib_record br_ ON br_.contributes_to = cr_.id"
 			+ "	INNER JOIN match_point mp_ ON mp_.bib_id = br_.id"
-			+ "	WHERE mp_.value IN (:points) ORDER BY date_created DESC;")
+			+ "	WHERE mp_.value IN (:points) ORDER BY date_created ASC;")
 	Publisher<ClusterRecord> findAllByMatchPoints ( Collection<UUID> points );
 }
 

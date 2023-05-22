@@ -9,6 +9,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.transaction.Transactional;
+import javax.transaction.Transactional.TxType;
 
 import org.olf.reshare.dcb.core.model.BibIdentifier;
 
@@ -25,6 +26,8 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.retry.annotation.CircuitBreaker;
+import io.micronaut.retry.annotation.Retryable;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -91,7 +94,8 @@ public class RecordClusteringService {
 		 	});
 	}
 	
-	@Transactional
+	// Remove the items in a new transaction.
+	@Transactional(value = TxType.REQUIRES_NEW)
 	public Mono<ClusterRecord> mergeClusterRecords( ClusterRecord to, Collection<ClusterRecord> from ) {
 		
 		return Mono.fromDirect( bibRecords.moveBetweenClusterRecords(from, to) )
@@ -136,10 +140,14 @@ public class RecordClusteringService {
 						
 						// Pop the first item.
 						var items = clusters.iterator();
+						
 						Set<ClusterRecord> toRemove = new HashSet<>();
 						
 						var primary = items.next();
-						items.forEachRemaining(toRemove::add);
+						items.forEachRemaining(c -> {
+							if (c.getId() != null && c.getId() != primary.getId()) {
+								toRemove.add(c);
+							}});
 						
 						yield mergeClusterRecords(primary, toRemove);
 					}
@@ -196,6 +204,7 @@ public class RecordClusteringService {
 			.flatMap( Mono::fromDirect );
 	}
 
+	@Retryable
 	@Transactional
 	public Mono<BibRecord> clusterBib ( final BibRecord bib ) {
 
