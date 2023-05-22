@@ -77,7 +77,7 @@ public class RecordClusteringService {
 	}
 	
 	@Transactional
-	private Mono<Tuple2<List<MatchPoint>, List<ClusterRecord>>> collectClusterRecords(Publisher<MatchPoint> matchPoints) {
+	public Mono<Tuple2<List<MatchPoint>, List<ClusterRecord>>> collectClusterRecords(Publisher<MatchPoint> matchPoints) {
 		 return Flux.from( matchPoints )
 		 	.collectList()
 		 	.flatMap( mps -> {
@@ -92,7 +92,7 @@ public class RecordClusteringService {
 	}
 	
 	@Transactional
-	private Mono<ClusterRecord> mergeClusterRecords( ClusterRecord to, Collection<ClusterRecord> from ) {
+	public Mono<ClusterRecord> mergeClusterRecords( ClusterRecord to, Collection<ClusterRecord> from ) {
 		
 		return Mono.fromDirect( bibRecords.moveBetweenClusterRecords(from, to) )
 			.then( Mono.fromDirect(
@@ -105,7 +105,7 @@ public class RecordClusteringService {
 	}
 	
 	@Transactional
-	private Mono<ClusterRecord> reduceClusterRecords( final int pointsCreated,  final List<ClusterRecord> clusterList ) {
+	public Mono<ClusterRecord> reduceClusterRecords( final int pointsCreated,  final List<ClusterRecord> clusterList ) {
 		final int matches = clusterList.size();
 		
 		return switch (matches) {
@@ -150,14 +150,14 @@ public class RecordClusteringService {
 	}
 	
 	@Transactional
-	private Mono<ClusterRecord> saveMatchPointsAndMergeClusters(List<MatchPoint> matchPoints, List<ClusterRecord> clusters) {
+	public Mono<ClusterRecord> saveMatchPointsAndMergeClusters(List<MatchPoint> matchPoints, List<ClusterRecord> clusters) {
 		return Flux.from( matchPointRepository.saveAll(matchPoints) )
 			.then( Mono.just( Tuples.of( matchPoints.size(), clusters ))
 					.flatMap( TupleUtils.function( this::reduceClusterRecords )));
 	}
 	
 	@Transactional
-	private Flux<MatchPoint> idMatchPoints( BibRecord bib ) {
+	public Flux<MatchPoint> idMatchPoints( BibRecord bib ) {
 		return bibRecords.findAllIdentifiersForBib( bib )
 				.filter( this::completeIdentifiersPredicate )
 				.map( id -> String.format("%s:%s:%s", MATCHPOINT_ID, id.getNamespace(), id.getValue()) )
