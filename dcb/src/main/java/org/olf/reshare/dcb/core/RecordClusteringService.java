@@ -95,7 +95,7 @@ public class RecordClusteringService {
 	}
 	
 	// Remove the items in a new transaction.
-	@Transactional(value = TxType.REQUIRES_NEW)
+	@Transactional
 	public Mono<ClusterRecord> mergeClusterRecords( ClusterRecord to, Collection<ClusterRecord> from ) {
 		
 		return Mono.fromDirect( bibRecords.moveBetweenClusterRecords(from, to) )
@@ -205,7 +205,7 @@ public class RecordClusteringService {
 	}
 
 	@Retryable
-	@Transactional
+	@Transactional(value = TxType.REQUIRES_NEW)
 	public Mono<BibRecord> clusterBib ( final BibRecord bib ) {
 
 		// Generate MatchPoints
