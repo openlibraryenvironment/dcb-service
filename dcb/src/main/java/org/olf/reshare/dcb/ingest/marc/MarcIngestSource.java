@@ -5,6 +5,7 @@ import static services.k_int.integration.marc4j.Marc4jRecordUtils.extractOrdered
 import static services.k_int.integration.marc4j.Marc4jRecordUtils.typeFromLeader;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,7 @@ import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
+import org.marc4j.marc.VariableField;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.ingest.model.Identifier;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
@@ -328,8 +330,55 @@ public interface MarcIngestSource<T> extends IngestSource {
 			setIfSubfieldPresent(publisher,'c',canonical_metadata,"dateOfPublication");
 		}
 
+		// Extract some subject metadata
+		addToCanonicalMetadata("subjects", "600", "personal-name", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "610", "corporate-name", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "611", "meeting-name", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "630", "uniform-name", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "647", "named-event", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "648", "chronological-term", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "650", "topical-term", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "653", "index-term-uncontrolled", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "654", "faceted", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "662", "hierarchial-place-name", marcRecord, canonical_metadata);
+
+		addToCanonicalMetadata("agents", "100", "name-personal", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("agents", "110", "name-corporate", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("agents", "111", "name-meeting", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("agents", "130", "uniform-title", marcRecord, canonical_metadata);
+
+		addToCanonicalMetadata("physical-description", "300", null, marcRecord, canonical_metadata);
+		addToCanonicalMetadata("content-type", "336", null, marcRecord, canonical_metadata);
+		addToCanonicalMetadata("media-type", "337", null, marcRecord, canonical_metadata);
+
+		DataField edition_field = (DataField) marcRecord.getVariableField("250");
+		if (edition_field != null) {
+			canonical_metadata.put("edition", tidy(edition_field.getSubfieldsAsString("a")));
+		}
+
 		irb.canonicalMetadata(canonical_metadata);
 		return irb;
+	}
+
+	public default IngestRecordBuilder enrichWithMetadataScore(final IngestRecordBuilder irb, final Record marcRecord) {
+		int score = 0;
+		Map<String, Object> canonical_metadata = irb.build().getCanonicalMetadata();
+		
+		if (canonical_metadata != null) {
+			
+			// Total the counts of the 2 properties as Lists
+			score = Stream.of("subjects", "agents")
+				.map(canonical_metadata::get)
+				.filter(Objects::nonNull)
+				.map( List.class::cast )
+				.mapToInt( List::size )
+				.sum();
+			
+			// Record has metadata - have a bonus point!
+			score++;
+		}
+		
+		return irb.metadataScore(score);
 	}
 
 	private void setIfSubfieldPresent(DataField f, char subfield, Map<String, Object> target, String key) {
@@ -341,5 +390,28 @@ public interface MarcIngestSource<T> extends IngestSource {
 
 	private String tidy(String inputstr) {
 		return inputstr.replaceAll("\\p{Punct}", "");
+	}
+
+	private void addToCanonicalMetadata(String property, String tag, String subtype, Record marcRecord,
+			Map<String, Object> canonical_metadata) {
+
+		@SuppressWarnings("unchecked")
+		List<Object> the_values = (List<Object>) canonical_metadata.get(property);
+
+		if (the_values == null)
+			the_values = new ArrayList<>();
+
+		for (VariableField vf : marcRecord.getVariableFields(tag)) {
+			DataField df = (DataField) vf;
+			Map<String, String> the_entry = new HashMap<>();
+			if (subtype != null)
+				the_entry.put("subtype", subtype);
+			the_entry.put("label", df.getSubfieldsAsString("abcdefg"));
+			the_values.add(the_entry);
+		};
+
+		if (the_values.size() > 0) {
+			canonical_metadata.put(property, the_values);
+		}
 	}
 }

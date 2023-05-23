@@ -30,6 +30,8 @@ import reactor.core.publisher.Mono;
 
 @Singleton
 public class BibRecordService {
+	
+	public static final int PROCESS_VERSION = 1;
 
 	private static final Logger log = LoggerFactory.getLogger(BibRecordService.class);
 
@@ -49,16 +51,24 @@ public class BibRecordService {
 
 	private BibRecord step1(final BibRecord bib, final IngestRecord imported) {
 		// log.info("Executing step 1");
+
+		bib.setProcessVersion(PROCESS_VERSION);
+
 		return bib;
 	}
 
 	private BibRecord minimalRecord(final IngestRecord imported) {
 
 		return BibRecord.builder().id(imported.getUuid()).title(imported.getTitle())
-				.sourceSystemId(imported.getSourceSystem().getId()).sourceRecordId(imported.getSourceRecordId())
-				.recordStatus(imported.getRecordStatus()).typeOfRecord(imported.getTypeOfRecord())
-				.derivedType(imported.getDerivedType()).blockingTitle(generateBlockingString(imported.getTitle()))
-				.canonicalMetadata(imported.getCanonicalMetadata()).build();
+				.sourceSystemId(imported.getSourceSystem().getId())
+				.sourceRecordId(imported.getSourceRecordId())
+				.recordStatus(imported.getRecordStatus())
+				.typeOfRecord(imported.getTypeOfRecord())
+				.derivedType(imported.getDerivedType())
+				.blockingTitle(generateBlockingString(imported.getTitle()))
+				.canonicalMetadata(imported.getCanonicalMetadata())
+        .metadataScore(imported.getMetadataScore())
+        .build();
 	}
 
 	@Transactional
@@ -98,7 +108,7 @@ public class BibRecordService {
 
 	protected Mono<BibRecord> updateStatistics(BibRecord savedBib, IngestRecord source, long start_time) {
 
-		long elapsed = System.currentTimeMillis() - start_time;
+//		long elapsed = System.currentTimeMillis() - start_time;
 
 		// log.debug("update statistics {} {} {} {}",elapsed, savedBib.getId(), savedBib.getDateCreated(), savedBib.getDateUpdated());
 		if ( savedBib.getDateCreated().equals(savedBib.getDateUpdated())) {
@@ -142,11 +152,14 @@ public class BibRecordService {
 		// we could possibly use .elapsed() for this in the future
 		long start_time = System.currentTimeMillis();
 
-		// Add in some processing to abort if we dont have a title - probably we should treat this as a delete signal
+		// SO: TODO: Make this a predicate further upstream, to filter out the source resource.
+		// Will allow us to bail out of the resource early.
+		// We can raise events from with in that for the side effects.
+		// Add in some processing to abort if we don't have a title - probably we should treat this as a delete signal
 		if ( ( source.getTitle() == null ) || 
-                     ( source.getTitle().length() == 0 ) ||
-                     ( ( source.getSuppressFromDiscovery() != null ) && ( source.getSuppressFromDiscovery().equals(Boolean.TRUE) ) ) ||
-                     ( ( source.getDeleted() != null ) && ( source.getDeleted().equals(Boolean.TRUE) ) ) ) {
+         ( source.getTitle().length() == 0 ) ||
+         ( ( source.getSuppressFromDiscovery() != null ) && ( source.getSuppressFromDiscovery().equals(Boolean.TRUE) ) ) ||
+         ( ( source.getDeleted() != null ) && ( source.getDeleted().equals(Boolean.TRUE) ) ) ) {
 			// Future development: We should probably signal this records source:id as 
 			// a delete and look in bib_records for a record corresponding to this one, so we can mark it deleted
 			// If we have no such record, all is well, continue.
