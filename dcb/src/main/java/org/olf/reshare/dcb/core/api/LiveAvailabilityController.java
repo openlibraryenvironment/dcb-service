@@ -1,21 +1,5 @@
 package org.olf.reshare.dcb.core.api;
 
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
-
-import javax.validation.constraints.NotNull;
-
-import org.olf.reshare.dcb.core.model.Item;
-import org.olf.reshare.dcb.item.availability.AvailabilityResponseView;
-import org.olf.reshare.dcb.item.availability.LiveAvailabilityService;
-import org.olf.reshare.dcb.request.resolution.ClusteredBib;
-import org.olf.reshare.dcb.request.resolution.SharedIndexService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
@@ -25,7 +9,21 @@ import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.olf.reshare.dcb.core.model.Item;
+import org.olf.reshare.dcb.item.availability.AvailabilityResponseView;
+import org.olf.reshare.dcb.item.availability.LiveAvailabilityService;
+import org.olf.reshare.dcb.request.resolution.ClusteredBib;
+import org.olf.reshare.dcb.request.resolution.SharedIndexService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
+
+import javax.validation.constraints.NotNull;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 @Validated
 @Secured(SecurityRule.IS_ANONYMOUS)

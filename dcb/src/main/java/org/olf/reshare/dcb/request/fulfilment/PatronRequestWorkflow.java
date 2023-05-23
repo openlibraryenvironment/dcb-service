@@ -1,18 +1,17 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
-
-import java.time.Duration;
-
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.context.annotation.Value;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.context.annotation.Value;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+
+import java.time.Duration;
+
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 @Prototype
 public class PatronRequestWorkflow {
@@ -25,7 +24,6 @@ public class PatronRequestWorkflow {
 	/**
 	 * @param patronRequestResolutionStateTransition             the resolution state transition
 	 * @param placePatronRequestAtSupplyingAgencyStateTransition the place at supplying agency state transition
-	 * @param backgroundExecutor                                 the background executor executing the next transition
 	 * @param stateTransitionDelay                               Duration of delay before task is started
 	 * Uses ISO-8601 format, as described <a href="https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html#parse-java.lang.CharSequence-">here</a>
 	 */

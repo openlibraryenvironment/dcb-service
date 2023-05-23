@@ -25,12 +25,12 @@ public class SierraPatronsAPIFixture {
 		this.loader = loader;
 	}
 
-	public void postPatronResponse(String uniqueId) {
-		mock.when(postPatronRequest(uniqueId)).respond( patronPlacedResponse() );
+	public void postPatronResponse(String uniqueId, int returnId) {
+		mock.when(postPatronRequest(uniqueId)).respond( patronPlacedResponse(returnId) );
 	}
 
 	public void postPatronErrorResponse(String uniqueId) {
-		mock.when(postPatronRequest(uniqueId)).respond( patronPlacedErrorResponse() );
+		mock.when(postPatronRequest(uniqueId)).respond( patronErrorResponse() );
 	}
 
 	public void patronResponseForUniqueId(String uniqueId) {
@@ -41,6 +41,22 @@ public class SierraPatronsAPIFixture {
 		mock.when(getPatronFindRequest(uniqueId)).respond( patronNotFoundResponse() );
 	}
 
+	public void patronHoldRequestResponse(String id, Integer recordNumber, String pickupLocation) {
+		mock.when(getPatronHoldRequest(id, "i", recordNumber, pickupLocation)).respond( sierraResponseNoContent() );
+	}
+
+	public void patronHoldRequestErrorResponse(String id, Integer recordNumber, String pickupLocation) {
+		mock.when(getPatronHoldRequest(id, "i", recordNumber, pickupLocation)).respond( patronErrorResponse() );
+	}
+
+	public void patronHoldResponse(String id) {
+		mock.when(getPatronHoldRequest(id)).respond( patronHoldFoundResponse() );
+	}
+
+	public void patronHoldErrorResponse(String id) {
+		mock.when(getPatronHoldRequest(id)).respond( patronErrorResponse() );
+	}
+
 	private HttpResponse patronNotFoundResponse() {
 		return withSierraResponse(notFoundResponse(), 404, "patrons/sierra-api-patron-not-found.json");
 	}
@@ -49,12 +65,16 @@ public class SierraPatronsAPIFixture {
 		return withSierraResponse(response(), 200, "patrons/sierra-api-patron-found.json");
 	}
 
-	private HttpResponse patronPlacedErrorResponse() {
+	private HttpResponse patronErrorResponse() {
 		return serverErrorResponse(response(), 500);
 	}
 
-	private HttpResponse patronPlacedResponse() {
-		return withSierraResponse(response(), 200, "patrons/sierra-api-post-patron.json");
+	private HttpResponse patronPlacedResponse(int returnId) {
+		return withSierraResponse(response(), 200, returnId);
+	}
+
+	private HttpResponse patronHoldFoundResponse() {
+		return withSierraResponse(response(), 200, "patrons/sierra-api-patron-hold.json");
 	}
 
 	@SneakyThrows
@@ -68,11 +88,23 @@ public class SierraPatronsAPIFixture {
 		return new String(resource.readAllBytes());
 	}
 
+	private HttpResponse withSierraResponse(HttpResponse response, int statusCode, int returnId) {
+		return response
+			.withStatusCode(statusCode)
+			.withContentType(APPLICATION_JSON)
+			.withBody(json("{\"link\": \"https://sandbox.iii.com/iii/sierra-api/v6/patrons/" + returnId + "\"}"));
+	}
+
 	private HttpResponse withSierraResponse(HttpResponse response, int statusCode, String resourceName) {
 		return response
 			.withStatusCode(statusCode)
 			.withContentType(APPLICATION_JSON)
 			.withBody(json(getResourceAsString(resourceName)));
+	}
+
+	private HttpResponse sierraResponseNoContent() {
+		return response()
+			.withStatusCode(204);
 	}
 
 	public HttpResponse serverErrorResponse(HttpResponse response, int statusCode) {
@@ -99,6 +131,28 @@ public class SierraPatronsAPIFixture {
 			.withQueryStringParameter("varFieldTag", "u")
 			.withQueryStringParameter("varFieldContent", uniqueId)
 			.withHeader("Accept", "application/json");
+	}
+
+	private HttpRequest getPatronHoldRequest(
+		String id,
+		String recordType,
+		Integer recordNumber,
+		String pickupLocation) {
+		return request()
+			.withMethod("POST")
+			.withPath("/iii/sierra-api/v6/patrons/" + id + "/holds/requests")
+			.withHeader("Accept", "application/json")
+			.withBody(json("{" +
+				"\"recordType\": \"" + recordType + "\"," +
+				"\"recordNumber\": " + recordNumber + "," +
+				"\"pickupLocation\": \"" + pickupLocation + "\"" +
+				"}"));
+	}
+
+	private HttpRequest getPatronHoldRequest(String id) {
+		return request()
+			.withMethod("GET")
+			.withPath("/iii/sierra-api/v6/patrons/" + id + "/holds");
 	}
 }
 

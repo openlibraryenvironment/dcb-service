@@ -33,18 +33,19 @@ class PlacePatronRequestAtSupplyingAgencyStateTransitionTests {
 	void testAttempt() {
 		// Arrange
 		PatronRequest patronRequest = new PatronRequest();
+		PatronRequest updatedPatronRequest = new PatronRequest();
 
 		when(supplyingAgencyService.placePatronRequestAtSupplyingAgency(patronRequest))
-			.thenAnswer(invocation ->  Mono.just(patronRequest));
+			.thenAnswer(invocation ->  Mono.just(updatedPatronRequest));
 
-		when(patronRequestRepository.update(patronRequest))
-			.thenAnswer(invocation -> Mono.just(patronRequest));
+		when(patronRequestRepository.update(updatedPatronRequest))
+			.thenAnswer(invocation -> Mono.just(updatedPatronRequest));
 
 		// Act
 		var result = placePatronRequestAtSupplyingAgencyStateTransition.attempt(patronRequest).block();
 
 		// Assert
-		assertThat("Patron request was expected.", result, is(patronRequest));
+		assertThat("Patron request was expected.", result, is(updatedPatronRequest));
 		verify(supplyingAgencyService).placePatronRequestAtSupplyingAgency(any());
 	}
 }

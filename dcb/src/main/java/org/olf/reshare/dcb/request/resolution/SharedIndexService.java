@@ -1,11 +1,6 @@
 package org.olf.reshare.dcb.request.resolution;
 
-import static org.olf.reshare.dcb.utils.PublisherErrors.failWhenEmpty;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
+import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.model.BibRecord;
 import org.olf.reshare.dcb.core.model.clustering.ClusterRecord;
@@ -14,10 +9,14 @@ import org.olf.reshare.dcb.storage.ClusterRecordRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.olf.reshare.dcb.utils.PublisherErrors.failWhenEmpty;
 
 @Prototype
 public class SharedIndexService implements ClusteredBibFinder {

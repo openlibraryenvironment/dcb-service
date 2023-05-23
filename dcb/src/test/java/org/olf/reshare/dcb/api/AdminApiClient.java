@@ -1,14 +1,14 @@
 package org.olf.reshare.dcb.api;
 
-import java.util.List;
-import java.util.UUID;
-
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
+
+import java.util.List;
+import java.util.UUID;
 
 class AdminApiClient {
 	@Inject
@@ -44,7 +44,8 @@ class AdminApiClient {
 
 		@Serdeable
 		record SupplierRequest(@Nullable UUID id, @Nullable Item item,
-			@Nullable String hostLmsCode) {}
+			@Nullable String hostLmsCode, @Nullable String status,
+		 	@Nullable String localHoldId, @Nullable String localHoldStatus) {}
 
 		@Serdeable
 		record Item(@Nullable String id) {}

@@ -1,18 +1,16 @@
 package org.olf.reshare.dcb.core.model;
 
-import static java.util.Comparator.comparing;
-import static java.util.Comparator.naturalOrder;
-import static java.util.Comparator.nullsLast;
-import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
-
-import java.time.ZonedDateTime;
-import java.util.Comparator;
-
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+
+import java.time.ZonedDateTime;
+import java.util.Comparator;
+
+import static java.util.Comparator.*;
+import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
 
 @Data
 @Serdeable

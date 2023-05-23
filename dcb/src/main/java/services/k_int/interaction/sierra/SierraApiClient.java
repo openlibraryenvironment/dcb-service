@@ -1,31 +1,16 @@
 package services.k_int.interaction.sierra;
 
-import static io.micronaut.http.HttpHeaders.ACCEPT;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
-
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Consumer;
-
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.convert.format.Format;
 import io.micronaut.http.BasicAuth;
-import io.micronaut.http.annotation.Body;
-import io.micronaut.http.annotation.Get;
-import io.micronaut.http.annotation.Header;
-import io.micronaut.http.annotation.Post;
-import io.micronaut.http.annotation.Produces;
-import io.micronaut.http.annotation.QueryValue;
+import io.micronaut.http.annotation.*;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.retry.annotation.Retryable;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.bibs.BibParams;
 import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
@@ -36,9 +21,19 @@ import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.Params;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.PatronResult;
 import services.k_int.interaction.sierra.patrons.Result;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
+
+import static io.micronaut.http.HttpHeaders.ACCEPT;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
 
 @Client(value = "${" + SierraApiClient.CONFIG_ROOT + ".api.url:/iii/sierra-api/v6}", errorType = SierraError.class)
 @Header(name = ACCEPT, value = APPLICATION_JSON)
@@ -141,13 +136,13 @@ import services.k_int.interaction.sierra.patrons.Result;
         .addPart("grant_type", "client_credentials")
         .build());
 	}
-	
+
 	// Basic auth is auto bound to the request.
+
 	@SingleResult
 	@Post("/token")
 	@Produces(value = MULTIPART_FORM_DATA)
 	Publisher<AuthToken> login( BasicAuth creds, @Body MultipartBody body);
-	
 	@SingleResult
 	default Publisher<AuthToken> login( final String key, final String secret ) {
 		return login(new BasicAuth(key, secret));
@@ -167,6 +162,17 @@ import services.k_int.interaction.sierra.patrons.Result;
     @Retryable
     @Get("/patrons/metadata")
     public Publisher<List<PatronMetadata>> patronMetadata();
+
+	@SingleResult
+	@Post("/patrons/{id}/holds/requests")
+	Publisher<String> placeHoldRequest(
+		@Nullable @PathVariable("id") final String id,
+		@Body final PatronHoldPost patronHoldPost);
+
+	@SingleResult
+	@Get("/patrons/{id}/holds")
+	Publisher<SierraPatronHoldResultSet> patronHolds(
+		@Nullable @PathVariable("id") final String id);
 
 	@SingleResult
 	@Retryable
