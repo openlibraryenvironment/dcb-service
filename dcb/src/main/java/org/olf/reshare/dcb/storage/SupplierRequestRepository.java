@@ -18,7 +18,14 @@ public interface SupplierRequestRepository {
 	Publisher<? extends SupplierRequest> save(@Valid @NotNull SupplierRequest supplierRequest);
 
 	@NonNull
+	@SingleResult
+	Publisher<? extends SupplierRequest> update(@Valid @NotNull SupplierRequest supplierRequest);
+
+	@NonNull
 	Publisher<SupplierRequest> findAllByPatronRequest(@NotNull PatronRequest pr);
+
+	@NonNull
+	Publisher<SupplierRequest> findByPatronRequest(@NotNull PatronRequest pr);
 
 	@NonNull
 	Publisher<SupplierRequest> findAll();

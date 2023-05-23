@@ -97,11 +97,12 @@ CREATE TABLE supplier_request (
 	patron_request_id uuid REFERENCES patron_request(id),
 	local_item_id varchar(200),
 	host_lms_code varchar(200),
-	lender_local_system_hold_id varchar(200),
-	lender_local_system_hold_status varchar(32)
+	status_code varchar(200),
+	local_id varchar(200),
+	local_status varchar(32)
 );
 
-CREATE INDEX idx_lender_hold on supplier_request(host_lms_code, lender_local_system_hold_id);
+CREATE INDEX idx_lender_hold on supplier_request(host_lms_code, local_id);
 
 CREATE TABLE agency (
 	id uuid PRIMARY KEY,

@@ -16,6 +16,7 @@ import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
+import lombok.ToString;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -49,6 +50,7 @@ public class PatronIdentity {
 	@DateUpdated
 	private Instant dateUpdated;
 
+	@ToString.Exclude
 	@Nullable
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private Patron patron;

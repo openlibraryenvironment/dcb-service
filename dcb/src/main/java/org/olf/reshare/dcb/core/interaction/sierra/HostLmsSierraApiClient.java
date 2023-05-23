@@ -1,20 +1,5 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
-import static java.util.Collections.emptyList;
-
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import org.olf.reshare.dcb.core.model.HostLms;
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.context.annotation.Secondary;
@@ -22,21 +7,17 @@ import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
-import io.micronaut.http.BasicAuth;
-import io.micronaut.http.HttpHeaders;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.MediaType;
-import io.micronaut.http.MutableHttpRequest;
-import io.micronaut.http.annotation.Body;
-import io.micronaut.http.annotation.Get;
-import io.micronaut.http.annotation.Post;
-import io.micronaut.http.annotation.Produces;
+import io.micronaut.http.*;
+import io.micronaut.http.annotation.*;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.retry.annotation.Retryable;
+import org.olf.reshare.dcb.core.model.HostLms;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.SierraApiClient;
@@ -47,11 +28,20 @@ import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.PatronQueryBody;
 import services.k_int.interaction.sierra.patrons.PatronResult;
-import services.k_int.interaction.sierra.patrons.QueryResultSet;
 import services.k_int.interaction.sierra.patrons.Result;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
+import static java.util.Collections.emptyList;
 
 @Secondary
 @Prototype
@@ -224,21 +214,6 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		}
 
 		@SingleResult
-		@Post("patrons/query")
-		@Produces(value = APPLICATION_JSON)
-		public Publisher<QueryResultSet> patronQuery(Integer limit, Integer offset, @Body PatronQueryBody body) {
-
-			// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Filter_the_records_by_a_query_in_JSON_format_post_13
-			return postRequest("patrons/query")
-				.map(req -> req.uri(theUri -> theUri
-					.queryParam("limit", limit)
-					.queryParam("offset", offset)))
-				.map(req -> req.body(body))
-				.flatMap(this::ensureToken)
-				.flatMap(req -> doRetrieve(req, QueryResultSet.class) );
-		}
-
-		@SingleResult
 		@Get("patrons/find")
 		@Produces(value = APPLICATION_JSON)
 		public Publisher<Result> patronFind(String varFieldTag, String varFieldContent) {
@@ -252,6 +227,19 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				.flatMap(req -> doRetrieve(req, Result.class) )
 				.onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError,
 					new Result());
+		}
+
+		@SingleResult
+		@Get("patrons/{id}/holds")
+		@Produces(value = APPLICATION_JSON)
+		public Publisher<SierraPatronHoldResultSet> patronHolds(@PathVariable String id) {
+
+			// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
+			return getRequest("patrons/" + id + "/holds")
+				.flatMap(this::ensureToken)
+				.flatMap(req -> doRetrieve(req, SierraPatronHoldResultSet.class) )
+				.onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError,
+					new SierraPatronHoldResultSet(0, 0, new ArrayList<>()));
 		}
 
     private <T> Mono<T> handleResponseErrors ( final Mono<T> current ) {
@@ -355,6 +343,24 @@ public class HostLmsSierraApiClient implements SierraApiClient {
     private URI resolve(URI relativeURI) {
         return resolve(rootUri, relativeURI);
     }
+
+		@SingleResult
+		@Post("patrons/{id}/holds/requests")
+		@Produces(value = APPLICATION_JSON)
+		public Mono<String> placeHoldRequest(@PathVariable String id, @Body PatronHoldPost body) {
+			return createRequest(HttpMethod.POST, "patrons/" + id + "/holds/requests")
+				.map(req -> req.body(body))
+				.flatMap(this::ensureToken)
+				.flatMap(req -> Mono.from(client.exchange(req, Object.class)))
+				.flatMap(response -> {
+					final int respCode = response.getStatus().getCode();
+					log.debug("placeHoldRequest response code: {}", respCode);
+					return (respCode == HttpStatus.NO_CONTENT.getCode())
+						? Mono.just("no content")
+						: Mono.error(new RuntimeException("Error occurred when creating Hold"));
+				});
+	}
+
 
         @SingleResult
         @Retryable

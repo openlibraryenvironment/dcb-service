@@ -4,12 +4,15 @@ import static java.util.UUID.randomUUID;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
+import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.storage.PatronIdentityRepository;
 import org.olf.reshare.dcb.storage.PatronRepository;
 import org.slf4j.Logger;
@@ -160,5 +163,27 @@ public class PatronService {
 		patron.setPatronIdentities(identities);
 
 		return patron;
+	}
+
+	public String getUniqueIdStringFor(Patron patron) {
+		return patron.getPatronIdentities()
+			.stream()
+			.filter(PatronIdentity::getHomeIdentity)
+			.map(pi -> pi.getLocalId() + "@" + patron.getHomeLibraryCode())
+			.collect(Collectors.joining());
+	}
+
+	public Optional<PatronIdentity> findIdentityByLocalId(Patron patron, String localId) {
+		return patron.getPatronIdentities()
+			.stream()
+			.filter(pi -> pi.getLocalId().equals(localId))
+			.findFirst();
+	}
+
+	public Mono<PatronIdentity> checkForPatronIdentity(Patron patron, String hostLmsCode, String localId) {
+		log.debug("checkForPatronIdentity {}, {}, {}", patron.getId(), hostLmsCode, localId);
+
+		return Mono.justOrEmpty( findIdentityByLocalId(patron, localId) )
+			.switchIfEmpty(Mono.defer(() -> createPatronIdentity(patron, localId, hostLmsCode, false)));
 	}
 }

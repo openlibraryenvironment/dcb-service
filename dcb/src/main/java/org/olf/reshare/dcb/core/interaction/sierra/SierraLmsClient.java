@@ -1,26 +1,16 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
-import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
-
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import javax.transaction.Transactional;
-import javax.transaction.Transactional.TxType;
-import javax.validation.constraints.NotNull;
-
+import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.util.StringUtils;
+import io.micronaut.json.tree.JsonNode;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.marc4j.marc.Record;
-import org.olf.reshare.dcb.configuration.BranchRecord;
-import org.olf.reshare.dcb.configuration.ConfigurationRecord;
-import org.olf.reshare.dcb.configuration.PickupLocationRecord;
-import org.olf.reshare.dcb.configuration.RefdataRecord;
-import org.olf.reshare.dcb.configuration.ShelvingLocationRecord;
+import org.olf.reshare.dcb.configuration.*;
 import org.olf.reshare.dcb.core.ProcessStateService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.model.HostLms;
@@ -38,19 +28,10 @@ import org.olf.reshare.dcb.tracking.model.TrackingRecord;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.micronaut.context.annotation.Parameter;
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.util.StringUtils;
-import io.micronaut.json.tree.JsonNode;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.RequiredArgsConstructor;
-import lombok.ToString;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
+import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibResult;
@@ -59,10 +40,21 @@ import services.k_int.interaction.sierra.configuration.BranchInfo;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
+import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.Result;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
+
+import javax.transaction.Transactional;
+import javax.transaction.Transactional.TxType;
+import javax.validation.constraints.NotNull;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.*;
+
+import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
 
 /**
  * See: https://sandbox.iii.com/iii/sierra-api/swagger/index.html
@@ -322,52 +314,101 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				.map(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode)).collectList();
 	}
 
-	public String extractIdFromUrl(String url) {
-		// example: "https://sandbox.iii.com/iii/sierra-api/v6/patrons/2745325"
-		int lastSlashIndex = url.lastIndexOf("/");
-		return url.substring(lastSlashIndex + 1);
-		}
-	
-	@Override
-	public Mono<String> postPatron(String uniqueId, Integer patronType) {
-	log.debug("postPatron({}, {})", uniqueId, patronType);
-
-	final PatronPatch patronPatch = createPatronPatch( uniqueId, patronType );
-
-	return Mono.from(client.patrons(patronPatch)).map(result -> {
-			log.debug("the result of postPatron({})", result);
-			return result;
-		})
-		.map(patronResult -> extractIdFromUrl( patronResult.getLink() ))
-		.onErrorResume(NullPointerException.class, error -> {
-			log.debug("NullPointerException occurred when creating Patron: {}", error.getMessage());
-			return Mono.empty();
-		});
-	}
-
-	private PatronPatch createPatronPatch(String uniqueId, Integer patronType) {
-	PatronPatch patronPatch = new PatronPatch();
-	patronPatch.setPatronType(patronType);
-	patronPatch.setUniqueIds(new String[]{uniqueId});
-	return patronPatch;
-	}
-
 	@Override
 	public Mono<String> patronFind(String varFieldContent) {
-	log.debug("patronFind({})", varFieldContent);
+		log.debug("patronFind({})", varFieldContent);
 
-	return Mono.from(client.patronFind("u", varFieldContent))
-		.map(result -> {
-			log.debug("the result of patronFind({})", result);
-			return result;
-		})
-		.map(Result::getId)
-		.map(Object::toString)
-		.onErrorResume(NullPointerException.class, error -> {
-			log.debug("NullPointerException occurred when finding Patron: {}", error.getMessage());
-			return Mono.empty();
-		});
+		return Mono.from(client.patronFind("u", varFieldContent))
+			.doOnSuccess(result -> log.debug("the result of patronFind({})", result))
+			.map(Result::getId)
+			.map(Object::toString)
+			.onErrorResume(NullPointerException.class, error -> {
+				log.debug("NullPointerException occurred when finding Patron: {}", error.getMessage());
+				return Mono.empty();
+			});
 	}
+
+	@Override
+	public Mono<String> createPatron(String uniqueId, Integer patronType) {
+		log.debug("postPatron({}, {})", uniqueId, patronType);
+
+		PatronPatch patronPatch = new PatronPatch();
+		patronPatch.setPatronType(patronType);
+		patronPatch.setUniqueIds(new String[]{uniqueId});
+
+		return Mono.from(client.patrons(patronPatch))
+			.doOnSuccess(result -> log.debug("the result of createPatron({})", result))
+			.map(patronResult -> extractIdFromUrl( patronResult.getLink() ))
+			.onErrorResume(NullPointerException.class, error -> {
+				log.debug("NullPointerException occurred when creating Patron: {}", error.getMessage());
+				return Mono.error(new RuntimeException("Error occurred when creating Patron"));
+			});
+	}
+
+	@Override
+	public Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType,
+		String recordNumber, String pickupLocation) {
+		log.debug("placeHoldRequest({})", id);
+
+		PatronHoldPost patronHoldPost = new PatronHoldPost();
+		patronHoldPost.setRecordType(recordType);
+		patronHoldPost.setRecordNumber( convertToInteger(recordNumber) );
+		patronHoldPost.setPickupLocation(pickupLocation);
+
+		return Mono.from(client.placeHoldRequest(id, patronHoldPost))
+			.doOnSuccess(result -> log.debug("the result of placeHoldRequest({})", result))
+			.flatMap(result -> getPatronHoldRequestId(id, recordNumber))
+			.onErrorResume(NullPointerException.class, error -> {
+				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
+				return Mono.error(new RuntimeException("Error occurred when creating Hold"));
+			});
+	}
+
+	private Mono<Tuple2<String, String>> getPatronHoldRequestId(String patronLocalId, String localItemId) {
+		log.debug("getPatronHoldRequestId({}, {})", patronLocalId, localItemId);
+
+		return Mono.from(client.patronHolds(patronLocalId))
+			.doOnSuccess(result -> log.debug("the result of getPatronHoldRequestId({})", result))
+			.flatMap(holds -> filterByLocalItemId(holds, localItemId))
+			.onErrorResume(NullPointerException.class, error -> {
+				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
+				return Mono.error(new RuntimeException("Error occurred when getting Hold"));
+			});
+	}
+
+	private Mono<Tuple2<String, String>> filterByLocalItemId(SierraPatronHoldResultSet holds, String localItemId) {
+		log.debug("filterByLocalItemId({}, {})", holds, localItemId);
+
+		return Flux.fromIterable(holds.entries())
+			.filter(hold -> extractIdFromUrl( hold.record() ).equals(localItemId))
+			.collectList()
+			.flatMap(filteredHolds -> {
+				if (filteredHolds.size() == 1) {
+					final String extractedId = extractIdFromUrl( filteredHolds.get(0).id() );
+					final String localStatus = filteredHolds.get(0).status().code();
+					return Mono.just( Tuples.of(extractedId, localStatus) );
+				} else if (filteredHolds.size() > 1) {
+					throw new RuntimeException("Multiple hold requests found for the given local item ID");
+				} else {
+					throw new RuntimeException("No hold request found for the given local item ID");
+				}
+			});
+	}
+
+	public static int convertToInteger(String integer) {
+		try {
+			return Integer.parseInt(integer);
+		} catch (NumberFormatException e) {
+			throw new IllegalArgumentException("Invalid integer: " + integer, e);
+		}
+	}
+
+	private String extractIdFromUrl(String url) {
+		log.debug("Extracting id from: {}", url);
+		// example: "https://sandbox.iii.com/iii/sierra-api/v6/patrons/2745325"
+		return url.substring(url.lastIndexOf('/') + 1);
+	}
+
 	@Override
 	public String getName() {
 		return lms.getName();

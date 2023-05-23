@@ -1,15 +1,15 @@
 package org.olf.reshare.dcb.core.api;
 
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.serde.annotation.Serdeable;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micronaut.core.annotation.Nullable;
-import io.micronaut.serde.annotation.Serdeable;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Serdeable
 record PatronRequestAdminView(UUID id, Citation citation,
@@ -59,15 +59,18 @@ record PatronRequestAdminView(UUID id, Citation citation,
 		}
 	}
 
-
 	@Serdeable
-	record SupplierRequest(UUID id, Item item, String hostLmsCode) {
+	record SupplierRequest(UUID id, Item item, String hostLmsCode,
+		String status, String localHoldId, String localHoldStatus) {
 		private static SupplierRequest from(
 			org.olf.reshare.dcb.core.model.SupplierRequest supplierRequest) {
 
 		return new SupplierRequest(supplierRequest.getId(),
 			new Item(supplierRequest.getLocalItemId()),
-			supplierRequest.getHostLmsCode());
+			supplierRequest.getHostLmsCode(),
+			supplierRequest.getStatusCode().getDisplayName(),
+			supplierRequest.getLocalId(),
+			supplierRequest.getLocalStatus());
 	}
 
 		private static List<SupplierRequest> fromList(

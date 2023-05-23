@@ -1,21 +1,20 @@
 package org.olf.reshare.dcb.request.resolution;
 
-import static org.olf.reshare.dcb.utils.PublisherErrors.failWhenEmpty;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 import org.olf.reshare.dcb.core.model.Item;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.item.availability.LiveAvailability;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import jakarta.inject.Named;
-import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.olf.reshare.dcb.utils.PublisherErrors.failWhenEmpty;
 
 @Singleton
 public class PatronRequestResolutionService {
@@ -102,7 +101,8 @@ public class PatronRequestResolutionService {
 		final var updatedPatronRequest = patronRequest.resolve();
 
 		return new SupplierRequest(uuid, updatedPatronRequest,
-			item.getId(), item.getHostLmsCode(), null, null);
+			item.getId(), item.getHostLmsCode(), null,
+			null, null);
 	}
 
 	private static Resolution resolveToNoItemsAvailable(PatronRequest patronRequest) {
