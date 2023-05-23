@@ -86,8 +86,8 @@ CREATE TABLE patron_request (
 	bib_cluster_id uuid,
 	pickup_location_code varchar(200),
 	status_code varchar(200),
-	local_system_hold_id varchar(200),
-	local_system_hold_status varchar(32)
+	local_request_id varchar(200),
+	local_request_status varchar(32)
 );
 
 CREATE INDEX idx_pr_patron ON patron_request(patron_id);
@@ -184,3 +184,20 @@ CREATE TABLE match_point (
 
 CREATE INDEX idx_fk_bib_id ON match_point (bib_id);
 CREATE INDEX idx_value ON match_point (value);
+
+CREATE TABLE status_code (
+        id uuid PRIMARY KEY,
+        model varchar(64),
+        code varchar(64),
+        description varchar(128),
+        tracked boolean
+);
+
+CREATE TABLE event_log (
+	id uuid PRIMARY KEY,
+	date_created timestamp,
+	event_type varchar(64),
+	event_summary varchar(128),
+	additional_data jsonb
+);
+

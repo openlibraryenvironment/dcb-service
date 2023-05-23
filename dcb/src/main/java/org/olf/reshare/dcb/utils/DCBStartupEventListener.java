@@ -2,8 +2,10 @@ package org.olf.reshare.dcb.utils;
 
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.HostLms;
+import org.olf.reshare.dcb.core.model.StatusCode;
 import org.olf.reshare.dcb.storage.AgencyRepository;
 import org.olf.reshare.dcb.storage.HostLmsRepository;
+import org.olf.reshare.dcb.storage.StatusCodeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,6 +15,9 @@ import io.micronaut.context.event.StartupEvent;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
+import org.reactivestreams.Publisher;
+import services.k_int.utils.UUIDUtils;
+import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
 @Singleton
 public class DCBStartupEventListener implements ApplicationEventListener<StartupEvent> {
@@ -20,6 +25,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	private final Environment environment;
 	private final AgencyRepository agencyRepository;
 	private final HostLmsRepository hostLmsRepository;
+	private final StatusCodeRepository statusCodeRepository;
 	private final HostLms[] confHosts;
 
 	private static final String REACTOR_DEBUG_VAR = "REACTOR_DEBUG";
@@ -29,9 +35,11 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	public DCBStartupEventListener(Environment environment, 
                                        AgencyRepository agencyRepository,
                                        HostLmsRepository hostLmsRepository,
+                                       StatusCodeRepository statusCodeRepository,
                                        HostLms[] confHosts) {
 		this.environment = environment;
 		this.agencyRepository = agencyRepository;
+		this.statusCodeRepository = statusCodeRepository;
 		this.hostLmsRepository = hostLmsRepository;
 		this.confHosts = confHosts;
 	}
@@ -70,6 +78,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			upsertHostLms(db_representation).block(); // subscribe( i -> log.info("Saved hostlms {}",i.getId()) );
 			log.debug("Save complete");
 		} 
+                bootstrapStatusCodes();
 
 		log.info("Exit onApplicationEvent");
 	}
@@ -79,4 +88,23 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
                .flatMap(exists -> Mono.fromDirect(exists ? hostLmsRepository.update(hostLMS) : hostLmsRepository.save(hostLMS)));
 	}
 
+	private void bootstrapStatusCodes() {
+		log.debug("bootstrapStatusCodes");
+		Mono.just ( "start" )
+			.flatMap( v -> { return Mono.from(saveOrUpdateStatusCode("SupplierRequest", "IDLE", Boolean.FALSE)); } )
+			.flatMap( v -> { return Mono.from(saveOrUpdateStatusCode("SupplierRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", Boolean.TRUE)); } )
+			.flatMap( v -> { return Mono.from(saveOrUpdateStatusCode("PatronRequest", "IDLE", Boolean.FALSE)); } )
+			.subscribe();
+	}
+
+	private Publisher<StatusCode> saveOrUpdateStatusCode(String model, String code, Boolean tracked) {
+		StatusCode sc = new StatusCode(
+					UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "StatusCode:"+model+":"+code),
+					model,
+					code,
+					null,
+					tracked);
+		log.debug("upsert {}",sc);
+		return statusCodeRepository.saveOrUpdate(sc);
+	}
 }

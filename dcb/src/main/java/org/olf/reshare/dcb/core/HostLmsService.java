@@ -9,8 +9,6 @@ import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.ingest.IngestSource;
 import org.olf.reshare.dcb.ingest.IngestSourcesProvider;
 import org.olf.reshare.dcb.storage.HostLmsRepository;
-import org.olf.reshare.dcb.tracking.TrackingSource;
-import org.olf.reshare.dcb.tracking.TrackingSourcesProvider;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.context.BeanContext;
@@ -19,7 +17,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Singleton
-public class HostLmsService implements IngestSourcesProvider,  TrackingSourcesProvider {
+public class HostLmsService implements IngestSourcesProvider {
 	// private final Map<UUID, HostLms> fromConfigById;
 	private final BeanContext context;
 	private final HostLmsRepository hostLmsRepository;
@@ -80,13 +78,6 @@ public class HostLmsService implements IngestSourcesProvider,  TrackingSourcesPr
 		UnknownHostLmsException(String propertyName, Object value) {
 			super(String.format("No Host LMS found for %s: %s", propertyName, value));
 		}
-	}
-
-	public Publisher<TrackingSource> getTrackingSources() {
-                return getAllHostLms()
-                        .filter( hlms -> TrackingSource.class.isAssignableFrom( hlms.getType() ))
-                        .flatMap(this::getClientFor)
-                        .cast(TrackingSource.class);
 	}
 
 }

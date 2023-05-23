@@ -20,7 +20,6 @@ import org.olf.reshare.dcb.ingest.model.IngestRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.olf.reshare.dcb.ingest.model.RawSource;
 import org.olf.reshare.dcb.storage.RawSourceRepository;
-import org.olf.reshare.dcb.tracking.TrackingSource;
 import org.olf.reshare.dcb.tracking.model.LenderTrackingEvent;
 import org.olf.reshare.dcb.tracking.model.PatronTrackingEvent;
 import org.olf.reshare.dcb.tracking.model.PickupTrackingEvent;
@@ -61,7 +60,7 @@ import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
  * https://gitlab.com/knowledge-integration/libraries/reshare-dcb-service/-/raw/68fd93de0f84f928597481b16d2887bd7e58f455/dcb/src/main/java/org/olf/reshare/dcb/core/interaction/sierra/SierraLmsClient.java
  */
 @Prototype
-public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult>, TrackingSource {
+public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
 
 	private static final Logger log = LoggerFactory.getLogger(SierraLmsClient.class);
 

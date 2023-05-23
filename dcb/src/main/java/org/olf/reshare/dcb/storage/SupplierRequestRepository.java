@@ -12,6 +12,8 @@ import org.reactivestreams.Publisher;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 
+import io.micronaut.data.annotation.Query;
+
 public interface SupplierRequestRepository {
 	@NonNull
 	@SingleResult
@@ -31,4 +33,7 @@ public interface SupplierRequestRepository {
 	Publisher<SupplierRequest> findAll();
 
 	Publisher<Void> delete(UUID id);
+
+	@Query(value = "SELECT sr.* from supplier_request sr where sr.status_code in ( select code from status_code where model = 'SupplierRequest' and tracked = true )", nativeQuery = true)
+	Publisher<SupplierRequest>  findTrackedSupplierHolds();
 }
