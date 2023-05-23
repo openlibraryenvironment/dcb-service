@@ -68,26 +68,26 @@ public class PatronRequest {
 
 	// Once we create a hold in the patrons home system, track it's ID here (Only unique in the context of the agencies host lms)
 	@Nullable
-	private String localSystemHoldId;
+	private String localRequestId;
 
 	@Nullable
-	private String localSystemHoldStatus;
+	private String localRequestStatus;
 
 	public PatronRequest resolve() {
 		return new PatronRequest(id, dateCreated, dateUpdated, patron,
-			bibClusterId, pickupLocationCode, RESOLVED, localSystemHoldId, localSystemHoldStatus);
+			bibClusterId, pickupLocationCode, RESOLVED, localRequestId, localRequestStatus);
 	}
 
 	public PatronRequest placedAtSupplyingAgency() {
 		return new PatronRequest(id, dateCreated, dateUpdated, patron,
 			bibClusterId, pickupLocationCode,
-			REQUEST_PLACED_AT_SUPPLYING_AGENCY, localSystemHoldId, localSystemHoldStatus);
+			REQUEST_PLACED_AT_SUPPLYING_AGENCY, localRequestId, localRequestStatus);
 	}
 
 	public PatronRequest resolveToNoItemsAvailable() {
 		return new PatronRequest(id, dateCreated, dateUpdated, patron,
 			bibClusterId, pickupLocationCode,
-			NO_ITEMS_AVAILABLE_AT_ANY_AGENCY, localSystemHoldId, localSystemHoldStatus);
+			NO_ITEMS_AVAILABLE_AT_ANY_AGENCY, localRequestId, localRequestStatus);
 	}
 }
 
