@@ -84,6 +84,10 @@ public class IngestRecord {
 	@With
 	@Nullable
 	Map<String, Object> canonicalMetadata;
+	
+	@Nullable
+  Integer metadataScore;
+
 
 //  @Nullable String edition();
 //  List<PublicationInformation> publicationInformation();

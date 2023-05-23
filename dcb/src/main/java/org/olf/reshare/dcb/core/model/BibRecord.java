@@ -95,14 +95,17 @@ public class BibRecord {
 	@TypeDef(type = DataType.JSON)
 	Map<String, Object> canonicalMetadata;
 
-        // Allocate a score to this record indicating it's semantic density in order to choose the
-        // best member of a cluster for presentation to the user
+	// Allocate a score to this record indicating it's semantic density in order to
+	// choose the
+	// best member of a cluster for presentation to the user
 	@Nullable
-        Integer metadataScore;
+	Integer metadataScore;
 
-        // When we process a source record to produce a bibRecord we can now track what version of the 
-        // process was applied. This gives us a way to know which records need to be reprocessed when we
-        // updgrade a system.
+	// When we process a source record to produce a bibRecord we can now track what
+	// version of the
+	// process was applied. This gives us a way to know which records need to be
+	// reprocessed when we
+	// updgrade a system.
 	@Nullable
-        Integer processVersion;
+	Integer processVersion;
 }
