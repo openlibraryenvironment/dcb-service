@@ -4,6 +4,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 import javax.validation.Valid;
 
+import io.micronaut.security.authentication.Authentication;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.request.fulfilment.PatronRequestService;
 import org.olf.reshare.dcb.request.fulfilment.PatronService;
@@ -30,6 +31,7 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
+import java.util.Map;
 
 @Validated
 @Secured(SecurityRule.IS_ANONYMOUS)
@@ -49,6 +51,12 @@ public class PatronRequestController {
 		this.patronService = patronService;
 	}
 
+	/**
+	 * ToDo: This method should be secured with IS_AUTHENTICATED as the list method below
+	 * @param command - patron request view - passed in params should match claims in the incoming JWT
+	 *                to prevent a user from using their creds to place a request against another user acct
+	 * @return
+	 */
 	@SingleResult
 	@Post(value = "/place", consumes = APPLICATION_JSON)
 	public Mono<MutableHttpResponse<PatronRequestView>> placePatronRequest(
@@ -61,7 +69,7 @@ public class PatronRequestController {
 			.map(HttpResponse::ok);
 	}
 
-	@Secured(SecurityRule.IS_ANONYMOUS)
+	@Secured(SecurityRule.IS_AUTHENTICATED)
 	@Operation(
 		summary = "Browse Requests",
 		description = "Paginate through the list of Patron Requests",
@@ -70,7 +78,12 @@ public class PatronRequestController {
 			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
 	)
 	@Get("/{?pageable*}")
-	public Mono<Page<PatronRequest>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
+	public Mono<Page<PatronRequest>> list(@Parameter(hidden = true) @Valid Pageable pageable,
+																				Authentication authentication) {
+
+		Map<String,Object> claims = authentication.getAttributes();
+		log.debug("list requests for {}",claims);
+
 		if (pageable == null) {
 			pageable = Pageable.from(0, 100);
 		}
