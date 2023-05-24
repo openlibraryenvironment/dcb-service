@@ -97,6 +97,7 @@ CREATE TABLE supplier_request (
 	patron_request_id uuid REFERENCES patron_request(id),
 	local_item_id varchar(200),
 	local_item_barcode varchar(200),
+	local_item_location_code varchar(200),
 	host_lms_code varchar(200),
 	status_code varchar(200),
 	local_id varchar(200),

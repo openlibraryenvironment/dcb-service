@@ -45,10 +45,11 @@ class AdminApiClient {
 		@Serdeable
 		record SupplierRequest(@Nullable UUID id, @Nullable Item item,
 			@Nullable String hostLmsCode, @Nullable String status,
-		 	@Nullable String localHoldId, @Nullable String localHoldStatus) {}
+			@Nullable String localHoldId, @Nullable String localHoldStatus) {}
 
 		@Serdeable
-		record Item(@Nullable String id, @Nullable String localItemBarcode) {}
+		record Item(@Nullable String id, @Nullable String localItemBarcode,
+			@Nullable String localItemLocationCode) {}
 
 		@Serdeable
 		record Status(@Nullable String code) { }

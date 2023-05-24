@@ -65,14 +65,15 @@ record PatronRequestAdminView(UUID id, Citation citation,
 		private static SupplierRequest from(
 			org.olf.reshare.dcb.core.model.SupplierRequest supplierRequest) {
 
-		return new SupplierRequest(supplierRequest.getId(),
-			new Item(supplierRequest.getLocalItemId(),
-				supplierRequest.getLocalItemBarcode()),
-			supplierRequest.getHostLmsCode(),
-			supplierRequest.getStatusCode().getDisplayName(),
-			supplierRequest.getLocalId(),
-			supplierRequest.getLocalStatus());
-	}
+			return new SupplierRequest(supplierRequest.getId(),
+				new Item(supplierRequest.getLocalItemId(),
+					supplierRequest.getLocalItemBarcode(),
+					supplierRequest.getLocalItemLocationCode()),
+				supplierRequest.getHostLmsCode(),
+				supplierRequest.getStatusCode().getDisplayName(),
+				supplierRequest.getLocalId(),
+				supplierRequest.getLocalStatus());
+		}
 
 		private static List<SupplierRequest> fromList(
 			List<org.olf.reshare.dcb.core.model.SupplierRequest> supplierRequests) {
@@ -84,7 +85,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	}
 
 	@Serdeable
-	record Item(String id, String localItemBarcode) {}
+	record Item(String id, String localItemBarcode, String localItemLocationCode) {}
 
 	@Serdeable
 	record Status(String code) {}

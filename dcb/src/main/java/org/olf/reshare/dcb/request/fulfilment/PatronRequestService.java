@@ -1,18 +1,17 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
-
-import java.util.UUID;
-
+import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
+
+import java.util.UUID;
+
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 @Prototype
 public class PatronRequestService {
@@ -76,13 +75,6 @@ public class PatronRequestService {
 
 		// Mono and publishers don't chain very well, so convert to mono
 		return Mono.from(patronRequestRepository.save(patronRequest));
-	}
-
-	public Mono<PatronRequest> updatePatronRequest(PatronRequest patronRequest) {
-		log.debug("updatePatronRequest {}", patronRequest);
-
-		return Mono.from(patronRequestRepository.update(patronRequest))
-			.zipWhen(this::findPatron, PatronRequestService::addPatron);
 	}
 
 	public Mono<PatronRequest> findById(UUID id) {
