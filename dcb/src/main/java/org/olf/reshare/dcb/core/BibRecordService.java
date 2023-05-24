@@ -169,11 +169,13 @@ public class BibRecordService {
 		}
 
 		// Check if existing...
-		return Mono.just(source).flatMap(this::getOrSeed).flatMap((final BibRecord bib) -> {
-			final List<ProcessingStep> pipeline = new ArrayList<>();
-			pipeline.add(this::step1);
-			return Flux.fromIterable(pipeline).reduce(bib, (theBib, step) -> step.apply(bib, source));
-		})
+		return Mono.just(source)
+				.flatMap(this::getOrSeed)
+				.flatMap((final BibRecord bib) -> {
+					final List<ProcessingStep> pipeline = new ArrayList<>();
+					pipeline.add(this::step1);
+					return Flux.fromIterable(pipeline).reduce(bib, (theBib, step) -> step.apply(bib, source));
+				})
 		.flatMap(this::saveOrUpdate).flatMap(savedBib -> this.saveIdentifiers(savedBib, source))
 		.flatMap( finalBib -> this.updateStatistics(finalBib, source, start_time) );
 	}

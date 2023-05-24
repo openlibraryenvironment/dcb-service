@@ -18,7 +18,6 @@ import java.util.stream.Stream;
 
 import javax.transaction.Transactional;
 import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.NotNull;
 
 import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
@@ -48,6 +47,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 
 	final static Pattern REGEX_NAMESPACE_ID_PAIR = Pattern.compile("^((\\(([^)]+)\\))|(([^:]+):))(.*)$");
 	final static Pattern REGEX_LINKAGE_245_880 = Pattern.compile("^880-(\\d+)");
+	final static Pattern REGEX_REMOVE_PUNCTUATION = Pattern.compile("\\p{Punct}");
 
 	static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
 
@@ -68,12 +68,13 @@ public interface MarcIngestSource<T> extends IngestSource {
 		enrichWithGoldrush(ingestRecord, marcRecord);
 
 		enrichWithCanonicalRecord(ingestRecord, marcRecord);
+		
+		enrichWithMetadataScore(ingestRecord, marcRecord);
 
 		return ingestRecord;
 	}
 
 	@NonNull
-	@NotNull
 	String getDefaultControlIdNamespace();
 
 	default IngestRecordBuilder enrichWithLeaderInformation(final IngestRecordBuilder ingestRecord,
@@ -355,9 +356,8 @@ public interface MarcIngestSource<T> extends IngestSource {
 		if (edition_field != null) {
 			canonical_metadata.put("edition", tidy(edition_field.getSubfieldsAsString("a")));
 		}
-
-		irb.canonicalMetadata(canonical_metadata);
-		return irb;
+		
+		return irb.canonicalMetadata(canonical_metadata);
 	}
 
 	public default IngestRecordBuilder enrichWithMetadataScore(final IngestRecordBuilder irb, final Record marcRecord) {
@@ -366,7 +366,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 		
 		if (canonical_metadata != null) {
 			
-			// Total the counts of the 2 properties as Lists
+			// Total the counts of the properties in the List
 			score = Stream.of("subjects", "agents")
 				.map(canonical_metadata::get)
 				.filter(Objects::nonNull)
@@ -389,7 +389,8 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 
 	private String tidy(String inputstr) {
-		return inputstr.replaceAll("\\p{Punct}", "");
+		
+		return REGEX_REMOVE_PUNCTUATION.matcher(inputstr).replaceAll("");
 	}
 
 	private void addToCanonicalMetadata(String property, String tag, String subtype, Record marcRecord,
