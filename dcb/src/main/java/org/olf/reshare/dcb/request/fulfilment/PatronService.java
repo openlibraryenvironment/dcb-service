@@ -1,6 +1,7 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
+import static lombok.AccessLevel.PACKAGE;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Prototype;
+import lombok.RequiredArgsConstructor;
+import lombok.Value;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -38,34 +41,29 @@ public class PatronService {
 		this.hostLmsService = hostLmsService;
 	}
 
-	public Mono<Patron> findPatronFor(String localSystemCode, String localId) {
-		log.debug("FindPatronFor({}, {})", localSystemCode, localId);
+	public Mono<PatronId> findPatronFor(String localSystemCode, String localId) {
+		log.debug("findPatronFor({}, {})", localSystemCode, localId);
 
 		return fetchDataHostLmsByLocalSystemCode(localSystemCode)
-			.flatMap(dataHostLms -> fetchPatronIdentityByHomeIdentity(localId, dataHostLms))
-			.map(PatronIdentity::getPatron)
-			.flatMap(patron -> findById(patron.getId()))
-			// logs that null was returned from the repo (dev purposes only)
-			.onErrorResume(NullPointerException.class, error -> {
-				log.debug("NullPointerException occurred: {}", error.getMessage());
-				return Mono.empty();
-			});
+			.flatMap(hostLms -> fetchPatronIdentityByHomeIdentity(localId, hostLms))
+			.map(PatronId::fromIdentity);
 	}
 
-	public Mono<Patron> findById(UUID patronId) {
-		return Mono.from(patronRepository.findById(patronId))
-			.zipWhen(patron -> findAllPatronIdentitiesByPatron(patron).collectList(),
-				this::addIdentities);
+	public Mono<Patron> findById(PatronId patronId) {
+		log.debug("findById({})", patronId);
+
+		return Mono.from(patronRepository.findById(patronId.getValue()))
+			.zipWhen(this::fetchAllIdentities, this::addIdentities);
 	}
 
-	public Mono<Patron> createPatron(String localSystemCode, String localId,
+	public Mono<PatronId> createPatron(String localSystemCode, String localId,
 		String homeLibraryCode) {
 
 		log.debug("createPatron({}, {}, {})", localSystemCode, localId, homeLibraryCode);
 
 		return savePatron(createPatron(homeLibraryCode))
 			.flatMap(patron -> savePatronIdentity(patron, localSystemCode, localId))
-			.flatMap(patronIdentity -> findById(patronIdentity.getPatron().getId()));
+			.map(PatronId::fromIdentity);
 	}
 
 	private Mono<PatronIdentity> fetchPatronIdentityByHomeIdentity(
@@ -164,7 +162,7 @@ public class PatronService {
 
 		return patron;
 	}
-
+	
 	public String getUniqueIdStringFor(Patron patron) {
 		return patron.getPatronIdentities()
 			.stream()
@@ -183,7 +181,25 @@ public class PatronService {
 	public Mono<PatronIdentity> checkForPatronIdentity(Patron patron, String hostLmsCode, String localId) {
 		log.debug("checkForPatronIdentity {}, {}, {}", patron.getId(), hostLmsCode, localId);
 
-		return Mono.justOrEmpty( findIdentityByLocalId(patron, localId) )
+		return Mono.justOrEmpty(findIdentityByLocalId(patron, localId))
 			.switchIfEmpty(Mono.defer(() -> createPatronIdentity(patron, localId, hostLmsCode, false)));
+	}
+
+	private Mono<List<PatronIdentity>> fetchAllIdentities(Patron patron) {
+		return findAllPatronIdentitiesByPatron(patron).collectList();
+	}
+
+	@Value
+	@RequiredArgsConstructor(access = PACKAGE)
+	public static class PatronId {
+		UUID value;
+
+		static PatronId fromIdentity(PatronIdentity identity) {
+			return fromPatron(identity.getPatron());
+		}
+
+		static PatronId fromPatron(Patron patron) {
+			return new PatronId(patron.getId());
+		}
 	}
 }

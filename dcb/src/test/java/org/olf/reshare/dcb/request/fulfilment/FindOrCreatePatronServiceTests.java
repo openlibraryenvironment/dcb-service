@@ -13,22 +13,28 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.model.Patron;
+import org.olf.reshare.dcb.request.fulfilment.PatronService.PatronId;
 
 import reactor.core.publisher.Mono;
 
 class FindOrCreatePatronServiceTests {
+	private final PatronService patronService = mock(PatronService.class);
+
+	private final FindOrCreatePatronService findOrCreatePatronService = new FindOrCreatePatronService(patronService);
+
 	@Test
 	@DisplayName("should find existing patron when found by patron service")
 	void shouldFindExistingPatronWhenPatronIsFound() {
 		// Arrange
-		final var patronService = mock(PatronService.class);
-
-		final var findOrCreatePatronService = new FindOrCreatePatronService(patronService);
-
 		final var existingPatron = createPatron(null);
 
+		final var patronId = PatronId.fromPatron(existingPatron);
+
 		when(patronService.findPatronFor("localSystemCode", "localId"))
-			.thenAnswer(invocation -> Mono.just(existingPatron));
+			.thenReturn(Mono.just(patronId));
+
+		when(patronService.findById(patronId))
+			.thenReturn(Mono.just(existingPatron));
 
 		// Act
 
@@ -42,6 +48,9 @@ class FindOrCreatePatronServiceTests {
 			foundPatron, is(existingPatron));
 
 		verify(patronService).findPatronFor("localSystemCode", "localId");
+
+		verify(patronService).findById(patronId);
+
 		verifyNoMoreInteractions(patronService);
 	}
 
@@ -49,18 +58,19 @@ class FindOrCreatePatronServiceTests {
 	@DisplayName("should create new patron when no patron is found by patron service")
 	void shouldCreateNewPatronWhenNoPatronIsFound() {
 		// Arrange
-		final var patronService = mock(PatronService.class);
-
-		final var findOrCreatePatronService = new FindOrCreatePatronService(patronService);
-
 		when(patronService.findPatronFor("localSystemCode", "localId"))
-			.thenAnswer(invocation -> Mono.empty());
+			.thenReturn(Mono.empty());
 
 		final var createdPatron = createPatron("home-library-code");
 
-		when(patronService.createPatron("localSystemCode", "localId",
-			"home-library-code"))
-			.thenAnswer(invocation -> Mono.just(createdPatron));
+		final var patronId = PatronId.fromPatron(createdPatron);
+
+		when(patronService
+			.createPatron("localSystemCode", "localId", "home-library-code"))
+				.thenReturn(Mono.just(patronId));
+
+		when(patronService.findById(patronId))
+			.thenReturn(Mono.just(createdPatron));
 
 		// Act
 		final var foundPatron = findOrCreatePatronService
@@ -68,12 +78,13 @@ class FindOrCreatePatronServiceTests {
 			.block();
 
 		// Assert
-		assertThat("Should be same patron as created by patron service",
-			foundPatron, is(createdPatron));
+		assertThat("Should return a patron", foundPatron, is(createdPatron));
 
 		verify(patronService).findPatronFor("localSystemCode", "localId");
 		verify(patronService).createPatron("localSystemCode", "localId",
 			"home-library-code");
+
+		verify(patronService).findById(patronId);
 
 		verifyNoMoreInteractions(patronService);
 	}
