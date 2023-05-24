@@ -45,8 +45,8 @@ class PatronRequestResolutionStateTransitionTests {
 			RESOLVED);
 
 		final var supplierRequest = new SupplierRequest(randomUUID(),
-			resolvedPatronRequest, "itemId", "holdingsAgencyCode",
-			null, null, null);
+			resolvedPatronRequest, "itemId", "itemBarcode",
+			"holdingsAgencyCode", null, null, null);
 
 		when(patronRequestResolutionService.resolvePatronRequest(initialPatronRequest))
 			.thenAnswer(invocation -> Mono.just(
@@ -78,8 +78,8 @@ class PatronRequestResolutionStateTransitionTests {
 			NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
 
 		final var supplierRequest = new SupplierRequest(randomUUID(),
-			resolvedPatronRequest, "itemId", "holdingsAgencyCode",
-			null, null, null);
+			resolvedPatronRequest, "itemId", "itemBarcode",
+			"holdingsAgencyCode", null, null, null);
 
 		when(patronRequestResolutionService.resolvePatronRequest(initialPatronRequest))
 			.thenAnswer(invocation -> Mono.just(

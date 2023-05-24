@@ -66,7 +66,8 @@ record PatronRequestAdminView(UUID id, Citation citation,
 			org.olf.reshare.dcb.core.model.SupplierRequest supplierRequest) {
 
 		return new SupplierRequest(supplierRequest.getId(),
-			new Item(supplierRequest.getLocalItemId()),
+			new Item(supplierRequest.getLocalItemId(),
+				supplierRequest.getLocalItemBarcode()),
 			supplierRequest.getHostLmsCode(),
 			supplierRequest.getStatusCode().getDisplayName(),
 			supplierRequest.getLocalId(),
@@ -83,7 +84,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	}
 
 	@Serdeable
-	record Item(String id) {}
+	record Item(String id, String localItemBarcode) {}
 
 	@Serdeable
 	record Status(String code) {}
