@@ -177,6 +177,7 @@ class PatronRequestApiTests {
 		assertThat(supplierRequest.localHoldId(), is("407557"));
 		assertThat(supplierRequest.localHoldStatus(), is("0"));
 		assertThat(supplierRequest.item().id(), is("1000002"));
+		assertThat(supplierRequest.item().localItemBarcode(), is("9849123490"));
 	}
 
 	@Test
@@ -240,6 +241,7 @@ class PatronRequestApiTests {
 		assertThat(supplierRequest.localHoldId(), is("407557"));
 		assertThat(supplierRequest.localHoldStatus(), is("0"));
 		assertThat(supplierRequest.item().id(), is("1000002"));
+		assertThat(supplierRequest.item().localItemBarcode(), is("9849123490"));
 	}
 
 

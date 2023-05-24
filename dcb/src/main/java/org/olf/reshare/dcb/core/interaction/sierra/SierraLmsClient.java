@@ -73,7 +73,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final ItemResultToItemMapper itemResultToItemMapper = new ItemResultToItemMapper();
 
 	public SierraLmsClient(@Parameter HostLms lms, HostLmsSierraApiClientFactory clientFactory,
-			RawSourceRepository rawSourceRepository, ProcessStateService processStateService) {
+		RawSourceRepository rawSourceRepository, ProcessStateService processStateService) {
 		this.lms = lms;
 
 		// Get a sierra api client.
@@ -91,17 +91,17 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 //		log.info("Fetching batch from Sierra API with since={} offset={} limit={}", since, offset, limit);
 		log.info("Creating subscribeable batch;  since={} offset={} limit={}", since, offset, limit);
 		return Mono.from(client.bibs(params -> {
-			params.deleted(false).offset(offset).limit(limit)
+				params.deleted(false).offset(offset).limit(limit)
 					.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "deleted", "marc", "suppressed"));
 
-			if (since != null) {
-				params.updatedDate(dtr -> {
-					// dtr.to(LocalDateTime.now()).fromDate(LocalDateTime.from(since));
-					dtr.to(LocalDateTime.now()).fromDate(since.atZone(java.time.ZoneId.of("UTC")).toLocalDateTime());
-				});
-			}
-		}))
-		.doOnSubscribe(_s -> log.info("Fetching batch from Sierra API with since={} offset={} limit={}", since, offset, limit));
+				if (since != null) {
+					params.updatedDate(dtr -> {
+						// dtr.to(LocalDateTime.now()).fromDate(LocalDateTime.from(since));
+						dtr.to(LocalDateTime.now()).fromDate(since.atZone(java.time.ZoneId.of("UTC")).toLocalDateTime());
+					});
+				}
+			}))
+			.doOnSubscribe(_s -> log.info("Fetching batch from Sierra API with since={} offset={} limit={}", since, offset, limit));
 	}
 
 	/**
@@ -112,85 +112,85 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	 */
 	private Mono<PublisherState> getInitialState(UUID context, String process) {
 		return processStateService.getStateMap(context, process)
-				.defaultIfEmpty(new HashMap<String, Object>())
-				.map(current_state -> {
+			.defaultIfEmpty(new HashMap<String, Object>())
+			.map(current_state -> {
 
-					PublisherState generator_state = new PublisherState(current_state);
-					log.info("backpressureAwareBibResultGenerator - state=" + current_state + " lmsid=" + lms.getId() + " thread="
-							+ Thread.currentThread().getName());
+				PublisherState generator_state = new PublisherState(current_state);
+				log.info("backpressureAwareBibResultGenerator - state=" + current_state + " lmsid=" + lms.getId() + " thread="
+					+ Thread.currentThread().getName());
 
-					String cursor = (String) current_state.get("cursor");
-					if (cursor != null) {
-						log.debug("Cursor: " + cursor);
-						String[] components = cursor.split(":");
+				String cursor = (String) current_state.get("cursor");
+				if (cursor != null) {
+					log.debug("Cursor: " + cursor);
+					String[] components = cursor.split(":");
 
-						if (components[0].equals("bootstrap")) {
-							// Bootstrap cursor is used for the initial load where we need to just page
-							// through everything
-							// from day 0
-							generator_state.offset = Integer.parseInt(components[1]);
-							log.info("Resuming bootstrap at offset " + generator_state.offset);
-						} else if (components[0].equals("deltaSince")) {
-							// Delta cursor is used after the initial bootstrap and lets us know the point
-							// in time
-							// from where we need to fetch records
-							generator_state.sinceMillis = Long.parseLong(components[1]);
-							generator_state.since = Instant.ofEpochMilli(generator_state.sinceMillis);
-							if (components.length == 3) {
-								// We're recovering from an interuption whilst processing a delta
-								generator_state.offset = Integer.parseInt(components[2]);
-							}
-							log.info("Resuming delta at timestamp " + generator_state.since + " offset=" + generator_state.offset);
+					if (components[0].equals("bootstrap")) {
+						// Bootstrap cursor is used for the initial load where we need to just page
+						// through everything
+						// from day 0
+						generator_state.offset = Integer.parseInt(components[1]);
+						log.info("Resuming bootstrap at offset " + generator_state.offset);
+					} else if (components[0].equals("deltaSince")) {
+						// Delta cursor is used after the initial bootstrap and lets us know the point
+						// in time
+						// from where we need to fetch records
+						generator_state.sinceMillis = Long.parseLong(components[1]);
+						generator_state.since = Instant.ofEpochMilli(generator_state.sinceMillis);
+						if (components.length == 3) {
+							// We're recovering from an interuption whilst processing a delta
+							generator_state.offset = Integer.parseInt(components[2]);
 						}
-					} else {
-						log.info("Start a fresh ingest");
+						log.info("Resuming delta at timestamp " + generator_state.since + " offset=" + generator_state.offset);
 					}
+				} else {
+					log.info("Start a fresh ingest");
+				}
 
-					// Make a note of the time before we start
-					generator_state.request_start_time = System.currentTimeMillis();
-					log.debug("Create generator: offset={} since={}", generator_state.offset, generator_state.since);
+				// Make a note of the time before we start
+				generator_state.request_start_time = System.currentTimeMillis();
+				log.debug("Create generator: offset={} since={}", generator_state.offset, generator_state.since);
 
-					return generator_state;
-				});
+				return generator_state;
+			});
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	protected Mono<PublisherState> saveState( PublisherState state ) {
 		log.debug("Update state {}", state);
-		
+
 		return Mono.from(processStateService.updateState(lms.getId(), "ingest", state.storred_state))
-				.thenReturn(state);
+			.thenReturn(state);
 	}
-	
+
 	private Publisher<BibResult> pageAllResults(int pageSize) {
 
 		return getInitialState(lms.getId(), "ingest")
 			.flatMap(state -> Mono.zip(Mono.just(state.toBuilder().build()), fetchPage(state.since, state.offset, pageSize)))
 			.expand(TupleUtils.function(( state ,results ) -> {
-				
+
 				var bibs = results.entries();
 				log.info("Fetched a chunk of {} records", bibs.size());
-				
+
 //				state.current_page = bibs;
-				
+
 				log.info("got[{}] page of data, containing {} results", state.page_counter++, bibs.size());
 				state.possiblyMore = bibs.size() == pageSize;
 
 				// Increment the offset for the next fetch
 				state.offset += bibs.size();
-				
+
 				// If we have exhausted the currently cached page, and we are at the end,
 				// terminate.
 				if (!state.possiblyMore) {
 					log.info("Terminating cleanly - run out of bib results - new timestamp is {}", state.request_start_time);
-					
+
 					// Make a note of the time at which we started this run, so we know where
 					// to pick up from next time
 					state.storred_state.put("cursor", "deltaSince:" + state.request_start_time);
 
 					log.info("No more results to fetch");
 					return Mono.empty();
-					
+
 				} else {
 					log.info("Exhausted current page, prep next");
 					// We have finished consuming a page of data, but there is more to come.
@@ -210,11 +210,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					// Concatenate with the state so we can propogate signals from the save operation.
 					.concatWith(Mono.defer(() ->
 							saveState(state))
-								.flatMap(_s -> {
-									log.debug("Updating state...");
-									return Mono.empty();
-								}))
-					
+						.flatMap(_s -> {
+							log.debug("Updating state...");
+							return Mono.empty();
+						}))
+
 					.doOnComplete(() -> log.debug("Consumed {} items", page.entries().size()));
 			}));
 	}
@@ -230,25 +230,25 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.info("Fetching MARC JSON from Sierra for {}", lms.getName());
 
 		final int pageSize = MapUtils.getAsOptionalString(lms.getClientConfig(), "page-size").map(Integer::parseInt)
-				.orElse(DEFAULT_PAGE_SIZE);
+			.orElse(DEFAULT_PAGE_SIZE);
 
 		// The stream of imported records.
 		// return Flux.from(pageAllResults(since, 0, pageSize)).filter(sierraBib ->
 		// sierraBib.marc() != null)
 		// return Flux.from(pageAllResults(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
-    return Flux.from(pageAllResults(pageSize))
-    		.filter(sierraBib -> sierraBib.marc() != null)
+		return Flux.from(pageAllResults(pageSize))
+			.filter(sierraBib -> sierraBib.marc() != null)
 //				.subscribeOn(Schedulers.boundedElastic(), false)
-				.onErrorResume(t -> {
-					log.error("Error ingesting data {}", t.getMessage());
-					t.printStackTrace();
-					return Mono.empty();
-				})
-				.switchIfEmpty(
-					Mono.fromCallable(() -> {
-						log.info("No results returned. Stopping");
-						return null;
-					}));
+			.onErrorResume(t -> {
+				log.error("Error ingesting data {}", t.getMessage());
+				t.printStackTrace();
+				return Mono.empty();
+			})
+			.switchIfEmpty(
+				Mono.fromCallable(() -> {
+					log.info("No results returned. Stopping");
+					return null;
+				}));
 	}
 
 	public UUID uuid5ForBibResult(@NotNull final BibResult result) {
@@ -262,11 +262,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		// Use the host LMS as the
 		return IngestRecord.builder()
-				.uuid(uuid5ForBibResult(resource))
-				.sourceSystem(lms)
-				.sourceRecordId(resource.id())
-				.suppressFromDiscovery(resource.suppressed())
-				.deleted(resource.deleted());
+			.uuid(uuid5ForBibResult(resource))
+			.sourceSystem(lms)
+			.sourceRecordId(resource.id())
+			.suppressFromDiscovery(resource.suppressed())
+			.deleted(resource.deleted());
 	}
 
 	public UUID uuid5ForRawJson(@NotNull final BibResult result) {
@@ -284,7 +284,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		final Map<String, ?> rawJsonString = conversionService.convertRequired(rawJson, Map.class);
 
 		RawSource raw = RawSource.builder().id(uuid5ForRawJson(resource)).hostLmsId(lms.getId()).remoteId(resource.id())
-				.json(rawJsonString).build();
+			.json(rawJsonString).build();
 
 		return raw;
 	}
@@ -297,11 +297,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	public Flux<Map<String, ?>> getAllBibData() {
 		return Flux.from(client.bibs(params -> params.deleted(false)))
-				.flatMap(results -> Flux.fromIterable(results.entries())).map(bibRes -> {
-					Map<String, Object> map = new HashMap<>();
-					map.put("id", bibRes.id());
-					return map;
-				});
+			.flatMap(results -> Flux.fromIterable(results.entries())).map(bibRes -> {
+				Map<String, Object> map = new HashMap<>();
+				map.put("id", bibRes.id());
+				return map;
+			});
 	}
 
 	@Override
@@ -309,8 +309,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("getItemsByBibId({})", bibId);
 
 		return Flux.from(client.items(params -> params.deleted(false).bibIds(List.of(bibId))))
-				.flatMap(results -> Flux.fromIterable(results.getEntries()))
-				.map(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode)).collectList();
+			.flatMap(results -> Flux.fromIterable(results.getEntries()))
+			.map(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode)).collectList();
 	}
 
 	@Override
@@ -337,7 +337,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return Mono.from(client.patrons(patronPatch))
 			.doOnSuccess(result -> log.debug("the result of createPatron({})", result))
-			.map(patronResult -> extractIdFromUrl( patronResult.getLink() ))
+			.map(patronResult -> deRestify( patronResult.getLink() ))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Patron: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Patron"));
@@ -379,11 +379,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("filterByLocalItemId({}, {})", holds, localItemId);
 
 		return Flux.fromIterable(holds.entries())
-			.filter(hold -> extractIdFromUrl( hold.record() ).equals(localItemId))
+			.filter(hold -> deRestify( hold.record() ).equals(localItemId))
 			.collectList()
 			.flatMap(filteredHolds -> {
 				if (filteredHolds.size() == 1) {
-					final String extractedId = extractIdFromUrl( filteredHolds.get(0).id() );
+					final String extractedId = deRestify( filteredHolds.get(0).id() );
 					final String localStatus = filteredHolds.get(0).status().code();
 					return Mono.just( Tuples.of(extractedId, localStatus) );
 				} else if (filteredHolds.size() > 1) {
@@ -400,12 +400,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		} catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Invalid integer: " + integer, e);
 		}
-	}
-
-	private String extractIdFromUrl(String url) {
-		log.debug("Extracting id from: {}", url);
-		// example: "https://sandbox.iii.com/iii/sierra-api/v6/patrons/2745325"
-		return url.substring(url.lastIndexOf('/') + 1);
 	}
 
 	@Override
@@ -425,7 +419,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	public UUID uuid5ForShelvingLocation(@NotNull final String hostLmsCode, @NotNull final String localBranchId,
-			@NotNull final String locationCode) {
+		@NotNull final String locationCode) {
 		final String concat = UUID5_PREFIX + ":SL:" + hostLmsCode + ":" + localBranchId + ":" + locationCode;
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
@@ -446,40 +440,40 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			for (Map<String, String> shelving_location : bi.locations()) {
 				// It appears these are not only shelving locations but more general location records attached to the location
 				locations.add(new org.olf.reshare.dcb.configuration.ShelvingLocationRecord(
-						uuid5ForShelvingLocation(lms.getCode(), bi.id(), shelving_location.get("code")),
-						shelving_location.get("code"), shelving_location.get("name")));
+					uuid5ForShelvingLocation(lms.getCode(), bi.id(), shelving_location.get("code")),
+					shelving_location.get("code"), shelving_location.get("name")));
 			}
 		}
 
 		return BranchRecord.builder().id(uuid5ForBranch(lms.getCode(), bi.id()))
-				.lms(lms).localBranchId(bi.id()).branchName(bi.name())
-				.lat(bi.latitude() != null ? Float.valueOf(bi.latitude()) : null)
-				.lon(bi.longitude() != null ? Float.valueOf(bi.longitude()) : null).shelvingLocations(locations).build();
+			.lms(lms).localBranchId(bi.id()).branchName(bi.name())
+			.lat(bi.latitude() != null ? Float.valueOf(bi.latitude()) : null)
+			.lon(bi.longitude() != null ? Float.valueOf(bi.longitude()) : null).shelvingLocations(locations).build();
 	}
 
 	private ConfigurationRecord mapSierraPickupLocationToPickupLocationRecord(PickupLocationInfo pli) {
 		return PickupLocationRecord.builder().id(uuid5ForPickupLocation(lms.getCode(), pli.code())).lms(lms)
-				.code(pli.code()).name(pli.name()).build();
+			.code(pli.code()).name(pli.name()).build();
 	}
 
 	private Publisher<ConfigurationRecord> getBranches() {
 		Iterable<String> fields = List.of("name", "address", "emailSource", "emailReplyTo", "latitude", "longitude",
-				"locations");
+			"locations");
 		return Flux.from(client.branches(Integer.valueOf(100), Integer.valueOf(0), fields))
-				.flatMap(results -> Flux.fromIterable(results.entries()))
-				.map(result -> mapSierraBranchToBranchConfigurationRecord(result));
+			.flatMap(results -> Flux.fromIterable(results.entries()))
+			.map(result -> mapSierraBranchToBranchConfigurationRecord(result));
 	}
 
 	private Publisher<ConfigurationRecord> getPickupLocations() {
 		return Flux.from(client.pickupLocations()).flatMap(results -> Flux.fromIterable(results))
-				.map(result -> mapSierraPickupLocationToPickupLocationRecord(result));
+			.map(result -> mapSierraPickupLocationToPickupLocationRecord(result));
 	}
 
 	private Publisher<ConfigurationRecord> getPatronMetadata() {
 		return Flux.from(client.patronMetadata()).flatMap(results -> Flux.fromIterable(results))
-				.flatMap(
-						result -> Flux.fromIterable(result.values()).flatMap(item -> Mono.just(Tuples.of(item, result.field()))))
-				.map(tuple -> mapSierraPatronMetadataToConfigurationRecord(tuple.getT1(), tuple.getT2()));
+			.flatMap(
+				result -> Flux.fromIterable(result.values()).flatMap(item -> Mono.just(Tuples.of(item, result.field()))))
+			.map(tuple -> mapSierraPatronMetadataToConfigurationRecord(tuple.getT1(), tuple.getT2()));
 	}
 
 	private ConfigurationRecord mapSierraPatronMetadataToConfigurationRecord(Map<String, Object> rdv, String field) {
@@ -498,32 +492,32 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
-	
+
 	@Builder(toBuilder = true)
 	@ToString
 	@RequiredArgsConstructor
 	@AllArgsConstructor
 	protected static class PublisherState {
 		public final Map<String, Object> storred_state;
-		
+
 		@Builder.Default
 		boolean possiblyMore = false;
-		
+
 		@Builder.Default
 		int offset = 0;
-		
+
 		@Builder.Default
 		Instant since = null;
-		
+
 		@Builder.Default
 		long sinceMillis = 0;
-		
+
 		@Builder.Default
 		long request_start_time = 0;
-		
+
 		@Builder.Default
 		boolean error = false;
-		
+
 		@Builder.Default
 		int page_counter = 0;
 	}
@@ -546,11 +540,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				// This is a lender hold - shipping an item to a pickup location or direct to a
 				// patron home
 				result = LenderTrackingEvent.builder().hostLmsCode(lms.getCode()).normalisedRecordType(sph.recordType())
-						.localHoldId(deRestify(sph.id())).localPatronReference(deRestify(sph.patron()))
-						.localRecordId(deRestify(sph.record())).localHoldStatusCode(sph.status().code())
-						.localHoldStatusName(sph.status().name())
-						.pickupLocationCode(sph.pickupLocation() != null ? sph.pickupLocation().code() : null)
-						.pickupLocationName(sph.pickupLocation() != null ? sph.pickupLocation().name() : null).build();
+					.localHoldId(deRestify(sph.id())).localPatronReference(deRestify(sph.patron()))
+					.localRecordId(deRestify(sph.record())).localHoldStatusCode(sph.status().code())
+					.localHoldStatusName(sph.status().name())
+					.pickupLocationCode(sph.pickupLocation() != null ? sph.pickupLocation().code() : null)
+					.pickupLocationName(sph.pickupLocation() != null ? sph.pickupLocation().name() : null).build();
 			}
 		} else if (sph.record().contains("@")) {
 			// patron does not contain % but record does - this is a request from a remote
@@ -569,23 +563,23 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("getTrackingData");
 		SierraPatronHoldResultSet init = new SierraPatronHoldResultSet(0, 0, new ArrayList<SierraPatronHold>());
 		return Flux.just(init).expand(lastPage -> {
-			log.debug("Fetch pages of data from offset {}", lastPage.start(), lastPage.total());
-			Mono<SierraPatronHoldResultSet> pageMono = Mono
+				log.debug("Fetch pages of data from offset {}", lastPage.start(), lastPage.total());
+				Mono<SierraPatronHoldResultSet> pageMono = Mono
 					.from(client.getAllPatronHolds(250, lastPage.start() + lastPage.entries().size()))
 					.filter(m -> m.entries().size() > 0).switchIfEmpty(Mono.empty());
-			// .subscribeOn(Schedulers.boundedElastic());
-			return pageMono;
-		}).flatMapIterable(page -> page.entries()) // <- prefer this to this ->.flatMapIterable(Function.identity())
-				// Note to self: *Don't do this* it turns the expand above into an eager hot
-				// publisher that will kill the system
-				// .onBackpressureBuffer(100, null, BufferOverflowStrategy.ERROR)
-				.flatMap(ri -> {
-					TrackingRecord tr = sierraPatronHoldToTrackingData(ri);
-					if (tr != null)
-						return Mono.just(tr);
-					else
-						return Mono.empty();
-				});
+				// .subscribeOn(Schedulers.boundedElastic());
+				return pageMono;
+			}).flatMapIterable(page -> page.entries()) // <- prefer this to this ->.flatMapIterable(Function.identity())
+			// Note to self: *Don't do this* it turns the expand above into an eager hot
+			// publisher that will kill the system
+			// .onBackpressureBuffer(100, null, BufferOverflowStrategy.ERROR)
+			.flatMap(ri -> {
+				TrackingRecord tr = sierraPatronHoldToTrackingData(ri);
+				if (tr != null)
+					return Mono.just(tr);
+				else
+					return Mono.empty();
+			});
 	}
 
 

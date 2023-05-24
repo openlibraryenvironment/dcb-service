@@ -35,6 +35,7 @@ public class SupplierRequestServiceTests {
 			supplierRequestId,
 			patronRequest,
 			"itemId",
+			"itemBarcode",
 			"supplierHostLmsCode",
 			null,
 			null,
