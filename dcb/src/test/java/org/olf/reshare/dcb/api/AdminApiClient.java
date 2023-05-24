@@ -48,7 +48,7 @@ class AdminApiClient {
 		 	@Nullable String localHoldId, @Nullable String localHoldStatus) {}
 
 		@Serdeable
-		record Item(@Nullable String id) {}
+		record Item(@Nullable String id, @Nullable String localItemBarcode) {}
 
 		@Serdeable
 		record Status(@Nullable String code) { }
