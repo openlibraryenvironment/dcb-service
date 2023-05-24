@@ -1,16 +1,26 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
-import io.micronaut.context.annotation.Parameter;
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.util.StringUtils;
-import io.micronaut.json.tree.JsonNode;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.RequiredArgsConstructor;
-import lombok.ToString;
+import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.transaction.Transactional;
+import javax.transaction.Transactional.TxType;
+import javax.validation.constraints.NotNull;
+
 import org.marc4j.marc.Record;
-import org.olf.reshare.dcb.configuration.*;
+import org.olf.reshare.dcb.configuration.BranchRecord;
+import org.olf.reshare.dcb.configuration.ConfigurationRecord;
+import org.olf.reshare.dcb.configuration.PickupLocationRecord;
+import org.olf.reshare.dcb.configuration.RefdataRecord;
+import org.olf.reshare.dcb.configuration.ShelvingLocationRecord;
 import org.olf.reshare.dcb.core.ProcessStateService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.model.HostLms;
@@ -27,6 +37,16 @@ import org.olf.reshare.dcb.tracking.model.TrackingRecord;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.util.StringUtils;
+import io.micronaut.json.tree.JsonNode;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
@@ -44,16 +64,6 @@ import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.Result;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
-
-import javax.transaction.Transactional;
-import javax.transaction.Transactional.TxType;
-import javax.validation.constraints.NotNull;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.*;
-
-import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
 
 /**
  * See: https://sandbox.iii.com/iii/sierra-api/swagger/index.html
@@ -356,7 +366,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return Mono.from(client.placeHoldRequest(id, patronHoldPost))
 			.doOnSuccess(result -> log.debug("the result of placeHoldRequest({})", result))
-			.flatMap(result -> getPatronHoldRequestId(id, recordNumber))
+			.then(getPatronHoldRequestId(id, recordNumber))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Hold"));
