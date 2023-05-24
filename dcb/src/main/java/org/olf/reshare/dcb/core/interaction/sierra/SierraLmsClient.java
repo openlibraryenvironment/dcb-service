@@ -357,12 +357,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	public Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType,
 		String recordNumber, String pickupLocation) {
-		log.debug("placeHoldRequest({})", id);
 
 		PatronHoldPost patronHoldPost = new PatronHoldPost();
 		patronHoldPost.setRecordType(recordType);
 		patronHoldPost.setRecordNumber( convertToInteger(recordNumber) );
 		patronHoldPost.setPickupLocation(pickupLocation);
+		log.debug("placeHoldRequest({}...) {}", id,patronHoldPost);
 
 		return Mono.from(client.placeHoldRequest(id, patronHoldPost))
 			.doOnSuccess(result -> log.debug("the result of placeHoldRequest({})", result))
