@@ -83,12 +83,19 @@ public class PatronRequestController {
 
 		Map<String,Object> claims = authentication.getAttributes();
 		log.info("list requests for {}",claims);
+		Object patron_home_system = claims.get("localSystemCode");
+		Object patron_home_id = claims.get("localSystemPatronId");
 
 		if (pageable == null) {
 			pageable = Pageable.from(0, 100);
 		}
 
-		return Mono.from(patronRequestRepository.findAll(pageable));
+		if ( ( patron_home_system != null ) && ( patron_home_id != null ) ) {
+			return Mono.from(patronRequestRepository.findRequestsForPatron(patron_home_system.toString(), patron_home_id.toString(), pageable));
+		}
+		else {
+			return Mono.empty();
+		}
 	}
 
 }

@@ -38,5 +38,15 @@ public interface PatronRequestRepository {
 	Publisher<Void> delete(UUID id);
 
 	@Query(value = "SELECT p.* from patron_request p  where p.status_code in ( select code from status_code where model = 'PatronRequest' and tracked = true )", nativeQuery = true)
-	Publisher<PatronRequest>  findTrackedPatronHolds();
+	Publisher<PatronRequest> findTrackedPatronHolds();
+
+	@Query(value="SELECT pr.* " +
+		"from patron_request pr, patron_identity pi, host_lms h " +
+		"where pr.patron_id = pi.patron_id " +
+		"and pi.host_lms_id = h.id " +
+		"and h.code = :patronSystem " +
+		"and pi.local_id = :patronId " +
+		"and pi.home_identity=true", nativeQuery = true)
+	Publisher<Page<PatronRequest>> findRequestsForPatron(String patronSystem, String patronId, Pageable pageable);
+
 }
