@@ -1,22 +1,5 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasSize;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
-
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -29,9 +12,19 @@ import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.reshare.dcb.storage.PatronIdentityRepository;
 import org.olf.reshare.dcb.storage.PatronRepository;
-
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 class PatronServiceTests {
 	private final PatronRepository patronRepository = mock(PatronRepository.class);
@@ -59,7 +52,7 @@ class PatronServiceTests {
 
 		when(patronIdentityRepository
 			.findOneByLocalIdAndHostLmsAndHomeIdentity("localId", homeHostLms, true))
-				.thenReturn(Mono.just(homeIdentity));
+			.thenReturn(Mono.just(homeIdentity));
 
 		// Act
 		final var foundPatronId = patronService
@@ -87,7 +80,7 @@ class PatronServiceTests {
 
 		when(patronIdentityRepository
 			.findOneByLocalIdAndHostLmsAndHomeIdentity("localId", hostLms, true))
-				.thenReturn(Mono.empty());
+			.thenReturn(Mono.empty());
 
 		// Act
 		final var result = patronService

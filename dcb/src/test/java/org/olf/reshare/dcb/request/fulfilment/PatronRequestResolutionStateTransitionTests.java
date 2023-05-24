@@ -45,7 +45,7 @@ class PatronRequestResolutionStateTransitionTests {
 			RESOLVED);
 
 		final var supplierRequest = new SupplierRequest(randomUUID(),
-			resolvedPatronRequest, "itemId", "itemBarcode",
+			resolvedPatronRequest, "itemId", "itemBarcode", "ItemLocationCode",
 			"holdingsAgencyCode", null, null, null);
 
 		when(patronRequestResolutionService.resolvePatronRequest(initialPatronRequest))
@@ -78,7 +78,7 @@ class PatronRequestResolutionStateTransitionTests {
 			NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
 
 		final var supplierRequest = new SupplierRequest(randomUUID(),
-			resolvedPatronRequest, "itemId", "itemBarcode",
+			resolvedPatronRequest, "itemId", "itemBarcode", "ItemLocationCode",
 			"holdingsAgencyCode", null, null, null);
 
 		when(patronRequestResolutionService.resolvePatronRequest(initialPatronRequest))
