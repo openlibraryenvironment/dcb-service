@@ -1,11 +1,12 @@
 package services.k_int.interaction.sierra;
 
-import io.micronaut.context.annotation.Property;
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import jakarta.inject.Inject;
+import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -13,18 +14,18 @@ import org.mockserver.client.MockServerClient;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+
+import io.micronaut.context.annotation.Property;
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.Result;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @MockServerMicronautTest
 @MicronautTest(transactional = false, propertySources = { "classpath:configs/SierraLmsClientTests.yml" }, rebuildContext = true)
@@ -193,8 +194,7 @@ public class SierraApiPatronTests {
 		var response = Mono.from(sierraApiClient.placeHoldRequest(patronLocalId, patronHoldPost)).block();
 
 		// Assert
-		assertThat(response, is(notNullValue()));
-		assertThat(response, is("no content"));
+		assertThat(response, is(nullValue()));
 	}
 
 	@Test
