@@ -82,7 +82,7 @@ public class PatronRequestController {
 																				Authentication authentication) {
 
 		Map<String,Object> claims = authentication.getAttributes();
-		log.debug("list requests for {}",claims);
+		log.info("list requests for {}",claims);
 
 		if (pageable == null) {
 			pageable = Pageable.from(0, 100);
