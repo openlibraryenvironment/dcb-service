@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
+import org.olf.reshare.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,7 +91,7 @@ public class PatronRequestService {
 	}
 
 	private Mono<Patron> findPatron(PatronRequest patronRequest) {
-		return patronService.findById(patronRequest.getPatron().getId());
+		return patronService.findById(PatronId.fromPatron(patronRequest.getPatron()));
 	}
 
 	private static PatronRequest addPatron(PatronRequest patronRequest, Patron patron) {
