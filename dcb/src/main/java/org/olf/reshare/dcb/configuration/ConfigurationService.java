@@ -226,6 +226,11 @@ public class ConfigurationService implements Runnable {
                         default -> Mono.empty();
                     };
                 })
+                .onErrorResume(ex -> {
+	   	    log.info("Problem processing config record {}",cr);
+                    log.error("Exception:", ex);
+                    return Mono.empty();
+                })
                 .thenReturn(cr);
     }
 
