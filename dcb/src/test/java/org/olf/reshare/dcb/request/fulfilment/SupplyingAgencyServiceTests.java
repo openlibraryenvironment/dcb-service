@@ -171,10 +171,10 @@ class SupplyingAgencyServiceTests {
 		when(hostLmsClient.patronFind("localId@homeLibraryCode"))
 			.thenAnswer(invocation -> Mono.empty());
 
-		when(patronTypeService.determinePatronType())
-			.thenAnswer(invocation -> 210);
+		when(patronTypeService.determinePatronType(any()))
+			.thenReturn(Mono.just("210"));
 
-		when(hostLmsClient.createPatron("localId@homeLibraryCode", 210))
+		when(hostLmsClient.createPatron("localId@homeLibraryCode", "210"))
 			.thenAnswer(invocation -> Mono.just("258740925"));
 
 		when(patronService.getUniqueIdStringFor(any()))
@@ -206,10 +206,10 @@ class SupplyingAgencyServiceTests {
 		when(hostLmsClient.patronFind("localId@homeLibraryCode"))
 			.thenAnswer(invocation -> Mono.empty());
 
-		when(patronTypeService.determinePatronType())
-			.thenAnswer(invocation -> 210);
+		when(patronTypeService.determinePatronType(any()))
+			.thenReturn(Mono.just("210"));
 
-		when(hostLmsClient.createPatron("localId@homeLibraryCode", 210))
+		when(hostLmsClient.createPatron("localId@homeLibraryCode", "210"))
 			.thenAnswer(invocation -> Mono.just("258740925"));
 
 		when(patronService.getUniqueIdStringFor(any()))
