@@ -1,13 +1,17 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import io.micronaut.context.annotation.Prototype;
+import static reactor.function.TupleUtils.function;
+
 import org.olf.reshare.dcb.core.HostLmsService;
+import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.request.resolution.SupplierRequestService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
@@ -24,6 +28,7 @@ public class SupplyingAgencyService {
 	public SupplyingAgencyService(
 		HostLmsService hostLmsService, SupplierRequestService supplierRequestService,
 		PatronService patronService, PatronTypeService patronTypeService) {
+
 		this.hostLmsService = hostLmsService;
 		this.supplierRequestService = supplierRequestService;
 		this.patronService = patronService;
@@ -49,6 +54,7 @@ public class SupplyingAgencyService {
 
 	private Mono<SupplierRequest> placeRequestAtSupplier(PatronRequest patronRequest,
 		SupplierRequest supplierRequest, PatronIdentity patronIdentity) {
+
 		log.debug("placeRequestAtSupplier {}, {}", patronRequest.getId(), patronIdentity.getId());
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
@@ -64,26 +70,51 @@ public class SupplyingAgencyService {
 
 	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(PatronRequest patronRequest,
 		SupplierRequest supplierRequest) {
+
 		log.debug("checkSupplierFor {}, {}", patronRequest.getId(), supplierRequest.getId());
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
 			.flatMap(hostLmsClient ->
 				hostLmsClient.patronFind(patronService.getUniqueIdStringFor(patronRequest.getPatron())))
 			.flatMap(localId ->
-				patronService.checkForPatronIdentity(patronRequest.getPatron(), supplierRequest.getHostLmsCode(), localId));
+				checkForPatronIdentity(patronRequest, supplierRequest.getHostLmsCode(), localId));
 	}
 
-	private Mono<PatronIdentity> createPatronAtSupplier(PatronRequest patronRequest, SupplierRequest supplierRequest) {
+	private Mono<PatronIdentity> createPatronAtSupplier(PatronRequest patronRequest,
+		SupplierRequest supplierRequest) {
+
 		log.debug("createPatronForSupplier {}, {}", patronRequest.getId(), supplierRequest.getId());
 
-		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
-			.flatMap(client -> client.createPatron(patronService.getUniqueIdStringFor(patronRequest.getPatron()),
-					patronTypeService.determinePatronType()))
-			.flatMap(localId -> patronService.checkForPatronIdentity(patronRequest.getPatron(),
-					supplierRequest.getHostLmsCode(), localId));
+		final var hostLmsCode = supplierRequest.getHostLmsCode();
+
+		return hostLmsService.getClientFor(hostLmsCode)
+			.zipWhen(client -> determinePatronType(hostLmsCode), Tuples::of)
+			.flatMap(function((client, patronType) -> createPatronAtSupplier(patronRequest, client, patronType)))
+			.flatMap(localId -> checkForPatronIdentity(patronRequest, hostLmsCode, localId));
 	}
 
-	public Mono<Tuple2<PatronRequest, SupplierRequest>> getSupplierRequestTuple(PatronRequest patronRequest) {
-		return supplierRequestService.findSupplierRequestFor(patronRequest).map(sr -> Tuples.of(patronRequest, sr));
+	private Mono<String> createPatronAtSupplier(PatronRequest patronRequest,
+		HostLmsClient client, String patronType) {
+
+		return client.createPatron(
+			patronService.getUniqueIdStringFor(patronRequest.getPatron()), patronType);
+	}
+
+	private Mono<PatronIdentity> checkForPatronIdentity(PatronRequest patronRequest,
+		String hostLmsCode, String localId) {
+
+		return patronService.checkForPatronIdentity(patronRequest.getPatron(),
+			hostLmsCode, localId);
+	}
+
+	private Mono<Tuple2<PatronRequest, SupplierRequest>> getSupplierRequestTuple(
+		PatronRequest patronRequest) {
+
+		return supplierRequestService.findSupplierRequestFor(patronRequest)
+			.map(sr -> Tuples.of(patronRequest, sr));
+	}
+
+	private Mono<String> determinePatronType(String hostLmsCode) {
+		return patronTypeService.determinePatronType(hostLmsCode);
 	}
 }

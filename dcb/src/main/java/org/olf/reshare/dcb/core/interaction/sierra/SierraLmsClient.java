@@ -1,5 +1,6 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
+import static java.lang.Integer.parseInt;
 import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
 
@@ -138,7 +139,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						// Bootstrap cursor is used for the initial load where we need to just page
 						// through everything
 						// from day 0
-						generator_state.offset = Integer.parseInt(components[1]);
+						generator_state.offset = parseInt(components[1]);
 						log.info("Resuming bootstrap at offset " + generator_state.offset);
 					} else if (components[0].equals("deltaSince")) {
 						// Delta cursor is used after the initial bootstrap and lets us know the point
@@ -148,7 +149,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						generator_state.since = Instant.ofEpochMilli(generator_state.sinceMillis);
 						if (components.length == 3) {
 							// We're recovering from an interuption whilst processing a delta
-							generator_state.offset = Integer.parseInt(components[2]);
+							generator_state.offset = parseInt(components[2]);
 						}
 						log.info("Resuming delta at timestamp " + generator_state.since + " offset=" + generator_state.offset);
 					}
@@ -338,11 +339,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<String> createPatron(String uniqueId, Integer patronType) {
+	public Mono<String> createPatron(String uniqueId, String patronType) {
 		log.debug("postPatron({}, {})", uniqueId, patronType);
 
 		PatronPatch patronPatch = new PatronPatch();
-		patronPatch.setPatronType(patronType);
+		patronPatch.setPatronType(parseInt(patronType));
 		patronPatch.setUniqueIds(new String[]{uniqueId});
 
 		return Mono.from(client.patrons(patronPatch))
@@ -406,7 +407,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	public static int convertToInteger(String integer) {
 		try {
-			return Integer.parseInt(integer);
+			return parseInt(integer);
 		} catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Invalid integer: " + integer, e);
 		}
