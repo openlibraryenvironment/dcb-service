@@ -35,9 +35,12 @@ public class FakeClusteredBibFinder implements ClusteredBibFinder {
 	}
 
 	private static Bib createFakeBib() {
-		return new Bib(randomUUID(), "FAKE_BIB_RECORD_ID",
-			new FakeHostLms(randomUUID(), "FAKE_HOST_LMS_CODE", "Fake Host LMS",
-				SierraLmsClient.class, Map.of()));
+		return Bib.builder()
+			.id(randomUUID())
+			.bibRecordId("FAKE_BIB_RECORD_ID")
+			.hostLms(new FakeHostLms(randomUUID(), "FAKE_HOST_LMS_CODE", "Fake Host LMS",
+				SierraLmsClient.class, Map.of()))
+			.build();
 	}
 
 	@Data

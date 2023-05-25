@@ -1,20 +1,22 @@
 package org.olf.reshare.dcb.request.resolution;
 
-import jakarta.inject.Named;
-import jakarta.inject.Singleton;
+import static org.olf.reshare.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
+import static org.olf.reshare.dcb.utils.PublisherErrors.failWhenEmpty;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
 import org.olf.reshare.dcb.core.model.Item;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.item.availability.LiveAvailability;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.olf.reshare.dcb.utils.PublisherErrors.failWhenEmpty;
 
 @Singleton
 public class PatronRequestResolutionService {
@@ -94,16 +96,21 @@ public class PatronRequestResolutionService {
 
 		log.debug("mapToSupplierRequest({}}, {})", item, patronRequest);
 
-		final var uuid = UUID.randomUUID();
-		log.debug("create SR: {}, {}, {}", uuid, item, item.getHostLmsCode());
+		final var supplierRequestId = UUID.randomUUID();
 
-		log.debug("Resolve the patron request");
+		log.debug("create SR: {}, {}, {}", supplierRequestId, item, item.getHostLmsCode());
+
 		final var updatedPatronRequest = patronRequest.resolve();
 
-		return new SupplierRequest(uuid, updatedPatronRequest,
-			item.getId(), item.getBarcode(), item.getLocation().getCode(),
-			item.getHostLmsCode(), null, null,
-			null);
+		return SupplierRequest.builder()
+			.id(supplierRequestId)
+			.patronRequest(updatedPatronRequest)
+			.localItemId(item.getId())
+			.localItemBarcode(item.getBarcode())
+			.localItemLocationCode(item.getLocation().getCode())
+			.hostLmsCode(item.getHostLmsCode())
+			.statusCode(PENDING)
+			.build();
 	}
 
 	private static Resolution resolveToNoItemsAvailable(PatronRequest patronRequest) {

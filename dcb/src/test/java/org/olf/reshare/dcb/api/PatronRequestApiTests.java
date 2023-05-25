@@ -1,5 +1,37 @@
 package org.olf.reshare.dcb.api;
 
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
+import static io.micronaut.http.HttpStatus.NOT_FOUND;
+import static io.micronaut.http.HttpStatus.OK;
+import static java.util.Objects.requireNonNull;
+import static java.util.UUID.randomUUID;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import org.hamcrest.Matcher;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.mockserver.client.MockServerClient;
+import org.olf.reshare.dcb.core.HostLmsService;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.reshare.dcb.request.fulfilment.PatronService;
+import org.olf.reshare.dcb.test.BibRecordFixture;
+import org.olf.reshare.dcb.test.ClusterRecordFixture;
+import org.olf.reshare.dcb.test.DcbTest;
+import org.olf.reshare.dcb.test.PatronFixture;
+import org.olf.reshare.dcb.test.PatronRequestsFixture;
+
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.HttpRequest;
@@ -10,27 +42,8 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import net.minidev.json.JSONObject;
-import org.hamcrest.Matcher;
-import org.junit.jupiter.api.*;
-import org.mockserver.client.MockServerClient;
-import org.olf.reshare.dcb.core.HostLmsService;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.reshare.dcb.request.fulfilment.PatronService;
-import org.olf.reshare.dcb.test.*;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import static io.micronaut.http.HttpStatus.*;
-import static java.util.Objects.requireNonNull;
-import static java.util.UUID.randomUUID;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @DcbTest
 @MockServerMicronautTest
@@ -38,8 +51,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PatronRequestApiTests {
 	private static final String SIERRA_TOKEN = "test-token-for-user";
-
-	private final String MOCK_ROOT = "classpath:mock-responses/sierra/patrons";
 
 	@Inject
 	ResourceLoader loader;
@@ -81,7 +92,6 @@ class PatronRequestApiTests {
 
 	@Property(name = "hosts.test1.client.secret")
 	private String sierraPass;
-
 
 	@BeforeAll
 	@SneakyThrows
@@ -161,16 +171,19 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(2));
 
 		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(0);
+
 		assertThat(homeIdentity.homeIdentity(), is(true));
 		assertThat(homeIdentity.hostLmsCode(), is("test1"));
 		assertThat(homeIdentity.localId(), is("872321"));
 
 		final var supplierIdentity = fetchedPatronRequest.requestor().identities().get(1);
+
 		assertThat(supplierIdentity.homeIdentity(), is(false));
 		assertThat(supplierIdentity.hostLmsCode(), is("test1"));
 		assertThat(supplierIdentity.localId(), is("2745326"));
 
 		final var supplierRequest = fetchedPatronRequest.supplierRequests().get(0);
+
 		assertThat(supplierRequest.id(), is(notNullValue()));
 		assertThat(supplierRequest.hostLmsCode(), is("test1"));
 		assertThat(supplierRequest.status(), is("PLACED"));
@@ -226,16 +239,19 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(2));
 
 		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(0);
+
 		assertThat(homeIdentity.homeIdentity(), is(true));
 		assertThat(homeIdentity.hostLmsCode(), is("test1"));
 		assertThat(homeIdentity.localId(), is("43546"));
 
 		final var supplierIdentity = fetchedPatronRequest.requestor().identities().get(1);
+
 		assertThat(supplierIdentity.homeIdentity(), is(false));
 		assertThat(supplierIdentity.hostLmsCode(), is("test1"));
 		assertThat(supplierIdentity.localId(), is("6235472"));
 
 		final var supplierRequest = fetchedPatronRequest.supplierRequests().get(0);
+
 		assertThat(supplierRequest.id(), is(notNullValue()));
 		assertThat(supplierRequest.hostLmsCode(), is("test1"));
 		assertThat(supplierRequest.status(), is("PLACED"));
@@ -346,7 +362,6 @@ class PatronRequestApiTests {
 		assertThat("Body should report no Host LMS found error",
 			optionalBody.get(), is("No Host LMS found for code: unknown-system"));
 	}
-
 
 	@Test
 	void cannotFindPatronRequestForUnknownId() {
