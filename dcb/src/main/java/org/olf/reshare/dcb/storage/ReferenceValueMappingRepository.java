@@ -42,4 +42,17 @@ public interface ReferenceValueMappingRepository {
     Publisher<? extends ReferenceValueMapping> findAll();
 
     Publisher<Void> delete(UUID id);
+
+
+	/**
+	 * given a source category, context, value and target context look up a value.
+	 * For example - given "PatronType", "DCB", "UG", "SANDBOX" - return "15"
+	 * Which is the patron type to use for undergraduates in the SANDBOX system 
+	 * (Where UG is the canonical DCB code for the undergraduate Patron Type)
+	 */
+	Publisher<ReferenceValueMapping> findByFromCategoryAndFromContextAndFromValueAndToContext(
+		@NonNull String sourceCategory,
+		@NonNull String sourceContext,
+		@NonNull String sourceValue,
+		@NonNull String targetContext);
 }
