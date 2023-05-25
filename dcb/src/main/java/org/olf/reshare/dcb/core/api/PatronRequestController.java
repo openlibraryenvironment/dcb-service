@@ -91,9 +91,11 @@ public class PatronRequestController {
 		}
 
 		if ( ( patron_home_system != null ) && ( patron_home_id != null ) ) {
+                        log.debug("Finding requests for {} {}",patron_home_system,patron_home_id);
 			return Mono.from(patronRequestRepository.findRequestsForPatron(patron_home_system.toString(), patron_home_id.toString(), pageable));
 		}
 		else {
+                        log.debug("Missing values for patron requests");
 			return Mono.empty();
 		}
 	}
