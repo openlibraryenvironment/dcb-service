@@ -22,7 +22,7 @@
 			"volumes": [],
 			"barcode": "30800005238487",
 			"callNumber": "HD9787.U5 M43 1969",
-			"holdCount": 3
+			"holdCount": 0
 		},
 		{
 			"id": "1000002",
@@ -43,7 +43,7 @@
 			"volumes": [],
 			"barcode": "9849123490",
 			"callNumber": "BL221 .C48",
-			"holdCount": 5
+			"holdCount": 0
 		}
 	]
 }
