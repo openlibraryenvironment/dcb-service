@@ -87,6 +87,7 @@ public class PatronRequestResolutionService {
 
 		return items.stream()
 			.filter(Item::getIsRequestable)
+			.filter(item -> ( ( item.getHoldCount() == null ) || ( item.getHoldCount() == 0 ) ) )
 			.findFirst()
 			.orElseThrow(() -> new NoItemsRequestableAtAnyAgency(clusterRecordId));
 	}
