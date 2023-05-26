@@ -319,7 +319,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode) {
 		log.debug("getItemsByBibId({})", bibId);
 
-		return Flux.from(client.items(params -> params.deleted(false).bibIds(List.of(bibId))))
+		return Flux.from(client.items(params -> params.deleted(false)
+                                                              .bibIds(List.of(bibId))
+                                                              .fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "suppressed",
+                                                                              "bibIds", "location", "status", "volumes", "barcode", "callNumber",
+                                                                              "itemType", "transitInfo", "copyNo", "holdCount", "fixedFields", "varFields"))))
 			.flatMap(results -> Flux.fromIterable(results.getEntries()))
 			.map(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode)).collectList();
 	}
