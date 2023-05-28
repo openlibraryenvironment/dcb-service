@@ -105,8 +105,13 @@ public class PatronService {
 	public PatronIdentity createNewPatronIdentity(Patron patron, DataHostLms dataHostLms,
 		String localPatronIdentifier, Boolean homeIdentity) {
 
-		return new PatronIdentity(randomUUID(), null, null, patron, dataHostLms,
-			localPatronIdentifier, homeIdentity);
+		log.debug("createPatronIdentity({},{},{},{})",patron,dataHostLms,localPatronIdentifier,homeIdentity);
+
+		PatronIdentity result = new PatronIdentity(randomUUID(), null, null, patron, dataHostLms,
+			localPatronIdentifier, homeIdentity );
+
+		log.debug("result of create new patronIdentity: {}",result);
+		return result;
 	}
 
 	public Mono<PatronIdentity> createPatronIdentity(Patron patron, String localId, String hostLmsCode,
@@ -128,6 +133,8 @@ public class PatronService {
 
 	private Mono<PatronIdentity> savePatronIdentity(Patron patron,
 		String localSystemCode, String localId) {
+
+		log.debug("savePatronIdentity({},{},{})",patron,localSystemCode,localId);
 
 		return fetchDataHostLmsByLocalSystemCode(localSystemCode)
 			.flatMap(hostLms -> savePatronIdentity(patron, localId, hostLms));

@@ -72,10 +72,13 @@ CREATE TABLE patron_identity (
 	patron_id uuid REFERENCES patron (id),
 	host_lms_id uuid REFERENCES host_lms (id),
 	local_id varchar(200),
-	home_identity boolean
+	home_identity boolean,
+        local_barcode varchar(200),
+        local_ptype varchar(200),
+        last_validated timestamp
 );
 
-CREATE INDEX idx_pi_patron ON patron_identity(patron_id);
+CREATE INDEX idx_pi_patron ON patron_identity(patron_id, host_lms_id);
 CREATE INDEX idx_hli_patron ON patron_identity(host_lms_id);
 
 CREATE TABLE patron_request (
@@ -202,4 +205,16 @@ CREATE TABLE event_log (
 	event_summary varchar(128),
 	additional_data jsonb
 );
+
+CREATE TABLE patron_request_audit (
+	id uuid PRIMARY KEY,
+	patron_request_id uuid,
+	audit_date timestamp,
+	briefDescription varchar(256),
+	audit_data JSONB,
+        CONSTRAINT fk_patron_request FOREIGN KEY (patron_request_id) REFERENCES patron_request(id)
+);
+
+CREATE INDEX pra_pr_fk ON patron_request_audit (patron_request_id);
+
 
