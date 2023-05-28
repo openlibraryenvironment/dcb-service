@@ -118,11 +118,39 @@ public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 		return Mono.empty();
 	}
 
+        @Override
+        public RawSourceRepository getRawSourceRepository() {
+                return rawSourceRepository;
+        }
+
+        @Override
+        public Record resourceToMarc(OaiListRecordsMarcXML resource) {
+                return null;
+        }
+
+        @Override
+        public IngestRecordBuilder initIngestRecordBuilder(OaiListRecordsMarcXML resource) {
+
+                // Use the host LMS as the
+                return IngestRecord.builder()
+                        .uuid(uuid5ForOAIResult(resource))
+                        .sourceSystem(lms)
+                        .sourceRecordId(resource.id())
+                        .suppressFromDiscovery(resource.suppressed())
+                        .deleted(resource.deleted());
+        }
+
+        public UUID uuid5ForOAIResult(@NotNull final OaiListRecordsMarcXML result) {
+                final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":" + result.id();
+                return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
+        }
+
+
 	// Privates
 
 	// This should convert whatever type the FOLIO source returns to a RawSource
         @Override
-        public RawSource resourceToRawSource(Object resource) {
+        public RawSource resourceToRawSource(OaiListRecordsMarcXML resource) {
 
                 // final JsonNode rawJson = conversionService.convertRequired(resource.marc(), JsonNode.class);
 
