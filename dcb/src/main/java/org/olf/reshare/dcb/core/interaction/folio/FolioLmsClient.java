@@ -140,13 +140,34 @@ public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
                         .deleted(resource.deleted());
         }
 
-        public UUID uuid5ForOAIResult(@NotNull final OaiListRecordsMarcXML result) {
-                final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":" + result.id();
-                return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
+
+        @Override
+        public Publisher<OaiListRecordsMarcXML> getResources(Instant since) {
+		return Flux.empty();
+	}
+
+        @Override
+        @NotNull
+        public String getDefaultControlIdNamespace() {
+                return lms.getName();
         }
 
+        @Override
+        public Publisher<ConfigurationRecord> getConfigStream() {
+                return Flux.empty();
+        }
 
-	// Privates
+        @Override
+        public String getName() {
+                return lms.getName();
+        }                       
+        
+        @Override
+        public boolean isEnabled() {
+                return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(Boolean.TRUE);
+        }       
+
+	// Privatesu
 
 	// This should convert whatever type the FOLIO source returns to a RawSource
         @Override
@@ -162,6 +183,11 @@ public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 
                 // return raw;
 		return null;
+        }
+
+        public UUID uuid5ForOAIResult(@NotNull final OaiListRecordsMarcXML result) {
+                final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":" + result.id();
+                return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
         }
 
 
