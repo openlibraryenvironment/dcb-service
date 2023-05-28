@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
+
 @Prototype
 public class PlacePatronRequestAtSupplyingAgencyStateTransition implements PatronRequestStateTransition {
 
@@ -23,6 +25,10 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 		this.supplyingAgencyService = supplierRequestService;
 		this.patronRequestRepository = patronRequestRepository;
 	}
+
+        public String getGuardCondition() {
+                return "state=="+RESOLVED;
+        }
 
 	/**
 	 * Attempts to transition the patron request to the next state, which is placing the request at the supplying agency.

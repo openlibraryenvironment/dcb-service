@@ -45,12 +45,18 @@ import net.minidev.json.JSONObject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+
+
+
 @DcbTest
 @MockServerMicronautTest
 @MicronautTest(transactional = false, propertySources = { "classpath:configs/PatronRequestApiTests.yml" }, rebuildContext = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PatronRequestApiTests {
 	private static final String SIERRA_TOKEN = "test-token-for-user";
+        private static final Logger log = LoggerFactory.getLogger(PatronRequestApiTests.class);
 
 	@Inject
 	ResourceLoader loader;
@@ -117,6 +123,10 @@ class PatronRequestApiTests {
 
 		sierraPatronsAPIFixture.patronHoldResponse("2745326");
 		sierraPatronsAPIFixture.patronHoldResponse("6235472");
+
+		// Register an expectation that when the client calls /patrons/43546 we respond with the patron record
+		sierraPatronsAPIFixture.addPatronGetExpectation(Long.valueOf(43546l));
+		sierraPatronsAPIFixture.addPatronGetExpectation(Long.valueOf(872321l));
 	}
 
 	@BeforeEach
@@ -197,6 +207,9 @@ class PatronRequestApiTests {
 	@Test
 	@DisplayName("should place patron request with existing patron")
 	void shouldPlacePatronRequestWithExistingPatron() {
+
+		log.debug("shouldPlacePatronRequestWithExistingPatron()");
+
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);

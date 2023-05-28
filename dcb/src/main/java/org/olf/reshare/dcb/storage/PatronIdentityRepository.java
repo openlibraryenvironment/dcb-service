@@ -5,13 +5,18 @@ import java.util.UUID;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
-import org.olf.reshare.dcb.core.model.DataHostLms;
-import org.olf.reshare.dcb.core.model.Patron;
-import org.olf.reshare.dcb.core.model.PatronIdentity;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
+import org.olf.reshare.dcb.core.model.*;
+import org.olf.reshare.dcb.core.model.clustering.ClusterRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
+
+import io.micronaut.data.annotation.Query;
+import io.micronaut.data.annotation.Join;
+import reactor.core.publisher.Mono;
 
 public interface PatronIdentityRepository {
 	@NonNull
@@ -32,4 +37,36 @@ public interface PatronIdentityRepository {
 
 	@NonNull
 	Publisher<Void> delete(UUID id);
+
+  @Query(value = "SELECT pi.*, h.* from patron_identity, host_lms h pi where pi.patron_id = :patronId and pi.home_identity=true and pi.host_lms_id = h.id", nativeQuery = true)
+  @Join(value = "hostLms", alias = "h")
+	@NonNull
+  @SingleResult
+  Publisher<PatronIdentity> findHomePatronIdentityForPatron(@NotNull UUID patronId);
+
+	@NonNull
+	@SingleResult
+	@Join("hostLms")
+	Publisher<PatronIdentity> findOneByPatronIdAndHomeIdentity(@NotNull UUID patronId, @NotNull Boolean homeIdentity);
+
+	@NonNull
+	@SingleResult
+	Publisher<? extends PatronIdentity> update(@Valid @NotNull @NonNull PatronIdentity patronIdentity);
+
+	@NonNull
+	@SingleResult
+	Publisher<PatronIdentity> findById(@NonNull UUID id);
+
+	@NonNull
+	@SingleResult
+	Publisher<Boolean> existsById(@NonNull UUID id);
+
+
+	@SingleResult
+	@NonNull
+	default Publisher<PatronIdentity> saveOrUpdate(@Valid @NotNull PatronIdentity pi) {
+		return Mono.from(this.existsById(pi.getId()))
+			.flatMap( update -> Mono.from(update ? this.update(pi) : this.save(pi)) );
+	}
+
 }

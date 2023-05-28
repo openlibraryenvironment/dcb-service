@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import io.micronaut.core.annotation.Nullable;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -52,7 +53,7 @@ import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.PatronResult;
-import services.k_int.interaction.sierra.patrons.Result;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 
 @Secondary
 @Prototype
@@ -227,7 +228,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		@SingleResult
 		@Get("patrons/find")
 		@Produces(value = APPLICATION_JSON)
-		public Publisher<Result> patronFind(String varFieldTag, String varFieldContent) {
+		public Publisher<SierraPatronRecord> patronFind(String varFieldTag, String varFieldContent) {
 
 			// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Find_a_patron_by_varField_fieldTag_and_varField_content_get_6
 			return getRequest("patrons/find")
@@ -235,9 +236,9 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 					.queryParam("varFieldTag", varFieldTag)
 					.queryParam("varFieldContent", varFieldContent)))
 				.flatMap(this::ensureToken)
-				.flatMap(req -> doRetrieve(req, Result.class) )
+				.flatMap(req -> doRetrieve(req, SierraPatronRecord.class) )
 				.onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError,
-					new Result());
+					new SierraPatronRecord());
 		}
 
 		@SingleResult
@@ -410,4 +411,14 @@ public class HostLmsSierraApiClient implements SierraApiClient {
                 .flatMap(req -> doRetrieve(req, SierraPatronHoldResultSet.class) );
 	}
 
+
+	@SingleResult
+	@Get("/patrons/{id}")
+	public Publisher<SierraPatronRecord> getPatron(@Nullable @PathVariable("id") final Long patronId) {
+		// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
+		return getRequest("patrons/" + patronId)
+			.flatMap(this::ensureToken)
+			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class) )
+			.onErrorReturn(new SierraPatronRecord());
+	}
 }

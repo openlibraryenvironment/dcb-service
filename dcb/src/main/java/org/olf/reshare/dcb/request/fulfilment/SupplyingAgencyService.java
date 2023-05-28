@@ -102,7 +102,8 @@ public class SupplyingAgencyService {
 		HostLmsClient client, String patronType) {
 
 		return client.createPatron(
-			patronService.getUniqueIdStringFor(patronRequest.getPatron()), patronType);
+			patronService.getUniqueIdStringFor(patronRequest.getPatron()), 
+			patronType);
 	}
 
 	private Mono<PatronIdentity> checkForPatronIdentity(PatronRequest patronRequest,
