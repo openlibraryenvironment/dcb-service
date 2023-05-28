@@ -24,6 +24,7 @@ import org.olf.reshare.dcb.configuration.RefdataRecord;
 import org.olf.reshare.dcb.configuration.ShelvingLocationRecord;
 import org.olf.reshare.dcb.core.ProcessStateService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
+import org.olf.reshare.dcb.core.interaction.HostLmsPatronDTO;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.core.model.Item;
 import org.olf.reshare.dcb.ingest.marc.MarcIngestSource;
@@ -62,9 +63,11 @@ import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.Result;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
+import reactor.util.retry.Retry;
+import java.time.Duration;
 
 /**
  * See: https://sandbox.iii.com/iii/sierra-api/swagger/index.html
@@ -334,7 +337,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return Mono.from(client.patronFind("u", varFieldContent))
 			.doOnSuccess(result -> log.debug("the result of patronFind({})", result))
-			.map(Result::getId)
+			.map(SierraPatronRecord::getId)
 			.map(Object::toString)
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when finding Patron: {}", error.getMessage());
@@ -349,6 +352,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		PatronPatch patronPatch = new PatronPatch();
 		patronPatch.setPatronType(parseInt(patronType));
 		patronPatch.setUniqueIds(new String[]{uniqueId});
+		patronPatch.setNames(new String[]{uniqueId});
 
 		return Mono.from(client.patrons(patronPatch))
 			.doOnSuccess(result -> log.debug("the result of createPatron({})", result))
@@ -384,6 +388,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.from(client.patronHolds(patronLocalId))
 			.doOnSuccess(result -> log.debug("the result of getPatronHoldRequestId({})", result))
 			.flatMap(holds -> filterByLocalItemId(holds, localItemId))
+                        .retryWhen(Retry.backoff(5, Duration.ofSeconds(2)))  // Sierra may not have saved the hold right away - retry up to 5 times
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when getting Hold"));
@@ -597,5 +602,18 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			});
 	}
 
+	private HostLmsPatronDTO sierraPatronToHostLmsPatron(SierraPatronRecord spr) {
+		return HostLmsPatronDTO.builder()
+			.localId(spr.getId().toString())
+			.localPatronType(spr.getPatronType().toString())
+			.build();
+	}
+
+	public Mono<HostLmsPatronDTO> getPatronByLocalId(String localPatronId) {
+		log.debug("getPatronByLocalId({})",localPatronId);
+		return Mono.from( client.getPatron(Long.valueOf(localPatronId)) )
+			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")))
+			.flatMap(spr -> Mono.just(sierraPatronToHostLmsPatron(spr)));
+	}
 
 }

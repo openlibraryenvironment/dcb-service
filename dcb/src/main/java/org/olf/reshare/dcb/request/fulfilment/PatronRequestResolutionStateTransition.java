@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.PATRON_VERIFIED;
+
 @Prototype
 public class PatronRequestResolutionStateTransition implements PatronRequestStateTransition {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestResolutionStateTransition.class);
@@ -31,6 +33,10 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		this.patronRequestResolutionService = patronRequestResolutionService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
+	}
+
+	public String getGuardCondition() {
+		return "state=="+PATRON_VERIFIED;
 	}
 
 	@Override

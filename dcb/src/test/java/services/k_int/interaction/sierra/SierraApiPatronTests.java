@@ -24,7 +24,7 @@ import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.Result;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -114,7 +114,7 @@ public class SierraApiPatronTests {
 
 		// Assert
 		assertThat(response, is(notNullValue()));
-		assertThat(response.getClass(), is(Result.class));
+		assertThat(response.getClass(), is(SierraPatronRecord.class));
 		assertThat(response.getId(), is(1000002));
 	}
 
@@ -130,7 +130,7 @@ public class SierraApiPatronTests {
 
 		// Assert
 		assertThat(response, is(notNullValue()));
-		assertThat(response.getClass(), is(Result.class));
+		assertThat(response.getClass(), is(SierraPatronRecord.class));
 		assertThat(response.getId(), is(nullValue()));
 	}
 

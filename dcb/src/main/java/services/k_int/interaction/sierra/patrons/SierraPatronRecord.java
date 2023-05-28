@@ -7,7 +7,7 @@ import services.k_int.interaction.sierra.items.Location;
 
 @Data
 @Serdeable
-public class Result {
+public class SierraPatronRecord {
 	@Nullable
 	Integer id;
 	@Nullable

@@ -57,6 +57,10 @@ public class SierraPatronsAPIFixture {
 		mock.when(getPatronHoldRequest(id)).respond( patronErrorResponse() );
 	}
 
+	public void addPatronGetExpectation(Long localId) {
+		mock.when(getPatronRequest(localId)).respond(sierraPatronRecord(localId));
+	}
+
 	private HttpResponse patronNotFoundResponse() {
 		return withSierraResponse(notFoundResponse(), 404, "patrons/sierra-api-patron-not-found.json");
 	}
@@ -153,6 +157,16 @@ public class SierraPatronsAPIFixture {
 		return request()
 			.withMethod("GET")
 			.withPath("/iii/sierra-api/v6/patrons/" + id + "/holds");
+	}
+
+	private HttpRequest getPatronRequest(Long id) {
+		return request()
+			.withMethod("GET")
+			.withPath("/iii/sierra-api/v6/patrons/"+id);
+	}
+
+	private HttpResponse sierraPatronRecord(Long id) {
+		return withSierraResponse(response(), 200, "patrons/patron/"+id+".json");
 	}
 }
 

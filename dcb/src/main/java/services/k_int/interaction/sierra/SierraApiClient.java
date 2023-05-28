@@ -40,10 +40,11 @@ import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.PatronResult;
-import services.k_int.interaction.sierra.patrons.Result;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 
 @Client(value = "${" + SierraApiClient.CONFIG_ROOT + ".api.url:/iii/sierra-api/v6}", errorType = SierraError.class)
 @Header(name = ACCEPT, value = APPLICATION_JSON)
+
 	public interface SierraApiClient {
 	String CONFIG_ROOT = "sierra.client";
 	Logger log = LoggerFactory.getLogger(SierraApiClient.class);
@@ -133,7 +134,7 @@ import services.k_int.interaction.sierra.patrons.Result;
 
 	@SingleResult
 	@Get("/patrons/find")
-	Publisher<Result> patronFind(
+	Publisher<SierraPatronRecord> patronFind(
 		@Nullable @QueryValue("varFieldTag") final String varFieldTag,
 		@Nullable @QueryValue("varFieldContent") final String varFieldContent);
 
@@ -187,4 +188,8 @@ import services.k_int.interaction.sierra.patrons.Result;
 	public Publisher<SierraPatronHoldResultSet> getAllPatronHolds(
                         @Nullable @QueryValue("limit") final Integer limit,
                         @Nullable @QueryValue("offset") final Integer offset);
+
+	@SingleResult
+	@Get("/patrons/{id}")
+	Publisher<SierraPatronRecord> getPatron(@Nullable @PathVariable("id") final Long patronId);
 }

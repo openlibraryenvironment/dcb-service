@@ -27,4 +27,6 @@ public interface HostLmsClient {
 		String recordNumber, String pickupLocation);
 
         // Flux<?> getAllAgencies();
+
+	Mono<HostLmsPatronDTO> getPatronByLocalId(String localPatronId);
 }

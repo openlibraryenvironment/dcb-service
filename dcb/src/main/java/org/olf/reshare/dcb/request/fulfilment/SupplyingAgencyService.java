@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
+import reactor.util.function.Tuple3;
 import reactor.util.function.Tuples;
 
 @Prototype
@@ -38,21 +39,22 @@ public class SupplyingAgencyService {
 	public Mono<PatronRequest> placePatronRequestAtSupplyingAgency(PatronRequest patronRequest) {
 		log.debug("placePatronRequestAtSupplyingAgency {}", patronRequest.getId());
 
-		return getSupplierRequestTuple(patronRequest)
-			.flatMap(tuple -> checkAndCreatePatronAtSupplier(tuple.getT1(), tuple.getT2())
-				.flatMap(supplierIdentity -> placeRequestAtSupplier(tuple.getT1(), tuple.getT2(), supplierIdentity))
-				.flatMap(supplierRequestService::updateSupplierRequest)
-				.map(placed -> tuple.getT1().placedAtSupplyingAgency())
-			);
+		return findSupplierRequestFor(patronRequest)
+			.flatMap(function(this::checkAndCreatePatronAtSupplier))
+			.flatMap(function(this::placeRequestAtSupplier))
+			.flatMap(function(this::updateSupplierRequest))
+			.map(PatronRequest::placedAtSupplyingAgency);
 	}
 
-	public Mono<PatronIdentity> checkAndCreatePatronAtSupplier(PatronRequest patronRequest,
-		SupplierRequest supplierRequest) {
+	private Mono<Tuple3<PatronRequest, SupplierRequest, PatronIdentity>> checkAndCreatePatronAtSupplier(
+		PatronRequest patronRequest, SupplierRequest supplierRequest) {
+
 		return checkIfPatronExistsAtSupplier(patronRequest, supplierRequest)
-			.switchIfEmpty(Mono.defer(() -> createPatronAtSupplier(patronRequest, supplierRequest)));
+			.switchIfEmpty(Mono.defer(() -> createPatronAtSupplier(patronRequest, supplierRequest)))
+			.map(patronIdentity -> Tuples.of(patronRequest, supplierRequest, patronIdentity));
 	}
 
-	private Mono<SupplierRequest> placeRequestAtSupplier(PatronRequest patronRequest,
+	private Mono<Tuple2<SupplierRequest, PatronRequest>> placeRequestAtSupplier(PatronRequest patronRequest,
 		SupplierRequest supplierRequest, PatronIdentity patronIdentity) {
 
 		log.debug("placeRequestAtSupplier {}, {}", patronRequest.getId(), patronIdentity.getId());
@@ -60,12 +62,15 @@ public class SupplyingAgencyService {
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
 			.flatMap(client -> client.placeHoldRequest(patronIdentity.getLocalId(), "i",
 				supplierRequest.getLocalItemId(), patronRequest.getPickupLocationCode()))
-			.map(tuple -> {
-				supplierRequest.setLocalId(tuple.getT1());
-				supplierRequest.setLocalStatus(tuple.getT2());
-				supplierRequest.setStatusCode(SupplierRequestStatusCode.PLACED);
-				return supplierRequest;
-			});
+			.map(function(supplierRequest::placed))
+			.map(changedSupplierRequest -> Tuples.of(supplierRequest, patronRequest));
+	}
+
+	private Mono<PatronRequest> updateSupplierRequest(
+		SupplierRequest supplierRequest, PatronRequest patronRequest) {
+
+		return supplierRequestService.updateSupplierRequest(supplierRequest)
+			.thenReturn(patronRequest);
 	}
 
 	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(PatronRequest patronRequest,
@@ -97,7 +102,8 @@ public class SupplyingAgencyService {
 		HostLmsClient client, String patronType) {
 
 		return client.createPatron(
-			patronService.getUniqueIdStringFor(patronRequest.getPatron()), patronType);
+			patronService.getUniqueIdStringFor(patronRequest.getPatron()), 
+			patronType);
 	}
 
 	private Mono<PatronIdentity> checkForPatronIdentity(PatronRequest patronRequest,
@@ -107,11 +113,11 @@ public class SupplyingAgencyService {
 			hostLmsCode, localId);
 	}
 
-	private Mono<Tuple2<PatronRequest, SupplierRequest>> getSupplierRequestTuple(
+	private Mono<Tuple2<PatronRequest, SupplierRequest>> findSupplierRequestFor(
 		PatronRequest patronRequest) {
 
 		return supplierRequestService.findSupplierRequestFor(patronRequest)
-			.map(sr -> Tuples.of(patronRequest, sr));
+			.map(supplierRequest -> Tuples.of(patronRequest, supplierRequest));
 	}
 
 	private Mono<String> determinePatronType(String hostLmsCode) {
