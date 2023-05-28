@@ -54,18 +54,20 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
+
 // import services.k_int.interaction.folio.FolioApiClient;
+
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 import reactor.util.retry.Retry;
 import java.time.Duration;
 
+import services.k_int.interaction.oai.records.OaiListRecordsMarcXML;
+
 /**
- * See: https://sandbox.iii.com/iii/sierra-api/swagger/index.html
- * https://gitlab.com/knowledge-integration/libraries/reshare-dcb-service/-/raw/68fd93de0f84f928597481b16d2887bd7e58f455/dcb/src/main/java/org/olf/reshare/dcb/core/interaction/sierra/SierraLmsClient.java
  */
 @Prototype
-public class FolioLmsClient implements HostLmsClient {
+public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRecordsMarcXML> {
 
 	private static final Logger log = LoggerFactory.getLogger(FolioLmsClient.class);
 
@@ -117,6 +119,22 @@ public class FolioLmsClient implements HostLmsClient {
 	}
 
 	// Privates
+
+	// This should convert whatever type the FOLIO source returns to a RawSource
+        @Override
+        public RawSource resourceToRawSource(Object resource) {
+
+                // final JsonNode rawJson = conversionService.convertRequired(resource.marc(), JsonNode.class);
+
+                // @SuppressWarnings("unchecked")
+                // final Map<String, ?> rawJsonString = conversionService.convertRequired(rawJson, Map.class);
+
+                // RawSource raw = RawSource.builder().id(uuid5ForRawJson(resource)).hostLmsId(lms.getId()).remoteId(resource.id())
+                //         .json(rawJsonString).build();
+
+                // return raw;
+		return null;
+        }
 
 
 }
