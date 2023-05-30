@@ -1,9 +1,14 @@
 package services.k_int.interaction.sierra;
 
+import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
+
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -16,11 +21,13 @@ import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.items.Params;
+import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -58,6 +65,72 @@ class SierraApiItemTests {
 			.setValidCredentials(sierraUser, sierraPass, SIERRA_TOKEN, 60);
 
 		sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
+	}
+
+	@Test
+	void shouldBeAbleToCreateAnItem() {
+		// Arrange
+		sierraItemsAPIFixture
+			.successResponseForCreateItem(4641865, 574574, "ab1234", "68439643");
+
+		final var sierraApiClient = createClient();
+
+		// Act
+		final var itemPatch = ItemPatch.builder()
+			.bibIds(List.of(4641865))
+			.itemType(574574)
+			.location("ab1234")
+			.barcodes(List.of("68439643"))
+			.build();
+
+		final var result = singleValueFrom(sierraApiClient.createItem(itemPatch));
+
+		// Assert
+		assertThat("Result should not be null", result, is(notNullValue()));
+
+		assertThat("Result should contain a link", result.getLink(),
+			is("https://sandbox.iii.com/iii/sierra-api/v6/items/7916922"));
+	}
+
+	@Test
+	void createItemShouldHandleJsonErrorResponse() {
+		// Arrange
+		sierraItemsAPIFixture.jsonErrorResponseForCreateItem();
+
+		final var sierraApiClient = createClient();
+
+		// Act
+		final var itemPatch = ItemPatch.builder()
+			.bibIds(List.of(7655654))
+			.build();
+
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> singleValueFrom(sierraApiClient.createItem(itemPatch)));
+
+		// Assert
+		final var response = exception.getResponse();
+
+		assertThat("Should return a bad request status",
+			response.getStatus(), is(INTERNAL_SERVER_ERROR));
+
+		final var optionalBody = response.getBody(SierraError.class);
+
+		assertThat("Response should have a body",
+			optionalBody.isPresent(), is(true));
+
+		final var body = optionalBody.get();
+
+		assertThat("Error should have a name",
+			body.getName(), is("Bad JSON/XML Syntax"));
+
+		assertThat("Error should have a description",
+			body.getDescription(), is("Please check that the JSON fields/values are of the expected JSON data types"));
+
+		assertThat("Error should have a code",
+			body.getCode(), is(130));
+
+		assertThat("Error should have a specific code",
+			body.getSpecificCode(), is(0));
 	}
 
 	@Test

@@ -42,6 +42,7 @@ import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.retry.annotation.Retryable;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
+import services.k_int.interaction.sierra.LinkResult;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.SierraError;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
@@ -50,9 +51,9 @@ import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.PatronResult;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 
 @Secondary
@@ -213,16 +214,27 @@ public class HostLmsSierraApiClient implements SierraApiClient {
                         ResultSet.builder().entries(emptyList()).build());
     }
 
+		@Override
+		@SingleResult
+		@Post("items")
+		@Produces(value = APPLICATION_JSON)
+		public Publisher<LinkResult> createItem(@Body ItemPatch itemPatch) {
+			return postRequest("items")
+				.map(request -> request.body(itemPatch))
+				.flatMap(this::ensureToken)
+				.flatMap(request -> doRetrieve(request, LinkResult.class));
+		}
+
 		@SingleResult
 		@Post("patrons")
 		@Produces(value = APPLICATION_JSON)
-		public Publisher<PatronResult> patrons(@Body PatronPatch body) {
+		public Publisher<LinkResult> patrons(@Body PatronPatch body) {
 
 			// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Create_a_patron_record_post_0
 			return postRequest("patrons")
 				.map(req -> req.body(body))
 				.flatMap(this::ensureToken)
-				.flatMap(req -> doRetrieve(req, PatronResult.class) );
+				.flatMap(req -> doRetrieve(req, LinkResult.class));
 		}
 
 		@SingleResult

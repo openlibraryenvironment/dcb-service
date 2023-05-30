@@ -65,6 +65,24 @@ class SierraLmsClientTests {
 	}
 
 	@Test
+	void shouldBeAbleToCreateAnItem() {
+		// Arrange
+		sierraItemsAPIFixture
+			.successResponseForCreateItem(3743965, 856757, "hg6732", "56756785");
+
+		final var client = hostLmsService.getClientFor("test1").block();
+
+		// Act
+		final var createdItem = client.createItem("3743965", "856757", "hg6732", "56756785").block();
+
+		// Assert
+		assertThat("Created item should not be null", createdItem, is(notNullValue()));
+
+		assertThat("Local ID should come from response link",
+			createdItem.getLocalId(), is("7916922"));
+	}
+
+	@Test
 	void shouldProvideMultipleItemsWhenSierraRespondsWithMultipleItems() {
 		sierraItemsAPIFixture.threeItemsResponseForBibId("4564554664");
 
