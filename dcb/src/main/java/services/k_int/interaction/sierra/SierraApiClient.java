@@ -37,9 +37,9 @@ import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.Params;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.PatronResult;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 
 @Client(value = "${" + SierraApiClient.CONFIG_ROOT + ".api.url:/iii/sierra-api/v6}", errorType = SierraError.class)
@@ -72,12 +72,12 @@ import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 	default Publisher<BibResultSet> bibs (Consumer<BibParamsBuilder> consumer) {
 		return bibs(BibParams.build(consumer));
 	}
-	
+
 	@SingleResult
 	@Get("/bibs/")
 	@Retryable
 	Publisher<BibResultSet> bibs (
-			@Nullable @QueryValue("limit") final Integer limit, 
+			@Nullable @QueryValue("limit") final Integer limit,
 			@Nullable @QueryValue("offset") final Integer offset,
 			@Nullable @QueryValue("createdDate") final String createdDate,
 			@Nullable @QueryValue("updatedDate") final String updatedDate,
@@ -129,8 +129,12 @@ import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 		@Nullable @QueryValue("locations") @Format("CSV") final Iterable<String> locations);
 
 	@SingleResult
+	@Post("/items")
+	Publisher<LinkResult> createItem(@Body final ItemPatch itemPatch);
+
+	@SingleResult
 	@Post("/patrons")
-	Publisher<PatronResult> patrons(@Body final PatronPatch patronPatch);
+	Publisher<LinkResult> patrons(@Body final PatronPatch patronPatch);
 
 	@SingleResult
 	@Get("/patrons/find")
@@ -146,11 +150,11 @@ import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 	}
 
 	// Basic auth is auto bound to the request.
-
 	@SingleResult
 	@Post("/token")
 	@Produces(value = MULTIPART_FORM_DATA)
 	Publisher<AuthToken> login( BasicAuth creds, @Body MultipartBody body);
+
 	@SingleResult
 	default Publisher<AuthToken> login( final String key, final String secret ) {
 		return login(new BasicAuth(key, secret));

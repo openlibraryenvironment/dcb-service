@@ -4,6 +4,7 @@ import static java.lang.Integer.parseInt;
 import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -24,6 +25,7 @@ import org.olf.reshare.dcb.configuration.RefdataRecord;
 import org.olf.reshare.dcb.configuration.ShelvingLocationRecord;
 import org.olf.reshare.dcb.core.ProcessStateService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
+import org.olf.reshare.dcb.core.interaction.HostLmsItem;
 import org.olf.reshare.dcb.core.interaction.HostLmsPatronDTO;
 import org.olf.reshare.dcb.core.model.HostLms;
 import org.olf.reshare.dcb.core.model.Item;
@@ -54,6 +56,7 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
+import reactor.util.retry.Retry;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
@@ -61,13 +64,12 @@ import services.k_int.interaction.sierra.configuration.BranchInfo;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
+import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
-import reactor.util.retry.Retry;
-import java.time.Duration;
 
 /**
  * See: https://sandbox.iii.com/iii/sierra-api/swagger/index.html
@@ -215,7 +217,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						state.storred_state.put("cursor", "bootstrap:" + state.offset);
 					}
 				}
-				// Create a new mono that first saves the state and then uses it to fetch another page.				
+				// Create a new mono that first saves the state and then uses it to fetch another page.
 				return Mono.just(state.toBuilder().build()) // toBuilder().build() should copy the object.
 					.zipWhen( updatedState -> fetchPage(updatedState.since, updatedState.offset, pageSize));
 			}))
@@ -316,6 +318,22 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				map.put("id", bibRes.id());
 				return map;
 			});
+	}
+
+	@Override
+	public Mono<HostLmsItem> createItem(String bibId, String itemType,
+		String locationCode, String barcode) {
+
+		return Mono.from(client.createItem(ItemPatch.builder()
+				.bibIds(List.of(Integer.parseInt(bibId)))
+				.itemType(Integer.parseInt(itemType))
+				.location(locationCode)
+				.barcodes(List.of(barcode))
+				.build()))
+			.map(result -> deRestify(result.getLink()))
+			.map(localId -> HostLmsItem.builder()
+				.localId(localId)
+				.build());
 	}
 
 	@Override
@@ -512,12 +530,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
-
 	@Builder(toBuilder = true)
 	@ToString
 	@RequiredArgsConstructor
 	@AllArgsConstructor
 	protected static class PublisherState {
+
 		public final Map<String, Object> storred_state;
 
 		@Builder.Default
@@ -537,9 +555,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		@Builder.Default
 		boolean error = false;
-
 		@Builder.Default
 		int page_counter = 0;
+
 	}
 
 	@Override
