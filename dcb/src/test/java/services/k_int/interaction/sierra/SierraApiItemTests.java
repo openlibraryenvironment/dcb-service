@@ -25,6 +25,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @MicronautTest(transactional = false, propertySources = { "classpath:configs/SierraApiItemTests.yml" }, rebuildContext = true)
+@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
+@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SierraApiItemTests {
 	private static final String SIERRA_TOKEN = "test-token-for-user";

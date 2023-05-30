@@ -14,10 +14,13 @@ import org.olf.reshare.dcb.core.model.ItemStatus;
 import org.olf.reshare.dcb.core.model.ItemStatusCode;
 import org.olf.reshare.dcb.core.model.Location;
 
+import io.micronaut.context.annotation.Property;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 
 @MicronautTest(transactional = false, propertySources = { "classpath:configs/RequestableItemServiceTests.yml" }, rebuildContext = true)
+@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
+@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
 public class RequestableItemServiceTests {
 	@Inject
 	private RequestableItemService requestableItemService;
