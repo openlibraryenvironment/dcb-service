@@ -1,37 +1,5 @@
 package org.olf.reshare.dcb.api;
 
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
-import static io.micronaut.http.HttpStatus.NOT_FOUND;
-import static io.micronaut.http.HttpStatus.OK;
-import static java.util.Objects.requireNonNull;
-import static java.util.UUID.randomUUID;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasProperty;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import org.hamcrest.Matcher;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.mockserver.client.MockServerClient;
-import org.olf.reshare.dcb.core.HostLmsService;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.reshare.dcb.request.fulfilment.PatronService;
-import org.olf.reshare.dcb.test.BibRecordFixture;
-import org.olf.reshare.dcb.test.ClusterRecordFixture;
-import org.olf.reshare.dcb.test.DcbTest;
-import org.olf.reshare.dcb.test.PatronFixture;
-import org.olf.reshare.dcb.test.PatronRequestsFixture;
-
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.HttpRequest;
@@ -42,11 +10,29 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import net.minidev.json.JSONObject;
+import org.hamcrest.Matcher;
+import org.junit.jupiter.api.*;
+import org.mockserver.client.MockServerClient;
+import org.olf.reshare.dcb.core.HostLmsService;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.reshare.dcb.request.fulfilment.PatronService;
+import org.olf.reshare.dcb.test.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
+import static io.micronaut.http.HttpStatus.*;
+import static java.util.Objects.requireNonNull;
+import static java.util.UUID.randomUUID;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 
 
@@ -166,12 +152,12 @@ class PatronRequestApiTests {
 
 		AdminApiClient.AdminAccessPatronRequest fetchedPatronRequest = await().atMost(10, SECONDS)
 			.until(() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.id()),
-				isPlacedAtSupplyingAgency());
+				isPlacedAtBorrowingAgency());
 
 		assertThat(fetchedPatronRequest, is(notNullValue()));
 		assertThat(fetchedPatronRequest.citation().bibClusterId(), is(clusterRecordId));
 		assertThat(fetchedPatronRequest.pickupLocation().code(), is("ABC123"));
-		assertThat(fetchedPatronRequest.status().code(), is("REQUEST_PLACED_AT_SUPPLYING_AGENCY"));
+		assertThat(fetchedPatronRequest.status().code(), is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
 		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
 
 		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
@@ -237,12 +223,12 @@ class PatronRequestApiTests {
 
 		var fetchedPatronRequest = await().atMost(10, SECONDS)
 			.until(() -> adminApiClient.getPatronRequestViaAdminApi(requireNonNull(placedRequestResponse.body()).id()),
-				isPlacedAtSupplyingAgency());
+				isPlacedAtBorrowingAgency());
 
 		assertThat(fetchedPatronRequest, is(notNullValue()));
 		assertThat(fetchedPatronRequest.citation().bibClusterId(), is(clusterRecordId));
 		assertThat(fetchedPatronRequest.pickupLocation().code(), is("ABC123"));
-		assertThat(fetchedPatronRequest.status().code(), is("REQUEST_PLACED_AT_SUPPLYING_AGENCY"));
+		assertThat(fetchedPatronRequest.status().code(), is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
 		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
 
 		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
@@ -386,8 +372,8 @@ class PatronRequestApiTests {
 		assertThat(response.getStatus(), is(NOT_FOUND));
 	}
 
-	private static Matcher<Object> isPlacedAtSupplyingAgency() {
-		return hasProperty("statusCode", is("REQUEST_PLACED_AT_SUPPLYING_AGENCY"));
+	private static Matcher<Object> isPlacedAtBorrowingAgency() {
+		return hasProperty("statusCode", is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
 	}
 
 	private static Matcher<Object> isNotAvailableToRequest() {
