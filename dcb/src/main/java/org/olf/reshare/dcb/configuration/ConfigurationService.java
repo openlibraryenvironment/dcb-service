@@ -246,7 +246,10 @@ public class ConfigurationService implements Runnable {
                 .value(refdataRecord.getValue())
                 .build();
         return Mono.from(refdataValueRepository.existsById(rdv.getId()))
-                .flatMap(exists -> Mono.fromDirect(exists ? refdataValueRepository.update(rdv) : refdataValueRepository.save(rdv)));
+                .flatMap(exists -> Mono.fromDirect(exists ? refdataValueRepository.update(rdv) : refdataValueRepository.save(rdv)))
+                .onErrorContinue((e, o) -> {
+                  log.error("Error occurred attempting to process "+o+" "+rdv+" "+e.getMessage());
+                });
     }
 
     @Override
