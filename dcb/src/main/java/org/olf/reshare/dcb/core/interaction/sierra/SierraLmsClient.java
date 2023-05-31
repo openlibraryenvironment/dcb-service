@@ -47,7 +47,6 @@ import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.SierraHold;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
