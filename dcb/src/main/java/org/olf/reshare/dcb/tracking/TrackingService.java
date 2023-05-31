@@ -16,6 +16,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.micronaut.scheduling.processor.AppTask;
+import org.olf.reshare.dcb.request.fulfilment.SupplyingAgencyService;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -32,11 +33,14 @@ public class TrackingService implements Runnable {
 
 	private PatronRequestRepository patronRequestRepository;
 	private SupplierRequestRepository supplierRequestRepository;
+	private SupplyingAgencyService supplyingAgencyService;
 
 	TrackingService( PatronRequestRepository patronRequestRepository,
-			 SupplierRequestRepository supplierRequestRepository) {
+			 SupplierRequestRepository supplierRequestRepository,
+                         SupplyingAgencyService supplyingAgencyService) {
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
+		this.supplyingAgencyService = supplyingAgencyService;
 	}
 
 	@javax.annotation.PostConstruct
@@ -81,6 +85,14 @@ public class TrackingService implements Runnable {
 
 	private Mono<SupplierRequest> checkSupplierRequest(SupplierRequest sr) {
 		log.debug("Check supplier request {}",sr);
+                // Check supplier request SupplierRequest(id=3b5db82c-8568-4b1b-8d86-5369e2855f2c, 
+                // patronRequest=PatronRequest(id=7a7519a4-3702-478d-ae4c-65436015fa7b, dateCreated=null, 
+                // dateUpdated=null, patron=null, bibClusterId=null, pickupLocationCode=null, 
+                // statusCode=null, localRequestId=null, localRequestStatus=null), 
+                // localItemId=1017281, localItemBarcode=30800004002116, 
+                // localItemLocationCode=ab8, hostLmsCode=SANDBOX, statusCode=PLACED, localId=407607, localStatus=0)
+		String result = supplyingAgencyService.getHoldStatus(sr.getHostLmsCode(), sr.getLocalId());
+		log.debug("current request status: {}",result);
 		return Mono.just(sr);
 	}
 }

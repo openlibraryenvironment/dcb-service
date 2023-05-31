@@ -123,4 +123,10 @@ public class SupplyingAgencyService {
 	private Mono<String> determinePatronType(String hostLmsCode) {
 		return patronTypeService.determinePatronType(hostLmsCode);
 	}
+
+	public String getHoldStatus(String hostLmsCode, String holdId) {
+		log.debug("getHoldStatus({},{})",hostLmsCode,holdId);
+		return null;
+	}
+
 }
