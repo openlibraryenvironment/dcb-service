@@ -10,18 +10,15 @@ import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstant
 import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 import java.time.Duration;
-import java.util.UUID;
 import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
-import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
-
-import reactor.core.publisher.Mono;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import reactor.core.publisher.Mono;
 
 /*
  * please note - there is now some divergence between the state model as it exists in DCB and the way the
@@ -31,13 +28,11 @@ import org.slf4j.LoggerFactory;
  * is not the same as the state model implemented over in the main codebase, and this test is not an
  * exercise of the DCB state machine itself.
  */
-public class PatronRequestWorkflowTests {
-
-        private static final Logger log = LoggerFactory.getLogger(PatronRequestWorkflowTests.class);
+class PatronRequestWorkflowTests {
+	private static final Logger log = LoggerFactory.getLogger(PatronRequestWorkflowTests.class);
 
 	@Test
-	public void testPlacePatronRequestAtSupplyingAgencyStateTransitionCalledAfterFirstTransition() {
-
+	void testPlacePatronRequestAtSupplyingAgencyStateTransitionCalledAfterFirstTransition() {
 		log.debug("testPlacePatronRequestAtSupplyingAgencyStateTransitionCalledAfterFirstTransition()");
 
 		// Create a PatronRequest with status SUBMITTED_TO_DCB
@@ -57,7 +52,7 @@ public class PatronRequestWorkflowTests {
 		when(placeTransition.getGuardCondition()).thenReturn("state=="+RESOLVED);
 
 		// Create a PatronRequestWorkflow instance
-		List l = Arrays.asList(resolutionTransition,placeTransition);
+		final var l = Arrays.asList(resolutionTransition, placeTransition);
 		PatronRequestWorkflow workflow = new PatronRequestWorkflow(l, Duration.ofSeconds(1));
 
 		// Call initiate method
@@ -77,7 +72,6 @@ public class PatronRequestWorkflowTests {
 
 	@Test
 	void shouldAttemptTransitionAsynchronouslyWhenStatusSubmittedToDcb() {
-
 		log.debug("shouldAttemptTransitionAsynchronouslyWhenStatusSubmittedToDcb()");
 
 		final var resolutionTransition = mock(PatronRequestResolutionStateTransition.class);
@@ -94,7 +88,7 @@ public class PatronRequestWorkflowTests {
 
 		final var stateTransitionDelay = Duration.ofSeconds(1);
 
-		List l = Arrays.asList(resolutionTransition,placeTransition);
+		final var l = Arrays.asList(resolutionTransition, placeTransition);
 		final var requestWorkflow = new PatronRequestWorkflow(l, stateTransitionDelay);
 
 		requestWorkflow.initiate(patronRequest);
@@ -102,10 +96,8 @@ public class PatronRequestWorkflowTests {
 		verify(resolutionTransition).attempt(patronRequest);
 	}
 
-
 	@Test
 	void shouldNotAttemptTransitionWhenUnrecognisedStatus() {
-
 		log.debug("shouldNotAttemptTransitionWhenUnrecognisedStatus()");
 
 		final var resolutionTransition = mock(PatronRequestResolutionStateTransition.class);
@@ -122,7 +114,7 @@ public class PatronRequestWorkflowTests {
 
 		final var stateTransitionDelay = Duration.ofSeconds(0);
 
-		List l = Arrays.asList(resolutionTransition,placeTransition);
+		final var l = Arrays.asList(resolutionTransition,placeTransition);
 		final var requestWorkflow = new PatronRequestWorkflow(l, stateTransitionDelay);
 
 		requestWorkflow.initiate(patronRequest);
@@ -131,8 +123,8 @@ public class PatronRequestWorkflowTests {
 	}
 
 	private static PatronRequest createPatronRequestWithStatus(String status) {
-		return new PatronRequest(UUID.randomUUID(), null, null,
-			new Patron(), UUID.randomUUID(), "pickupLocationCode",
-			status, null, null);
+		return PatronRequest.builder()
+			.statusCode(status)
+			.build();
 	}
 }

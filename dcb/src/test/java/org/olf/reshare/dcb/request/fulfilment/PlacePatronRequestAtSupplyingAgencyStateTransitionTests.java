@@ -28,8 +28,8 @@ class PlacePatronRequestAtSupplyingAgencyStateTransitionTests {
 	@Test
 	void testAttempt() {
 		// Arrange
-		PatronRequest patronRequest = new PatronRequest();
-		PatronRequest updatedPatronRequest = new PatronRequest();
+		PatronRequest patronRequest = PatronRequest.builder().build();
+		PatronRequest updatedPatronRequest = PatronRequest.builder().build();
 
 		when(supplyingAgencyService.placePatronRequestAtSupplyingAgency(patronRequest))
 			.thenAnswer(invocation ->  Mono.just(updatedPatronRequest));
