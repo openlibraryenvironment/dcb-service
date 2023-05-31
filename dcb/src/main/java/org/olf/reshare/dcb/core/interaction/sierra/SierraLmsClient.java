@@ -646,11 +646,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.flatMap(spr -> Mono.just(sierraPatronToHostLmsPatron(spr)));
 	}
 
-	public HostLmsHold sierraHoldToHostLmsHold(SierraHold sierraHold) {
+	public HostLmsHold sierraPatronHoldToHostLmsHold(SierraPatronHold sierraHold) {
 		log.debug("sierraHoldToHostLmsHold({})",sierraHold);
 		if ( sierraHold != null ) {
-			return new HostLmsHold(sierraHold.getId() != null ? sierraHold.getId().toString() : "",
-        	                               sierraHold.getStatus() != null ? sierraHold.getStatus().code() : "");
+			return new HostLmsHold(sierraHold.id() != null ? sierraHold.id().toString() : "",
+        	                               sierraHold.status() != null ? sierraHold.status().code() : "");
 		}
 		else {
 			return new HostLmsHold();
@@ -661,7 +661,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("getHold({})",holdId);
 		return Mono.from ( client.getHold(Long.valueOf(holdId)) )
 			.switchIfEmpty(Mono.error(new RuntimeException("No hold found")))
-			.flatMap(sh -> Mono.just(sierraHoldToHostLmsHold(sh)));
+			.flatMap(sh -> Mono.just(sierraPatronHoldToHostLmsHold(sh)));
 	}
 
 }

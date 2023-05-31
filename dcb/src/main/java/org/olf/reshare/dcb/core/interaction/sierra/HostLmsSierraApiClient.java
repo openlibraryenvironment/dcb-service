@@ -35,7 +35,7 @@ import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
-import services.k_int.interaction.sierra.patrons.SierraHold;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -272,7 +272,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
     private <T> Mono<T> handleResponseErrors ( final Mono<T> current ) {
 
         return current.onErrorMap(throwable -> {
-		log.debug("inside handleResponseErrors::onErrorMap()");
+		log.debug("inside handleResponseErrors::onErrorMap() - throwable {}",throwable.toString());
             // On a 401 we should clear the token before propagating the error.
             // Sierra returns 404 if a search returns no results ( :explodinghead: ) need to find a way to handle that gracefully
             if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
@@ -439,13 +439,11 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
         @SingleResult
         @Get("/patrons/holds/{id}")
-        public Publisher<SierraHold> getHold(@Nullable @PathVariable("id") final Long holdId) {
+        public Publisher<SierraPatronHold> getHold(@Nullable @PathVariable("id") final Long holdId) {
                 // See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
 		log.debug("getHold({})",holdId);
                 return getRequest("patrons/holds/" + holdId)
                         .flatMap(this::ensureToken)
-                        .flatMap(req -> doRetrieve(req, SierraHold.class) )
-                        .onErrorReturn(new SierraHold());
+                        .flatMap(req -> doRetrieve(req, SierraPatronHold.class) );
         }
-
 }

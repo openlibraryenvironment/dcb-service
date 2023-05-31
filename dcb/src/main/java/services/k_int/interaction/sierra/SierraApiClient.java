@@ -23,7 +23,7 @@ import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.Params;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
-import services.k_int.interaction.sierra.patrons.SierraHold;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
@@ -198,6 +198,6 @@ import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
 
 	@SingleResult
 	@Get("/patrons/holds/{id}")
-	Publisher<SierraHold> getHold(@Nullable @PathVariable("id") final Long holdId);
+	Publisher<SierraPatronHold> getHold(@Nullable @PathVariable("id") final Long holdId);
 
 }
