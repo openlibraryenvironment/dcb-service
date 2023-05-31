@@ -37,9 +37,11 @@ public class SierraHold {
 	@Nullable
 	SierraCodeTuple status;
 
-        // location (Location, optional): the code of the location from which to fill the hold, 
-        // if the hold is set for "Limit to Location" (does not apply to item-level holds),
-        // pickupLocation (Location, optional): the location code of the hold's pickup location,
+	@Nullable
+        SierraCodeTuple pickupLocation;
+
+	@Nullable
+        SierraCodeTuple location;
 
 	@Nullable
 	String recordType;
