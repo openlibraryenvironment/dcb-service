@@ -93,6 +93,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		Mono.just ( "start" )
 			.flatMap( v -> { return Mono.from(saveOrUpdateStatusCode("SupplierRequest", "IDLE", Boolean.FALSE)); } )
 			.flatMap( v -> { return Mono.from(saveOrUpdateStatusCode("SupplierRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", Boolean.TRUE)); } )
+			.flatMap( v -> { return Mono.from(saveOrUpdateStatusCode("SupplierRequest", "PLACED", Boolean.TRUE)); } )
 			.flatMap( v -> { return Mono.from(saveOrUpdateStatusCode("PatronRequest", "IDLE", Boolean.FALSE)); } )
 			.subscribe();
 	}
