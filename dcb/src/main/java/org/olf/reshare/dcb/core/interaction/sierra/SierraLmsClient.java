@@ -637,11 +637,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	public HostLmsHold sierraHoldToHostLmsHold(SierraHold sierraHold) {
+		log.debug("sierraHoldToHostLmsHold({})",sierraHold);
 		return new HostLmsHold(sierraHold.getId().toString(),sierraHold.getStatus().code());
 	}
 
 	public Mono<HostLmsHold> getHold(String holdId) {
-		log.debug("getMappedHoldStatus({})",holdId);
+		log.debug("getHold({})",holdId);
 		return Mono.from ( client.getHold(Long.valueOf(holdId)) )
 			.switchIfEmpty(Mono.error(new RuntimeException("No hold found")))
 			.flatMap(sh -> Mono.just(sierraHoldToHostLmsHold(sh)));

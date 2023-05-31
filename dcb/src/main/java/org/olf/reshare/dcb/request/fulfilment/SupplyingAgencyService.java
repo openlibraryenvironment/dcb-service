@@ -128,7 +128,7 @@ public class SupplyingAgencyService {
 		log.debug("getHoldStatus({},{})",hostLmsCode,holdId);
 		return hostLmsService.getClientFor(hostLmsCode)
 			.flatMap( client -> client.getHold(holdId) )
-			.map ( hold -> hold.getStatus() );
+			.map ( hold -> hold != null ? hold.getStatus() : "" );
 	}
 
 }

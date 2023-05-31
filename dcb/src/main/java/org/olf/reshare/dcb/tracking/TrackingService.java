@@ -92,6 +92,9 @@ public class TrackingService implements Runnable {
                 // localItemId=1017281, localItemBarcode=30800004002116, 
                 // localItemLocationCode=ab8, hostLmsCode=SANDBOX, statusCode=PLACED, localId=407607, localStatus=0)
 		return supplyingAgencyService.getHoldStatus(sr.getHostLmsCode(), sr.getLocalId())
+			.onErrorContinue((e, o) -> {
+				log.error("Error occurred: " + e.getMessage(),e);
+			})
 			.map( holdStatus -> { 
 				log.debug("current request status: {}",holdStatus);
 				return holdStatus;
