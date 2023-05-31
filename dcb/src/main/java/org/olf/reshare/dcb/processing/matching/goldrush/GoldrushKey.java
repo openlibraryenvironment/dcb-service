@@ -235,7 +235,8 @@ public class GoldrushKey implements MatchKey {
 			padToLength(titleNumber, 10)
 		)
 		.sequential()
-		.collect(Collectors.joining(""));
+		.collect(Collectors.joining(""))
+		.toLowerCase();
 	}
 
 }
