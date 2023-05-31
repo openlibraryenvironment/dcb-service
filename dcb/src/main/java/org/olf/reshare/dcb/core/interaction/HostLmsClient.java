@@ -31,4 +31,6 @@ public interface HostLmsClient {
 	Mono<HostLmsPatronDTO> getPatronByLocalId(String localPatronId);
 
 	Mono<HostLmsItem> createItem(String bibId, String itemType, String locationCode, String barcode);
+
+	Mono<HostLmsHold> getHold(String holdId);
 }

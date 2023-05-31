@@ -124,9 +124,11 @@ public class SupplyingAgencyService {
 		return patronTypeService.determinePatronType(hostLmsCode);
 	}
 
-	public String getHoldStatus(String hostLmsCode, String holdId) {
+	public Mono<String> getHoldStatus(String hostLmsCode, String holdId) {
 		log.debug("getHoldStatus({},{})",hostLmsCode,holdId);
-		return null;
+		return hostLmsService.getClientFor(hostLmsCode)
+			.flatMap( client -> client.getHold(holdId) )
+			.map ( hold -> hold.getStatus() );
 	}
 
 }

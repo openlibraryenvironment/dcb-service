@@ -25,6 +25,7 @@ import org.olf.reshare.dcb.configuration.RefdataRecord;
 import org.olf.reshare.dcb.configuration.ShelvingLocationRecord;
 import org.olf.reshare.dcb.core.ProcessStateService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
+import org.olf.reshare.dcb.core.interaction.HostLmsHold;
 import org.olf.reshare.dcb.core.interaction.HostLmsItem;
 import org.olf.reshare.dcb.core.interaction.HostLmsPatronDTO;
 import org.olf.reshare.dcb.core.model.HostLms;
@@ -67,6 +68,7 @@ import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
+import services.k_int.interaction.sierra.patrons.SierraHold;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
@@ -632,6 +634,17 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.from( client.getPatron(Long.valueOf(localPatronId)) )
 			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")))
 			.flatMap(spr -> Mono.just(sierraPatronToHostLmsPatron(spr)));
+	}
+
+	public HostLmsHold sierraHoldToHostLmsHold(SierraHold sierraHold) {
+		return new HostLmsHold(sierraHold.getId().toString(),sierraHold.getStatus().code());
+	}
+
+	public Mono<HostLmsHold> getHold(String holdId) {
+		log.debug("getMappedHoldStatus({})",holdId);
+		return Mono.from ( client.getHold(Long.valueOf(holdId)) )
+			.switchIfEmpty(Mono.error(new RuntimeException("No hold found")))
+			.flatMap(sh -> Mono.just(sierraHoldToHostLmsHold(sh)));
 	}
 
 }

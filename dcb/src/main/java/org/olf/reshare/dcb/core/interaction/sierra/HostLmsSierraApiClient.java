@@ -55,6 +55,7 @@ import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
+import services.k_int.interaction.sierra.patrons.SierraHold;
 
 @Secondary
 @Prototype
@@ -433,4 +434,15 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class) )
 			.onErrorReturn(new SierraPatronRecord());
 	}
+
+        @SingleResult
+        @Get("/patrons/holds/{id}")
+        public Publisher<SierraHold> getHold(@Nullable @PathVariable("id") final Long holdId) {
+                // See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
+                return getRequest("patrons/holds/" + holdId)
+                        .flatMap(this::ensureToken)
+                        .flatMap(req -> doRetrieve(req, SierraHold.class) )
+                        .onErrorReturn(new SierraHold());
+        }
+
 }

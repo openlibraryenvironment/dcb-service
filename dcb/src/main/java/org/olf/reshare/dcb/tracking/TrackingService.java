@@ -91,9 +91,12 @@ public class TrackingService implements Runnable {
                 // statusCode=null, localRequestId=null, localRequestStatus=null), 
                 // localItemId=1017281, localItemBarcode=30800004002116, 
                 // localItemLocationCode=ab8, hostLmsCode=SANDBOX, statusCode=PLACED, localId=407607, localStatus=0)
-		String result = supplyingAgencyService.getHoldStatus(sr.getHostLmsCode(), sr.getLocalId());
-		log.debug("current request status: {}",result);
-		return Mono.just(sr);
+		return supplyingAgencyService.getHoldStatus(sr.getHostLmsCode(), sr.getLocalId())
+			.map( holdStatus -> { 
+				log.debug("current request status: {}",holdStatus);
+				return holdStatus;
+			})
+			.thenReturn( sr );
 	}
 }
 

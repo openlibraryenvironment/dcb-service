@@ -79,5 +79,4 @@ public class HostLmsService implements IngestSourcesProvider {
 			super(String.format("No Host LMS found for %s: %s", propertyName, value));
 		}
 	}
-
 }
