@@ -272,19 +272,20 @@ public class HostLmsSierraApiClient implements SierraApiClient {
     private <T> Mono<T> handleResponseErrors ( final Mono<T> current ) {
 
         return current.onErrorMap(throwable -> {
+		log.debug("inside handleResponseErrors::onErrorMap()");
             // On a 401 we should clear the token before propagating the error.
             // Sierra returns 404 if a search returns no results ( :explodinghead: ) need to find a way to handle that gracefully
             if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
+		log.debug("and throwable is a HttpClientResponseException");
                 HttpClientResponseException e = (HttpClientResponseException) throwable;
                 int code = e.getStatus().getCode();
-
                 switch (code) {
                     case 401:
                         log.debug("Clearing token to trigger reauthentication");
                         this.currentToken = null;
                         break;
                     default:
-                        log.warn("response error {}",e.getStatus().toString());
+                        log.warn("response code: {} error {}",code,e.getStatus().toString());
                         break;
                 }
             }
@@ -440,6 +441,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
         @Get("/patrons/holds/{id}")
         public Publisher<SierraHold> getHold(@Nullable @PathVariable("id") final Long holdId) {
                 // See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
+		log.debug("getHold({})",holdId);
                 return getRequest("patrons/holds/" + holdId)
                         .flatMap(this::ensureToken)
                         .flatMap(req -> doRetrieve(req, SierraHold.class) )
