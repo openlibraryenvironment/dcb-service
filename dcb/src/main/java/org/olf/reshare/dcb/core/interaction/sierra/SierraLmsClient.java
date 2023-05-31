@@ -650,7 +650,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("sierraHoldToHostLmsHold({})",sierraHold);
 		if ( sierraHold != null ) {
 			return new HostLmsHold(sierraHold.getId() != null ? sierraHold.getId().toString() : "",
-        	                               sierraHold.getStatus() != null ? sierraHold.getStatus().code() : null);
+        	                               sierraHold.getStatus() != null ? sierraHold.getStatus().code() : "");
 		}
 		else {
 			return new HostLmsHold();
