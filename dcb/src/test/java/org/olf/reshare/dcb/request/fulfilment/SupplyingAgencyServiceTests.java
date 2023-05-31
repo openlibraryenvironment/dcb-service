@@ -1,6 +1,5 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import static java.time.Instant.now;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -119,11 +118,7 @@ class SupplyingAgencyServiceTests {
 			null
 		);
 
-		patronRequest = createPatronRequest(
-			randomUUID(),
-			RESOLVED,
-			patron
-		);
+		patronRequest = createPatronRequest(randomUUID(), RESOLVED, patron);
 
 		// Common mocks
 		when(supplierRequestService.findSupplierRequestFor(any()))
@@ -231,9 +226,12 @@ class SupplyingAgencyServiceTests {
 	}
 
 	private static PatronRequest createPatronRequest(UUID id, String status, Patron patron) {
-		return new PatronRequest(id, now(), now(),
-			patron, randomUUID(), "pickupLocationCode",
-			status, null, null);
+		return PatronRequest.builder()
+			.id(id)
+			.patron(patron)
+			.pickupLocationCode("pickupLocationCode")
+			.statusCode(status)
+			.build();
 	}
 
 	private SupplierRequest createPlacedSupplierRequest() {

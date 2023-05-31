@@ -66,7 +66,7 @@ class PatronRequestServiceTests {
 		PatronRequestService patronRequestService = new PatronRequestService(
 			patronRequestRepository, requestWorkflow, patronService, findOrCreatePatronService);
 
-		final var citationId = UUID.randomUUID();
+		final var bibClusterId = UUID.randomUUID();
 		final var patronId = UUID.randomUUID();
 		final var requestId = UUID.randomUUID();
 		final var patron = new Patron();
@@ -74,13 +74,18 @@ class PatronRequestServiceTests {
 		final var pickupLocationCode = "pickupLocationCode";
 
 		final var command = new PlacePatronRequestCommand(
-			new Citation(citationId),
+			new Citation(bibClusterId),
 			new PickupLocation(pickupLocationCode),
 			new Requestor(patronId.toString(), "localSystemCode",
 				"home-library-code"));
 
-		final var patronRequest = new PatronRequest(requestId, null, null,
-			patron, citationId, pickupLocationCode, SUBMITTED_TO_DCB, null, null);
+		final var patronRequest = PatronRequest.builder()
+			.id(requestId)
+			.patron(patron)
+			.bibClusterId(bibClusterId)
+			.pickupLocationCode(pickupLocationCode)
+			.statusCode(SUBMITTED_TO_DCB)
+			.build();
 
 		when(findOrCreatePatronService.findOrCreatePatron(any(), any(), any()))
 			.thenAnswer(invocation -> Mono.just(patron));

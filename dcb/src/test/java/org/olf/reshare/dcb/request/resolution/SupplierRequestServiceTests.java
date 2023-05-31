@@ -1,20 +1,19 @@
 package org.olf.reshare.dcb.request.resolution;
 
-import jakarta.inject.Inject;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.olf.reshare.dcb.request.fulfilment.SupplierRequestStatusCode.PLACED;
+
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.olf.reshare.dcb.storage.SupplierRequestRepository;
 import org.olf.reshare.dcb.test.DcbTest;
+
+import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
-
-import java.util.UUID;
-
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.olf.reshare.dcb.request.fulfilment.SupplierRequestStatusCode.PLACED;
 
 @DcbTest
 public class SupplierRequestServiceTests {
@@ -28,8 +27,10 @@ public class SupplierRequestServiceTests {
 	@Test
 	void shouldUpdateSupplierRequestAndFetchTheUpdatedSupplierRequest() {
 		// Create a new PatronRequest and SupplierRequest
-		var patronRequest = new PatronRequest();
-		patronRequest.setId(UUID.randomUUID());
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.build();
+
 		final var supplierRequestId = randomUUID();
 		var initialSupplierRequest = new SupplierRequest(
 			supplierRequestId,

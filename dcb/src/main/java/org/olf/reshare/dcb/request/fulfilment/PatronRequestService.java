@@ -1,17 +1,18 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import io.micronaut.context.annotation.Prototype;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
+
+import java.util.UUID;
+
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
-
-import java.util.UUID;
-
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 @Prototype
 public class PatronRequestService {
@@ -54,18 +55,21 @@ public class PatronRequestService {
 	private static PatronRequest mapToPatronRequest(Patron patron,
 		PlacePatronRequestCommand command) {
 
-		final var uuid = UUID.randomUUID();
-		log.debug(String.format("create pr %s %s %s %s %s",uuid,
-			patron,
-			command.citation().bibClusterId(),
-			command.pickupLocation().code(),
-			SUBMITTED_TO_DCB));
+		final var id = UUID.randomUUID();
+
+		log.debug(String.format("create pr %s %s %s %s %s", id,
+			patron, command.citation().bibClusterId(),
+			command.pickupLocation().code(), SUBMITTED_TO_DCB));
 
 		log.debug("Setting request status {}", SUBMITTED_TO_DCB);
-		return new PatronRequest(uuid, null, null,
-			patron, command.citation().bibClusterId(),
-			command.pickupLocation().code(),
-			SUBMITTED_TO_DCB, null, null);
+
+		return PatronRequest.builder()
+			.id(id)
+			.patron(patron)
+			.bibClusterId(command.citation().bibClusterId())
+			.pickupLocationCode(command.pickupLocation().code())
+			.statusCode(SUBMITTED_TO_DCB)
+			.build();
 	}
 
 	private Mono<? extends PatronRequest> savePatronRequest(
