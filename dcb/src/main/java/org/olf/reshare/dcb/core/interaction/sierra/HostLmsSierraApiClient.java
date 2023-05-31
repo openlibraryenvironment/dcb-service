@@ -1,50 +1,30 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
-import static java.util.Collections.emptyList;
-
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import io.micronaut.core.annotation.Nullable;
-import org.olf.reshare.dcb.core.model.HostLms;
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.context.annotation.Secondary;
 import io.micronaut.core.annotation.Creator;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
-import io.micronaut.http.BasicAuth;
-import io.micronaut.http.HttpHeaders;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.MediaType;
-import io.micronaut.http.MutableHttpRequest;
-import io.micronaut.http.annotation.Body;
-import io.micronaut.http.annotation.Get;
-import io.micronaut.http.annotation.PathVariable;
-import io.micronaut.http.annotation.Post;
-import io.micronaut.http.annotation.Produces;
+import io.micronaut.http.*;
+import io.micronaut.http.annotation.*;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.retry.annotation.Retryable;
+import org.olf.reshare.dcb.core.model.HostLms;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.LinkResult;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.SierraError;
+import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchResultSet;
 import services.k_int.interaction.sierra.configuration.PatronMetadata;
@@ -56,6 +36,16 @@ import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.interaction.sierra.patrons.SierraHold;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
+import static java.util.Collections.emptyList;
 
 @Secondary
 @Prototype
@@ -239,6 +229,18 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		}
 
 		@SingleResult
+		@Post("bibs")
+		@Produces(value = APPLICATION_JSON)
+		public Publisher<LinkResult> bibs(@Body BibPatch body) {
+
+			// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/bibs/Create_a_Bib_record_post_0
+			return postRequest("bibs")
+				.map(req -> req.body(body))
+				.flatMap(this::ensureToken)
+				.flatMap(req -> doRetrieve(req, LinkResult.class));
+		}
+
+		@SingleResult
 		@Get("patrons/find")
 		@Produces(value = APPLICATION_JSON)
 		public Publisher<SierraPatronRecord> patronFind(String varFieldTag, String varFieldContent) {
@@ -294,34 +296,34 @@ public class HostLmsSierraApiClient implements SierraApiClient {
         return doRetrieve(request, type, true);
     }
 
-		private <T> Mono<HttpResponse<T>> doExchange( MutableHttpRequest<?> request, Class<T> type) {
-			Mono<HttpResponse<T>> response = Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE));
-
-			return response.onErrorMap(throwable -> {
-					// On a 401 we should clear the token before propagating the error.
-					// Sierra returns 404 if a search returns no results ( :explodinghead: ) need to find a way to handle that gracefully
-					if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
-							HttpClientResponseException e = (HttpClientResponseException) throwable;
-							int code = e.getStatus().getCode();
-
-							switch (code) {
-									case 401:
-											log.debug("Clearing token to trigger reauthentication");
-											this.currentToken = null;
-											break;
-									default:
-											log.warn("response error {}",e.getStatus().toString());
-											break;
-							}
-					}
-					return throwable;
-			});
-		}
-
 	private <T> Mono<T> doRetrieve( MutableHttpRequest<?> request, Class<T> type, boolean mapErrors) {
         var response = Mono.from( client.retrieve(request, Argument.of(type), ERROR_TYPE) );
         return mapErrors ? handleResponseErrors( response ) : response;
     }
+
+		private <T> Mono<HttpResponse<T>> doExchange( MutableHttpRequest<?> request, Class<T> type) {
+			Mono<HttpResponse<T>> response = Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE));
+
+			return response.onErrorMap(throwable -> {
+				// On a 401 we should clear the token before propagating the error.
+				// Sierra returns 404 if a search returns no results ( :explodinghead: ) need to find a way to handle that gracefully
+				if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
+					HttpClientResponseException e = (HttpClientResponseException) throwable;
+					int code = e.getStatus().getCode();
+
+					switch (code) {
+						case 401:
+							log.debug("Clearing token to trigger reauthentication");
+							this.currentToken = null;
+							break;
+						default:
+							log.warn("response error {}",e.getStatus().toString());
+							break;
+					}
+				}
+				return throwable;
+			});
+		}
 
     private <T> Object[] iterableToArray( Iterable<T> iterable ) {
         if (iterable == null) return null;
@@ -393,17 +395,16 @@ public class HostLmsSierraApiClient implements SierraApiClient {
         return resolve(rootUri, relativeURI);
     }
 
-		@SingleResult
-		@Post("patrons/{id}/holds/requests")
-		@Produces(value = APPLICATION_JSON)
-		public Mono<Void> placeHoldRequest(@PathVariable String id, @Body PatronHoldPost body) {
-			return createRequest(HttpMethod.POST, "patrons/" + id + "/holds/requests")
-				.map(req -> req.body(body))
-				.flatMap(this::ensureToken)
-				.flatMap(req -> doExchange(req, Object.class))
-				.then();
+    @SingleResult
+    @Post("patrons/{id}/holds/requests")
+    @Produces(value = APPLICATION_JSON)
+    public Mono<Void> placeHoldRequest(@PathVariable String id, @Body PatronHoldPost body) {
+        return createRequest(HttpMethod.POST, "patrons/" + id + "/holds/requests")
+            .map(req -> req.body(body))
+            .flatMap(this::ensureToken)
+            .flatMap(req -> doExchange(req, Object.class))
+            .then();
 	}
-
 
         @SingleResult
         @Retryable

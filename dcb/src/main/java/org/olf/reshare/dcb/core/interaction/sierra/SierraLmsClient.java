@@ -1,28 +1,16 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
-import static java.lang.Integer.parseInt;
-import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import javax.transaction.Transactional;
-import javax.transaction.Transactional.TxType;
-import javax.validation.constraints.NotNull;
-
+import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.util.StringUtils;
+import io.micronaut.json.tree.JsonNode;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.marc4j.marc.Record;
-import org.olf.reshare.dcb.configuration.BranchRecord;
-import org.olf.reshare.dcb.configuration.ConfigurationRecord;
-import org.olf.reshare.dcb.configuration.PickupLocationRecord;
-import org.olf.reshare.dcb.configuration.RefdataRecord;
-import org.olf.reshare.dcb.configuration.ShelvingLocationRecord;
+import org.olf.reshare.dcb.configuration.*;
 import org.olf.reshare.dcb.core.ProcessStateService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.interaction.HostLmsHold;
@@ -42,16 +30,6 @@ import org.olf.reshare.dcb.tracking.model.TrackingRecord;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.micronaut.context.annotation.Parameter;
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.util.StringUtils;
-import io.micronaut.json.tree.JsonNode;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.RequiredArgsConstructor;
-import lombok.ToString;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
@@ -59,6 +37,7 @@ import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 import reactor.util.retry.Retry;
 import services.k_int.interaction.sierra.SierraApiClient;
+import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchInfo;
@@ -72,6 +51,18 @@ import services.k_int.interaction.sierra.patrons.SierraHold;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
+
+import javax.transaction.Transactional;
+import javax.transaction.Transactional.TxType;
+import javax.validation.constraints.NotNull;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.*;
+
+import static java.lang.Integer.parseInt;
+import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
 
 /**
  * See: https://sandbox.iii.com/iii/sierra-api/swagger/index.html
@@ -384,6 +375,25 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
+	public Mono<String> createBib(String author, String title) {
+		log.debug("createBib(author: {}, title: {})", author, title);
+
+		BibPatch bibPatch = BibPatch.builder()
+			.authors(new String[]{author})
+			.titles(new String[]{title})
+			.bibCode3("n")
+			.build();
+
+		return Mono.from(client.bibs(bibPatch))
+			.doOnSuccess(result -> log.debug("the result of createBib({})", result))
+			.map(bibResult -> deRestify( bibResult.getLink() ))
+			.onErrorResume(NullPointerException.class, error -> {
+				log.debug("NullPointerException occurred when creating Bib: {}", error.getMessage());
+				return Mono.error(new RuntimeException("Error occurred when creating Bib"));
+			});
+	}
+
+	@Override
 	public Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType,
 		String recordNumber, String pickupLocation) {
 
@@ -479,7 +489,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		if (bi.locations() != null) {
 			for (Map<String, String> shelving_location : bi.locations()) {
 				// It appears these are not only shelving locations but more general location records attached to the location
-				locations.add(new org.olf.reshare.dcb.configuration.ShelvingLocationRecord(
+				locations.add(new ShelvingLocationRecord(
 					uuid5ForShelvingLocation(lms.getCode(), bi.id(), shelving_location.get("code")),
 					shelving_location.get("code"), shelving_location.get("name")));
 			}
