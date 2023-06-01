@@ -5,13 +5,20 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import java.util.List;
 import java.util.UUID;
 
+import io.micronaut.security.authentication.Authentication;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
+
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.request.fulfilment.PatronRequestService;
 import org.olf.reshare.dcb.request.resolution.SupplierRequestService;
+import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.olf.reshare.dcb.stats.StatsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.validation.Valid;
 
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.http.HttpResponse;
@@ -19,6 +26,11 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Produces;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,17 +45,18 @@ public class AdminController {
 
 	private final PatronRequestService patronRequestService;
 	private final SupplierRequestService supplierRequestService;
-
+        private final PatronRequestRepository patronRequestRepository;
 	private final StatsService statsService;
 
-
 	public AdminController(PatronRequestService patronRequestService,
-												 SupplierRequestService supplierRequestService,
-												 StatsService statsService) {
+				SupplierRequestService supplierRequestService,
+				StatsService statsService,
+                                PatronRequestRepository patronRequestRepository) {
 
 		this.patronRequestService = patronRequestService;
 		this.supplierRequestService = supplierRequestService;
 		this.statsService = statsService;
+		this.patronRequestRepository = patronRequestRepository;
 	}
 
 	@SingleResult
@@ -56,6 +69,26 @@ public class AdminController {
 			.zipWhen(this::findSupplierRequests, this::mapToView)
 			.map(HttpResponse::ok);
 	}
+
+        @Secured(SecurityRule.IS_AUTHENTICATED)
+        @Operation(
+                summary = "Browse Requests",
+                description = "Paginate through the list of Patron Requests",
+                parameters = {
+                        @Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
+                        @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
+        )
+        @Get("/admin/patrons/requests{?pageable*}")
+        public Mono<Page<PatronRequest>> list(@Parameter(hidden = true) @Valid Pageable pageable,
+                                              Authentication authentication) {
+
+                if (pageable == null) {
+                        pageable = Pageable.from(0, 100);
+                }
+
+                return Mono.from(patronRequestRepository.findAll(pageable));
+        }
+
 
 	private Mono<List<SupplierRequest>> findSupplierRequests(PatronRequest patronRequest) {
 		return supplierRequestService.findAllSupplierRequestsFor(patronRequest);
