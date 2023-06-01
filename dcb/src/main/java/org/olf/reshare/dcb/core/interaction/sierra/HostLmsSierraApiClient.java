@@ -269,63 +269,61 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				.onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError,
 					new SierraPatronHoldResultSet(0, 0, new ArrayList<>()));
 		}
+		
+	 private <T> Mono<T> handle404AsEmpty ( final Mono<T> current ) {
+			return current.onErrorResume(throwable -> {
+				if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
+					HttpClientResponseException e = (HttpClientResponseException) throwable;
+					int code = e.getStatus().getCode();
+					return switch (code) {
+						case 404 -> true;
+						default -> false;
+					};
+				}
 
-    private <T> Mono<T> handleResponseErrors ( final Mono<T> current ) {
+				return false;
+			}, (_t) -> Mono.empty());
+		}
 
-        return current.onErrorMap(throwable -> {
-		log.debug("inside handleResponseErrors::onErrorMap() - throwable {}",throwable.toString());
-            // On a 401 we should clear the token before propagating the error.
-            // Sierra returns 404 if a search returns no results ( :explodinghead: ) need to find a way to handle that gracefully
-            if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
-		log.debug("and throwable is a HttpClientResponseException");
-                HttpClientResponseException e = (HttpClientResponseException) throwable;
-                int code = e.getStatus().getCode();
-                switch (code) {
-                    case 401:
-                        log.debug("Clearing token to trigger reauthentication");
-                        this.currentToken = null;
-                        break;
-                    default:
-                        log.warn("response code: {} error {}",code,e.getStatus().toString());
-                        break;
-                }
-            }
-            return throwable;
-        });
-    }
+		private <T> Mono<T> handleResponseErrors(final Mono<T> current) {
+
+                        // We used to do
+			// .transform(this::handle404AsEmpty)
+                        // Immediately after current, but some downstream chains rely upon the 404 so for now we use .transform directly in the caller
+			return current
+					.onErrorMap(throwable -> {
+						// On a 401 we should clear the token before propagating the error.
+						if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
+							HttpClientResponseException e = (HttpClientResponseException) throwable;
+							int code = e.getStatus().getCode();
+		
+							switch (code) {
+							case 401:
+								log.debug("Clearing token to trigger reauthentication");
+								this.currentToken = null;
+								break;
+							default:
+								log.warn("response error {}", e.getStatus().toString());
+								break;
+							}
+						}
+						return throwable;
+					});
+		}
 
     private <T> Mono<T> doRetrieve( MutableHttpRequest<?> request, Class<T> type) {
         return doRetrieve(request, type, true);
     }
 
+		private <T> Mono<HttpResponse<T>> doExchange( MutableHttpRequest<?> request, Class<T> type) {
+			return Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE))
+					.transform(this::handleResponseErrors);
+                }
+
 	private <T> Mono<T> doRetrieve( MutableHttpRequest<?> request, Class<T> type, boolean mapErrors) {
         var response = Mono.from( client.retrieve(request, Argument.of(type), ERROR_TYPE) );
-        return mapErrors ? handleResponseErrors( response ) : response;
-    }
-
-		private <T> Mono<HttpResponse<T>> doExchange( MutableHttpRequest<?> request, Class<T> type) {
-			Mono<HttpResponse<T>> response = Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE));
-
-			return response.onErrorMap(throwable -> {
-				// On a 401 we should clear the token before propagating the error.
-				// Sierra returns 404 if a search returns no results ( :explodinghead: ) need to find a way to handle that gracefully
-				if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
-					HttpClientResponseException e = (HttpClientResponseException) throwable;
-					int code = e.getStatus().getCode();
-
-					switch (code) {
-						case 401:
-							log.debug("Clearing token to trigger reauthentication");
-							this.currentToken = null;
-							break;
-						default:
-							log.warn("response error {}",e.getStatus().toString());
-							break;
-					}
-				}
-				return throwable;
-			});
-		}
+        return mapErrors ? response.transform( this::handleResponseErrors ) : response;
+        }
 
     private <T> Object[] iterableToArray( Iterable<T> iterable ) {
         if (iterable == null) return null;
@@ -446,6 +444,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
                 return getRequest("patrons/holds/" + holdId)
                         .flatMap(this::ensureToken)
                         .flatMap(req -> doRetrieve(req, SierraPatronHold.class) )
+                        .transform(this::handle404AsEmpty)
 			;
         }
 }
