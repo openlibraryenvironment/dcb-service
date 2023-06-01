@@ -36,6 +36,7 @@ import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
+import services.k_int.interaction.sierra.SierraCodeTuple;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -444,6 +445,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		log.debug("getHold({})",holdId);
                 return getRequest("patrons/holds/" + holdId)
                         .flatMap(this::ensureToken)
-                        .flatMap(req -> doRetrieve(req, SierraPatronHold.class) );
+                        .flatMap(req -> doRetrieve(req, SierraPatronHold.class) )
+			;
         }
 }

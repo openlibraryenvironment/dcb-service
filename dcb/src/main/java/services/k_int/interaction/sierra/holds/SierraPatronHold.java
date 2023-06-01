@@ -6,7 +6,10 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Data;
 import services.k_int.interaction.sierra.SierraCodeTuple;
+import lombok.Builder;
+import lombok.ToString;
 
+@Builder
 @Serdeable
 public record SierraPatronHold (
         @NotEmpty String id,

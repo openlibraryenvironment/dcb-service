@@ -389,8 +389,10 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 
 	private String tidy(String inputstr) {
-		
-		return REGEX_REMOVE_PUNCTUATION.matcher(inputstr).replaceAll("");
+		String result = null;
+		if ( inputstr != null )
+			result = REGEX_REMOVE_PUNCTUATION.matcher(inputstr).replaceAll("");
+		return result;
 	}
 
 	private void addToCanonicalMetadata(String property, String tag, String subtype, Record marcRecord,
