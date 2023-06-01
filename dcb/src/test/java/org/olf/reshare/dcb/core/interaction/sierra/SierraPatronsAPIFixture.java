@@ -1,172 +1,160 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
-import static org.mockserver.model.HttpRequest.request;
-import static org.mockserver.model.HttpResponse.notFoundResponse;
-import static org.mockserver.model.HttpResponse.response;
-import static org.mockserver.model.JsonBody.json;
-import static org.mockserver.model.MediaType.APPLICATION_JSON;
-import static org.mockserver.model.MediaType.TEXT_PLAIN;
+import java.util.List;
 
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 
 import io.micronaut.core.io.ResourceLoader;
-import lombok.SneakyThrows;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Data;
 
 public class SierraPatronsAPIFixture {
-	private static final String RESPONSE_RESOURCES_DIRECTORY = "classpath:mock-responses/sierra/";
+	private final MockServerClient mockServer;
+	private final SierraMockServerRequests sierraMockServerRequests;
+	private final SierraMockServerResponses sierraMockServerResponses;
+	
+	public SierraPatronsAPIFixture(MockServerClient mockServer, ResourceLoader loader) {
+		this.mockServer = mockServer;
+		this.sierraMockServerRequests = new SierraMockServerRequests(
+			"/iii/sierra-api/v6/patrons");
 
-	private final MockServerClient mock;
-	private final ResourceLoader loader;
-
-	public SierraPatronsAPIFixture(MockServerClient mock, ResourceLoader loader) {
-		this.mock = mock;
-		this.loader = loader;
+		this.sierraMockServerResponses = new SierraMockServerResponses(
+			"classpath:mock-responses/sierra/", loader);
 	}
 
 	public void postPatronResponse(String uniqueId, int returnId) {
-		mock.when(postPatronRequest(uniqueId)).respond( patronPlacedResponse(returnId) );
+		mockServer
+			.when(postPatronRequest(uniqueId))
+			.respond(patronPlacedResponse(returnId));
 	}
 
 	public void postPatronErrorResponse(String uniqueId) {
-		mock.when(postPatronRequest(uniqueId)).respond( patronErrorResponse() );
+		mockServer
+			.when(postPatronRequest(uniqueId))
+			.respond(patronErrorResponse());
 	}
 
 	public void patronResponseForUniqueId(String uniqueId) {
-		mock.when(getPatronFindRequest(uniqueId)).respond( patronFoundResponse() );
+		mockServer
+			.when(getPatronFindRequest(uniqueId))
+			.respond(patronFoundResponse());
 	}
 
 	public void patronNotFoundResponseForUniqueId(String uniqueId) {
-		mock.when(getPatronFindRequest(uniqueId)).respond( patronNotFoundResponse() );
+		mockServer
+			.when(getPatronFindRequest(uniqueId))
+			.respond(patronNotFoundResponse());
 	}
 
-	public void patronHoldRequestResponse(String id, Integer recordNumber, String pickupLocation) {
-		mock.when(getPatronHoldRequest(id, "i", recordNumber, pickupLocation)).respond( sierraResponseNoContent() );
+	public void patronHoldRequestResponse(String id, Integer recordNumber,
+		String pickupLocation) {
+
+		mockServer
+			.when(createPatronHoldRequest(id, recordNumber, pickupLocation))
+			.respond(sierraMockServerResponses.noContent());
 	}
 
-	public void patronHoldRequestErrorResponse(String id, Integer recordNumber, String pickupLocation) {
-		mock.when(getPatronHoldRequest(id, "i", recordNumber, pickupLocation)).respond( patronErrorResponse() );
+	public void patronHoldRequestErrorResponse(String id, Integer recordNumber,
+		String pickupLocation) {
+
+		mockServer
+			.when(createPatronHoldRequest(id, recordNumber, pickupLocation))
+			.respond(patronErrorResponse());
 	}
 
 	public void patronHoldResponse(String id) {
-		mock.when(getPatronHoldRequest(id)).respond( patronHoldFoundResponse() );
+		mockServer
+			.when(sierraMockServerRequests.get("/" + id + "/holds"))
+			.respond(patronHoldFoundResponse());
 	}
 
 	public void patronHoldErrorResponse(String id) {
-		mock.when(getPatronHoldRequest(id)).respond( patronErrorResponse() );
+		mockServer
+			.when(sierraMockServerRequests.get("/" + id + "/holds"))
+			.respond(patronErrorResponse());
 	}
 
 	public void addPatronGetExpectation(Long localId) {
-		mock.when(getPatronRequest(localId)).respond(sierraPatronRecord(localId));
+		mockServer.when(getPatronRequest(localId))
+			.respond(sierraPatronRecord(localId));
 	}
 
 	private HttpResponse patronNotFoundResponse() {
-		return withSierraResponse(notFoundResponse(), 404, "patrons/sierra-api-patron-not-found.json");
+		return sierraMockServerResponses.notFound("patrons/sierra-api-patron-not-found.json");
 	}
 
 	private HttpResponse patronFoundResponse() {
-		return withSierraResponse(response(), 200, "patrons/sierra-api-patron-found.json");
+		return sierraMockServerResponses.jsonSuccess("patrons/sierra-api-patron-found.json");
 	}
 
 	private HttpResponse patronErrorResponse() {
-		return serverErrorResponse(response(), 500);
+		return sierraMockServerResponses.textError();
 	}
 
 	private HttpResponse patronPlacedResponse(int returnId) {
-		return withSierraResponse(response(), 200, returnId);
+		return sierraMockServerResponses
+			.jsonLink("https://sandbox.iii.com/iii/sierra-api/v6/patrons/" + returnId);
 	}
 
 	private HttpResponse patronHoldFoundResponse() {
-		return withSierraResponse(response(), 200, "patrons/sierra-api-patron-hold.json");
-	}
-
-	@SneakyThrows
-	private String getResourceAsString(String resourceName) {
-		final var resourcePath = RESPONSE_RESOURCES_DIRECTORY + resourceName;
-		final var optionalResource = loader.getResourceAsStream(resourcePath);
-		if (optionalResource.isEmpty()) {
-			throw new RuntimeException("Resource could not be found: " + resourcePath);
-		}
-		final var resource = optionalResource.get();
-		return new String(resource.readAllBytes());
-	}
-
-	private HttpResponse withSierraResponse(HttpResponse response, int statusCode, int returnId) {
-		return response
-			.withStatusCode(statusCode)
-			.withContentType(APPLICATION_JSON)
-			.withBody(json("{\"link\": \"https://sandbox.iii.com/iii/sierra-api/v6/patrons/" + returnId + "\"}"));
-	}
-
-	private HttpResponse withSierraResponse(HttpResponse response, int statusCode, String resourceName) {
-		return response
-			.withStatusCode(statusCode)
-			.withContentType(APPLICATION_JSON)
-			.withBody(json(getResourceAsString(resourceName)));
-	}
-
-	private HttpResponse sierraResponseNoContent() {
-		return response()
-			.withStatusCode(204);
-	}
-
-	public HttpResponse serverErrorResponse(HttpResponse response, int statusCode) {
-		// This is a made up response (rather than captured from the sandbox)
-		// in order to demonstrate that general failures of the API are propagated
-		return response
-				.withStatusCode(statusCode)
-				.withContentType(TEXT_PLAIN)
-				.withBody("Broken");
+		return sierraMockServerResponses.jsonSuccess("patrons/sierra-api-patron-hold.json");
 	}
 
 	private HttpRequest postPatronRequest(String uniqueId) {
-		return request()
-			.withMethod("POST")
-			.withPath("/iii/sierra-api/v6/patrons")
-			.withHeader("Content-Type", "application/json")
-			.withBody(json("{\"uniqueIds\": [\"" + uniqueId + "\"]}"));
+		final var patronPatch = PatronPatch.builder()
+			.uniqueIds(List.of(uniqueId))
+			.build();
+
+		return sierraMockServerRequests.post(patronPatch);
 	}
 
 	private HttpRequest getPatronFindRequest(String uniqueId) {
-		return request()
-			.withMethod("GET")
-			.withPath("/iii/sierra-api/v6/patrons/find")
+		return sierraMockServerRequests.get("/find")
 			.withQueryStringParameter("varFieldTag", "u")
-			.withQueryStringParameter("varFieldContent", uniqueId)
-			.withHeader("Accept", "application/json");
+			.withQueryStringParameter("varFieldContent", uniqueId);
 	}
 
-	private HttpRequest getPatronHoldRequest(
-		String id,
-		String recordType,
-		Integer recordNumber,
+	private HttpRequest createPatronHoldRequest(String id, Integer recordNumber,
 		String pickupLocation) {
-		return request()
-			.withMethod("POST")
-			.withPath("/iii/sierra-api/v6/patrons/" + id + "/holds/requests")
-			.withHeader("Accept", "application/json")
-			.withBody(json("{" +
-				"\"recordType\": \"" + recordType + "\"," +
-				"\"recordNumber\": " + recordNumber + "," +
-				"\"pickupLocation\": \"" + pickupLocation + "\"" +
-				"}"));
+
+		final var body = PatronHoldPost.builder()
+			.recordType("i")
+			.recordNumber(recordNumber)
+			.pickupLocation(pickupLocation)
+			.build();
+
+		return sierraMockServerRequests.post(requestsPath(id), body);
 	}
 
-	private HttpRequest getPatronHoldRequest(String id) {
-		return request()
-			.withMethod("GET")
-			.withPath("/iii/sierra-api/v6/patrons/" + id + "/holds");
+	private static String requestsPath(String id) {
+		return "/" + id + "/holds/requests";
 	}
 
 	private HttpRequest getPatronRequest(Long id) {
-		return request()
-			.withMethod("GET")
-			.withPath("/iii/sierra-api/v6/patrons/"+id);
+		return sierraMockServerRequests.get("/" + id);
 	}
 
 	private HttpResponse sierraPatronRecord(Long id) {
-		return withSierraResponse(response(), 200, "patrons/patron/"+id+".json");
+		return sierraMockServerResponses.jsonSuccess("patrons/patron/"+ id +".json");
 	}
-}
 
+	@Data
+	@Serdeable
+	@Builder
+	public static class PatronPatch {
+		List<String> uniqueIds;
+	}
+
+	@Data
+	@Serdeable
+	@Builder
+	public static class PatronHoldPost {
+		String recordType;
+		Integer recordNumber;
+		String pickupLocation;
+	}
+
+}
