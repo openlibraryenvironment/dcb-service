@@ -4,6 +4,7 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -29,12 +30,14 @@ import org.olf.reshare.dcb.request.resolution.Bib;
 import org.olf.reshare.dcb.request.resolution.ClusteredBib;
 import org.olf.reshare.dcb.request.resolution.SharedIndexService;
 
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import reactor.core.publisher.Mono;
+import services.k_int.interaction.sierra.SierraError;
 
 public class LiveAvailabilityServiceTests {
 	private final HostLmsService hostLmsService = mock(HostLmsService.class);
 	private final SharedIndexService sharedIndexService = mock(SharedIndexService.class);
-	private final HostLmsClient hostLmsClient = mock(HostLmsClient.class);
 	private final RequestableItemService requestableItemService = mock(RequestableItemService.class);
 
 	private final LiveAvailabilityService liveAvailabilityService =
@@ -42,32 +45,29 @@ public class LiveAvailabilityServiceTests {
 
 	@Test
 	void shouldGetAvailableItemsViaHostLmsService() {
-		final var hostLms = new FakeHostLms(randomUUID(), "hostLmsCode",
-			"Fake Host LMS", SierraLmsClient.class, Map.of());
+		final var hostLms = createHostLms("hostLmsCode");
 
 		final var clusterRecordId = randomUUID();
 
 		final var clusterRecord = new ClusteredBib(clusterRecordId, "title",
-			List.of(createBib(hostLms)));
+			List.of(createBib(hostLms, "bibRecordId")));
 
 		when(sharedIndexService.findClusteredBib(clusterRecordId))
-			.thenAnswer(invocation -> Mono.just(clusterRecord));
+			.thenReturn(Mono.just(clusterRecord));
+
+		final var client = mock(HostLmsClient.class);
 
 		when(hostLmsService.getClientFor(hostLms))
-			.thenAnswer(invocation -> Mono.just(hostLmsClient));
+			.thenReturn(Mono.just(client));
 
 		final var dueDate = ZonedDateTime.now();
 
-		final var item = new Item("testid", new ItemStatus(AVAILABLE), dueDate,
-			Location.builder().code("testLocationCode").name("testLocationName").build(),
-			"testBarcode", "testCallNumber",
-			"hostLmsCode", true,
-			0);
+		final Item item = createItem(dueDate);
 
 		final var listOfItems = List.of(item);
 
-		when(hostLmsClient.getItemsByBibId("bibRecordId", "hostLmsCode"))
-			.thenAnswer(invocation -> Mono.just(listOfItems));
+		when(client.getItemsByBibId("bibRecordId", "hostLmsCode"))
+			.thenReturn(Mono.just(listOfItems));
 
 		when(requestableItemService.determineRequestable(List.of(item)))
 			.thenAnswer(invocation -> listOfItems);
@@ -99,7 +99,55 @@ public class LiveAvailabilityServiceTests {
 		assertThat(location.getName(), is("testLocationName"));
 
 		verify(hostLmsService).getClientFor(hostLms);
-		verify(hostLmsClient).getItemsByBibId(any(), any());
+		verify(client).getItemsByBibId(any(), any());
+	}
+
+	@Test
+	void shouldTolerateFailuresFetchingItems() {
+		// Arrange
+		final var workingHostLms = createHostLms("workingHostLms");
+		final var brokenHostLms = createHostLms("failingHostLms");
+
+		final var clusterRecordId = randomUUID();
+
+		final var clusterRecord = new ClusteredBib(clusterRecordId, "title",
+			List.of(createBib(workingHostLms, "workingBib"),
+				createBib(brokenHostLms, "failingBib")));
+
+		when(sharedIndexService.findClusteredBib(clusterRecordId))
+			.thenReturn(Mono.just(clusterRecord));
+
+		final var workingClient = mock(HostLmsClient.class);
+
+		when(hostLmsService.getClientFor(workingHostLms))
+			.thenReturn(Mono.just(workingClient));
+
+		final var brokenClient = mock(HostLmsClient.class);
+
+		when(hostLmsService.getClientFor(brokenHostLms))
+			.thenReturn(Mono.just(brokenClient));
+
+		final var dueDate = ZonedDateTime.now();
+
+		final Item item = createItem(dueDate);
+
+		when(workingClient.getItemsByBibId("workingBib", "workingHostLms"))
+			.thenReturn(Mono.just(List.of(item)));
+
+		when(brokenClient.getItemsByBibId("failingBib", "failingHostLms"))
+			.thenReturn(Mono.error(new HttpClientResponseException("",
+				HttpResponse.serverError().body(createSierraError()))));
+
+		when(requestableItemService.determineRequestable(any()))
+			.thenReturn(List.of(item));
+
+		// Act
+		final var items = liveAvailabilityService.getAvailableItems(clusterRecord).block();
+
+		// Assert
+		assertThat("Items returned should not be null", items, is(notNullValue()));
+		assertThat("Should have some items", items, hasSize(1));
+		assertThat("Should have item from working client", items.get(0), is(item));
 	}
 
 	@Test
@@ -107,10 +155,10 @@ public class LiveAvailabilityServiceTests {
 		final var clusterRecordId = randomUUID();
 
 		final var clusterRecord = new ClusteredBib(clusterRecordId, "title",
-			List.of(createBib(null)));
+			List.of(createBib(null, "bibRecordId")));
 
 		when(sharedIndexService.findClusteredBib(clusterRecordId))
-			.thenAnswer(invocation -> Mono.just(clusterRecord));
+			.thenReturn(Mono.just(clusterRecord));
 
 		final var exception = assertThrows(IllegalArgumentException.class,
 			() -> liveAvailabilityService.getAvailableItems(clusterRecord)
@@ -142,7 +190,7 @@ public class LiveAvailabilityServiceTests {
 		final var clusterRecordWithNullBibs = new ClusteredBib(clusterRecordId, "title", null);
 
 		when(sharedIndexService.findClusteredBib(clusterRecordId))
-			.thenAnswer(invocation -> Mono.just(clusterRecordWithNullBibs));
+			.thenReturn(Mono.just(clusterRecordWithNullBibs));
 
 		final var exception = assertThrows(IllegalArgumentException.class,
 			() -> liveAvailabilityService.getAvailableItems(clusterRecordWithNullBibs)
@@ -152,11 +200,28 @@ public class LiveAvailabilityServiceTests {
 		assertThat(exception.getMessage(), is("Bibs cannot be null"));
 	}
 
-	private static Bib createBib(FakeHostLms hostLms) {
+	private static Bib createBib(FakeHostLms hostLms, String bibRecordId) {
 		return Bib.builder()
 			.id(randomUUID())
-			.bibRecordId("bibRecordId")
+			.bibRecordId(bibRecordId)
 			.hostLms(hostLms)
 			.build();
+	}
+
+	private static Item createItem(ZonedDateTime dueDate) {
+		return new Item("testid", new ItemStatus(AVAILABLE), dueDate,
+			Location.builder().code("testLocationCode").name("testLocationName").build(),
+			"testBarcode", "testCallNumber",
+			"hostLmsCode", true,
+			0);
+	}
+
+	private static FakeHostLms createHostLms(String code) {
+		return new FakeHostLms(randomUUID(), code,
+			"Fake Host LMS", SierraLmsClient.class, Map.of());
+	}
+
+	private static SierraError createSierraError() {
+		return new SierraError("", 654, 0, "", "");
 	}
 }

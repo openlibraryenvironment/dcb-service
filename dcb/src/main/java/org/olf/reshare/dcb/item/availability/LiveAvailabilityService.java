@@ -33,10 +33,11 @@ public class LiveAvailabilityService implements LiveAvailability {
 		return Mono.just(clusteredBib)
 			.flatMapMany(this::getBibs)
 			.flatMap(this::getBibItemsByHostLms)
-			.map(requestableItemService::determineRequestable)
 			// merge lists
 			.flatMap(Flux::fromIterable)
+			.doOnNext(item -> log.debug("Item Found: {}", item))
 			.collectList()
+			.map(requestableItemService::determineRequestable)
 			.map(items -> items.stream().sorted().toList());
 	}
 
@@ -66,7 +67,9 @@ public class LiveAvailabilityService implements LiveAvailability {
 
 		return hostLmsService.getClientFor(bib.getHostLms())
 			.flatMapMany(hostLmsClient -> getItems(bib.getBibRecordId(), hostLmsClient, bib.getHostLms().getCode()))
-			.collectList();
+			.collectList()
+			.doOnError(error -> log.debug("Error occurred fetching items: ", error))
+			.onErrorReturn(List.of());
 	}
 
 	private Flux<Item> getItems(String bibRecordId, HostLmsClient hostLmsClient,
