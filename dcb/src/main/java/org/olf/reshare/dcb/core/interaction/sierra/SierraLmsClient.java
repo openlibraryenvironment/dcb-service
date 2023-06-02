@@ -376,9 +376,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<String> createBib(String author, String title) {
 		log.debug("createBib(author: {}, title: {})", author, title);
 
+		String[] authors = null;
+		if ( author != null ) { authors = new String[]{author}; }
+		String[] titles = null;
+		if ( title != null ) { titles = new String[]{title}; }
+
 		BibPatch bibPatch = BibPatch.builder()
-			.authors(new String[]{author})
-			.titles(new String[]{title})
+			.authors(authors)
+			.titles(titles)
 			.bibCode3("n")
 			.build();
 
