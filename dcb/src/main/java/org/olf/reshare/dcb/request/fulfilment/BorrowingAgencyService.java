@@ -56,6 +56,7 @@ public class BorrowingAgencyService {
 		PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 		SupplierRequest supplierRequest) {
 		final UUID bibClusterId = patronRequest.getBibClusterId();
+		log.debug("createVirtualBib for cluster {}",bibClusterId);
 		return Mono.zip(
 				sharedIndexService.getCanonicalMetadataByBibClusterId(bibClusterId, "title")
 					.cast(String.class)
@@ -73,6 +74,9 @@ public class BorrowingAgencyService {
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, String>> createVirtualItem(
 		PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 		SupplierRequest supplierRequest, String localBibId) {
+
+		log.debug("createVirtualItem for localBibId {}",localBibId);
+
 		return hostLmsClient.createItem(localBibId, supplierRequest.getLocalItemLocationCode(),
 				supplierRequest.getLocalItemBarcode())
 			.map(HostLmsItem::getLocalId)
@@ -82,6 +86,9 @@ public class BorrowingAgencyService {
 
 	private Mono<Tuple2<String,String>> placeHoldRequest(PatronRequest patronRequest,
 		PatronIdentity patronIdentity, HostLmsClient hostLmsClient, String localItemId) {
+
+		log.debug("placeHoldRequest for localItemId {} {}",localItemId,patronIdentity);
+
 		return hostLmsClient.placeHoldRequest(patronIdentity.getLocalId(), "i",
 				localItemId, patronRequest.getPickupLocationCode())
 			.map(response -> Tuples.of(response.getT1(), response.getT2()))

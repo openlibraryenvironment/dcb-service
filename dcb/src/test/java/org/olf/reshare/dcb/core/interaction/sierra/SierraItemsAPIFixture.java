@@ -47,8 +47,12 @@ public class SierraItemsAPIFixture {
 	}
 
 	public void errorResponseForBibId(String bibId) {
-		mockServer.when(getItemsForBib(bibId))
-			.respond(sierraMockServerResponses.jsonError("json-error.json"));
+		mockGetItemsForBibId(bibId)
+			.respond(response()
+                                .withStatusCode(500)
+                                .withContentType(APPLICATION_JSON)
+                                .withBody(getResourceAsString("json-error.json")));
+
 	}
 
 	public HttpResponse threeItemsResponse() {
