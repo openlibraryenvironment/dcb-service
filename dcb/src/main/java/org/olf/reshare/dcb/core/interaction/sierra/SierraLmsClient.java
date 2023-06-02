@@ -428,11 +428,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
         private String mapSierraHoldStatusToDCBHoldStatus(String code) {
                 String result = null;
                 switch (code) {
-                        case "0" -> result = "PLACED";
-                        case "b" -> result = "READY"; // Bib ready for pickup
-                        case "j" -> result = "READY"; // volume ready for pickup
-                        case "i" -> result = "READY"; // Item ready for pickup
-                        case "t" -> result = "TRANSIT"; // IN Transit
+                        case "0" -> result = HostLmsHold.HOLD_PLACED;
+                        case "b" -> result = HostLmsHold.HOLD_READY; // Bib ready for pickup
+                        case "j" -> result = HostLmsHold.HOLD_READY; // volume ready for pickup
+                        case "i" -> result = HostLmsHold.HOLD_READY; // Item ready for pickup
+                        case "t" -> result = HostLmsHold.HOLD_TRANSIT; // IN Transit
                         default -> result = code;
                 }
                 return result;
