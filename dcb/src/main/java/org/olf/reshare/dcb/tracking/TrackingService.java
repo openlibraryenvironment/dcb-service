@@ -9,6 +9,7 @@ import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.olf.reshare.dcb.storage.SupplierRequestRepository;
 import org.olf.reshare.dcb.tracking.model.LenderTrackingEvent;
 import org.olf.reshare.dcb.tracking.model.TrackingRecord;
+import org.olf.reshare.dcb.tracking.model.StateChange;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +23,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
+import io.micronaut.context.event.ApplicationEventPublisher;
+
 @Refreshable
 @Singleton
 public class TrackingService implements Runnable {
@@ -34,13 +37,16 @@ public class TrackingService implements Runnable {
 	private PatronRequestRepository patronRequestRepository;
 	private SupplierRequestRepository supplierRequestRepository;
 	private SupplyingAgencyService supplyingAgencyService;
+        private final ApplicationEventPublisher<TrackingRecord> eventPublisher;
 
 	TrackingService( PatronRequestRepository patronRequestRepository,
 			 SupplierRequestRepository supplierRequestRepository,
-                         SupplyingAgencyService supplyingAgencyService) {
+                         SupplyingAgencyService supplyingAgencyService,
+                         ApplicationEventPublisher<TrackingRecord> eventPublisher) {
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplyingAgencyService = supplyingAgencyService;
+		this.eventPublisher = eventPublisher;
 	}
 
 	@javax.annotation.PostConstruct
@@ -95,13 +101,21 @@ public class TrackingService implements Runnable {
 			.onErrorContinue((e, o) -> {
 				log.error("Error occurred: " + e.getMessage(),e);
 			})
+                        .filter ( hold -> hold.getStatus() != sr.getLocalStatus() )
 			.map( hold -> { 
 				log.debug("current request status: {}",hold);
-				log.debug("Comparing {} and {}",sr.getLocalStatus(),hold.getStatus());
-				// See if sr.localStatus != hold.status
-				return hold;
+                                StateChange sc = StateChange.builder()
+                                                            .resourceType("SupplierRequest")
+                                                            .resourceId(sr.getLocalId())
+                                                            .fromState(sr.getLocalStatus())
+                                                            .toState(hold.getStatus())
+                                                            .build();
+                                // SupplierRequestHold.StatusChange id fromstate tostate
+                                eventPublisher.publishEventAsync(sc);
+                                sr.setLocalStatus(hold.getStatus());
+				return sr;
 			})
-			.thenReturn( sr );
+                        .flatMap( usr -> Mono.fromDirect(supplierRequestRepository.saveOrUpdate(usr) ));
 	}
 }
 
