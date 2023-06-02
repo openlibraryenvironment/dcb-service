@@ -1,9 +1,26 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+import static org.olf.reshare.dcb.test.MockUtils.withFirstArgument;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.stubbing.Answer;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.reshare.dcb.core.model.DataHostLms;
@@ -12,19 +29,9 @@ import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.reshare.dcb.storage.PatronIdentityRepository;
 import org.olf.reshare.dcb.storage.PatronRepository;
+
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasSize;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 class PatronServiceTests {
 	private final PatronRepository patronRepository = mock(PatronRepository.class);
@@ -279,7 +286,4 @@ class PatronServiceTests {
 			patron, hostLms, localId, homeIdentity);
 	}
 
-	private static Answer<Object> withFirstArgument() {
-		return invocation -> Mono.just(invocation.getArgument(0));
-	}
 }

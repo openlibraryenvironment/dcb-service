@@ -10,6 +10,7 @@ import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.request.resolution.SupplierRequestService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.olf.reshare.dcb.core.interaction.HostLmsHold;
 
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
@@ -124,11 +125,10 @@ public class SupplyingAgencyService {
 		return patronTypeService.determinePatronType(hostLmsCode);
 	}
 
-	public Mono<String> getHoldStatus(String hostLmsCode, String holdId) {
+	public Mono<HostLmsHold> getHold(String hostLmsCode, String holdId) {
 		log.debug("getHoldStatus({},{})",hostLmsCode,holdId);
 		return hostLmsService.getClientFor(hostLmsCode)
-			.flatMap( client -> client.getHold(holdId) )
-			.map ( hold -> hold != null ? hold.getStatus() : "" );
+			.flatMap( client -> client.getHold(holdId) );
 	}
 
 }

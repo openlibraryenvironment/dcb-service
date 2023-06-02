@@ -1,35 +1,49 @@
 package org.olf.reshare.dcb.core.model;
 
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.naturalOrder;
+import static java.util.Comparator.nullsLast;
+import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
+
+import java.time.ZonedDateTime;
+import java.util.Comparator;
+
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.ZonedDateTime;
-import java.util.Comparator;
-
-import static java.util.Comparator.*;
-import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
-
 @Data
 @Serdeable
 @Builder
 @AllArgsConstructor()
 public class Item implements Comparable<Item> {
-	private final String id;
-	private final ItemStatus status;
+	private String id;
+	private ItemStatus status;
 	@Nullable
-	private final ZonedDateTime dueDate;
-	private final Location location;
-	private final String barcode;
-	private final String callNumber;
-	private final String hostLmsCode;
-	private final Boolean isRequestable;
-	private final Integer holdCount;
+	private ZonedDateTime dueDate;
+	private Location location;
+	private String barcode;
+	private String callNumber;
+	private String hostLmsCode;
+	private Boolean isRequestable;
+	private Integer holdCount;
 
 	public boolean isAvailable() {
 		return getStatus().getCode() == AVAILABLE;
+	}
+
+	public String getLocationCode() {
+		return location == null
+			? null
+			: location.getCode();
+	}
+
+	public Item markAsRequestable(Boolean requestable) {
+		setIsRequestable(requestable);
+
+		return this;
 	}
 
 	@Override
@@ -41,11 +55,5 @@ public class Item implements Comparable<Item> {
 	private Comparator<Item> CompareByLocationCodeThenCallNumber() {
 		return comparing(Item::getLocationCode, nullsLast(naturalOrder()))
 			.thenComparing(Item::getCallNumber, nullsLast(naturalOrder()));
-	}
-
-	private String getLocationCode() {
-		return location == null
-			? null
-			: location.getCode();
 	}
 }

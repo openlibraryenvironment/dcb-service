@@ -1,7 +1,0 @@
-dcb:
-  requestability:
-    location:
-      filtering: true
-      codes:
-        allowed:
-        - allowed-code
