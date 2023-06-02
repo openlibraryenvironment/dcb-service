@@ -35,7 +35,7 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraError;
 
-public class LiveAvailabilityServiceTests {
+class LiveAvailabilityServiceTests {
 	private final HostLmsService hostLmsService = mock(HostLmsService.class);
 	private final SharedIndexService sharedIndexService = mock(SharedIndexService.class);
 	private final RequestableItemService requestableItemService = mock(RequestableItemService.class);
@@ -69,8 +69,8 @@ public class LiveAvailabilityServiceTests {
 		when(client.getItemsByBibId("bibRecordId", "hostLmsCode"))
 			.thenReturn(Mono.just(listOfItems));
 
-		when(requestableItemService.determineRequestable(List.of(item)))
-			.thenAnswer(invocation -> listOfItems);
+		when(requestableItemService.isRequestable(item))
+			.thenReturn(true);
 
 		final var items = liveAvailabilityService
 			.getAvailableItems(clusterRecord).block();
@@ -138,8 +138,8 @@ public class LiveAvailabilityServiceTests {
 			.thenReturn(Mono.error(new HttpClientResponseException("",
 				HttpResponse.serverError().body(createSierraError()))));
 
-		when(requestableItemService.determineRequestable(any()))
-			.thenReturn(List.of(item));
+		when(requestableItemService.isRequestable(item))
+			.thenReturn(true);
 
 		// Act
 		final var items = liveAvailabilityService.getAvailableItems(clusterRecord).block();

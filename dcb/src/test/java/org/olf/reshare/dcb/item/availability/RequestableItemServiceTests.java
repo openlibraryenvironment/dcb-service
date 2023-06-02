@@ -1,137 +1,82 @@
 package org.olf.reshare.dcb.item.availability;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.reshare.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 
 import java.util.List;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.model.Item;
 import org.olf.reshare.dcb.core.model.ItemStatus;
 import org.olf.reshare.dcb.core.model.ItemStatusCode;
 import org.olf.reshare.dcb.core.model.Location;
 
-import io.micronaut.context.annotation.Property;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import jakarta.inject.Inject;
-
-@MicronautTest(transactional = false, propertySources = { "classpath:configs/RequestableItemServiceTests.yml" }, rebuildContext = true)
-@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
-@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
-public class RequestableItemServiceTests {
-	@Inject
-	private RequestableItemService requestableItemService;
+class RequestableItemServiceTests {
+	private final RequestableItemService requestableItemService
+		= new RequestableItemService(List.of("allowed-code"), true);
 
 	@Test
-	void itemIsAtALocationInTheAllowListAndIsAvailable() {
+	@DisplayName("Available item at allowed location should be requestable")
+	void availableItemAtAllowedLocationShouldBeRequestable() {
+		final var item = createItem("id", AVAILABLE, "allowed-code");
 
-		final var item = createFakeItem("id", "hostLmsCode",
-			AVAILABLE, "allowed-code");
-
-		final var requestableItems =
-			requestableItemService.determineRequestable(List.of(item));
-
-		assertThat(requestableItems, is(notNullValue()));
-		assertThat(requestableItems.size(), is(1));
-
-		final var onlyItem = requestableItems.get(0);
-
-		assertThat(onlyItem.getId(), is("id"));
-		assertThat(onlyItem.getIsRequestable(), is(true));
-		assertThat(onlyItem.getHoldCount(), is(0));
+		assertThat(requestableItemService.isRequestable(item), is(true));
 	}
 
 	@Test
-	void itemIsAtALocationInTheAllowListAndIsUnavailable() {
+	@DisplayName("Unavailable item at allowed location should not be requestable")
+	void unavailableItemAtAllowedLocationShouldNotBeRequestable() {
+		final var item = createItem("id", UNAVAILABLE, "allowed-code");
 
-		final var item = createFakeItem("id", "hostLmsCode",
-			UNAVAILABLE, "allowed-code");
-
-		final var requestableItems =
-			requestableItemService.determineRequestable(List.of(item));
-
-		assertThat(requestableItems, is(notNullValue()));
-		assertThat(requestableItems.size(), is(1));
-
-		final var onlyItem = requestableItems.get(0);
-
-		assertThat(onlyItem.getId(), is("id"));
-		assertThat(onlyItem.getIsRequestable(), is(false));
-		assertThat(onlyItem.getHoldCount(), is(0));
+		assertThat(requestableItemService.isRequestable(item), is(false));
 	}
 
 	@Test
-	void itemIsAtALocationButNotInTheAllowList() {
+	@DisplayName("Available item at disallowed location should not be requestable")
+	void availableItemAtDisallowedLocationShouldNotBeRequestable() {
+		final var item = createItem("id", AVAILABLE, "disallowed-code");
 
-		final var item1 = createFakeItem("id1", "hostLmsCode",
-			UNAVAILABLE, "disallowed-code");
-
-		final var item2 = createFakeItem("id2", "hostLmsCode",
-			AVAILABLE, "disallowed-code");
-
-		final var requestableItems =
-			requestableItemService.determineRequestable(List.of(item1, item2));
-
-		assertThat(requestableItems, is(notNullValue()));
-		assertThat(requestableItems.size(), is(2));
-
-		final var requestableItem1 = requestableItems.get(0);
-
-		assertThat(requestableItem1.getId(), is("id1"));
-		assertThat(requestableItem1.getIsRequestable(), is(false));
-		assertThat(requestableItem1.getHoldCount(), is(0));
-
-		final var requestableItem2 = requestableItems.get(1);
-
-		assertThat(requestableItem2.getId(), is("id2"));
-		assertThat(requestableItem2.getIsRequestable(), is(false));
-		assertThat(requestableItem2.getHoldCount(), is(0));
-
+		assertThat(requestableItemService.isRequestable(item), is(false));
 	}
 
 	@Test
-	void itemRequestabiityWithoutConfigValues() {
+	@DisplayName("Unavailable item at disallowed location should not be requestable")
+	void unavailableItemAtDisallowedLocationShouldNotBeRequestable() {
+		final var item = createItem("id", UNAVAILABLE, "disallowed-code");
 
+		assertThat(requestableItemService.isRequestable(item), is(false));
+	}
+
+	@Test
+	@DisplayName("Available item should be requestable when location filtering is disabled")
+	void availableItemShouldBeRequestableWhenLocationFilteringIsDisabled() {
 		final var serviceWithoutConfig = new RequestableItemService(List.of(), false);
 
-		final var item1 = createFakeItem("id1", "hostLmsCode",
-			UNAVAILABLE, "code");
+		final var item = createItem("id", AVAILABLE, "allowed-code");
 
-		final var item2 = createFakeItem("id2", "hostLmsCode",
-			AVAILABLE, "code");
-
-		final var requestableItems =
-			serviceWithoutConfig.determineRequestable(List.of(item1, item2));
-
-		assertThat(requestableItems, is(notNullValue()));
-		assertThat(requestableItems.size(), is(2));
-
-		final var requestableItem1 = requestableItems.get(0);
-
-		assertThat(requestableItem1.getId(), is("id1"));
-		assertThat(requestableItem1.getIsRequestable(), is(false));
-		assertThat(requestableItem1.getHoldCount(), is(0));
-
-		final var requestableItem2 = requestableItems.get(1);
-
-		assertThat(requestableItem2.getId(), is("id2"));
-		assertThat(requestableItem2.getIsRequestable(), is(true));
-		assertThat(requestableItem2.getHoldCount(), is(0));
+		assertThat(serviceWithoutConfig.isRequestable(item), is(true));
 	}
 
-	private static Item createFakeItem(
-		String id, String hostLmsCode, ItemStatusCode statusCode,
-		String code) {
+	@Test
+	@DisplayName("Unavailable item should not be requestable when location filtering is disabled")
+	void unavailableItemShouldNotBeRequestableWhenLocationFilteringIsDisabled() {
+		final var serviceWithoutConfig = new RequestableItemService(List.of(), false);
 
-		return new Item(id,
-			new ItemStatus(statusCode), null, Location.builder()
-			.code(code)
-			.name("name")
-			.build(),
-			"barcode", "callNumber",
-			hostLmsCode, null, 0);
+		final var item = createItem("id", UNAVAILABLE, "allowed-code");
+
+		assertThat(serviceWithoutConfig.isRequestable(item), is(false));
+	}
+
+	private static Item createItem(String id, ItemStatusCode statusCode, String locationCode) {
+		return Item.builder()
+			.id(id)
+			.location(Location.builder()
+				.code(locationCode)
+				.build())
+			.status(new ItemStatus(statusCode))
+			.build();
 	}
 }
