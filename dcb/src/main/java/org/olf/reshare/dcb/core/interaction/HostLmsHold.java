@@ -32,6 +32,7 @@ public class HostLmsHold {
 	@Nullable
 	String localId;
 
+        // N.B. That if we are unable to map a status, this string MAY contain a value not from the set above!
 	@Nullable
 	String status;
 }
