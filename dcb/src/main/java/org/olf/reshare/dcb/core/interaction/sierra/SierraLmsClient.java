@@ -424,6 +424,20 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			});
 	}
 
+        // Informed by https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
+        private mapSierraHoldStatusToDCBHoldStatus(String code) {
+                String result = null;
+                switch (code) {
+                        case "0" -> result = "PLACED";
+                        case "b" -> result = "READY"; // Bib ready for pickup
+                        case "j" -> result = "READY"; // volume ready for pickup
+                        case "i" -> result = "READY"; // Item ready for pickup
+                        case "t" -> result = "TRANSIT"; // IN Transit
+                        default -> result = code;
+                }
+                return result;
+        }
+
 	private Mono<Tuple2<String, String>> filterByLocalItemId(SierraPatronHoldResultSet holds, String localItemId) {
 		log.debug("filterByLocalItemId({}, {})", holds, localItemId);
 
@@ -433,7 +447,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.flatMap(filteredHolds -> {
 				if (filteredHolds.size() == 1) {
 					final String extractedId = deRestify( filteredHolds.get(0).id() );
-					final String localStatus = filteredHolds.get(0).status().code();
+					final String localStatus = mapSierraHoldStatusToDCBHoldStatus(filteredHolds.get(0).status().code());
 					return Mono.just( Tuples.of(extractedId, localStatus) );
 				} else if (filteredHolds.size() > 1) {
 					throw new RuntimeException("Multiple hold requests found for the given local item ID");
@@ -647,9 +661,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	public HostLmsHold sierraPatronHoldToHostLmsHold(SierraPatronHold sierraHold) {
 		log.debug("sierraHoldToHostLmsHold({})",sierraHold);
-		if ( sierraHold != null ) {
-			return new HostLmsHold(sierraHold.id() != null ? sierraHold.id().toString() : "",
-        	                               sierraHold.status() != null ? sierraHold.status().code() : "");
+		if ( ( sierraHold != null ) && ( sierraHold.id() != null ) ) {
+                        // Hold API sends back a hatheos style URI - we just want the hold ID
+                        String holdid = sierraHold.id().substring(sierraHold.id().lastIndexOf('/')+1);
+
+                        // Map the hold status into a canonical value
+			return new HostLmsHold(holdid,
+        	                               sierraHold.status() != null ? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code()) : "");
 		}
 		else {
 			return new HostLmsHold();
