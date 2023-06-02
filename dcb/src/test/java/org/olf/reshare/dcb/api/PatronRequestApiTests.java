@@ -199,7 +199,7 @@ class PatronRequestApiTests {
 		assertThat(supplierRequest.hostLmsCode(), is("test1"));
 		assertThat(supplierRequest.status(), is("PLACED"));
 		assertThat(supplierRequest.localHoldId(), is("407557"));
-		assertThat(supplierRequest.localHoldStatus(), is("0"));
+		assertThat(supplierRequest.localHoldStatus(), is("PLACED"));
 		assertThat(supplierRequest.item().id(), is("1000002"));
 		assertThat(supplierRequest.item().localItemBarcode(), is("9849123490"));
 		assertThat(supplierRequest.item().localItemLocationCode(), is("ab6"));
@@ -270,7 +270,7 @@ class PatronRequestApiTests {
 		assertThat(supplierRequest.hostLmsCode(), is("test1"));
 		assertThat(supplierRequest.status(), is("PLACED"));
 		assertThat(supplierRequest.localHoldId(), is("407557"));
-		assertThat(supplierRequest.localHoldStatus(), is("0"));
+		assertThat(supplierRequest.localHoldStatus(), is("PLACED"));
 		assertThat(supplierRequest.item().id(), is("1000002"));
 		assertThat(supplierRequest.item().localItemBarcode(), is("9849123490"));
 		assertThat(supplierRequest.item().localItemLocationCode(), is("ab6"));
