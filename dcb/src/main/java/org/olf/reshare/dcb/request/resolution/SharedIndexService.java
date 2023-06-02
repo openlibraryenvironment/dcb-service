@@ -52,7 +52,10 @@ public class SharedIndexService implements ClusteredBibFinder {
 
 		return Mono.from(clusterRecordRepository.findOneById(bibClusterId))
 			.flatMap(clusterRecord -> Mono.from(bibRepository.findById(clusterRecord.getSelectedBib())))
-			.map(bibRecord -> bibRecord.getCanonicalMetadata().get(key))
+			.map(bibRecord -> {
+				log.debug("resolved to bib {}, attempt to find data for {}",bibRecord,key);
+				return bibRecord.getCanonicalMetadata().get(key);
+			})
 			.switchIfEmpty(Mono.error(() -> new CannotFindClusterRecordException(bibClusterId)));
 	}
 
