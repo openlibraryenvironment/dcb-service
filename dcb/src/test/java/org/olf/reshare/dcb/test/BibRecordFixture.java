@@ -22,7 +22,10 @@ public class BibRecordFixture {
 	private final BibIdentifierRepository bibIdentifierRepository;
 	private final MatchPointRepository matchPointRepository;
 
-	public BibRecordFixture(BibRepository bibRepository, BibIdentifierRepository bibIdentifierRepository, MatchPointRepository matchPointRepository) {
+	public BibRecordFixture(BibRepository bibRepository,
+		BibIdentifierRepository bibIdentifierRepository,
+		MatchPointRepository matchPointRepository) {
+
 		this.bibRepository = bibRepository;
 		this.bibIdentifierRepository = bibIdentifierRepository;
 		this.matchPointRepository = matchPointRepository;
