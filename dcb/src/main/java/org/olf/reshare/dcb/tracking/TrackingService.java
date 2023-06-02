@@ -91,13 +91,15 @@ public class TrackingService implements Runnable {
                 // statusCode=null, localRequestId=null, localRequestStatus=null), 
                 // localItemId=1017281, localItemBarcode=30800004002116, 
                 // localItemLocationCode=ab8, hostLmsCode=SANDBOX, statusCode=PLACED, localId=407607, localStatus=0)
-		return supplyingAgencyService.getHoldStatus(sr.getHostLmsCode(), sr.getLocalId())
+		return supplyingAgencyService.getHold(sr.getHostLmsCode(), sr.getLocalId())
 			.onErrorContinue((e, o) -> {
 				log.error("Error occurred: " + e.getMessage(),e);
 			})
-			.map( holdStatus -> { 
-				log.debug("current request status: {}",holdStatus);
-				return holdStatus;
+			.map( hold -> { 
+				log.debug("current request status: {}",hold);
+				log.debug("Comparing {} and {}",sr.getLocalStatus(),hold.getStatus());
+				// See if sr.localStatus != hold.status
+				return hold;
 			})
 			.thenReturn( sr );
 	}
