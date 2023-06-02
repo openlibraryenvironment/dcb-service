@@ -1,18 +1,20 @@
 package org.olf.reshare.dcb.test;
 
-import static java.time.Instant.now;
-import static org.olf.reshare.dcb.utils.DCBStringUtilities.generateBlockingString;
-
-import java.util.UUID;
-
+import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.model.BibRecord;
 import org.olf.reshare.dcb.core.model.clustering.ClusterRecord;
+import org.olf.reshare.dcb.ingest.model.Author;
 import org.olf.reshare.dcb.storage.BibIdentifierRepository;
 import org.olf.reshare.dcb.storage.BibRepository;
 import org.olf.reshare.dcb.storage.MatchPointRepository;
-
-import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+import static java.time.Instant.now;
+import static org.olf.reshare.dcb.utils.DCBStringUtilities.generateBlockingString;
 
 @Prototype
 public class BibRecordFixture {
@@ -34,6 +36,10 @@ public class BibRecordFixture {
 	public void createBibRecord(UUID bibRecordId, UUID sourceSystemId,
 		String sourceRecordId, ClusterRecord clusterRecord) {
 
+		Map<String, Object> bookInfo = new HashMap<>();
+		bookInfo.put("author", Author.builder().name("Stafford Beer").build());
+		bookInfo.put("title", "Brain of the Firm");
+
 		Mono.from(bibRepository.save(
 				BibRecord
 					.builder()
@@ -48,6 +54,7 @@ public class BibRecordFixture {
 					.recordStatus("a")
 					.typeOfRecord("b")
 					.derivedType("Book")
+					.canonicalMetadata(bookInfo)
 					.build()
 			))
 			.block();

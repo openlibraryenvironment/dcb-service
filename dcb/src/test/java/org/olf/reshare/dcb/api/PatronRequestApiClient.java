@@ -1,7 +1,5 @@
 package org.olf.reshare.dcb.api;
 
-import java.util.UUID;
-
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -10,6 +8,8 @@ import io.micronaut.http.client.annotation.Client;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import net.minidev.json.JSONObject;
+
+import java.util.UUID;
 
 class PatronRequestApiClient {
 	@Inject
@@ -48,7 +48,7 @@ class PatronRequestApiClient {
 	@Serdeable
 	record PlacedPatronRequest(@Nullable UUID id, @Nullable Citation citation,
 		@Nullable Requestor requestor, @Nullable PickupLocation pickupLocation,
-		@Nullable Status status) {
+		@Nullable Status status, @Nullable LocalRequest localRequest) {
 
 		@Serdeable
 		record Citation(@Nullable UUID bibClusterId) { }
@@ -60,5 +60,7 @@ class PatronRequestApiClient {
 		record PickupLocation(@Nullable String code) { }
 		@Serdeable
 		record Status(@Nullable String code) { }
+		@Serdeable
+		record LocalRequest(@Nullable String id, @Nullable String status) { }
 	}
 }

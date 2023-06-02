@@ -15,7 +15,7 @@ hosts:
     client:
       key: test1-key
       secret: test1-secret
-      base-url: https://live-availability-tests.com
+      base-url: https://patron-requests-tests.com
 
 agencies:
   agency1:

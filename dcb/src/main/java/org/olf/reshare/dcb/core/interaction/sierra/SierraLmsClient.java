@@ -313,15 +313,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<HostLmsItem> createItem(String bibId, String itemType,
-		String locationCode, String barcode) {
+	public Mono<HostLmsItem> createItem(String bibId, String locationCode, String barcode) {
 
 		return Mono.from(client.createItem(ItemPatch.builder()
 				.bibIds(List.of(Integer.parseInt(bibId)))
-				.itemType(Integer.parseInt(itemType))
 				.location(locationCode)
 				.barcodes(List.of(barcode))
 				.build()))
+			.doOnSuccess(result -> log.debug("the result of createItem({})", result))
 			.map(result -> deRestify(result.getLink()))
 			.map(localId -> HostLmsItem.builder()
 				.localId(localId)
@@ -417,7 +416,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.from(client.patronHolds(patronLocalId))
 			.doOnSuccess(result -> log.debug("the result of getPatronHoldRequestId({})", result))
 			.flatMap(holds -> filterByLocalItemId(holds, localItemId))
-                        .retryWhen(Retry.backoff(5, Duration.ofSeconds(2)))  // Sierra may not have saved the hold right away - retry up to 5 times
+			.retryWhen(Retry.backoff(5, Duration.ofSeconds(2)))  // Sierra may not have saved the hold right away - retry up to 5 times
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when getting Hold"));

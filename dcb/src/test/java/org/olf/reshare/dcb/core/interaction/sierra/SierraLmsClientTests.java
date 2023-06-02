@@ -1,18 +1,10 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
-import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
-import static org.olf.reshare.dcb.core.model.ItemStatusCode.CHECKED_OUT;
-
-import java.time.ZonedDateTime;
-import java.util.List;
-
+import io.micronaut.context.annotation.Property;
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -21,14 +13,19 @@ import org.mockserver.client.MockServerClient;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.model.Item;
-
-import io.micronaut.context.annotation.Property;
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.time.ZonedDateTime;
+import java.util.List;
+
+import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.reshare.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 
 @MockServerMicronautTest
 @MicronautTest(transactional = false, propertySources = { "classpath:configs/SierraLmsClientTests.yml" }, rebuildContext = true)
@@ -68,12 +65,12 @@ class SierraLmsClientTests {
 	void shouldBeAbleToCreateAnItem() {
 		// Arrange
 		sierraItemsAPIFixture
-			.successResponseForCreateItem(3743965, 856757, "hg6732", "56756785");
+			.successResponseForCreateItem(3743965, "hg6732", "56756785");
 
 		final var client = hostLmsService.getClientFor("test1").block();
 
 		// Act
-		final var createdItem = client.createItem("3743965", "856757", "hg6732", "56756785").block();
+		final var createdItem = client.createItem("3743965", "hg6732", "56756785").block();
 
 		// Assert
 		assertThat("Created item should not be null", createdItem, is(notNullValue()));

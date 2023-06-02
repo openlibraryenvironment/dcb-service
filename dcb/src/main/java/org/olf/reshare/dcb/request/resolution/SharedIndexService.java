@@ -47,6 +47,15 @@ public class SharedIndexService implements ClusteredBibFinder {
 			.zipWhen(this::findBibRecords, this::mapToClusteredBibWithBib);
 	}
 
+	public Mono<Object> getCanonicalMetadataByBibClusterId(UUID bibClusterId, String key) {
+		log.debug("{{getCanonicalMetadataByBibClusterId}}: {}", bibClusterId);
+
+		return Mono.from(clusterRecordRepository.findOneById(bibClusterId))
+			.flatMap(clusterRecord -> Mono.from(bibRepository.findById(clusterRecord.getSelectedBib())))
+			.map(bibRecord -> bibRecord.getCanonicalMetadata().get(key))
+			.switchIfEmpty(Mono.error(() -> new CannotFindClusterRecordException(bibClusterId)));
+	}
+
 	private ClusteredBib mapToClusteredBibWithBib(ClusterRecord clusterRecord,
 		List<Bib> bibs) {
 		return ClusteredBib.builder()

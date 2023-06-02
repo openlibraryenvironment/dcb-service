@@ -1,17 +1,15 @@
 package org.olf.reshare.dcb.ingest.model;
 
-import java.util.List;
-import java.util.function.Consumer;
-
-import javax.validation.constraints.NotEmpty;
-
-import org.olf.reshare.dcb.ingest.model.Identifier.IdentifierBuilder;
-
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Singular;
 import lombok.Value;
+import org.olf.reshare.dcb.ingest.model.Identifier.IdentifierBuilder;
+
+import javax.validation.constraints.NotEmpty;
+import java.util.List;
+import java.util.function.Consumer;
 
 @Serdeable
 @Data

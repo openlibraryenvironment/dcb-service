@@ -1,23 +1,5 @@
 package services.k_int.interaction.sierra;
 
-import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
-
-import java.util.List;
-
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.mockserver.client.MockServerClient;
-import org.olf.reshare.dcb.core.HostLmsService;
-import org.olf.reshare.dcb.core.interaction.sierra.HostLmsSierraApiClient;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
-
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
@@ -25,10 +7,27 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.mockserver.client.MockServerClient;
+import org.olf.reshare.dcb.core.HostLmsService;
+import org.olf.reshare.dcb.core.interaction.sierra.HostLmsSierraApiClient;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.items.Params;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.List;
+
+import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
 
 @MockServerMicronautTest
 @MicronautTest(transactional = false, propertySources = { "classpath:configs/SierraApiItemTests.yml" }, rebuildContext = true)
@@ -71,14 +70,14 @@ class SierraApiItemTests {
 	void shouldBeAbleToCreateAnItem() {
 		// Arrange
 		sierraItemsAPIFixture
-			.successResponseForCreateItem(4641865, 574574, "ab1234", "68439643");
+			.successResponseForCreateItem(4641865, "ab1234", "68439643");
 
 		final var sierraApiClient = createClient();
 
 		// Act
 		final var itemPatch = ItemPatch.builder()
 			.bibIds(List.of(4641865))
-			.itemType(574574)
+			//.itemType(574574)
 			.location("ab1234")
 			.barcodes(List.of("68439643"))
 			.build();
