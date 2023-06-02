@@ -6,6 +6,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.UUID;
@@ -43,11 +44,10 @@ class LiveAvailabilityApiTests {
 	private static final String SIERRA_TOKEN = "test-token-for-user";
 
 	@Inject
-	ResourceLoader loader;
-
+	private ResourceLoader loader;
 	@Inject
 	@Client("/")
-	HttpClient client;
+	private HttpClient client;
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
 	@Inject
@@ -72,8 +72,8 @@ class LiveAvailabilityApiTests {
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 
 		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
-
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");
+		sierraItemsAPIFixture.errorResponseForBibId("232563");
 	}
 
 	@BeforeEach
@@ -166,6 +166,36 @@ class LiveAvailabilityApiTests {
 	}
 
 	@Test
+	void shouldTolerateOtherErrorsWhenFetchingItems() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+
+		final var testHostLms = hostLmsService.findByCode("test1").block();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+
+		bibRecordFixture.createBibRecord(randomUUID(), testHostLms.getId(),
+			"798472", clusterRecord);
+
+		bibRecordFixture.createBibRecord(randomUUID(), testHostLms.getId(),
+			"232563", clusterRecord);
+
+		final var uri = UriBuilder.of("/items/availability")
+			.queryParam("clusteredBibId", clusterRecordId)
+			.build();
+
+		// Act
+		final var availabilityResponse = client.toBlocking()
+			.retrieve(HttpRequest.GET(uri), AvailabilityResponse.class);
+
+		// Assert
+		assertThat(availabilityResponse.getClusteredBibId(), is(clusterRecordId));
+
+		assertThat(availabilityResponse.getItemList(), is(notNullValue()));
+		assertThat(availabilityResponse.getItemList(), hasSize(2));
+	}
+
+	@Test
 	void failsWhenHostLmsCannotBeFound() {
 		final var clusterRecordId = randomUUID();
 		final var sourceSystemId = randomUUID();
@@ -245,7 +275,7 @@ class LiveAvailabilityApiTests {
 
 		UUID sourceSystemId = testHostLms.getId();
 
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId,
+		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId,
 			sourceRecordId, clusterRecord);
 	}
 }

@@ -42,6 +42,11 @@ public class SierraItemsAPIFixture {
 			.respond(zeroItemsResponse());
 	}
 
+	public void errorResponseForBibId(String bibId) {
+		mockServer.when(getItemsForBib(bibId))
+			.respond(sierraMockServerResponses.jsonError("json-error.json"));
+	}
+
 	public HttpResponse threeItemsResponse() {
 		return sierraMockServerResponses.jsonSuccess(
 			"items/sierra-api-three-items.json");
