@@ -81,7 +81,7 @@ public class SierraApiBibTests {
 			.bibCode3("n")
 			.build();
 
-		sierraBibsAPIFixture.createPostBibsMock(bibPatch);
+		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916922);
 		final var sierraApiClient = createClient();
 
 		// Act

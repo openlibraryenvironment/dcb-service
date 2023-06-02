@@ -7,6 +7,7 @@ import org.olf.reshare.dcb.storage.SupplierRequestRepository;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Prototype;
+import reactor.core.publisher.Mono;
 
 @Prototype
 public class PatronRequestsFixture {
@@ -21,6 +22,10 @@ public class PatronRequestsFixture {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
+	}
+
+	public void savePatronRequest(PatronRequest patronRequest){
+		Mono.from(patronRequestRepository.save(patronRequest)).block();
 	}
 
 	public void deleteAllPatronRequests() {

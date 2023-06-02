@@ -23,9 +23,10 @@ class AdminApiClient {
 
 	@Serdeable
 	public record AdminAccessPatronRequest(@Nullable UUID id,
-		@Nullable Citation citation, @Nullable Requestor requestor,
-		@Nullable PickupLocation pickupLocation,
-		@Nullable List<SupplierRequest> supplierRequests, @Nullable Status status) {
+	 @Nullable Citation citation, @Nullable Requestor requestor,
+	 @Nullable PickupLocation pickupLocation,
+	 @Nullable List<SupplierRequest> supplierRequests,
+	 @Nullable Status status, LocalRequest localRequest) {
 
 		@Serdeable
 		record Citation(@Nullable UUID bibClusterId) { }
@@ -53,6 +54,9 @@ class AdminApiClient {
 
 		@Serdeable
 		record Status(@Nullable String code) { }
+
+		@Serdeable
+		record LocalRequest(@Nullable String id, @Nullable String status) { }
 
 		// Workaround: records do not support been style properties
 		public String getStatusCode() {

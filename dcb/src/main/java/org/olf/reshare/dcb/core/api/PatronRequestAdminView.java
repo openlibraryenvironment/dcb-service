@@ -14,7 +14,8 @@ import java.util.stream.Collectors;
 @Serdeable
 record PatronRequestAdminView(UUID id, Citation citation,
 	PickupLocation pickupLocation, Requestor requestor,
-	List<SupplierRequest> supplierRequests, Status status) {
+	List<SupplierRequest> supplierRequests, Status status,
+	LocalRequest localRequest) {
 
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestAdminView.class);
 
@@ -32,7 +33,9 @@ record PatronRequestAdminView(UUID id, Citation citation,
 			new Requestor(patron.getId().toString(), patron.getHomeLibraryCode(),
 				Identity.fromList(patron.getPatronIdentities())),
 			SupplierRequest.fromList(supplierRequests),
-			new Status(patronRequest.getStatusCode()));
+			new Status(patronRequest.getStatusCode()),
+			new LocalRequest(patronRequest.getLocalRequestId(),
+				patronRequest.getLocalRequestStatus()));
 	}
 
 	@Serdeable
@@ -89,4 +92,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 
 	@Serdeable
 	record Status(String code) {}
+
+	@Serdeable
+	record LocalRequest(String id, String status) {}
 }
