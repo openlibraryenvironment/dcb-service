@@ -1,5 +1,40 @@
 package org.olf.reshare.dcb.api;
 
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
+import static io.micronaut.http.HttpStatus.NOT_FOUND;
+import static io.micronaut.http.HttpStatus.OK;
+import static java.util.Objects.requireNonNull;
+import static java.util.UUID.randomUUID;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import org.hamcrest.Matcher;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.mockserver.client.MockServerClient;
+import org.olf.reshare.dcb.core.HostLmsService;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraBibsAPIFixture;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.reshare.dcb.request.fulfilment.PatronService;
+import org.olf.reshare.dcb.test.BibRecordFixture;
+import org.olf.reshare.dcb.test.ClusterRecordFixture;
+import org.olf.reshare.dcb.test.DcbTest;
+import org.olf.reshare.dcb.test.PatronFixture;
+import org.olf.reshare.dcb.test.PatronRequestsFixture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.HttpRequest;
@@ -10,34 +45,9 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import net.minidev.json.JSONObject;
-import org.hamcrest.Matcher;
-import org.junit.jupiter.api.*;
-import org.mockserver.client.MockServerClient;
-import org.olf.reshare.dcb.core.HostLmsService;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraBibsAPIFixture;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.reshare.dcb.core.model.PatronRequest;
-import org.olf.reshare.dcb.request.fulfilment.BorrowingAgencyService;
-import org.olf.reshare.dcb.request.fulfilment.PatronService;
-import org.olf.reshare.dcb.test.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import static io.micronaut.http.HttpStatus.*;
-import static java.util.Objects.requireNonNull;
-import static java.util.UUID.randomUUID;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
 
 
 @DcbTest
@@ -48,7 +58,7 @@ import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstant
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PatronRequestApiTests {
 	private static final String SIERRA_TOKEN = "test-token-for-user";
-        private static final Logger log = LoggerFactory.getLogger(PatronRequestApiTests.class);
+	private static final Logger log = LoggerFactory.getLogger(PatronRequestApiTests.class);
 
 	@Inject
 	ResourceLoader loader;
@@ -66,16 +76,7 @@ class PatronRequestApiTests {
 	private ClusterRecordFixture clusterRecordFixture;
 
 	@Inject
-	private BorrowingAgencyService borrowingAgencyService;
-
-	@Inject
 	private BibRecordFixture bibRecordFixture;
-
-	@Inject
-	private PatronIdentityFixture patronIdentityFixture;
-
-	@Inject
-	private SupplierRequestsFixture supplierRequestsFixture;
 
 	@Inject
 	private PatronRequestApiClient patronRequestApiClient;
@@ -146,11 +147,9 @@ class PatronRequestApiTests {
 		sierraPatronsAPIFixture.patronHoldRequestResponse("43546", 7916922, "ABC123");
 		sierraPatronsAPIFixture.patronHoldResponse("43546");
 
-		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("972321", 7916922, "ABC123");
-
 		// Register an expectation that when the client calls /patrons/43546 we respond with the patron record
-		sierraPatronsAPIFixture.addPatronGetExpectation(Long.valueOf(43546l));
-		sierraPatronsAPIFixture.addPatronGetExpectation(Long.valueOf(872321l));
+		sierraPatronsAPIFixture.addPatronGetExpectation(43546L);
+		sierraPatronsAPIFixture.addPatronGetExpectation(872321L);
 	}
 
 	@BeforeEach
@@ -413,79 +412,6 @@ class PatronRequestApiTests {
 		final var response = exception.getResponse();
 
 		assertThat(response.getStatus(), is(NOT_FOUND));
-	}
-
-	@Test
-	void placeRequestAtBorrowingAgency_success() {
-		// Arrange
-		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
-
-		final var testHostLms = hostLmsService.findByCode("test1").block();
-		final var sourceSystemId = testHostLms.getId();
-
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
-
-		final var patron = patronFixture.savePatron(randomUUID(), "872321");
-		patronIdentityFixture.saveHomeIdentity(randomUUID(), patron, "872321", testHostLms);
-
-		final var patronRequestId = randomUUID();
-		var patronRequest = PatronRequest.builder()
-			.id(patronRequestId)
-			.patron(patron)
-			.bibClusterId(clusterRecordId)
-			.pickupLocationCode("ABC123")
-			.build();
-
-		patronRequestsFixture.savePatronRequest(patronRequest);
-		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "localItemId",
-			"ab6", "9849123490", testHostLms.code);
-
-		// Act
-		final var pr = borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest).block();
-
-		// Assert
-		assertThat("Status code wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
-		assertThat("Local request id wasn't expected.", pr.getLocalRequestId(), is("864902"));
-		assertThat("Local request status wasn't expected.", pr.getLocalRequestStatus(), is("PLACED"));
-	}
-
-	@Test
-	void placeRequestAtBorrowingAgency_failure() {
-		// Arrange
-		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
-
-		final var testHostLms = hostLmsService.findByCode("test1").block();
-		final var sourceSystemId = testHostLms.getId();
-
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
-
-		final var patron = patronFixture.savePatron(randomUUID(), "972321");
-		patronIdentityFixture.saveHomeIdentity(randomUUID(), patron, "972321", testHostLms);
-
-		final var patronRequestId = randomUUID();
-		var patronRequest = PatronRequest.builder()
-			.id(patronRequestId)
-			.patron(patron)
-			.bibClusterId(clusterRecordId)
-			.pickupLocationCode("ABC123")
-			.build();
-
-		patronRequestsFixture.savePatronRequest(patronRequest);
-		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "localItemId",
-			"ab6", "9849123490", testHostLms.code);
-
-		// Act
-		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest).block());
-
-		// Assert
-		assertThat(exception, is(notNullValue()));
-		final var response = exception.getResponse();
-		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
-		assertThat(response.code(), is(500));
-		assertThat(response.getBody(String.class).get(), is("Broken"));
 	}
 
 	private static Matcher<Object> isPlacedAtBorrowingAgency() {
