@@ -35,7 +35,9 @@ record PatronRequestAdminView(UUID id, Citation citation,
 			SupplierRequest.fromList(supplierRequests),
 			new Status(patronRequest.getStatusCode()),
 			new LocalRequest(patronRequest.getLocalRequestId(),
-				patronRequest.getLocalRequestStatus()));
+				patronRequest.getLocalRequestStatus(),
+				patronRequest.getLocalItemId(),
+				patronRequest.getLocalBibId()));
 	}
 
 	@Serdeable
@@ -94,5 +96,5 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	record Status(String code) {}
 
 	@Serdeable
-	record LocalRequest(String id, String status) {}
+	record LocalRequest(String id, String status, String itemId, String bibId) {}
 }

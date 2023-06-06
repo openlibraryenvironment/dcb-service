@@ -76,15 +76,16 @@ public class BorrowingAgencyService {
 		final UUID bibClusterId = patronRequest.getBibClusterId();
 		log.debug("createVirtualBib for cluster {}",bibClusterId);
 		return Mono.from(clusterRecordRepository.findById(bibClusterId))
-				.flatMap( clusterRecord -> Mono.from(bibRepository.findById(clusterRecord.getSelectedBib())))
-				.flatMap( bibRecord -> Mono.just(bibRecord.getCanonicalMetadata()) )
-				.flatMap( metadata -> {
-					String title = extractMetadata(metadata,"title");
-					Map<String,Object> authorMetadata = (Map<String,Object>) metadata.get("author");
-					String author = authorMetadata != null ? extractMetadata(authorMetadata,"name") : null;
-					return hostLmsClient.createBib(author,title);
-				})
-				.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual bib.")))
+			.flatMap( clusterRecord -> Mono.from(bibRepository.findById(clusterRecord.getSelectedBib())))
+			.flatMap( bibRecord -> Mono.just(bibRecord.getCanonicalMetadata()) )
+			.flatMap( metadata -> {
+				String title = extractMetadata(metadata,"title");
+				Map<String,Object> authorMetadata = (Map<String,Object>) metadata.get("author");
+				String author = authorMetadata != null ? extractMetadata(authorMetadata,"name") : null;
+				return hostLmsClient.createBib(author,title);
+			})
+			.doOnNext(patronRequest::setLocalBibId)
+			.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual bib.")))
 			.map(localBibId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, supplierRequest, localBibId));
 	}
 
@@ -109,6 +110,7 @@ public class BorrowingAgencyService {
 				return hostLmsClient.createItem(localBibId, agencyCode, supplierRequest.getLocalItemBarcode());
 			})
 			.map(HostLmsItem::getLocalId)
+			.doOnNext(patronRequest::setLocalItemId)
 			.map(localItemId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId))
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));
 	}

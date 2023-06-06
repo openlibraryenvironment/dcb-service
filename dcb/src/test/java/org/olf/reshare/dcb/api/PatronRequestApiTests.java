@@ -217,7 +217,8 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.status().code(), is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
 		assertThat(fetchedPatronRequest.localRequest().id(), is("864902"));
 		assertThat(fetchedPatronRequest.localRequest().status(), is("PLACED"));
-		assertThat(fetchedPatronRequest, is(notNullValue()));
+		assertThat(fetchedPatronRequest.localRequest().itemId(), is("7916922"));
+		assertThat(fetchedPatronRequest.localRequest().bibId(), is("7916920"));
 		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
 
 		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
@@ -291,6 +292,8 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.status().code(), is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
 		assertThat(fetchedPatronRequest.localRequest().id(), is("864902"));
 		assertThat(fetchedPatronRequest.localRequest().status(), is("PLACED"));
+		assertThat(fetchedPatronRequest.localRequest().itemId(), is("7916922"));
+		assertThat(fetchedPatronRequest.localRequest().bibId(), is("7916920"));
 		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
 
 		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));

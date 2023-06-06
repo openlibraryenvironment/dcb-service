@@ -65,6 +65,12 @@ public class PatronRequest {
 	@Nullable
 	private String localRequestStatus;
 
+	@Nullable
+	private String localItemId;
+
+	@Nullable
+	private String localBibId;
+
 
 	public PatronRequest resolve() {
 		statusCode = RESOLVED;
