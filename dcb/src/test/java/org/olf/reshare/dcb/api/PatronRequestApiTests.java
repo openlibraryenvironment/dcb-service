@@ -152,6 +152,16 @@ class PatronRequestApiTests {
 		// Register an expectation that when the client calls /patrons/43546 we respond with the patron record
 		sierraPatronsAPIFixture.addPatronGetExpectation(43546L);
 		sierraPatronsAPIFixture.addPatronGetExpectation(872321L);
+	}
+
+	@BeforeEach
+	void beforeEach() {
+		patronRequestsFixture.deleteAllPatronRequests();
+
+		patronFixture.deleteAllPatrons();
+
+		bibRecordFixture.deleteAllBibRecords();
+		clusterRecordFixture.deleteAllClusterRecords();
 
 		// add shelving location
 		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
@@ -172,14 +182,11 @@ class PatronRequestApiTests {
 			.block();
 	}
 
-	@BeforeEach
-	void beforeEach() {
-		patronRequestsFixture.deleteAllPatronRequests();
-
-		patronFixture.deleteAllPatrons();
-
-		bibRecordFixture.deleteAllBibRecords();
-		clusterRecordFixture.deleteAllClusterRecords();
+	@AfterAll
+	void afterAll() {
+		Mono.from(shelvingLocationRepository.deleteByCode("ab6")).block();
+		Mono.from(agencyRepository.deleteByCode("ab6")).block();
+		hostLmsFixture.deleteAllHostLMS();
 	}
 
 	@Test

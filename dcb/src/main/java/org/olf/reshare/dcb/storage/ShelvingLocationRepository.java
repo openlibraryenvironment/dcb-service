@@ -48,4 +48,5 @@ public interface ShelvingLocationRepository {
 
 	Publisher<Void> delete(UUID id);
 
+	Publisher<Void> deleteByCode(@NotNull String code);
 }

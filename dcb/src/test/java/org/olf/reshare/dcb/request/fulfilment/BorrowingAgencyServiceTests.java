@@ -6,10 +6,7 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.mockserver.client.MockServerClient;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraBibsAPIFixture;
@@ -149,6 +146,31 @@ class BorrowingAgencyServiceTests {
 
 		bibRecordFixture.deleteAllBibRecords();
 		clusterRecordFixture.deleteAllClusterRecords();
+
+		// add shelving location
+		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
+		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
+
+		DataAgency dataAgency = Mono.from(
+			agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2))).block();
+
+		ShelvingLocation shelvingLocation = ShelvingLocation.builder()
+			.id(randomUUID())
+			.code("ab6")
+			.name("name")
+			.hostSystem(dataHostLms1)
+			.agency(dataAgency)
+			.build();
+
+		Mono.from(shelvingLocationRepository.save(shelvingLocation))
+			.block();
+	}
+
+	@AfterAll
+	void afterAll() {
+		Mono.from(shelvingLocationRepository.deleteByCode("ab6")).block();
+		Mono.from(agencyRepository.deleteByCode("ab6")).block();
+		hostLmsFixture.deleteAllHostLMS();
 	}
 
 	@Test
