@@ -1,10 +1,8 @@
 package org.olf.reshare.dcb.item.availability;
 
-import java.util.List;
+import static org.olf.reshare.dcb.item.availability.AvailabilityReport.emptyReport;
 
 import org.olf.reshare.dcb.core.HostLmsService;
-import org.olf.reshare.dcb.core.interaction.HostLmsClient;
-import org.olf.reshare.dcb.core.model.Item;
 import org.olf.reshare.dcb.request.resolution.Bib;
 import org.olf.reshare.dcb.request.resolution.ClusteredBib;
 import org.slf4j.Logger;
@@ -29,15 +27,14 @@ public class LiveAvailabilityService implements LiveAvailability {
 	}
 
 	@Override
-	public Mono<List<Item>> getAvailableItems(ClusteredBib clusteredBib) {
+	public Mono<AvailabilityReport> getAvailableItems(ClusteredBib clusteredBib) {
 		log.debug("getAvailableItems({})", clusteredBib);
 
 		return getBibs(clusteredBib)
 			.flatMap(this::getItems)
-			.flatMap(this::flattenItemList)
-			.map(this::determineReqestability)
-			.collectList()
-			.map(this::sortItems);
+			.map(this::determineRequestability)
+			.reduce(emptyReport(), AvailabilityReport::combineReports)
+			.map(AvailabilityReport::sortItems);
 	}
 
 	private Flux<Bib> getBibs(ClusteredBib clusteredBib) {
@@ -54,38 +51,32 @@ public class LiveAvailabilityService implements LiveAvailability {
 		return Flux.fromIterable(bibs);
 	}
 
-	private Mono<List<Item>> getItems(Bib bib) {
+	private Mono<AvailabilityReport> getItems(Bib bib) {
 		log.debug("getItems({})", bib);
 
 		if (bib.getHostLms() == null) {
 			log.error("hostLMS cannot be null when asking for available items");
 
 			return Mono.error(new IllegalArgumentException("hostLMS cannot be null"));
+
+		} else {
+			return hostLmsService.getClientFor(bib.getHostLms())
+				.flatMap(hostLmsClient -> hostLmsClient
+					.getItemsByBibId(bib.getBibRecordId(), bib.getHostLms().getCode()))
+				.doOnError(error -> log.debug("Error occurred fetching items: ", error))
+				.map(AvailabilityReport::ofItems)
+				.onErrorReturn(AvailabilityReport.ofErrors(mapToError(bib)));
 		}
-
-		return hostLmsService.getClientFor(bib.getHostLms())
-			.flatMap(hostLmsClient -> getItems(bib.getBibRecordId(), hostLmsClient, bib.getHostLms().getCode()))
-			.doOnError(error -> log.debug("Error occurred fetching items: ", error))
-			.onErrorReturn(List.of());
 	}
 
-	private Mono<List<Item>> getItems(String bibRecordId,
-		HostLmsClient hostLmsClient, String hostLmsCode) {
-
-		log.debug("getItems({}, {}, {})", bibRecordId, hostLmsClient, hostLmsCode);
-
-		return hostLmsClient.getItemsByBibId(bibRecordId, hostLmsCode);
+	private AvailabilityReport determineRequestability(AvailabilityReport report) {
+		return report.forEachItem(
+			item -> item.setIsRequestable(requestableItemService.isRequestable(item)));
 	}
 
-	private Item determineReqestability(Item item) {
-		return item.markAsRequestable(requestableItemService.isRequestable(item));
-	}
-
-	private Flux<Item> flattenItemList(List<Item> list) {
-		return Flux.fromIterable(list);
-	}
-
-	private List<Item> sortItems(List<Item> items) {
-		return items.stream().sorted().toList();
+	private static AvailabilityReport.Error mapToError(Bib bib) {
+		return AvailabilityReport.Error.builder().message(String.format(
+			"Failed to fetch items for bib: %s from host: %s",
+			bib.getBibRecordId(), bib.getHostLms().getCode())).build();
 	}
 }

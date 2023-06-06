@@ -1,5 +1,6 @@
 package org.olf.reshare.dcb.request.resolution;
 
+import static org.olf.reshare.dcb.item.availability.AvailabilityReport.emptyReport;
 import static org.olf.reshare.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
 import static org.olf.reshare.dcb.utils.PublisherErrors.failWhenEmpty;
 
@@ -10,6 +11,7 @@ import java.util.UUID;
 import org.olf.reshare.dcb.core.model.Item;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
+import org.olf.reshare.dcb.item.availability.AvailabilityReport;
 import org.olf.reshare.dcb.item.availability.LiveAvailability;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,7 +81,9 @@ public class PatronRequestResolutionService {
 	private Mono<List<Item>> getItems(ClusteredBib clusteredBib) {
 		log.debug("getAvailableItems({})", clusteredBib);
 
-		return liveAvailabilityService.getAvailableItems(clusteredBib);
+		return liveAvailabilityService.getAvailableItems(clusteredBib)
+			.switchIfEmpty(Mono.just(emptyReport()))
+			.map(AvailabilityReport::getItems);
 	}
 
 	private Item chooseFirstRequestableItem(List<Item> items, UUID clusterRecordId) {
