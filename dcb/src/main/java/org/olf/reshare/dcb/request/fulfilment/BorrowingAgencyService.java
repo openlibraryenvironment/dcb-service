@@ -100,19 +100,14 @@ public class BorrowingAgencyService {
 		PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 		SupplierRequest supplierRequest, String localBibId) {
 
-		log.debug("createVirtualItem for localBibId {}",localBibId);
+		log.debug("createVirtualItem for localBibId {}", localBibId);
 
 		return Mono.from(shelvingLocationRepository.findOneByCode(supplierRequest.getLocalItemLocationCode()))
-			.doOnSuccess(shelvingLocation -> log.debug("this is the shelving location: {}",shelvingLocation))
-			.map(shelvingLocation -> {
-				if (shelvingLocation.getAgency() != null) {
-					return shelvingLocation.getAgency().getCode();
-				} else {
-					// fallback behavior
-					return "DEFAULT_AGENCY_CODE";
-				}
+			.doOnSuccess(shelvingLocation -> log.debug("Result from getting shelving location: {}", shelvingLocation))
+			.flatMap(shelvingLocation -> {
+				String agencyCode = shelvingLocation.getAgency() != null ? shelvingLocation.getAgency().getCode() : null;
+				return hostLmsClient.createItem(localBibId, agencyCode, supplierRequest.getLocalItemBarcode());
 			})
-			.flatMap(code -> hostLmsClient.createItem(localBibId, code, supplierRequest.getLocalItemBarcode()))
 			.map(HostLmsItem::getLocalId)
 			.map(localItemId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId))
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));

@@ -32,7 +32,7 @@ public interface ShelvingLocationRepository {
 
 	@NonNull
 	@SingleResult
-	@Join(value = "agency")
+	@Join(value = "agency", type = Join.Type.LEFT_FETCH)
 	Publisher<ShelvingLocation> findOneByCode(@NonNull String code);
 
 	@NonNull
