@@ -5,6 +5,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
 
 import java.util.List;
@@ -12,19 +13,26 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.request.resolution.ClusteredBib;
 
-public class FakeLiveAvailabilityServiceTests {
+class FakeLiveAvailabilityServiceTests {
 	@Test
 	void shouldAlwaysReturnListOfItems() {
+		// Arrange
 		final var fakeLiveAvailabilityService = new FakeLiveAvailabilityService();
 
 		final var clusteredBib =
 			new ClusteredBib(randomUUID(), "title", List.of());
 
-		final var items = fakeLiveAvailabilityService
+		// Act
+		final var report = fakeLiveAvailabilityService
 			.getAvailableItems(clusteredBib).block();
 
-		assertThat(items, is(notNullValue()));
-		assertThat(items.size(), is(3));
+		// Assert
+		assertThat("Report should not be null", report, is(notNullValue()));
+
+		final var items = report.getItems();
+
+		assertThat("Items returned should not be null", items, is(notNullValue()));
+		assertThat("Should have 3 items", items, hasSize(3));
 
 		final var returnedItem = items.get(0);
 

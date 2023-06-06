@@ -4,19 +4,21 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
 
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
@@ -44,66 +46,72 @@ class LiveAvailabilityServiceTests {
 		new LiveAvailabilityService(hostLmsService, requestableItemService);
 
 	@Test
-	void shouldGetAvailableItemsViaHostLmsService() {
-		final var hostLms = createHostLms("hostLmsCode");
+	@DisplayName("Should get items from host LMS for multiple bibs")
+	void shouldGetAvailableItemsForMultipleBibs() {
+		// Arrange
+		final var firstHostLms = createHostLms("firstHost");
+		final var secondHostLms = createHostLms("secondHost");
 
 		final var clusterRecordId = randomUUID();
 
 		final var clusterRecord = new ClusteredBib(clusterRecordId, "title",
-			List.of(createBib(hostLms, "bibRecordId")));
+			List.of(createBib(firstHostLms, "firstHostBibRecord"),
+				createBib(secondHostLms, "secondHostBibRecord")));
 
 		when(sharedIndexService.findClusteredBib(clusterRecordId))
 			.thenReturn(Mono.just(clusterRecord));
 
-		final var client = mock(HostLmsClient.class);
+		final var firstHostClient = mock(HostLmsClient.class);
 
-		when(hostLmsService.getClientFor(hostLms))
-			.thenReturn(Mono.just(client));
+		when(hostLmsService.getClientFor(firstHostLms))
+			.thenReturn(Mono.just(firstHostClient));
 
-		final var dueDate = ZonedDateTime.now();
+		final var itemFromFirstHost = createItem("firstItemId", "BCF543");
 
-		final Item item = createItem(dueDate);
+		when(firstHostClient.getItemsByBibId("firstHostBibRecord", "firstHost"))
+			.thenReturn(Mono.just(List.of(itemFromFirstHost)));
 
-		final var listOfItems = List.of(item);
+		final var secondHostClient = mock(HostLmsClient.class);
 
-		when(client.getItemsByBibId("bibRecordId", "hostLmsCode"))
-			.thenReturn(Mono.just(listOfItems));
+		when(hostLmsService.getClientFor(secondHostLms))
+			.thenReturn(Mono.just(secondHostClient));
 
-		when(requestableItemService.isRequestable(item))
+		final var itemFromSecondHost = createItem("secondItemId", "ABC123");
+
+		when(secondHostClient.getItemsByBibId("secondHostBibRecord", "secondHost"))
+			.thenReturn(Mono.just(List.of(itemFromSecondHost)));
+
+		when(requestableItemService.isRequestable(any()))
 			.thenReturn(true);
 
-		final var items = liveAvailabilityService
+		// Act
+		final var report = liveAvailabilityService
 			.getAvailableItems(clusterRecord).block();
 
-		assertThat(items, is(notNullValue()));
-		assertThat(items.size(), is(1));
+		// Assert
+		assertThat("Report should not be null", report, is(notNullValue()));
 
-		final var onlyItem = items.get(0);
+		final var items = report.getItems();
 
-		assertThat(onlyItem.getId(), is("testid"));
-		assertThat(onlyItem.getBarcode(), is("testBarcode"));
-		assertThat(onlyItem.getCallNumber(), is("testCallNumber"));
-		assertThat(onlyItem.getHostLmsCode(), is("hostLmsCode"));
-		assertThat(onlyItem.getDueDate(), is(dueDate));
-		assertThat(onlyItem.getHoldCount(), is(0));
+		assertThat("Items returned should not be null", items, is(notNullValue()));
+		assertThat("Should have two items", items, hasSize(2));
 
-		final var status = onlyItem.getStatus();
+		// Relies on instance matching which will could fail
+		// if we decide to return new items instead of setting values
+		assertThat("Should have expected item in natural sort order",
+			items, contains(itemFromSecondHost, itemFromFirstHost));
 
-		assertThat(status, is(notNullValue()));
-		assertThat(status.getCode(), is(AVAILABLE));
+		verify(hostLmsService).getClientFor(firstHostLms);
+		verify(hostLmsService).getClientFor(secondHostLms);
+		verify(firstHostClient).getItemsByBibId("firstHostBibRecord", "firstHost");
+		verify(secondHostClient).getItemsByBibId("secondHostBibRecord", "secondHost");
 
-		final var location = onlyItem.getLocation();
-
-		assertThat(location, is(notNullValue()));
-		assertThat(location.getCode(), is("testLocationCode"));
-		assertThat(location.getName(), is("testLocationName"));
-
-		verify(hostLmsService).getClientFor(hostLms);
-		verify(client).getItemsByBibId(any(), any());
+		verifyNoMoreInteractions(hostLmsService, firstHostClient, secondHostClient);
 	}
 
 	@Test
-	void shouldTolerateFailuresFetchingItems() {
+	@DisplayName("Should report failures when fetching items from host LMS")
+	void shouldReportFailuresFetchingItemsFromHostLms() {
 		// Arrange
 		final var workingHostLms = createHostLms("workingHostLms");
 		final var brokenHostLms = createHostLms("failingHostLms");
@@ -127,9 +135,7 @@ class LiveAvailabilityServiceTests {
 		when(hostLmsService.getClientFor(brokenHostLms))
 			.thenReturn(Mono.just(brokenClient));
 
-		final var dueDate = ZonedDateTime.now();
-
-		final Item item = createItem(dueDate);
+		final Item item = createItem("itemId", "ABC123");
 
 		when(workingClient.getItemsByBibId("workingBib", "workingHostLms"))
 			.thenReturn(Mono.just(List.of(item)));
@@ -142,16 +148,30 @@ class LiveAvailabilityServiceTests {
 			.thenReturn(true);
 
 		// Act
-		final var items = liveAvailabilityService.getAvailableItems(clusterRecord).block();
+		final var report = liveAvailabilityService
+			.getAvailableItems(clusterRecord).block();
 
 		// Assert
+		assertThat("Report should not be null", report, is(notNullValue()));
+
+		final var items = report.getItems();
+
 		assertThat("Items returned should not be null", items, is(notNullValue()));
-		assertThat("Should have some items", items, hasSize(1));
+		assertThat("Should have one item", items, hasSize(1));
 		assertThat("Should have item from working client", items.get(0), is(item));
+
+		final var errors = report.getErrors();
+
+		assertThat("Reported errors should not be null", errors, is(notNullValue()));
+		assertThat("Should have one error", errors, hasSize(1));
+		assertThat("Should have one error", errors.get(0).getMessage(),
+			is("Failed to fetch items for bib: failingBib from host: failingHostLms"));
 	}
 
 	@Test
-	void shouldFailWhenHostLMSIsNull() {
+	@DisplayName("Should fail when host LMS for bib is null")
+	void shouldFailWhenHostLMSForBibIsNull() {
+		// Arrange
 		final var clusterRecordId = randomUUID();
 
 		final var clusterRecord = new ClusteredBib(clusterRecordId, "title",
@@ -160,43 +180,54 @@ class LiveAvailabilityServiceTests {
 		when(sharedIndexService.findClusteredBib(clusterRecordId))
 			.thenReturn(Mono.just(clusterRecord));
 
+		// Act
 		final var exception = assertThrows(IllegalArgumentException.class,
-			() -> liveAvailabilityService.getAvailableItems(clusterRecord)
-				.block());
+			() -> liveAvailabilityService.getAvailableItems(clusterRecord).block());
 
-		assertThat(exception, is(notNullValue()));
+		// Assert
+		assertThat("Exception should not be null", exception, is(notNullValue()));
 		assertThat(exception.getMessage(), is("hostLMS cannot be null"));
 	}
 
 	@Test
-	void noBibsInClusteredBibWillReturnEmptyItemList() {
+	@DisplayName("Should find no items when no bibs in cluster record")
+	void shouldFindNoItemsWhenNoBibsInClusterRecord() {
+		// Arrange
+		final var clusterWithNoBibs = new ClusteredBib(randomUUID(), "title", List.of());
 
-		final var clusterRecordWithNoBibs = new ClusteredBib(randomUUID(), "title", List.of());
+		// Act
+		final var report = liveAvailabilityService
+			.getAvailableItems(clusterWithNoBibs).block();
 
-		final var items = liveAvailabilityService
-			.getAvailableItems(clusterRecordWithNoBibs).block();
+		// Assert
+		assertThat("Report should not be null", report, is(notNullValue()));
 
-		assertThat(items, is(notNullValue()));
-		assertThat(items.size(), is(0));
+		final var items = report.getItems();
 
-		// if there are no bibs in clustered bib the hostlms service will not be called
-		verify(hostLmsService, times(0)).getClientFor(any(HostLms.class));
+		assertThat("Items returned should not be null", items, is(notNullValue()));
+		assertThat("Should have no items", items, hasSize(0));
+
+		// if there are no bibs in clustered bib, the host LMS service should not be called
+		verify(hostLmsService, never()).getClientFor(any(HostLms.class));
 	}
 
 	@Test
-	void nullBibsInClusteredBibWillReturnEmptyItemList() {
+	@DisplayName("Should find no items when cluster record bibs is null")
+	void ShouldFindNoItemsWhenClusterRecordBibsIsNull() {
+		// Arrange
 		final var clusterRecordId = randomUUID();
 
-		final var clusterRecordWithNullBibs = new ClusteredBib(clusterRecordId, "title", null);
+		final var clusterWithNullBibs = new ClusteredBib(clusterRecordId, "title", null);
 
 		when(sharedIndexService.findClusteredBib(clusterRecordId))
-			.thenReturn(Mono.just(clusterRecordWithNullBibs));
+			.thenReturn(Mono.just(clusterWithNullBibs));
 
+		// Act
 		final var exception = assertThrows(IllegalArgumentException.class,
-			() -> liveAvailabilityService.getAvailableItems(clusterRecordWithNullBibs)
-				.block());
+			() -> liveAvailabilityService.getAvailableItems(clusterWithNullBibs).block());
 
-		assertThat(exception, is(notNullValue()));
+		// Assert
+		assertThat("Exception should not be null", exception, is(notNullValue()));
 		assertThat(exception.getMessage(), is("Bibs cannot be null"));
 	}
 
@@ -208,12 +239,16 @@ class LiveAvailabilityServiceTests {
 			.build();
 	}
 
-	private static Item createItem(ZonedDateTime dueDate) {
-		return new Item("testid", new ItemStatus(AVAILABLE), dueDate,
-			Location.builder().code("testLocationCode").name("testLocationName").build(),
-			"testBarcode", "testCallNumber",
-			"hostLmsCode", true,
-			0);
+	private static Item createItem(String itemId, String locationCode) {
+		return Item.builder()
+			.id(itemId)
+			.status(new ItemStatus(AVAILABLE))
+			.location(Location.builder()
+				.code(locationCode)
+				.build())
+			.isRequestable(true)
+			.holdCount(0)
+			.build();
 	}
 
 	private static FakeHostLms createHostLms(String code) {

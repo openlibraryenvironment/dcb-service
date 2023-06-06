@@ -6,6 +6,8 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.reshare.dcb.core.model.ItemStatusCode.CHECKED_OUT;
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.reshare.dcb.core.model.FakeHostLms;
@@ -29,6 +32,7 @@ import org.olf.reshare.dcb.core.model.ItemStatusCode;
 import org.olf.reshare.dcb.core.model.Location;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
+import org.olf.reshare.dcb.item.availability.AvailabilityReport;
 import org.olf.reshare.dcb.item.availability.LiveAvailability;
 
 import reactor.core.publisher.Mono;
@@ -41,11 +45,12 @@ class PatronRequestResolutionServiceTests {
 		= new PatronRequestResolutionService(clusteredBibFinder, liveAvailability);
 
 	@Test
-	void shouldResolveToOnlyItemForSingleBibWithSingleRequestableItem() {
+	@DisplayName("Should resolve request to only item when single item found")
+	void shouldResolveToOnlyItemWhenSingleItemFound() {
 		// Arrange
-		final var item = createFakeItem("78458456", "FAKE_HOST");
+		final var item = createFakeItem("78458456", AVAILABLE, true);
 
-		final var hostLms = createHostLms("FAKE_HOST");
+		final var hostLms = createHostLms();
 
 		final var clusteredBib = createClusteredBib(List.of(createFakeBib("65767547", hostLms)));
 		final var clusteredBibId = clusteredBib.getId();
@@ -54,7 +59,7 @@ class PatronRequestResolutionServiceTests {
 			.thenReturn(Mono.just(clusteredBib));
 
 		when(liveAvailability.getAvailableItems(clusteredBib))
-			.thenReturn(Mono.just(List.of(item)));
+			.thenReturn(Mono.just(AvailabilityReport.ofItems(item)));
 
 		final var patronRequest = createPatronRequest(clusteredBibId);
 
@@ -78,16 +83,22 @@ class PatronRequestResolutionServiceTests {
 		// check patron request has the expected status
 		assertThat(resolution.getPatronRequest(), is(notNullValue()));
 		assertThat(resolution.getPatronRequest().getStatusCode(), is(RESOLVED));
+
+		verify(liveAvailability).getAvailableItems(clusteredBib);
+		verifyNoMoreInteractions(liveAvailability);
 	}
 
 	@Test
-	void shouldResolveToFirstItemForSingleBibWithMultipleItems() {
+	@DisplayName("Should resolve request to first requestable items when multiple items are found")
+	void shouldResolveToFirstRequestableItemWhenMultipleItemsAreFound() {
 		// Arrange
-		final var item1 = createFakeItem("23721346", "FAKE_HOST", AVAILABLE, true);
-		final var item2 = createFakeItem("54737664", "FAKE_HOST", AVAILABLE, true);
-		final var item3 = createFakeItem("28375763", "FAKE_HOST", AVAILABLE, true);
+		final var unavailableItem = createFakeItem("23721346", UNAVAILABLE, false);
+		final var unknownStatusItem = createFakeItem("54737664", UNKNOWN, false);
+		final var checkedOutItem = createFakeItem("28375763", CHECKED_OUT, false);
+		final var firstAvailableItem = createFakeItem("47463572", AVAILABLE, true);
+		final var secondAvailableItem = createFakeItem("97848745", AVAILABLE, true);
 
-		final var hostLms = createHostLms("FAKE_HOST");
+		final var hostLms = createHostLms();
 
 		final var clusteredBib = createClusteredBib(List.of(createFakeBib("65767547", hostLms)));
 		final var clusteredBibId = clusteredBib.getId();
@@ -96,52 +107,8 @@ class PatronRequestResolutionServiceTests {
 			.thenReturn(Mono.just(clusteredBib));
 
 		when(liveAvailability.getAvailableItems(clusteredBib))
-			.thenReturn(Mono.just(List.of(item1, item2, item3)));
-
-		final var patronRequest = createPatronRequest(clusteredBibId);
-
-		// Act
-		final var resolution = resolve(patronRequest);
-
-		// Assert
-		assertThat(resolution, is(notNullValue()));
-
-		assertThat(resolution.getOptionalSupplierRequest().isPresent(), is(true));
-
-		final var supplierRequest = resolution.getOptionalSupplierRequest().get();
-
-		assertThat("Supplier request should be pending",
-			supplierRequest.getStatusCode(), is(PENDING));
-
-		// check supplier request has the item we expected
-		assertThat(supplierRequest.getLocalItemId(), is("23721346"));
-		assertThat(supplierRequest.getHostLmsCode(), is("FAKE_HOST"));
-
-		// check patron request has the expected status
-		assertThat(resolution.getPatronRequest(), is(notNullValue()));
-		assertThat(resolution.getPatronRequest().getStatusCode(), is(RESOLVED));
-	}
-
-	@Test
-	void shouldResolveToFirstRequestableItemForSingleBibWithMultipleItems() {
-		// Arrange
-		final var unavailableItem = createFakeItem("23721346", "FAKE_HOST", UNAVAILABLE, false);
-		final var unknownStatusItem = createFakeItem("54737664", "FAKE_HOST", UNKNOWN, false);
-		final var checkedOutItem = createFakeItem("28375763", "FAKE_HOST", CHECKED_OUT, false);
-		final var firstAvailableItem = createFakeItem("47463572", "FAKE_HOST", AVAILABLE, true);
-		final var secondAvailableItem = createFakeItem("97848745", "FAKE_HOST", AVAILABLE, true);
-
-		final var hostLms = createHostLms("FAKE_HOST");
-
-		final var clusteredBib = createClusteredBib(List.of(createFakeBib("65767547", hostLms)));
-		final var clusteredBibId = clusteredBib.getId();
-
-		when(clusteredBibFinder.findClusteredBib(clusteredBibId))
-			.thenReturn(Mono.just(clusteredBib));
-
-		when(liveAvailability.getAvailableItems(clusteredBib))
-			.thenReturn(Mono.just(List.of(unavailableItem, unknownStatusItem, checkedOutItem,
-				firstAvailableItem, secondAvailableItem)));
+			.thenReturn(Mono.just(AvailabilityReport.ofItems(unavailableItem,
+				unknownStatusItem, checkedOutItem, firstAvailableItem, secondAvailableItem)));
 
 		final var patronRequest = createPatronRequest(clusteredBibId);
 
@@ -165,72 +132,22 @@ class PatronRequestResolutionServiceTests {
 		// check patron request has the expected status
 		assertThat(resolution.getPatronRequest(), is(notNullValue()));
 		assertThat(resolution.getPatronRequest().getStatusCode(), is(RESOLVED));
+
+		verify(liveAvailability).getAvailableItems(clusteredBib);
+		verifyNoMoreInteractions(liveAvailability);
 	}
 
 	@Test
-	void shouldResolveToFirstRequestableItemForMultipleBibsEachWithDifferentNumberOfItems() {
-		// Arrange
-		final var item1 = createFakeItem("23721346", "FOO_HOST");
-		final var item2 = createFakeItem("54737664", "BAR_HOST");
-		final var item3 = createFakeItem("28375763", "SHOE_HOST");
-
-		final var barHost = createHostLms("BAR_HOST");
-		final var fooHost = createHostLms("FOO_HOST");
-		final var shoeHost = createHostLms("SHOE_HOST");
-
-		final var clusteredBib = createClusteredBib(List.of(
-			createFakeBib("656845864", barHost),
-			createFakeBib("454973743", fooHost),
-			createFakeBib("293372649", shoeHost)));
-
-		final var clusteredBibId = clusteredBib.getId();
-
-		when(clusteredBibFinder.findClusteredBib(clusteredBibId))
-			.thenReturn(Mono.just(clusteredBib));
-
-		when(liveAvailability.getAvailableItems(clusteredBib))
-			.thenReturn(Mono.just(List.of(item2)));
-
-		when(liveAvailability.getAvailableItems(clusteredBib))
-			.thenReturn(Mono.just(List.of()));
-
-		when(liveAvailability.getAvailableItems(clusteredBib))
-			.thenReturn(Mono.just(List.of(item1, item3)));
-
-		final var patronRequest = createPatronRequest(clusteredBibId);
-
-		// Act
-		final var resolution = resolve(patronRequest);
-
-		// Assert
-		assertThat(resolution, is(notNullValue()));
-
-		assertThat(resolution.getOptionalSupplierRequest().isPresent(), is(true));
-
-		final var supplierRequest = resolution.getOptionalSupplierRequest().get();
-
-		assertThat("Supplier request should be pending",
-			supplierRequest.getStatusCode(), is(PENDING));
-
-		// check supplier request has the item we expected
-		assertThat(supplierRequest.getLocalItemId(), is("23721346"));
-		assertThat(supplierRequest.getHostLmsCode(), is("FOO_HOST"));
-
-		// check patron request has the expected status
-		assertThat(resolution.getPatronRequest(), is(notNullValue()));
-		assertThat(resolution.getPatronRequest().getStatusCode(), is(RESOLVED));
-	}
-
-	@Test
-	void shouldResolveRequestToNoAvailableItemsWhenNoAvailableItemsAreFound() {
+	@DisplayName("Should resolve request to no available items when no requestable items are found")
+	void shouldResolveToNoAvailableItemsWhenNoRequestableItemsAreFound() {
 		// Arrange
 		final var bibClusterId = randomUUID();
 
-		final var unavailableItem = createFakeItem("23721346", "FAKE_HOST", UNAVAILABLE, false);
-		final var unknownStatusItem = createFakeItem("54737664", "FAKE_HOST", UNKNOWN, false);
-		final var checkedOutItem = createFakeItem("28375763", "FAKE_HOST", CHECKED_OUT, false);
+		final var unavailableItem = createFakeItem("23721346", UNAVAILABLE, false);
+		final var unknownStatusItem = createFakeItem("54737664", UNKNOWN, false);
+		final var checkedOutItem = createFakeItem("28375763", CHECKED_OUT, false);
 
-		final var hostLms = createHostLms("FAKE_HOST");
+		final var hostLms = createHostLms();
 
 		final var clusteredBib = new ClusteredBib(bibClusterId, "Brain of the Firm",
 			List.of(createFakeBib("56547675", hostLms)));
@@ -239,7 +156,8 @@ class PatronRequestResolutionServiceTests {
 			.thenReturn(Mono.just(clusteredBib));
 
 		when(liveAvailability.getAvailableItems(clusteredBib))
-			.thenReturn(Mono.just(List.of(unavailableItem, unknownStatusItem, checkedOutItem)));
+			.thenReturn(Mono.just(AvailabilityReport.ofItems(unavailableItem,
+				unknownStatusItem, checkedOutItem)));
 
 		final var patronRequest = createPatronRequest(bibClusterId);
 
@@ -252,14 +170,18 @@ class PatronRequestResolutionServiceTests {
 			is(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
 
 		assertThat(resolution.getOptionalSupplierRequest().isEmpty(), is(true));
+
+		verify(liveAvailability).getAvailableItems(clusteredBib);
+		verifyNoMoreInteractions(liveAvailability);
 	}
 
 	@Test
-	void shouldResolveRequestToNoAvailableItemsWhenNoItemsAreFound() {
+	@DisplayName("Should resolve request to no available items when no items are found")
+	void shouldResolveToNoAvailableItemsWhenNoItemsAreFound() {
 		// Arrange
 		final var bibClusterId = randomUUID();
 
-		final var hostLms = createHostLms("FAKE_HOST");
+		final var hostLms = createHostLms();
 
 		final var clusteredBib = new ClusteredBib(bibClusterId, "Brain of the Firm",
 			List.of(createFakeBib("56547675", hostLms)));
@@ -268,7 +190,7 @@ class PatronRequestResolutionServiceTests {
 			.thenReturn(Mono.just(clusteredBib));
 
 		when(liveAvailability.getAvailableItems(clusteredBib))
-			.thenReturn(Mono.just(List.of()));
+			.thenReturn(Mono.just(AvailabilityReport.emptyReport()));
 
 		final var patronRequest = createPatronRequest(bibClusterId);
 
@@ -281,23 +203,27 @@ class PatronRequestResolutionServiceTests {
 			is(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
 
 		assertThat(resolution.getOptionalSupplierRequest().isEmpty(), is(true));
+
+		verify(liveAvailability).getAvailableItems(clusteredBib);
+		verifyNoMoreInteractions(liveAvailability);
 	}
 
 	@Test
-	void shouldResolveRequestToNoAvailableItemsWhenItemsIsNull() {
+	@DisplayName("Should resolve request to no available items when items is null")
+	void shouldResolveToNoAvailableItemsWhenItemsIsNull() {
 		// Arrange
 		final var bibClusterId = randomUUID();
 
-		final var hostLms = createHostLms("FAKE_HOST");
+		final var hostLms = createHostLms();
 
 		final var clusteredBib = new ClusteredBib(bibClusterId, "Brain of the Firm",
-			List.of(createFakeBib("37436728", hostLms)));
+			List.of(createFakeBib("56547675", hostLms)));
 
 		when(clusteredBibFinder.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
 
 		when(liveAvailability.getAvailableItems(clusteredBib))
-			.thenReturn(Mono.just(List.of()));
+			.thenReturn(Mono.empty());
 
 		final var patronRequest = createPatronRequest(bibClusterId);
 
@@ -305,17 +231,18 @@ class PatronRequestResolutionServiceTests {
 		final var resolution = resolve(patronRequest);
 
 		// Assert
-
-		// A quirk how resolution combines multiple checks for item availability
-		// means they are combined into an empty list rather than null
 		assertThat(resolution.getPatronRequest(), is(notNullValue()));
 		assertThat(resolution.getPatronRequest().getStatusCode(),
 			is(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
 
 		assertThat(resolution.getOptionalSupplierRequest().isEmpty(), is(true));
+
+		verify(liveAvailability).getAvailableItems(clusteredBib);
+		verifyNoMoreInteractions(liveAvailability);
 	}
 
 	@Test
+	@DisplayName("Should fail to resolve request when cluster record has no bibs")
 	void shouldFailToResolveRequestWhenBibsIsEmpty() {
 		// Arrange
 		final var bibClusterId = randomUUID();
@@ -335,9 +262,12 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(exception, is(notNullValue()));
 		assertThat(exception.getMessage(), is("No bibs in clustered bib"));
+
+		verifyNoMoreInteractions(liveAvailability);
 	}
 
 	@Test
+	@DisplayName("Should fail to resolve request when cluster record bibs is null")
 	void shouldFailToResolveRequestWhenBibsIsNull() {
 		// Arrange
 		final var bibClusterId = randomUUID();
@@ -357,10 +287,13 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(exception, is(notNullValue()));
 		assertThat(exception.getMessage(), is("No bibs in clustered bib"));
+
+		verifyNoMoreInteractions(liveAvailability);
 	}
 
 	@Test
-	void failWhenClusteredBibIsEmpty() {
+	@DisplayName("Should fail to resolve request when no clustered bib is found")
+	void shouldFailWhenClusteredBibIsEmpty() {
 		// Arrange
 		final var bibClusterId = randomUUID();
 
@@ -377,6 +310,8 @@ class PatronRequestResolutionServiceTests {
 		assertThat(exception, is(notNullValue()));
 		assertThat(exception.getMessage(),
 			is("Unable to find clustered record: " + bibClusterId));
+
+		verifyNoMoreInteractions(liveAvailability);
 	}
 
 	private Resolution resolve(PatronRequest patronRequest) {
@@ -401,11 +336,7 @@ class PatronRequestResolutionServiceTests {
 			.build();
 	}
 
-	private static Item createFakeItem(String id, String hostLmsCode) {
-		return createFakeItem(id, hostLmsCode, AVAILABLE, true);
-	}
-
-	private static Item createFakeItem(String id, String hostLmsCode,
+	private static Item createFakeItem(String id,
 		ItemStatusCode statusCode, Boolean requestable) {
 
 		return Item.builder()
@@ -417,7 +348,7 @@ class PatronRequestResolutionServiceTests {
 				.build())
 			.barcode("barcode")
 			.callNumber("callNumber")
-			.hostLmsCode(hostLmsCode)
+			.hostLmsCode("FAKE_HOST")
 			.isRequestable(requestable)
 			.holdCount(0)
 			.build();
@@ -431,8 +362,8 @@ class PatronRequestResolutionServiceTests {
 			.build();
 	}
 
-	private static FakeHostLms createHostLms(String code) {
-		return new FakeHostLms(randomUUID(), code, "Fake Host LMS",
+	private static FakeHostLms createHostLms() {
+		return new FakeHostLms(randomUUID(), "FAKE_HOST", "Fake Host LMS",
 			SierraLmsClient.class, Map.of());
 	}
 }

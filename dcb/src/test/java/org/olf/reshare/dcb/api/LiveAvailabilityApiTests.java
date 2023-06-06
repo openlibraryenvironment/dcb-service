@@ -166,7 +166,7 @@ class LiveAvailabilityApiTests {
 	}
 
 	@Test
-	void shouldTolerateOtherErrorsWhenFetchingItems() {
+	void shouldReportErrorsWhenFetchingItems() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 
@@ -189,10 +189,25 @@ class LiveAvailabilityApiTests {
 			.retrieve(HttpRequest.GET(uri), AvailabilityResponse.class);
 
 		// Assert
-		assertThat(availabilityResponse.getClusteredBibId(), is(clusterRecordId));
+		assertThat("Response should include cluster record ID",
+			availabilityResponse.getClusteredBibId(), is(clusterRecordId));
 
-		assertThat(availabilityResponse.getItemList(), is(notNullValue()));
-		assertThat(availabilityResponse.getItemList(), hasSize(2));
+		assertThat("Response should include items array",
+			availabilityResponse.getItemList(), is(notNullValue()));
+
+		assertThat("Response should include 2 items",
+			availabilityResponse.getItemList(), hasSize(2));
+
+		assertThat("Response should include errors array",
+			availabilityResponse.getErrors(), is(notNullValue()));
+
+		assertThat("Response should include single error",
+			availabilityResponse.getErrors(), hasSize(1));
+
+		final var onlyError = availabilityResponse.getErrors().get(0);
+
+		assertThat("Error should include a message",
+			onlyError.getMessage(), is("Failed to fetch items for bib: 232563 from host: test1"));
 	}
 
 	@Test
