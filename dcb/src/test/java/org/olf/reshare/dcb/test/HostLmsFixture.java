@@ -1,13 +1,12 @@
 package org.olf.reshare.dcb.test;
 
-import java.util.Map;
-import java.util.UUID;
-
+import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.storage.HostLmsRepository;
-
-import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
+
+import java.util.Map;
+import java.util.UUID;
 
 @Prototype
 public class HostLmsFixture {
@@ -26,6 +25,12 @@ public class HostLmsFixture {
 
 	public void createHostLms(UUID id, String code) {
 		Mono.from(hostLmsRepository.save(new DataHostLms(id, code,
+				"Test Host LMS", "", Map.of())))
+			.block();
+	}
+
+	public DataHostLms createHostLms_returnDataHostLms(UUID id, String code) {
+		return Mono.from(hostLmsRepository.save(new DataHostLms(id, code,
 				"Test Host LMS", "", Map.of())))
 			.block();
 	}

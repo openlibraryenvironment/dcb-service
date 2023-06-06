@@ -2,6 +2,7 @@ package org.olf.reshare.dcb.storage;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.annotation.Join;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import org.olf.reshare.dcb.core.model.ShelvingLocation;
@@ -31,6 +32,7 @@ public interface ShelvingLocationRepository {
 
 	@NonNull
 	@SingleResult
+	@Join(value = "agency")
 	Publisher<ShelvingLocation> findOneByCode(@NonNull String code);
 
 	@NonNull

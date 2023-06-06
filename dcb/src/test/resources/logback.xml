@@ -8,12 +8,12 @@
 		</encoder>
 	</appender>
 
-	<!--
-	Uncomment as you need but please don't commit with these turned on
+
+<!--	Uncomment as you need but please don't commit with these turned on-->
 	<logger name="io.micronaut.http.client" level="TRACE"/>
 	<logger name="io.micronaut.data.query" level="TRACE"/>
-	<logger name="io.r2dbc.postgresql.QUERY" level="DEBUG"/>
-	-->
+	<logger name="io.r2dbc.postgresql.QUERY" level="TRACE"/>
+
 	<logger name="org.mockserver" level="WARN"/>
 	<logger name="org.flywaydb" level="DEBUG"/>
 	<logger name="org.flyway" level="DEBUG"/>

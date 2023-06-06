@@ -103,6 +103,7 @@ public class BorrowingAgencyService {
 		log.debug("createVirtualItem for localBibId {}",localBibId);
 
 		return Mono.from(shelvingLocationRepository.findOneByCode(supplierRequest.getLocalItemLocationCode()))
+			.doOnSuccess(shelvingLocation -> log.debug("this is the shelving location: {}",shelvingLocation))
 			.map(shelvingLocation -> {
 				if (shelvingLocation.getAgency() != null) {
 					return shelvingLocation.getAgency().getCode();

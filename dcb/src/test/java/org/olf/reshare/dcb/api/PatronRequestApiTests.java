@@ -1,40 +1,5 @@
 package org.olf.reshare.dcb.api;
 
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
-import static io.micronaut.http.HttpStatus.NOT_FOUND;
-import static io.micronaut.http.HttpStatus.OK;
-import static java.util.Objects.requireNonNull;
-import static java.util.UUID.randomUUID;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasProperty;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import org.hamcrest.Matcher;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.mockserver.client.MockServerClient;
-import org.olf.reshare.dcb.core.HostLmsService;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraBibsAPIFixture;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.reshare.dcb.request.fulfilment.PatronService;
-import org.olf.reshare.dcb.test.BibRecordFixture;
-import org.olf.reshare.dcb.test.ClusterRecordFixture;
-import org.olf.reshare.dcb.test.DcbTest;
-import org.olf.reshare.dcb.test.PatronFixture;
-import org.olf.reshare.dcb.test.PatronRequestsFixture;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.HttpRequest;
@@ -45,9 +10,37 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import net.minidev.json.JSONObject;
+import org.hamcrest.Matcher;
+import org.junit.jupiter.api.*;
+import org.mockserver.client.MockServerClient;
+import org.olf.reshare.dcb.core.HostLmsService;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraBibsAPIFixture;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.reshare.dcb.core.model.DataAgency;
+import org.olf.reshare.dcb.core.model.DataHostLms;
+import org.olf.reshare.dcb.core.model.ShelvingLocation;
+import org.olf.reshare.dcb.request.fulfilment.PatronService;
+import org.olf.reshare.dcb.storage.AgencyRepository;
+import org.olf.reshare.dcb.storage.ShelvingLocationRepository;
+import org.olf.reshare.dcb.test.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import static io.micronaut.http.HttpStatus.*;
+import static java.util.Objects.requireNonNull;
+import static java.util.UUID.randomUUID;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 
 @DcbTest
@@ -73,6 +66,9 @@ class PatronRequestApiTests {
 	private HostLmsService hostLmsService;
 
 	@Inject
+	private HostLmsFixture hostLmsFixture;
+
+	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
 
 	@Inject
@@ -80,6 +76,12 @@ class PatronRequestApiTests {
 
 	@Inject
 	private PatronRequestApiClient patronRequestApiClient;
+
+	@Inject
+	private ShelvingLocationRepository shelvingLocationRepository;
+
+	@Inject
+	private AgencyRepository agencyRepository;
 
 	@Inject
 	private PatronService patronService;
@@ -173,6 +175,24 @@ class PatronRequestApiTests {
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
+		// add shelving location
+		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
+		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
+
+		DataAgency dataAgency = Mono.from(
+			agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2))).block();
+
+		ShelvingLocation shelvingLocation = ShelvingLocation.builder()
+			.id(randomUUID())
+			.code("ab6")
+			.name("name")
+			.hostSystem(dataHostLms1)
+			.agency(dataAgency)
+			.build();
+
+		Mono.from(shelvingLocationRepository.save(shelvingLocation))
+			.block();
+
 		// Act
 		var placedRequestResponse = patronRequestApiClient.placePatronRequest(
 			clusterRecordId, "872321", "ABC123", "test1", "home-library");
@@ -247,6 +267,24 @@ class PatronRequestApiTests {
 		patronService.createPatron("test1", "43546",
 			"home-library").block();
 
+		// add shelving location
+		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
+		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
+
+		DataAgency dataAgency = Mono.from(
+			agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2))).block();
+
+		ShelvingLocation shelvingLocation = ShelvingLocation.builder()
+			.id(randomUUID())
+			.code("ab6")
+			.name("name")
+			.hostSystem(dataHostLms1)
+			.agency(dataAgency)
+			.build();
+
+		Mono.from(shelvingLocationRepository.save(shelvingLocation))
+			.block();
+
 		// Act
 		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
 			clusterRecordId, "43546", "ABC123", "test1", "home-library");
@@ -302,7 +340,6 @@ class PatronRequestApiTests {
 		assertThat(supplierRequest.item().localItemBarcode(), is("9849123490"));
 		assertThat(supplierRequest.item().localItemLocationCode(), is("ab6"));
 	}
-
 
 	@Test
 	void cannotFulfilPatronRequestWhenNoRequestableItemsAreFound() {
