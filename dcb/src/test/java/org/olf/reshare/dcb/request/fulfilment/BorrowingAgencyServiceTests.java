@@ -121,6 +121,24 @@ class BorrowingAgencyServiceTests {
 		// Register an expectation that when the client calls /patrons/43546 we respond with the patron record
 		sierraPatronsAPIFixture.addPatronGetExpectation(43546L);
 		sierraPatronsAPIFixture.addPatronGetExpectation(872321L);
+
+		// add shelving location
+		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
+		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
+
+		DataAgency dataAgency = Mono.from(
+			agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2))).block();
+
+		ShelvingLocation shelvingLocation = ShelvingLocation.builder()
+			.id(randomUUID())
+			.code("ab6")
+			.name("name")
+			.hostSystem(dataHostLms1)
+			.agency(dataAgency)
+			.build();
+
+		Mono.from(shelvingLocationRepository.save(shelvingLocation))
+			.block();
 	}
 
 	@BeforeEach
@@ -134,7 +152,7 @@ class BorrowingAgencyServiceTests {
 	}
 
 	@Test
-	void placeRequestAtBorrowingAgency_success() {
+	void placeRequestAtBorrowingAgencySucceeds() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
@@ -159,24 +177,6 @@ class BorrowingAgencyServiceTests {
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "localItemId",
 			"ab6", "9849123490", testHostLms.code);
 
-		// add shelving location
-		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
-		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
-
-		DataAgency dataAgency = Mono.from(
-			agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2))).block();
-
-		ShelvingLocation shelvingLocation = ShelvingLocation.builder()
-			.id(randomUUID())
-			.code("ab6")
-			.name("name")
-			.hostSystem(dataHostLms1)
-			.agency(dataAgency)
-			.build();
-
-		Mono.from(shelvingLocationRepository.save(shelvingLocation))
-			.block();
-
 		// Act
 		final var pr = borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest).block();
 
@@ -187,7 +187,7 @@ class BorrowingAgencyServiceTests {
 	}
 
 	@Test
-	void placeRequestAtBorrowingAgency_failure() {
+	void placeRequestAtBorrowingAgencyThrows500WithBodyBroken() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
@@ -211,24 +211,6 @@ class BorrowingAgencyServiceTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "localItemId",
 			"ab6", "9849123490", testHostLms.code);
-
-		// add shelving location
-		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
-		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
-
-		DataAgency dataAgency = Mono.from(
-			agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2))).block();
-
-		ShelvingLocation shelvingLocation = ShelvingLocation.builder()
-			.id(randomUUID())
-			.code("ab6")
-			.name("name")
-			.hostSystem(dataHostLms1)
-			.agency(dataAgency)
-			.build();
-
-		Mono.from(shelvingLocationRepository.save(shelvingLocation))
-			.block();
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
