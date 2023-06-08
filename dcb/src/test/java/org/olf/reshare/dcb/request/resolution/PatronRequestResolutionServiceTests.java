@@ -33,16 +33,16 @@ import org.olf.reshare.dcb.core.model.Location;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.item.availability.AvailabilityReport;
-import org.olf.reshare.dcb.item.availability.LiveAvailability;
+import org.olf.reshare.dcb.item.availability.LiveAvailabilityService;
 
 import reactor.core.publisher.Mono;
 
 class PatronRequestResolutionServiceTests {
-	private final ClusteredBibFinder clusteredBibFinder = mock(ClusteredBibFinder.class);
-	private final LiveAvailability liveAvailability = mock(LiveAvailability.class);
+	private final SharedIndexService sharedIndexService = mock(SharedIndexService.class);
+	private final LiveAvailabilityService liveAvailability = mock(LiveAvailabilityService.class);
 
 	private final PatronRequestResolutionService resolutionService
-		= new PatronRequestResolutionService(clusteredBibFinder, liveAvailability);
+		= new PatronRequestResolutionService(sharedIndexService, liveAvailability);
 
 	@Test
 	@DisplayName("Should resolve request to only item when single item found")
@@ -55,7 +55,7 @@ class PatronRequestResolutionServiceTests {
 		final var clusteredBib = createClusteredBib(List.of(createFakeBib("65767547", hostLms)));
 		final var clusteredBibId = clusteredBib.getId();
 
-		when(clusteredBibFinder.findClusteredBib(clusteredBibId))
+		when(sharedIndexService.findClusteredBib(clusteredBibId))
 			.thenReturn(Mono.just(clusteredBib));
 
 		when(liveAvailability.getAvailableItems(clusteredBib))
@@ -103,7 +103,7 @@ class PatronRequestResolutionServiceTests {
 		final var clusteredBib = createClusteredBib(List.of(createFakeBib("65767547", hostLms)));
 		final var clusteredBibId = clusteredBib.getId();
 
-		when(clusteredBibFinder.findClusteredBib(clusteredBibId))
+		when(sharedIndexService.findClusteredBib(clusteredBibId))
 			.thenReturn(Mono.just(clusteredBib));
 
 		when(liveAvailability.getAvailableItems(clusteredBib))
@@ -152,7 +152,7 @@ class PatronRequestResolutionServiceTests {
 		final var clusteredBib = new ClusteredBib(bibClusterId, "Brain of the Firm",
 			List.of(createFakeBib("56547675", hostLms)));
 
-		when(clusteredBibFinder.findClusteredBib(bibClusterId))
+		when(sharedIndexService.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
 
 		when(liveAvailability.getAvailableItems(clusteredBib))
@@ -186,7 +186,7 @@ class PatronRequestResolutionServiceTests {
 		final var clusteredBib = new ClusteredBib(bibClusterId, "Brain of the Firm",
 			List.of(createFakeBib("56547675", hostLms)));
 
-		when(clusteredBibFinder.findClusteredBib(bibClusterId))
+		when(sharedIndexService.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
 
 		when(liveAvailability.getAvailableItems(clusteredBib))
@@ -219,7 +219,7 @@ class PatronRequestResolutionServiceTests {
 		final var clusteredBib = new ClusteredBib(bibClusterId, "Brain of the Firm",
 			List.of(createFakeBib("56547675", hostLms)));
 
-		when(clusteredBibFinder.findClusteredBib(bibClusterId))
+		when(sharedIndexService.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
 
 		when(liveAvailability.getAvailableItems(clusteredBib))
@@ -250,7 +250,7 @@ class PatronRequestResolutionServiceTests {
 		final var clusteredBib = new ClusteredBib(bibClusterId, "Brain of the Firm",
 			List.of());
 
-		when(clusteredBibFinder.findClusteredBib(bibClusterId))
+		when(sharedIndexService.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
 
 		final var patronRequest = createPatronRequest(bibClusterId);
@@ -275,7 +275,7 @@ class PatronRequestResolutionServiceTests {
 		final var clusteredBib = new ClusteredBib(bibClusterId, "Brain of the Firm",
 			null);
 
-		when(clusteredBibFinder.findClusteredBib(bibClusterId))
+		when(sharedIndexService.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.just(clusteredBib));
 
 		final var patronRequest = createPatronRequest(bibClusterId);
@@ -297,7 +297,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibClusterId = randomUUID();
 
-		when(clusteredBibFinder.findClusteredBib(bibClusterId))
+		when(sharedIndexService.findClusteredBib(bibClusterId))
 			.thenReturn(Mono.empty());
 
 		final var patronRequest = createPatronRequest(bibClusterId);

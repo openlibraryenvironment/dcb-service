@@ -13,7 +13,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Prototype
-public class LiveAvailabilityService implements LiveAvailability {
+public class LiveAvailabilityService {
 	private static final Logger log = LoggerFactory.getLogger(LiveAvailabilityService.class);
 
 	private final HostLmsService hostLmsService;
@@ -26,7 +26,6 @@ public class LiveAvailabilityService implements LiveAvailability {
 		this.requestableItemService = requestableItemService;
 	}
 
-	@Override
 	public Mono<AvailabilityReport> getAvailableItems(ClusteredBib clusteredBib) {
 		log.debug("getAvailableItems({})", clusteredBib);
 
