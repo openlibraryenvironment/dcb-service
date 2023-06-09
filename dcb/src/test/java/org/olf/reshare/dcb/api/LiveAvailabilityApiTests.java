@@ -16,12 +16,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.reshare.dcb.test.BibRecordFixture;
 import org.olf.reshare.dcb.test.ClusterRecordFixture;
+import org.olf.reshare.dcb.test.HostLmsFixture;
 
-import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
@@ -29,19 +28,15 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.uri.UriBuilder;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@MicronautTest(transactional = false, propertySources = { "classpath:configs/LiveAvailabilityApiTests.yml" }, rebuildContext = true)
-@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
-@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LiveAvailabilityApiTests {
-	private static final String SIERRA_TOKEN = "test-token-for-user";
+	private static final String HOST_LMS_CODE = "live-availability-api-tests";
 
 	@Inject
 	private ResourceLoader loader;
@@ -53,27 +48,28 @@ class LiveAvailabilityApiTests {
 	@Inject
 	private BibRecordFixture bibRecordFixture;
 	@Inject
-	private HostLmsService hostLmsService;
-
-	// Properties should line up with included property source for the spec.
-	@Property(name = "hosts.test1.client.base-url")
-	private String sierraHost;
-	@Property(name = "hosts.test1.client.key")
-	private String sierraUser;
-	@Property(name = "hosts.test1.client.secret")
-	private String sierraPass;
+	private HostLmsFixture hostLmsFixture;
 
 	@BeforeAll
 	@SneakyThrows
-	public void addFakeSierraApis(MockServerClient mock) {
-		SierraTestUtils.mockFor(mock, sierraHost)
-			.setValidCredentials(sierraUser, sierraPass, SIERRA_TOKEN, 60);
+	public void beforeAll(MockServerClient mock) {
+		final String TOKEN = "test-token";
+		final String BASE_URL = "https://live-availability-api-tests.com";
+		final String KEY = "live-availability-key";
+		final String SECRET = "live-availability-secret";
+
+		SierraTestUtils.mockFor(mock, BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 
 		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");
 		sierraItemsAPIFixture.errorResponseForBibId("232563");
+
+		hostLmsFixture.deleteAllHostLMS();
+
+		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 	}
 
 	@BeforeEach
@@ -170,14 +166,14 @@ class LiveAvailabilityApiTests {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 
-		final var testHostLms = hostLmsService.findByCode("test1").block();
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 
-		bibRecordFixture.createBibRecord(randomUUID(), testHostLms.getId(),
+		bibRecordFixture.createBibRecord(randomUUID(), hostLms.getId(),
 			"798472", clusterRecord);
 
-		bibRecordFixture.createBibRecord(randomUUID(), testHostLms.getId(),
+		bibRecordFixture.createBibRecord(randomUUID(), hostLms.getId(),
 			"232563", clusterRecord);
 
 		final var uri = UriBuilder.of("/items/availability")
@@ -206,8 +202,8 @@ class LiveAvailabilityApiTests {
 
 		final var onlyError = availabilityResponse.getErrors().get(0);
 
-		assertThat("Error should include a message",
-			onlyError.getMessage(), is("Failed to fetch items for bib: 232563 from host: test1"));
+		assertThat("Error should include a message", onlyError.getMessage(),
+			is("Failed to fetch items for bib: 232563 from host: live-availability-api-tests"));
 	}
 
 	@Test
@@ -286,9 +282,9 @@ class LiveAvailabilityApiTests {
 	private void createClusterRecordAndBibRecord(UUID clusterRecordId, String sourceRecordId) {
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 
-		final var testHostLms = hostLmsService.findByCode("test1").block();
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 
-		UUID sourceSystemId = testHostLms.getId();
+		final var sourceSystemId = hostLms.getId();
 
 		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId,
 			sourceRecordId, clusterRecord);

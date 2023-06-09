@@ -13,85 +13,69 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.test.BibRecordFixture;
 import org.olf.reshare.dcb.test.ClusterRecordFixture;
+import org.olf.reshare.dcb.test.HostLmsFixture;
 import org.olf.reshare.dcb.test.PatronFixture;
 import org.olf.reshare.dcb.test.PatronIdentityFixture;
 import org.olf.reshare.dcb.test.PatronRequestsFixture;
 import org.olf.reshare.dcb.test.SupplierRequestsFixture;
 
-import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
-import lombok.SneakyThrows;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 
 @MockServerMicronautTest
-@MicronautTest(transactional = false, propertySources = { "classpath:configs/PatronRequestApiTests.yml" }, rebuildContext = true)
-@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
-@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BorrowingAgencyServiceTests {
-	private static final String SIERRA_TOKEN = "test-token-for-user";
+	private static final String HOST_LMS_CODE = "borrowing-agency-service-tests";
 
 	@Inject
 	ResourceLoader loader;
-
 	@Inject
 	private PatronRequestsFixture patronRequestsFixture;
-
 	@Inject
 	private PatronFixture patronFixture;
-
 	@Inject
-	private HostLmsService hostLmsService;
-
+	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
-
 	@Inject
 	private BorrowingAgencyService borrowingAgencyService;
-
 	@Inject
 	private BibRecordFixture bibRecordFixture;
-
 	@Inject
 	private PatronIdentityFixture patronIdentityFixture;
-
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
 
-	// Properties should line up with included property source for the spec.
-	@Property(name = "hosts.test1.client.base-url")
-	private String sierraHost;
-
-	@Property(name = "hosts.test1.client.key")
-	private String sierraUser;
-
-	@Property(name = "hosts.test1.client.secret")
-	private String sierraPass;
-
 	@BeforeAll
-	@SneakyThrows
-	public void addFakeSierraApis(MockServerClient mock) {
-		SierraTestUtils.mockFor(mock, sierraHost)
-			.setValidCredentials(sierraUser, sierraPass, SIERRA_TOKEN, 60);
+	public void beforeAll(MockServerClient mock) {
+		final String TOKEN = "test-token";
+		final String BASE_URL = "https://borrowing-agency-service-tests.com";
+		final String KEY = "borrowing-agency-service-key";
+		final String SECRET = "borrowing-agency-service-secret";
+
+		SierraTestUtils.mockFor(mock, BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+
+		hostLmsFixture.deleteAllHostLMS();
+
+		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 
 		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
 
-		BibPatch bibPatch = BibPatch.builder()
+		final var bibPatch = BibPatch.builder()
 			.authors(new String[]{"Stafford Beer"})
 			.titles(new String[]{"Brain of the Firm"})
 			.bibCode3("n")
@@ -130,13 +114,13 @@ class BorrowingAgencyServiceTests {
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 
-		final var testHostLms = hostLmsService.findByCode("test1").block();
-		final var sourceSystemId = testHostLms.getId();
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var sourceSystemId = hostLms.getId();
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron(randomUUID(), "872321");
-		patronIdentityFixture.saveHomeIdentity(randomUUID(), patron, "872321", testHostLms);
+		patronIdentityFixture.saveHomeIdentity(randomUUID(), patron, "872321", hostLms);
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()
@@ -148,12 +132,13 @@ class BorrowingAgencyServiceTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "localItemId",
-			"ab6", "9849123490", testHostLms.code);
+			"ab6", "9849123490", hostLms.code);
 
 		// Act
 		final var pr = borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest).block();
 
 		// Assert
+		assertThat("Patron request should not be null", pr, is(notNullValue()));
 		assertThat("Status code wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
 		assertThat("Local request id wasn't expected.", pr.getLocalRequestId(), is("864902"));
 		assertThat("Local request status wasn't expected.", pr.getLocalRequestStatus(), is("PLACED"));
@@ -165,13 +150,13 @@ class BorrowingAgencyServiceTests {
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 
-		final var testHostLms = hostLmsService.findByCode("test1").block();
-		final var sourceSystemId = testHostLms.getId();
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var sourceSystemId = hostLms.getId();
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron(randomUUID(), "972321");
-		patronIdentityFixture.saveHomeIdentity(randomUUID(), patron, "972321", testHostLms);
+		patronIdentityFixture.saveHomeIdentity(randomUUID(), patron, "972321", hostLms);
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()
@@ -183,7 +168,7 @@ class BorrowingAgencyServiceTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "localItemId",
-			"ab6", "9849123490", testHostLms.code);
+			"ab6", "9849123490", hostLms.code);
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
