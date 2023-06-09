@@ -1,19 +1,28 @@
 package org.olf.reshare.dcb.api;
 
-import io.micronaut.context.annotation.Property;
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import jakarta.inject.Inject;
-import lombok.SneakyThrows;
-import net.minidev.json.JSONObject;
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
+import static io.micronaut.http.HttpStatus.NOT_FOUND;
+import static io.micronaut.http.HttpStatus.OK;
+import static java.util.Objects.requireNonNull;
+import static java.util.UUID.randomUUID;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import org.hamcrest.Matcher;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
@@ -23,98 +32,75 @@ import org.olf.reshare.dcb.core.model.ShelvingLocation;
 import org.olf.reshare.dcb.request.fulfilment.PatronService;
 import org.olf.reshare.dcb.storage.AgencyRepository;
 import org.olf.reshare.dcb.storage.ShelvingLocationRepository;
-import org.olf.reshare.dcb.test.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.olf.reshare.dcb.test.BibRecordFixture;
+import org.olf.reshare.dcb.test.ClusterRecordFixture;
+import org.olf.reshare.dcb.test.HostLmsFixture;
+import org.olf.reshare.dcb.test.PatronFixture;
+import org.olf.reshare.dcb.test.PatronRequestsFixture;
+
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.annotation.Client;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import jakarta.inject.Inject;
+import net.minidev.json.JSONObject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
-import static io.micronaut.http.HttpStatus.*;
-import static java.util.Objects.requireNonNull;
-import static java.util.UUID.randomUUID;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
-
-@DcbTest
 @MockServerMicronautTest
-@MicronautTest(transactional = false, propertySources = { "classpath:configs/PatronRequestApiTests.yml" }, rebuildContext = true)
-@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
-@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PatronRequestApiTests {
-	private static final String SIERRA_TOKEN = "test-token-for-user";
-	private static final Logger log = LoggerFactory.getLogger(PatronRequestApiTests.class);
+	private static final String HOST_LMS_CODE = "patron-request-api-tests";
 
 	@Inject
 	ResourceLoader loader;
-
 	@Inject
 	private PatronRequestsFixture patronRequestsFixture;
-
 	@Inject
 	private PatronFixture patronFixture;
-
-	@Inject
-	private HostLmsService hostLmsService;
-
 	@Inject
 	private HostLmsFixture hostLmsFixture;
-
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
-
 	@Inject
 	private BibRecordFixture bibRecordFixture;
-
 	@Inject
 	private PatronRequestApiClient patronRequestApiClient;
-
 	@Inject
 	private ShelvingLocationRepository shelvingLocationRepository;
-
 	@Inject
 	private AgencyRepository agencyRepository;
-
 	@Inject
 	private PatronService patronService;
-
 	@Inject
 	private AdminApiClient adminApiClient;
-
 	@Inject
 	@Client("/")
 	private HttpClient client;
 
-	// Properties should line up with included property source for the spec.
-	@Property(name = "hosts.test1.client.base-url")
-	private String sierraHost;
-
-	@Property(name = "hosts.test1.client.key")
-	private String sierraUser;
-
-	@Property(name = "hosts.test1.client.secret")
-	private String sierraPass;
-
 	@BeforeAll
-	@SneakyThrows
-	public void addFakeSierraApis(MockServerClient mock) {
-		SierraTestUtils.mockFor(mock, sierraHost)
-			.setValidCredentials(sierraUser, sierraPass, SIERRA_TOKEN, 60);
+	void beforeAll(MockServerClient mock) {
+		final String TOKEN = "test-token";
+		final String BASE_URL = "https://patron-request-api-tests.com";
+		final String KEY = "patron-request-key";
+		final String SECRET = "patron-request-secret";
+
+		SierraTestUtils.mockFor(mock, BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+
+		hostLmsFixture.deleteAllHostLMS();
+
+		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
+		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
 
 		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");
-
-		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 
 		// patron service
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@home-library");
@@ -131,9 +117,7 @@ class PatronRequestApiTests {
 		sierraPatronsAPIFixture.patronHoldResponse("6235472");
 
 		// borrowing agency service
-		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
-
-		BibPatch bibPatch = BibPatch.builder()
+		final var bibPatch = BibPatch.builder()
 			.authors(new String[]{"Stafford Beer"})
 			.titles(new String[]{"Brain of the Firm"})
 			.bibCode3("n")
@@ -195,14 +179,14 @@ class PatronRequestApiTests {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
-		final var testHostLms = hostLmsService.findByCode("test1").block();
-		final var sourceSystemId = testHostLms.getId();
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var sourceSystemId = hostLms.getId();
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		// Act
 		var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, "872321", "ABC123", "test1", "home-library");
+			clusterRecordId, "872321", "ABC123", HOST_LMS_CODE, "home-library");
 
 		// Assert
 		assertThat(placedRequestResponse.getStatus(), is(OK));
@@ -211,7 +195,7 @@ class PatronRequestApiTests {
 
 		assertThat(placedPatronRequest.requestor(), is(notNullValue()));
 		assertThat(placedPatronRequest.requestor().homeLibraryCode(), is("home-library"));
-		assertThat(placedPatronRequest.requestor().localSystemCode(), is("test1"));
+		assertThat(placedPatronRequest.requestor().localSystemCode(), is(HOST_LMS_CODE));
 		assertThat(placedPatronRequest.requestor().localId(), is("872321"));
 
 		AdminApiClient.AdminAccessPatronRequest fetchedPatronRequest = await().atMost(5, SECONDS)
@@ -237,19 +221,19 @@ class PatronRequestApiTests {
 		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(0);
 
 		assertThat(homeIdentity.homeIdentity(), is(true));
-		assertThat(homeIdentity.hostLmsCode(), is("test1"));
+		assertThat(homeIdentity.hostLmsCode(), is(HOST_LMS_CODE));
 		assertThat(homeIdentity.localId(), is("872321"));
 
 		final var supplierIdentity = fetchedPatronRequest.requestor().identities().get(1);
 
 		assertThat(supplierIdentity.homeIdentity(), is(false));
-		assertThat(supplierIdentity.hostLmsCode(), is("test1"));
+		assertThat(supplierIdentity.hostLmsCode(), is(HOST_LMS_CODE));
 		assertThat(supplierIdentity.localId(), is("2745326"));
 
 		final var supplierRequest = fetchedPatronRequest.supplierRequests().get(0);
 
 		assertThat(supplierRequest.id(), is(notNullValue()));
-		assertThat(supplierRequest.hostLmsCode(), is("test1"));
+		assertThat(supplierRequest.hostLmsCode(), is(HOST_LMS_CODE));
 		assertThat(supplierRequest.status(), is("PLACED"));
 		assertThat(supplierRequest.localHoldId(), is("407557"));
 		assertThat(supplierRequest.localHoldStatus(), is("PLACED"));
@@ -261,23 +245,20 @@ class PatronRequestApiTests {
 	@Test
 	@DisplayName("should place patron request with existing patron")
 	void shouldPlacePatronRequestWithExistingPatron() {
-
-		log.debug("shouldPlacePatronRequestWithExistingPatron()");
-
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
-		final var testHostLms = hostLmsService.findByCode("test1").block();
-		final var sourceSystemId = testHostLms.getId();
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var sourceSystemId = hostLms.getId();
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
-		patronService.createPatron("test1", "43546",
+		patronService.createPatron(HOST_LMS_CODE, "43546",
 			"home-library").block();
 
 		// Act
 		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, "43546", "ABC123", "test1", "home-library");
+			clusterRecordId, "43546", "ABC123", HOST_LMS_CODE, "home-library");
 
 		// Assert
 		assertThat(placedRequestResponse.getStatus(), is(OK));
@@ -286,7 +267,7 @@ class PatronRequestApiTests {
 
 		assertThat(placedPatronRequest.requestor(), is(notNullValue()));
 		assertThat(placedPatronRequest.requestor().homeLibraryCode(), is("home-library"));
-		assertThat(placedPatronRequest.requestor().localSystemCode(), is("test1"));
+		assertThat(placedPatronRequest.requestor().localSystemCode(), is(HOST_LMS_CODE));
 		assertThat(placedPatronRequest.requestor().localId(), is("43546"));
 
 		var fetchedPatronRequest = await().atMost(5, SECONDS)
@@ -312,19 +293,19 @@ class PatronRequestApiTests {
 		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(0);
 
 		assertThat(homeIdentity.homeIdentity(), is(true));
-		assertThat(homeIdentity.hostLmsCode(), is("test1"));
+		assertThat(homeIdentity.hostLmsCode(), is(HOST_LMS_CODE));
 		assertThat(homeIdentity.localId(), is("43546"));
 
 		final var supplierIdentity = fetchedPatronRequest.requestor().identities().get(1);
 
 		assertThat(supplierIdentity.homeIdentity(), is(false));
-		assertThat(supplierIdentity.hostLmsCode(), is("test1"));
+		assertThat(supplierIdentity.hostLmsCode(), is(HOST_LMS_CODE));
 		assertThat(supplierIdentity.localId(), is("6235472"));
 
 		final var supplierRequest = fetchedPatronRequest.supplierRequests().get(0);
 
 		assertThat(supplierRequest.id(), is(notNullValue()));
-		assertThat(supplierRequest.hostLmsCode(), is("test1"));
+		assertThat(supplierRequest.hostLmsCode(), is(HOST_LMS_CODE));
 		assertThat(supplierRequest.status(), is("PLACED"));
 		assertThat(supplierRequest.localHoldId(), is("407557"));
 		assertThat(supplierRequest.localHoldStatus(), is("PLACED"));
@@ -338,14 +319,14 @@ class PatronRequestApiTests {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
-		final var testHostLms = hostLmsService.findByCode("test1").block();
-		final var sourceSystemId = testHostLms.getId();
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var sourceSystemId = hostLms.getId();
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "565382", clusterRecord);
 
 		// Act
 		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(clusterRecordId, "43546",
-			"ABC123", "test1", "homeLibraryCode");
+			"ABC123", HOST_LMS_CODE, "homeLibraryCode");
 
 		// Need a longer timeout because retrying the Sierra API,
 		// which happens when the zero items 404 response is received,
@@ -365,7 +346,7 @@ class PatronRequestApiTests {
 
 		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(0);
 		assertThat(homeIdentity.homeIdentity(), is(true));
-		assertThat(homeIdentity.hostLmsCode(), is("test1"));
+		assertThat(homeIdentity.hostLmsCode(), is(HOST_LMS_CODE));
 		assertThat(homeIdentity.localId(), is("43546"));
 
 		// No supplier request
@@ -392,8 +373,8 @@ class PatronRequestApiTests {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
-		final var testHostLms = hostLmsService.findByCode("test1").block();
-		final var sourceSystemId = testHostLms.getId();
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var sourceSystemId = hostLms.getId();
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 

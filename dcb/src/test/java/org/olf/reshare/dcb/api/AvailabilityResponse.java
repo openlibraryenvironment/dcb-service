@@ -14,6 +14,8 @@ public class AvailabilityResponse {
 	private final List<Item> itemList;
 	@Nullable
 	private final UUID clusteredBibId;
+	@Nullable
+	private final List<Error> errors;
 
 	@Data
 	@Serdeable
@@ -50,6 +52,13 @@ public class AvailabilityResponse {
 		private final String code;
 		@Nullable
 		private final String name;
+	}
+
+	@Data
+	@Serdeable
+	public static class Error {
+		@Nullable
+		private final String message;
 	}
 }
 

@@ -1,5 +1,6 @@
 package org.olf.reshare.dcb.request.resolution;
 
+import static org.olf.reshare.dcb.item.availability.AvailabilityReport.emptyReport;
 import static org.olf.reshare.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
 import static org.olf.reshare.dcb.utils.PublisherErrors.failWhenEmpty;
 
@@ -10,26 +11,25 @@ import java.util.UUID;
 import org.olf.reshare.dcb.core.model.Item;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
-import org.olf.reshare.dcb.item.availability.LiveAvailability;
+import org.olf.reshare.dcb.item.availability.AvailabilityReport;
+import org.olf.reshare.dcb.item.availability.LiveAvailabilityService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.inject.Named;
-import jakarta.inject.Singleton;
+import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 
-@Singleton
+@Prototype
 public class PatronRequestResolutionService {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestResolutionService.class);
 
-	private final ClusteredBibFinder clusteredBibFinder;
-	private final LiveAvailability liveAvailabilityService;
+	private final SharedIndexService sharedIndexService;
+	private final LiveAvailabilityService liveAvailabilityService;
 
-	public PatronRequestResolutionService(
-		@Named("SharedIndexService") ClusteredBibFinder clusteredBibFinder,
-		@Named("LiveAvailabilityService") LiveAvailability liveAvailabilityService) {
+	public PatronRequestResolutionService(SharedIndexService sharedIndexService,
+		LiveAvailabilityService liveAvailabilityService) {
 
-		this.clusteredBibFinder = clusteredBibFinder;
+		this.sharedIndexService = sharedIndexService;
 		this.liveAvailabilityService = liveAvailabilityService;
 	}
 
@@ -49,7 +49,7 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<ClusteredBib> findClusterRecord(UUID clusterRecordId) {
-		return clusteredBibFinder.findClusteredBib(clusterRecordId)
+		return sharedIndexService.findClusteredBib(clusterRecordId)
 			.map(Optional::ofNullable)
 			.defaultIfEmpty(Optional.empty())
 			.map(optionalClusterRecord ->
@@ -79,7 +79,9 @@ public class PatronRequestResolutionService {
 	private Mono<List<Item>> getItems(ClusteredBib clusteredBib) {
 		log.debug("getAvailableItems({})", clusteredBib);
 
-		return liveAvailabilityService.getAvailableItems(clusteredBib);
+		return liveAvailabilityService.getAvailableItems(clusteredBib)
+			.switchIfEmpty(Mono.just(emptyReport()))
+			.map(AvailabilityReport::getItems);
 	}
 
 	private Item chooseFirstRequestableItem(List<Item> items, UUID clusterRecordId) {
