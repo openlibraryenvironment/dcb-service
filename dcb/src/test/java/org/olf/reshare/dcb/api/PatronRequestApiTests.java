@@ -15,6 +15,8 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.UUID;
+
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -148,8 +150,10 @@ class PatronRequestApiTests {
 		clusterRecordFixture.deleteAllClusterRecords();
 
 		// add shelving location
-		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
-		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
+		UUID id1 = randomUUID();
+		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms(id1, "code");
+		UUID id = randomUUID();
+		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
 
 		DataAgency dataAgency = Mono.from(
 			agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2))).block();

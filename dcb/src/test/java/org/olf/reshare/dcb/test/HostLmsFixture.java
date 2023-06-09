@@ -1,6 +1,7 @@
 package org.olf.reshare.dcb.test;
 
 import static java.util.UUID.randomUUID;
+import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.Map;
 import java.util.UUID;
@@ -15,7 +16,6 @@ import org.olf.reshare.dcb.storage.HostLmsRepository;
 
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.http.client.HttpClient;
-import reactor.core.publisher.Mono;
 
 @Prototype
 public class HostLmsFixture {
@@ -36,12 +36,12 @@ public class HostLmsFixture {
 		this.patronIdentityFixture = patronIdentityFixture;
 	}
 
-	public void createHostLms(DataHostLms hostLms) {
-		Mono.from(hostLmsRepository.save(hostLms)).block();
+	public DataHostLms createHostLms(DataHostLms hostLms) {
+		return singleValueFrom(hostLmsRepository.save(hostLms));
 	}
 
-	public void createHostLms(UUID id, String code) {
-		createHostLms(new DataHostLms(id, code, "Test Host LMS",
+	public DataHostLms createHostLms(UUID id, String code) {
+		return createHostLms(new DataHostLms(id, code, "Test Host LMS",
 			SierraLmsClient.class.getCanonicalName(), Map.of()));
 	}
 
@@ -59,12 +59,6 @@ public class HostLmsFixture {
 					"secret", password,
 					"base-url", host))
 				.build());
-	}
-
-	public DataHostLms createHostLms_returnDataHostLms(UUID id, String code) {
-		return Mono.from(hostLmsRepository.save(new DataHostLms(id, code,
-				"Test Host LMS", "", Map.of())))
-			.block();
 	}
 
 	public void deleteAllHostLMS() {

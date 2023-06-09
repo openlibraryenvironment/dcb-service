@@ -8,6 +8,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -118,8 +120,10 @@ class BorrowingAgencyServiceTests {
 		clusterRecordFixture.deleteAllClusterRecords();
 
 		// add shelving location
-		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
-		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms_returnDataHostLms(randomUUID(), "code");
+		UUID id1 = randomUUID();
+		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms(id1, "code");
+		UUID id = randomUUID();
+		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
 
 		DataAgency dataAgency = Mono.from(
 			agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2))).block();
