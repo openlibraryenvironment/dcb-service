@@ -65,6 +65,12 @@ public class PatronRequest {
 	@Nullable
 	private String localRequestStatus;
 
+	@Nullable
+	private String localItemId;
+
+	@Nullable
+	private String localBibId;
+
 
 	public PatronRequest resolve() {
 		statusCode = RESOLVED;
@@ -78,9 +84,9 @@ public class PatronRequest {
 		return this;
 	}
 
-	public PatronRequest placedAtBorrowingAgency(String borrowingId, String borrowingStatus) {
-		localRequestId = borrowingId;
-		localRequestStatus = borrowingStatus;
+	public PatronRequest placedAtBorrowingAgency(String localId, String localStatus) {
+		localRequestId = localId;
+		localRequestStatus = localStatus;
 		statusCode = REQUEST_PLACED_AT_BORROWING_AGENCY;
 
 		return this;

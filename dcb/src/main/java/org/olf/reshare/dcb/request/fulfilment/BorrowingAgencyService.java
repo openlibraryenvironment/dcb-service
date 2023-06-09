@@ -9,9 +9,10 @@ import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.request.resolution.SharedIndexService;
 import org.olf.reshare.dcb.request.resolution.SupplierRequestService;
-import org.olf.reshare.dcb.storage.PatronIdentityRepository;
 import org.olf.reshare.dcb.storage.BibRepository;
 import org.olf.reshare.dcb.storage.ClusterRecordRepository;
+import org.olf.reshare.dcb.storage.PatronIdentityRepository;
+import org.olf.reshare.dcb.storage.ShelvingLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
@@ -20,9 +21,8 @@ import reactor.util.function.Tuple4;
 import reactor.util.function.Tuple5;
 import reactor.util.function.Tuples;
 
-import java.util.LinkedHashMap;
-import java.util.UUID;
 import java.util.Map;
+import java.util.UUID;
 
 import static reactor.function.TupleUtils.function;
 
@@ -36,13 +36,15 @@ public class BorrowingAgencyService {
 	private final SupplierRequestService supplierRequestService;
 	private final BibRepository bibRepository;
 	private final ClusterRecordRepository clusterRecordRepository;
+	private final ShelvingLocationRepository shelvingLocationRepository;
 
 	public BorrowingAgencyService(SharedIndexService sharedIndexService,
 		HostLmsService hostLmsService,
 		PatronIdentityRepository patronIdentityRepository,
 		SupplierRequestService supplierRequestService,
-                BibRepository bibRepository,
-                ClusterRecordRepository clusterRecordRepository) {
+		BibRepository bibRepository,
+		ClusterRecordRepository clusterRecordRepository,
+		ShelvingLocationRepository shelvingLocationRepository) {
 
 		this.sharedIndexService = sharedIndexService;
 		this.hostLmsService = hostLmsService;
@@ -50,6 +52,7 @@ public class BorrowingAgencyService {
 		this.supplierRequestService = supplierRequestService;
 		this.bibRepository = bibRepository;
 		this.clusterRecordRepository = clusterRecordRepository;
+		this.shelvingLocationRepository = shelvingLocationRepository;
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(PatronRequest patronRequest) {
@@ -73,15 +76,16 @@ public class BorrowingAgencyService {
 		final UUID bibClusterId = patronRequest.getBibClusterId();
 		log.debug("createVirtualBib for cluster {}",bibClusterId);
 		return Mono.from(clusterRecordRepository.findById(bibClusterId))
-				.flatMap( clusterRecord -> Mono.from(bibRepository.findById(clusterRecord.getSelectedBib())))
-				.flatMap( bibRecord -> Mono.just(bibRecord.getCanonicalMetadata()) )
-				.flatMap( metadata -> {
-					String title = extractMetadata(metadata,"title");
-					Map<String,Object> authorMetadata = (Map<String,Object>) metadata.get("author");
-					String author = authorMetadata != null ? extractMetadata(authorMetadata,"name") : null;
-					return hostLmsClient.createBib(author,title);
-				})
-				.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual bib.")))
+			.flatMap( clusterRecord -> Mono.from(bibRepository.findById(clusterRecord.getSelectedBib())))
+			.flatMap( bibRecord -> Mono.just(bibRecord.getCanonicalMetadata()) )
+			.flatMap( metadata -> {
+				String title = extractMetadata(metadata,"title");
+				Map<String,Object> authorMetadata = (Map<String,Object>) metadata.get("author");
+				String author = authorMetadata != null ? extractMetadata(authorMetadata,"name") : null;
+				return hostLmsClient.createBib(author,title);
+			})
+			.doOnNext(patronRequest::setLocalBibId)
+			.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual bib.")))
 			.map(localBibId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, supplierRequest, localBibId));
 	}
 
@@ -97,11 +101,16 @@ public class BorrowingAgencyService {
 		PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 		SupplierRequest supplierRequest, String localBibId) {
 
-		log.debug("createVirtualItem for localBibId {}",localBibId);
+		log.debug("createVirtualItem for localBibId {}", localBibId);
 
-		return hostLmsClient.createItem(localBibId, supplierRequest.getLocalItemLocationCode(),
-				supplierRequest.getLocalItemBarcode())
+		return Mono.from(shelvingLocationRepository.findOneByCode(supplierRequest.getLocalItemLocationCode()))
+			.doOnSuccess(shelvingLocation -> log.debug("Result from getting shelving location: {}", shelvingLocation))
+			.flatMap(shelvingLocation -> {
+				String agencyCode = shelvingLocation.getAgency() != null ? shelvingLocation.getAgency().getCode() : null;
+				return hostLmsClient.createItem(localBibId, agencyCode, supplierRequest.getLocalItemBarcode());
+			})
 			.map(HostLmsItem::getLocalId)
+			.doOnNext(patronRequest::setLocalItemId)
 			.map(localItemId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId))
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));
 	}

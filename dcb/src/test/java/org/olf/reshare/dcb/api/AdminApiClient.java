@@ -56,7 +56,8 @@ class AdminApiClient {
 		record Status(@Nullable String code) { }
 
 		@Serdeable
-		record LocalRequest(@Nullable String id, @Nullable String status) { }
+		record LocalRequest(@Nullable String id, @Nullable String status,
+			@Nullable String itemId, @Nullable String bibId) { }
 
 		// Workaround: records do not support been style properties
 		public String getStatusCode() {

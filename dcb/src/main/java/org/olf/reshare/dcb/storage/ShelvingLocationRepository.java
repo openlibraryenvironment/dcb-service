@@ -1,17 +1,16 @@
 package org.olf.reshare.dcb.storage;
 
-import java.util.UUID;
-
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.annotation.Join;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
 import org.olf.reshare.dcb.core.model.ShelvingLocation;
 import org.reactivestreams.Publisher;
 
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.async.annotation.SingleResult;
-import io.micronaut.data.model.Page;
-import io.micronaut.data.model.Pageable;
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import java.util.UUID;
 
 public interface ShelvingLocationRepository {
 
@@ -33,6 +32,11 @@ public interface ShelvingLocationRepository {
 
 	@NonNull
 	@SingleResult
+	@Join(value = "agency", type = Join.Type.LEFT_FETCH)
+	Publisher<ShelvingLocation> findOneByCode(@NonNull String code);
+
+	@NonNull
+	@SingleResult
 	Publisher<Boolean> existsById(@NonNull UUID id);
 
 	@NonNull
@@ -44,4 +48,5 @@ public interface ShelvingLocationRepository {
 
 	Publisher<Void> delete(UUID id);
 
+	Publisher<Void> deleteByCode(@NotNull String code);
 }
