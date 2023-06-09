@@ -15,7 +15,10 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.UUID;
+
 import org.hamcrest.Matcher;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +28,12 @@ import org.mockserver.client.MockServerClient;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.reshare.dcb.core.model.DataAgency;
+import org.olf.reshare.dcb.core.model.DataHostLms;
+import org.olf.reshare.dcb.core.model.ShelvingLocation;
 import org.olf.reshare.dcb.request.fulfilment.PatronService;
+import org.olf.reshare.dcb.storage.AgencyRepository;
+import org.olf.reshare.dcb.storage.ShelvingLocationRepository;
 import org.olf.reshare.dcb.test.BibRecordFixture;
 import org.olf.reshare.dcb.test.ClusterRecordFixture;
 import org.olf.reshare.dcb.test.HostLmsFixture;
@@ -39,6 +47,7 @@ import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import net.minidev.json.JSONObject;
+import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -55,13 +64,17 @@ class PatronRequestApiTests {
 	@Inject
 	private PatronFixture patronFixture;
 	@Inject
+	private HostLmsFixture hostLmsFixture;
+	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
 	@Inject
 	private BibRecordFixture bibRecordFixture;
 	@Inject
-	private HostLmsFixture hostLmsFixture;
-	@Inject
 	private PatronRequestApiClient patronRequestApiClient;
+	@Inject
+	private ShelvingLocationRepository shelvingLocationRepository;
+	@Inject
+	private AgencyRepository agencyRepository;
 	@Inject
 	private PatronService patronService;
 	@Inject
@@ -135,6 +148,33 @@ class PatronRequestApiTests {
 
 		bibRecordFixture.deleteAllBibRecords();
 		clusterRecordFixture.deleteAllClusterRecords();
+
+		// add shelving location
+		UUID id1 = randomUUID();
+		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms(id1, "code");
+		UUID id = randomUUID();
+		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
+
+		DataAgency dataAgency = Mono.from(
+			agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2))).block();
+
+		ShelvingLocation shelvingLocation = ShelvingLocation.builder()
+			.id(randomUUID())
+			.code("ab6")
+			.name("name")
+			.hostSystem(dataHostLms1)
+			.agency(dataAgency)
+			.build();
+
+		Mono.from(shelvingLocationRepository.save(shelvingLocation))
+			.block();
+	}
+
+	@AfterAll
+	void afterAll() {
+		Mono.from(shelvingLocationRepository.deleteByCode("ab6")).block();
+		Mono.from(agencyRepository.deleteByCode("ab6")).block();
+		hostLmsFixture.deleteAllHostLMS();
 	}
 
 	@Test
@@ -172,7 +212,8 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.status().code(), is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
 		assertThat(fetchedPatronRequest.localRequest().id(), is("864902"));
 		assertThat(fetchedPatronRequest.localRequest().status(), is("PLACED"));
-		assertThat(fetchedPatronRequest, is(notNullValue()));
+		assertThat(fetchedPatronRequest.localRequest().itemId(), is("7916922"));
+		assertThat(fetchedPatronRequest.localRequest().bibId(), is("7916920"));
 		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
 
 		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
@@ -243,6 +284,8 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.status().code(), is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
 		assertThat(fetchedPatronRequest.localRequest().id(), is("864902"));
 		assertThat(fetchedPatronRequest.localRequest().status(), is("PLACED"));
+		assertThat(fetchedPatronRequest.localRequest().itemId(), is("7916922"));
+		assertThat(fetchedPatronRequest.localRequest().bibId(), is("7916920"));
 		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
 
 		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
@@ -274,7 +317,6 @@ class PatronRequestApiTests {
 		assertThat(supplierRequest.item().localItemBarcode(), is("9849123490"));
 		assertThat(supplierRequest.item().localItemLocationCode(), is("ab6"));
 	}
-
 
 	@Test
 	void cannotFulfilPatronRequestWhenNoRequestableItemsAreFound() {

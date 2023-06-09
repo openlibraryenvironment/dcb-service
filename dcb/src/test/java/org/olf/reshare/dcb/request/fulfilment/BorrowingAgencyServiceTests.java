@@ -8,6 +8,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
 
+import java.util.UUID;
+
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,7 +19,12 @@ import org.mockserver.client.MockServerClient;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.reshare.dcb.core.model.DataAgency;
+import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.PatronRequest;
+import org.olf.reshare.dcb.core.model.ShelvingLocation;
+import org.olf.reshare.dcb.storage.AgencyRepository;
+import org.olf.reshare.dcb.storage.ShelvingLocationRepository;
 import org.olf.reshare.dcb.test.BibRecordFixture;
 import org.olf.reshare.dcb.test.ClusterRecordFixture;
 import org.olf.reshare.dcb.test.HostLmsFixture;
@@ -28,10 +36,10 @@ import org.olf.reshare.dcb.test.SupplierRequestsFixture;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
+import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -41,11 +49,11 @@ class BorrowingAgencyServiceTests {
 	@Inject
 	ResourceLoader loader;
 	@Inject
+	private HostLmsFixture hostLmsFixture;
+	@Inject
 	private PatronRequestsFixture patronRequestsFixture;
 	@Inject
 	private PatronFixture patronFixture;
-	@Inject
-	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
 	@Inject
@@ -56,6 +64,10 @@ class BorrowingAgencyServiceTests {
 	private PatronIdentityFixture patronIdentityFixture;
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
+	@Inject
+	private ShelvingLocationRepository shelvingLocationRepository;
+	@Inject
+	private AgencyRepository agencyRepository;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
@@ -106,10 +118,37 @@ class BorrowingAgencyServiceTests {
 
 		bibRecordFixture.deleteAllBibRecords();
 		clusterRecordFixture.deleteAllClusterRecords();
+
+		// add shelving location
+		UUID id1 = randomUUID();
+		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms(id1, "code");
+		UUID id = randomUUID();
+		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
+
+		DataAgency dataAgency = Mono.from(
+			agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2))).block();
+
+		ShelvingLocation shelvingLocation = ShelvingLocation.builder()
+			.id(randomUUID())
+			.code("ab6")
+			.name("name")
+			.hostSystem(dataHostLms1)
+			.agency(dataAgency)
+			.build();
+
+		Mono.from(shelvingLocationRepository.save(shelvingLocation))
+			.block();
+	}
+
+	@AfterAll
+	void afterAll() {
+		Mono.from(shelvingLocationRepository.deleteByCode("ab6")).block();
+		Mono.from(agencyRepository.deleteByCode("ab6")).block();
+		hostLmsFixture.deleteAllHostLMS();
 	}
 
 	@Test
-	void placeRequestAtBorrowingAgency_success() {
+	void placeRequestAtBorrowingAgencySucceeds() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
@@ -145,7 +184,7 @@ class BorrowingAgencyServiceTests {
 	}
 
 	@Test
-	void placeRequestAtBorrowingAgency_failure() {
+	void placeRequestAtBorrowingAgencyThrows500WithBodyBroken() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);

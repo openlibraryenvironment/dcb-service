@@ -90,7 +90,9 @@ CREATE TABLE patron_request (
 	pickup_location_code varchar(200),
 	status_code varchar(200),
 	local_request_id varchar(200),
-	local_request_status varchar(32)
+	local_request_status varchar(32),
+	local_item_id varchar(200),
+	local_bib_id varchar(200)
 );
 
 CREATE INDEX idx_pr_patron ON patron_request(patron_id);
