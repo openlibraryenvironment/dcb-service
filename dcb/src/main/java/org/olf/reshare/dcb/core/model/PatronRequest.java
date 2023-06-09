@@ -42,6 +42,10 @@ public class PatronRequest {
 	@DateUpdated
 	private Instant dateUpdated;
 
+        @Nullable
+        @Size(max=200)
+        private String patronHostlmsCode;
+
 	@Nullable
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private Patron patron;
@@ -53,6 +57,31 @@ public class PatronRequest {
 	@Nullable
 	@Size(max = 200)
 	private String pickupLocationCode;
+
+        // We may need to create a virtual patron at the pickup library as the item passes through. Record that here.
+	@Nullable
+	@Size(max = 200)
+	private String pickupPatronId;
+
+        // We may need to create a item patron at the pickup library. Record that here.
+	@Nullable
+	@Size(max = 200)
+	private String pickupItemId;
+
+        // track the status of an item created for the pickup hold
+	@Nullable
+	@Size(max = 200)
+	private String pickupItemStatus;
+
+        // In order to hand the temporary item over the the patron at the pickup library, place a hold at the pickup lib and record it here
+	@Nullable
+	@Size(max = 200)
+	private String pickupRequestId;
+
+        // Track the state of the pickup hold here
+	@Nullable
+	@Size(max = 200)
+	private String pickupRequestStatus;
 
 	@Nullable
 	@Size(max = 200)
