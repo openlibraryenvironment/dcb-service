@@ -1,7 +1,0 @@
-hosts:
-  sierra-items-api-tests:
-    type: org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient
-    client:
-      key: test1-key
-      secret: test1-secret
-      base-url: https://live-availability-tests.com

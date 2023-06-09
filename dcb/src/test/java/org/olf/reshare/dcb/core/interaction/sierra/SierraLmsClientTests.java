@@ -1,64 +1,60 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
-import io.micronaut.context.annotation.Property;
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.mockserver.client.MockServerClient;
-import org.olf.reshare.dcb.core.HostLmsService;
-import org.olf.reshare.dcb.core.interaction.HostLmsClient;
-import org.olf.reshare.dcb.core.model.Item;
-import services.k_int.interaction.sierra.SierraTestUtils;
-import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.time.ZonedDateTime;
-import java.util.List;
-
 import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.reshare.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 
+import java.time.ZonedDateTime;
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.mockserver.client.MockServerClient;
+import org.olf.reshare.dcb.core.interaction.HostLmsClient;
+import org.olf.reshare.dcb.core.model.Item;
+import org.olf.reshare.dcb.test.HostLmsFixture;
+
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import jakarta.inject.Inject;
+import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.test.mockserver.MockServerMicronautTest;
+
 @MockServerMicronautTest
-@MicronautTest(transactional = false, propertySources = { "classpath:configs/SierraLmsClientTests.yml" }, rebuildContext = true)
-@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
-@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
 @TestInstance(Lifecycle.PER_CLASS)
 class SierraLmsClientTests {
-	private static final String SIERRA_TOKEN = "test-token-for-user";
-
-	// Properties should line up with included property source for the spec.
-	@Property(name = "hosts.test1.client.base-url")
-	private String sierraHost;
-
-	@Property(name = "hosts.test1.client.key")
-	private String sierraUser;
-
-	@Property(name = "hosts.test1.client.secret")
-	private String sierraPass;
+	private static final String HOST_LMS_CODE = "sierra-lms-client-tests";
 
 	@Inject
 	private ResourceLoader loader;
-
 	@Inject
-	private HostLmsService hostLmsService;
+	private HostLmsFixture hostLmsFixture;
 
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
-		SierraTestUtils.mockFor(mock, sierraHost)
-			.setValidCredentials(sierraUser, sierraPass, SIERRA_TOKEN, 60);
+		final String TOKEN = "test-token";
+		final String BASE_URL = "https://lms-client-tests.com";
+		final String KEY = "lms-client-key";
+		final String SECRET = "lms-client-secret";
+
+		SierraTestUtils.mockFor(mock, BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
+
+		hostLmsFixture.deleteAllHostLMS();
+
+		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 	}
 
 	@Test
@@ -67,7 +63,7 @@ class SierraLmsClientTests {
 		sierraItemsAPIFixture
 			.successResponseForCreateItem(3743965, "hg6732", "56756785");
 
-		final var client = hostLmsService.getClientFor("test1").block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
 		// Act
 		final var createdItem = client.createItem("3743965", "hg6732", "56756785").block();
@@ -83,7 +79,7 @@ class SierraLmsClientTests {
 	void shouldProvideMultipleItemsWhenSierraRespondsWithMultipleItems() {
 		sierraItemsAPIFixture.threeItemsResponseForBibId("4564554664");
 
-		final var client = hostLmsService.getClientFor("test1").block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
 		final var items = getItemsByBibId(client, "4564554664", "hostLmsCode");
 
@@ -143,7 +139,7 @@ class SierraLmsClientTests {
 	void shouldProvideNoItemsWhenSierraRespondsWithNoRecordsFoundError() {
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("65423515");
 
-		final var client = hostLmsService.getClientFor("test1").block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
 		final var items = getItemsByBibId(client, "65423515", "HostLmsCode");
 
@@ -154,7 +150,7 @@ class SierraLmsClientTests {
 	void shouldReportErrorWhenSierraRespondsWithInternalServerError() {
 		sierraItemsAPIFixture.serverErrorResponseForBibId("565496");
 
-		final var client = hostLmsService.getClientFor("test1").block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> getItemsByBibId(client, "565496", "hostLmsCode"));

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.mockserver.client.MockServerClient;
 import org.olf.reshare.dcb.core.model.BibRecord;
 import org.olf.reshare.dcb.ingest.model.IngestRecord;
+import org.olf.reshare.dcb.test.HostLmsFixture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,29 +32,21 @@ import services.k_int.micronaut.PublisherTransformation;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@MicronautTest(transactional = false, propertySources = { "classpath:configs/ingestTests.yml" }, rebuildContext = true)
+@MicronautTest(transactional = false, rebuildContext = true)
 @Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
 @Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
 @TestInstance(Lifecycle.PER_CLASS)
 public class IngestTests {
-	private static final String SIERRA_TOKEN = "test-token-for-user";
 	private final Logger log = LoggerFactory.getLogger(IngestTests.class);
 
-	@Inject
-	ResourceLoader loader;
+	private static final String HOST_LMS_CODE = "ingest-service-service-tests";
 
 	@Inject
-	IngestService ingestService;
-
-	// Properties should line up with included property source for the spec.
-	@Property(name = "hosts.test1.client.base-url")
-	private String sierraHost;
-
-	@Property(name = "hosts.test1.client.key")
-	private String sierraUser;
-
-	@Property(name = "hosts.test1.client.secret")
-	private String sierraPass;
+	private ResourceLoader loader;
+	@Inject
+	private IngestService ingestService;
+	@Inject
+	private HostLmsFixture hostLmsFixture;
 
 	private static final String CP_RESOURCES = "classpath:mock-responses/sierra/";
 
@@ -63,8 +56,17 @@ public class IngestTests {
 
 	@BeforeAll
 	public void addFakeSierraApis(MockServerClient mock) throws IOException {
+		final String TOKEN = "test-token";
+		final String BASE_URL = "https://ingest-service-service-tests.com";
+		final String KEY = "ingest-service-key";
+		final String SECRET = "ingest-service-secret";
 
-		var mockSierra = SierraTestUtils.mockFor(mock, sierraHost).setValidCredentials(sierraUser, sierraPass, SIERRA_TOKEN, 60);
+		hostLmsFixture.deleteAllHostLMS();
+
+		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+
+		var mockSierra = SierraTestUtils.mockFor(mock, BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		// Mock bibs returned by the sierra system for ingest.
 		mockSierra.whenRequest(req -> req.withMethod("GET").withPath("/iii/sierra-api/v6/bibs/*"))
@@ -81,23 +83,23 @@ public class IngestTests {
 
 		// Run the ingest process
 		List<BibRecord> bibs =  ingestService.getBibRecordStream().collectList().block();
-		
+
 		// Assertion changed to 9 after adding filter condition to bib record processing. We now drop records
 		// with a null title on the floor. 10 input records, 1 with a null title = 9 records after ingest.
 		assertEquals(9, bibs.size());
 	}
-	
+
 	@Test
 	@Property(name="tests.enableLimiter", value = "true")
 	public void ingestFromSierraWithLimiter() {
 
 		// Run the ingest process again, but with the limiter bean.
 		List<BibRecord> bibs =  ingestService.getBibRecordStream().collectList().block();
-		
+
 		// Should limit the returned items to 5 but because one of them has a null title, we drop it giving a count of 4
 		assertEquals(4, bibs.size());
 	}
-	
+
 	@MockBean
 	@Prototype // Prototype ensures new instance of this bean at every injection point.
 	@Named(IngestService.TRANSFORMATIONS_RECORDS) // Qualified name is used when searching for Applicable Transformers.
