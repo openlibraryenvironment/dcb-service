@@ -48,10 +48,4 @@ dcb:
     enabled: false
   requestability:
     location:
-      filtering: true
-      codes:
-        allowed:
-          - ABC123
-          - RGX12
-          - ab6
-          - ab7
+      filtering: false
