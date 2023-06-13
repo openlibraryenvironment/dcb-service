@@ -56,6 +56,13 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			log.info("operator debug not enabled");
 		}
 
+                String keycloak_cert_url = environment.getProperty("KEYCLOAK_CERT_URL", String.class).orElse(null);
+                if ( keycloak_cert_url == null ) {
+                        log.error("KEYCLOAK_CERT_URL IS NOT SET. DCB will be unable to authenticate requests. Please fix your config and restart");
+                }
+                else {
+                        log.info("bearer tokens will be validated using {}",keycloak_cert_url);
+                }
 
 		// log.debug("CREATE");
 		// DataHostLms dhl1 = new DataHostLms(UUID.randomUUID(),"test1","test1","",new java.util.HashMap<String,Object>());
