@@ -126,12 +126,12 @@ class PatronRequestApiTests {
 			.build();
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
-		sierraItemsAPIFixture.successResponseForCreateItem(7916920, "ab6", "9849123490");
+		sierraItemsAPIFixture.successResponseForCreateItem(7916920, "ab6", "6565750674");
 		sierraPatronsAPIFixture.patronHoldRequestResponse("872321", 7916922, "ABC123");
 		sierraPatronsAPIFixture.patronHoldResponse("872321");
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
-		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
+		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "6565750674");
 		sierraPatronsAPIFixture.patronHoldRequestResponse("43546", 7916922, "ABC123");
 		sierraPatronsAPIFixture.patronHoldResponse("43546");
 
@@ -242,7 +242,7 @@ class PatronRequestApiTests {
 		assertThat(supplierRequest.localHoldId(), is("407557"));
 		assertThat(supplierRequest.localHoldStatus(), is("PLACED"));
 		assertThat(supplierRequest.item().id(), is("1000002"));
-		assertThat(supplierRequest.item().localItemBarcode(), is("9849123490"));
+		assertThat(supplierRequest.item().localItemBarcode(), is("6565750674"));
 		assertThat(supplierRequest.item().localItemLocationCode(), is("ab6"));
 	}
 
@@ -314,7 +314,7 @@ class PatronRequestApiTests {
 		assertThat(supplierRequest.localHoldId(), is("407557"));
 		assertThat(supplierRequest.localHoldStatus(), is("PLACED"));
 		assertThat(supplierRequest.item().id(), is("1000002"));
-		assertThat(supplierRequest.item().localItemBarcode(), is("9849123490"));
+		assertThat(supplierRequest.item().localItemBarcode(), is("6565750674"));
 		assertThat(supplierRequest.item().localItemLocationCode(), is("ab6"));
 	}
 

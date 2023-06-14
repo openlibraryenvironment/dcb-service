@@ -6,257 +6,199 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
-import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
 
-import java.util.List;
-import java.util.Map;
-
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.olf.reshare.dcb.core.HostLmsService;
-import org.olf.reshare.dcb.core.interaction.HostLmsClient;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
-import org.olf.reshare.dcb.core.model.FakeHostLms;
-import org.olf.reshare.dcb.core.model.HostLms;
+import org.junit.jupiter.api.TestInstance;
+import org.mockserver.client.MockServerClient;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.Item;
-import org.olf.reshare.dcb.core.model.ItemStatus;
-import org.olf.reshare.dcb.core.model.Location;
-import org.olf.reshare.dcb.request.resolution.Bib;
-import org.olf.reshare.dcb.request.resolution.ClusteredBib;
 import org.olf.reshare.dcb.request.resolution.SharedIndexService;
+import org.olf.reshare.dcb.test.BibRecordFixture;
+import org.olf.reshare.dcb.test.ClusterRecordFixture;
+import org.olf.reshare.dcb.test.HostLmsFixture;
 
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import reactor.core.publisher.Mono;
-import services.k_int.interaction.sierra.SierraError;
+import io.micronaut.core.io.ResourceLoader;
+import jakarta.inject.Inject;
+import lombok.SneakyThrows;
+import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.test.mockserver.MockServerMicronautTest;
 
+@MockServerMicronautTest
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LiveAvailabilityServiceTests {
-	private final HostLmsService hostLmsService = mock(HostLmsService.class);
-	private final SharedIndexService sharedIndexService = mock(SharedIndexService.class);
-	private final RequestableItemService requestableItemService = mock(RequestableItemService.class);
+	@Inject
+	private ResourceLoader loader;
+	@Inject
+	private ClusterRecordFixture clusterRecordFixture;
+	@Inject
+	private BibRecordFixture bibRecordFixture;
+	@Inject
+	private HostLmsFixture hostLmsFixture;
 
-	private final LiveAvailabilityService liveAvailabilityService =
-		new LiveAvailabilityService(hostLmsService, requestableItemService);
+	@Inject
+	private SharedIndexService sharedIndexService;
+	@Inject
+	private LiveAvailabilityService liveAvailabilityService;
 
-	@Test
-	@DisplayName("Should get items from host LMS for multiple bibs")
-	void shouldGetAvailableItemsForMultipleBibs() {
-		// Arrange
-		final var firstHostLms = createHostLms("firstHost");
-		final var secondHostLms = createHostLms("secondHost");
+	private DataHostLms firstHostLms;
+	private DataHostLms secondHostLms;
 
-		final var clusterRecordId = randomUUID();
+	@BeforeAll
+	@SneakyThrows
+	public void beforeAll(MockServerClient mock) {
+		final String FIRST_HOST_LMS_BASE_URL = "https://first-live-availability-system.com";
+		final String FIRST_HOST_LMS_CODE = "first-local-system";
+		final String FIRST_HOST_LMS_TOKEN = "first-system-token";
+		final String FIRST_HOST_LMS_KEY = "first-system-key";
+		final String FIRST_HOST_LMS_SECRET = "first-system-secret";
 
-		final var clusterRecord = new ClusteredBib(clusterRecordId, "title",
-			List.of(createBib(firstHostLms, "firstHostBibRecord"),
-				createBib(secondHostLms, "secondHostBibRecord")));
+		final String SECOND_HOST_LMS_BASE_URL = "https://second-live-availability-system.com";
+		final String SECOND_HOST_LMS_CODE = "second-local-system";
+		final String SECOND_SYSTEM_TOKEN = "second-system-token";
+		final String SECOND_SYSTEM_KEY = "second-system-key";
+		final String SECOND_SYSTEM_SECRET = "second-system-secret";
 
-		when(sharedIndexService.findClusteredBib(clusterRecordId))
-			.thenReturn(Mono.just(clusterRecord));
+		SierraTestUtils.mockFor(mock, FIRST_HOST_LMS_BASE_URL)
+			.setValidCredentials(FIRST_HOST_LMS_KEY, FIRST_HOST_LMS_SECRET, FIRST_HOST_LMS_TOKEN, 60);
 
-		final var firstHostClient = mock(HostLmsClient.class);
+		SierraTestUtils.mockFor(mock, SECOND_HOST_LMS_BASE_URL)
+			.setValidCredentials(SECOND_SYSTEM_KEY, SECOND_SYSTEM_SECRET, SECOND_SYSTEM_TOKEN, 60);
 
-		when(hostLmsService.getClientFor(firstHostLms))
-			.thenReturn(Mono.just(firstHostClient));
+		hostLmsFixture.deleteAllHostLMS();
 
-		final var itemFromFirstHost = createItem("firstItemId", "BCF543");
+		firstHostLms = hostLmsFixture.createSierraHostLms(FIRST_HOST_LMS_KEY,
+			FIRST_HOST_LMS_SECRET, FIRST_HOST_LMS_BASE_URL, FIRST_HOST_LMS_CODE);
 
-		when(firstHostClient.getItemsByBibId("firstHostBibRecord", "firstHost"))
-			.thenReturn(Mono.just(List.of(itemFromFirstHost)));
+		secondHostLms = hostLmsFixture.createSierraHostLms(SECOND_SYSTEM_KEY,
+			SECOND_SYSTEM_SECRET, SECOND_HOST_LMS_BASE_URL, SECOND_HOST_LMS_CODE);
+	}
 
-		final var secondHostClient = mock(HostLmsClient.class);
-
-		when(hostLmsService.getClientFor(secondHostLms))
-			.thenReturn(Mono.just(secondHostClient));
-
-		final var itemFromSecondHost = createItem("secondItemId", "ABC123");
-
-		when(secondHostClient.getItemsByBibId("secondHostBibRecord", "secondHost"))
-			.thenReturn(Mono.just(List.of(itemFromSecondHost)));
-
-		when(requestableItemService.isRequestable(any()))
-			.thenReturn(true);
-
-		// Act
-		final var report = liveAvailabilityService
-			.getAvailableItems(clusterRecord).block();
-
-		// Assert
-		assertThat("Report should not be null", report, is(notNullValue()));
-
-		final var items = report.getItems();
-
-		assertThat("Items returned should not be null", items, is(notNullValue()));
-		assertThat("Should have two items", items, hasSize(2));
-
-		// Relies on instance matching which will could fail
-		// if we decide to return new items instead of setting values
-		assertThat("Should have expected item in natural sort order",
-			items, contains(itemFromSecondHost, itemFromFirstHost));
-
-		verify(hostLmsService).getClientFor(firstHostLms);
-		verify(hostLmsService).getClientFor(secondHostLms);
-		verify(firstHostClient).getItemsByBibId("firstHostBibRecord", "firstHost");
-		verify(secondHostClient).getItemsByBibId("secondHostBibRecord", "secondHost");
-
-		verifyNoMoreInteractions(hostLmsService, firstHostClient, secondHostClient);
+	@BeforeEach
+	void beforeEach() {
+		bibRecordFixture.deleteAllBibRecords();
+		clusterRecordFixture.deleteAllClusterRecords();
 	}
 
 	@Test
-	@DisplayName("Should report failures when fetching items from host LMS")
-	void shouldReportFailuresFetchingItemsFromHostLms() {
+	@DisplayName("Should get items for multiple bibs from separate Sierra systems")
+	void shouldGetItemsForMultipleBibsFromSeparateSierraSystems(MockServerClient mock) {
 		// Arrange
-		final var workingHostLms = createHostLms("workingHostLms");
-		final var brokenHostLms = createHostLms("failingHostLms");
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
 
-		final var clusterRecordId = randomUUID();
+		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(),
+			"465675", clusterRecord);
 
-		final var clusterRecord = new ClusteredBib(clusterRecordId, "title",
-			List.of(createBib(workingHostLms, "workingBib"),
-				createBib(brokenHostLms, "failingBib")));
+		bibRecordFixture.createBibRecord(randomUUID(), secondHostLms.getId(),
+			"767648", clusterRecord);
 
-		when(sharedIndexService.findClusteredBib(clusterRecordId))
-			.thenReturn(Mono.just(clusterRecord));
+		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 
-		final var workingClient = mock(HostLmsClient.class);
-
-		when(hostLmsService.getClientFor(workingHostLms))
-			.thenReturn(Mono.just(workingClient));
-
-		final var brokenClient = mock(HostLmsClient.class);
-
-		when(hostLmsService.getClientFor(brokenHostLms))
-			.thenReturn(Mono.just(brokenClient));
-
-		final Item item = createItem("itemId", "ABC123");
-
-		when(workingClient.getItemsByBibId("workingBib", "workingHostLms"))
-			.thenReturn(Mono.just(List.of(item)));
-
-		when(brokenClient.getItemsByBibId("failingBib", "failingHostLms"))
-			.thenReturn(Mono.error(new HttpClientResponseException("",
-				HttpResponse.serverError().body(createSierraError()))));
-
-		when(requestableItemService.isRequestable(item))
-			.thenReturn(true);
+		sierraItemsAPIFixture.twoItemsResponseForBibId("465675");
+		sierraItemsAPIFixture.threeItemsResponseForBibId("767648");
 
 		// Act
+		final var clusteredBib = sharedIndexService
+			.findClusteredBib(clusterRecord.getId()).block();
+
 		final var report = liveAvailabilityService
-			.getAvailableItems(clusterRecord).block();
+			.getAvailableItems(clusteredBib).block();
 
 		// Assert
 		assertThat("Report should not be null", report, is(notNullValue()));
 
 		final var items = report.getItems();
 
-		assertThat("Items returned should not be null", items, is(notNullValue()));
-		assertThat("Should have one item", items, hasSize(1));
-		assertThat("Should have item from working client", items.get(0), is(item));
+		assertThat("Report should include items from both systems", items, is(hasSize(5)));
+
+		final var itemBarcodes = items.stream()
+			.map(Item::getBarcode)
+			.toList();
+
+		// This is a compromise that checks the rough identity of each item
+		// without duplicating checks for many fields
+		// The order is important due to the sorting applied to items
+		assertThat("Should contain expected items sorted by location and call number",
+			itemBarcodes, contains(
+				"9849123490", "6565750674", "30800005238487", "30800005208449", "30800005315459"));
+	}
+
+	@Test
+	@DisplayName("Should report zero items when Sierra responds with no records found error")
+	void shouldReportZeroItemsWhenSierraRespondsWithNoRecordsFoundError(MockServerClient mock) {
+		// Arrange
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
+
+		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(),
+			"762354", clusterRecord);
+
+		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
+
+		sierraItemsAPIFixture.zeroItemsResponseForBibId("762354");
+
+		// Act
+		final var clusteredBib = sharedIndexService
+			.findClusteredBib(clusterRecord.getId()).block();
+
+		final var report = liveAvailabilityService
+			.getAvailableItems(clusteredBib).block();
+
+		// Assert
+		assertThat("Report should not be null", report, is(notNullValue()));
+		assertThat("No items should be included in report",
+			report.getItems(), is(hasSize(0)));
+	}
+
+	@Test
+	@DisplayName("Should report failures when fetching items from Sierra")
+	void shouldReportFailuresFetchingItemsFromSierra(MockServerClient mock) {
+		// Arrange
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
+
+		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(),
+			"839552", clusterRecord);
+
+		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
+
+		sierraItemsAPIFixture.errorResponseForBibId("839552");
+
+		// Act
+		final var clusteredBib = sharedIndexService
+			.findClusteredBib(clusterRecord.getId()).block();
+
+		final var report = liveAvailabilityService
+			.getAvailableItems(clusteredBib).block();
+
+		// Assert
+		assertThat("Report should not be null", report, is(notNullValue()));
 
 		final var errors = report.getErrors();
 
 		assertThat("Reported errors should not be null", errors, is(notNullValue()));
 		assertThat("Should have one error", errors, hasSize(1));
 		assertThat("Should have one error", errors.get(0).getMessage(),
-			is("Failed to fetch items for bib: failingBib from host: failingHostLms"));
-	}
-
-	@Test
-	@DisplayName("Should fail when host LMS for bib is null")
-	void shouldFailWhenHostLMSForBibIsNull() {
-		// Arrange
-		final var clusterRecordId = randomUUID();
-
-		final var clusterRecord = new ClusteredBib(clusterRecordId, "title",
-			List.of(createBib(null, "bibRecordId")));
-
-		when(sharedIndexService.findClusteredBib(clusterRecordId))
-			.thenReturn(Mono.just(clusterRecord));
-
-		// Act
-		final var exception = assertThrows(IllegalArgumentException.class,
-			() -> liveAvailabilityService.getAvailableItems(clusterRecord).block());
-
-		// Assert
-		assertThat("Exception should not be null", exception, is(notNullValue()));
-		assertThat(exception.getMessage(), is("hostLMS cannot be null"));
+			is("Failed to fetch items for bib: 839552 from host: first-local-system"));
 	}
 
 	@Test
 	@DisplayName("Should find no items when no bibs in cluster record")
 	void shouldFindNoItemsWhenNoBibsInClusterRecord() {
 		// Arrange
-		final var clusterWithNoBibs = new ClusteredBib(randomUUID(), "title", List.of());
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
 
 		// Act
+		final var clusteredBib = sharedIndexService
+			.findClusteredBib(clusterRecord.getId()).block();
+
 		final var report = liveAvailabilityService
-			.getAvailableItems(clusterWithNoBibs).block();
+			.getAvailableItems(clusteredBib).block();
 
 		// Assert
 		assertThat("Report should not be null", report, is(notNullValue()));
-
-		final var items = report.getItems();
-
-		assertThat("Items returned should not be null", items, is(notNullValue()));
-		assertThat("Should have no items", items, hasSize(0));
-
-		// if there are no bibs in clustered bib, the host LMS service should not be called
-		verify(hostLmsService, never()).getClientFor(any(HostLms.class));
-	}
-
-	@Test
-	@DisplayName("Should find no items when cluster record bibs is null")
-	void ShouldFindNoItemsWhenClusterRecordBibsIsNull() {
-		// Arrange
-		final var clusterRecordId = randomUUID();
-
-		final var clusterWithNullBibs = new ClusteredBib(clusterRecordId, "title", null);
-
-		when(sharedIndexService.findClusteredBib(clusterRecordId))
-			.thenReturn(Mono.just(clusterWithNullBibs));
-
-		// Act
-		final var exception = assertThrows(IllegalArgumentException.class,
-			() -> liveAvailabilityService.getAvailableItems(clusterWithNullBibs).block());
-
-		// Assert
-		assertThat("Exception should not be null", exception, is(notNullValue()));
-		assertThat(exception.getMessage(), is("Bibs cannot be null"));
-	}
-
-	private static Bib createBib(FakeHostLms hostLms, String bibRecordId) {
-		return Bib.builder()
-			.id(randomUUID())
-			.bibRecordId(bibRecordId)
-			.hostLms(hostLms)
-			.build();
-	}
-
-	private static Item createItem(String itemId, String locationCode) {
-		return Item.builder()
-			.id(itemId)
-			.status(new ItemStatus(AVAILABLE))
-			.location(Location.builder()
-				.code(locationCode)
-				.build())
-			.isRequestable(true)
-			.holdCount(0)
-			.build();
-	}
-
-	private static FakeHostLms createHostLms(String code) {
-		return new FakeHostLms(randomUUID(), code,
-			"Fake Host LMS", SierraLmsClient.class, Map.of());
-	}
-
-	private static SierraError createSierraError() {
-		return new SierraError("", 654, 0, "", "");
+		assertThat("Items returned should not be null", report.getItems(), is(notNullValue()));
+		assertThat("Should have no items", report.getItems(), hasSize(0));
 	}
 }
