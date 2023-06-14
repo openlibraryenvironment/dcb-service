@@ -29,7 +29,6 @@ import org.olf.reshare.dcb.test.BibRecordFixture;
 import org.olf.reshare.dcb.test.ClusterRecordFixture;
 import org.olf.reshare.dcb.test.HostLmsFixture;
 import org.olf.reshare.dcb.test.PatronFixture;
-import org.olf.reshare.dcb.test.PatronIdentityFixture;
 import org.olf.reshare.dcb.test.PatronRequestsFixture;
 import org.olf.reshare.dcb.test.SupplierRequestsFixture;
 
@@ -60,8 +59,6 @@ class BorrowingAgencyServiceTests {
 	private BorrowingAgencyService borrowingAgencyService;
 	@Inject
 	private BibRecordFixture bibRecordFixture;
-	@Inject
-	private PatronIdentityFixture patronIdentityFixture;
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
 	@Inject
@@ -159,7 +156,7 @@ class BorrowingAgencyServiceTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron(randomUUID(), "872321");
-		patronIdentityFixture.saveHomeIdentity(randomUUID(), patron, "872321", hostLms);
+		patronFixture.saveHomeIdentity(randomUUID(), patron, "872321", hostLms);
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()
@@ -195,7 +192,7 @@ class BorrowingAgencyServiceTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron(randomUUID(), "972321");
-		patronIdentityFixture.saveHomeIdentity(randomUUID(), patron, "972321", hostLms);
+		patronFixture.saveHomeIdentity(randomUUID(), patron, "972321", hostLms);
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()
