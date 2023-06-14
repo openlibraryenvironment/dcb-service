@@ -20,6 +20,9 @@ public class RequestableItemService {
 		@Value("${dcb.requestability.location.codes.allowed:}") List<String> requestableLocationCodes,
 		@Value("${dcb.requestability.location.filtering:false}") Boolean locationFilteringEnabled) {
 
+		log.info("Location filtering enabled: {}", locationFilteringEnabled);
+		log.info("Locations to allow: {}", requestableLocationCodes);
+
 		this.requestableLocationCodes = requestableLocationCodes;
 		this.locationFilteringEnabled = locationFilteringEnabled;
 	}
@@ -39,6 +42,15 @@ public class RequestableItemService {
 		// if not set, all locations are allowed
 		if (!locationFilteringEnabled) return true;
 
-		return requestableLocationCodes.contains(locationCode);
+		final var allowedLocation = requestableLocationCodes.contains(locationCode);
+
+		if (allowedLocation) {
+			log.info("{} is in the allowed location list", locationCode);
+		}
+		else {
+			log.info("{} is NOT in the allowed location list", locationCode);
+		}
+
+		return allowedLocation;
 	}
 }
