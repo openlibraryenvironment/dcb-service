@@ -45,10 +45,10 @@ public class HostLmsFixture {
 			SierraLmsClient.class.getCanonicalName(), Map.of()));
 	}
 
-	public void createSierraHostLms(String username, String password, String host,
-		String code) {
+	public DataHostLms createSierraHostLms(String username, String password,
+		String host, String code) {
 
-		createHostLms(
+		return createHostLms(
 			DataHostLms.builder()
 				.id(randomUUID())
 				.code(code)

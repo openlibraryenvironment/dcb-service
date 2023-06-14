@@ -99,8 +99,8 @@ class SierraLmsClientTests {
 		assertThat(firstItem.getStatus().getCode(), is(CHECKED_OUT));
 
 		assertThat(firstItem.getLocation(), is(notNullValue()));
-		assertThat(firstItem.getLocation().getName(), is("King 6th Floor"));
-		assertThat(firstItem.getLocation().getCode(), is("ab6"));
+		assertThat(firstItem.getLocation().getName(), is("King 5th Floor"));
+		assertThat(firstItem.getLocation().getCode(), is("ab5"));
 
 		final var secondItem = items.get(1);
 
@@ -131,8 +131,8 @@ class SierraLmsClientTests {
 		assertThat(thirdItem.getStatus().getCode(), is(AVAILABLE));
 
 		assertThat(thirdItem.getLocation(), is(notNullValue()));
-		assertThat(thirdItem.getLocation().getName(), is("King 6th Floor"));
-		assertThat(thirdItem.getLocation().getCode(), is("ab6"));
+		assertThat(thirdItem.getLocation().getName(), is("King 7th Floor"));
+		assertThat(thirdItem.getLocation().getCode(), is("ab7"));
 	}
 
 	@Test
