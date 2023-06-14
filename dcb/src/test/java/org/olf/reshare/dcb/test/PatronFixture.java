@@ -1,49 +1,71 @@
 package org.olf.reshare.dcb.test;
 
-import io.micronaut.context.annotation.Prototype;
-import org.olf.reshare.dcb.core.model.Patron;
-import org.olf.reshare.dcb.storage.PatronRepository;
-import reactor.core.publisher.Mono;
+import static java.time.Instant.now;
+import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.UUID;
 
-import static java.time.Instant.now;
+import org.olf.reshare.dcb.core.model.DataHostLms;
+import org.olf.reshare.dcb.core.model.Patron;
+import org.olf.reshare.dcb.core.model.PatronIdentity;
+import org.olf.reshare.dcb.storage.PatronIdentityRepository;
+import org.olf.reshare.dcb.storage.PatronRepository;
+
+import io.micronaut.context.annotation.Prototype;
 
 @Prototype
 public class PatronFixture {
 	private final DataAccess dataAccess = new DataAccess();
 
 	private final PatronRepository patronRepository;
-	private final PatronIdentityFixture patronIdentityFixture;
+	private final PatronIdentityRepository patronIdentityRepository;
 	private final PatronRequestsFixture patronRequestsFixture;
 
 	PatronFixture(PatronRepository patronRepository,
-		PatronIdentityFixture patronIdentityFixture,
+		PatronIdentityRepository patronIdentityRepository,
 		PatronRequestsFixture patronRequestsFixture) {
 
 		this.patronRepository = patronRepository;
-		this.patronIdentityFixture = patronIdentityFixture;
+		this.patronIdentityRepository = patronIdentityRepository;
 		this.patronRequestsFixture = patronRequestsFixture;
 	}
+
 	public Patron savePatron(UUID patronId, String homeLibCode) {
-		return Mono.from(patronRepository.save(
-				Patron
-					.builder()
+		return singleValueFrom(patronRepository.save(
+				Patron.builder()
 					.id(patronId)
 					.dateCreated(now())
 					.dateUpdated(now())
 					.homeLibraryCode(homeLibCode)
-					.build()
-			))
-			.block();
+					.build()));
+	}
+
+	public void saveHomeIdentity(UUID patronIdentityId, Patron patron,
+		String homeLibCode, DataHostLms hostLms) {
+
+		singleValueFrom(patronIdentityRepository.save(
+			PatronIdentity.builder()
+				.id(patronIdentityId)
+				.dateCreated(now())
+				.dateUpdated(now())
+				.patron(patron)
+				.localId(homeLibCode)
+				.hostLms(hostLms)
+				.homeIdentity(true)
+				.build()));
 	}
 
 	public void deleteAllPatrons() {
 		patronRequestsFixture.deleteAllPatronRequests();
 
-		patronIdentityFixture.deleteAllPatronIdentities();
+		deleteAllPatronIdentities();
 
 		dataAccess.deleteAll(patronRepository.findAll(),
 			patronIdentity -> patronRepository.delete(patronIdentity.getId()));
+	}
+
+	void deleteAllPatronIdentities() {
+		dataAccess.deleteAll(patronIdentityRepository.findAll(),
+			patronIdentity -> patronIdentityRepository.delete(patronIdentity.getId()));
 	}
 }

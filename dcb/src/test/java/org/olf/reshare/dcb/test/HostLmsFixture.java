@@ -24,16 +24,16 @@ public class HostLmsFixture {
 	private final HostLmsRepository hostLmsRepository;
 	private final HostLmsService hostLmsService;
 	private final AgencyRepository agencyRepository;
-	private final PatronIdentityFixture patronIdentityFixture;
+	private final PatronFixture patronFixture;
 
 	public HostLmsFixture(HostLmsRepository hostLmsRepository,
 		HostLmsService hostLmsService, AgencyRepository agencyRepository,
-		PatronIdentityFixture patronIdentityFixture) {
+		PatronFixture patronFixture) {
 
 		this.hostLmsRepository = hostLmsRepository;
 		this.hostLmsService = hostLmsService;
 		this.agencyRepository = agencyRepository;
-		this.patronIdentityFixture = patronIdentityFixture;
+		this.patronFixture = patronFixture;
 	}
 
 	public DataHostLms createHostLms(DataHostLms hostLms) {
@@ -65,7 +65,7 @@ public class HostLmsFixture {
 		dataAccess.deleteAll(agencyRepository.findAll(),
 			agency -> agencyRepository.delete(agency.getId()));
 
-		patronIdentityFixture.deleteAllPatronIdentities();
+		patronFixture.deleteAllPatrons();
 
 		dataAccess.deleteAll(hostLmsRepository.findAll(),
 			hostLms -> hostLmsRepository.delete(hostLms.getId()));
