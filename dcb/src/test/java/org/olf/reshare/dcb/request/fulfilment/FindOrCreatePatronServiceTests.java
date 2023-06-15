@@ -2,95 +2,130 @@ package org.olf.reshare.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
+import static org.hamcrest.Matchers.hasSize;
 
-import java.util.List;
-
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.olf.reshare.dcb.core.model.Patron;
-import org.olf.reshare.dcb.request.fulfilment.PatronService.PatronId;
+import org.junit.jupiter.api.TestInstance;
+import org.olf.reshare.dcb.test.DcbTest;
+import org.olf.reshare.dcb.test.HostLmsFixture;
+import org.olf.reshare.dcb.test.PatronFixture;
 
-import reactor.core.publisher.Mono;
+import jakarta.inject.Inject;
 
+@DcbTest
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FindOrCreatePatronServiceTests {
-	private final PatronService patronService = mock(PatronService.class);
+	@Inject
+	PatronFixture patronFixture;
+	@Inject
+	HostLmsFixture hostLmsFixture;
 
-	private final FindOrCreatePatronService findOrCreatePatronService = new FindOrCreatePatronService(patronService);
+	@Inject
+	FindOrCreatePatronService findOrCreatePatronService;
 
-	@Test
-	@DisplayName("should find existing patron when found by patron service")
-	void shouldFindExistingPatronWhenPatronIsFound() {
-		// Arrange
-		final var existingPatron = createPatron(null);
-
-		final var patronId = PatronId.fromPatron(existingPatron);
-
-		when(patronService.findPatronFor("localSystemCode", "localId"))
-			.thenReturn(Mono.just(patronId));
-
-		when(patronService.findById(patronId))
-			.thenReturn(Mono.just(existingPatron));
-
-		// Act
-
-		// Pass a different home library code to demonstrate that it isn't used
-		final var foundPatron = findOrCreatePatronService
-			.findOrCreatePatron("localSystemCode", "localId", "other-library-code")
-			.block();
-
-		// Assert
-		assertThat("Should be same patron as found by patron service",
-			foundPatron, is(existingPatron));
-
-		verify(patronService).findPatronFor("localSystemCode", "localId");
-
-		verify(patronService).findById(patronId);
-
-		verifyNoMoreInteractions(patronService);
+	@BeforeEach
+	void beforeEach() {
+		patronFixture.deleteAllPatrons();
+		hostLmsFixture.deleteAllHostLMS();
 	}
 
 	@Test
-	@DisplayName("should create new patron when no patron is found by patron service")
-	void shouldCreateNewPatronWhenNoPatronIsFound() {
+	@DisplayName("should create new patron when home identity cannot be found")
+	void shouldCreateNewPatronWhenHomeIdentityCannotBeFound() {
 		// Arrange
-		when(patronService.findPatronFor("localSystemCode", "localId"))
-			.thenReturn(Mono.empty());
+		final var LOCAL_SYSTEM_CODE = "local-system-code";
+		final var LOCAL_ID = "local-identity";
 
-		final var createdPatron = createPatron("home-library-code");
+		final var hostLmsId = randomUUID();
 
-		final var patronId = PatronId.fromPatron(createdPatron);
-
-		when(patronService
-			.createPatron("localSystemCode", "localId", "home-library-code"))
-				.thenReturn(Mono.just(patronId));
-
-		when(patronService.findById(patronId))
-			.thenReturn(Mono.just(createdPatron));
+		hostLmsFixture.createHostLms(hostLmsId, LOCAL_SYSTEM_CODE);
 
 		// Act
-		final var foundPatron = findOrCreatePatronService
-			.findOrCreatePatron("localSystemCode", "localId", "home-library-code")
+		findOrCreatePatronService
+			.findOrCreatePatron(LOCAL_SYSTEM_CODE, LOCAL_ID, "home-library")
 			.block();
 
 		// Assert
-		assertThat("Should return a patron", foundPatron, is(createdPatron));
+		final var foundPatron = patronFixture.findPatron(LOCAL_SYSTEM_CODE, LOCAL_ID);
 
-		verify(patronService).findPatronFor("localSystemCode", "localId");
-		verify(patronService).createPatron("localSystemCode", "localId",
-			"home-library-code");
+		assertThat("Should find newly created patron",
+			foundPatron, is(notNullValue()));
 
-		verify(patronService).findById(patronId);
+		assertThat("Should have expected home library code",
+			foundPatron.getHomeLibraryCode(), is("home-library"));
 
-		verifyNoMoreInteractions(patronService);
+		final var identities  = patronFixture.findIdentities(foundPatron);
+
+		assertThat("Should have one identity", identities, hasSize(1));
+
+		final var onlyIdentity = identities.get(0);
+
+		assertThat("Identity should have host LMS",
+			onlyIdentity.getHostLms(), is(notNullValue()));
+
+		assertThat("Identity should be for intended host LMS",
+			onlyIdentity.getHostLms().getId(), is(hostLmsId));
+
+		assertThat("Identity should have expected local ID",
+			onlyIdentity.getLocalId(), is(LOCAL_ID));
+
+		assertThat("Identity should be the home identity",
+			onlyIdentity.getHomeIdentity(), is(true));
 	}
 
-	private static Patron createPatron(String homeLibraryCode) {
-		return new Patron(randomUUID(), null, null,
-			homeLibraryCode, List.of());
+	@Test
+	@DisplayName("should find existing patron when home identity can be found")
+	void shouldFindExistingPatronWhenHomeIdentityCanBeFound() {
+		// Arrange
+		final var LOCAL_SYSTEM_CODE = "local-system-code";
+		final var LOCAL_ID = "local-identity";
+
+		final var hostLmsId = randomUUID();
+
+		final var homeHostLms = hostLmsFixture.createHostLms(hostLmsId, LOCAL_SYSTEM_CODE);
+
+		final var existingPatron = patronFixture.savePatron("home-library");
+
+		patronFixture.saveHomeIdentity(existingPatron, homeHostLms, LOCAL_ID);
+
+		// Act
+		findOrCreatePatronService
+			.findOrCreatePatron(LOCAL_SYSTEM_CODE, LOCAL_ID, "different-library")
+			.block();
+
+		// Assert
+		final var allPatrons = patronFixture.findAll();
+
+		assertThat("Should only be one patron", allPatrons, hasSize(1));
+
+		final var foundPatron = allPatrons.get(0);
+
+		assertThat("Should find existing patron",
+			foundPatron, is(notNullValue()));
+
+		assertThat("Should not update existing home library code",
+			foundPatron.getHomeLibraryCode(), is("home-library"));
+
+		final var identities  = patronFixture.findIdentities(foundPatron);
+
+		assertThat("Should have one identity", identities, hasSize(1));
+
+		final var onlyIdentity = identities.get(0);
+
+		assertThat("Identity should have host LMS",
+			onlyIdentity.getHostLms(), is(notNullValue()));
+
+		assertThat("Identity should be for intended host LMS",
+			onlyIdentity.getHostLms().getId(), is(hostLmsId));
+
+		assertThat("Identity should have expected local ID",
+			onlyIdentity.getLocalId(), is(LOCAL_ID));
+
+		assertThat("Identity should be the home identity",
+			onlyIdentity.getHomeIdentity(), is(true));
 	}
 }

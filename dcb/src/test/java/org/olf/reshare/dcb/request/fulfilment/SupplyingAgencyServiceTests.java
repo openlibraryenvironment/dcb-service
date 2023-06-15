@@ -60,7 +60,7 @@ class SupplyingAgencyServiceTests {
 	@BeforeEach
 	void setUp() {
 		// Home Identity
-		final var dataHostLms = new DataHostLms(
+		final var homeHostLms = new DataHostLms(
 			randomUUID(),
 			"homeHostLmsCode",
 			"Fake Host LMS",
@@ -68,34 +68,29 @@ class SupplyingAgencyServiceTests {
 			Map.of()
 		);
 
-		final var patronIdentity = new PatronIdentity(
-			randomUUID(),
-			null,
-			null,
-			patron,
-			dataHostLms,
-			"localId",
-			true
-		);
+		final var patronIdentity = PatronIdentity.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.hostLms(homeHostLms)
+			.localId("localId")
+			.homeIdentity(true)
+			.build();
 
 		// Supplier Identity
-		DataHostLms supplierDataHostLms = new DataHostLms(
+		final var supplierDataHostLms = new DataHostLms(
 			randomUUID(),
 			"supplierHostLmsCode",
 			"Fake Host LMS",
 			SierraLmsClient.class.toString(),
-			Map.of()
-		);
+			Map.of());
 
-		supplierPatronIdentity = new PatronIdentity(
-			randomUUID(),
-			null,
-			null,
-			patron,
-			supplierDataHostLms,
-			"258740925",
-			false
-		);
+		supplierPatronIdentity = PatronIdentity.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.hostLms(supplierDataHostLms)
+			.localId("258740925")
+			.homeIdentity(false)
+			.build();
 
 		// Create Patron and add Identities
 		patron = new Patron(randomUUID(),

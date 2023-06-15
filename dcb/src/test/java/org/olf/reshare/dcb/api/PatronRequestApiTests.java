@@ -31,7 +31,6 @@ import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.reshare.dcb.core.model.DataAgency;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.ShelvingLocation;
-import org.olf.reshare.dcb.request.fulfilment.PatronService;
 import org.olf.reshare.dcb.storage.AgencyRepository;
 import org.olf.reshare.dcb.storage.ShelvingLocationRepository;
 import org.olf.reshare.dcb.test.BibRecordFixture;
@@ -76,8 +75,6 @@ class PatronRequestApiTests {
 	@Inject
 	private AgencyRepository agencyRepository;
 	@Inject
-	private PatronService patronService;
-	@Inject
 	private AdminApiClient adminApiClient;
 	@Inject
 	@Client("/")
@@ -106,22 +103,17 @@ class PatronRequestApiTests {
 
 		// patron service
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@home-library");
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("43546@home-library");
 
 		sierraPatronsAPIFixture.postPatronResponse("872321@home-library", 2745326);
-		sierraPatronsAPIFixture.postPatronResponse("43546@home-library", 6235472);
 
 		// supplying agency service
 		sierraPatronsAPIFixture.patronHoldRequestResponse("2745326", 1000002, "ABC123");
-		sierraPatronsAPIFixture.patronHoldRequestResponse("6235472", 1000002, "ABC123");
-
 		sierraPatronsAPIFixture.patronHoldResponse("2745326");
-		sierraPatronsAPIFixture.patronHoldResponse("6235472");
 
 		// borrowing agency service
 		final var bibPatch = BibPatch.builder()
-			.authors(new String[]{"Stafford Beer"})
-			.titles(new String[]{"Brain of the Firm"})
+			.authors(new String[] {"Stafford Beer"})
+			.titles(new String[] {"Brain of the Firm"})
 			.bibCode3("n")
 			.build();
 
@@ -131,11 +123,8 @@ class PatronRequestApiTests {
 		sierraPatronsAPIFixture.patronHoldResponse("872321");
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
-		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "6565750674");
-		sierraPatronsAPIFixture.patronHoldRequestResponse("43546", 7916922, "ABC123");
-		sierraPatronsAPIFixture.patronHoldResponse("43546");
+		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
 
-		// Register an expectation that when the client calls /patrons/43546 we respond with the patron record
 		sierraPatronsAPIFixture.addPatronGetExpectation(43546L);
 		sierraPatronsAPIFixture.addPatronGetExpectation(872321L);
 	}
@@ -178,8 +167,8 @@ class PatronRequestApiTests {
 	}
 
 	@Test
-	@DisplayName("should place patron request given the patron doesn't exist")
-	void canPlacePatronRequest() {
+	@DisplayName("should be able to place patron request for new patron")
+	void shouldBeAbleToPlacePatronForNewPatron() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
@@ -197,6 +186,8 @@ class PatronRequestApiTests {
 
 		final var placedPatronRequest = placedRequestResponse.body();
 
+		assertThat(placedPatronRequest, is(notNullValue()));
+
 		assertThat(placedPatronRequest.requestor(), is(notNullValue()));
 		assertThat(placedPatronRequest.requestor().homeLibraryCode(), is("home-library"));
 		assertThat(placedPatronRequest.requestor().localSystemCode(), is(HOST_LMS_CODE));
@@ -207,13 +198,18 @@ class PatronRequestApiTests {
 				isPlacedAtBorrowingAgency());
 
 		assertThat(fetchedPatronRequest, is(notNullValue()));
+
+		assertThat(fetchedPatronRequest.citation(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.citation().bibClusterId(), is(clusterRecordId));
+		assertThat(fetchedPatronRequest.pickupLocation(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.pickupLocation().code(), is("ABC123"));
+		assertThat(fetchedPatronRequest.status(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.status().code(), is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
 		assertThat(fetchedPatronRequest.localRequest().id(), is("864902"));
 		assertThat(fetchedPatronRequest.localRequest().status(), is("PLACED"));
 		assertThat(fetchedPatronRequest.localRequest().itemId(), is("7916922"));
 		assertThat(fetchedPatronRequest.localRequest().bibId(), is("7916920"));
+		
 		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
 
 		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
@@ -233,78 +229,6 @@ class PatronRequestApiTests {
 		assertThat(supplierIdentity.homeIdentity(), is(false));
 		assertThat(supplierIdentity.hostLmsCode(), is(HOST_LMS_CODE));
 		assertThat(supplierIdentity.localId(), is("2745326"));
-
-		final var supplierRequest = fetchedPatronRequest.supplierRequests().get(0);
-
-		assertThat(supplierRequest.id(), is(notNullValue()));
-		assertThat(supplierRequest.hostLmsCode(), is(HOST_LMS_CODE));
-		assertThat(supplierRequest.status(), is("PLACED"));
-		assertThat(supplierRequest.localHoldId(), is("407557"));
-		assertThat(supplierRequest.localHoldStatus(), is("PLACED"));
-		assertThat(supplierRequest.item().id(), is("1000002"));
-		assertThat(supplierRequest.item().localItemBarcode(), is("6565750674"));
-		assertThat(supplierRequest.item().localItemLocationCode(), is("ab6"));
-	}
-
-	@Test
-	@DisplayName("should place patron request with existing patron")
-	void shouldPlacePatronRequestWithExistingPatron() {
-		// Arrange
-		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
-		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
-		final var sourceSystemId = hostLms.getId();
-
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
-
-		patronService.createPatron(HOST_LMS_CODE, "43546",
-			"home-library").block();
-
-		// Act
-		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, "43546", "ABC123", HOST_LMS_CODE, "home-library");
-
-		// Assert
-		assertThat(placedRequestResponse.getStatus(), is(OK));
-
-		final var placedPatronRequest = placedRequestResponse.body();
-
-		assertThat(placedPatronRequest.requestor(), is(notNullValue()));
-		assertThat(placedPatronRequest.requestor().homeLibraryCode(), is("home-library"));
-		assertThat(placedPatronRequest.requestor().localSystemCode(), is(HOST_LMS_CODE));
-		assertThat(placedPatronRequest.requestor().localId(), is("43546"));
-
-		var fetchedPatronRequest = await().atMost(5, SECONDS)
-			.until(() -> adminApiClient.getPatronRequestViaAdminApi(requireNonNull(placedRequestResponse.body()).id()),
-				isPlacedAtBorrowingAgency());
-
-		assertThat(fetchedPatronRequest, is(notNullValue()));
-		assertThat(fetchedPatronRequest.citation().bibClusterId(), is(clusterRecordId));
-		assertThat(fetchedPatronRequest.pickupLocation().code(), is("ABC123"));
-		assertThat(fetchedPatronRequest.status().code(), is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
-		assertThat(fetchedPatronRequest.localRequest().id(), is("864902"));
-		assertThat(fetchedPatronRequest.localRequest().status(), is("PLACED"));
-		assertThat(fetchedPatronRequest.localRequest().itemId(), is("7916922"));
-		assertThat(fetchedPatronRequest.localRequest().bibId(), is("7916920"));
-		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
-
-		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.requestor().homeLibraryCode(), is("home-library"));
-
-		assertThat(fetchedPatronRequest.requestor().identities(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(2));
-
-		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(0);
-
-		assertThat(homeIdentity.homeIdentity(), is(true));
-		assertThat(homeIdentity.hostLmsCode(), is(HOST_LMS_CODE));
-		assertThat(homeIdentity.localId(), is("43546"));
-
-		final var supplierIdentity = fetchedPatronRequest.requestor().identities().get(1);
-
-		assertThat(supplierIdentity.homeIdentity(), is(false));
-		assertThat(supplierIdentity.hostLmsCode(), is(HOST_LMS_CODE));
-		assertThat(supplierIdentity.localId(), is("6235472"));
 
 		final var supplierRequest = fetchedPatronRequest.supplierRequests().get(0);
 
