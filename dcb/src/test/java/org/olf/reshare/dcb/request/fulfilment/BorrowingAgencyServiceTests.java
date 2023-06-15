@@ -155,8 +155,8 @@ class BorrowingAgencyServiceTests {
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
-		final var patron = patronFixture.savePatron(randomUUID(), "872321");
-		patronFixture.saveHomeIdentity(randomUUID(), patron, "872321", hostLms);
+		final var patron = patronFixture.savePatron("872321");
+		patronFixture.saveHomeIdentity(patron, hostLms, "872321");
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()
@@ -191,8 +191,8 @@ class BorrowingAgencyServiceTests {
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
-		final var patron = patronFixture.savePatron(randomUUID(), "972321");
-		patronFixture.saveHomeIdentity(randomUUID(), patron, "972321", hostLms);
+		final var patron = patronFixture.savePatron("972321");
+		patronFixture.saveHomeIdentity(patron, hostLms, "972321");
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()

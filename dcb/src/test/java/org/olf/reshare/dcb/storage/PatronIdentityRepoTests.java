@@ -5,9 +5,11 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,17 +20,13 @@ import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.test.DcbTest;
 
 import jakarta.inject.Inject;
-import reactor.core.publisher.Mono;
 
 @DcbTest
 class PatronIdentityRepoTests {
-
 	@Inject
 	private PatronRepository patronRepository;
-
 	@Inject
 	private PatronIdentityRepository patronIdentityRepository;
-
 	@Inject
 	private HostLmsRepository hostLmsRepository;
 
@@ -41,16 +39,15 @@ class PatronIdentityRepoTests {
 			"Database Host", SierraLmsClient.class.getName(), Map.of());
 		final var patronId = randomUUID();
 		final var patronIdentityId = randomUUID();
-		final var localId = "localId";
 		final var patron = new Patron(patronId, null, null, null, List.of());
-		final var patronIdentity = new PatronIdentity(patronIdentityId, null, null, patron, dataHostLms, localId, true);
+		final var patronIdentity = createPatronIdentity(patronIdentityId, patron, dataHostLms, true);
 
-		Mono.from(hostLmsRepository.save(dataHostLms)).block();
-		Mono.from(patronRepository.save(patron)).block();
-		Mono.from(patronIdentityRepository.save(patronIdentity)).block();
+		singleValueFrom(hostLmsRepository.save(dataHostLms));
+		singleValueFrom(patronRepository.save(patron));
+		singleValueFrom(patronIdentityRepository.save(patronIdentity));
 
 		// Act
-		final var foundPatronIdentity = Mono.from(patronIdentityRepository.findOneByLocalIdAndHostLmsAndHomeIdentity(localId, dataHostLms, true)).block();
+		final var foundPatronIdentity = findIdentity(dataHostLms, "localId");
 
 		// Assert
 		assertThat("PatronIdentity should not be null.", foundPatronIdentity, is(notNullValue()));
@@ -68,19 +65,19 @@ class PatronIdentityRepoTests {
 			"Database Host", SierraLmsClient.class.getName(), Map.of());
 		final var patronId = randomUUID();
 		final var patronIdentityId = randomUUID();
-		final var localId = "localId";
 		final var patron = new Patron(patronId, null, null, null, List.of());
-		final var patronIdentity = new PatronIdentity(patronIdentityId, null, null, patron, dataHostLms, localId, false);
+		final var patronIdentity = createPatronIdentity(patronIdentityId, patron, dataHostLms, false);
 
-		Mono.from(hostLmsRepository.save(dataHostLms)).block();
-		Mono.from(patronRepository.save(patron)).block();
-		Mono.from(patronIdentityRepository.save(patronIdentity)).block();
+		singleValueFrom(hostLmsRepository.save(dataHostLms));
+		singleValueFrom(patronRepository.save(patron));
+		singleValueFrom(patronIdentityRepository.save(patronIdentity));
 
 		// Act
-		final var foundPatronIdentity = Mono.from(patronIdentityRepository.findOneByLocalIdAndHostLmsAndHomeIdentity(localId, dataHostLms, true)).block();
+		final var foundPatronIdentity = findIdentity(dataHostLms, "localId");
 
 		// Assert
-		assertThat("Expected no patron identity to be found for the given criteria", foundPatronIdentity, is(nullValue()));
+		assertThat("Expected no patron identity to be found for the given criteria",
+			foundPatronIdentity, is(nullValue()));
 	}
 
 	@Test
@@ -92,19 +89,19 @@ class PatronIdentityRepoTests {
 			"Database Host", SierraLmsClient.class.getName(), Map.of());
 		final var patronId = randomUUID();
 		final var patronIdentityId = randomUUID();
-		final var localId = "localId";
 		final var patron = new Patron(patronId, null, null, null, List.of());
-		final var patronIdentity = new PatronIdentity(patronIdentityId, null, null, patron, dataHostLms, localId, true);
+		final var patronIdentity = createPatronIdentity(patronIdentityId, patron, dataHostLms, true);
 
-		Mono.from(hostLmsRepository.save(dataHostLms)).block();
-		Mono.from(patronRepository.save(patron)).block();
-		Mono.from(patronIdentityRepository.save(patronIdentity)).block();
+		singleValueFrom(hostLmsRepository.save(dataHostLms));
+		singleValueFrom(patronRepository.save(patron));
+		singleValueFrom(patronIdentityRepository.save(patronIdentity));
 
 		// Act
-		final var foundPatronIdentity = Mono.from(patronIdentityRepository.findOneByLocalIdAndHostLmsAndHomeIdentity("NotLocalId", dataHostLms, true)).block();
+		final var foundPatronIdentity = findIdentity(dataHostLms, "NotLocalId");
 
 		// Assert
-		assertThat("Expected no patron identity to be found for the given criteria", foundPatronIdentity, is(nullValue()));
+		assertThat("Expected no patron identity to be found for the given criteria",
+			foundPatronIdentity, is(nullValue()));
 	}
 
 	@Test
@@ -121,16 +118,34 @@ class PatronIdentityRepoTests {
 		final var patronIdentityId = randomUUID();
 		final var localId = "localId";
 		final var patron = new Patron(patronId, null, null, null, List.of());
-		final var patronIdentity = new PatronIdentity(patronIdentityId, null, null, patron, dataHostLms1, localId, true);
+		final var patronIdentity = createPatronIdentity(patronIdentityId, patron, dataHostLms1, true);
 
-		Mono.from(hostLmsRepository.save(dataHostLms1)).block();
-		Mono.from(patronRepository.save(patron)).block();
-		Mono.from(patronIdentityRepository.save(patronIdentity)).block();
+		singleValueFrom(hostLmsRepository.save(dataHostLms1));
+		singleValueFrom(patronRepository.save(patron));
+		singleValueFrom(patronIdentityRepository.save(patronIdentity));
 
 		// Act
-		final var foundPatronIdentity = Mono.from(patronIdentityRepository.findOneByLocalIdAndHostLmsAndHomeIdentity(localId, dataHostLms2, true)).block();
+		final var foundPatronIdentity = findIdentity(dataHostLms2, localId);
 
 		// Assert
-		assertThat("Expected no patron identity to be found for the given criteria", foundPatronIdentity, is(nullValue()));
+		assertThat("Expected no patron identity to be found for the given criteria",
+			foundPatronIdentity, is(nullValue()));
+	}
+
+	private PatronIdentity findIdentity(DataHostLms hostLms, String localId) {
+		return singleValueFrom(patronIdentityRepository
+			.findOneByLocalIdAndHostLmsAndHomeIdentity(localId, hostLms, true));
+	}
+
+	private static PatronIdentity createPatronIdentity(UUID patronIdentityId,
+		Patron patron, DataHostLms hostLms, boolean homeIdentity) {
+
+		return PatronIdentity.builder()
+			.id(patronIdentityId)
+			.patron(patron)
+			.hostLms(hostLms)
+			.localId("localId")
+			.homeIdentity(homeIdentity)
+			.build();
 	}
 }

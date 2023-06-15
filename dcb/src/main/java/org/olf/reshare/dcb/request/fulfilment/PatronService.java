@@ -13,7 +13,6 @@ import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
-import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.storage.PatronIdentityRepository;
 import org.olf.reshare.dcb.storage.PatronRepository;
 import org.slf4j.Logger;
@@ -92,7 +91,7 @@ public class PatronService {
 	private Mono<PatronIdentity> getHostLmsOfPatronIdentity(PatronIdentity patronIdentity) {
 		log.debug("getHostLmsOfPatronIdentity({})", patronIdentity);
 
-		return fetchDataHostLmsByHostLmsId(patronIdentity.getHostLms().id)
+		return fetchDataHostLmsByHostLmsId(patronIdentity.getHostLms().getId())
 			.doOnNext(patronIdentity::setHostLms)
 			.thenReturn(patronIdentity);
 	}
@@ -105,20 +104,26 @@ public class PatronService {
 	public PatronIdentity createNewPatronIdentity(Patron patron, DataHostLms dataHostLms,
 		String localPatronIdentifier, Boolean homeIdentity) {
 
-		log.debug("createPatronIdentity({},{},{},{})",patron,dataHostLms,localPatronIdentifier,homeIdentity);
+		log.debug("createPatronIdentity({}, {}, {}, {})", patron, dataHostLms, localPatronIdentifier, homeIdentity);
 
-		PatronIdentity result = new PatronIdentity(randomUUID(), null, null, patron, dataHostLms,
-			localPatronIdentifier, homeIdentity );
+		final var result = PatronIdentity.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.hostLms(dataHostLms)
+			.localId(localPatronIdentifier)
+			.homeIdentity(homeIdentity)
+			.build();
 
-		log.debug("result of create new patronIdentity: {}",result);
+		log.debug("result of create new patronIdentity: {}", result);
 		return result;
 	}
 
 	public Mono<PatronIdentity> createPatronIdentity(Patron patron, String localId, String hostLmsCode,
 		Boolean homeIdentity) {
+
 		log.debug("createPatronIdentity({}, {}, {}, {})", patron, hostLmsCode, localId, homeIdentity);
 
-		return fetchDataHostLmsByLocalSystemCode( hostLmsCode )
+		return fetchDataHostLmsByLocalSystemCode(hostLmsCode)
 			.map(dataHostLms -> createNewPatronIdentity(patron, dataHostLms, localId, homeIdentity))
 			.flatMap(this::savePatronIdentity);
 	}

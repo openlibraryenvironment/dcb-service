@@ -1,10 +1,12 @@
 package org.olf.reshare.dcb.test;
 
-import static java.time.Instant.now;
+import static java.util.UUID.randomUUID;
+import static org.olf.reshare.dcb.test.PublisherUtils.manyValuesFrom;
 import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
 
-import java.util.UUID;
+import java.util.List;
 
+import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
@@ -12,6 +14,7 @@ import org.olf.reshare.dcb.storage.PatronIdentityRepository;
 import org.olf.reshare.dcb.storage.PatronRepository;
 
 import io.micronaut.context.annotation.Prototype;
+import reactor.core.publisher.Mono;
 
 @Prototype
 public class PatronFixture {
@@ -19,38 +22,38 @@ public class PatronFixture {
 
 	private final PatronRepository patronRepository;
 	private final PatronIdentityRepository patronIdentityRepository;
+	private final HostLmsService hostLmsService;
 	private final PatronRequestsFixture patronRequestsFixture;
 
 	PatronFixture(PatronRepository patronRepository,
 		PatronIdentityRepository patronIdentityRepository,
-		PatronRequestsFixture patronRequestsFixture) {
+		HostLmsService hostLmsService, PatronRequestsFixture patronRequestsFixture) {
 
 		this.patronRepository = patronRepository;
 		this.patronIdentityRepository = patronIdentityRepository;
+		this.hostLmsService = hostLmsService;
 		this.patronRequestsFixture = patronRequestsFixture;
 	}
 
-	public Patron savePatron(UUID patronId, String homeLibCode) {
-		return singleValueFrom(patronRepository.save(
-				Patron.builder()
-					.id(patronId)
-					.dateCreated(now())
-					.dateUpdated(now())
-					.homeLibraryCode(homeLibCode)
-					.build()));
+	public Patron savePatron(String homeLibraryCode) {
+		return savePatron(
+			Patron.builder()
+				.id(randomUUID())
+				.homeLibraryCode(homeLibraryCode)
+				.build());
 	}
 
-	public void saveHomeIdentity(UUID patronIdentityId, Patron patron,
-		String homeLibCode, DataHostLms hostLms) {
+	public Patron savePatron(Patron patron) {
+		return Mono.from(patronRepository.save(patron)).block();
+	}
 
+	public void saveHomeIdentity(Patron patron, DataHostLms homeHostLms, String localId) {
 		singleValueFrom(patronIdentityRepository.save(
 			PatronIdentity.builder()
-				.id(patronIdentityId)
-				.dateCreated(now())
-				.dateUpdated(now())
+				.id(randomUUID())
 				.patron(patron)
-				.localId(homeLibCode)
-				.hostLms(hostLms)
+				.localId(localId)
+				.hostLms(homeHostLms)
 				.homeIdentity(true)
 				.build()));
 	}
@@ -67,5 +70,22 @@ public class PatronFixture {
 	void deleteAllPatronIdentities() {
 		dataAccess.deleteAll(patronIdentityRepository.findAll(),
 			patronIdentity -> patronIdentityRepository.delete(patronIdentity.getId()));
+	}
+
+	public Patron findPatron(String localSystemCode, String localId) {
+		return Mono.from(hostLmsService.findByCode(localSystemCode))
+			.flatMap(hostLms -> Mono.from(patronIdentityRepository
+				.findOneByLocalIdAndHostLmsAndHomeIdentity(localId, hostLms, true)))
+			.flatMap(identity -> Mono.from(
+				patronRepository.findById(identity.getPatron().getId())))
+			.block();
+	}
+
+	public List<PatronIdentity> findIdentities(Patron patron) {
+		return manyValuesFrom(patronIdentityRepository.findAllByPatron(patron));
+	}
+
+	public List<Patron> findAll() {
+		return manyValuesFrom(patronRepository.findAll());
 	}
 }

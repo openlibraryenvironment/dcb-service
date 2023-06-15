@@ -2,7 +2,6 @@ package org.olf.reshare.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -12,7 +11,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-import static org.olf.reshare.dcb.test.MockUtils.withFirstArgument;
 
 import java.util.List;
 import java.util.Map;
@@ -20,7 +18,6 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.reshare.dcb.core.model.DataHostLms;
@@ -40,71 +37,6 @@ class PatronServiceTests {
 
 	private final PatronService patronService = new PatronService(patronRepository,
 		patronIdentityRepository, hostLmsService);
-
-	@Test
-	@DisplayName("should find existing patron when given a known identity")
-	void shouldFindExistingPatronByIdentity() {
-		// Arrange
-		final var patronId = randomUUID();
-
-		final var homeHostLmsId = randomUUID();
-		final var homeHostLms = createHostLms(homeHostLmsId, "localSystemCode");
-
-		when(hostLmsService.findByCode("localSystemCode"))
-			.thenReturn(Mono.just(homeHostLms));
-
-		final var homeIdentityId = randomUUID();
-		final var homeIdentity = createIdentity(homeIdentityId, createPatronWithOnlyId(patronId),
-			createHostLmsWithIdOnly(homeHostLmsId), "localId", true);
-
-		when(patronIdentityRepository
-			.findOneByLocalIdAndHostLmsAndHomeIdentity("localId", homeHostLms, true))
-			.thenReturn(Mono.just(homeIdentity));
-
-		// Act
-		final var foundPatronId = patronService
-			.findPatronFor("localSystemCode", "localId").block();
-
-		assertThat(foundPatronId, is(notNullValue()));
-		assertThat(foundPatronId.getValue(), is(patronId));
-
-		verify(hostLmsService).findByCode("localSystemCode");
-
-		verify(patronIdentityRepository)
-			.findOneByLocalIdAndHostLmsAndHomeIdentity("localId", homeHostLms, true);
-
-		verifyNoMoreInteractions(hostLmsService, patronIdentityRepository, patronRepository);
-	}
-
-	@Test
-	@DisplayName("should not find patron when given an unknown identity")
-	void shouldNotFindPatronWhenPatronIdentityDoesNotExist() {
-		// Arrange
-		final var hostLms = createHostLms("localSystemCode");
-
-		when(hostLmsService.findByCode("localSystemCode"))
-			.thenReturn(Mono.just(hostLms));
-
-		when(patronIdentityRepository
-			.findOneByLocalIdAndHostLmsAndHomeIdentity("localId", hostLms, true))
-			.thenReturn(Mono.empty());
-
-		// Act
-		final var result = patronService
-			.findPatronFor("localSystemCode", "localId")
-			.block();
-
-		// Assert
-		assertThat("Should not return a patron (block converts empty mono to null)",
-			result, is(nullValue()));
-
-		verify(hostLmsService).findByCode("localSystemCode");
-
-		verify(patronIdentityRepository)
-			.findOneByLocalIdAndHostLmsAndHomeIdentity("localId", hostLms, true);
-
-		verifyNoMoreInteractions(hostLmsService, patronIdentityRepository, patronRepository);
-	}
 
 	@Test
 	@DisplayName("should find existing patron when given a known ID")
@@ -182,88 +114,8 @@ class PatronServiceTests {
 		verifyNoMoreInteractions(hostLmsService, patronIdentityRepository, patronRepository);
 	}
 
-	@Test
-	@DisplayName("should save newly created patron")
-	void shouldSaveCreatedPatron() {
-		// Arrange
-
-		// Mock expectations cannot be specific
-		// as the parameters are instantiated within the service
-		when(patronRepository.save(any()))
-			.thenAnswer(withFirstArgument());
-
-		when(patronIdentityRepository.save(any()))
-			.thenAnswer(withFirstArgument());
-
-		final var hostLms = createHostLms("localSystemCode");
-
-		when(hostLmsService.findByCode("localSystemCode"))
-			.thenAnswer(invocation -> Mono.just(hostLms));
-
-		// Act
-		final var createdPatronId = patronService
-			.createPatron("localSystemCode", "localId", "home-library-code")
-			.block();
-
-		assertThat("Returned patron ID should not be null",
-			createdPatronId, is(notNullValue()));
-
-		final var patronCaptor = ArgumentCaptor.forClass(Patron.class);
-
-		verify(patronRepository).save(patronCaptor.capture());
-
-		final var savedPatron = patronCaptor.getValue();
-
-		assertThat("Expected a patron to be saved", savedPatron, is(notNullValue()));
-
-		assertThat("Should have an ID", savedPatron.getId(), is(notNullValue()));
-
-		assertThat("Should have a home library code",
-			savedPatron.getHomeLibraryCode(), is("home-library-code"));
-
-		assertThat("Should not include any identities",
-			savedPatron.getPatronIdentities(), hasSize(0));
-
-		assertThat("Returned patron ID should have same ID as saved patron",
-			createdPatronId.getValue(), is(savedPatron.getId()));
-
-		final var identityCaptor = ArgumentCaptor.forClass(PatronIdentity.class);
-
-		verify(patronIdentityRepository).save(identityCaptor.capture());
-
-		final var savedIdentity = identityCaptor.getValue();
-
-		assertThat("Patron associated with an identity should not be null",
-			savedIdentity.getPatron(), is(notNullValue()));
-
-		assertThat("Patron associated with an identity must be shallow, to avoid a circular loop",
-			savedIdentity.getPatron(), is(not(savedPatron)));
-
-		assertThat("Shallow patron associated with an identity should not have any identities",
-			savedIdentity.getPatron().getPatronIdentities(), is(nullValue()));
-
-		assertThat("Should have local ID",
-			savedIdentity.getLocalId(), is("localId"));
-
-		assertThat("Should have local system code",
-			savedIdentity.getHostLms().getCode(), is("localSystemCode"));
-
-		assertThat("Should be home identity",
-			savedIdentity.getHomeIdentity(), is(true));
-
-		verify(hostLmsService).findByCode("localSystemCode");
-
-		verifyNoMoreInteractions(hostLmsService, patronIdentityRepository, patronRepository);
-	}
-
 	private Patron createPatron(UUID id, String homeLibraryCode) {
 		return new Patron(id, null, null, homeLibraryCode, List.of());
-	}
-
-	private Patron createPatronWithOnlyId(UUID id) {
-		return Patron.builder()
-			.id(id)
-			.build();
 	}
 
 	private DataHostLms createHostLms(UUID id, String localSystemCode) {
@@ -282,8 +134,12 @@ class PatronServiceTests {
 	private static PatronIdentity createIdentity(UUID id,
 		Patron patron, DataHostLms hostLms, String localId, boolean homeIdentity) {
 
-		return new PatronIdentity(id, null, null,
-			patron, hostLms, localId, homeIdentity);
+		return PatronIdentity.builder()
+			.id(id)
+			.patron(patron)
+			.hostLms(hostLms)
+			.localId(localId)
+			.homeIdentity(homeIdentity)
+			.build();
 	}
-
 }

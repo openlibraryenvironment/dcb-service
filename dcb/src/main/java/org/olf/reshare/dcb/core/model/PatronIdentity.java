@@ -35,20 +35,6 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @MappedEntity
 @ExcludeFromGeneratedCoverageReport
 public class PatronIdentity {
-
-	// This is the shape of the constructor expected by some of the tests
-	public PatronIdentity(UUID id, Instant dateCreated, Instant dateUpdated,
-                              Patron patron, DataHostLms hostLms, String localId,
-                              Boolean homeIdentity) {
-		this.id = id;
-		this.dateCreated = dateCreated;
-		this.dateUpdated = dateUpdated;
-		this.patron = patron;
-		this.hostLms = hostLms;
-		this.localId = localId;
-		this.homeIdentity = homeIdentity;
-	}
-
 	@NotNull
 	@NonNull
 	@Id
@@ -89,4 +75,3 @@ public class PatronIdentity {
 	@Nullable
 	private Instant lastValidated;
 }
-
