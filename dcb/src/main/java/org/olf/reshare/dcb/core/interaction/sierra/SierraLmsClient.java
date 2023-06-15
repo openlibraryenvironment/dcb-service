@@ -104,12 +104,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 				if (since != null) {
 					params.updatedDate(dtr -> {
+                                                LocalDateTime from_as_local_date_time = since.atZone(java.time.ZoneId.of("UTC")).toLocalDateTime();
+                                                log.info("Setting from date for {} to {}",lms.getName(),from_as_local_date_time);
 						// dtr.to(LocalDateTime.now()).fromDate(LocalDateTime.from(since));
-						dtr.to(LocalDateTime.now()).fromDate(since.atZone(java.time.ZoneId.of("UTC")).toLocalDateTime());
+						dtr.to(LocalDateTime.now())
+                                                   .fromDate(from_as_local_date_time);
 					});
 				}
 			}))
-			.doOnSubscribe(_s -> log.info("Fetching batch from Sierra API with since={} offset={} limit={}", since, offset, limit));
+			.doOnSubscribe(_s -> log.info("Fetching batch from Sierra {} with since={} offset={} limit={}", lms.getName(), since, offset, limit));
 	}
 
 	/**
@@ -137,7 +140,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						// through everything
 						// from day 0
 						generator_state.offset = parseInt(components[1]);
-						log.info("Resuming bootstrap at offset " + generator_state.offset);
+						log.info("Resuming bootstrap for "+lms.getName()+" at offset " + generator_state.offset);
 					} else if (components[0].equals("deltaSince")) {
 						// Delta cursor is used after the initial bootstrap and lets us know the point
 						// in time
@@ -148,7 +151,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 							// We're recovering from an interuption whilst processing a delta
 							generator_state.offset = parseInt(components[2]);
 						}
-						log.info("Resuming delta at timestamp " + generator_state.since + " offset=" + generator_state.offset);
+						log.info("Resuming delta at timestamp " + generator_state.since + " offset=" + generator_state.offset+" name="+lms.getName());
 					}
 				} else {
 					log.info("Start a fresh ingest");
@@ -156,7 +159,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 				// Make a note of the time before we start
 				generator_state.request_start_time = System.currentTimeMillis();
-				log.debug("Create generator: offset={} since={}", generator_state.offset, generator_state.since);
+				log.debug("Create generator: name={} offset={} since={}", lms.getName(), generator_state.offset, generator_state.since);
 
 				return generator_state;
 			});
@@ -164,7 +167,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	protected Mono<PublisherState> saveState( PublisherState state ) {
-		log.debug("Update state {}", state);
+		log.debug("Update state {} - {}", state,lms.getName());
 
 		return Mono.from(processStateService.updateState(lms.getId(), "ingest", state.storred_state))
 			.thenReturn(state);
@@ -177,7 +180,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.expand(TupleUtils.function(( state ,results ) -> {
 
 				var bibs = results.entries();
-				log.info("Fetched a chunk of {} records", bibs.size());
+				log.info("Fetched a chunk of {} records for {}", bibs.size(),lms.getName());
 
 //				state.current_page = bibs;
 
@@ -190,17 +193,18 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				// If we have exhausted the currently cached page, and we are at the end,
 				// terminate.
 				if (!state.possiblyMore) {
-					log.info("Terminating cleanly - run out of bib results - new timestamp is {}", state.request_start_time);
+					log.info("{} ingest Terminating cleanly - run out of bib results - new timestamp is {}", lms.getName(), state.request_start_time);
 
 					// Make a note of the time at which we started this run, so we know where
 					// to pick up from next time
 					state.storred_state.put("cursor", "deltaSince:" + state.request_start_time);
+					state.storred_state.put("name", lms.getName());
 
-					log.info("No more results to fetch");
+					log.info("No more results to fetch from {}",lms.getName());
 					return Mono.empty();
 
 				} else {
-					log.info("Exhausted current page, prep next");
+					log.info("Exhausted current page from {} , prep next", lms.getName());
 					// We have finished consuming a page of data, but there is more to come.
 					// Remember where we got up to and stash it in the DB
 					if (state.since != null) {
