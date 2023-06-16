@@ -57,6 +57,11 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 			});
 	}
 
+	private PatronRequest setRequestingPatronIdentity(PatronRequest patronRequest, PatronIdentity pi) {
+                patronRequest.setRequestingIdentity(pi);
+                return patronRequest;
+        }
+
 	/**
 	 * Attempts to transition the patron request to the next state, which is placing the request at the supplying agency.
 	 *
@@ -75,6 +80,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		// return Mono.from( patronIdentityRepository.findHomePatronIdentityForPatron(patronRequest.getPatron().getId()) )
 		return Mono.from( patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), Boolean.TRUE) )
 			.flatMap( this::validatePatronIdentity )
+                        .map( pi -> this.setRequestingPatronIdentity(patronRequest, pi ) )
 			.then( Mono.fromDirect(patronRequestRepository.update(patronRequest)));
 	}
 }

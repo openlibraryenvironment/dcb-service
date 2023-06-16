@@ -9,6 +9,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.experimental.Accessors;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
@@ -26,6 +27,7 @@ import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstant
 @Serdeable
 @MappedEntity
 @ExcludeFromGeneratedCoverageReport
+@Accessors(chain=true)
 public class PatronRequest {
 
 	@NotNull
