@@ -184,7 +184,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 //				state.current_page = bibs;
 
-				log.info("got[{}] page of data, containing {} results", state.page_counter++, bibs.size());
+				log.info("got page {} of data, containing {} results", state.page_counter++, bibs.size());
 				state.possiblyMore = bibs.size() == pageSize;
 
 				// Increment the offset for the next fetch
