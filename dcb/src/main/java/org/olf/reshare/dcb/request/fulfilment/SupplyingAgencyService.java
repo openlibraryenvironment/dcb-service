@@ -122,6 +122,7 @@ public class SupplyingAgencyService {
 	}
 
 	private Mono<String> determinePatronType(String hostLmsCode) {
+                log.warn("ToDo - this function needs to consume the patron type for the patron");
 		return patronTypeService.determinePatronType(hostLmsCode);
 	}
 
