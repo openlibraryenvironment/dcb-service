@@ -69,6 +69,10 @@ public class SupplierRequest {
 	@Enumerated(EnumType.STRING)
 	private SupplierRequestStatusCode statusCode;
 
+	@Nullable
+        @Relation(value = Relation.Kind.MANY_TO_ONE)
+        private PatronIdentity virtualIdentity;
+
 	// Once we have placed a hold at the lending system, track that hold by storring it's ID here
 	// this will only be unique within the context of a hostLmsCode
 	@Nullable

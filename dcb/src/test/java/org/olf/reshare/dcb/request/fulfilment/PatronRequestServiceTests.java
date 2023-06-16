@@ -36,8 +36,8 @@ class PatronRequestServiceTests {
 
 		final var command = new PlacePatronRequestCommand(
 			new Citation(UUID.randomUUID()), new PickupLocation("code"),
-			new Requestor("43546", "localSystemCode",
-				"home-library-code"));
+			new Requestor("43546", "localSystemCode", "home-library-code"),
+                        "My Funky Title (Loan)");
 
 		when(findOrCreatePatronService.findOrCreatePatron(any(), any(), any()))
 			.thenAnswer(invocation -> Mono.just(new Patron()));
@@ -77,7 +77,8 @@ class PatronRequestServiceTests {
 			new Citation(bibClusterId),
 			new PickupLocation(pickupLocationCode),
 			new Requestor(patronId.toString(), "localSystemCode",
-				"home-library-code"));
+				"home-library-code"), 
+                        "A Brief history of DCB (Loan)");
 
 		final var patronRequest = PatronRequest.builder()
 			.id(requestId)

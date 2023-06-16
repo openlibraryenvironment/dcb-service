@@ -49,9 +49,14 @@ class PatronRequestResolutionStateTransitionTests {
 		final var resolvedPatronRequest = createPatronRequest(patronRequestId,
 			RESOLVED);
 
-		final var supplierRequest = new SupplierRequest(randomUUID(),
-			resolvedPatronRequest, "itemId", "itemBarcode", "ItemLocationCode",
-			"holdingsAgencyCode", null, null, null);
+		final var supplierRequest = SupplierRequest.builder()
+                                             .id(randomUUID())
+                                             .patronRequest(resolvedPatronRequest)
+                                             .localItemId("itemId")
+                                             .localItemBarcode("itemBarcode") 
+                                             .localItemLocationCode("ItemLocationCode")
+                                             .hostLmsCode("holdingsAgencyCode")
+                                             .build();
 
 		when(patronRequestResolutionService.resolvePatronRequest(initialPatronRequest))
 			.thenAnswer(invocation -> Mono.just(
@@ -82,9 +87,14 @@ class PatronRequestResolutionStateTransitionTests {
 		final var resolvedPatronRequest = createPatronRequest(patronRequestId,
 			NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
 
-		final var supplierRequest = new SupplierRequest(randomUUID(),
-			resolvedPatronRequest, "itemId", "itemBarcode", "ItemLocationCode",
-			"holdingsAgencyCode", null, null, null);
+                final var supplierRequest = SupplierRequest.builder()
+                                             .id(randomUUID())
+                                             .patronRequest(resolvedPatronRequest)
+                                             .localItemId("itemId")
+                                             .localItemBarcode("itemBarcode")
+                                             .localItemLocationCode("ItemLocationCode")
+                                             .hostLmsCode("holdingsAgencyCode")
+                                             .build();
 
 		when(patronRequestResolutionService.resolvePatronRequest(initialPatronRequest))
 			.thenAnswer(invocation -> Mono.just(
