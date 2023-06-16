@@ -19,6 +19,7 @@ import org.reactivestreams.Publisher;
 import services.k_int.utils.UUIDUtils;
 import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
+
 @Singleton
 public class DCBStartupEventListener implements ApplicationEventListener<StartupEvent> {
 

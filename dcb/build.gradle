@@ -12,6 +12,8 @@ plugins {
 	id('jacoco')
 	id 'org.olf.reshare.dcb-bom'
 	id 'service.k_int.micronaut-multi'
+        // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
+        id "com.gorylenko.gradle-git-properties" version "2.4.1"
 }
 
 //configurations.all {
