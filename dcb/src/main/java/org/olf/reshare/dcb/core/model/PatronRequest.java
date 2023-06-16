@@ -51,6 +51,10 @@ public class PatronRequest {
 	private Patron patron;
 
 	@Nullable
+	@Relation(value = Relation.Kind.MANY_TO_ONE)
+	private PatronIdentity requestingIdentity;
+
+	@Nullable
 	@TypeDef( type = DataType.UUID)
 	private UUID bibClusterId;
 
@@ -99,6 +103,9 @@ public class PatronRequest {
 
 	@Nullable
 	private String localBibId;
+
+        @Nullable
+        private String description;
 
 
 	public PatronRequest resolve() {

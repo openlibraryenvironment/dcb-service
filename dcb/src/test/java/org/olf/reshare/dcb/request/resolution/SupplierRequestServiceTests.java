@@ -32,18 +32,14 @@ public class SupplierRequestServiceTests {
 			.build();
 
 		final var supplierRequestId = randomUUID();
-		var initialSupplierRequest = new SupplierRequest(
-			supplierRequestId,
-			patronRequest,
-			"itemId",
-			"itemBarcode",
-			"itemLocationCode",
-			"supplierHostLmsCode",
-			null,
-			null,
-			null
-		);
-
+                var initialSupplierRequest = SupplierRequest.builder()
+                                             .id(supplierRequestId)
+                                             .patronRequest(patronRequest)
+                                             .localItemId("itemId")
+                                             .localItemBarcode("itemBarcode")
+                                             .localItemLocationCode("ItemLocationCode")
+                                             .hostLmsCode("supplierHostLmsCode")
+                                             .build();
 		// Save the patronRequest and initialSupplierRequest
 		Mono.from(patronRequestRepository.save(patronRequest)).block();
 		Mono.from(supplierRequestRepository.save(initialSupplierRequest)).block();

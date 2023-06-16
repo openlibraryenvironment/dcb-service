@@ -41,6 +41,7 @@ public class PatronRequestService {
 		return Mono.just(command)
 			.flatMap(this::findOrCreatePatron)
 			.map(patron -> mapToPatronRequest(patron, command))
+			.flatMap(req -> addRequestingPatronIdentity(req, command))
 			.flatMap(this::savePatronRequest)
 			.doOnSuccess(requestWorkflow::initiate);
 	}
@@ -51,6 +52,12 @@ public class PatronRequestService {
 		return findOrCreatePatronService.findOrCreatePatron(requestor.localSystemCode(),
 			requestor.localId(), requestor.homeLibraryCode());
 	}
+
+        // Retrieve the identity the patron used to place this request - this is useful to have at the patronRequest level later on
+        // as we often want to display patron info in close proximity to the request details itself
+        private static Mono<PatronRequest> addRequestingPatronIdentity(PatronRequest req, PlacePatronRequestCommand command) {
+          return Mono.just(req);
+        }
 
 	private static PatronRequest mapToPatronRequest(Patron patron,
 		PlacePatronRequestCommand command) {
@@ -69,6 +76,7 @@ public class PatronRequestService {
 			.bibClusterId(command.citation().bibClusterId())
 			.pickupLocationCode(command.pickupLocation().code())
 			.statusCode(SUBMITTED_TO_DCB)
+			.description(command.description())
 			.build();
 	}
 

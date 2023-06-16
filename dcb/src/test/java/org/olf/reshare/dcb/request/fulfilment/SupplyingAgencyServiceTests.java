@@ -101,17 +101,14 @@ class SupplyingAgencyServiceTests {
 		patron.setPatronIdentities(List.of(patronIdentity, supplierPatronIdentity));
 
 		// Create SupplierRequest and PatronRequest
-		supplierRequest = new SupplierRequest(
-			randomUUID(),
-			patronRequest,
-			"itemId",
-			"itemBarcode",
-			"itemLocationCode",
-			"supplierHostLmsCode",
-			null,
-			null,
-			null
-		);
+		supplierRequest = SupplierRequest.builder()
+			.id(randomUUID())
+			.patronRequest(patronRequest)
+			.localItemId("itemId")
+			.localItemBarcode("itemBarcode")
+			.localItemLocationCode("itemLocationCode")
+			.hostLmsCode("supplierHostLmsCode")
+                        .build();
 
 		patronRequest = createPatronRequest(randomUUID(), RESOLVED, patron);
 
