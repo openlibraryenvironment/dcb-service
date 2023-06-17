@@ -201,6 +201,10 @@ public class PatronService {
 		return findAllPatronIdentitiesByPatron(patron).collectList();
 	}
 
+        public Mono<PatronIdentity> getPatronIdentityById(UUID id) {
+                return Mono.from(patronIdentityRepository.findById(id));
+        }
+
 	@Value
 	@RequiredArgsConstructor(access = PACKAGE)
 	public static class PatronId {

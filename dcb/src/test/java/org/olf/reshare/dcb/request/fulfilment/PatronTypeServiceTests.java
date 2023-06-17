@@ -31,7 +31,22 @@ class PatronTypeServiceTests {
 	@Test
 	void shouldDeterminePatronTypeBasedUponHostLms() {
 		// Arrange
-		final var mapping = ReferenceValueMapping.builder()
+
+                // We set up a mapping HOSTA.1 -> DCB.DCB_UG -> 15
+                final var mapping_a = ReferenceValueMapping.builder()
+                        .id(randomUUID())
+                        .fromCategory("patronType")
+                        .fromContext("HOSTA")
+                        .fromValue("1")
+                        .toCategory("patronType")
+                        .toContext("DCB")
+                        .toValue("DCB_UG")
+                        .reciprocal(true)
+                        .build();
+		saveMapping(mapping_a);
+
+                // Mapping from DCB::DCB_UG to EXAMPLE-CODE:15
+		final var mapping_b = ReferenceValueMapping.builder()
 			.id(randomUUID())
 			.fromCategory("patronType")
 			.fromContext("DCB")
@@ -42,11 +57,11 @@ class PatronTypeServiceTests {
 			.reciprocal(true)
 			.build();
 
-		saveMapping(mapping);
+		saveMapping(mapping_b);
 
 		// Act
-		final var patronType = patronTypeService
-			.determinePatronType("EXAMPLE-CODE").block();
+                // patronTypeService.determinePatronType(TARGET-CONTEXT,ORIGIN-CONTEXT,ORIGIN-VALUE)
+		final var patronType = patronTypeService.determinePatronType("EXAMPLE-CODE","HOSTA","1").block();
 
 		// Assert
 		assertThat(patronType, is("15"));
@@ -55,8 +70,7 @@ class PatronTypeServiceTests {
 	@Test
 	void shouldFallBackToDefaultValueWhenNoMappingFound() {
 		// Act
-		final var patronType = patronTypeService
-			.determinePatronType("EXAMPLE-CODE").block();
+		final var patronType = patronTypeService.determinePatronType("EXAMPLE-CODE","DCB","DCB_UG").block();
 
 		// Assert
 		assertThat(patronType, is("210"));

@@ -21,6 +21,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.Mockito;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.olf.reshare.dcb.core.HostLmsService;
@@ -108,9 +109,10 @@ class SupplyingAgencyServiceTests {
 			.localItemBarcode("itemBarcode")
 			.localItemLocationCode("itemLocationCode")
 			.hostLmsCode("supplierHostLmsCode")
+                        .virtualIdentity(supplierPatronIdentity)
                         .build();
 
-		patronRequest = createPatronRequest(randomUUID(), RESOLVED, patron);
+		patronRequest = createPatronRequest(randomUUID(), RESOLVED, patron, patronIdentity);
 
 		// Common mocks
 		when(supplierRequestService.findSupplierRequestFor(any()))
@@ -118,6 +120,11 @@ class SupplyingAgencyServiceTests {
 
 		when(hostLmsService.getClientFor("supplierHostLmsCode"))
 			.thenAnswer(invocation -> Mono.just(hostLmsClient));
+
+		Mockito.lenient().when(patronService.getPatronIdentityById(patronIdentity.getId())) .thenAnswer(invocation -> Mono.just( patronIdentity ));
+
+		Mockito.lenient().when(patronService.getPatronIdentityById(supplierPatronIdentity.getId())) .thenAnswer(invocation -> Mono.just( supplierPatronIdentity ));
+
 	}
 
 	@DisplayName("patron is known to supplier and places patron request")
@@ -158,7 +165,7 @@ class SupplyingAgencyServiceTests {
 		when(hostLmsClient.patronFind("localId@homeLibraryCode"))
 			.thenAnswer(invocation -> Mono.empty());
 
-		when(patronTypeService.determinePatronType(any()))
+		when(patronTypeService.determinePatronType(any(), any(), any()))
 			.thenReturn(Mono.just("210"));
 
 		when(hostLmsClient.createPatron("localId@homeLibraryCode", "210"))
@@ -193,7 +200,7 @@ class SupplyingAgencyServiceTests {
 		when(hostLmsClient.patronFind("localId@homeLibraryCode"))
 			.thenAnswer(invocation -> Mono.empty());
 
-		when(patronTypeService.determinePatronType(any()))
+		when(patronTypeService.determinePatronType(any(),any(),any()))
 			.thenReturn(Mono.just("210"));
 
 		when(hostLmsClient.createPatron("localId@homeLibraryCode", "210"))
@@ -217,12 +224,13 @@ class SupplyingAgencyServiceTests {
 		assertThat(exception.getLocalizedMessage(), is("Sierra Error"));
 	}
 
-	private static PatronRequest createPatronRequest(UUID id, String status, Patron patron) {
+	private static PatronRequest createPatronRequest(UUID id, String status, Patron patron, PatronIdentity requestingIdentity) {
 		return PatronRequest.builder()
 			.id(id)
 			.patron(patron)
 			.pickupLocationCode("pickupLocationCode")
 			.statusCode(status)
+			.requestingIdentity(requestingIdentity)
 			.build();
 	}
 

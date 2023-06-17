@@ -38,11 +38,11 @@ public interface PatronIdentityRepository {
 	@NonNull
 	Publisher<Void> delete(UUID id);
 
-  @Query(value = "SELECT pi.*, h.* from patron_identity, host_lms h pi where pi.patron_id = :patronId and pi.home_identity=true and pi.host_lms_id = h.id", nativeQuery = true)
-  @Join(value = "hostLms", alias = "h")
+        @Query(value = "SELECT pi.*, h.* from patron_identity, host_lms h pi where pi.patron_id = :patronId and pi.home_identity=true and pi.host_lms_id = h.id", nativeQuery = true)
+        @Join(value = "hostLms", alias = "h")
 	@NonNull
-  @SingleResult
-  Publisher<PatronIdentity> findHomePatronIdentityForPatron(@NotNull UUID patronId);
+        @SingleResult
+        Publisher<PatronIdentity> findHomePatronIdentityForPatron(@NotNull UUID patronId);
 
 	@NonNull
 	@SingleResult

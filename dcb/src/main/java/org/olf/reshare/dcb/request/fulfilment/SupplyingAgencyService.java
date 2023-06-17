@@ -50,8 +50,11 @@ public class SupplyingAgencyService {
 	private Mono<Tuple3<PatronRequest, SupplierRequest, PatronIdentity>> checkAndCreatePatronAtSupplier(
 		PatronRequest patronRequest, SupplierRequest supplierRequest) {
 
+                log.debug("checkAndCreatePatronAtSupplier {} {}",patronRequest,supplierRequest);
+
 		return checkIfPatronExistsAtSupplier(patronRequest, supplierRequest)
 			.switchIfEmpty(Mono.defer(() -> createPatronAtSupplier(patronRequest, supplierRequest)))
+                        .map(patronIdentity -> { supplierRequest.setVirtualIdentity(patronIdentity); return patronIdentity; } )
 			.map(patronIdentity -> Tuples.of(patronRequest, supplierRequest, patronIdentity));
 	}
 
@@ -77,7 +80,7 @@ public class SupplyingAgencyService {
 	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(PatronRequest patronRequest,
 		SupplierRequest supplierRequest) {
 
-		log.debug("checkSupplierFor {}, {}", patronRequest.getId(), supplierRequest.getId());
+		log.debug("checkIfPatronExistsAtSupplier req={}, supplierSystemCode={}", patronRequest.getId(), supplierRequest.getHostLmsCode());
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
 			.flatMap(hostLmsClient ->
@@ -86,25 +89,41 @@ public class SupplyingAgencyService {
 				checkForPatronIdentity(patronRequest, supplierRequest.getHostLmsCode(), localId));
 	}
 
+        // Made public for mockability :'(
+        public Mono<PatronIdentity> getRequestingIdentity(PatronRequest patronRequest) {
+                if ( ( patronRequest != null ) &&
+                     ( patronRequest.getRequestingIdentity() != null ) ) {
+                        log.debug("Attempting to locate patron identity for {}",patronRequest.getRequestingIdentity().getId());
+                        return patronService.getPatronIdentityById(patronRequest.getRequestingIdentity().getId());
+                }
+                else {
+                        log.warn("getRequestingIdentity was unable to find a requesting identity. Returning empty()");
+                        return Mono.empty();
+                }
+        }
+
 	private Mono<PatronIdentity> createPatronAtSupplier(PatronRequest patronRequest,
 		SupplierRequest supplierRequest) {
 
-		log.debug("createPatronForSupplier {}, {}", patronRequest.getId(), supplierRequest.getId());
+		log.debug("createPatronAtSupplier {}, {}", patronRequest.getId(), supplierRequest.getId());
 
 		final var hostLmsCode = supplierRequest.getHostLmsCode();
 
 		return hostLmsService.getClientFor(hostLmsCode)
-			.zipWhen(client -> determinePatronType(hostLmsCode), Tuples::of)
-			.flatMap(function((client, patronType) -> createPatronAtSupplier(patronRequest, client, patronType)))
+			.zipWhen(client -> getRequestingIdentity(patronRequest), Tuples::of)
+			.flatMap(function((client,requestingIdentity) -> createPatronAtSupplier(patronRequest, client, requestingIdentity, hostLmsCode)))
 			.flatMap(localId -> checkForPatronIdentity(patronRequest, hostLmsCode, localId));
 	}
 
-	private Mono<String> createPatronAtSupplier(PatronRequest patronRequest,
-		HostLmsClient client, String patronType) {
-
-		return client.createPatron(
-			patronService.getUniqueIdStringFor(patronRequest.getPatron()), 
-			patronType);
+	private Mono<String> createPatronAtSupplier(
+                        PatronRequest patronRequest,
+		        HostLmsClient client, 
+                        PatronIdentity requestingPatronIdentity,
+                        String supplierHostLmsCode) {
+                // Using the patron type from the patrons "Home" patronIdentity, look up what the equivalent patron type is at
+                // the supplying system. Then create a patron in the supplying system using that type value. 
+		return determinePatronType(supplierHostLmsCode, requestingPatronIdentity)
+                       .flatMap(patronType -> client.createPatron( patronService.getUniqueIdStringFor(patronRequest.getPatron()), patronType));
 	}
 
 	private Mono<PatronIdentity> checkForPatronIdentity(PatronRequest patronRequest,
@@ -117,13 +136,23 @@ public class SupplyingAgencyService {
 	private Mono<Tuple2<PatronRequest, SupplierRequest>> findSupplierRequestFor(
 		PatronRequest patronRequest) {
 
+                log.debug("findSupplierRequestFor {}",patronRequest);
+
 		return supplierRequestService.findSupplierRequestFor(patronRequest)
 			.map(supplierRequest -> Tuples.of(patronRequest, supplierRequest));
 	}
 
-	private Mono<String> determinePatronType(String hostLmsCode) {
+	private Mono<String> determinePatronType(String supplyingHostLmsCode, PatronIdentity requestingIdentity) {
                 log.warn("ToDo - this function needs to consume the patron type for the patron");
-		return patronTypeService.determinePatronType(hostLmsCode);
+                if ( requestingIdentity != null ) {
+                        // We need to look up the requestingHostLmsCode and not pass supplyingHostLmsCode
+		        return patronTypeService.determinePatronType(supplyingHostLmsCode, 
+                                supplyingHostLmsCode, 
+                                requestingIdentity.getLocalPtype());
+                }
+                else {
+                        return Mono.empty();
+                }
 	}
 
 	public Mono<HostLmsHold> getHold(String hostLmsCode, String holdId) {
