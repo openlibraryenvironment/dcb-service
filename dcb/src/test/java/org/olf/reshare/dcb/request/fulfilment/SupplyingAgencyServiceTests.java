@@ -1,8 +1,13 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import jakarta.inject.Inject;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,17 +17,17 @@ import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
-import org.olf.reshare.dcb.test.*;
+import org.olf.reshare.dcb.test.ClusterRecordFixture;
+import org.olf.reshare.dcb.test.HostLmsFixture;
+import org.olf.reshare.dcb.test.PatronFixture;
+import org.olf.reshare.dcb.test.PatronRequestsFixture;
+import org.olf.reshare.dcb.test.SupplierRequestsFixture;
+
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.util.UUID;
-
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -86,7 +91,7 @@ class SupplyingAgencyServiceTests {
 
 		final var clusterRecordId = createClusterRecord();
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
-		final var patron = createPatron(localId, homeLibraryCode, hostLms);
+		final var patron = createPatron(localId, hostLms);
 
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
@@ -109,7 +114,7 @@ class SupplyingAgencyServiceTests {
 
 		final var clusterRecordId = createClusterRecord();
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
-		final var patron = createPatron(localId, homeLibraryCode, hostLms);
+		final var patron = createPatron(localId, hostLms);
 
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
@@ -127,12 +132,11 @@ class SupplyingAgencyServiceTests {
 	void placePatronRequestAtSupplyingAgencyWithErrorResponse() {
 		// Arrange
 		final var localId = "931824";
-		final var homeLibraryCode = "123456";
 		final var patronRequestId = randomUUID();
 
 		final var clusterRecordId = createClusterRecord();
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
-		final var patron = createPatron(localId, homeLibraryCode, hostLms);
+		final var patron = createPatron(localId, hostLms);
 
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
@@ -148,20 +152,28 @@ class SupplyingAgencyServiceTests {
 
 	private UUID createClusterRecord() {
 		final UUID clusterRecordId = randomUUID();
+
 		clusterRecordFixture.createClusterRecord(clusterRecordId);
+
 		return clusterRecordId;
 	}
 
-	private Patron createPatron(String localId, String homeLibraryCode,DataHostLms hostLms) {
-		final Patron patron = patronFixture.savePatron(homeLibraryCode);
-		patronFixture.saveHomeIdentity(patron, hostLms, localId);
-		patronFixture.saveRequestingIdentity(patron, hostLms, localId);
+	private Patron createPatron(String localId, DataHostLms hostLms) {
+		final Patron patron = patronFixture.savePatron("123456");
+
+		patronFixture.saveIdentity(patron, hostLms, localId, true);
+		patronFixture.saveIdentity(patron, hostLms, localId, false);
+
 		patron.setPatronIdentities(patronFixture.findIdentities(patron));
+
 		return patron;
 	}
 
-	private PatronRequest savePatronRequest(UUID patronRequestId, Patron patron, UUID clusterRecordId) {
+	private PatronRequest savePatronRequest(UUID patronRequestId, Patron patron,
+		UUID clusterRecordId) {
+
 		final var requestingIdentity = patron.getPatronIdentities().get(1);
+
 		var patronRequest = PatronRequest.builder()
 			.id(patronRequestId)
 			.patron(patron)
@@ -169,7 +181,9 @@ class SupplyingAgencyServiceTests {
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
 			.build();
+
 		patronRequestsFixture.savePatronRequest(patronRequest);
+
 		return patronRequest;
 	}
 

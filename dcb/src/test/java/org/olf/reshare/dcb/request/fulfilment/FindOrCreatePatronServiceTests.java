@@ -9,7 +9,6 @@ import static org.hamcrest.Matchers.hasSize;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.olf.reshare.dcb.test.DcbTest;
 import org.olf.reshare.dcb.test.HostLmsFixture;
 import org.olf.reshare.dcb.test.PatronFixture;
@@ -17,15 +16,14 @@ import org.olf.reshare.dcb.test.PatronFixture;
 import jakarta.inject.Inject;
 
 @DcbTest
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FindOrCreatePatronServiceTests {
 	@Inject
-	PatronFixture patronFixture;
+	private PatronFixture patronFixture;
 	@Inject
-	HostLmsFixture hostLmsFixture;
+	private HostLmsFixture hostLmsFixture;
 
 	@Inject
-	FindOrCreatePatronService findOrCreatePatronService;
+	private FindOrCreatePatronService findOrCreatePatronService;
 
 	@BeforeEach
 	void beforeEach() {
@@ -81,16 +79,16 @@ class FindOrCreatePatronServiceTests {
 	@DisplayName("should find existing patron when home identity can be found")
 	void shouldFindExistingPatronWhenHomeIdentityCanBeFound() {
 		// Arrange
-		final var LOCAL_SYSTEM_CODE = "local-system-code";
-		final var LOCAL_ID = "local-identity";
+		final var existingPatron = patronFixture.savePatron("home-library");
 
 		final var hostLmsId = randomUUID();
 
+		final var LOCAL_SYSTEM_CODE = "local-system-code";
+		final var LOCAL_ID = "local-identity";
+
 		final var homeHostLms = hostLmsFixture.createHostLms(hostLmsId, LOCAL_SYSTEM_CODE);
 
-		final var existingPatron = patronFixture.savePatron("home-library");
-
-		patronFixture.saveHomeIdentity(existingPatron, homeHostLms, LOCAL_ID);
+		patronFixture.saveIdentity(existingPatron, homeHostLms, LOCAL_ID, true);
 
 		// Act
 		findOrCreatePatronService
