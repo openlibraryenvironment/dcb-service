@@ -1,10 +1,6 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
-
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.model.ReferenceValueMapping;
@@ -12,7 +8,10 @@ import org.olf.reshare.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.reshare.dcb.test.DataAccess;
 import org.olf.reshare.dcb.test.DcbTest;
 
-import jakarta.inject.Inject;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
 
 @DcbTest
 class PatronTypeServiceTests {

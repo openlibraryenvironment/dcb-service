@@ -1,243 +1,186 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import jakarta.inject.Inject;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.mockserver.client.MockServerClient;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.reshare.dcb.core.model.DataHostLms;
+import org.olf.reshare.dcb.core.model.Patron;
+import org.olf.reshare.dcb.core.model.PatronRequest;
+import org.olf.reshare.dcb.test.*;
+import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.UUID;
+
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mockito;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.olf.reshare.dcb.core.HostLmsService;
-import org.olf.reshare.dcb.core.interaction.HostLmsClient;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient;
-import org.olf.reshare.dcb.core.model.DataHostLms;
-import org.olf.reshare.dcb.core.model.Patron;
-import org.olf.reshare.dcb.core.model.PatronIdentity;
-import org.olf.reshare.dcb.core.model.PatronRequest;
-import org.olf.reshare.dcb.core.model.SupplierRequest;
-import org.olf.reshare.dcb.request.resolution.SupplierRequestService;
-
-import reactor.core.publisher.Mono;
-import reactor.util.function.Tuples;
-
-@ExtendWith(MockitoExtension.class)
+@MockServerMicronautTest
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SupplyingAgencyServiceTests {
-	@Mock
-	HostLmsService hostLmsService;
-	@Mock
-	SupplierRequestService supplierRequestService;
-	@Mock
-	PatronService patronService;
-	@Mock
-	HostLmsClient hostLmsClient;
-	@Mock
-	PatronTypeService patronTypeService;
+	private static final String HOST_LMS_CODE = "supplying-agency-service-tests";
 
-	@InjectMocks
-	SupplyingAgencyService supplyingAgencyService;
+	@Inject
+	ResourceLoader loader;
+	@Inject
+	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private PatronRequestsFixture patronRequestsFixture;
+	@Inject
+	private PatronFixture patronFixture;
+	@Inject
+	private ClusterRecordFixture clusterRecordFixture;
+	@Inject
+	private SupplyingAgencyService supplyingAgencyService;
+	@Inject
+	private SupplierRequestsFixture supplierRequestsFixture;
 
-	private PatronRequest patronRequest;
-	private SupplierRequest supplierRequest;
-	private Patron patron;
-	private PatronIdentity supplierPatronIdentity;
+	@BeforeAll
+	public void beforeAll(MockServerClient mock) {
+		final String TOKEN = "test-token";
+		final String BASE_URL = "https://supplying-agency-service-tests.com";
+		final String KEY = "supplying-agency-service-key";
+		final String SECRET = "supplying-agency-service-secret";
 
-	@BeforeEach
-	void setUp() {
-		// Home Identity
-		final var homeHostLms = new DataHostLms(
-			randomUUID(),
-			"homeHostLmsCode",
-			"Fake Host LMS",
-			SierraLmsClient.class.toString(),
-			Map.of()
-		);
+		SierraTestUtils.mockFor(mock, BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		final var patronIdentity = PatronIdentity.builder()
-			.id(randomUUID())
-			.patron(patron)
-			.hostLms(homeHostLms)
-			.localId("localId")
-			.homeIdentity(true)
-			.build();
+		hostLmsFixture.deleteAllHostLMS();
+		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 
-		// Supplier Identity
-		final var supplierDataHostLms = new DataHostLms(
-			randomUUID(),
-			"supplierHostLmsCode",
-			"Fake Host LMS",
-			SierraLmsClient.class.toString(),
-			Map.of());
+		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 
-		supplierPatronIdentity = PatronIdentity.builder()
-			.id(randomUUID())
-			.patron(patron)
-			.hostLms(supplierDataHostLms)
-			.localId("258740925")
-			.homeIdentity(false)
-			.build();
+		// patron exists
+		sierraPatronsAPIFixture.patronResponseForUniqueId("872321@123456");
 
-		// Create Patron and add Identities
-		patron = new Patron(randomUUID(),
-			null,
-			null,
-			"homeLibraryCode",
-			List.of());
-		patron.setPatronIdentities(List.of(patronIdentity, supplierPatronIdentity));
+		// patron doesn't exists
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("546729@123456");
+		sierraPatronsAPIFixture.postPatronResponse("546729@123456", 1000002);
 
-		// Create SupplierRequest and PatronRequest
-		supplierRequest = SupplierRequest.builder()
-			.id(randomUUID())
-			.patronRequest(patronRequest)
-			.localItemId("itemId")
-			.localItemBarcode("itemBarcode")
-			.localItemLocationCode("itemLocationCode")
-			.hostLmsCode("supplierHostLmsCode")
-                        .virtualIdentity(supplierPatronIdentity)
-                        .build();
+		// patron hold requests success
+		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002", 7916922, "ABC123");
+		sierraPatronsAPIFixture.patronHoldResponse("1000002");
 
-		patronRequest = createPatronRequest(randomUUID(), RESOLVED, patron, patronIdentity);
-
-		// Common mocks
-		when(supplierRequestService.findSupplierRequestFor(any()))
-			.thenAnswer(invocation -> Mono.just(supplierRequest));
-
-		when(hostLmsService.getClientFor("supplierHostLmsCode"))
-			.thenAnswer(invocation -> Mono.just(hostLmsClient));
-
-		Mockito.lenient().when(patronService.getPatronIdentityById(patronIdentity.getId())) .thenAnswer(invocation -> Mono.just( patronIdentity ));
-
-		Mockito.lenient().when(patronService.getPatronIdentityById(supplierPatronIdentity.getId())) .thenAnswer(invocation -> Mono.just( supplierPatronIdentity ));
-
+		// place patron request error
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("931824@123456");
+		sierraPatronsAPIFixture.postPatronResponse("931824@123456", 1000001);
+		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", 7916922, "ABC123");
 	}
 
 	@DisplayName("patron is known to supplier and places patron request")
 	@Test
 	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplier() {
 		// Arrange
-		when(hostLmsClient.patronFind("localId@homeLibraryCode"))
-			.thenAnswer(invocation -> Mono.just("258740925"));
+		final var localId = "872321";
+		final var homeLibraryCode = "123456";
+		final var patronRequestId = randomUUID();
 
-		when(patronService.getUniqueIdStringFor(any()))
-			.thenAnswer(invocation ->  "localId@homeLibraryCode" );
+		final var clusterRecordId = createClusterRecord();
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var patron = createPatron(localId, homeLibraryCode, hostLms);
 
-		when(patronService.checkForPatronIdentity(any(), any(), any()))
-			.thenAnswer(invocation -> Mono.just( supplierPatronIdentity ));
-
-		when(hostLmsClient.placeHoldRequest(any(), any(), any(), any()))
-			.thenAnswer(invocation ->  Mono.just( Tuples.of("489365810", "0") ));
-
-		final var placedSupplierRequest = createPlacedSupplierRequest();
-
-		when(supplierRequestService.updateSupplierRequest(any()))
-			.thenReturn(Mono.just(placedSupplierRequest));
+		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
+		saveSupplierRequest(patronRequest, hostLms.code);
 
 		// Act
 		final var pr = supplyingAgencyService.placePatronRequestAtSupplyingAgency(patronRequest).block();
 
 		// Assert
+		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
 		assertThat("Status wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
-
-		verify(hostLmsClient).patronFind(any());
-		verify(hostLmsClient, times(0)).createPatron(any(), any());
 	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
 	@Test
 	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsNotKnownToSupplier() {
 		// Arrange
-		when(hostLmsClient.patronFind("localId@homeLibraryCode"))
-			.thenAnswer(invocation -> Mono.empty());
+		final var localId = "546729";
+		final var homeLibraryCode = "123456";
+		final var patronRequestId = randomUUID();
 
-		when(patronTypeService.determinePatronType(any(), any(), any()))
-			.thenReturn(Mono.just("210"));
+		final var clusterRecordId = createClusterRecord();
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var patron = createPatron(localId, homeLibraryCode, hostLms);
 
-		when(hostLmsClient.createPatron("localId@homeLibraryCode", "210"))
-			.thenAnswer(invocation -> Mono.just("258740925"));
-
-		when(patronService.getUniqueIdStringFor(any()))
-			.thenAnswer(invocation ->  "localId@homeLibraryCode" );
-
-		when(patronService.checkForPatronIdentity(any(), any(), any()))
-			.thenAnswer(invocation -> Mono.just( supplierPatronIdentity ));
-
-		when(hostLmsClient.placeHoldRequest(any(), any(), any(), any()))
-			.thenAnswer(invocation ->  Mono.just( Tuples.of("489365810", "0") ));
-
-		when(supplierRequestService.updateSupplierRequest(any()))
-			.thenReturn(Mono.just(createPlacedSupplierRequest()));
+		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
+		saveSupplierRequest(patronRequest, hostLms.code);
 
 		// Act
 		final var pr = supplyingAgencyService.placePatronRequestAtSupplyingAgency(patronRequest).block();
 
 		// Assert
+		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
 		assertThat("Status wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
-
-		verify(hostLmsClient).patronFind(any());
-		verify(hostLmsClient).createPatron(any(), any());
 	}
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")
 	@Test
 	void placePatronRequestAtSupplyingAgencyWithErrorResponse() {
 		// Arrange
-		when(hostLmsClient.patronFind("localId@homeLibraryCode"))
-			.thenAnswer(invocation -> Mono.empty());
+		final var localId = "931824";
+		final var homeLibraryCode = "123456";
+		final var patronRequestId = randomUUID();
 
-		when(patronTypeService.determinePatronType(any(),any(),any()))
-			.thenReturn(Mono.just("210"));
+		final var clusterRecordId = createClusterRecord();
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var patron = createPatron(localId, homeLibraryCode, hostLms);
 
-		when(hostLmsClient.createPatron("localId@homeLibraryCode", "210"))
-			.thenAnswer(invocation -> Mono.just("258740925"));
-
-		when(patronService.getUniqueIdStringFor(any()))
-			.thenAnswer(invocation ->  "localId@homeLibraryCode" );
-
-		when(patronService.checkForPatronIdentity(any(), any(), any()))
-			.thenAnswer(invocation -> Mono.just( supplierPatronIdentity ));
-
-		when(hostLmsClient.placeHoldRequest(anyString(), anyString(), anyString(), anyString()))
-			.thenAnswer(invocation -> Mono.error(new RuntimeException("Sierra Error")));
+		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
+		saveSupplierRequest(patronRequest, hostLms.code);
 
 		// Act
-		final var exception = assertThrows(RuntimeException.class,
+		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> supplyingAgencyService.placePatronRequestAtSupplyingAgency(patronRequest).block());
 
 		// Assert
-		assertThat(exception.getMessage(), is("Sierra Error"));
-		assertThat(exception.getLocalizedMessage(), is("Sierra Error"));
+		assertThat(exception.getMessage(), is("Internal Server Error"));
+		assertThat(exception.getLocalizedMessage(), is("Internal Server Error"));
 	}
 
-	private static PatronRequest createPatronRequest(UUID id, String status, Patron patron, PatronIdentity requestingIdentity) {
-		return PatronRequest.builder()
-			.id(id)
+	private UUID createClusterRecord() {
+		final UUID clusterRecordId = randomUUID();
+		clusterRecordFixture.createClusterRecord(clusterRecordId);
+		return clusterRecordId;
+	}
+
+	private Patron createPatron(String localId, String homeLibraryCode,DataHostLms hostLms) {
+		final Patron patron = patronFixture.savePatron(homeLibraryCode);
+		patronFixture.saveHomeIdentity(patron, hostLms, localId);
+		patronFixture.saveRequestingIdentity(patron, hostLms, localId);
+		patron.setPatronIdentities(patronFixture.findIdentities(patron));
+		return patron;
+	}
+
+	private PatronRequest savePatronRequest(UUID patronRequestId, Patron patron, UUID clusterRecordId) {
+		final var requestingIdentity = patron.getPatronIdentities().get(1);
+		var patronRequest = PatronRequest.builder()
+			.id(patronRequestId)
 			.patron(patron)
-			.pickupLocationCode("pickupLocationCode")
-			.statusCode(status)
 			.requestingIdentity(requestingIdentity)
+			.bibClusterId(clusterRecordId)
+			.pickupLocationCode("ABC123")
 			.build();
+		patronRequestsFixture.savePatronRequest(patronRequest);
+		return patronRequest;
 	}
 
-	private SupplierRequest createPlacedSupplierRequest() {
-		return SupplierRequest.builder()
-			.id(randomUUID())
-			.patronRequest(patronRequest)
-			.build();
+	private void saveSupplierRequest(PatronRequest patronRequest, String hostLmsCode) {
+		supplierRequestsFixture.saveSupplierRequest(
+			randomUUID(),
+			patronRequest,
+			"7916922",
+			"ab6",
+			"9849123490",
+			hostLmsCode
+		);
 	}
 }
