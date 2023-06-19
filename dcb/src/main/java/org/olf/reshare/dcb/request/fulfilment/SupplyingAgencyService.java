@@ -1,22 +1,21 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import static reactor.function.TupleUtils.function;
-
+import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
+import org.olf.reshare.dcb.core.interaction.HostLmsHold;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.request.resolution.SupplierRequestService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.olf.reshare.dcb.core.interaction.HostLmsHold;
-
-import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
 import reactor.util.function.Tuples;
+
+import static reactor.function.TupleUtils.function;
 
 @Prototype
 public class SupplyingAgencyService {
@@ -89,18 +88,18 @@ public class SupplyingAgencyService {
 				checkForPatronIdentity(patronRequest, supplierRequest.getHostLmsCode(), localId));
 	}
 
-        // Made public for mockability :'(
-        public Mono<PatronIdentity> getRequestingIdentity(PatronRequest patronRequest) {
-                if ( ( patronRequest != null ) &&
-                     ( patronRequest.getRequestingIdentity() != null ) ) {
-                        log.debug("Attempting to locate patron identity for {}",patronRequest.getRequestingIdentity().getId());
-                        return patronService.getPatronIdentityById(patronRequest.getRequestingIdentity().getId());
-                }
-                else {
-                        log.warn("getRequestingIdentity was unable to find a requesting identity. Returning empty()");
-                        return Mono.empty();
-                }
-        }
+	private Mono<PatronIdentity> getRequestingIdentity(PatronRequest patronRequest) {
+		log.debug("getRequestingIdentity was called with: {}", patronRequest.getPatron());
+		if ( ( patronRequest != null ) &&
+			( patronRequest.getRequestingIdentity() != null ) ) {
+				log.debug("Attempting to locate patron identity for {}",patronRequest.getRequestingIdentity().getId());
+				return patronService.getPatronIdentityById(patronRequest.getRequestingIdentity().getId());
+		}
+		else {
+			log.warn("getRequestingIdentity was unable to find a requesting identity. Returning empty()");
+			return Mono.empty();
+		}
+	}
 
 	private Mono<PatronIdentity> createPatronAtSupplier(PatronRequest patronRequest,
 		SupplierRequest supplierRequest) {
