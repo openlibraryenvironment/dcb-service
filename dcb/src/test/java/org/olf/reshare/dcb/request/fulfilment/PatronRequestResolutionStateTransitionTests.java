@@ -1,18 +1,5 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import static java.util.Optional.empty;
-import static java.util.UUID.randomUUID;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
-
-import java.util.Optional;
-import java.util.UUID;
-
 import org.junit.jupiter.api.Test;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
@@ -21,8 +8,15 @@ import org.olf.reshare.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.reshare.dcb.request.resolution.Resolution;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.olf.reshare.dcb.storage.SupplierRequestRepository;
-
 import reactor.core.publisher.Mono;
+
+import java.util.Optional;
+import java.util.UUID;
+
+import static java.util.Optional.empty;
+import static java.util.UUID.randomUUID;
+import static org.mockito.Mockito.*;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.*;
 
 class PatronRequestResolutionStateTransitionTests {
 	private final PatronRequestResolutionService patronRequestResolutionService
@@ -34,9 +28,12 @@ class PatronRequestResolutionStateTransitionTests {
 	private final SupplierRequestRepository supplierRequestRepository
 		= mock(SupplierRequestRepository.class);
 
+	private final PatronRequestTransitionErrorService errorService
+		= mock(PatronRequestTransitionErrorService.class);
+
 	private final PatronRequestResolutionStateTransition patronRequestResolutionStateTransition
 		= new PatronRequestResolutionStateTransition(patronRequestResolutionService,
-		patronRequestRepository, supplierRequestRepository);
+		patronRequestRepository, supplierRequestRepository, errorService);
 
 	@Test
 	void shouldSavePatronRequestAndSupplierRequestWhenResolvedToSupplierRequest() {

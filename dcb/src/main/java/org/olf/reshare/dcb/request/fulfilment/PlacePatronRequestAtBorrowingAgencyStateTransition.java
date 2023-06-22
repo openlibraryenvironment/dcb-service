@@ -45,6 +45,7 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 					"Error occurred during placing a patron request to borrowing agency: {}",
 					error.getMessage()))
 			.flatMap(this::updatePatronRequest);
+
 	}
 
 	private Mono<PatronRequest> updatePatronRequest(PatronRequest patronRequest) {
@@ -52,4 +53,5 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 		return Mono.from(patronRequestRepository.update(patronRequest));
 	}
 }
+
 

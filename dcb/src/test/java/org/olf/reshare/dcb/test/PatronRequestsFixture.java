@@ -1,13 +1,14 @@
 package org.olf.reshare.dcb.test;
 
+import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.olf.reshare.dcb.storage.SupplierRequestRepository;
 import org.reactivestreams.Publisher;
-
-import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
+
+import java.util.UUID;
 
 @Prototype
 public class PatronRequestsFixture {
@@ -22,6 +23,10 @@ public class PatronRequestsFixture {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
+	}
+
+	public PatronRequest findById(UUID id) {
+		return Mono.from(patronRequestRepository.findById(id)).block();
 	}
 
 	public void savePatronRequest(PatronRequest patronRequest){
