@@ -1,7 +1,6 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import java.util.Optional;
-
+import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.request.resolution.PatronRequestResolutionService;
@@ -10,9 +9,9 @@ import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.olf.reshare.dcb.storage.SupplierRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
+
+import java.util.Optional;
 
 import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.PATRON_VERIFIED;
 
@@ -23,16 +22,19 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	private final PatronRequestResolutionService patronRequestResolutionService;
 	private final PatronRequestRepository patronRequestRepository;
 	private final SupplierRequestRepository supplierRequestRepository;
+	private final PatronRequestTransitionErrorService errorService;
 
 
 	public PatronRequestResolutionStateTransition(
 		PatronRequestResolutionService patronRequestResolutionService,
 		PatronRequestRepository patronRequestRepository,
-		SupplierRequestRepository supplierRequestRepository) {
+		SupplierRequestRepository supplierRequestRepository,
+		PatronRequestTransitionErrorService errorService) {
 
 		this.patronRequestResolutionService = patronRequestResolutionService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
+		this.errorService = errorService;
 	}
 
 	public String getGuardCondition() {
@@ -48,7 +50,8 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.doOnError(error -> log.error("Error occurred during resolution: {}", error.getMessage()))
 			.flatMap(this::updatePatronRequest)
 			.flatMap(this::saveSupplierRequest)
-			.map(Resolution::getPatronRequest);
+			.map(Resolution::getPatronRequest)
+			.onErrorResume(error -> errorService.moveRequestToErrorStatus(error, patronRequest));
 	}
 
 	private Mono<Resolution> updatePatronRequest(Resolution resolution) {

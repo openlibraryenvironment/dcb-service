@@ -25,15 +25,18 @@ public class SupplyingAgencyService {
 	private final SupplierRequestService supplierRequestService;
 	private final PatronService patronService;
 	private final PatronTypeService patronTypeService;
+	private final PatronRequestTransitionErrorService errorService;
 
 	public SupplyingAgencyService(
 		HostLmsService hostLmsService, SupplierRequestService supplierRequestService,
-		PatronService patronService, PatronTypeService patronTypeService) {
+		PatronService patronService, PatronTypeService patronTypeService,
+		PatronRequestTransitionErrorService errorService) {
 
 		this.hostLmsService = hostLmsService;
 		this.supplierRequestService = supplierRequestService;
 		this.patronService = patronService;
 		this.patronTypeService = patronTypeService;
+		this.errorService = errorService;
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtSupplyingAgency(PatronRequest patronRequest) {
@@ -43,7 +46,8 @@ public class SupplyingAgencyService {
 			.flatMap(function(this::checkAndCreatePatronAtSupplier))
 			.flatMap(function(this::placeRequestAtSupplier))
 			.flatMap(function(this::updateSupplierRequest))
-			.map(PatronRequest::placedAtSupplyingAgency);
+			.map(PatronRequest::placedAtSupplyingAgency)
+			.onErrorResume(error -> errorService.moveRequestToErrorStatus(error, patronRequest));
 	}
 
 	private Mono<Tuple3<PatronRequest, SupplierRequest, PatronIdentity>> checkAndCreatePatronAtSupplier(

@@ -7,7 +7,6 @@ import org.olf.reshare.dcb.core.interaction.HostLmsItem;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
-import org.olf.reshare.dcb.request.resolution.SharedIndexService;
 import org.olf.reshare.dcb.request.resolution.SupplierRequestService;
 import org.olf.reshare.dcb.storage.BibRepository;
 import org.olf.reshare.dcb.storage.ClusterRecordRepository;
@@ -30,29 +29,29 @@ import static reactor.function.TupleUtils.function;
 public class BorrowingAgencyService {
 	private static final Logger log = LoggerFactory.getLogger(BorrowingAgencyService.class);
 
-	private final SharedIndexService sharedIndexService;
 	private final HostLmsService hostLmsService;
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final SupplierRequestService supplierRequestService;
 	private final BibRepository bibRepository;
 	private final ClusterRecordRepository clusterRecordRepository;
 	private final ShelvingLocationRepository shelvingLocationRepository;
+	private final PatronRequestTransitionErrorService errorService;
 
-	public BorrowingAgencyService(SharedIndexService sharedIndexService,
-		HostLmsService hostLmsService,
+	public BorrowingAgencyService(HostLmsService hostLmsService,
 		PatronIdentityRepository patronIdentityRepository,
 		SupplierRequestService supplierRequestService,
 		BibRepository bibRepository,
 		ClusterRecordRepository clusterRecordRepository,
-		ShelvingLocationRepository shelvingLocationRepository) {
+		ShelvingLocationRepository shelvingLocationRepository,
+		PatronRequestTransitionErrorService errorService) {
 
-		this.sharedIndexService = sharedIndexService;
 		this.hostLmsService = hostLmsService;
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.supplierRequestService = supplierRequestService;
 		this.bibRepository = bibRepository;
 		this.clusterRecordRepository = clusterRecordRepository;
 		this.shelvingLocationRepository = shelvingLocationRepository;
+		this.errorService = errorService;
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(PatronRequest patronRequest) {
@@ -62,7 +61,8 @@ public class BorrowingAgencyService {
 			.flatMap(function(this::createVirtualBib))
 			.flatMap(function(this::createVirtualItem))
 			.flatMap(function(this::placeHoldRequest))
-			.map(function(patronRequest::placedAtBorrowingAgency));
+			.map(function(patronRequest::placedAtBorrowingAgency))
+			.onErrorResume(error -> errorService.moveRequestToErrorStatus(error, patronRequest));
 	}
 
 	private Mono<Map<String,Object>> getCanonicalMetadata(UUID bibId) {

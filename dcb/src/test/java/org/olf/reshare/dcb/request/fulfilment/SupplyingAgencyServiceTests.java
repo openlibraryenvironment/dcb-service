@@ -1,13 +1,8 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
-
-import java.util.UUID;
-
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,17 +12,18 @@ import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
-import org.olf.reshare.dcb.test.ClusterRecordFixture;
-import org.olf.reshare.dcb.test.HostLmsFixture;
-import org.olf.reshare.dcb.test.PatronFixture;
-import org.olf.reshare.dcb.test.PatronRequestsFixture;
-import org.olf.reshare.dcb.test.SupplierRequestsFixture;
-
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import jakarta.inject.Inject;
+import org.olf.reshare.dcb.test.*;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.UUID;
+
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -129,7 +125,7 @@ class SupplyingAgencyServiceTests {
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")
 	@Test
-	void placePatronRequestAtSupplyingAgencyWithErrorResponse() {
+	void placePatronRequestAtSupplyingAgencyReturns500response() {
 		// Arrange
 		final var localId = "931824";
 		final var patronRequestId = randomUUID();
@@ -148,6 +144,11 @@ class SupplyingAgencyServiceTests {
 		// Assert
 		assertThat(exception.getMessage(), is("Internal Server Error"));
 		assertThat(exception.getLocalizedMessage(), is("Internal Server Error"));
+
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat("Request should have error status afterwards",
+			fetchedPatronRequest.getStatusCode(), is("ERROR"));
 	}
 
 	private UUID createClusterRecord() {
@@ -180,6 +181,7 @@ class SupplyingAgencyServiceTests {
 			.requestingIdentity(requestingIdentity)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
+			.statusCode(REQUEST_PLACED_AT_BORROWING_AGENCY)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);

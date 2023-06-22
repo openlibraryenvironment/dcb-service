@@ -1,22 +1,20 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import org.olf.reshare.dcb.core.model.PatronRequest;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.PATRON_VERIFIED;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
+
+import java.time.Instant;
+
+import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
+import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.storage.PatronIdentityRepository;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.util.function.Tuples;
 
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
-
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.PATRON_VERIFIED;
-
-import org.olf.reshare.dcb.core.HostLmsService;
-
-import java.time.Instant;
 
 @Prototype
 public class ValidatePatronTransition implements PatronRequestStateTransition {
@@ -25,18 +23,22 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
         private final PatronRequestRepository patronRequestRepository;
         private final PatronIdentityRepository patronIdentityRepository;
         private final HostLmsService hostLmsService;
+				private final PatronRequestTransitionErrorService errorService;
 
         private final PatronService patronService;
         private final PatronTypeService patronTypeService;
 
 	public ValidatePatronTransition(PatronRequestRepository patronRequestRepository,
-                                        PatronIdentityRepository patronIdentityRepository,
-					HostLmsService hostLmsService,
-					PatronService patronService,
-					PatronTypeService patronTypeService) {
+		PatronIdentityRepository patronIdentityRepository,
+		HostLmsService hostLmsService,
+		PatronRequestTransitionErrorService errorService,
+		PatronService patronService,
+		PatronTypeService patronTypeService) {
+
 		this.patronRequestRepository = patronRequestRepository;
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.hostLmsService = hostLmsService;
+		this.errorService = errorService;
 		this.patronService = patronService;
 		this.patronTypeService = patronTypeService;
 	}
@@ -80,8 +82,13 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		// return Mono.from( patronIdentityRepository.findHomePatronIdentityForPatron(patronRequest.getPatron().getId()) )
 		return Mono.from( patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), Boolean.TRUE) )
 			.flatMap( this::validatePatronIdentity )
-                        .map( pi -> this.setRequestingPatronIdentity(patronRequest, pi ) )
-			.then( Mono.fromDirect(patronRequestRepository.update(patronRequest)));
+			.map( pi -> this.setRequestingPatronIdentity(patronRequest, pi ) )
+			.then(updatePatronRequest(patronRequest))
+			.onErrorResume(error -> errorService.moveRequestToErrorStatus(error, patronRequest));
+	}
+
+	private Mono<PatronRequest> updatePatronRequest(PatronRequest patronRequest) {
+		return Mono.fromDirect(patronRequestRepository.update(patronRequest));
 	}
 }
 
