@@ -1,6 +1,7 @@
 package org.olf.reshare.dcb.core.model;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -8,6 +9,7 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 import org.olf.reshare.dcb.core.model.clustering.ClusterRecord;
+import org.olf.reshare.dcb.core.model.clustering.CoreBibliographicMetadata;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
@@ -24,20 +26,24 @@ import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Singular;
 import lombok.experimental.Accessors;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 @Builder(toBuilder = true)
 @Data
-@NoArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
 @Serdeable
 @MappedEntity
 @ExcludeFromGeneratedCoverageReport
 @Accessors(chain = true)
-public class BibRecord {
-
+public class BibRecord implements CoreBibliographicMetadata {
+	
+	@Creator()
+  public BibRecord() {
+  	 canonicalMetadata = new HashMap<>();
+  }
+	
 	@NotNull
 	@NonNull
 	@Id
@@ -61,10 +67,6 @@ public class BibRecord {
 	@NonNull
 	@Size(max = 256)
 	private String sourceRecordId;
-
-	@Nullable
-	@TypeDef(type = DataType.STRING)
-	private String title;
 	
 	// might have to think about adding serialize = false to @Relation to prevent cycles
 //	@NonNull
@@ -78,20 +80,16 @@ public class BibRecord {
 	private String clusterReason;
 
 	@Nullable
-	private String recordStatus;
-
-	@Nullable
 	private String typeOfRecord;
-
-	@Nullable
-	private String derivedType;
 
 	// Generate a string which might be useful in blocking titles
 	// for stage one of deduplication
 	@Nullable
 	private String blockingTitle;
 
-	@Nullable
+	@Singular("canonicalMetadata")
+	@NonNull
+	@NotNull
 	@TypeDef(type = DataType.JSON)
 	Map<String, Object> canonicalMetadata;
 
@@ -108,4 +106,38 @@ public class BibRecord {
 	// updgrade a system.
 	@Nullable
 	Integer processVersion;
+
+	@Override
+	@Nullable
+	public String getDerivedType() {
+		return CoreBibliographicMetadata.super.getDerivedType();
+	}
+
+	@Override
+	@Nullable
+	public String getRecordStatus() {
+		return CoreBibliographicMetadata.super.getRecordStatus();
+	}
+	
+	@Override
+	@Nullable
+	@TypeDef(type = DataType.STRING)
+	public String getTitle() {
+		return CoreBibliographicMetadata.super.getTitle();
+	}
+	
+	public static class BibRecordBuilder {
+		public BibRecordBuilder title(String title) {
+			this.canonicalMetadata(MD_TITLE, title);
+			return this;
+		}
+		public BibRecordBuilder recordStatus(String recordStatus) {
+			this.canonicalMetadata(MD_RECORD_STATUS, recordStatus);
+			return this;
+		}
+		public BibRecordBuilder derivedType(String derivedType) {
+			this.canonicalMetadata(MD_DERIVED_TYPE, derivedType);
+			return this;
+		}
+	}
 }
