@@ -1,38 +1,66 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
-import static io.micronaut.core.util.StringUtils.isEmpty;
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static org.olf.reshare.dcb.core.model.ItemStatusCode.AVAILABLE;
-import static org.olf.reshare.dcb.core.model.ItemStatusCode.CHECKED_OUT;
-import static org.olf.reshare.dcb.core.model.ItemStatusCode.UNAVAILABLE;
-import static org.olf.reshare.dcb.core.model.ItemStatusCode.UNKNOWN;
-
-import java.util.Objects;
-
+import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.model.ItemStatus;
+import org.olf.reshare.dcb.core.model.ItemStatusCode;
+import org.olf.reshare.dcb.core.model.ReferenceValueMapping;
+import org.olf.reshare.dcb.storage.ReferenceValueMappingRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
+import services.k_int.interaction.sierra.items.Status;
+
+import java.util.Optional;
+import java.util.function.Function;
+
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static org.apache.logging.log4j.util.Strings.isEmpty;
+import static org.olf.reshare.dcb.core.model.ItemStatusCode.*;
 
 /**
 Status is interpreted based upon
  <a href="https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html#item%20STATUS">
  this documentation</a>
  */
+@Prototype
 class ItemStatusMapper {
-	ItemStatus mapStatus(services.k_int.interaction.sierra.items.Status status) {
+	private static final Logger log = LoggerFactory.getLogger(ItemResultToItemMapper.class);
+	private final ReferenceValueMappingRepository referenceValueMappingRepository;
+
+	ItemStatusMapper(ReferenceValueMappingRepository referenceValueMappingRepository) {
+		this.referenceValueMappingRepository = referenceValueMappingRepository;
+	}
+
+	Mono<ItemStatus> mapStatus(Status status, String hostLmsCode) {
+		log.debug("mapStatus( status: {}, hostLmsCode: {} )", status, hostLmsCode);
+
+		final var statusCode = getValue(status, Status::getCode);
+		final var dueDate = getValue(status, Status::getDuedate);
+
+		return Mono.justOrEmpty(statusCode)
+			.flatMap(code -> fetchReferenceValueMap(code, hostLmsCode))
+			.map(ReferenceValueMapping::getToValue)
+			.map(ItemStatusCode::valueOf)
+			.defaultIfEmpty( fallbackStatusMapping(statusCode) )
+			.map(itemStatusCode -> checkForDueDate(itemStatusCode, dueDate))
+			.map(ItemStatus::new);
+	}
+
+	private Mono<ReferenceValueMapping> fetchReferenceValueMap(String statusCode, String hostLmsCode) {
+		return Mono.from(referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToContext(
+				"itemStatus", hostLmsCode, statusCode, "DCB"));
+	}
+
+	private String getValue(Status status, Function<Status, String> function) {
+		return Optional.ofNullable(status).map(function).orElse(null);
+	}
+
+	private ItemStatusCode fallbackStatusMapping(String statusCode) {
 		final var AVAILABLE_CODE = "-";
+		return isEmpty(statusCode) ? UNKNOWN : statusCode.equals(AVAILABLE_CODE) ? AVAILABLE : UNAVAILABLE;
+	}
 
-		if (status == null || isEmpty(status.getCode())) {
-			return new ItemStatus(UNKNOWN);
-		}
-
-		if (Objects.equals(status.getCode(), AVAILABLE_CODE)) {
-			if (isNotEmpty(status.getDuedate())) {
-				return new ItemStatus(CHECKED_OUT);
-			}
-
-			return new ItemStatus(AVAILABLE);
-		}
-		else {
-			return new ItemStatus(UNAVAILABLE);
-		}
+	private ItemStatusCode checkForDueDate(ItemStatusCode itemStatusCode, String dueDate) {
+		return itemStatusCode.equals(AVAILABLE) && isNotEmpty(dueDate) ? CHECKED_OUT : itemStatusCode;
 	}
 }
