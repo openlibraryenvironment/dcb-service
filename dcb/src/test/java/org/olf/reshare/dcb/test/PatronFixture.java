@@ -1,20 +1,21 @@
 package org.olf.reshare.dcb.test;
 
-import static java.util.UUID.randomUUID;
-import static org.olf.reshare.dcb.test.PublisherUtils.manyValuesFrom;
-import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
-
-import java.util.List;
-
+import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
+import org.olf.reshare.dcb.core.model.ReferenceValueMapping;
 import org.olf.reshare.dcb.storage.PatronIdentityRepository;
 import org.olf.reshare.dcb.storage.PatronRepository;
-
-import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.UUID;
+
+import static java.util.UUID.randomUUID;
+import static org.olf.reshare.dcb.test.PublisherUtils.manyValuesFrom;
+import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
 
 @Prototype
 public class PatronFixture {
@@ -87,6 +88,21 @@ public class PatronFixture {
 
 	public List<PatronIdentity> findIdentities(Patron patron) {
 		return manyValuesFrom(patronIdentityRepository.findAllByPatron(patron));
+	}
+
+	public ReferenceValueMapping createPatronTypeMapping(String fromContext, String fromValue,
+		String toContext, String toValue) {
+
+		return ReferenceValueMapping.builder()
+			.id(UUID.randomUUID())
+			.fromCategory("patronType")
+			.fromContext(fromContext)
+			.fromValue(fromValue)
+			.toCategory("patronType")
+			.toContext(toContext)
+			.toValue(toValue)
+			.reciprocal(true)
+			.build();
 	}
 
 	private void deleteAllPatronIdentities() {

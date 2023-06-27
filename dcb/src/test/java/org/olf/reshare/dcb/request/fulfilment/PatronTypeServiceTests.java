@@ -3,15 +3,14 @@ package org.olf.reshare.dcb.request.fulfilment;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.olf.reshare.dcb.core.model.ReferenceValueMapping;
-import org.olf.reshare.dcb.storage.ReferenceValueMappingRepository;
-import org.olf.reshare.dcb.test.DataAccess;
 import org.olf.reshare.dcb.test.DcbTest;
+import org.olf.reshare.dcb.test.PatronFixture;
+import org.olf.reshare.dcb.test.ReferenceValueMappingFixture;
 
-import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @DcbTest
 class PatronTypeServiceTests {
@@ -19,44 +18,27 @@ class PatronTypeServiceTests {
 	private PatronTypeService patronTypeService;
 
 	@Inject
-	private ReferenceValueMappingRepository referenceValueMappingRepository;
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+
+	@Inject
+	private PatronFixture patronFixture;
 
 	@BeforeEach
 	public void beforeEach() {
-		new DataAccess().deleteAll(referenceValueMappingRepository.findAll(),
-			mapping -> referenceValueMappingRepository.delete(mapping.getId()));
+		referenceValueMappingFixture.deleteAllReferenceValueMappings();
 	}
 
 	@Test
 	void shouldDeterminePatronTypeBasedUponHostLms() {
 		// Arrange
 
-                // We set up a mapping HOSTA.1 -> DCB.DCB_UG -> 15
-                final var mapping_a = ReferenceValueMapping.builder()
-                        .id(randomUUID())
-                        .fromCategory("patronType")
-                        .fromContext("HOSTA")
-                        .fromValue("1")
-                        .toCategory("patronType")
-                        .toContext("DCB")
-                        .toValue("DCB_UG")
-                        .reciprocal(true)
-                        .build();
-		saveMapping(mapping_a);
+		// We set up a mapping HOSTA.1 -> DCB.DCB_UG -> 15
+		referenceValueMappingFixture.saveReferenceValueMapping(
+			patronFixture.createPatronTypeMapping("HOSTA", "1", "DCB", "DCB_UG"));
 
-                // Mapping from DCB::DCB_UG to EXAMPLE-CODE:15
-		final var mapping_b = ReferenceValueMapping.builder()
-			.id(randomUUID())
-			.fromCategory("patronType")
-			.fromContext("DCB")
-			.fromValue("DCB_UG")
-			.toCategory("patronType")
-			.toContext("EXAMPLE-CODE")
-			.toValue("15")
-			.reciprocal(true)
-			.build();
-
-		saveMapping(mapping_b);
+		// Mapping from DCB::DCB_UG to EXAMPLE-CODE:15
+		referenceValueMappingFixture.saveReferenceValueMapping(
+			patronFixture.createPatronTypeMapping("DCB", "DCB_UG", "EXAMPLE-CODE", "15"));
 
 		// Act
                 // patronTypeService.determinePatronType(TARGET-CONTEXT,ORIGIN-CONTEXT,ORIGIN-VALUE)
@@ -67,15 +49,50 @@ class PatronTypeServiceTests {
 	}
 
 	@Test
-	void shouldFallBackToDefaultValueWhenNoMappingFound() {
+	void shouldThrowExceptionWhenNoMappingFromSuppliedPatronTypeToSpinePatronType() {
+		// Arrange
+		referenceValueMappingFixture.saveReferenceValueMapping(
+			patronFixture.createPatronTypeMapping("DCB", "DCB_UG", "EXAMPLE-CODE", "15"));
+
 		// Act
-		final var patronType = patronTypeService.determinePatronType("EXAMPLE-CODE","DCB","DCB_UG").block();
+		final var exception = assertThrows(PatronTypeMappingNotFound.class,
+			() -> patronTypeService.determinePatronType(
+				"EXAMPLE-CODE", "DCB","DCB_UG").block());
 
 		// Assert
-		assertThat(patronType, is("210"));
+		assertNotNull(exception);
+		assertThat(exception.getMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE"));
+		assertThat(exception.getLocalizedMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE"));
 	}
 
-	private void saveMapping(ReferenceValueMapping mapping) {
-		singleValueFrom(referenceValueMappingRepository.save(mapping));
+	@Test
+	void shouldThrowExceptionWhenNoMappingFromSpinePatronTypeToBorrowingPatronType() {
+		// Arrange
+		referenceValueMappingFixture.saveReferenceValueMapping(
+			patronFixture.createPatronTypeMapping("HOSTA", "1", "DCB", "DCB_UG"));
+
+		// Act
+		final var exception = assertThrows(PatronTypeMappingNotFound.class,
+			() -> patronTypeService.determinePatronType(
+				"EXAMPLE-CODE", "DCB","DCB_UG").block());
+
+		// Assert
+		assertNotNull(exception);
+		assertThat(exception.getMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE"));
+		assertThat(exception.getLocalizedMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE"));
+	}
+
+	@Test
+	void shouldThrowExceptionWhenNoPatronTypeMappingFound() {
+
+		// Act
+		final var exception = assertThrows(PatronTypeMappingNotFound.class,
+			() -> patronTypeService.determinePatronType(
+				"EXAMPLE-CODE", "DCB","DCB_UG").block());
+
+		// Assert
+		assertNotNull(exception);
+		assertThat(exception.getMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE"));
+		assertThat(exception.getLocalizedMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE"));
 	}
 }

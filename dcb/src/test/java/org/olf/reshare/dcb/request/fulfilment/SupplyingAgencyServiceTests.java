@@ -44,6 +44,8 @@ class SupplyingAgencyServiceTests {
 	private SupplyingAgencyService supplyingAgencyService;
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
@@ -57,6 +59,8 @@ class SupplyingAgencyServiceTests {
 
 		hostLmsFixture.deleteAllHostLMS();
 		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+
+		referenceValueMappingFixture.deleteAllReferenceValueMappings();
 
 		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 
@@ -75,6 +79,9 @@ class SupplyingAgencyServiceTests {
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("931824@123456");
 		sierraPatronsAPIFixture.postPatronResponse("931824@123456", 1000001);
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", 7916922, "ABC123");
+
+		// add patron type mappings
+		savePatronTypeMappings();
 	}
 
 	@DisplayName("patron is known to supplier and places patron request")
@@ -198,5 +205,15 @@ class SupplyingAgencyServiceTests {
 			"9849123490",
 			hostLmsCode
 		);
+	}
+
+	private void savePatronTypeMappings() {
+		referenceValueMappingFixture.saveReferenceValueMapping(
+			patronFixture.createPatronTypeMapping(
+				"supplying-agency-service-tests", "-", "DCB", "-"));
+
+		referenceValueMappingFixture.saveReferenceValueMapping(
+			patronFixture.createPatronTypeMapping(
+				"DCB", "-", "supplying-agency-service-tests", "15"));
 	}
 }
