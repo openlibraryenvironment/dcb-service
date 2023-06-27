@@ -1,29 +1,14 @@
 package org.olf.reshare.dcb.api;
 
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
-import static io.micronaut.http.HttpStatus.NOT_FOUND;
-import static io.micronaut.http.HttpStatus.OK;
-import static java.util.Objects.requireNonNull;
-import static java.util.UUID.randomUUID;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasProperty;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import java.util.UUID;
-
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.annotation.Client;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import jakarta.inject.Inject;
+import net.minidev.json.JSONObject;
 import org.hamcrest.Matcher;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.mockserver.client.MockServerClient;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
@@ -33,23 +18,24 @@ import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.ShelvingLocation;
 import org.olf.reshare.dcb.storage.AgencyRepository;
 import org.olf.reshare.dcb.storage.ShelvingLocationRepository;
-import org.olf.reshare.dcb.test.BibRecordFixture;
-import org.olf.reshare.dcb.test.ClusterRecordFixture;
-import org.olf.reshare.dcb.test.HostLmsFixture;
-import org.olf.reshare.dcb.test.PatronFixture;
-import org.olf.reshare.dcb.test.PatronRequestsFixture;
-
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import jakarta.inject.Inject;
-import net.minidev.json.JSONObject;
+import org.olf.reshare.dcb.test.*;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.UUID;
+
+import static io.micronaut.http.HttpStatus.*;
+import static java.util.Objects.requireNonNull;
+import static java.util.UUID.randomUUID;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -76,6 +62,9 @@ class PatronRequestApiTests {
 	private AgencyRepository agencyRepository;
 	@Inject
 	private AdminApiClient adminApiClient;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+
 	@Inject
 	@Client("/")
 	private HttpClient client;
@@ -138,6 +127,8 @@ class PatronRequestApiTests {
 		bibRecordFixture.deleteAllBibRecords();
 		clusterRecordFixture.deleteAllClusterRecords();
 
+		referenceValueMappingFixture.deleteAllReferenceValueMappings();
+
 		// add shelving location
 		UUID id1 = randomUUID();
 		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms(id1, "code");
@@ -174,6 +165,7 @@ class PatronRequestApiTests {
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
+		savePatronTypeMappings();
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
@@ -358,5 +350,13 @@ class PatronRequestApiTests {
 
 	private static Matcher<Object> isNotAvailableToRequest() {
 		return hasProperty("statusCode", is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY"));
+	}
+
+	private void savePatronTypeMappings() {
+		referenceValueMappingFixture.saveReferenceValueMapping(patronFixture.createPatronTypeMapping(
+			"patron-request-api-tests", "15", "DCB", "15"));
+
+		referenceValueMappingFixture.saveReferenceValueMapping(patronFixture.createPatronTypeMapping(
+			"DCB", "15", "patron-request-api-tests", "15"));
 	}
 }
