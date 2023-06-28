@@ -51,6 +51,9 @@ public class SupplierRequest {
 	@Size(max = 200)
 	private String localItemId;
 
+	@Size(max = 200)
+	private String localBibId;
+
 	@Nullable
 	@Size(max = 200)
 	private String localItemBarcode;

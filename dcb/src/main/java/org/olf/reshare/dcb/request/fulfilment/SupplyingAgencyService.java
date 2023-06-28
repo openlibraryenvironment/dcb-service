@@ -132,8 +132,7 @@ public class SupplyingAgencyService {
 	private Mono<PatronIdentity> checkForPatronIdentity(PatronRequest patronRequest,
 		String hostLmsCode, String localId) {
 
-		return patronService.checkForPatronIdentity(patronRequest.getPatron(),
-			hostLmsCode, localId);
+		return patronService.checkForPatronIdentity(patronRequest.getPatron(), hostLmsCode, localId);
 	}
 
 	private Mono<Tuple2<PatronRequest, SupplierRequest>> findSupplierRequestFor(
