@@ -1,8 +1,14 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import jakarta.inject.Inject;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,22 +18,22 @@ import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
-import org.olf.reshare.dcb.test.*;
+import org.olf.reshare.dcb.test.ClusterRecordFixture;
+import org.olf.reshare.dcb.test.HostLmsFixture;
+import org.olf.reshare.dcb.test.PatronFixture;
+import org.olf.reshare.dcb.test.PatronRequestsFixture;
+import org.olf.reshare.dcb.test.ReferenceValueMappingFixture;
+import org.olf.reshare.dcb.test.SupplierRequestsFixture;
+
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
-import java.util.UUID;
-
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
-
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class SupplyingAgencyServiceTests {
+class PlacePatronRequestAtSupplyingAgencyTests {
 	private static final String HOST_LMS_CODE = "supplying-agency-service-tests";
 
 	@Inject
@@ -41,11 +47,12 @@ class SupplyingAgencyServiceTests {
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
 	@Inject
-	private SupplyingAgencyService supplyingAgencyService;
-	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
+
+	@Inject
+	private PlacePatronRequestAtSupplyingAgencyStateTransition placePatronRequestAtSupplyingAgencyStateTransition;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
@@ -100,7 +107,9 @@ class SupplyingAgencyServiceTests {
 		saveSupplierRequest(patronRequest, hostLms.code);
 
 		// Act
-		final var pr = supplyingAgencyService.placePatronRequestAtSupplyingAgency(patronRequest).block();
+		final var pr = placePatronRequestAtSupplyingAgencyStateTransition
+			.attempt(patronRequest)
+			.block();
 
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
@@ -112,7 +121,6 @@ class SupplyingAgencyServiceTests {
 	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsNotKnownToSupplier() {
 		// Arrange
 		final var localId = "546729";
-		final var homeLibraryCode = "123456";
 		final var patronRequestId = randomUUID();
 
 		final var clusterRecordId = createClusterRecord();
@@ -123,7 +131,9 @@ class SupplyingAgencyServiceTests {
 		saveSupplierRequest(patronRequest, hostLms.code);
 
 		// Act
-		final var pr = supplyingAgencyService.placePatronRequestAtSupplyingAgency(patronRequest).block();
+		final var pr = placePatronRequestAtSupplyingAgencyStateTransition
+			.attempt(patronRequest)
+			.block();
 
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
@@ -146,7 +156,7 @@ class SupplyingAgencyServiceTests {
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> supplyingAgencyService.placePatronRequestAtSupplyingAgency(patronRequest).block());
+			() -> placePatronRequestAtSupplyingAgencyStateTransition.attempt(patronRequest).block());
 
 		// Assert
 		assertThat(exception.getMessage(), is("Internal Server Error"));
