@@ -1,5 +1,6 @@
 package org.olf.reshare.dcb.core.api;
 
+import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.reshare.dcb.item.availability.AvailabilityReport.emptyReport;
 
@@ -60,7 +61,7 @@ public class LiveAvailabilityController {
 
 		return Mono.just(clusteredBib)
 			// don't call service if bibs empty
-			.flatMap(clusteredRecord -> clusteredRecord.getBibs().isEmpty()
+			.flatMap(clusteredRecord -> isEmpty(clusteredRecord.getBibs())
 				? Mono.just(emptyReport())
 				: liveAvailabilityService.getAvailableItems(clusteredRecord));
 	}

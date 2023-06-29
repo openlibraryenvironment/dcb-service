@@ -4,10 +4,10 @@ import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.interaction.HostLmsItem;
+import org.olf.reshare.dcb.core.model.BibRecord;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
-import org.olf.reshare.dcb.request.resolution.SharedIndexService;
 import org.olf.reshare.dcb.request.resolution.SupplierRequestService;
 import org.olf.reshare.dcb.storage.BibRepository;
 import org.olf.reshare.dcb.storage.ClusterRecordRepository;
@@ -21,7 +21,6 @@ import reactor.util.function.Tuple4;
 import reactor.util.function.Tuple5;
 import reactor.util.function.Tuples;
 
-import java.util.Map;
 import java.util.UUID;
 
 import static reactor.function.TupleUtils.function;
@@ -30,29 +29,29 @@ import static reactor.function.TupleUtils.function;
 public class BorrowingAgencyService {
 	private static final Logger log = LoggerFactory.getLogger(BorrowingAgencyService.class);
 
-	private final SharedIndexService sharedIndexService;
 	private final HostLmsService hostLmsService;
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final SupplierRequestService supplierRequestService;
 	private final BibRepository bibRepository;
 	private final ClusterRecordRepository clusterRecordRepository;
 	private final ShelvingLocationRepository shelvingLocationRepository;
+	private final PatronRequestTransitionErrorService errorService;
 
-	public BorrowingAgencyService(SharedIndexService sharedIndexService,
-		HostLmsService hostLmsService,
+	public BorrowingAgencyService(HostLmsService hostLmsService,
 		PatronIdentityRepository patronIdentityRepository,
 		SupplierRequestService supplierRequestService,
 		BibRepository bibRepository,
 		ClusterRecordRepository clusterRecordRepository,
-		ShelvingLocationRepository shelvingLocationRepository) {
+		ShelvingLocationRepository shelvingLocationRepository,
+		PatronRequestTransitionErrorService errorService) {
 
-		this.sharedIndexService = sharedIndexService;
 		this.hostLmsService = hostLmsService;
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.supplierRequestService = supplierRequestService;
 		this.bibRepository = bibRepository;
 		this.clusterRecordRepository = clusterRecordRepository;
 		this.shelvingLocationRepository = shelvingLocationRepository;
+		this.errorService = errorService;
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(PatronRequest patronRequest) {
@@ -62,12 +61,8 @@ public class BorrowingAgencyService {
 			.flatMap(function(this::createVirtualBib))
 			.flatMap(function(this::createVirtualItem))
 			.flatMap(function(this::placeHoldRequest))
-			.map(function(patronRequest::placedAtBorrowingAgency));
-	}
-
-	private Mono<Map<String,Object>> getCanonicalMetadata(UUID bibId) {
-		return Mono.from(bibRepository.findById(bibId))
-			.flatMap( bib -> Mono.just(bib.getCanonicalMetadata()) );
+			.map(function(patronRequest::placedAtBorrowingAgency))
+			.onErrorResume(error -> errorService.moveRequestToErrorStatus(error, patronRequest));
 	}
 
 	private Mono<Tuple5<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest, String>> createVirtualBib(
@@ -77,24 +72,25 @@ public class BorrowingAgencyService {
 		log.debug("createVirtualBib for cluster {}",bibClusterId);
 		return Mono.from(clusterRecordRepository.findById(bibClusterId))
 			.flatMap( clusterRecord -> Mono.from(bibRepository.findById(clusterRecord.getSelectedBib())))
-			.flatMap( bibRecord -> Mono.just(bibRecord.getCanonicalMetadata()) )
-			.flatMap( metadata -> {
-				String title = extractMetadata(metadata,"title");
-				Map<String,Object> authorMetadata = (Map<String,Object>) metadata.get("author");
-				String author = authorMetadata != null ? extractMetadata(authorMetadata,"name") : null;
-				return hostLmsClient.createBib(author,title);
-			})
+			.map(this::extractBibData)
+			.flatMap(function(hostLmsClient::createBib))
 			.doOnNext(patronRequest::setLocalBibId)
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual bib.")))
 			.map(localBibId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, supplierRequest, localBibId));
 	}
 
-	private String extractMetadata(Map<String,Object>m, String accessPath) {
-		String result = null;
-		Object o = m.get(accessPath);
-		if ( o != null )
-			result = o.toString();
-		return result;
+	private Tuple2<String, String> extractBibData(BibRecord bibRecord) {
+		log.debug("extractBibData(bibRecord: {})", bibRecord);
+
+		String title = bibRecord.getTitle();
+		String author = bibRecord.getAuthor() != null ? bibRecord.getAuthor().getName() : null;
+
+		// guard clause
+		if (title == null || author == null) {
+			throw new IllegalArgumentException("Missing title or author information.");
+		}
+
+		return Tuples.of(author, title);
 	}
 
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, String>> createVirtualItem(

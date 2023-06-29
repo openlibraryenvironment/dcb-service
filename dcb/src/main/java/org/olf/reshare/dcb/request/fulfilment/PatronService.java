@@ -1,14 +1,8 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import static java.util.UUID.randomUUID;
-import static lombok.AccessLevel.PACKAGE;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
+import io.micronaut.context.annotation.Prototype;
+import lombok.RequiredArgsConstructor;
+import lombok.Value;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.Patron;
@@ -17,12 +11,17 @@ import org.olf.reshare.dcb.storage.PatronIdentityRepository;
 import org.olf.reshare.dcb.storage.PatronRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.micronaut.context.annotation.Prototype;
-import lombok.RequiredArgsConstructor;
-import lombok.Value;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import static java.util.UUID.randomUUID;
+import static lombok.AccessLevel.PACKAGE;
 
 @Prototype
 public class PatronService {

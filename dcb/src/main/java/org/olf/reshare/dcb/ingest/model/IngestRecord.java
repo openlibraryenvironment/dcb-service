@@ -1,5 +1,6 @@
 package org.olf.reshare.dcb.ingest.model;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -10,23 +11,24 @@ import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 
 import org.olf.reshare.dcb.core.model.HostLms;
+import org.olf.reshare.dcb.core.model.clustering.CoreBibliographicMetadata;
 import org.olf.reshare.dcb.ingest.model.Author.AuthorBuilder;
 import org.olf.reshare.dcb.ingest.model.Identifier.IdentifierBuilder;
 
+import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Singular;
-import lombok.Value;
 import lombok.With;
 import lombok.experimental.Accessors;
 
+@Introspected
 @Data
 @Builder( toBuilder = true )
-@Value
 @Accessors(chain = true)
-public class IngestRecord {
+public class IngestRecord implements CoreBibliographicMetadata {
 	@NonNull
 	@NotEmpty
 	UUID uuid;
@@ -39,17 +41,11 @@ public class IngestRecord {
 	@NotEmpty
 	String sourceRecordId;
 
-	@Nullable
-	String title;
-
 	@Singular
 	Set<String> otherTitles;
 
 	@Singular
 	Set<Identifier> identifiers; // ICCN, ISBN, ISSN, controlNumber, controlNumberIdentifier
-
-	@Nullable
-	Author author;
 
 	@Singular
 	Set<Author> otherAuthors;
@@ -66,13 +62,7 @@ public class IngestRecord {
 	UUID clusterRecordId;
 
 	@Nullable
-	String recordStatus;
-
-	@Nullable
 	String typeOfRecord;
-
-	@Nullable
-	String derivedType;
 
 	@Nullable
 	Boolean suppressFromDiscovery;
@@ -81,8 +71,7 @@ public class IngestRecord {
 	Boolean deleted;
 
 	// Create an internal version of the object for easy access to common bib properties
-	@With
-	@Nullable
+	@NonNull
 	Map<String, Object> canonicalMetadata;
 	
 	@Nullable
@@ -93,7 +82,54 @@ public class IngestRecord {
 //  List<PublicationInformation> publicationInformation();
 //  List<Description> descriptions();
 
-	public static class IngestRecordBuilder {
+	public static class IngestRecordBuilder {		
+		private IngestRecordBuilder addToMd( String key, Object val ) {
+			if (canonicalMetadata == null) {
+				canonicalMetadata(new HashMap<>());
+			}
+			canonicalMetadata.put(key, val);
+			return this;
+		}
+		
+		public IngestRecordBuilder edition(String edition) {
+			addToMd(CoreBibliographicMetadata.MD_EDITION, edition);
+			return this;
+		}
+
+		public IngestRecordBuilder dateOfPublication(String dateOfPublication) {
+			addToMd(CoreBibliographicMetadata.MD_DATE_OF_PUB, dateOfPublication);
+			return this;
+		}
+
+		public IngestRecordBuilder largePrint(boolean largePrint) {
+			addToMd(CoreBibliographicMetadata.MD_LARGE_PRINT, largePrint);
+			return this;
+		}
+
+		public IngestRecordBuilder publisher(String publisher) {
+			addToMd(CoreBibliographicMetadata.MD_PUBLISHER, publisher);
+			return this;
+		}
+
+		public IngestRecordBuilder placeOfPublication(String placeOfPublication) {
+			addToMd(CoreBibliographicMetadata.MD_PLACE_OF_PUB, placeOfPublication);
+			return this;
+		}
+
+		public IngestRecordBuilder title(String title) {
+			addToMd(CoreBibliographicMetadata.MD_TITLE, title);
+			return this;
+		}
+
+		public IngestRecordBuilder recordStatus(String recordStatus) {
+			addToMd(CoreBibliographicMetadata.MD_RECORD_STATUS, recordStatus);
+			return this;
+		}
+
+		public IngestRecordBuilder derivedType(String derivedType) {
+			addToMd(CoreBibliographicMetadata.MD_DERIVED_TYPE, derivedType);
+			return this;
+		}
 
 		public IngestRecordBuilder addIdentifier(Consumer<IdentifierBuilder> consumer) {
 			identifier(Identifier.build(consumer));
@@ -111,7 +147,7 @@ public class IngestRecord {
 		}
 
 		public IngestRecordBuilder author(Author author) {
-			this.author = author;
+			addToMd(CoreBibliographicMetadata.MD_AUTHOR, author);
 			return this;
 		}
 

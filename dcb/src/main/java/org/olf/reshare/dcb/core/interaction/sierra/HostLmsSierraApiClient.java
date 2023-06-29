@@ -1,5 +1,22 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
+import static java.util.Collections.emptyList;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+import org.olf.reshare.dcb.core.model.HostLms;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.context.annotation.Secondary;
@@ -8,17 +25,23 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
-import io.micronaut.http.*;
-import io.micronaut.http.annotation.*;
+import io.micronaut.http.BasicAuth;
+import io.micronaut.http.HttpHeaders;
+import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MediaType;
+import io.micronaut.http.MutableHttpRequest;
+import io.micronaut.http.annotation.Body;
+import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.PathVariable;
+import io.micronaut.http.annotation.Post;
+import io.micronaut.http.annotation.Produces;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.retry.annotation.Retryable;
-import org.olf.reshare.dcb.core.model.HostLms;
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.LinkResult;
@@ -29,24 +52,13 @@ import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchResultSet;
 import services.k_int.interaction.sierra.configuration.PatronMetadata;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
-import services.k_int.interaction.sierra.holds.SierraPatronHold;
-import services.k_int.interaction.sierra.SierraCodeTuple;
-
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
-import static java.util.Collections.emptyList;
 
 @Secondary
 @Prototype
@@ -102,6 +114,14 @@ public class HostLmsSierraApiClient implements SierraApiClient {
             return thisUri.resolve(relativeURI);
         }
     }
+    
+    
+    private String toCsv(Iterable<? extends CharSequence> vals) {
+    	if (vals == null) return null;
+    	
+    	return StreamSupport.stream(vals.spliterator(), false)
+    		.collect(Collectors.joining(","));
+    }
 
     @Override
     @SingleResult
@@ -113,11 +133,11 @@ public class HostLmsSierraApiClient implements SierraApiClient {
         return getRequest("bibs")
                 .map(req -> req.uri(theUri -> {
                     theUri
-                            .queryParam("limit", limit)
-                            .queryParam("offset", offset)
-                            .queryParam("createdDate", createdDate)
-                            .queryParam("updatedDate", updatedDate)
-                            .queryParam("fields", iterableToArray(fields))
+                        .queryParam("limit", limit)
+                        .queryParam("offset", offset)
+                        .queryParam("createdDate", createdDate)
+                        .queryParam("updatedDate", updatedDate)
+                        .queryParam("fields", toCsv(fields))
                         .queryParam("deleted", deleted)
                         .queryParam("deletedDate", deletedDate)
                         .queryParam("suppressed", suppressed)
@@ -316,14 +336,13 @@ public class HostLmsSierraApiClient implements SierraApiClient {
     }
 
 		private <T> Mono<HttpResponse<T>> doExchange( MutableHttpRequest<?> request, Class<T> type) {
-			return Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE))
-					.transform(this::handleResponseErrors);
-                }
+			return Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE)).transform(this::handleResponseErrors);
+		}
 
-	private <T> Mono<T> doRetrieve( MutableHttpRequest<?> request, Class<T> type, boolean mapErrors) {
-        var response = Mono.from( client.retrieve(request, Argument.of(type), ERROR_TYPE) );
-        return mapErrors ? response.transform( this::handleResponseErrors ) : response;
-        }
+		private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Class<T> type, boolean mapErrors) {
+			var response = Mono.from(client.retrieve(request, Argument.of(type), ERROR_TYPE));
+			return mapErrors ? response.transform(this::handleResponseErrors) : response;
+		}
 
     private <T> Object[] iterableToArray( Iterable<T> iterable ) {
         if (iterable == null) return null;

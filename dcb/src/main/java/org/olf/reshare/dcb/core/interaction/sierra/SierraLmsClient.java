@@ -78,11 +78,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final SierraApiClient client;
 	private final ProcessStateService processStateService;
 	private final RawSourceRepository rawSourceRepository;
-	private final ItemResultToItemMapper itemResultToItemMapper = new ItemResultToItemMapper();
+	private final ItemResultToItemMapper itemResultToItemMapper;
 
 	public SierraLmsClient(@Parameter HostLms lms, HostLmsSierraApiClientFactory clientFactory,
-		RawSourceRepository rawSourceRepository, ProcessStateService processStateService) {
+		RawSourceRepository rawSourceRepository, ProcessStateService processStateService,
+		ItemResultToItemMapper itemResultToItemMapper) {
+
 		this.lms = lms;
+		this.itemResultToItemMapper = itemResultToItemMapper;
 
 		// Get a sierra api client.
 		client = clientFactory.createClientFor(lms);
@@ -336,12 +339,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("getItemsByBibId({})", bibId);
 
 		return Flux.from(client.items(params -> params.deleted(false)
-                                                              .bibIds(List.of(bibId))
+				.bibIds(List.of(bibId))
                                                               .fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "suppressed",
                                                                               "bibIds", "location", "status", "volumes", "barcode", "callNumber",
                                                                               "itemType", "transitInfo", "copyNo", "holdCount", "fixedFields", "varFields"))))
 			.flatMap(results -> Flux.fromIterable(results.getEntries()))
-			.map(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode)).collectList();
+			.flatMap(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode))
+			.collectList();
 	}
 
 	@Override

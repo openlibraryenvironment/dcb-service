@@ -1,20 +1,9 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
-
-import java.util.UUID;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import jakarta.inject.Inject;
+import org.junit.jupiter.api.*;
 import org.mockserver.client.MockServerClient;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.reshare.dcb.core.interaction.sierra.SierraItemsAPIFixture;
@@ -25,20 +14,20 @@ import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.ShelvingLocation;
 import org.olf.reshare.dcb.storage.AgencyRepository;
 import org.olf.reshare.dcb.storage.ShelvingLocationRepository;
-import org.olf.reshare.dcb.test.BibRecordFixture;
-import org.olf.reshare.dcb.test.ClusterRecordFixture;
-import org.olf.reshare.dcb.test.HostLmsFixture;
-import org.olf.reshare.dcb.test.PatronFixture;
-import org.olf.reshare.dcb.test.PatronRequestsFixture;
-import org.olf.reshare.dcb.test.SupplierRequestsFixture;
-
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import jakarta.inject.Inject;
+import org.olf.reshare.dcb.test.*;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.UUID;
+
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -156,7 +145,7 @@ class BorrowingAgencyServiceTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron("872321");
-		patronFixture.saveHomeIdentity(patron, hostLms, "872321");
+		patronFixture.saveIdentity(patron, hostLms, "872321", true);
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()
@@ -181,7 +170,7 @@ class BorrowingAgencyServiceTests {
 	}
 
 	@Test
-	void placeRequestAtBorrowingAgencyThrows500WithBodyBroken() {
+	void placeRequestAtBorrowingAgencyReturns500response() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
@@ -192,7 +181,8 @@ class BorrowingAgencyServiceTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron("972321");
-		patronFixture.saveHomeIdentity(patron, hostLms, "972321");
+
+		patronFixture.saveIdentity(patron, hostLms, "972321", true);
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()
@@ -211,10 +201,12 @@ class BorrowingAgencyServiceTests {
 			() -> borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest).block());
 
 		// Assert
-		assertThat(exception, is(notNullValue()));
-		final var response = exception.getResponse();
-		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
-		assertThat(response.code(), is(500));
-		assertThat(response.getBody(String.class).get(), is("Broken"));
+		assertThat(exception.getMessage(), is("Internal Server Error"));
+		assertThat(exception.getLocalizedMessage(), is("Internal Server Error"));
+
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat("Request should have error status afterwards",
+			fetchedPatronRequest.getStatusCode(), is("ERROR"));
 	}
 }
