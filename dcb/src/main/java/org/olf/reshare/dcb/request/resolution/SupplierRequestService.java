@@ -21,11 +21,8 @@ public class SupplierRequestService {
 		this.supplierRequestRepository = supplierRequestRepository;
 	}
 
-	public Mono<List<SupplierRequest>> findAllSupplierRequestsFor(
-		PatronRequest patronRequest) {
-
-		return Flux.from(supplierRequestRepository
-				.findAllByPatronRequest(patronRequest))
+	public Mono<List<SupplierRequest>> findAllSupplierRequestsFor(PatronRequest patronRequest) {
+		return Flux.from(supplierRequestRepository.findAllByPatronRequest(patronRequest))
 			.collectList();
 	}
 

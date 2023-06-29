@@ -1,8 +1,8 @@
 package org.olf.reshare.dcb.request.resolution;
 
+import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static org.olf.reshare.dcb.item.availability.AvailabilityReport.emptyReport;
 import static org.olf.reshare.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
-import static org.olf.reshare.dcb.utils.PublisherErrors.failWhenEmpty;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,10 +38,12 @@ public class PatronRequestResolutionService {
 
 		final var clusterRecordId = patronRequest.getBibClusterId();
 
+		final var resolutionStrategy = new FirstRequestableItemResolutionStrategy();
+
 		return findClusterRecord(clusterRecordId)
 			.map(this::validateClusteredBib)
 			.flatMap(this::getItems)
-			.map(items -> chooseFirstRequestableItem(items, clusterRecordId))
+			.map(items -> resolutionStrategy.chooseItem(items, clusterRecordId))
 			.map(item -> mapToSupplierRequest(item, patronRequest))
 			.map(PatronRequestResolutionService::mapToResolution)
 			.onErrorReturn(NoItemsRequestableAtAnyAgency.class,
@@ -49,19 +51,7 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<ClusteredBib> findClusterRecord(UUID clusterRecordId) {
-		return sharedIndexService.findClusteredBib(clusterRecordId)
-			.map(Optional::ofNullable)
-			.defaultIfEmpty(Optional.empty())
-			.map(optionalClusterRecord ->
-				failWhenClusterRecordIsEmpty(optionalClusterRecord, clusterRecordId));
-	}
-
-	private static ClusteredBib failWhenClusterRecordIsEmpty(
-		Optional<ClusteredBib> optionalClusterRecord, UUID clusterRecordId) {
-
-		return failWhenEmpty(optionalClusterRecord,
-			() -> new UnableToResolvePatronRequest(
-				"Unable to find clustered record: " + clusterRecordId));
+		return sharedIndexService.findClusteredBib(clusterRecordId);
 	}
 
 	private ClusteredBib validateClusteredBib(ClusteredBib clusteredBib) {
@@ -69,7 +59,7 @@ public class PatronRequestResolutionService {
 
 		final var bibs = clusteredBib.getBibs();
 
-		if (bibs == null || bibs.isEmpty()) {
+		if (isEmpty(bibs)) {
 			throw new UnableToResolvePatronRequest("No bibs in clustered bib");
 		}
 
@@ -82,16 +72,6 @@ public class PatronRequestResolutionService {
 		return liveAvailabilityService.getAvailableItems(clusteredBib)
 			.switchIfEmpty(Mono.just(emptyReport()))
 			.map(AvailabilityReport::getItems);
-	}
-
-	private Item chooseFirstRequestableItem(List<Item> items, UUID clusterRecordId) {
-		log.debug("chooseFirstRequestableItem({})", items);
-
-		return items.stream()
-			.filter(Item::getIsRequestable)
-			.filter(item -> ( ( item.getHoldCount() == null ) || ( item.getHoldCount() == 0 ) ) )
-			.findFirst()
-			.orElseThrow(() -> new NoItemsRequestableAtAnyAgency(clusterRecordId));
 	}
 
 	private static SupplierRequest mapToSupplierRequest(Item item,

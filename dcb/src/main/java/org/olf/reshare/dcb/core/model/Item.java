@@ -34,16 +34,14 @@ public class Item implements Comparable<Item> {
 		return getStatus().getCode() == AVAILABLE;
 	}
 
+	public boolean hasNoHolds() {
+		return holdCount == null || holdCount == 0;
+	}
+
 	public String getLocationCode() {
 		return location == null
 			? null
 			: location.getCode();
-	}
-
-	public Item markAsRequestable(Boolean requestable) {
-		setIsRequestable(requestable);
-
-		return this;
 	}
 
 	@Override
