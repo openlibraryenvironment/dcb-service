@@ -3,6 +3,7 @@ package org.olf.reshare.dcb.core.interaction.sierra;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
 import static java.util.Collections.emptyList;
+import static org.olf.reshare.dcb.utils.DCBStringUtilities.toCsv;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -116,13 +117,6 @@ public class HostLmsSierraApiClient implements SierraApiClient {
     }
     
     
-    private String toCsv(Iterable<? extends CharSequence> vals) {
-    	if (vals == null) return null;
-    	
-    	return StreamSupport.stream(vals.spliterator(), false)
-    		.collect(Collectors.joining(","));
-    }
-
     @Override
     @SingleResult
     @Retryable
