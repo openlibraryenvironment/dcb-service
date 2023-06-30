@@ -55,19 +55,20 @@ public class SupplyingAgencyService {
 
                 log.debug("checkAndCreatePatronAtSupplier {} {}",patronRequest,supplierRequest);
 
-		return checkIfPatronExistsAtSupplier(patronRequest, supplierRequest)
-			.switchIfEmpty(Mono.defer(() -> createPatronAtSupplier(patronRequest, supplierRequest)))
+		return upsertPatronIdentityAtSupplier(patronRequest,supplierRequest)
                         .map(patronIdentity -> { supplierRequest.setVirtualIdentity(patronIdentity); return patronIdentity; } )
 			.map(patronIdentity -> Tuples.of(patronRequest, supplierRequest, patronIdentity));
 	}
 
-	private Mono<Tuple2<SupplierRequest, PatronRequest>> placeRequestAtSupplier(PatronRequest patronRequest,
-		SupplierRequest supplierRequest, PatronIdentity patronIdentity) {
+	private Mono<Tuple2<SupplierRequest, PatronRequest>> placeRequestAtSupplier(
+		PatronRequest patronRequest,
+		SupplierRequest supplierRequest, 
+		PatronIdentity patronIdentityAtSupplier) {
 
-		log.debug("placeRequestAtSupplier {}, {}", patronRequest.getId(), patronIdentity.getId());
+		log.debug("placeRequestAtSupplier {}, {}", patronRequest.getId(), patronIdentityAtSupplier.getId());
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
-			.flatMap(client -> client.placeHoldRequest(patronIdentity.getLocalId(), "i",
+			.flatMap(client -> client.placeHoldRequest(patronIdentityAtSupplier.getLocalId(), "i",
 				supplierRequest.getLocalItemId(), patronRequest.getPickupLocationCode()))
 			.map(function(supplierRequest::placed))
 			.map(changedSupplierRequest -> Tuples.of(supplierRequest, patronRequest));
@@ -78,6 +79,11 @@ public class SupplyingAgencyService {
 
 		return supplierRequestService.updateSupplierRequest(supplierRequest)
 			.thenReturn(patronRequest);
+	}
+
+	private Mono<PatronIdentity> upsertPatronIdentityAtSupplier(PatronRequest patronRequest, SupplierRequest supplierRequest) {
+		return checkIfPatronExistsAtSupplier(patronRequest, supplierRequest)
+                        .switchIfEmpty(Mono.defer(() -> createPatronAtSupplier(patronRequest, supplierRequest)));
 	}
 
 	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(PatronRequest patronRequest,
