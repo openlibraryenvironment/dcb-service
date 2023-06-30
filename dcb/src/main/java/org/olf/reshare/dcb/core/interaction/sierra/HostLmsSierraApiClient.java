@@ -187,7 +187,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
                     theUri
                             .queryParam("limit", limit)
                                         .queryParam("offset", offset)
-                                        .queryParam("fields", iterableToArray(fields))
+                                        .queryParam("fields", toCsv(fields))
                                         ;
                         }))
                 .flatMap(this::ensureToken)
@@ -209,7 +209,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
                         .queryParam("limit", limit)
                         .queryParam("offset", offset)
                         .queryParam("id", id)
-                        .queryParam("fields", iterableToArray(fields))
+                        .queryParam("fields", toCsv(fields))
                         .queryParam("createdDate", createdDate)
                         .queryParam("updatedDate", updatedDate)
                         .queryParam("deletedDate", deletedDate)
