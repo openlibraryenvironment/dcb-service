@@ -162,7 +162,9 @@ import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
     @SingleResult
     @Retryable
     @Get("/branches/")
-    public Publisher<BranchResultSet> branches(Integer limit, Integer offset, Iterable<String> fields );
+    public Publisher<BranchResultSet> branches(@Nullable @QueryValue("limit") Integer limit, 
+                                               @Nullable @QueryValue("offset") final Integer offset, 
+                                               @Nullable @QueryValue("fields") @Format("CSV") final Iterable<String> fields );
 
     @SingleResult
     @Retryable

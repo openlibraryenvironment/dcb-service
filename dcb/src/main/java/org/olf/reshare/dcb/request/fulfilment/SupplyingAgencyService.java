@@ -86,10 +86,12 @@ public class SupplyingAgencyService {
 		log.debug("checkIfPatronExistsAtSupplier req={}, supplierSystemCode={}", patronRequest.getId(), supplierRequest.getHostLmsCode());
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
-			.flatMap(hostLmsClient ->
-				hostLmsClient.patronFind(patronService.getUniqueIdStringFor(patronRequest.getPatron())))
-			.flatMap(localId ->
-				checkForPatronIdentity(patronRequest, supplierRequest.getHostLmsCode(), localId));
+			.flatMap(hostLmsClient -> hostLmsClient.patronFind(patronService.getUniqueIdStringFor(patronRequest.getPatron())))
+			.flatMap(localId -> checkForPatronIdentity(patronRequest, supplierRequest.getHostLmsCode(), localId));
+
+                // We should verify that the patron type (and hence mapped type) has not changed - something like...
+                // determinePatronType(supplierRequest.getHostLmsCode(), requestingPatronIdentity)
+                // .map( suppler_ptype -> { patron_identity.setLocalPtype(supplier_ptype); return patron_identity }
 	}
 
 	private Mono<PatronIdentity> getRequestingIdentity(PatronRequest patronRequest) {
@@ -145,7 +147,6 @@ public class SupplyingAgencyService {
 	}
 
 	private Mono<String> determinePatronType(String supplyingHostLmsCode, PatronIdentity requestingIdentity) {
-                log.warn("ToDo - this function needs to consume the patron type for the patron");
                 if ( requestingIdentity != null ) {
                         // We need to look up the requestingHostLmsCode and not pass supplyingHostLmsCode
 		        return patronTypeService.determinePatronType(supplyingHostLmsCode, 
