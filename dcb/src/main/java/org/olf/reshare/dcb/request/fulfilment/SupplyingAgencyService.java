@@ -90,8 +90,10 @@ public class SupplyingAgencyService {
 			requestedThingId = supplierRequest.getLocalBibId();
                 }
 
+		String note = "Consortial Hold. tno="+patronRequest.getId();
+
                 // Depending upon client configuration, we may need to place an item or a title level hold
-                return client.placeHoldRequest(patronIdentity.getLocalId(), requestedThingType, requestedThingId, patronRequest.getPickupLocationCode());
+                return client.placeHoldRequest(patronIdentity.getLocalId(), requestedThingType, requestedThingId, patronRequest.getPickupLocationCode(), note);
         }
                 
 

@@ -278,6 +278,9 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 			// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
 			return getRequest("patrons/" + id + "/holds")
+                		.map(req -> req.uri(theUri -> theUri
+                        		.queryParam("fields", "id,placed,location,pickupLocation,status,note,recordType,notNeededAfterDate")
+				))
 				.flatMap(this::ensureToken)
 				.flatMap(req -> doRetrieve(req, SierraPatronHoldResultSet.class) )
 				.onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError,
