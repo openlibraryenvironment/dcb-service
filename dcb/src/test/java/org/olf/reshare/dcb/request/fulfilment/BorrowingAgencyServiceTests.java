@@ -55,6 +55,8 @@ class BorrowingAgencyServiceTests {
 	@Inject
 	private AgencyRepository agencyRepository;
 
+	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
 		final String TOKEN = "test-token";
@@ -69,7 +71,8 @@ class BorrowingAgencyServiceTests {
 
 		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 
-		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		// final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
 
@@ -82,12 +85,12 @@ class BorrowingAgencyServiceTests {
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916920, "ab6", "9849123490");
 		sierraPatronsAPIFixture.patronHoldRequestResponse("872321", 7916922, "ABC123");
-		sierraPatronsAPIFixture.patronHoldResponse("872321");
+		// sierraPatronsAPIFixture.patronHoldResponse("872321");
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
 		sierraPatronsAPIFixture.patronHoldRequestResponse("43546", 7916922, "ABC123");
-		sierraPatronsAPIFixture.patronHoldResponse("43546");
+		// sierraPatronsAPIFixture.patronHoldResponse("43546");
 
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("972321", 7916922, "ABC123");
 
@@ -156,8 +159,13 @@ class BorrowingAgencyServiceTests {
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
+
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "localItemId",
 			"ab6", "9849123490", hostLms.code);
+
+                // This one is for the borrower side hold - we now match a hold using the note instead of the itemid - so we have to fix up a hold with the
+		// correct note containing the patronRequestId
+                sierraPatronsAPIFixture.patronHoldResponse("872321", "https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864902", "Consortial Hold. tno="+patronRequest.getId());
 
 		// Act
 		final var pr = borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest).block();
@@ -195,6 +203,8 @@ class BorrowingAgencyServiceTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "localItemId",
 			"ab6", "9849123490", hostLms.code);
+
+                sierraPatronsAPIFixture.patronHoldResponse("972321", "https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/43434534", "Consortial Hold. tno="+patronRequest.getId());
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
