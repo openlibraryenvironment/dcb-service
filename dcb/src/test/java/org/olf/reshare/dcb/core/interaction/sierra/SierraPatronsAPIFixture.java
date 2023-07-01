@@ -68,31 +68,37 @@ public class SierraPatronsAPIFixture {
 	}
 
 	public void patronHoldResponse(String id) {
-		// Change this to dyamically build the response so it contains the patronRequestID in the notes field
-
 		mockServer
 			.when(sierraMockServerRequests.get("/" + id + "/holds"))
 			.respond(patronHoldFoundResponse());
 	}
 
 
-	public void patronHoldResponse(String id, String note) {
-		List<PatronHoldResponse> phr = new java.util.ArrayList();
-		phr.add(PatronHoldResponse.builder()
-                        .id(id)
-                	.record("https://some/record/id")
-                	.patron("https://some/patron/id")
+	public void patronHoldResponse(String patron_id, String hold_id_url, String note) {
+		List<PatronHoldResponse> phre = new java.util.ArrayList();
+		phre.add(PatronHoldResponse.builder()
+                        .id(hold_id_url)
+                	.record("https://some/record/"+patron_id)
+                	.patron("https://some/patron/"+patron_id)
                 	.frozen(false)
-                	// .placed()
                 	.notNeededAfterDate("2023-09-01")
                 	.notWantedBeforeDate("2023-08-01")
                 	.recordType("i")
-                	// .priority()
+			.status(SierraCodeNameTuple.builder().code("0").name("On hold").build())
+			.pickupLocation(SierraCodeNameTuple.builder().code("21").name("Vineland Branch").build())
                 	.note(note)
+                	// .placed()
+                	// .priority()
                         .build());
 
+		PatronHoldsResponse phr = PatronHoldsResponse.builder()
+			.total(phre.size())
+			.start(0)
+			.entries(phre)
+			.build();
+
 		mockServer
-			.when(sierraMockServerRequests.get("/" + id + "/holds"))
+			.when(sierraMockServerRequests.get("/" + patron_id + "/holds"))
 			.respond(HttpResponse.response().withContentType(APPLICATION_JSON).withBody(JsonBody.json(phr)));
 	}
 
@@ -182,6 +188,14 @@ public class SierraPatronsAPIFixture {
 		String pickupLocation;
 	}
 
+	@Data
+	@Serdeable
+	@Builder
+	public static class SierraCodeNameTuple {
+		String code;
+		String name;
+	}
+
         @Data
         @Serdeable
         @Builder
@@ -196,14 +210,18 @@ public class SierraPatronsAPIFixture {
 		String recordType;
 		String priority;
 		String note;
-                // "pickupLocation": {
-                // "code": "21",
-                // "name": "Vineland Branch"
-                // },
-                // "status": {
-                // "code": "0",
-                // "name": "on hold."
-                // },
+		SierraCodeNameTuple pickupLocation;
+		SierraCodeNameTuple status;
 	}
 
+	@Data
+	@Serdeable
+	@Builder
+	public static class PatronHoldsResponse {
+		int total;
+		int start;
+		List<PatronHoldResponse> entries;
+	}
+
+	
 }

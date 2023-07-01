@@ -276,6 +276,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		@Produces(value = APPLICATION_JSON)
 		public Publisher<SierraPatronHoldResultSet> patronHolds(@PathVariable String id) {
 
+			log.debug("patronHolds({})",id);
+
 			// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
 			return getRequest("patrons/" + id + "/holds")
                 		.map(req -> req.uri(theUri -> theUri

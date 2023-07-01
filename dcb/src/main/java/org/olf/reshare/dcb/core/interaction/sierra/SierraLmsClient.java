@@ -479,6 +479,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                         .collectList()
                         .flatMap(filteredHolds -> {
                                 if (filteredHolds.size() == 1) {
+					log.debug("FOUND");
                                         final String extractedId = deRestify( filteredHolds.get(0).id() );
                                         final String localStatus = mapSierraHoldStatusToDCBHoldStatus(filteredHolds.get(0).status().code());
                                         return Mono.just( Tuples.of(extractedId, localStatus) );

@@ -37,9 +37,17 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
+
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PatronRequestApiTests {
+
+        private final Logger log = LoggerFactory.getLogger(PatronRequestApiTests.class);
+
 	private static final String HOST_LMS_CODE = "patron-request-api-tests";
 
 	@Inject
@@ -65,6 +73,7 @@ class PatronRequestApiTests {
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
+	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	@Inject
 	@Client("/")
 	private HttpClient client;
@@ -84,7 +93,9 @@ class PatronRequestApiTests {
 		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
-		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		// Moved to class level var so we can install fixtures elsewhere
+		// final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
 
 		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
@@ -97,7 +108,7 @@ class PatronRequestApiTests {
 
 		// supplying agency service
 		sierraPatronsAPIFixture.patronHoldRequestResponse("2745326", 1000002, "ABC123");
-		sierraPatronsAPIFixture.patronHoldResponse("2745326");
+		// sierraPatronsAPIFixture.patronHoldResponse("2745326");
 
 		// borrowing agency service
 		final var bibPatch = BibPatch.builder()
@@ -109,7 +120,7 @@ class PatronRequestApiTests {
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916920, "ab6", "6565750674");
 		sierraPatronsAPIFixture.patronHoldRequestResponse("872321", 7916922, "ABC123");
-		sierraPatronsAPIFixture.patronHoldResponse("872321");
+		// sierraPatronsAPIFixture.patronHoldResponse("872321");
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
@@ -160,6 +171,7 @@ class PatronRequestApiTests {
 	@Test
 	@DisplayName("should be able to place patron request for new patron")
 	void shouldBeAbleToPlacePatronForNewPatron() {
+		log.info("\n\nshouldBeAbleToPlacePatronForNewPatron\n\n");
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
@@ -181,8 +193,12 @@ class PatronRequestApiTests {
 		assertThat(placedPatronRequest, is(notNullValue()));
 
 		// Fix up the sierra mock so that it finds a hold with the right note in it
-		// Not sure how best to make this work - sierraPatronsAPIFixture is only available in the beforeAll method
-		sierraPatronsAPIFixture.patronHoldResponse("872321", "Consortial Hold. tno="+placedPatronRequest.id());
+		// 2745326 will be the identity of this patron in the supplier side system
+		log.info("Inserting hold response for patron 2745326 - placedPatronRequest.id="+placedPatronRequest.id());
+		sierraPatronsAPIFixture.patronHoldResponse("2745326", "https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/407557", "Consortial Hold. tno="+placedPatronRequest.id());
+
+		// This one is for the borrower side hold
+		sierraPatronsAPIFixture.patronHoldResponse("872321", "https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864902", "Consortial Hold. tno="+placedPatronRequest.id());
 
 		// We need to take the placedRequestResponse and somehow inject it's ID into the patronHolds respons message as note="Consortial Hold. tno=UUID"
 		// This will ensure that the subsequent lookup can correlate the hold with the request
@@ -193,6 +209,7 @@ class PatronRequestApiTests {
 		assertThat(placedPatronRequest.requestor().localSystemCode(), is(HOST_LMS_CODE));
 		assertThat(placedPatronRequest.requestor().localId(), is("872321"));
 
+		log.info("Waiting for placed....");
 		AdminApiClient.AdminAccessPatronRequest fetchedPatronRequest = await().atMost(5, SECONDS)
 			.until(() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.id()),
 				isPlacedAtBorrowingAgency());
@@ -245,6 +262,7 @@ class PatronRequestApiTests {
 
 	@Test
 	void cannotFulfilPatronRequestWhenNoRequestableItemsAreFound() {
+		log.info("\n\ncannotFulfilPatronRequestWhenNoRequestableItemsAreFound\n\n");
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
@@ -284,6 +302,7 @@ class PatronRequestApiTests {
 
 	@Test
 	void cannotPlaceRequestWhenNoInformationIsProvided() {
+		log.info("\n\ncannotPlaceRequestWhenNoInformationIsProvided\n\n");
 		// Given an empty request body
 		final var requestBody = new JSONObject();
 		final var request = HttpRequest.POST("/patrons/requests/place", requestBody);
@@ -299,6 +318,7 @@ class PatronRequestApiTests {
 
 	@Test
 	void cannotPlaceRequestForPatronAtUnknownLocalSystem() {
+		log.info("\n\ncannotPlaceRequestForPatronAtUnknownLocalSystem\n\n");
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
@@ -345,6 +365,7 @@ class PatronRequestApiTests {
 
 	@Test
 	void cannotFindPatronRequestForUnknownId() {
+		log.info("\n\ncannotFindPatronRequestForUnknownId\n\n");
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> adminApiClient.getPatronRequestViaAdminApi(randomUUID()));
 
