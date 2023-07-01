@@ -199,6 +199,11 @@ import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
 	Publisher<SierraPatronRecord> getPatron(@Nullable @PathVariable("id") final Long patronId);
 
 	@SingleResult
+	@Get("/patrons/{id}")
+	Publisher<SierraPatronRecord> getPatron(@Nullable @PathVariable("id") final Long patronId,
+                                                @Nullable @QueryValue("fields") @Format("CSV") final Iterable<String> fields);
+
+	@SingleResult
 	@Get("/patrons/holds/{id}")
 	Publisher<SierraPatronHold> getHold(@Nullable @PathVariable("id") final Long holdId);
 

@@ -21,5 +21,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @ExcludeFromGeneratedCoverageReport
 public class HostLmsPatronDTO {
 	private String localId;
+	private String localNames;
+	private String localBarcodes;
 	private String localPatronType;
 }

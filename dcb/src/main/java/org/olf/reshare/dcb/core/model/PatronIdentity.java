@@ -69,8 +69,16 @@ public class PatronIdentity {
 	@Nullable
 	private String localBarcode;
 
+	// PII: The system may allow administrators to set local policies which control what values
+	// can appear in this field. This field is not forced to be populated.
+	@Nullable
+	private String localNames;
+
 	@Nullable
 	private String localPtype;
+
+	@Nullable
+	private String localAgency;
 
 	@Nullable
 	private Instant lastValidated;

@@ -62,6 +62,7 @@ import java.util.*;
 import static java.lang.Integer.parseInt;
 import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
+import static org.olf.reshare.dcb.utils.DCBStringUtilities.toCsv;
 
 /**
  * See: https://sandbox.iii.com/iii/sierra-api/swagger/index.html
@@ -344,7 +345,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                                                                               "bibIds", "location", "status", "volumes", "barcode", "callNumber",
                                                                               "itemType", "transitInfo", "copyNo", "holdCount", "fixedFields", "varFields"))))
 			.flatMap(results -> Flux.fromIterable(results.getEntries()))
-			.flatMap(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode))
+			.flatMap(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode, bibId))
 			.collectList();
 	}
 
@@ -661,6 +662,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return HostLmsPatronDTO.builder()
 			.localId(spr.getId().toString())
 			.localPatronType(spr.getPatronType().toString())
+			.localBarcodes(toCsv(Arrays.asList(spr.getBarcodes() != null ? spr.getBarcodes() : new String[0] )))
+			.localNames(toCsv(Arrays.asList(spr.getNames() != null ? spr.getNames() : new String[0] )))
 			.build();
 	}
 

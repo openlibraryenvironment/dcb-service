@@ -29,6 +29,7 @@ public class Item implements Comparable<Item> {
 	private String hostLmsCode;
 	private Boolean isRequestable;
 	private Integer holdCount;
+	private String bibId;
 
 	public boolean isAvailable() {
 		return getStatus().getCode() == AVAILABLE;

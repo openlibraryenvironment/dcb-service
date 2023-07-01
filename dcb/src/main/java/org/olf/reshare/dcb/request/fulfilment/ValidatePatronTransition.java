@@ -55,6 +55,8 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				// Update the patron identity with the current patron type and set the last validated date to now()
 				pi.setLocalPtype(hostLmsPatron.getLocalPatronType());
 				pi.setLastValidated(Instant.now());
+				pi.setLocalBarcode(hostLmsPatron.getLocalBarcodes());
+				pi.setLocalNames(hostLmsPatron.getLocalNames());
 				return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(pi));
 			});
 	}

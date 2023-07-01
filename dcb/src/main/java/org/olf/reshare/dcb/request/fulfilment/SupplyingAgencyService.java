@@ -56,16 +56,17 @@ public class SupplyingAgencyService {
 
                 log.debug("checkAndCreatePatronAtSupplier {} {}",patronRequest,supplierRequest);
 
-		return checkIfPatronExistsAtSupplier(patronRequest, supplierRequest)
-			.switchIfEmpty(Mono.defer(() -> createPatronAtSupplier(patronRequest, supplierRequest)))
+		return upsertPatronIdentityAtSupplier(patronRequest,supplierRequest)
                         .map(patronIdentity -> { supplierRequest.setVirtualIdentity(patronIdentity); return patronIdentity; } )
 			.map(patronIdentity -> Tuples.of(patronRequest, supplierRequest, patronIdentity));
 	}
 
-	private Mono<Tuple2<SupplierRequest, PatronRequest>> placeRequestAtSupplier(PatronRequest patronRequest,
-		SupplierRequest supplierRequest, PatronIdentity patronIdentity) {
+	private Mono<Tuple2<SupplierRequest, PatronRequest>> placeRequestAtSupplier(
+		PatronRequest patronRequest,
+		SupplierRequest supplierRequest, 
+		PatronIdentity patronIdentityAtSupplier) {
 
-		log.debug("placeRequestAtSupplier {}, {}", patronRequest.getId(), patronIdentity.getId());
+		log.debug("placeRequestAtSupplier {}, {}", patronRequest.getId(), patronIdentityAtSupplier.getId());
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
 			.flatMap(client -> this.placeHoldRequest(patronIdentity, supplierRequest,patronRequest, client) )
@@ -85,7 +86,8 @@ public class SupplyingAgencyService {
                 Map<String, Object> cfg = client.getHostLms().getClientConfig();
                 if ( ( cfg != null ) && ( cfg.get("holdPolicy") != null ) && ( cfg.get("holdPolicy").equals("title")  ) ) {
                         log.info("Client is configured for title level hold policy - switching");
-                        // Can't do this until we have bibId to hand
+			requestedThingType = "b";
+			requestedThingId = supplierRequest.getLocalBibId();
                 }
 
                 // Depending upon client configuration, we may need to place an item or a title level hold
@@ -98,6 +100,11 @@ public class SupplyingAgencyService {
 
 		return supplierRequestService.updateSupplierRequest(supplierRequest)
 			.thenReturn(patronRequest);
+	}
+
+	private Mono<PatronIdentity> upsertPatronIdentityAtSupplier(PatronRequest patronRequest, SupplierRequest supplierRequest) {
+		return checkIfPatronExistsAtSupplier(patronRequest, supplierRequest)
+                        .switchIfEmpty(Mono.defer(() -> createPatronAtSupplier(patronRequest, supplierRequest)));
 	}
 
 	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(PatronRequest patronRequest,
@@ -154,8 +161,7 @@ public class SupplyingAgencyService {
 	private Mono<PatronIdentity> checkForPatronIdentity(PatronRequest patronRequest,
 		String hostLmsCode, String localId) {
 
-		return patronService.checkForPatronIdentity(patronRequest.getPatron(),
-			hostLmsCode, localId);
+		return patronService.checkForPatronIdentity(patronRequest.getPatron(), hostLmsCode, localId);
 	}
 
 	private Mono<Tuple2<PatronRequest, SupplierRequest>> findSupplierRequestFor(

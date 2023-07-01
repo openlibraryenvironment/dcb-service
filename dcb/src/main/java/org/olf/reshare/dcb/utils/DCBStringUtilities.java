@@ -12,9 +12,8 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
+import java.util.stream.StreamSupport;
 import javax.validation.constraints.NotNull;
-
 import services.k_int.utils.UUIDUtils;
 
 public class DCBStringUtilities {
@@ -120,4 +119,9 @@ public class DCBStringUtilities {
 		return result;
 	}
 
+	public static final String toCsv(Iterable<? extends CharSequence> vals) {
+		if (vals == null) return null;
+		return StreamSupport.stream(vals.spliterator(), false)
+			.collect(Collectors.joining(","));
+	}
 }
