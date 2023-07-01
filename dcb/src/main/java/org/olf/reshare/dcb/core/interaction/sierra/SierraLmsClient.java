@@ -345,7 +345,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                                                                               "bibIds", "location", "status", "volumes", "barcode", "callNumber",
                                                                               "itemType", "transitInfo", "copyNo", "holdCount", "fixedFields", "varFields"))))
 			.flatMap(results -> Flux.fromIterable(results.getEntries()))
-			.flatMap(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode))
+			.flatMap(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode, bibId))
 			.collectList();
 	}
 

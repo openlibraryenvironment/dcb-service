@@ -20,7 +20,7 @@ class ItemResultToItemMapper {
 		this.itemStatusMapper = itemStatusMapper;
 	}
 
-	Mono<org.olf.reshare.dcb.core.model.Item> mapResultToItem(Result result, String hostLmsCode) {
+	Mono<org.olf.reshare.dcb.core.model.Item> mapResultToItem(Result result, String hostLmsCode, String bibId) {
 		log.debug("mapResultToItem({}, {})", result, hostLmsCode);
 
 			final var dueDate = result.getStatus().getDuedate();
@@ -42,6 +42,7 @@ class ItemResultToItemMapper {
 					.callNumber(result.getCallNumber())
 					.hostLmsCode(hostLmsCode)
 					.holdCount(result.getHoldCount())
+					.bibId(bibId)
 					.build());
 	}
 }
