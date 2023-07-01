@@ -181,7 +181,7 @@ class PatronRequestApiTests {
 		assertThat(placedPatronRequest, is(notNullValue()));
 
 		// Fix up the sierra mock so that it finds a hold with the right note in it
-		// Not sure how best to make this work
+		// Not sure how best to make this work - sierraPatronsAPIFixture is only available in the beforeAll method
 		sierraPatronsAPIFixture.patronHoldResponse("872321", "Consortial Hold. tno="+placedPatronRequest.id());
 
 		// We need to take the placedRequestResponse and somehow inject it's ID into the patronHolds respons message as note="Consortial Hold. tno=UUID"
