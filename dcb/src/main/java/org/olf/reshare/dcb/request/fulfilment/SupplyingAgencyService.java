@@ -14,6 +14,7 @@ import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
 import reactor.util.function.Tuples;
+import java.util.Map;
 
 import static reactor.function.TupleUtils.function;
 
@@ -68,11 +69,30 @@ public class SupplyingAgencyService {
 		log.debug("placeRequestAtSupplier {}, {}", patronRequest.getId(), patronIdentityAtSupplier.getId());
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
-			.flatMap(client -> client.placeHoldRequest(patronIdentityAtSupplier.getLocalId(), "i",
-				supplierRequest.getLocalItemId(), patronRequest.getPickupLocationCode()))
+			.flatMap(client -> this.placeHoldRequest(patronIdentity, supplierRequest,patronRequest, client) )
 			.map(function(supplierRequest::placed))
 			.map(changedSupplierRequest -> Tuples.of(supplierRequest, patronRequest));
 	}
+
+        private Mono<Tuple2<String, String>> placeHoldRequest(
+                PatronIdentity patronIdentity, 
+                SupplierRequest supplierRequest,
+                PatronRequest patronRequest,
+                HostLmsClient client) {
+
+                String requestedThingType = "i"; // Default requst an item
+                String requestedThingId = supplierRequest.getLocalItemId(); // Default item ID
+
+                Map<String, Object> cfg = client.getHostLms().getClientConfig();
+                if ( ( cfg != null ) && ( cfg.get("holdPolicy") != null ) && ( cfg.get("holdPolicy").equals("title")  ) ) {
+                        log.info("Client is configured for title level hold policy - switching");
+                        // Can't do this until we have bibId to hand
+                }
+
+                // Depending upon client configuration, we may need to place an item or a title level hold
+                return client.placeHoldRequest(patronIdentity.getLocalId(), requestedThingType, requestedThingId, patronRequest.getPickupLocationCode());
+        }
+                
 
 	private Mono<PatronRequest> updateSupplierRequest(
 		SupplierRequest supplierRequest, PatronRequest patronRequest) {
