@@ -86,7 +86,8 @@ public class SupplyingAgencyService {
                 Map<String, Object> cfg = client.getHostLms().getClientConfig();
                 if ( ( cfg != null ) && ( cfg.get("holdPolicy") != null ) && ( cfg.get("holdPolicy").equals("title")  ) ) {
                         log.info("Client is configured for title level hold policy - switching");
-                        // Can't do this until we have bibId to hand
+			requestedThingType = "b";
+			requestedThingId = supplierRequest.getLocalBibId();
                 }
 
                 // Depending upon client configuration, we may need to place an item or a title level hold
