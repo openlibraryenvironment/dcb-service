@@ -3,8 +3,10 @@ package org.olf.reshare.dcb.core.interaction.sierra;
 import java.util.List;
 
 import org.mockserver.client.MockServerClient;
+import org.mockserver.model.JsonBody;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
+import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.serde.annotation.Serdeable;
@@ -66,9 +68,32 @@ public class SierraPatronsAPIFixture {
 	}
 
 	public void patronHoldResponse(String id) {
+		// Change this to dyamically build the response so it contains the patronRequestID in the notes field
+
 		mockServer
 			.when(sierraMockServerRequests.get("/" + id + "/holds"))
 			.respond(patronHoldFoundResponse());
+	}
+
+
+	public void patronHoldResponse(String id, String note) {
+		List<PatronHoldResponse> phr = new java.util.ArrayList();
+		phr.add(PatronHoldResponse.builder()
+                        .id(id)
+                	.record("https://some/record/id")
+                	.patron("https://some/patron/id")
+                	.frozen(false)
+                	// .placed()
+                	.notNeededAfterDate("2023-09-01")
+                	.notWantedBeforeDate("2023-08-01")
+                	.recordType("i")
+                	// .priority()
+                	.note(note)
+                        .build());
+
+		mockServer
+			.when(sierraMockServerRequests.get("/" + id + "/holds"))
+			.respond(HttpResponse.response().withContentType(APPLICATION_JSON).withBody(JsonBody.json(phr)));
 	}
 
 	public void patronHoldErrorResponse(String id) {
@@ -155,6 +180,30 @@ public class SierraPatronsAPIFixture {
 		String recordType;
 		Integer recordNumber;
 		String pickupLocation;
+	}
+
+        @Data
+        @Serdeable
+        @Builder
+        public static class PatronHoldResponse {
+		String id;
+		String record;
+		String patron;
+		boolean frozen;
+		String placed;
+		String notNeededAfterDate;
+		String notWantedBeforeDate;
+		String recordType;
+		String priority;
+		String note;
+                // "pickupLocation": {
+                // "code": "21",
+                // "name": "Vineland Branch"
+                // },
+                // "status": {
+                // "code": "0",
+                // "name": "on hold."
+                // },
 	}
 
 }
