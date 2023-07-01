@@ -1,16 +1,17 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.Builder;
-import lombok.Data;
+import static org.mockserver.model.JsonBody.json;
+
+import java.util.List;
+
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 
-import java.util.List;
-
-import static org.mockserver.model.JsonBody.json;
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Data;
 
 public class SierraItemsAPIFixture {
 	private final MockServerClient mockServer;
