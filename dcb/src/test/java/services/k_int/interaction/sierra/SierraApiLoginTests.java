@@ -1,112 +1,103 @@
 package services.k_int.interaction.sierra;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockserver.model.HttpRequest.request;
-import static org.mockserver.model.HttpResponse.response;
-import static org.mockserver.model.JsonBody.json;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
 
-import java.io.IOException;
 import java.time.Instant;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.mockserver.model.MediaType;
+import org.olf.reshare.dcb.core.interaction.sierra.SierraLoginAPIFixture;
+import org.olf.reshare.dcb.test.HostLmsFixture;
 
 import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
-import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
 @MockServerMicronautTest
-public class SierraApiLoginTests {
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class SierraApiLoginTests {
+	private static final String HOST_LMS_CODE = "sierra-login-api-tests";
+	private static final String KEY = "token-key";
+	private static final String SECRET = "token-secret";
+
 	@Inject
-	SierraApiClient client;
+	private HttpClient client;
 	@Inject
-	ResourceLoader loader;
-	private final String MOCK_ROOT = "classpath:mock-responses/sierra/login";
+	private ResourceLoader loader;
+	@Inject
+	private HostLmsFixture hostLmsFixture;
 
-	@Test
-	public void testLoginTokenType ( MockServerClient mock ) throws IOException {
+	@BeforeAll
+	void beforeAll() {
+		final String BASE_URL = "https://login-api-tests.com";
 
-		// Mock the response from Sierra
-		mock.when(
-			request()
-				.withHeader("Accept", "application/json")
-				.withMethod("POST")
-				.withPath("/iii/sierra-api/v6/token")
-		).respond(
-			response()
-				.withStatusCode(200)
-				.withContentType(MediaType.APPLICATION_JSON)
-				.withBody(
-					json(new String(loader
-						.getResourceAsStream(MOCK_ROOT + "/sierra-api-login.json")
-						.orElseThrow()
-						.readAllBytes()))));
+		hostLmsFixture.deleteAllHostLMS();
 
-
-		var response = Mono.from( client.login("key", "secret") ).block();
-		System.out.println(response);
-		assertNotNull(response);
-		assertEquals(response.type().toLowerCase(), "bearer");
+		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 	}
 
 	@Test
-	public void testLoginTokenExpiration ( MockServerClient mock ) throws IOException {
+	void shouldLoginWhenCredentialsAreValid(MockServerClient mockServer) {
+		mockSuccessfulLogin(mockServer, "login-token");
 
-		// Mock the response from Sierra
-		mock.when(
-			request()
-				.withHeader("Accept", "application/json")
-				.withMethod("POST")
-				.withPath("/iii/sierra-api/v6/token")
-		).respond(
-			response()
-				.withStatusCode(200)
-				.withContentType(MediaType.APPLICATION_JSON)
-				.withBody(
-					json(new String(loader
-						.getResourceAsStream(MOCK_ROOT + "/sierra-api-login.json")
-						.orElseThrow()
-						.readAllBytes()))));
+		var token = login(KEY, SECRET);
 
-		var response = Mono.from( client.login("key", "secret") ).block();
-		assertNotNull(response);
-		assertEquals(response.getClass(), AuthToken.class);
-		assertFalse( response.isExpired() );
-		assertTrue( response.expires().isAfter(Instant.MIN) );
+		assertThat("Token should not be null", token, is(notNullValue()));
+		assertThat("Should be bearer token", token.type().toLowerCase(), is("bearer"));
+
+		assertThat("Token should not be expired", token.isExpired(), is(false));
+		assertThat("Token should expire in the future",
+			token.expires().isAfter(Instant.now()), is(true));
 	}
 
 	@Test
-	public void testLoginTokenUnique ( MockServerClient mock ) throws IOException {
+	void shouldFailToLoginWhenCredentialsAreInvalid(MockServerClient mock) {
+		mockSuccessfulLogin(mock, "login-token");
 
-		// Mock the response from Sierra
-		mock.when(
-			request()
-				.withHeader("Accept", "application/json")
-				.withMethod("POST")
-				.withPath("/iii/sierra-api/v6/token")
-		).respond(
-			response()
-				.withStatusCode(200)
-				.withContentType(MediaType.APPLICATION_JSON)
-				.withBody(
-					json(new String(loader
-						.getResourceAsStream(MOCK_ROOT + "/sierra-api-login.json")
-						.orElseThrow()
-						.readAllBytes()))));
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> login("WRONG_KEY", "WRONG_SECRET"));
 
-		var token1 = Mono.from( client.login("key", "secret") ).block();
-		var token2 = Mono.from( client.login("key", "secret") ).block();
+		assertThat("Exception should not be null", exception, is(notNullValue()));
+		assertThat("Status should not be null", exception.getStatus(), is(notNullValue()));
 
-		assertNotNull(token1);
-		assertNotNull(token2);
-		assertEquals(token1.getClass(), AuthToken.class);
-		assertEquals(token2.getClass(), AuthToken.class);
-		assertNotSame(token1, token2);
+		assertThat("Code should be unauthorised",
+			exception.getStatus().getCode(), is(401));
+	}
+
+	@Test
+	void eachLoginShouldProduceADifferentToken(MockServerClient mock) {
+		mockSuccessfulLogin(mock, "first-login-token");
+		mockSuccessfulLogin(mock, "second-login-token");
+
+		var token1 = login(KEY, SECRET);
+		var token2 = login(KEY, SECRET);
+
+		assertThat("Token 1 should not be null", token1, is(notNullValue()));
+		assertThat("Token 2 should not be null", token2, is(notNullValue()));
+
+		assertThat("Should be first token", token1.value(), is("first-login-token"));
+		assertThat("Should be second token", token2.value(), is("second-login-token"));
+	}
+
+	private void mockSuccessfulLogin(MockServerClient mock, String token) {
+		final var sierraLoginFixture = new SierraLoginAPIFixture(mock, loader);
+
+		sierraLoginFixture.successfulLoginFor(KEY, SECRET, token);
+		sierraLoginFixture.failLoginsForAnyOtherCredentials(KEY, SECRET);
+	}
+
+	private AuthToken login(String key, String secret) {
+		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+
+		return singleValueFrom(sierraApiClient.login(key, secret));
 	}
 }

@@ -17,7 +17,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.SneakyThrows;
 
-class SierraMockServerResponses {
+public class SierraMockServerResponses {
 	private final String basePath;
 	private final ResourceLoader loader;
 
@@ -26,8 +26,12 @@ class SierraMockServerResponses {
 		this.loader = loader;
 	}
 
-	HttpResponse jsonSuccess(String responseBodySubPath) {
+	public HttpResponse jsonSuccess(String responseBodySubPath) {
 		return jsonResponse(response(), responseBodySubPath);
+	}
+
+	public HttpResponse jsonSuccess(JsonBody body) {
+		return jsonResponse(response(), body);
 	}
 
 	HttpResponse jsonLink(String link) {

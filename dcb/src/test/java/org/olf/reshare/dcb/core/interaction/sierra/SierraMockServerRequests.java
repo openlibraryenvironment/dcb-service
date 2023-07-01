@@ -6,14 +6,14 @@ import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
 import org.mockserver.model.HttpRequest;
 
-class SierraMockServerRequests {
+public class SierraMockServerRequests {
 	private final String basePath;
 
-	SierraMockServerRequests(String basePath) {
+	public SierraMockServerRequests(String basePath) {
 		this.basePath = basePath;
 	}
 
-	HttpRequest post() {
+	public HttpRequest post() {
 		return post("");
 	}
 
