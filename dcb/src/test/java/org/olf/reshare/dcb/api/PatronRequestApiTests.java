@@ -180,6 +180,10 @@ class PatronRequestApiTests {
 
 		assertThat(placedPatronRequest, is(notNullValue()));
 
+		// Fix up the sierra mock so that it finds a hold with the right note in it
+		// Not sure how best to make this work
+		sierraPatronsAPIFixture.patronHoldResponse("872321", "Consortial Hold. tno="+placedPatronRequest.id());
+
 		// We need to take the placedRequestResponse and somehow inject it's ID into the patronHolds respons message as note="Consortial Hold. tno=UUID"
 		// This will ensure that the subsequent lookup can correlate the hold with the request
 		// maybe something like sierraPatronsAPIFixture.patronHoldResponse("872321", placedRequestResponse.id);
@@ -192,6 +196,7 @@ class PatronRequestApiTests {
 		AdminApiClient.AdminAccessPatronRequest fetchedPatronRequest = await().atMost(5, SECONDS)
 			.until(() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.id()),
 				isPlacedAtBorrowingAgency());
+
 
 		assertThat(fetchedPatronRequest, is(notNullValue()));
 
