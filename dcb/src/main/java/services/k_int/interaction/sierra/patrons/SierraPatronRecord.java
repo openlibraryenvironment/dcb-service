@@ -4,6 +4,7 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Data;
 import services.k_int.interaction.sierra.items.Location;
+import java.util.Map;
 
 @Data
 @Serdeable
@@ -56,4 +57,6 @@ public class SierraPatronRecord {
 	String pMessage;
 	@Nullable
 	String langPref;
+	@Nullable
+	Map<Integer, FixedField> fixedFields;
 }
