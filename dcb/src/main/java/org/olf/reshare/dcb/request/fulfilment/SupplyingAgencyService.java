@@ -69,7 +69,7 @@ public class SupplyingAgencyService {
 		log.debug("placeRequestAtSupplier {}, {}", patronRequest.getId(), patronIdentityAtSupplier.getId());
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
-			.flatMap(client -> this.placeHoldRequest(patronIdentity, supplierRequest,patronRequest, client) )
+			.flatMap(client -> this.placeHoldRequest(patronIdentityAtSupplier, supplierRequest,patronRequest, client) )
 			.map(function(supplierRequest::placed))
 			.map(changedSupplierRequest -> Tuples.of(supplierRequest, patronRequest));
 	}
