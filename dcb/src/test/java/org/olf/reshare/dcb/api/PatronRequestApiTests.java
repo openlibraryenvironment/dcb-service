@@ -173,6 +173,9 @@ class PatronRequestApiTests {
 		var placedRequestResponse = patronRequestApiClient.placePatronRequest(
 			clusterRecordId, "872321", "ABC123", HOST_LMS_CODE, "home-library");
 
+		// We need to take the placedRequestResponse and somehow inject it's ID into the patronHolds respons message as note="Consortial Hold. tno=UUID"
+		// This will ensure that the subsequent lookup can correlate the hold with the request
+
 		// Assert
 		assertThat(placedRequestResponse.getStatus(), is(OK));
 
