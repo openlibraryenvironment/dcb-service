@@ -449,6 +449,9 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	public Publisher<SierraPatronRecord> getPatron(@Nullable @PathVariable("id") final Long patronId) {
 		// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
 		return getRequest("patrons/" + patronId)
+                	.map(req -> req.uri(theUri -> theUri
+                        	.queryParam("fields", "id,updatedDate,createdDate,expirationDate,names,barcodes,patronType,patronCodes,homeLibraryCode,emails,message,blockInfo,autoBlockInfo,uniqueIds,emails,fixedFields")
+        		))
 			.flatMap(this::ensureToken)
 			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class) )
 			.onErrorReturn(new SierraPatronRecord());
