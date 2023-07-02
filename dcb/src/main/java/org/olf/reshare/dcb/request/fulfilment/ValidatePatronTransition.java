@@ -47,11 +47,16 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
                 return "state=="+SUBMITTED_TO_DCB;
         }
 
+	/**
+	 * We are passed in a local patron identity record
+	 * Validate and refresh any local properties we wish to sync before commencement of the requesting process.
+ 	 */
 	private Mono<PatronIdentity> validatePatronIdentity(PatronIdentity pi) {
 		log.debug("validatePatronIdentity by calling out to host LMS - PI is {} host lms client is {}",pi, pi.getHostLms());
 		return hostLmsService.getClientFor(pi.getHostLms())
 			.flatMap(client -> client.getPatronByLocalId(pi.getLocalId()))
 			.flatMap(hostLmsPatron -> {
+				log.debug("update patron identity with latest info from host {}",hostLmsPatron);
 				// Update the patron identity with the current patron type and set the last validated date to now()
 				pi.setLocalPtype(hostLmsPatron.getLocalPatronType());
 				pi.setLastValidated(Instant.now());
@@ -81,7 +86,6 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		
 		// pull out patronRequest.patron and get the home patron then use the web service to look up the patron
 		// patronRequest.patron
-		// return Mono.from( patronIdentityRepository.findHomePatronIdentityForPatron(patronRequest.getPatron().getId()) )
 		return Mono.from( patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), Boolean.TRUE) )
 			.flatMap( this::validatePatronIdentity )
 			.map( pi -> this.setRequestingPatronIdentity(patronRequest, pi ) )
