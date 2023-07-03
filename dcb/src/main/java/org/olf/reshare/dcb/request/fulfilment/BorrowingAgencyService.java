@@ -83,11 +83,11 @@ public class BorrowingAgencyService {
 		log.debug("extractBibData(bibRecord: {})", bibRecord);
 
 		String title = bibRecord.getTitle();
-		String author = bibRecord.getAuthor() != null ? bibRecord.getAuthor().getName() : null;
+		String author = bibRecord.getAuthor() != null ? bibRecord.getAuthor().getName() : '';
 
 		// guard clause
-		if (title == null || author == null) {
-			throw new IllegalArgumentException("Missing title or author information.");
+		if (title == null) {
+			throw new IllegalArgumentException("Missing title information.");
 		}
 
 		return Tuples.of(author, title);
