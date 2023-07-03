@@ -107,7 +107,7 @@ class PatronRequestApiTests {
 		sierraPatronsAPIFixture.postPatronResponse("872321@home-library", 2745326);
 
 		// supplying agency service
-		sierraPatronsAPIFixture.patronHoldRequestResponse("2745326", 1000002, "ABC123");
+		sierraPatronsAPIFixture.patronHoldRequestResponse("2745326");
 		// sierraPatronsAPIFixture.patronHoldResponse("2745326");
 
 		// borrowing agency service
@@ -119,7 +119,7 @@ class PatronRequestApiTests {
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916920, "ab6", "6565750674");
-		sierraPatronsAPIFixture.patronHoldRequestResponse("872321", 7916922, "ABC123");
+		sierraPatronsAPIFixture.patronHoldRequestResponse("872321");
 		// sierraPatronsAPIFixture.patronHoldResponse("872321");
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);

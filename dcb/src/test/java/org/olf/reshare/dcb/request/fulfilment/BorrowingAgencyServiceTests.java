@@ -84,15 +84,15 @@ class BorrowingAgencyServiceTests {
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916920, "ab6", "9849123490");
-		sierraPatronsAPIFixture.patronHoldRequestResponse("872321", 7916922, "ABC123");
+		sierraPatronsAPIFixture.patronHoldRequestResponse("872321");
 		// sierraPatronsAPIFixture.patronHoldResponse("872321");
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
-		sierraPatronsAPIFixture.patronHoldRequestResponse("43546", 7916922, "ABC123");
+		sierraPatronsAPIFixture.patronHoldRequestResponse("43546");
 		// sierraPatronsAPIFixture.patronHoldResponse("43546");
 
-		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("972321", 7916922, "ABC123");
+		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("972321");
 
 		// Register an expectation that when the client calls /patrons/43546 we respond with the patron record
 		sierraPatronsAPIFixture.addPatronGetExpectation(43546L);
