@@ -83,7 +83,7 @@ public class BorrowingAgencyService {
 		log.debug("extractBibData(bibRecord: {})", bibRecord);
 
 		String title = bibRecord.getTitle();
-		String author = bibRecord.getAuthor() != null ? bibRecord.getAuthor().getName() : '';
+		String author = bibRecord.getAuthor() != null ? bibRecord.getAuthor().getName() : "";
 
 		// guard clause
 		if (title == null) {
