@@ -1,17 +1,18 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
-import java.util.List;
-
-import org.mockserver.client.MockServerClient;
-import org.mockserver.model.JsonBody;
-import org.mockserver.model.HttpRequest;
-import org.mockserver.model.HttpResponse;
-import static org.mockserver.model.MediaType.APPLICATION_JSON;
-
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
+import org.mockserver.client.MockServerClient;
+import org.mockserver.model.HttpRequest;
+import org.mockserver.model.HttpResponse;
+import org.mockserver.model.JsonBody;
+
+import java.util.List;
+
+import static org.mockserver.model.HttpRequest.request;
+import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
 public class SierraPatronsAPIFixture {
 	private final MockServerClient mockServer;
@@ -97,9 +98,22 @@ public class SierraPatronsAPIFixture {
 			.entries(phre)
 			.build();
 
+//		mockServer
+//			.when(sierraMockServerRequests.post("/" + patron_id + "/holds/requests"))
+//			.respond(HttpResponse.response().withContentType(APPLICATION_JSON).withBody(JsonBody.json(phr)));
+
 		mockServer
-			.when(sierraMockServerRequests.get("/" + patron_id + "/holds"))
+			.when(request()
+				.withMethod("POST")
+				.withPath("/iii/sierra-api/v6/patrons/" + patron_id + "/holds/requests"))
 			.respond(HttpResponse.response().withContentType(APPLICATION_JSON).withBody(JsonBody.json(phr)));
+
+		mockServer
+			.when(request()
+				.withMethod("GET")
+				.withPath("/iii/sierra-api/v6/patrons/" + patron_id + "/holds"))
+			.respond(HttpResponse.response().withContentType(APPLICATION_JSON).withBody(JsonBody.json(phr)));
+
 	}
 
 	public void patronHoldErrorResponse(String id) {
