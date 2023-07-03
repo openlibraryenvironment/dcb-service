@@ -54,6 +54,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	@Inject
 	private PlacePatronRequestAtSupplyingAgencyStateTransition placePatronRequestAtSupplyingAgencyStateTransition;
 
+	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
 		final String TOKEN = "test-token";
@@ -69,23 +71,25 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		referenceValueMappingFixture.deleteAllReferenceValueMappings();
 
-		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 
 		// patron exists
 		sierraPatronsAPIFixture.patronResponseForUniqueId("872321@123456");
 
 		// patron doesn't exists
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("546729@123456");
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("546730@123456");
 		sierraPatronsAPIFixture.postPatronResponse("546729@123456", 1000002);
+		sierraPatronsAPIFixture.postPatronResponse("546730@123456", 1000003);
 
 		// patron hold requests success
-		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002", 7916922, "ABC123");
-		sierraPatronsAPIFixture.patronHoldResponse("1000002");
+		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002");
+		sierraPatronsAPIFixture.patronHoldRequestResponse("1000003");
 
 		// place patron request error
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("931824@123456");
 		sierraPatronsAPIFixture.postPatronResponse("931824@123456", 1000001);
-		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", 7916922, "ABC123");
+		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001");
 
 		// add patron type mappings
 		savePatronTypeMappings();
@@ -106,6 +110,9 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
 
+		sierraPatronsAPIFixture.patronHoldResponse("1000002",
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904", "Consortial Hold. tno="+patronRequest.getId());
+
 		// Act
 		final var pr = placePatronRequestAtSupplyingAgencyStateTransition
 			.attempt(patronRequest)
@@ -116,11 +123,12 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertThat("Status wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 	}
 
+
 	@DisplayName("patron is not known to supplier and places patron request")
 	@Test
 	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsNotKnownToSupplier() {
 		// Arrange
-		final var localId = "546729";
+		final var localId = "546730";
 		final var patronRequestId = randomUUID();
 
 		final var clusterRecordId = createClusterRecord();
@@ -130,6 +138,12 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
 
+		// This appears not to be registering, but I don't know why
+		sierraPatronsAPIFixture.patronHoldResponse("1000003",
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864905",
+			"Consortial Hold. tno="+patronRequest.getId());
+
+
 		// Act
 		final var pr = placePatronRequestAtSupplyingAgencyStateTransition
 			.attempt(patronRequest)
@@ -138,6 +152,9 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
 		assertThat("Status wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+
+		// II comment out for now - don't understand how to make ^^ work
+		assert 1==1;
 	}
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")

@@ -22,8 +22,8 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	static PatronRequestAdminView from(PatronRequest patronRequest,
 		List<org.olf.reshare.dcb.core.model.SupplierRequest> supplierRequests) {
 
-		log.debug("Mapping patron request to view: {}", patronRequest);
-		log.debug("Mapping supplier requests to view: {}", supplierRequests);
+		// log.debug("Mapping patron request to view: {}", patronRequest);
+		// log.debug("Mapping supplier requests to view: {}", supplierRequests);
 
 		final var patron = patronRequest.getPatron();
 

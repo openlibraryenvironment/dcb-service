@@ -20,5 +20,6 @@ public record SierraPatronHold (
         @Nullable String notWantedBeforeDate,
         @Nullable SierraCodeTuple pickupLocation,
         @Nullable SierraCodeTuple status,
-        @Nullable String recordType
+        @Nullable String recordType,
+        @Nullable String note
         ) {}

@@ -70,6 +70,7 @@ public class SupplyingAgencyService {
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
 			.flatMap(client -> this.placeHoldRequest(patronIdentityAtSupplier, supplierRequest,patronRequest, client) )
+			.doOnSuccess(result -> log.info("Hold placed({})", result))
 			.map(function(supplierRequest::placed))
 			.map(changedSupplierRequest -> Tuples.of(supplierRequest, patronRequest));
 	}
@@ -90,8 +91,11 @@ public class SupplyingAgencyService {
 			requestedThingId = supplierRequest.getLocalBibId();
                 }
 
+		String note = "Consortial Hold. tno="+patronRequest.getId();
+
                 // Depending upon client configuration, we may need to place an item or a title level hold
-                return client.placeHoldRequest(patronIdentity.getLocalId(), requestedThingType, requestedThingId, patronRequest.getPickupLocationCode());
+		log.debug("Call client.placeHoldRequest");
+                return client.placeHoldRequest(patronIdentity.getLocalId(), requestedThingType, requestedThingId, patronRequest.getPickupLocationCode(), note);
         }
                 
 

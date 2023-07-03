@@ -21,7 +21,7 @@ class ItemResultToItemMapper {
 	}
 
 	Mono<org.olf.reshare.dcb.core.model.Item> mapResultToItem(Result result, String hostLmsCode, String bibId) {
-		log.debug("mapResultToItem({}, {})", result, hostLmsCode);
+		// log.debug("mapResultToItem({}, {})", result, hostLmsCode);
 
 			final var dueDate = result.getStatus().getDuedate();
 

@@ -78,7 +78,7 @@ public class PatronRequestWorkflow {
 		Iterator<PatronRequestStateTransition> i = allTransitions.iterator();
 		while ( ( result == null ) && ( i.hasNext() ) ) {
 			PatronRequestStateTransition candidate = i.next();
-			log.debug("testing({},{})",candidate.getGuardCondition(),guardCondition);
+			// log.debug("testing({},{})",candidate.getGuardCondition(),guardCondition);
 			if ( candidate.getGuardCondition().equals(guardCondition) )
 				result = candidate;
 		}

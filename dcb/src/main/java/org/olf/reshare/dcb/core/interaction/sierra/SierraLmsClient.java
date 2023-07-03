@@ -248,13 +248,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		final int pageSize = MapUtils.getAsOptionalString(lms.getClientConfig(), "page-size").map(Integer::parseInt)
 			.orElse(DEFAULT_PAGE_SIZE);
 
-		// The stream of imported records.
-		// return Flux.from(pageAllResults(since, 0, pageSize)).filter(sierraBib ->
-		// sierraBib.marc() != null)
-		// return Flux.from(pageAllResults(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
 		return Flux.from(pageAllResults(pageSize))
 			.filter(sierraBib -> sierraBib.marc() != null)
-//				.subscribeOn(Schedulers.boundedElastic(), false)
 			.onErrorResume(t -> {
 				log.error("Error ingesting data {}", t.getMessage());
 				t.printStackTrace();
@@ -406,30 +401,36 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType,
-		String recordNumber, String pickupLocation) {
+	public Mono<Tuple2<String, String>> placeHoldRequest(
+		String id, 
+		String recordType,
+		String recordNumber, 
+		String pickupLocation,
+		String note
+		) {
 
 		PatronHoldPost patronHoldPost = new PatronHoldPost();
 		patronHoldPost.setRecordType(recordType);
 		patronHoldPost.setRecordNumber( convertToInteger(recordNumber) );
 		patronHoldPost.setPickupLocation(pickupLocation);
+		patronHoldPost.setNote(note);
 		log.debug("placeHoldRequest({}...) {}", id,patronHoldPost);
 
 		return Mono.from(client.placeHoldRequest(id, patronHoldPost))
 			.doOnSuccess(result -> log.debug("the result of placeHoldRequest({})", result))
-			.then(getPatronHoldRequestId(id, recordNumber))
+			.then(getPatronHoldRequestId(id, recordNumber, note))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Hold"));
 			});
 	}
 
-	private Mono<Tuple2<String, String>> getPatronHoldRequestId(String patronLocalId, String localItemId) {
+	private Mono<Tuple2<String, String>> getPatronHoldRequestId(String patronLocalId, String localItemId, String note) {
 		log.debug("getPatronHoldRequestId({}, {})", patronLocalId, localItemId);
 
 		return Mono.from(client.patronHolds(patronLocalId))
 			.doOnSuccess(result -> log.debug("the result of getPatronHoldRequestId({})", result))
-			.flatMap(holds -> filterByLocalItemId(holds, localItemId))
+			.flatMap(holds -> filterByNote(holds, note))
 			.retryWhen(Retry.backoff(5, Duration.ofSeconds(2)))  // Sierra may not have saved the hold right away - retry up to 5 times
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
@@ -469,6 +470,27 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				}
 			});
 	}
+
+        private Mono<Tuple2<String, String>> filterByNote(SierraPatronHoldResultSet holds, String note) {
+                log.debug("filterByNote({}, {})", holds, note);
+        
+                return Flux.fromIterable(holds.entries())
+                        .filter(hold -> ( ( hold.note() != null ) && ( hold.note().equals(note) ) ) )
+                        .collectList()
+                        .flatMap(filteredHolds -> {
+                                if (filteredHolds.size() == 1) {
+					log.debug("FOUND");
+                                        final String extractedId = deRestify( filteredHolds.get(0).id() );
+                                        final String localStatus = mapSierraHoldStatusToDCBHoldStatus(filteredHolds.get(0).status().code());
+                                        return Mono.just( Tuples.of(extractedId, localStatus) );
+                                } else if (filteredHolds.size() > 1) {
+                                        throw new RuntimeException("Multiple hold requests found for the given local item ID");
+                                } else {
+                                        throw new RuntimeException("No hold request found for the given local item ID");
+                                }
+                        });
+        }
+
 
 	public static int convertToInteger(String integer) {
 		try {

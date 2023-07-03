@@ -24,8 +24,12 @@ public interface HostLmsClient {
 	Mono<String> patronFind(String uniqueId);
 
 	// (localHoldId, localHoldStatus)
-	Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType,
-		String recordNumber, String pickupLocation);
+	Mono<Tuple2<String, String>> placeHoldRequest(
+		String id, 
+		String recordType,
+		String recordNumber, 
+		String pickupLocation,
+		String note);
 
         // Flux<?> getAllAgencies();
 
