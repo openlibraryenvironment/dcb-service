@@ -53,7 +53,7 @@ jobs:
           DOCKER_REGISTRY_URL: ${{ secrets.DOCKER_KINT_REGISTRY_URL }}
           TESTCONTAINERS_RYUK_DISABLED: true
         run: |
-          export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/reshare-dcb" | sed -e 's#//#/#' -e 's#^/##'`
+          export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/dcb" | sed -e 's#//#/#' -e 's#^/##'`
           ./gradlew check jacocoTestReport dockerPushNative --no-daemon
 
       - name: Publish Test Results

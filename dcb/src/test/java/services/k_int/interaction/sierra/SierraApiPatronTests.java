@@ -11,8 +11,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.reshare.dcb.test.HostLmsFixture;
+import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.test.HostLmsFixture;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;

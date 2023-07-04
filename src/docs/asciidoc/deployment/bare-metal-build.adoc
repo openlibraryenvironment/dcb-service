@@ -2,7 +2,7 @@
 
 Last updated 2023-01-30
 
-ReshareDCB is a micronaut application at time of writing (Jan 2023) compiled as a Java 17 source. At that time, k-int are building using the Temurin 7.0.6 Java distro. The project itself has gradle wrapper installed, so no external gradle installation is necessary.
+DCB is a micronaut application at time of writing (Jan 2023) compiled as a Java 17 source. At that time, k-int are building using the Temurin 7.0.6 Java distro. The project itself has gradle wrapper installed, so no external gradle installation is necessary.
 
 This guidance is intended for organisations wishing to build the raw service executable (I.E. not have the build emit a container).
 

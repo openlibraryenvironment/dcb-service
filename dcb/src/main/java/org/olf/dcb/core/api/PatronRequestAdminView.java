@@ -1,0 +1,101 @@
+package org.olf.dcb.core.api;
+
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.serde.annotation.Serdeable;
+
+import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.PatronRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Serdeable
+record PatronRequestAdminView(UUID id, Citation citation,
+	PickupLocation pickupLocation, Requestor requestor,
+	List<SupplierRequest> supplierRequests, Status status,
+	LocalRequest localRequest) {
+
+	private static final Logger log = LoggerFactory.getLogger(PatronRequestAdminView.class);
+
+	static PatronRequestAdminView from(PatronRequest patronRequest,
+		List<org.olf.dcb.core.model.SupplierRequest> supplierRequests) {
+
+		// log.debug("Mapping patron request to view: {}", patronRequest);
+		// log.debug("Mapping supplier requests to view: {}", supplierRequests);
+
+		final var patron = patronRequest.getPatron();
+
+		return new PatronRequestAdminView(patronRequest.getId(),
+			new Citation(patronRequest.getBibClusterId()),
+			new PickupLocation(patronRequest.getPickupLocationCode()),
+			new Requestor(patron.getId().toString(), patron.getHomeLibraryCode(),
+				Identity.fromList(patron.getPatronIdentities())),
+			SupplierRequest.fromList(supplierRequests),
+			new Status(patronRequest.getStatusCode()),
+			new LocalRequest(patronRequest.getLocalRequestId(),
+				patronRequest.getLocalRequestStatus(),
+				patronRequest.getLocalItemId(),
+				patronRequest.getLocalBibId()));
+	}
+
+	@Serdeable
+	record PickupLocation(String code) { }
+
+	@Serdeable
+	record Citation(UUID bibClusterId) { }
+
+	@Serdeable
+	record Requestor(String id, String homeLibraryCode,
+		@Nullable List<Identity> identities) { }
+
+	@Serdeable
+	record Identity(String localId, String hostLmsCode, Boolean homeIdentity) {
+
+		private static Identity from(PatronIdentity patronIdentity) {
+			return new Identity(patronIdentity.getLocalId(), patronIdentity.getHostLms().code,
+				patronIdentity.getHomeIdentity());
+		}
+		public static List<Identity> fromList(List<PatronIdentity> patronIdentities) {
+			return patronIdentities.stream()
+				.map(Identity::from)
+				.collect(Collectors.toList());
+		}
+	}
+
+	@Serdeable
+	record SupplierRequest(UUID id, Item item, String hostLmsCode,
+		String status, String localHoldId, String localHoldStatus) {
+		private static SupplierRequest from(
+			org.olf.dcb.core.model.SupplierRequest supplierRequest) {
+
+			return new SupplierRequest(supplierRequest.getId(),
+				new Item(supplierRequest.getLocalItemId(),
+					supplierRequest.getLocalItemBarcode(),
+					supplierRequest.getLocalItemLocationCode()),
+				supplierRequest.getHostLmsCode(),
+				supplierRequest.getStatusCode().getDisplayName(),
+				supplierRequest.getLocalId(),
+				supplierRequest.getLocalStatus());
+		}
+
+		private static List<SupplierRequest> fromList(
+			List<org.olf.dcb.core.model.SupplierRequest> supplierRequests) {
+
+			return supplierRequests.stream()
+				.map(SupplierRequest::from)
+				.collect(Collectors.toList());
+		}
+	}
+
+	@Serdeable
+	record Item(String id, String localItemBarcode, String localItemLocationCode) {}
+
+	@Serdeable
+	record Status(String code) {}
+
+	@Serdeable
+	record LocalRequest(String id, String status, String itemId, String bibId) {}
+}

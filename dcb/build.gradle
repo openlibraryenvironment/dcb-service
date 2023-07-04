@@ -10,7 +10,7 @@ plugins {
 	id("io.micronaut.application") version "3.7.7"
 	id("io.micronaut.test-resources") version "3.7.7"
 	id('jacoco')
-	id 'org.olf.reshare.dcb-bom'
+	id 'org.olf.dcb-bom'
 	id 'service.k_int.micronaut-multi'
         // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
         id "com.gorylenko.gradle-git-properties" version "2.4.1"
@@ -24,7 +24,7 @@ plugins {
 //}
 
 //version = "0.1"
-group = "org.olf.reshare.dcb"
+group = "org.olf.dcb"
 
 repositories {
 	mavenCentral()
@@ -129,7 +129,7 @@ dependencies {
 //}
 
 application {
-	mainClass.set("org.olf.reshare.dcb.Application")
+	mainClass.set("org.olf.dcb.Application")
 }
 
 run {
@@ -149,7 +149,7 @@ micronaut {
 	testRuntime("junit5")
 	processing {
 		incremental(true)
-		annotations("org.olf.reshare.dcb.*")
+		annotations("org.olf.dcb.*")
 	}
 }
 
@@ -159,8 +159,8 @@ final Set<String> jacocoExcludes = [
 	'**/model/**/*',  
 	
 	// Ingest happens at a different client level, so safely exclude from report.
-	'org/olf/reshare/dcb/ingest/sierra/**/*',  
-	'org/olf/reshare/dcb/ingest/gokb/**/*']
+	'org/olf/dcb/ingest/sierra/**/*',  
+	'org/olf/dcb/ingest/gokb/**/*']
 
 tasks {
 	final Map<String, String> labels = [
