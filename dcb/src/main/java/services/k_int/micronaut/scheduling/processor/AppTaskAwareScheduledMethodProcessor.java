@@ -2,7 +2,7 @@ package services.k_int.micronaut.scheduling.processor;
 
 import java.util.Optional;
 
-import org.olf.reshare.dcb.core.AppConfig;
+import org.olf.dcb.core.AppConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

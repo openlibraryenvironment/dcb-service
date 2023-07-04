@@ -1,5 +1,5 @@
 applicationType: default
-defaultPackage: org.olf.reshare.dcb
+defaultPackage: org.olf.dcb
 testFramework: junit
 sourceLanguage: java
 buildTool: gradle

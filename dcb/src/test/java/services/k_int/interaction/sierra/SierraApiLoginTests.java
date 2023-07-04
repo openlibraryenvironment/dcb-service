@@ -4,7 +4,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.time.Instant;
 
@@ -12,8 +12,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraLoginAPIFixture;
-import org.olf.reshare.dcb.test.HostLmsFixture;
+import org.olf.dcb.core.interaction.sierra.SierraLoginAPIFixture;
+import org.olf.dcb.test.HostLmsFixture;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;

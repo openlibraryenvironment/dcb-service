@@ -27,7 +27,7 @@ concurrency:
 jobs:
   deploy:
     env:
-      MICRONAUT_OPENAPI_VIEWS_SPEC: "mapping.path=/reshare-dcb-service/openapi,redoc.js.url=/reshare-dcb-service/redoc/res/"
+      MICRONAUT_OPENAPI_VIEWS_SPEC: "mapping.path=/dcb-service/openapi,redoc.js.url=/dcb-service/redoc/res/"
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
