@@ -1,14 +1,8 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
-
-import java.util.UUID;
-
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,18 +12,18 @@ import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.Patron;
 import org.olf.reshare.dcb.core.model.PatronRequest;
-import org.olf.reshare.dcb.test.ClusterRecordFixture;
-import org.olf.reshare.dcb.test.HostLmsFixture;
-import org.olf.reshare.dcb.test.PatronFixture;
-import org.olf.reshare.dcb.test.PatronRequestsFixture;
-import org.olf.reshare.dcb.test.ReferenceValueMappingFixture;
-import org.olf.reshare.dcb.test.SupplierRequestsFixture;
-
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import jakarta.inject.Inject;
+import org.olf.reshare.dcb.test.*;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.UUID;
+
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -50,7 +44,6 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	private SupplierRequestsFixture supplierRequestsFixture;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
-
 	@Inject
 	private PlacePatronRequestAtSupplyingAgencyStateTransition placePatronRequestAtSupplyingAgencyStateTransition;
 
@@ -73,31 +66,17 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 
-		// patron exists
-		sierraPatronsAPIFixture.patronResponseForUniqueId("872321@123456");
-
-		// patron doesn't exists
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("546729@123456");
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("546730@123456");
-		sierraPatronsAPIFixture.postPatronResponse("546729@123456", 1000002);
-		sierraPatronsAPIFixture.postPatronResponse("546730@123456", 1000003);
-
 		// patron hold requests success
 		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002");
 		sierraPatronsAPIFixture.patronHoldRequestResponse("1000003");
-
-		// place patron request error
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("931824@123456");
-		sierraPatronsAPIFixture.postPatronResponse("931824@123456", 1000001);
-		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001");
 
 		// add patron type mappings
 		savePatronTypeMappings();
 	}
 
-	@DisplayName("patron is known to supplier and places patron request")
+	@DisplayName("patron is known to supplier and places patron request with the unexpected patron type")
 	@Test
-	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplier() {
+	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithAnUnexpectedPtype() {
 		// Arrange
 		final var localId = "872321";
 		final var homeLibraryCode = "123456";
@@ -110,8 +89,14 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
 
+		sierraPatronsAPIFixture.patronResponseForUniqueId("872321@123456");
+
+		// The unexpected Ptype will use this mock to update the virtual patron
+		sierraPatronsAPIFixture.updatePatron("1000002");
+
 		sierraPatronsAPIFixture.patronHoldResponse("1000002",
-			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904", "Consortial Hold. tno="+patronRequest.getId());
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
+			"Consortial Hold. tno="+patronRequest.getId());
 
 		// Act
 		final var pr = placePatronRequestAtSupplyingAgencyStateTransition
@@ -123,6 +108,37 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertThat("Status wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 	}
 
+	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
+	@Test
+	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithTheExpectedPtype() {
+
+		// Arrange
+		final var localId = "32453";
+		final var homeLibraryCode = "123456";
+		final var patronRequestId = randomUUID();
+
+		final var clusterRecordId = createClusterRecord();
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var patron = createPatron(localId, hostLms);
+
+		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
+		saveSupplierRequest(patronRequest, hostLms.code);
+
+		sierraPatronsAPIFixture.patronResponseForUniqueIdExpectedPtype("32453@123456");
+
+		sierraPatronsAPIFixture.patronHoldResponse("1000002",
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
+			"Consortial Hold. tno="+patronRequest.getId());
+
+		// Act
+		final var pr = placePatronRequestAtSupplyingAgencyStateTransition
+			.attempt(patronRequest)
+			.block();
+
+		// Assert
+		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
+		assertThat("Status wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
 	@Test
@@ -138,11 +154,12 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
 
-		// This appears not to be registering, but I don't know why
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("546730@123456");
+		sierraPatronsAPIFixture.postPatronResponse("546730@123456", 1000003);
+
 		sierraPatronsAPIFixture.patronHoldResponse("1000003",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864905",
 			"Consortial Hold. tno="+patronRequest.getId());
-
 
 		// Act
 		final var pr = placePatronRequestAtSupplyingAgencyStateTransition
@@ -171,6 +188,10 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
 
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("931824@123456");
+		sierraPatronsAPIFixture.postPatronResponse("931824@123456", 1000001);
+		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001");
+
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> placePatronRequestAtSupplyingAgencyStateTransition.attempt(patronRequest).block());
@@ -185,6 +206,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			fetchedPatronRequest.getStatusCode(), is("ERROR"));
 	}
 
+
 	private UUID createClusterRecord() {
 		final UUID clusterRecordId = randomUUID();
 
@@ -196,8 +218,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	private Patron createPatron(String localId, DataHostLms hostLms) {
 		final Patron patron = patronFixture.savePatron("123456");
 
-		patronFixture.saveIdentity(patron, hostLms, localId, true);
-		patronFixture.saveIdentity(patron, hostLms, localId, false);
+		patronFixture.saveIdentity(patron, hostLms, localId, true, "-");
+		patronFixture.saveIdentity(patron, hostLms, localId, false, "-");
 
 		patron.setPatronIdentities(patronFixture.findIdentities(patron));
 

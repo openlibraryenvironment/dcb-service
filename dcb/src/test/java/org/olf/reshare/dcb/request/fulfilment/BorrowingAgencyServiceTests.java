@@ -148,7 +148,7 @@ class BorrowingAgencyServiceTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron("872321");
-		patronFixture.saveIdentity(patron, hostLms, "872321", true);
+		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-");
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()
@@ -190,7 +190,7 @@ class BorrowingAgencyServiceTests {
 
 		final var patron = patronFixture.savePatron("972321");
 
-		patronFixture.saveIdentity(patron, hostLms, "972321", true);
+		patronFixture.saveIdentity(patron, hostLms, "972321", true, "-");
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()

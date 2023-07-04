@@ -101,7 +101,7 @@ public class PatronService {
 	}
 
 	public PatronIdentity createNewPatronIdentity(Patron patron, DataHostLms dataHostLms,
-		String localPatronIdentifier, Boolean homeIdentity) {
+		String localPatronIdentifier, String localPtype, Boolean homeIdentity) {
 
 		log.debug("createPatronIdentity({}, {}, {}, {})", patron, dataHostLms, localPatronIdentifier, homeIdentity);
 
@@ -110,6 +110,7 @@ public class PatronService {
 			.patron(patron)
 			.hostLms(dataHostLms)
 			.localId(localPatronIdentifier)
+			.localPtype(localPtype)
 			.homeIdentity(homeIdentity)
 			.build();
 
@@ -117,13 +118,13 @@ public class PatronService {
 		return result;
 	}
 
-	public Mono<PatronIdentity> createPatronIdentity(Patron patron, String localId, String hostLmsCode,
-		Boolean homeIdentity) {
+	public Mono<PatronIdentity> createPatronIdentity(Patron patron, String localId, String localPType,
+		String hostLmsCode, Boolean homeIdentity) {
 
 		log.debug("createPatronIdentity({}, {}, {}, {})", patron, hostLmsCode, localId, homeIdentity);
 
 		return fetchDataHostLmsByLocalSystemCode(hostLmsCode)
-			.map(dataHostLms -> createNewPatronIdentity(patron, dataHostLms, localId, homeIdentity))
+			.map(dataHostLms -> createNewPatronIdentity(patron, dataHostLms, localId, localPType, homeIdentity))
 			.flatMap(this::savePatronIdentity);
 	}
 
@@ -149,7 +150,7 @@ public class PatronService {
 
 		return savePatronIdentity(createNewPatronIdentity(
 			// Patron associated with an identity has to be shallow, to avoid a circular loop
-			createPatronWithOnlyId(patron.getId()), hostLms, localId, true));
+			createPatronWithOnlyId(patron.getId()), hostLms, localId, null,true));
 	}
 
 	private Mono<PatronIdentity> savePatronIdentity(PatronIdentity patronIdentity) {
@@ -189,11 +190,12 @@ public class PatronService {
 			.findFirst();
 	}
 
-	public Mono<PatronIdentity> checkForPatronIdentity(Patron patron, String hostLmsCode, String localId) {
-		// log.debug("checkForPatronIdentity {}, {}, {}", patron.getId(), hostLmsCode, localId);
+	public Mono<PatronIdentity> checkForPatronIdentity(Patron patron, String hostLmsCode, String localId,
+		String localPType) {
+		log.debug("checkForPatronIdentity {}, {}, {}", patron.getId(), hostLmsCode, localId);
 
 		return Mono.justOrEmpty(findIdentityByLocalId(patron, localId))
-			.switchIfEmpty(Mono.defer(() -> createPatronIdentity(patron, localId, hostLmsCode, false)));
+			.switchIfEmpty(Mono.defer(() -> createPatronIdentity(patron, localId, localPType, hostLmsCode, false)));
 	}
 
 	private Mono<List<PatronIdentity>> fetchAllIdentities(Patron patron) {

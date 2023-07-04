@@ -1,19 +1,18 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
-import static org.mockserver.model.HttpRequest.request;
-import static org.mockserver.model.MediaType.APPLICATION_JSON;
-
-import java.util.List;
-
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Data;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.mockserver.model.JsonBody;
 
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.Builder;
-import lombok.Data;
+import java.util.List;
+
+import static org.mockserver.model.HttpRequest.request;
+import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
 public class SierraPatronsAPIFixture {
 	private final MockServerClient mockServer;
@@ -41,10 +40,40 @@ public class SierraPatronsAPIFixture {
 			.respond(patronErrorResponse());
 	}
 
+	public void getPatronByLocalId(String id) {
+		mockServer
+			.when(request()
+				.withMethod("GET")
+				.withPath("/iii/sierra-api/v6/patrons/" + id))
+			.respond(patronUpdatedResponse());
+	}
+
+	public void getPatronByLocalIdError(String id) {
+		mockServer
+			.when(request()
+				.withMethod("GET")
+				.withPath("/iii/sierra-api/v6/patrons/" + id))
+			.respond(patronErrorResponse());
+	}
+
+	public void updatePatron(String id) {
+		mockServer
+			.when(request()
+				.withMethod("PUT")
+				.withPath("/iii/sierra-api/v6/patrons/" + id))
+			.respond(patronUpdatedResponse());
+	}
+
 	public void patronResponseForUniqueId(String uniqueId) {
 		mockServer
 			.when(getPatronFindRequest(uniqueId))
 			.respond(patronFoundResponse());
+	}
+
+	public void patronResponseForUniqueIdExpectedPtype(String uniqueId) {
+		mockServer
+			.when(getPatronFindRequest(uniqueId))
+			.respond(patronUpdatedResponse());
 	}
 
 	public void patronNotFoundResponseForUniqueId(String uniqueId) {
@@ -95,6 +124,12 @@ public class SierraPatronsAPIFixture {
 			.entries(phre)
 			.build();
 
+		mockServer.clear(
+			request()
+				.withMethod("GET")
+				.withPath("/iii/sierra-api/v6/patrons/" + patron_id + "/holds")
+		);
+
 		mockServer
 			.when(request()
 				.withMethod("GET")
@@ -119,6 +154,10 @@ public class SierraPatronsAPIFixture {
 
 	private HttpResponse patronFoundResponse() {
 		return sierraMockServerResponses.jsonSuccess("patrons/sierra-api-patron-found.json");
+	}
+
+	private HttpResponse patronUpdatedResponse() {
+		return sierraMockServerResponses.jsonSuccess("patrons/sierra-api-patron-updated.json");
 	}
 
 	private HttpResponse patronErrorResponse() {

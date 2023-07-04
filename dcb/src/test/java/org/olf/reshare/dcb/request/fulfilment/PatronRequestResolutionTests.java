@@ -1,18 +1,8 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.ERROR;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.PATRON_VERIFIED;
-import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
-import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
-
+import io.micronaut.core.io.ResourceLoader;
+import jakarta.inject.Inject;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,18 +13,17 @@ import org.olf.reshare.dcb.core.model.DataHostLms;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.reshare.dcb.request.resolution.UnableToResolvePatronRequest;
-import org.olf.reshare.dcb.test.BibRecordFixture;
-import org.olf.reshare.dcb.test.ClusterRecordFixture;
-import org.olf.reshare.dcb.test.HostLmsFixture;
-import org.olf.reshare.dcb.test.PatronFixture;
-import org.olf.reshare.dcb.test.PatronRequestsFixture;
-import org.olf.reshare.dcb.test.SupplierRequestsFixture;
-
-import io.micronaut.core.io.ResourceLoader;
-import jakarta.inject.Inject;
-import lombok.SneakyThrows;
+import org.olf.reshare.dcb.test.*;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.reshare.dcb.request.fulfilment.PatronRequestStatusConstants.*;
+import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -101,7 +90,7 @@ class PatronRequestResolutionTests {
 		sierraItemsAPIFixture.twoItemsResponseForBibId("465675");
 
 		final var patron = patronFixture.savePatron("465636");
-		patronFixture.saveIdentity(patron, hostLms, "872321", true);
+		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-");
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -158,7 +147,7 @@ class PatronRequestResolutionTests {
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("245375");
 
 		final var patron = patronFixture.savePatron("294385");
-		patronFixture.saveIdentity(patron, hostLms, "872321", true);
+		patronFixture.saveIdentity(patron, hostLms, "872321", true,"-");
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -187,7 +176,7 @@ class PatronRequestResolutionTests {
 	void shouldFailToResolveVerifiedRequestWhenClusterRecordCannotBeFound() {
 		// Arrange
 		final var patron = patronFixture.savePatron("757646");
-		patronFixture.saveIdentity(patron, hostLms, "86848", true);
+		patronFixture.saveIdentity(patron, hostLms, "86848", true, "-");
 
 		final var clusterRecordId = randomUUID();
 
@@ -225,7 +214,7 @@ class PatronRequestResolutionTests {
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
 
 		final var patron = patronFixture.savePatron("757646");
-		patronFixture.saveIdentity(patron, hostLms, "86848", true);
+		patronFixture.saveIdentity(patron, hostLms, "86848", true, "-");
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())

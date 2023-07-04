@@ -1,16 +1,15 @@
 package org.olf.reshare.dcb.request.resolution;
 
-import java.util.List;
-
+import jakarta.inject.Singleton;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.storage.SupplierRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 @Singleton
 public class SupplierRequestService {

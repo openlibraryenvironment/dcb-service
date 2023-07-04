@@ -21,7 +21,8 @@ public interface HostLmsClient {
 
 	Mono<String> createBib(String author, String title);
 
-	Mono<String> patronFind(String uniqueId);
+	// (localId, localPtype)
+	Mono<Tuple2<String, String>> patronFind(String uniqueId);
 
 	// (localHoldId, localHoldStatus)
 	Mono<Tuple2<String, String>> placeHoldRequest(
@@ -31,9 +32,10 @@ public interface HostLmsClient {
 		String pickupLocation,
 		String note);
 
-        // Flux<?> getAllAgencies();
-
+	// Flux<?> getAllAgencies();
 	Mono<HostLmsPatronDTO> getPatronByLocalId(String localPatronId);
+
+	Mono<HostLmsPatronDTO> updatePatron(String localId, String patronType);
 
 	Mono<HostLmsItem> createItem(String bibId, String locationCode, String barcode);
 

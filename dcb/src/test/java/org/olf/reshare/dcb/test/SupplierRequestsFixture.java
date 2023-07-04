@@ -1,19 +1,18 @@
 package org.olf.reshare.dcb.test;
 
-import static org.olf.reshare.dcb.test.PublisherUtils.manyValuesFrom;
-import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
-
-import java.util.List;
-import java.util.UUID;
-
+import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
 import org.olf.reshare.dcb.request.resolution.SupplierRequestService;
 import org.olf.reshare.dcb.storage.SupplierRequestRepository;
 import org.reactivestreams.Publisher;
-
-import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.UUID;
+
+import static org.olf.reshare.dcb.test.PublisherUtils.manyValuesFrom;
+import static org.olf.reshare.dcb.test.PublisherUtils.singleValueFrom;
 
 @Prototype
 public class SupplierRequestsFixture {

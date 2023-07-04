@@ -1,19 +1,5 @@
 package org.olf.reshare.dcb.core.interaction.sierra;
 
-import static java.util.Collections.emptyList;
-import static org.olf.reshare.dcb.utils.DCBStringUtilities.toCsv;
-
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import org.olf.reshare.dcb.core.model.HostLms;
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.context.annotation.Secondary;
@@ -22,18 +8,19 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
-import io.micronaut.http.BasicAuth;
-import io.micronaut.http.HttpHeaders;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.MediaType;
-import io.micronaut.http.MutableHttpRequest;
+import io.micronaut.http.*;
+import io.micronaut.http.annotation.Body;
+import io.micronaut.http.annotation.PathVariable;
+import io.micronaut.http.annotation.Put;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.retry.annotation.Retryable;
+import org.olf.reshare.dcb.core.model.HostLms;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.LinkResult;
@@ -51,6 +38,15 @@ import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import static java.util.Collections.emptyList;
+import static org.olf.reshare.dcb.utils.DCBStringUtilities.toCsv;
 
 @Secondary
 @Prototype
@@ -105,9 +101,9 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		final var rawQuery = thisUri.getRawQuery();
 
 		if (StringUtils.isNotEmpty(rawQuery)) {
-				return thisUri.resolve(relativeURI + "?" + rawQuery);
+			return thisUri.resolve(relativeURI + "?" + rawQuery);
 		} else {
-				return thisUri.resolve(relativeURI);
+			return thisUri.resolve(relativeURI);
 		}
 	}
 
@@ -150,12 +146,12 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	@SingleResult
 	@Retryable
 	public Publisher<List<PickupLocationInfo>> pickupLocations() {
-			// A little bit of wriggle here, Sierra returns a flat list of PickupLocations in an array without a wrapper
-			// so we need to specify the inner type via Argument.listOf
-			return getRequest("branches/pickupLocations")
-				.flatMap(this::ensureToken)
-				.flatMap(req -> Mono.from(client.retrieve(req,
-					Argument.listOf(PickupLocationInfo.class), ERROR_TYPE)));
+		// A little bit of wriggle here, Sierra returns a flat list of PickupLocations in an array without a wrapper
+		// so we need to specify the inner type via Argument.listOf
+		return getRequest("branches/pickupLocations")
+			.flatMap(this::ensureToken)
+			.flatMap(req -> Mono.from(client.retrieve(req,
+				Argument.listOf(PickupLocationInfo.class), ERROR_TYPE)));
 	}
 
 	@SingleResult
@@ -259,18 +255,18 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 	private <T> Mono<T> handle404AsEmpty (final Mono<T> current) {
 		return current.onErrorResume(throwable -> {
-				if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
-					HttpClientResponseException e = (HttpClientResponseException) throwable;
-					int code = e.getStatus().getCode();
-					return switch (code) {
-						case 404 -> true;
-						default -> false;
-					};
-				}
+			if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
+				HttpClientResponseException e = (HttpClientResponseException) throwable;
+				int code = e.getStatus().getCode();
+				return switch (code) {
+					case 404 -> true;
+					default -> false;
+				};
+			}
 
-				return false;
-			}, (_t) -> Mono.empty());
-		}
+			return false;
+		}, (_t) -> Mono.empty());
+	}
 
 	private <T> Mono<T> handleResponseErrors(final Mono<T> current) {
 		// We used to do
@@ -423,6 +419,17 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.flatMap(this::ensureToken)
 			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class) )
 			.onErrorReturn(new SierraPatronRecord());
+	}
+
+	@SingleResult
+	@Put("/patrons/{id}")
+	public Publisher<SierraPatronRecord> updatePatron(@Nullable @PathVariable("id") final Long patronId,
+		@Body PatronPatch patronPatch) {
+		// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Update_the_Patron_record_put_19
+		return createRequest(HttpMethod.PUT, "patrons/" + patronId)
+			.map(request -> request.body(patronPatch))
+			.flatMap(this::ensureToken)
+			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class) );
 	}
 
 	@SingleResult

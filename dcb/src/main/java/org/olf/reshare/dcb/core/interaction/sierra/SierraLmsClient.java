@@ -35,7 +35,6 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
-import reactor.util.retry.Retry;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResult;
@@ -54,12 +53,13 @@ import services.k_int.utils.UUIDUtils;
 import javax.transaction.Transactional;
 import javax.transaction.Transactional.TxType;
 import javax.validation.constraints.NotNull;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 
 import static java.lang.Integer.parseInt;
+import static java.lang.String.valueOf;
+import static java.util.Objects.nonNull;
 import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
 import static org.olf.reshare.dcb.utils.DCBStringUtilities.toCsv;
@@ -345,17 +345,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<String> patronFind(String varFieldContent) {
+	public Mono<Tuple2<String, String>> patronFind(String varFieldContent) {
 		log.debug("patronFind({})", varFieldContent);
 
 		return Mono.from(client.patronFind("u", varFieldContent))
 			.doOnSuccess(result -> log.debug("the result of patronFind({})", result))
-			.map(SierraPatronRecord::getId)
-			.map(Object::toString)
+			.filter(result -> nonNull(result.getId()) && nonNull(result.getPatronType()))
+			.map(this::returnPatronValues)
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when finding Patron: {}", error.getMessage());
 				return Mono.empty();
 			});
+	}
+
+	public Tuple2<String, String> returnPatronValues(SierraPatronRecord record) {
+		return Tuples.of(valueOf( record.getId() ), valueOf( record.getPatronType() ));
 	}
 
 	@Override
@@ -431,7 +435,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.from(client.patronHolds(patronLocalId))
 			.doOnSuccess(result -> log.debug("the result of getPatronHoldRequestId({})", result))
 			.flatMap(holds -> filterByNote(holds, note))
-			.retryWhen(Retry.backoff(5, Duration.ofSeconds(2)))  // Sierra may not have saved the hold right away - retry up to 5 times
+			//.retryWhen(Retry.backoff(5, Duration.ofSeconds(2)))  // Sierra may not have saved the hold right away - retry up to 5 times
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when getting Hold"));
@@ -681,6 +685,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private HostLmsPatronDTO sierraPatronToHostLmsPatron(SierraPatronRecord spr) {
+		log.debug("sierraPatronToHostLmsPatron({})",spr);
 		return HostLmsPatronDTO.builder()
 			.localId(spr.getId().toString())
 			.localPatronType(spr.getPatronType().toString())
@@ -692,6 +697,19 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<HostLmsPatronDTO> getPatronByLocalId(String localPatronId) {
 		log.debug("getPatronByLocalId({})",localPatronId);
 		return Mono.from( client.getPatron(Long.valueOf(localPatronId)) )
+			.filter(sierraPatronRecord -> nonNull(sierraPatronRecord.getId()))
+			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")))
+			.flatMap(spr -> Mono.just(sierraPatronToHostLmsPatron(spr)));
+	}
+
+	@Override
+	public Mono<HostLmsPatronDTO> updatePatron(String localPatronId, String patronType) {
+		log.debug("updatePatronByLocalId({})",localPatronId);
+
+		final PatronPatch patronPatch = new PatronPatch();
+		patronPatch.setPatronType(Integer.valueOf(patronType));
+
+		return Mono.from( client.updatePatron(Long.valueOf(localPatronId), patronPatch) )
 			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")))
 			.flatMap(spr -> Mono.just(sierraPatronToHostLmsPatron(spr)));
 	}
