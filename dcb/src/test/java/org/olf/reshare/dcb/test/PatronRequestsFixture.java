@@ -1,13 +1,12 @@
 package org.olf.reshare.dcb.test;
 
-import java.util.UUID;
-
+import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.storage.PatronRequestRepository;
 import org.reactivestreams.Publisher;
-
-import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
+
+import java.util.UUID;
 
 @Prototype
 public class PatronRequestsFixture {

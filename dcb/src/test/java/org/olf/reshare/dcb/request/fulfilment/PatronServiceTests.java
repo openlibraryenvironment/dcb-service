@@ -1,12 +1,6 @@
 package org.olf.reshare.dcb.request.fulfilment;
 
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasSize;
-
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,7 +9,10 @@ import org.olf.reshare.dcb.test.DcbTest;
 import org.olf.reshare.dcb.test.HostLmsFixture;
 import org.olf.reshare.dcb.test.PatronFixture;
 
-import jakarta.inject.Inject;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 
 @DcbTest
 class PatronServiceTests {
@@ -46,7 +43,7 @@ class PatronServiceTests {
 
 		final var homeHostLms = hostLmsFixture.createHostLms(hostLmsId, LOCAL_SYSTEM_CODE);
 
-		patronFixture.saveIdentity(existingPatron, homeHostLms, LOCAL_ID, true);
+		patronFixture.saveIdentity(existingPatron, homeHostLms, LOCAL_ID, true, "-");
 
 		// Act
 		final var foundPatron = patronService

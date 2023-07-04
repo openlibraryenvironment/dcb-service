@@ -48,7 +48,7 @@ public class PatronFixture {
 	}
 
 	public void saveIdentity(Patron patron, DataHostLms homeHostLms,
-		String localId, boolean homeIdentity) {
+		String localId, boolean homeIdentity, String localPtype) {
 
 		saveIdentity(PatronIdentity.builder()
 			.id(randomUUID())
@@ -56,7 +56,7 @@ public class PatronFixture {
 			.localId(localId)
 			.hostLms(homeHostLms)
 			.homeIdentity(homeIdentity)
-			.localPtype("-")
+			.localPtype(localPtype)
 			.build());
 	}
 

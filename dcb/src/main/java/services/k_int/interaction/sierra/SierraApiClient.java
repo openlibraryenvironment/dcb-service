@@ -1,18 +1,15 @@
 package services.k_int.interaction.sierra;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Consumer;
-
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.http.BasicAuth;
+import io.micronaut.http.annotation.Body;
+import io.micronaut.http.annotation.PathVariable;
+import io.micronaut.http.annotation.Put;
 import io.micronaut.http.client.multipart.MultipartBody;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.bibs.BibParams;
 import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
@@ -30,29 +27,34 @@ import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
+
 public interface SierraApiClient {
 	String CONFIG_ROOT = "sierra.client";
 	Logger log = LoggerFactory.getLogger(SierraApiClient.class);
-	
+
 	private static <T> Collection<T> nullIfEmpty (Collection<T> collection) {
 		if (collection == null || collection.size() < 1) return null;
 		return collection;
 	}
-	
+
 	@SingleResult
 	default Publisher<BibResultSet> bibs (BibParams params) {
 		return bibs (
-				params.getLimit(),
-				params.getOffset(),
-				Objects.toString(params.getCreatedDate(), null),
-				Objects.toString(params.getUpdatedDate(), null),
-				nullIfEmpty(params.getFields()),
-				params.getDeleted(),
-				Objects.toString(params.getDeletedDate(), null),
-				params.getSuppressed(),
-				nullIfEmpty(params.getLocations()));
+			params.getLimit(),
+			params.getOffset(),
+			Objects.toString(params.getCreatedDate(), null),
+			Objects.toString(params.getUpdatedDate(), null),
+			nullIfEmpty(params.getFields()),
+			params.getDeleted(),
+			Objects.toString(params.getDeletedDate(), null),
+			params.getSuppressed(),
+			nullIfEmpty(params.getLocations()));
 	}
-	
+
 	@SingleResult
 	default Publisher<BibResultSet> bibs(Consumer<BibParamsBuilder> consumer) {
 		return bibs(BibParams.build(consumer));
@@ -126,8 +128,8 @@ public interface SierraApiClient {
 	@SingleResult
 	default Publisher<AuthToken> login(BasicAuth creds) {
 		return login(creds, MultipartBody.builder()
-        .addPart("grant_type", "client_credentials")
-        .build());
+			.addPart("grant_type", "client_credentials")
+			.build());
 	}
 
 	// Basic auth is auto bound to the request.
@@ -166,6 +168,11 @@ public interface SierraApiClient {
 	@SingleResult
 	Publisher<SierraPatronRecord> getPatron(@Nullable final Long patronId,
 		@Nullable final Iterable<String> fields);
+
+	@SingleResult
+	@Put("/patrons/{id}")
+	Publisher<SierraPatronRecord> updatePatron(@Nullable @PathVariable("id") final Long patronId,
+		@Body final PatronPatch patronPatch);
 
 	@SingleResult
 	Publisher<SierraPatronHold> getHold(@Nullable final Long holdId);

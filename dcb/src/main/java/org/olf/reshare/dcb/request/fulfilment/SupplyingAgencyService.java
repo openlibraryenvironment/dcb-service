@@ -4,6 +4,7 @@ import io.micronaut.context.annotation.Prototype;
 import org.olf.reshare.dcb.core.HostLmsService;
 import org.olf.reshare.dcb.core.interaction.HostLmsClient;
 import org.olf.reshare.dcb.core.interaction.HostLmsHold;
+import org.olf.reshare.dcb.core.interaction.HostLmsPatronDTO;
 import org.olf.reshare.dcb.core.model.PatronIdentity;
 import org.olf.reshare.dcb.core.model.PatronRequest;
 import org.olf.reshare.dcb.core.model.SupplierRequest;
@@ -54,10 +55,10 @@ public class SupplyingAgencyService {
 	private Mono<Tuple3<PatronRequest, SupplierRequest, PatronIdentity>> checkAndCreatePatronAtSupplier(
 		PatronRequest patronRequest, SupplierRequest supplierRequest) {
 
-                log.debug("checkAndCreatePatronAtSupplier {} {}",patronRequest,supplierRequest);
+		log.debug("checkAndCreatePatronAtSupplier {} {}",patronRequest,supplierRequest);
 
 		return upsertPatronIdentityAtSupplier(patronRequest,supplierRequest)
-                        .map(patronIdentity -> { supplierRequest.setVirtualIdentity(patronIdentity); return patronIdentity; } )
+			.map(patronIdentity -> { supplierRequest.setVirtualIdentity(patronIdentity); return patronIdentity; } )
 			.map(patronIdentity -> Tuples.of(patronRequest, supplierRequest, patronIdentity));
 	}
 
@@ -117,12 +118,28 @@ public class SupplyingAgencyService {
 		log.debug("checkIfPatronExistsAtSupplier req={}, supplierSystemCode={}", patronRequest.getId(), supplierRequest.getHostLmsCode());
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
-			.flatMap(hostLmsClient -> hostLmsClient.patronFind(patronService.getUniqueIdStringFor(patronRequest.getPatron())))
-			.flatMap(localId -> checkForPatronIdentity(patronRequest, supplierRequest.getHostLmsCode(), localId));
+			.flatMap(hostLmsClient ->
+					hostLmsClient.patronFind(patronService.getUniqueIdStringFor(patronRequest.getPatron())))
+			.flatMap(tuple ->
+				checkPatronType(tuple.getT1(), tuple.getT2(), patronRequest, supplierRequest.getHostLmsCode()))
+			.flatMap(function((localId, patronType) ->
+				checkForPatronIdentity(patronRequest, supplierRequest.getHostLmsCode(), localId, patronType)));
+	}
 
-                // We should verify that the patron type (and hence mapped type) has not changed - something like...
-                // determinePatronType(supplierRequest.getHostLmsCode(), requestingPatronIdentity)
-                // .map( suppler_ptype -> { patron_identity.setLocalPtype(supplier_ptype); return patron_identity }
+	private Mono<Tuple2<String, String>> checkPatronType(String localId, String patronType,
+			PatronRequest patronRequest, String supplierHostLmsCode) {
+		return getRequestingIdentity(patronRequest)
+			.flatMap(requestingIdentity -> determinePatronType(supplierHostLmsCode, requestingIdentity))
+			.filter(dcbPatronType -> dcbPatronType.equals(patronType))
+			.switchIfEmpty(Mono.defer(() -> updateVirtualPatron(supplierHostLmsCode, localId, patronType)))
+			.map(updatedPatronType -> Tuples.of(localId, updatedPatronType));
+	}
+
+	private Mono<String> updateVirtualPatron(String supplierHostLmsCode, String localId, String patronType) {
+		log.debug("updateVirtualPatron {}, {}", localId, patronType);
+		return hostLmsService.getClientFor(supplierHostLmsCode)
+			.flatMap(hostLmsClient -> hostLmsClient.updatePatron(localId, patronType))
+			.map(HostLmsPatronDTO::getLocalPatronType);
 	}
 
 	private Mono<PatronIdentity> getRequestingIdentity(PatronRequest patronRequest) {
@@ -147,11 +164,13 @@ public class SupplyingAgencyService {
 
 		return hostLmsService.getClientFor(hostLmsCode)
 			.zipWhen(client -> getRequestingIdentity(patronRequest), Tuples::of)
-			.flatMap(function((client,requestingIdentity) -> createPatronAtSupplier(patronRequest, client, requestingIdentity, hostLmsCode)))
-			.flatMap(localId -> checkForPatronIdentity(patronRequest, hostLmsCode, localId));
+			.flatMap(function((client,requestingIdentity) ->
+				createPatronAtSupplier(patronRequest, client, requestingIdentity, hostLmsCode)))
+			.flatMap(function((localId, patronType) ->
+				checkForPatronIdentity(patronRequest, hostLmsCode, localId, patronType)));
 	}
 
-	private Mono<String> createPatronAtSupplier(
+	private Mono<Tuple2<String, String>> createPatronAtSupplier(
                         PatronRequest patronRequest,
 		        HostLmsClient client, 
                         PatronIdentity requestingPatronIdentity,
@@ -159,13 +178,16 @@ public class SupplyingAgencyService {
                 // Using the patron type from the patrons "Home" patronIdentity, look up what the equivalent patron type is at
                 // the supplying system. Then create a patron in the supplying system using that type value. 
 		return determinePatronType(supplierHostLmsCode, requestingPatronIdentity)
-                       .flatMap(patronType -> client.createPatron( patronService.getUniqueIdStringFor(patronRequest.getPatron()), patronType));
+			.flatMap(patronType ->
+				client.createPatron(patronService.getUniqueIdStringFor(patronRequest.getPatron()), patronType)
+					.map(createdPatron -> Tuples.of(createdPatron, patronType)));
 	}
 
 	private Mono<PatronIdentity> checkForPatronIdentity(PatronRequest patronRequest,
-		String hostLmsCode, String localId) {
+		String hostLmsCode, String localId, String localPType) {
 
-		return patronService.checkForPatronIdentity(patronRequest.getPatron(), hostLmsCode, localId);
+		return patronService.checkForPatronIdentity(patronRequest.getPatron(),
+				hostLmsCode, localId, localPType);
 	}
 
 	private Mono<Tuple2<PatronRequest, SupplierRequest>> findSupplierRequestFor(
@@ -194,5 +216,4 @@ public class SupplyingAgencyService {
 		return hostLmsService.getClientFor(hostLmsCode)
 			.flatMap( client -> client.getHold(holdId) );
 	}
-
 }
