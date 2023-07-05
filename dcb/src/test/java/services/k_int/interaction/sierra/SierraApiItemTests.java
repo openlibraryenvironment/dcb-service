@@ -70,7 +70,6 @@ class SierraApiItemTests {
 		// Act
 		final var itemPatch = ItemPatch.builder()
 			.bibIds(List.of(4641865))
-			//.itemType(574574)
 			.location("ab1234")
 			.barcodes(List.of("68439643"))
 			.build();
@@ -208,7 +207,6 @@ class SierraApiItemTests {
 					.build()))
 			.block();
 
-		assertThat(response, is(notNullValue()));
-		assertThat(response.getEntries(), hasSize(0));
+		assertThat("Response should be empty", response, is(nullValue()));
 	}
 }

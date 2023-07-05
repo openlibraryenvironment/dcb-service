@@ -6,6 +6,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -122,12 +123,10 @@ class SierraApiPatronTests {
 		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
 
 		// Act
-		final var response = Mono.from( sierraApiClient.patronFind("u", uniqueId) ).block();
+		final var response = singleValueFrom(sierraApiClient.patronFind("u", uniqueId));
 
 		// Assert
-		assertThat(response, is(notNullValue()));
-		assertThat(response.getClass(), is(SierraPatronRecord.class));
-		assertThat(response.getId(), is(nullValue()));
+		assertThat("Response should be empty", response, is(nullValue()));
 	}
 
 	@Test
@@ -145,6 +144,22 @@ class SierraApiPatronTests {
 		assertThat(response.entries().get(0), is(notNullValue()));
 		assertThat(response.entries().get(0).id(),
 			is("https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/407557"));
+	}
+
+	@Test
+	void shouldReturnEmptyPublisherWhenReceiveNotFoundError() {
+		// Arrange
+		final var patronLocalId = "78585745";
+
+		sierraPatronsAPIFixture.patronHoldNotFoundErrorResponse(patronLocalId);
+
+		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+
+		// Act
+		final var response = singleValueFrom(sierraApiClient.patronHolds(patronLocalId));
+
+		// Assert
+		assertThat("Response should be empty", response, is(nullValue()));
 	}
 
 	@Test
