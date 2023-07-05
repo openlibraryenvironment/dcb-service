@@ -28,6 +28,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 import java.util.UUID;
 
 import static io.micronaut.http.HttpStatus.*;
+import static java.util.Objects.isNull;
 import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -220,10 +221,14 @@ class PatronRequestApiTests {
 
 		assertThat(fetchedPatronRequest.citation(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.citation().bibClusterId(), is(clusterRecordId));
+
 		assertThat(fetchedPatronRequest.pickupLocation(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.pickupLocation().code(), is("ABC123"));
+
 		assertThat(fetchedPatronRequest.status(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.status().code(), is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
+		assertThat(fetchedPatronRequest.status().errorMessage(), is(nullValue()));
+
 		assertThat(fetchedPatronRequest.localRequest().id(), is("864902"));
 		assertThat(fetchedPatronRequest.localRequest().status(), is("PLACED"));
 		assertThat(fetchedPatronRequest.localRequest().itemId(), is("7916922"));
@@ -290,6 +295,7 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.citation().bibClusterId(), is(clusterRecordId));
 		assertThat(fetchedPatronRequest.pickupLocation().code(), is("ABC123"));
 		assertThat(fetchedPatronRequest.status().code(), is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY"));
+		assertThat(fetchedPatronRequest.status().errorMessage(), is(nullValue()));
 		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(1));
 
 		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(0);

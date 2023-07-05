@@ -270,5 +270,9 @@ class BorrowingAgencyServiceTests {
 
 		assertThat("Request should have error status afterwards",
 			fetchedPatronRequest.getStatusCode(), is("ERROR"));
+
+		assertThat("Request should have error message afterwards",
+			fetchedPatronRequest.getErrorMessage(),
+			is("No hold request found for the given note: Consortial Hold. tno=" + patronRequestId));
 	}
 }

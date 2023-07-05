@@ -206,6 +206,9 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		assertThat("Request should have error status afterwards",
 			fetchedPatronRequest.getStatusCode(), is("ERROR"));
+
+		assertThat("Request should have error message afterwards",
+			fetchedPatronRequest.getErrorMessage(), is("Internal Server Error"));
 	}
 
 

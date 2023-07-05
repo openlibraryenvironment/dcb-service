@@ -206,6 +206,9 @@ class PatronRequestResolutionTests {
 		assertThat("Request should be in error status",
 			fetchedPatronRequest.getStatusCode(), is(ERROR));
 
+		assertThat("Request should have error message afterwards",
+			fetchedPatronRequest.getErrorMessage(), is("Cannot find cluster record for: " + clusterRecordId));
+
 		assertThat("Should not find any supplier requests",
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
 	}

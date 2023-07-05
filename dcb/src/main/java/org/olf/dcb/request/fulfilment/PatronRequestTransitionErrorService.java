@@ -30,6 +30,8 @@ public class PatronRequestTransitionErrorService {
 		log.debug("Setting patron request status code: {}", ERROR);
 
 		patronRequest.setStatusCode(ERROR);
+		patronRequest.setErrorMessage(error.getMessage());
+
 		return Mono.from(patronRequestRepository.update(patronRequest)).then(Mono.error(error));
 	}
 
