@@ -59,7 +59,7 @@ class PatronRequestApiClient {
 		@Serdeable
 		record PickupLocation(@Nullable String code) { }
 		@Serdeable
-		record Status(@Nullable String code) { }
+		record Status(@Nullable String code, @Nullable String errorMessage) { }
 		@Serdeable
 		record LocalRequest(@Nullable String id, @Nullable String status) { }
 	}

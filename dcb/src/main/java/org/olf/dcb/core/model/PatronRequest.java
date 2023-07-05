@@ -107,8 +107,11 @@ public class PatronRequest {
 	@Nullable
 	private String localBibId;
 
-        @Nullable
-        private String description;
+	@Nullable
+	private String description;
+
+	@Nullable
+	private String errorMessage;
 
 
 	public PatronRequest resolve() {

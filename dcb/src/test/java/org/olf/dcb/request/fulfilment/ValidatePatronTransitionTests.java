@@ -101,6 +101,14 @@ public class ValidatePatronTransitionTests {
 		// Assert
 		assertThat(exception.getMessage(), is("No patron found"));
 		assertThat(exception.getLocalizedMessage(), is("No patron found"));
+
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat("Request should have error status afterwards",
+			fetchedPatronRequest.getStatusCode(), is("ERROR"));
+
+		assertThat("Request should have error message afterwards",
+			fetchedPatronRequest.getErrorMessage(), is("No patron found"));
 	}
 
 	private Patron createPatron(String localId, DataHostLms hostLms) {

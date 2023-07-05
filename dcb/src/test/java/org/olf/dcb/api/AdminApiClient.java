@@ -53,7 +53,7 @@ class AdminApiClient {
 			@Nullable String localItemLocationCode) {}
 
 		@Serdeable
-		record Status(@Nullable String code) { }
+		record Status(@Nullable String code, @Nullable String errorMessage) { }
 
 		@Serdeable
 		record LocalRequest(@Nullable String id, @Nullable String status,
