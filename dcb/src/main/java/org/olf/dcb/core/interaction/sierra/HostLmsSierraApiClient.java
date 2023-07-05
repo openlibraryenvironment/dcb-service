@@ -1,5 +1,19 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
+import static reactor.core.publisher.Mono.empty;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.olf.dcb.core.model.HostLms;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.context.annotation.Secondary;
@@ -8,7 +22,13 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
-import io.micronaut.http.*;
+import io.micronaut.http.BasicAuth;
+import io.micronaut.http.HttpHeaders;
+import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MediaType;
+import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Put;
@@ -17,11 +37,6 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.retry.annotation.Retryable;
-
-import org.olf.dcb.core.model.HostLms;
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.LinkResult;
@@ -39,15 +54,6 @@ import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
-
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import static java.util.Collections.emptyList;
-import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
 
 @Secondary
 @Prototype
@@ -154,7 +160,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.flatMap(req -> Mono.from(client.retrieve(req,
 				Argument.listOf(PickupLocationInfo.class), ERROR_TYPE)));
 	}
-
+	
 	@SingleResult
 	@Retryable
 	public Publisher<BranchResultSet> branches(Integer limit, Integer offset,
@@ -196,8 +202,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				.queryParam("locations", iterableToArray(locations))))
 			.flatMap(this::ensureToken)
 			.flatMap(req -> doRetrieve(req, ResultSet.class))
-			.onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError,
-				ResultSet.builder().entries(emptyList()).build());
+			.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty());
 	}
 
 	@Override
@@ -235,9 +240,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				.queryParam("varFieldTag", varFieldTag)
 				.queryParam("varFieldContent", varFieldContent)))
 			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class) )
-			.onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError,
-				new SierraPatronRecord());
+			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class))
+			.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty());
 	}
 
 	@SingleResult
@@ -250,8 +254,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				.queryParam("fields", "id,placed,location,pickupLocation,status,note,recordType,notNeededAfterDate")))
 			.flatMap(this::ensureToken)
 			.flatMap(req -> doRetrieve(req, SierraPatronHoldResultSet.class))
-			.onErrorReturn(sierraResponseErrorMatcher::isNoRecordsError,
-				new SierraPatronHoldResultSet(0, 0, new ArrayList<>()));
+			.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty());
 	}
 
 	private <T> Mono<T> handle404AsEmpty (final Mono<T> current) {
@@ -266,7 +269,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			}
 
 			return false;
-		}, (_t) -> Mono.empty());
+		}, _t -> empty());
 	}
 
 	private <T> Mono<T> handleResponseErrors(final Mono<T> current) {
@@ -405,7 +408,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.map(req -> req.uri(theUri -> theUri
 				.queryParam("fields", "id,updatedDate,createdDate,expirationDate,names,barcodes,patronType,patronCodes,homeLibraryCode,emails,message,uniqueIds,emails,fixedFields")))
 			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class) )
+			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class))
 			.onErrorReturn(new SierraPatronRecord());
 	}
 
@@ -418,7 +421,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.map(req -> req.uri(theUri ->
 				theUri.queryParam("fields", toCsv(fields))))
 			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class) )
+			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class))
 			.onErrorReturn(new SierraPatronRecord());
 	}
 
@@ -430,7 +433,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		return createRequest(HttpMethod.PUT, "patrons/" + patronId)
 			.map(request -> request.body(patronPatch))
 			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class) );
+			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class));
 	}
 
 	@SingleResult

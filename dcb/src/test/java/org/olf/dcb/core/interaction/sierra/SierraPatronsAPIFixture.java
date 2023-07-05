@@ -1,18 +1,19 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.Builder;
-import lombok.Data;
+import static org.mockserver.model.HttpRequest.request;
+import static org.mockserver.model.MediaType.APPLICATION_JSON;
+
+import java.util.List;
+
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.mockserver.model.JsonBody;
 
-import java.util.List;
-
-import static org.mockserver.model.HttpRequest.request;
-import static org.mockserver.model.MediaType.APPLICATION_JSON;
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Data;
 
 public class SierraPatronsAPIFixture {
 	private final MockServerClient mockServer;
@@ -100,13 +101,12 @@ public class SierraPatronsAPIFixture {
 			.respond(patronHoldFoundResponse());
 	}
 
-
-	public void patronHoldResponse(String patron_id, String hold_id_url, String note) {
+	public void patronHoldResponse(String patronId, String holdIdUrl, String note) {
 		List<PatronHoldResponse> phre = new java.util.ArrayList();
 		phre.add(PatronHoldResponse.builder()
-			.id(hold_id_url)
-			.record("https://some/record/"+patron_id)
-			.patron("https://some/patron/"+patron_id)
+			.id(holdIdUrl)
+			.record("https://some/record/" + patronId)
+			.patron("https://some/patron/" + patronId)
 			.frozen(false)
 			.notNeededAfterDate("2023-09-01")
 			.notWantedBeforeDate("2023-08-01")
@@ -114,8 +114,6 @@ public class SierraPatronsAPIFixture {
 			.status(SierraCodeNameTuple.builder().code("0").name("On hold").build())
 			.pickupLocation(SierraCodeNameTuple.builder().code("21").name("Vineland Branch").build())
 			.note(note)
-			// .placed()
-			// .priority()
 			.build());
 
 		PatronHoldsResponse phr = PatronHoldsResponse.builder()
@@ -127,14 +125,28 @@ public class SierraPatronsAPIFixture {
 		mockServer.clear(
 			request()
 				.withMethod("GET")
-				.withPath("/iii/sierra-api/v6/patrons/" + patron_id + "/holds")
+				.withPath("/iii/sierra-api/v6/patrons/" + patronId + "/holds")
 		);
 
 		mockServer
 			.when(request()
 				.withMethod("GET")
-				.withPath("/iii/sierra-api/v6/patrons/" + patron_id + "/holds"))
+				.withPath("/iii/sierra-api/v6/patrons/" + patronId + "/holds"))
 			.respond(HttpResponse.response().withContentType(APPLICATION_JSON).withBody(JsonBody.json(phr)));
+	}
+
+	public void notFoundWhenGettingPatronRequests(String patronId) {
+		mockServer
+			.when(request()
+				.withMethod("GET")
+				.withPath("/iii/sierra-api/v6/patrons/" + patronId + "/holds"))
+			.respond(sierraMockServerResponses.notFound("patrons/sierra-api-patron-not-found.json"));
+	}
+
+	public void patronHoldNotFoundErrorResponse(String id) {
+		mockServer
+			.when(sierraMockServerRequests.get("/" + id + "/holds"))
+			.respond(sierraMockServerResponses.notFound("patrons/sierra-api-patron-not-found.json"));
 	}
 
 	public void patronHoldErrorResponse(String id) {

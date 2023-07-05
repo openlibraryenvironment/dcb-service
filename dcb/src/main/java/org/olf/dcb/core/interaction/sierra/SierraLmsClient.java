@@ -1,16 +1,31 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import io.micronaut.context.annotation.Parameter;
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.util.StringUtils;
-import io.micronaut.json.tree.JsonNode;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.RequiredArgsConstructor;
-import lombok.ToString;
+import static java.lang.Integer.parseInt;
+import static java.lang.String.valueOf;
+import static java.util.Objects.nonNull;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
+import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.transaction.Transactional;
+import javax.transaction.Transactional.TxType;
+import javax.validation.constraints.NotNull;
+
 import org.marc4j.marc.Record;
-import org.olf.dcb.configuration.*;
+import org.olf.dcb.configuration.BranchRecord;
+import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.configuration.PickupLocationRecord;
+import org.olf.dcb.configuration.RefdataRecord;
+import org.olf.dcb.configuration.ShelvingLocationRecord;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
@@ -20,8 +35,8 @@ import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.ingest.marc.MarcIngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
-import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
+import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.olf.dcb.tracking.model.LenderTrackingEvent;
 import org.olf.dcb.tracking.model.PatronTrackingEvent;
@@ -30,6 +45,16 @@ import org.olf.dcb.tracking.model.TrackingRecord;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.util.StringUtils;
+import io.micronaut.json.tree.JsonNode;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
@@ -43,26 +68,13 @@ import services.k_int.interaction.sierra.configuration.BranchInfo;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
+import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
-
-import javax.transaction.Transactional;
-import javax.transaction.Transactional.TxType;
-import javax.validation.constraints.NotNull;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.*;
-
-import static java.lang.Integer.parseInt;
-import static java.lang.String.valueOf;
-import static java.util.Objects.nonNull;
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
-import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
 
 /**
  * See: https://sandbox.iii.com/iii/sierra-api/swagger/index.html
@@ -334,12 +346,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode) {
 		log.debug("getItemsByBibId({})", bibId);
 
-		return Flux.from(client.items(params -> params.deleted(false)
+		return Mono.from(client.items(params -> params
+				.deleted(false)
 				.bibIds(List.of(bibId))
-                                                              .fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "suppressed",
-                                                                              "bibIds", "location", "status", "volumes", "barcode", "callNumber",
-                                                                              "itemType", "transitInfo", "copyNo", "holdCount", "fixedFields", "varFields"))))
-			.flatMap(results -> Flux.fromIterable(results.getEntries()))
+				.fields(List.of("id", "updatedDate", "createdDate", "deletedDate",
+					"suppressed", "bibIds", "location", "status", "volumes", "barcode", "callNumber",
+					"itemType", "transitInfo", "copyNo", "holdCount", "fixedFields", "varFields"))))
+			.map(ResultSet::getEntries)
+			.flatMapMany(Flux::fromIterable)
 			.flatMap(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode, bibId))
 			.collectList();
 	}
@@ -434,16 +448,19 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return Mono.from(client.patronHolds(patronLocalId))
 			.doOnSuccess(result -> log.debug("the result of getPatronHoldRequestId({})", result))
-			.flatMap(holds -> filterByNote(holds, note))
-			//.retryWhen(Retry.backoff(5, Duration.ofSeconds(2)))  // Sierra may not have saved the hold right away - retry up to 5 times
+			.map(SierraPatronHoldResultSet::entries)
+			.flatMapMany(Flux::fromIterable)
+			.filter(hold -> ((hold.note() != null) && (hold.note().equals(note))))
+			.collectList()
+			.map(filteredHolds -> chooseHold(note, filteredHolds))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when getting Hold"));
 			});
 	}
 
-        // Informed by https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
-        private String mapSierraHoldStatusToDCBHoldStatus(String code) {
+	// Informed by https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
+	private String mapSierraHoldStatusToDCBHoldStatus(String code) {
                 String result = null;
                 switch (code) {
                         case "0" -> result = HostLmsHold.HOLD_PLACED;
@@ -455,46 +472,20 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                 }
                 return result;
         }
+	private Tuple2<String, String> chooseHold(String note, List<SierraPatronHold> filteredHolds) {
+		if (filteredHolds.size() == 1) {
+			log.debug("FOUND");
 
-	private Mono<Tuple2<String, String>> filterByLocalItemId(SierraPatronHoldResultSet holds, String localItemId) {
-		log.debug("filterByLocalItemId({}, {})", holds, localItemId);
+			final String extractedId = deRestify(filteredHolds.get(0).id());
+			final String localStatus = mapSierraHoldStatusToDCBHoldStatus(filteredHolds.get(0).status().code());
 
-		return Flux.fromIterable(holds.entries())
-			.filter(hold -> deRestify( hold.record() ).equals(localItemId))
-			.collectList()
-			.flatMap(filteredHolds -> {
-				if (filteredHolds.size() == 1) {
-					final String extractedId = deRestify( filteredHolds.get(0).id() );
-					final String localStatus = mapSierraHoldStatusToDCBHoldStatus(filteredHolds.get(0).status().code());
-					return Mono.just( Tuples.of(extractedId, localStatus) );
-				} else if (filteredHolds.size() > 1) {
-					throw new RuntimeException("Multiple hold requests found for the given local item ID");
-				} else {
-					throw new RuntimeException("No hold request found for the given local item ID");
-				}
-			});
+			return Tuples.of(extractedId, localStatus);
+		} else if (filteredHolds.size() > 1) {
+			throw new RuntimeException("Multiple hold requests found for the given note: " + note);
+		} else {
+			throw new RuntimeException("No hold request found for the given note: " + note);
+		}
 	}
-
-        private Mono<Tuple2<String, String>> filterByNote(SierraPatronHoldResultSet holds, String note) {
-                log.debug("filterByNote({}, {})", holds, note);
-        
-                return Flux.fromIterable(holds.entries())
-                        .filter(hold -> ( ( hold.note() != null ) && ( hold.note().equals(note) ) ) )
-                        .collectList()
-                        .flatMap(filteredHolds -> {
-                                if (filteredHolds.size() == 1) {
-					log.debug("FOUND");
-                                        final String extractedId = deRestify( filteredHolds.get(0).id() );
-                                        final String localStatus = mapSierraHoldStatusToDCBHoldStatus(filteredHolds.get(0).status().code());
-                                        return Mono.just( Tuples.of(extractedId, localStatus) );
-                                } else if (filteredHolds.size() > 1) {
-                                        throw new RuntimeException("Multiple hold requests found for the given local item ID");
-                                } else {
-                                        throw new RuntimeException("No hold request found for the given local item ID");
-                                }
-                        });
-        }
-
 
 	public static int convertToInteger(String integer) {
 		try {
