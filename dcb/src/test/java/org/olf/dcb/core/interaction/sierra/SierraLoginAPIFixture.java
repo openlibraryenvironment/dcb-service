@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.sierra;
 
 import static io.micronaut.http.HttpHeaderValues.AUTHORIZATION_PREFIX_BASIC;
+import static org.mockserver.matchers.Times.once;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.HttpStatusCode.UNAUTHORIZED_401;
 import static org.mockserver.model.JsonBody.json;
@@ -30,11 +31,13 @@ public class SierraLoginAPIFixture {
 	}
 
 	public void successfulLoginFor(String key, String secret, String token) {
+		// Default to only allowing 1 login attempt
+		successfulLoginFor(key, secret, token, once());
+	}
 
+	public void successfulLoginFor(String key, String secret, String token, Times times) {
 		mockServer.when(sierraMockServerRequests.post()
-			.withHeader("Authorization", basicAuthCredentials(key, secret)),
-				// Each login attempt should only be attempted once
-				Times.once())
+			.withHeader("Authorization", basicAuthCredentials(key, secret)), times)
 			.respond(sierraMockServerResponses.jsonSuccess(json(
 				// Uses map because property names with underscores
 				// are harder to produce with serialisation

@@ -65,6 +65,10 @@ public class SierraMockServerResponses {
 		return response().withStatusCode(500);
 	}
 
+	public HttpResponse unauthorised() {
+		return response().withStatusCode(401);
+	}
+
 	private HttpResponse jsonResponse(HttpResponse response, String responseBodySubPath) {
 		return jsonResponse(response, getJsonResource(responseBodySubPath));
 	}
