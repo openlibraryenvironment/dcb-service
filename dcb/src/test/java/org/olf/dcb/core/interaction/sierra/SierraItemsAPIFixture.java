@@ -70,9 +70,6 @@ public class SierraItemsAPIFixture {
 	}
 
 	public void successResponseForCreateItem(Integer bibId, String locationCode, String barcode) {
-
-		//mockServer.clear(sierraMockServerRequests.post());
-
 		final var body = ItemPatch.builder()
 			.bibIds(List.of(bibId))
 			.location(locationCode)
@@ -86,12 +83,17 @@ public class SierraItemsAPIFixture {
 				"items/sierra-api-post-item-success-response.json"));
 	}
 
-	public void serverErrorResponseForBibId(String bibId) {
-		// This is a made up response (rather than captured from the sandbox)
-		// in order to demonstrate that general failures of the API are propagated
+	public void unauthorisedResponseForCreateItem(Integer bibId, String locationCode, String barcode) {
+		final var body = ItemPatch.builder()
+			.bibIds(List.of(bibId))
+			.location(locationCode)
+			.barcodes(List.of(barcode))
+			.build();
+
 		mockServer
-			.when(getItemsForBib(bibId))
-			.respond(sierraMockServerResponses.textError());
+			.when(sierraMockServerRequests.post()
+				.withBody(json(body)))
+			.respond(sierraMockServerResponses.unauthorised());
 	}
 
 	private HttpRequest getItemsForBib(String bibId) {
