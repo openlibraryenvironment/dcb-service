@@ -75,7 +75,9 @@ CREATE TABLE patron_identity (
 	home_identity boolean,
         local_barcode varchar(200),
         local_ptype varchar(200),
-        last_validated timestamp
+        last_validated timestamp,
+        local_names varchar(256),
+        local_agency varchar(256)
 );
 
 CREATE INDEX idx_pi_patron ON patron_identity(patron_id, host_lms_id);
@@ -99,8 +101,13 @@ CREATE TABLE patron_request (
 	local_request_id varchar(200),
 	local_request_status varchar(32),
 	local_item_id varchar(200),
-	local_bib_id varchar(200)
+	local_bib_id varchar(200),
+        requesting_identity_id uuid REFERENCES patron_identity (id),
+        description varchar(256),
+        error_message varchar(256)
 );
+
+
 
 CREATE INDEX idx_pr_patron ON patron_request(patron_id);
 
@@ -113,7 +120,9 @@ CREATE TABLE supplier_request (
 	host_lms_code varchar(200),
 	status_code varchar(200),
 	local_id varchar(200),
-	local_status varchar(32)
+	local_status varchar(32),
+        virtual_identity_id uuid REFERENCES patron_identity (id),
+        local_bib_id varchar(256)
 );
 
 CREATE INDEX idx_lender_hold on supplier_request(host_lms_code, local_id);
