@@ -1,5 +1,8 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import static io.micronaut.http.HttpMethod.GET;
+import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
 import static reactor.core.publisher.Mono.empty;
 
@@ -92,29 +95,6 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		this.client = client;
 	}
 
-	private static URI resolve(URI baseUri, URI relativeURI) {
-		URI thisUri = baseUri;
-
-		// if the URI features credentials strip this out
-		if (StringUtils.isNotEmpty(thisUri.getUserInfo())) {
-			try {
-				thisUri = new URI(thisUri.getScheme(), null, thisUri.getHost(), thisUri.getPort(), thisUri.getPath(),
-					thisUri.getQuery(), thisUri.getFragment());
-			} catch (URISyntaxException e) {
-				throw new IllegalStateException("URI is invalid: " + e.getMessage(), e);
-			}
-		}
-
-		final var rawQuery = thisUri.getRawQuery();
-
-		if (StringUtils.isNotEmpty(rawQuery)) {
-			return thisUri.resolve(relativeURI + "?" + rawQuery);
-		} else {
-			return thisUri.resolve(relativeURI);
-		}
-	}
-
-
 	@Override
 	@SingleResult
 	@Retryable
@@ -160,7 +140,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.flatMap(req -> Mono.from(client.retrieve(req,
 				Argument.listOf(PickupLocationInfo.class), ERROR_TYPE)));
 	}
-	
+
 	@SingleResult
 	@Retryable
 	public Publisher<BranchResultSet> branches(Integer limit, Integer offset,
@@ -257,71 +237,6 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty());
 	}
 
-	private <T> Mono<T> handle404AsEmpty (final Mono<T> current) {
-		return current.onErrorResume(throwable -> {
-			if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
-				HttpClientResponseException e = (HttpClientResponseException) throwable;
-				int code = e.getStatus().getCode();
-				return switch (code) {
-					case 404 -> true;
-					default -> false;
-				};
-			}
-
-			return false;
-		}, _t -> empty());
-	}
-
-	private <T> Mono<T> handleResponseErrors(final Mono<T> current) {
-		// We used to do
-		// .transform(this::handle404AsEmpty)
-		// Immediately after current, but some downstream chains rely upon the 404 so for now we use .transform directly in the caller
-		return current
-			.onErrorMap(throwable -> {
-				// On a 401 we should clear the token before propagating the error.
-				if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
-					HttpClientResponseException e = (HttpClientResponseException) throwable;
-					int code = e.getStatus().getCode();
-
-					switch (code) {
-						case 401:
-							log.debug("Clearing token to trigger reauthentication");
-							this.currentToken = null;
-							break;
-						default:
-							log.warn("response error {}", e.getStatus().toString());
-							break;
-					}
-				}
-				return throwable;
-			});
-	}
-
-	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Class<T> type) {
-		return doRetrieve(request, type, true);
-	}
-
-	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Class<T> type) {
-		return Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE))
-			.transform(this::handleResponseErrors);
-	}
-
-	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Class<T> type, boolean mapErrors) {
-		var response = Mono.from(client.retrieve(request, Argument.of(type), ERROR_TYPE));
-
-		return mapErrors ? response.transform(this::handleResponseErrors) : response;
-	}
-
-	private <T> Object[] iterableToArray(Iterable<T> iterable) {
-		if (iterable == null) return null;
-
-		final List<T> list = new ArrayList<T>();
-
-		iterable.forEach(list::add);
-
-		return list.size() > 0 ? list.toArray() : null;
-	}
-
 	@Override
 	@SingleResult
 	public Publisher<AuthToken> login(BasicAuth creds, MultipartBody body) {
@@ -333,54 +248,9 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.flatMap(req -> doRetrieve(req, AuthToken.class, false));
 	}
 
-	private <T> Mono<MutableHttpRequest<T>> ensureToken(MutableHttpRequest<T> request) {
-		return Mono.justOrEmpty(currentToken)
-			.filter(token -> !token.isExpired())
-			.switchIfEmpty(acquireAccessToken())
-			.map(validToken -> {
-				final String token = validToken.toString();
-				log.debug("Using Auth token: {}", token);
-
-				return request.header(HttpHeaders.AUTHORIZATION, token);
-			})
-			.defaultIfEmpty(request);
-	}
-
-	private Mono<AuthToken> acquireAccessToken() {
-		final Map<String, Object> conf = lms.getClientConfig();
-		final String key = (String) conf.get(CLIENT_KEY);
-		final String secret = (String) conf.get(CLIENT_SECRET);
-
-		return Mono.from(login(key, secret))
-			.map( newToken -> {
-				currentToken = newToken;
-				return newToken;
-			});
-	}
-
-	private <T> Mono<MutableHttpRequest<T>> getRequest(String uri) {
-		return createRequest(HttpMethod.GET, uri);
-	}
-
-	private <T> Mono<MutableHttpRequest<T>> postRequest(String uri) {
-		return createRequest(HttpMethod.POST, uri);
-	}
-
-	private <T> Mono<MutableHttpRequest<T>> createRequest(HttpMethod method, String uri) {
-		return Mono.just(UriBuilder.of(uri).build()).map(this::resolve)
-			.map(resolvedUri -> {
-				MutableHttpRequest<T> req = HttpRequest.create(method, resolvedUri.toString());
-				return req.accept(MediaType.APPLICATION_JSON);
-			});
-	}
-
-	private URI resolve(URI relativeURI) {
-		return resolve(rootUri, relativeURI);
-	}
-
 	@SingleResult
 	public Mono<Void> placeHoldRequest(String id, PatronHoldPost body) {
-		return createRequest(HttpMethod.POST, "patrons/" + id + "/holds/requests")
+		return createRequest(POST, "patrons/" + id + "/holds/requests")
 			.map(req -> req.body(body))
 			.flatMap(this::ensureToken)
 			.flatMap(req -> doExchange(req, Object.class))
@@ -432,5 +302,137 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.flatMap(this::ensureToken)
 			.flatMap(req -> doRetrieve(req, SierraPatronHold.class))
 			.transform(this::handle404AsEmpty);
+	}
+
+	private URI resolve(URI relativeURI) {
+		return resolve(rootUri, relativeURI);
+	}
+
+	private static URI resolve(URI baseUri, URI relativeURI) {
+		URI thisUri = baseUri;
+
+		// if the URI features credentials strip this out
+		if (StringUtils.isNotEmpty(thisUri.getUserInfo())) {
+			try {
+				thisUri = new URI(thisUri.getScheme(), null, thisUri.getHost(), thisUri.getPort(), thisUri.getPath(),
+					thisUri.getQuery(), thisUri.getFragment());
+			} catch (URISyntaxException e) {
+				throw new IllegalStateException("URI is invalid: " + e.getMessage(), e);
+			}
+		}
+
+		final var rawQuery = thisUri.getRawQuery();
+
+		if (StringUtils.isNotEmpty(rawQuery)) {
+			return thisUri.resolve(relativeURI + "?" + rawQuery);
+		} else {
+			return thisUri.resolve(relativeURI);
+		}
+	}
+
+	private <T> Mono<T> handle404AsEmpty(final Mono<T> current) {
+		return current.onErrorResume(throwable -> {
+			if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
+				HttpClientResponseException e = (HttpClientResponseException) throwable;
+				int code = e.getStatus().getCode();
+				return switch (code) {
+					case 404 -> true;
+					default -> false;
+				};
+			}
+
+			return false;
+		}, _t -> empty());
+	}
+
+	private <T> Mono<T> handleResponseErrors(final Mono<T> current) {
+		// We used to do
+		// .transform(this::handle404AsEmpty)
+		// Immediately after current, but some downstream chains rely upon the 404 so for now we use .transform directly in the caller
+		return current
+			.onErrorMap(throwable -> {
+				// On a 401 we should clear the token before propagating the error.
+				if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
+					HttpClientResponseException e = (HttpClientResponseException) throwable;
+					int code = e.getStatus().getCode();
+
+					switch (code) {
+						case 401:
+							log.debug("Clearing token to trigger reauthentication");
+							this.currentToken = null;
+							break;
+						default:
+							log.warn("response error {}", e.getStatus().toString());
+							break;
+					}
+				}
+				return throwable;
+			});
+	}
+
+	private <T> Mono<MutableHttpRequest<T>> getRequest(String uri) {
+		return createRequest(GET, uri);
+	}
+
+	private <T> Mono<MutableHttpRequest<T>> postRequest(String uri) {
+		return createRequest(POST, uri);
+	}
+
+	private <T> Mono<MutableHttpRequest<T>> createRequest(HttpMethod method, String uri) {
+		return Mono.just(UriBuilder.of(uri).build()).map(this::resolve)
+			.map(resolvedUri -> {
+				MutableHttpRequest<T> req = HttpRequest.create(method, resolvedUri.toString());
+				return req.accept(APPLICATION_JSON);
+			});
+	}
+
+	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Class<T> type) {
+		return doRetrieve(request, type, true);
+	}
+
+	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Class<T> type) {
+		return Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE))
+			.transform(this::handleResponseErrors);
+	}
+
+	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Class<T> type, boolean mapErrors) {
+		var response = Mono.from(client.retrieve(request, Argument.of(type), ERROR_TYPE));
+
+		return mapErrors ? response.transform(this::handleResponseErrors) : response;
+	}
+
+	private <T> Object[] iterableToArray(Iterable<T> iterable) {
+		if (iterable == null) return null;
+
+		final List<T> list = new ArrayList<T>();
+
+		iterable.forEach(list::add);
+
+		return list.size() > 0 ? list.toArray() : null;
+	}
+
+	private <T> Mono<MutableHttpRequest<T>> ensureToken(MutableHttpRequest<T> request) {
+		return Mono.justOrEmpty(currentToken)
+			.filter(token -> !token.isExpired())
+			.switchIfEmpty(acquireAccessToken())
+			.map(validToken -> {
+				final String token = validToken.toString();
+				log.debug("Using Auth token: {}", token);
+
+				return request.header(HttpHeaders.AUTHORIZATION, token);
+			})
+			.defaultIfEmpty(request);
+	}
+
+	private Mono<AuthToken> acquireAccessToken() {
+		final Map<String, Object> conf = lms.getClientConfig();
+		final String key = (String) conf.get(CLIENT_KEY);
+		final String secret = (String) conf.get(CLIENT_SECRET);
+
+		return Mono.from(login(key, secret))
+			.map( newToken -> {
+				currentToken = newToken;
+				return newToken;
+			});
 	}
 }
