@@ -1,5 +1,14 @@
 package services.k_int.interaction.sierra;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
+
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.http.BasicAuth;
@@ -7,9 +16,6 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Put;
 import io.micronaut.http.client.multipart.MultipartBody;
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.bibs.BibParams;
 import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
@@ -26,11 +32,6 @@ import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
-
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Consumer;
 
 public interface SierraApiClient {
 	String CONFIG_ROOT = "sierra.client";
@@ -164,10 +165,6 @@ public interface SierraApiClient {
 
 	@SingleResult
 	Publisher<SierraPatronRecord> getPatron(@Nullable final Long patronId);
-
-	@SingleResult
-	Publisher<SierraPatronRecord> getPatron(@Nullable final Long patronId,
-		@Nullable final Iterable<String> fields);
 
 	@SingleResult
 	@Put("/patrons/{id}")

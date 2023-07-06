@@ -687,10 +687,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	public Mono<HostLmsPatronDTO> getPatronByLocalId(String localPatronId) {
 		log.debug("getPatronByLocalId({})",localPatronId);
-		return Mono.from( client.getPatron(Long.valueOf(localPatronId)) )
-			.filter(sierraPatronRecord -> nonNull(sierraPatronRecord.getId()))
-			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")))
-			.flatMap(spr -> Mono.just(sierraPatronToHostLmsPatron(spr)));
+
+		return Mono.from(client.getPatron(Long.valueOf(localPatronId)))
+			.map(this::sierraPatronToHostLmsPatron)
+			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")));
 	}
 
 	@Override
@@ -700,7 +700,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		final PatronPatch patronPatch = new PatronPatch();
 		patronPatch.setPatronType(Integer.valueOf(patronType));
 
-		return Mono.from( client.updatePatron(Long.valueOf(localPatronId), patronPatch) )
+		return Mono.from( client.updatePatron(Long.valueOf(localPatronId), patronPatch))
 			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")))
 			.flatMap(spr -> Mono.just(sierraPatronToHostLmsPatron(spr)));
 	}
