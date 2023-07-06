@@ -49,11 +49,19 @@ public class SierraPatronsAPIFixture {
 			.respond(patronUpdatedResponse());
 	}
 
-	public void getPatronByLocalIdError(String id) {
+	public void noRecordsFoundWhenGettingPatronByLocalId(String patronId) {
 		mockServer
 			.when(request()
 				.withMethod("GET")
-				.withPath("/iii/sierra-api/v6/patrons/" + id))
+				.withPath("/iii/sierra-api/v6/patrons/" + patronId))
+			.respond(patronNotFoundResponse());
+	}
+
+	public void serverErrorWhenGettingPatronByLocalId(String patronId) {
+		mockServer
+			.when(request()
+				.withMethod("GET")
+				.withPath("/iii/sierra-api/v6/patrons/" + patronId))
 			.respond(patronErrorResponse());
 	}
 
@@ -210,35 +218,35 @@ public class SierraPatronsAPIFixture {
 	private HttpResponse sierraPatronRecord(Long id) {
 		return sierraMockServerResponses.jsonSuccess("patrons/patron/"+ id +".json");
 	}
-
 	@Data
 	@Serdeable
 	@Builder
 	public static class PatronPatch {
+
 		List<String> uniqueIds;
 	}
-
 	@Data
 	@Serdeable
 	@Builder
 	public static class PatronHoldPost {
+
 		String recordType;
 		Integer recordNumber;
 		String pickupLocation;
 	}
-
 	@Data
 	@Serdeable
 	@Builder
 	public static class SierraCodeNameTuple {
+
 		String code;
 		String name;
 	}
-
 	@Data
 	@Serdeable
 	@Builder
 	public static class PatronHoldResponse {
+
 		String id;
 		String record;
 		String patron;

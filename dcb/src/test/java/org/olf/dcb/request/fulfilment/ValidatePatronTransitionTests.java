@@ -1,7 +1,13 @@
 package org.olf.dcb.request.fulfilment;
 
-import io.micronaut.core.io.ResourceLoader;
-import jakarta.inject.Inject;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
+
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -10,40 +16,28 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.request.fulfilment.ValidatePatronTransition;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 
+import io.micronaut.core.io.ResourceLoader;
+import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.util.UUID;
-
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ValidatePatronTransitionTests {
-
 	private static final String HOST_LMS_CODE = "validate-patron-transition-tests";
 
 	@Inject
 	ResourceLoader loader;
-
 	@Inject
 	private ValidatePatronTransition validatePatronTransition;
-
 	@Inject
 	private PatronRequestsFixture patronRequestsFixture;
-
 	@Inject
 	private PatronFixture patronFixture;
-
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 
@@ -63,7 +57,6 @@ public class ValidatePatronTransitionTests {
 		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 
 		sierraPatronsAPIFixture.getPatronByLocalId("467295");
-		sierraPatronsAPIFixture.getPatronByLocalIdError("672954");
 	}
 
 	@Test
@@ -85,7 +78,7 @@ public class ValidatePatronTransitionTests {
 	}
 
 	@Test
-	void shouldThrowRuntimeErrorWhenSierraRespondsWithNoPatron() {
+	void shouldFailWhenSierraRespondsWithNotFound(MockServerClient mockServerClient) {
 		// Arrange
 		final var patronRequestId = randomUUID();
 		final var localId = "672954";
@@ -94,13 +87,16 @@ public class ValidatePatronTransitionTests {
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
+		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+
+		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId("672954");
+
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
 			() -> validatePatronTransition.attempt(patronRequest).block());
 
 		// Assert
 		assertThat(exception.getMessage(), is("No patron found"));
-		assertThat(exception.getLocalizedMessage(), is("No patron found"));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
@@ -109,6 +105,36 @@ public class ValidatePatronTransitionTests {
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is("No patron found"));
+	}
+
+	@Test
+	void shouldFailWhenSierraRespondsWithServerError(MockServerClient mockServerClient) {
+		// Arrange
+		final var patronRequestId = randomUUID();
+		final var localId = "236462";
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var patron = createPatron(localId, hostLms);
+
+		var patronRequest = savePatronRequest(patronRequestId, patron);
+
+		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+
+		sierraPatronsAPIFixture.serverErrorWhenGettingPatronByLocalId("236462");
+
+		// Act
+		final var exception = assertThrows(RuntimeException.class,
+			() -> validatePatronTransition.attempt(patronRequest).block());
+
+		// Assert
+		assertThat(exception.getMessage(), is("Internal Server Error"));
+
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat("Request should have error status afterwards",
+			fetchedPatronRequest.getStatusCode(), is("ERROR"));
+
+		assertThat("Request should have error message afterwards",
+			fetchedPatronRequest.getErrorMessage(), is("Internal Server Error"));
 	}
 
 	private Patron createPatron(String localId, DataHostLms hostLms) {
@@ -122,7 +148,6 @@ public class ValidatePatronTransitionTests {
 	}
 
 	private PatronRequest savePatronRequest(UUID patronRequestId, Patron patron) {
-
 		var patronRequest = PatronRequest.builder()
 			.id(patronRequestId)
 			.patron(patron)
