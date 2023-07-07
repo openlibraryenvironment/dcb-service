@@ -3,7 +3,8 @@ CREATE TABLE cluster_record (
 	date_created timestamp,
 	date_updated timestamp,
 	title text,
-	selected_bib uuid
+	selected_bib uuid,
+        is_deleted boolean
 );
 
 CREATE INDEX idx_cluster_date_updated on cluster_record(date_updated);
