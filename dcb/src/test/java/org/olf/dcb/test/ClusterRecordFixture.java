@@ -22,7 +22,7 @@ public class ClusterRecordFixture {
 
 	public ClusterRecord createClusterRecord(UUID clusterRecordId) {
 		return Mono.from(clusterRecordRepository.save(new ClusterRecord(clusterRecordId,
-				now(), now(), "Brain of the Firm", new java.util.HashSet(), clusterRecordId)))
+				now(), now(), "Brain of the Firm", new java.util.HashSet(), clusterRecordId, Boolean.FALSE)))
 			.block();
 	}
 
