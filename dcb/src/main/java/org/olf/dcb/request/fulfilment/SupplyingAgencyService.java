@@ -97,7 +97,8 @@ public class SupplyingAgencyService {
 
                 // Depending upon client configuration, we may need to place an item or a title level hold
 		log.debug("Call client.placeHoldRequest");
-                return client.placeHoldRequest(patronIdentity.getLocalId(), requestedThingType, requestedThingId, patronRequest.getPickupLocationCode(), note);
+                return client.placeHoldRequest(patronIdentity.getLocalId(), requestedThingType, requestedThingId, patronRequest.getPickupLocationCode(), note,
+			patronRequest.getId().toString());
         }
                 
 

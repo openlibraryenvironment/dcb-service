@@ -346,7 +346,8 @@ public interface MarcIngestSource<T> extends IngestSource {
 		addToCanonicalMetadata("agents", "100", "name-personal", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("agents", "110", "name-corporate", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("agents", "111", "name-meeting", marcRecord, canonical_metadata);
-		addToCanonicalMetadata("agents", "130", "uniform-title", marcRecord, canonical_metadata);
+
+		// addToCanonicalMetadata("agents", "130", "uniform-title", marcRecord, canonical_metadata);
 
 		addToCanonicalMetadata("physical-description", "300", null, marcRecord, canonical_metadata);
 		addToCanonicalMetadata("content-type", "336", null, marcRecord, canonical_metadata);

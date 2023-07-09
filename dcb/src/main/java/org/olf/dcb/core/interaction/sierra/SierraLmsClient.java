@@ -424,7 +424,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		String recordType,
 		String recordNumber, 
 		String pickupLocation,
-		String note
+		String note,
+		String patronRequestId
 		) {
 
 		PatronHoldPost patronHoldPost = new PatronHoldPost();
@@ -434,23 +435,32 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		patronHoldPost.setNote(note);
 		log.debug("placeHoldRequest({}...) {}", id,patronHoldPost);
 
+		// Ian: NOTE... SIERRA needs time between placeHoldRequest and getPatronHoldRequestId completing... Either
+		// we need retries or a delay.
 		return Mono.from(client.placeHoldRequest(id, patronHoldPost))
 			.doOnSuccess(result -> log.debug("the result of placeHoldRequest({})", result))
-			.then(getPatronHoldRequestId(id, recordNumber, note))
+			.then(getPatronHoldRequestId(id, recordNumber, note, patronRequestId))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Hold"));
 			});
 	}
 
-	private Mono<Tuple2<String, String>> getPatronHoldRequestId(String patronLocalId, String localItemId, String note) {
-		log.debug("getPatronHoldRequestId({}, {})", patronLocalId, localItemId);
+	private Mono<Tuple2<String, String>> getPatronHoldRequestId(String patronLocalId, String localItemId, String note, String patronRequestId) {
+		log.debug("getPatronHoldRequestId({}, {}, {}, {})", patronLocalId, localItemId, note, patronRequestId);
+
+		// Ian: TEMPORARY WORKAROUND - Wait for sierra to process the hold and make it visible
+		synchronized(this) {
+			try {
+				Thread.sleep(1000);
+			} catch ( Exception e ) {
+			}
+		}
 
 		return Mono.from(client.patronHolds(patronLocalId))
-			.doOnSuccess(result -> log.debug("the result of getPatronHoldRequestId({})", result))
 			.map(SierraPatronHoldResultSet::entries)
 			.flatMapMany(Flux::fromIterable)
-			.filter(hold -> ((hold.note() != null) && (hold.note().equals(note))))
+			.filter(hold -> ((hold.note() != null) && (hold.note().contains(patronRequestId))))
 			.collectList()
 			.map(filteredHolds -> chooseHold(note, filteredHolds))
 			.onErrorResume(NullPointerException.class, error -> {
@@ -473,6 +483,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                 return result;
         }
 	private Tuple2<String, String> chooseHold(String note, List<SierraPatronHold> filteredHolds) {
+
+		log.debug("chooseHold({},{})",note,filteredHolds);
+
 		if (filteredHolds.size() == 1) {
 			log.debug("FOUND");
 
