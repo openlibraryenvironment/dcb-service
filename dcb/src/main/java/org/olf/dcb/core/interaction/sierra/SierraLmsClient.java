@@ -452,7 +452,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// Ian: TEMPORARY WORKAROUND - Wait for sierra to process the hold and make it visible
 		synchronized(this) {
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(500);
 			} catch ( Exception e ) {
 			}
 		}
