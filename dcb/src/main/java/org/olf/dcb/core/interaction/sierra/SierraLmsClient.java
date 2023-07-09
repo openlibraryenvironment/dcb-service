@@ -438,7 +438,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// Ian: NOTE... SIERRA needs time between placeHoldRequest and getPatronHoldRequestId completing... Either
 		// we need retries or a delay.
 		return Mono.from(client.placeHoldRequest(id, patronHoldPost))
-			.then(getPatronHoldRequestId(id, recordNumber, note, patronRequestId))
+			.then(
+				Mono.defer(() -> getPatronHoldRequestId(id, recordNumber, note, patronRequestId))
+				.retry(6)
+			)
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Hold"));
@@ -460,7 +463,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// Ian: TEMPORARY WORKAROUND - Wait for sierra to process the hold and make it visible
 		synchronized(this) {
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(500);
 			} catch ( Exception e ) {
 			}
 		}
