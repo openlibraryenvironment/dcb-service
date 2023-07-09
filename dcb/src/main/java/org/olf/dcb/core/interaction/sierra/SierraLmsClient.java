@@ -400,6 +400,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		String[] authors = null;
 		if ( author != null ) { authors = new String[]{author}; }
+
 		String[] titles = null;
 		if ( title != null ) { titles = new String[]{title}; }
 
@@ -449,9 +450,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private boolean shouldIncludeHold(SierraPatronHold hold, String patronRequestId) {
-		log.debug("Consider hold {}",hold);
 		if ( ( hold != null ) && ( hold.note() != null ) && ( hold.note().contains(patronRequestId) ) ) {
-			log.debug("MATCH");
 			return true;
 		}
 		return false;
@@ -499,8 +498,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("chooseHold({},{})",note,filteredHolds);
 
 		if (filteredHolds.size() == 1) {
-			log.debug("FOUND");
-
 			final String extractedId = deRestify(filteredHolds.get(0).id());
 			final String localStatus = mapSierraHoldStatusToDCBHoldStatus(filteredHolds.get(0).status().code());
 
