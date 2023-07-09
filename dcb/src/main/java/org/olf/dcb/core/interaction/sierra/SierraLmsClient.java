@@ -438,7 +438,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// Ian: NOTE... SIERRA needs time between placeHoldRequest and getPatronHoldRequestId completing... Either
 		// we need retries or a delay.
 		return Mono.from(client.placeHoldRequest(id, patronHoldPost))
-			.doOnSuccess(result -> log.debug("the result of placeHoldRequest({})", result))
 			.then(getPatronHoldRequestId(id, recordNumber, note, patronRequestId))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
@@ -459,6 +458,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return Mono.from(client.patronHolds(patronLocalId))
 			.map(SierraPatronHoldResultSet::entries)
+			.doOnNext(entries -> log.debug("Hold entries: {}",entries))
 			.flatMapMany(Flux::fromIterable)
 			.filter(hold -> ((hold.note() != null) && (hold.note().contains(patronRequestId))))
 			.collectList()
