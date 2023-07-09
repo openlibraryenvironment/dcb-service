@@ -445,6 +445,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			});
 	}
 
+	private boolean shouldIncludeHold(SierraPatronHold hold, String patronRequestId) {
+		log.debug("Consider hold {}",hold);
+		if ( ( hold != null ) && ( hold.note() != null ) && ( hold.note().contains(patronRequestId) ) ) {
+			log.debug("MATCH");
+			return true;
+		}
+		return false;
+	}
+
 	private Mono<Tuple2<String, String>> getPatronHoldRequestId(String patronLocalId, String localItemId, String note, String patronRequestId) {
 		log.debug("getPatronHoldRequestId({}, {}, {}, {})", patronLocalId, localItemId, note, patronRequestId);
 
@@ -460,7 +469,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.map(SierraPatronHoldResultSet::entries)
 			.doOnNext(entries -> log.debug("Hold entries: {}",entries))
 			.flatMapMany(Flux::fromIterable)
-			.filter(hold -> ((hold.note() != null) && (hold.note().contains(patronRequestId))))
+			.filter(hold -> shouldIncludeHold(hold, patronRequestId) )
 			.collectList()
 			.map(filteredHolds -> chooseHold(note, filteredHolds))
 			.onErrorResume(NullPointerException.class, error -> {
