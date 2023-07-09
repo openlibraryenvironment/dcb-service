@@ -39,4 +39,5 @@ public class BibPatch {
 	String bibCode3;
 	String country;
 	String marcType;
+	// Map<Integer,FixedField> fixedFields;
 }

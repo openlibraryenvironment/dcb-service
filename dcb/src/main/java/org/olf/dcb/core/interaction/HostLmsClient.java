@@ -22,6 +22,8 @@ public interface HostLmsClient {
 
 	Mono<String> createBib(String author, String title);
 
+	Mono<String> createBibFromDescription(Map<String,String> bibDescription);
+
 	// (localId, localPtype)
 	Mono<Tuple2<String, String>> patronFind(String uniqueId);
 

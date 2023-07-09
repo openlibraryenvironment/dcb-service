@@ -23,6 +23,8 @@ import reactor.util.function.Tuple5;
 import reactor.util.function.Tuples;
 
 import java.util.UUID;
+import java.util.Map;
+import java.util.HashMap;
 
 import static reactor.function.TupleUtils.function;
 
@@ -74,24 +76,29 @@ public class BorrowingAgencyService {
 		return Mono.from(clusterRecordRepository.findById(bibClusterId))
 			.flatMap( clusterRecord -> Mono.from(bibRepository.findById(clusterRecord.getSelectedBib())))
 			.map(this::extractBibData)
-			.flatMap(function(hostLmsClient::createBib))
+			.flatMap(hostLmsClient::createBibFromDescription)
 			.doOnNext(patronRequest::setLocalBibId)
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual bib.")))
 			.map(localBibId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, supplierRequest, localBibId));
 	}
 
-	private Tuple2<String, String> extractBibData(BibRecord bibRecord) {
+	// private Tuple2<String, String> extractBibData(BibRecord bibRecord) {
+	private Map<String, String> extractBibData(BibRecord bibRecord) {
 		log.debug("extractBibData(bibRecord: {})", bibRecord);
-
-		String title = bibRecord.getTitle();
-		String author = bibRecord.getAuthor() != null ? bibRecord.getAuthor().getName() : null;
+		Map<String,String> result = new HashMap();
 
 		// guard clause
-		if (title == null) {
+		if (bibRecord.getTitle() == null) {
 			throw new IllegalArgumentException("Missing title information.");
 		}
 
-		return Tuples.of(author, title);
+		result.put("title", bibRecord.getTitle());
+		if ( bibRecord.getAuthor() != null )
+			result.put("author", bibRecord.getAuthor().getName());
+
+
+		// Tuples.of fails if either is null - this modelling won't work - so we use a Map instead
+		return result;
 	}
 
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, String>> createVirtualItem(

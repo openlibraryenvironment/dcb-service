@@ -395,7 +395,38 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
+	public Mono<String> createBibFromDescription(Map<String,String> bibDescription) {
+                // See https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_biblio.html for info on FixedFields
+                // bibPatch contains a map of Integer to FixedField type info. Setting fixedField 031 to n which indicates that the record should be
+                // Suppressed from discovery
+                log.debug("createBib({})", bibDescription);
+
+                String[] authors = null;
+                if ( bibDescription.get("author") != null ) { authors = new String[]{bibDescription.get("author")}; }
+
+                String[] titles = null;
+                if ( bibDescription.get("title") != null ) { titles = new String[]{bibDescription.get("title")}; }
+
+                BibPatch bibPatch = BibPatch.builder()
+                        .authors(authors)
+                        .titles(titles)
+                        .bibCode3("n")
+                        .build();
+
+                return Mono.from(client.bibs(bibPatch))
+                        .doOnSuccess(result -> log.debug("the result of createBib({})", result))
+                        .map(bibResult -> deRestify( bibResult.getLink() ))
+                        .onErrorResume(NullPointerException.class, error -> {
+                                log.debug("NullPointerException occurred when creating Bib: {}", error.getMessage());
+                                return Mono.error(new RuntimeException("Error occurred when creating Bib"));
+                        });
+        }
+
+	@Override
 	public Mono<String> createBib(String author, String title) {
+		// See https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_biblio.html for info on FixedFields
+		// bibPatch contains a map of Integer to FixedField type info. Setting fixedField 031 to n which indicates that the record should be
+		// Suppressed from discovery
 		log.debug("createBib(author: {}, title: {})", author, title);
 
 		String[] authors = null;
