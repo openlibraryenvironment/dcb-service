@@ -86,6 +86,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private static final Logger log = LoggerFactory.getLogger(SierraLmsClient.class);
 
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
+        private static final Integer FIXED_FIELD_158 = Integer.valueOf(158);
 	private final ConversionService<?> conversionService = ConversionService.SHARED;
 	private final HostLms lms;
 	private final SierraApiClient client;
@@ -734,8 +735,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
                 // If we were supplied fixed fields, and we can find an entry for fixed field 158, grab the patron agency
                 if ( ( spr.getFixedFields() != null ) &&
-                     ( spr.getFixedFields().get(Integer.valueOf(158)) != null ) ) {
-                        patronLocalAgency = spr.getFixedFields().get(new Integer(158)).getValue().toString();
+                     ( spr.getFixedFields().get(FIXED_FIELD_158) != null ) ) {
+                        patronLocalAgency = spr.getFixedFields().get(FIXED_FIELD_158).getValue().toString();
                 }
 		return HostLmsPatronDTO.builder()
 			.localId(spr.getId().toString())

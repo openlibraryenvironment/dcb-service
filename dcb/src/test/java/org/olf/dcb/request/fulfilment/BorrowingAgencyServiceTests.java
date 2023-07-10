@@ -19,12 +19,15 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.ShelvingLocation;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -65,8 +68,11 @@ class BorrowingAgencyServiceTests {
 	private ShelvingLocationRepository shelvingLocationRepository;
 	@Inject
 	private AgencyRepository agencyRepository;
+        @Inject
+        private ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
@@ -83,6 +89,7 @@ class BorrowingAgencyServiceTests {
 		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		this.referenceValueMappingFixture = new ReferenceValueMappingFixture(referenceValueMappingRepository);
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
@@ -129,6 +136,19 @@ class BorrowingAgencyServiceTests {
 			.build();
 
 		singleValueFrom(shelvingLocationRepository.save(shelvingLocation));
+
+                ReferenceValueMapping rvm = ReferenceValueMapping.builder()
+                        .id(randomUUID())
+                        .fromCategory("ShelvingLocation")
+                        .fromContext("borrowing-agency-service-tests")
+                        .fromValue("ab6")
+                        .toCategory("AGENCY")
+                        .toContext("DCB")
+                        .toValue("ab6")
+                        .build();
+
+                // Mono.from(referenceValueMappingRepository.save(rvm))
+                referenceValueMappingFixture.saveReferenceValueMapping(rvm);
 	}
 
 	@AfterAll

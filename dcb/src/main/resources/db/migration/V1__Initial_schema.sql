@@ -78,7 +78,8 @@ CREATE TABLE patron_identity (
         local_ptype varchar(200),
         last_validated timestamp,
         local_names varchar(256),
-        local_agency varchar(256)
+        local_agency varchar(256),
+        resolved_agency_id uuid
 );
 
 CREATE INDEX idx_pi_patron ON patron_identity(patron_id, host_lms_id);
@@ -123,7 +124,9 @@ CREATE TABLE supplier_request (
 	local_id varchar(200),
 	local_status varchar(32),
         virtual_identity_id uuid REFERENCES patron_identity (id),
-        local_bib_id varchar(256)
+        local_bib_id varchar(256),
+        local_agency varchar(256),
+        resolved_agency_id uuid
 );
 
 CREATE INDEX idx_lender_hold on supplier_request(host_lms_code, local_id);
