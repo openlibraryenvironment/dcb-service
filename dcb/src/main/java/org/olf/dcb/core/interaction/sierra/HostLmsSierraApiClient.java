@@ -11,6 +11,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import org.olf.dcb.core.model.HostLms;
 import org.reactivestreams.Publisher;
@@ -36,7 +37,6 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Put;
 import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.retry.annotation.Retryable;
@@ -102,8 +102,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		String createdDate, String updatedDate, Iterable<String> fields,
 		Boolean deleted, String deletedDate, Boolean suppressed, Iterable<String> locations) {
 
-		return getRequest("bibs")
-			.map(req -> req.uri(theUri -> theUri
+		return get("bibs", Argument.of(BibResultSet.class),
+			uri -> uri
 				.queryParam("limit", limit)
 				.queryParam("offset", offset)
 				.queryParam("createdDate", createdDate)
@@ -112,22 +112,19 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				.queryParam("deleted", deleted)
 				.queryParam("deletedDate", deletedDate)
 				.queryParam("suppressed", suppressed)
-				.queryParam("locations", iterableToArray(locations))))
-			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, BibResultSet.class));
+				.queryParam("locations", iterableToArray(locations)));
 	}
 
 	@SingleResult
 	@Retryable
 	public Publisher<List<PatronMetadata>> patronMetadata() {
-		return getRequest("patrons/metadata")
-			.map(req -> req.uri(theuri -> theuri
+		// A little bit of wriggle here, Sierra returns a flat list of PickupLocations in an array without a wrapper
+		// so we need to specify the inner type via Argument.listOf
+		return get("patrons/metadata", Argument.listOf(PatronMetadata.class),
+			uri -> uri
 				.queryParam("offset", 0)
 				.queryParam("limit",1000)
-				.queryParam("deleted", false)))
-			.flatMap(this::ensureToken)
-			.flatMap(req -> Mono.from(client.retrieve(req,
-				Argument.listOf(PatronMetadata.class), ERROR_TYPE)));
+				.queryParam("deleted", false));
 	}
 
 	@SingleResult
@@ -135,10 +132,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	public Publisher<List<PickupLocationInfo>> pickupLocations() {
 		// A little bit of wriggle here, Sierra returns a flat list of PickupLocations in an array without a wrapper
 		// so we need to specify the inner type via Argument.listOf
-		return getRequest("branches/pickupLocations")
-			.flatMap(this::ensureToken)
-			.flatMap(req -> Mono.from(client.retrieve(req,
-				Argument.listOf(PickupLocationInfo.class), ERROR_TYPE)));
+		return get("branches/pickupLocations",
+				Argument.listOf(PickupLocationInfo.class), uri -> {});
 	}
 
 	@SingleResult
@@ -146,13 +141,11 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	public Publisher<BranchResultSet> branches(Integer limit, Integer offset,
 		Iterable<String> fields) {
 
-		return getRequest("branches")
-			.map(req -> req.uri(theUri -> theUri
+		return get("branches", Argument.of(BranchResultSet.class),
+			uri -> uri
 				.queryParam("limit", limit)
 				.queryParam("offset", offset)
-				.queryParam("fields", toCsv(fields))))
-			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, BranchResultSet.class));
+				.queryParam("fields", toCsv(fields)));
 	}
 
 	@Override
@@ -163,9 +156,9 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		String updatedDate, String deletedDate, Boolean deleted, Iterable<String> bibIds,
 		String status, String dueDate, Boolean suppressed, Iterable<String> locations) {
 
-		// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/items/Get_a_list_of_items_get_1
-		return getRequest("items")
-			.map(req -> req.uri(theUri -> theUri
+		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/items/Get_a_list_of_items_get_1
+		return get("items", Argument.of(ResultSet.class),
+			uri -> uri
 				.queryParam("limit", limit)
 				.queryParam("offset", offset)
 				.queryParam("id", id)
@@ -179,10 +172,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				// Case for due date is deliberate to match inconsistency in Sierra API
 				.queryParam("duedate", dueDate)
 				.queryParam("suppressed", suppressed)
-				.queryParam("locations", iterableToArray(locations))))
-			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, ResultSet.class))
-			.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty());
+				.queryParam("locations", iterableToArray(locations)));
 	}
 
 	@Override
@@ -191,7 +181,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		return postRequest("items")
 			.map(request -> request.body(itemPatch))
 			.flatMap(this::ensureToken)
-			.flatMap(request -> doRetrieve(request, LinkResult.class));
+			.flatMap(request -> doRetrieve(request, Argument.of(LinkResult.class)));
 	}
 
 	@SingleResult
@@ -200,7 +190,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		return postRequest("patrons")
 			.map(req -> req.body(body))
 			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, LinkResult.class));
+			.flatMap(req -> doRetrieve(req, Argument.of(LinkResult.class)));
 	}
 
 	@SingleResult
@@ -209,32 +199,27 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		return postRequest("bibs")
 			.map(req -> req.body(body))
 			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, LinkResult.class));
+			.flatMap(req -> doRetrieve(req, Argument.of(LinkResult.class)));
 	}
 
 	@SingleResult
 	public Publisher<SierraPatronRecord> patronFind(String varFieldTag, String varFieldContent) {
-		// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Find_a_patron_by_varField_fieldTag_and_varField_content_get_6
-		return getRequest("patrons/find")
-			.map(req -> req.uri(theUri -> theUri
+		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Find_a_patron_by_varField_fieldTag_and_varField_content_get_6
+		return get("patrons/find", Argument.of(SierraPatronRecord.class),
+			uri -> uri
 				.queryParam("varFieldTag", varFieldTag)
-				.queryParam("varFieldContent", varFieldContent)))
-			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class))
-			.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty());
+				.queryParam("varFieldContent", varFieldContent));
 	}
 
 	@SingleResult
-	public Publisher<SierraPatronHoldResultSet> patronHolds(String id) {
-		log.debug("patronHolds({})", id);
+	public Publisher<SierraPatronHoldResultSet> patronHolds(String patronId) {
+		log.debug("patronHolds({})", patronId);
 
-		// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
-		return getRequest("patrons/" + id + "/holds")
-			.map(req -> req.uri(theUri -> theUri
-				.queryParam("fields", "id,placed,location,pickupLocation,status,note,recordType,notNeededAfterDate")))
-			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, SierraPatronHoldResultSet.class))
-			.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty());
+		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
+		return get("patrons/" + patronId + "/holds",
+			Argument.of(SierraPatronHoldResultSet.class),
+			uri -> uri
+				.queryParam("fields", "id,placed,location,pickupLocation,status,note,recordType,notNeededAfterDate"));
 	}
 
 	@Override
@@ -245,7 +230,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				req.basicAuth(creds.getUsername(), creds.getPassword())
 					.contentType(MediaType.MULTIPART_FORM_DATA_TYPE)
 					.body(body))
-			.flatMap(req -> doRetrieve(req, AuthToken.class, false));
+			.flatMap(req -> doRetrieve(req, Argument.of(AuthToken.class), false));
 	}
 
 	@SingleResult
@@ -261,47 +246,51 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	public Publisher<SierraPatronHoldResultSet> getAllPatronHolds(final Integer limit,
 		final Integer offset) {
 
-		log.debug("getAllPatronHolds(limit:{}, offset:{})",limit,offset);
+		log.debug("getAllPatronHolds(limit:{}, offset:{})", limit, offset);
 
-		return getRequest("patrons/holds")
-			.map(req -> req.uri(theUri -> theUri
+		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_all_patrons_holds_data_get_8
+		return get("patrons/holds", Argument.of(SierraPatronHoldResultSet.class),
+			uri -> uri
 				.queryParam("limit", limit)
-				.queryParam("offset", offset)))
-			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, SierraPatronHoldResultSet.class));
+				.queryParam("offset", offset)
+		);
 	}
 
 	@SingleResult
 	public Publisher<SierraPatronRecord> getPatron(@Nullable final Long patronId) {
-		// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
-		return getRequest("patrons/" + patronId)
-			.map(req -> req.uri(theUri -> theUri
-				.queryParam("fields", "id,updatedDate,createdDate,expirationDate,names,barcodes,patronType,patronCodes,homeLibraryCode,emails,message,uniqueIds,emails,fixedFields")))
-			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class))
-			.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty());
+		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
+		return get("patrons/" + patronId, Argument.of(SierraPatronRecord.class),
+			uri -> uri.queryParam("fields", "id,updatedDate,createdDate,expirationDate,names,barcodes,patronType,patronCodes,homeLibraryCode,emails,message,uniqueIds,emails,fixedFields"));
 	}
 
 	@SingleResult
 	@Put("/patrons/{id}")
 	public Publisher<SierraPatronRecord> updatePatron(@Nullable @PathVariable("id") final Long patronId,
 		@Body PatronPatch patronPatch) {
-		// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Update_the_Patron_record_put_19
+
+		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Update_the_Patron_record_put_19
 		return createRequest(HttpMethod.PUT, "patrons/" + patronId)
 			.map(request -> request.body(patronPatch))
 			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, SierraPatronRecord.class));
+			.flatMap(req -> doRetrieve(req, Argument.of(SierraPatronRecord.class)));
 	}
 
 	@SingleResult
 	public Publisher<SierraPatronHold> getHold(@Nullable final Long holdId) {
-		// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
-		log.debug("getHold({})",holdId);
+		log.debug("getHold({})", holdId);
 
-		return getRequest("patrons/holds/" + holdId)
+		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
+		return get("patrons/holds/" + holdId, Argument.of(SierraPatronHold.class), uriBuilder -> {});
+	}
+
+	private <T> Mono<T> get(String path, Argument<T> argumentType,
+		Consumer<UriBuilder> uriBuilderConsumer) {
+
+		return createRequest(GET, path)
+			.map(req -> req.uri(uriBuilderConsumer))
 			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, SierraPatronHold.class))
-			.transform(this::handle404AsEmpty);
+			.flatMap(req -> doRetrieve(req, argumentType))
+			.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty());
 	}
 
 	private URI resolve(URI relativeURI) {
@@ -330,64 +319,32 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		}
 	}
 
-	private <T> Mono<T> handle404AsEmpty(final Mono<T> current) {
-		return current.onErrorResume(throwable -> {
-			if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
-				HttpClientResponseException e = (HttpClientResponseException) throwable;
-				int code = e.getStatus().getCode();
-				return switch (code) {
-					case 404 -> true;
-					default -> false;
-				};
-			}
-
-			return false;
-		}, _t -> empty());
-	}
-
 	private <T> Mono<T> handleResponseErrors(final Mono<T> current) {
 		// We used to do
 		// .transform(this::handle404AsEmpty)
 		// Immediately after current, but some downstream chains rely upon the 404 so for now we use .transform directly in the caller
 		return current
-			.onErrorMap(throwable -> {
-				// On a 401 we should clear the token before propagating the error.
-				if (HttpClientResponseException.class.isAssignableFrom(throwable.getClass())) {
-					HttpClientResponseException e = (HttpClientResponseException) throwable;
-					int code = e.getStatus().getCode();
-
-					switch (code) {
-						case 401:
-							log.debug("Clearing token to trigger reauthentication");
-							this.currentToken = null;
-							break;
-						default:
-							log.warn("response error {}", e.getStatus().toString());
-							break;
-					}
-				}
-				return throwable;
-			});
+			.doOnError(sierraResponseErrorMatcher::isUnauthorised, _t -> clearToken());
 	}
 
-	private <T> Mono<MutableHttpRequest<T>> getRequest(String uri) {
-		return createRequest(GET, uri);
+	private void clearToken() {
+		log.debug("Clearing token to trigger re-authentication");
+		this.currentToken = null;
 	}
 
-	private <T> Mono<MutableHttpRequest<T>> postRequest(String uri) {
-		return createRequest(POST, uri);
+	private <T> Mono<MutableHttpRequest<T>> postRequest(String path) {
+		return createRequest(POST, path);
 	}
 
-	private <T> Mono<MutableHttpRequest<T>> createRequest(HttpMethod method, String uri) {
-		return Mono.just(UriBuilder.of(uri).build()).map(this::resolve)
-			.map(resolvedUri -> {
-				MutableHttpRequest<T> req = HttpRequest.create(method, resolvedUri.toString());
-				return req.accept(APPLICATION_JSON);
-			});
+	private <T> Mono<MutableHttpRequest<T>> createRequest(HttpMethod method, String path) {
+		return Mono.just(UriBuilder.of(path).build())
+			.map(this::resolve)
+			.map(resolvedUri -> HttpRequest.<T>create(method, resolvedUri.toString())
+				.accept(APPLICATION_JSON));
 	}
 
-	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Class<T> type) {
-		return doRetrieve(request, type, true);
+	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
+		return doRetrieve(request, argumentType, true);
 	}
 
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Class<T> type) {
@@ -395,8 +352,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.transform(this::handleResponseErrors);
 	}
 
-	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Class<T> type, boolean mapErrors) {
-		var response = Mono.from(client.retrieve(request, Argument.of(type), ERROR_TYPE));
+	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType, boolean mapErrors) {
+		var response = Mono.from(client.retrieve(request, argumentType, ERROR_TYPE));
 
 		return mapErrors ? response.transform(this::handleResponseErrors) : response;
 	}
