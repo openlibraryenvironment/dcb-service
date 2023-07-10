@@ -43,13 +43,11 @@ public class PatronRequestController {
 
 	private final PatronRequestService patronRequestService;
 	private final PatronRequestRepository patronRequestRepository;
-	private final PatronService patronService;
 
 	public PatronRequestController(PatronRequestService patronRequestService,
-		PatronRequestRepository patronRequestRepository, PatronService patronService) {
+		PatronRequestRepository patronRequestRepository) {
 		this.patronRequestService = patronRequestService;
 		this.patronRequestRepository = patronRequestRepository;
-		this.patronService = patronService;
 	}
 
 	/**
