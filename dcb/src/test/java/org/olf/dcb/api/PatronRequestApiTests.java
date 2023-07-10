@@ -176,8 +176,9 @@ class PatronRequestApiTests {
                         .toValue("ab6")
                         .build();
 
-                Mono.from(referenceValueMappingRepository.save(rvm))
-                        .block();
+                referenceValueMappingFixture.saveReferenceValueMapping(rvm);
+                // Mono.from(referenceValueMappingRepository.save(rvm))
+                //         .block();
                         
 	}
 

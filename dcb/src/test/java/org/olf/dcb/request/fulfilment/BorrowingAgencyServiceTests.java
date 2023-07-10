@@ -19,6 +19,7 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
@@ -71,6 +72,7 @@ class BorrowingAgencyServiceTests {
         private ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
@@ -87,6 +89,7 @@ class BorrowingAgencyServiceTests {
 		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		this.referenceValueMappingFixture = new ReferenceValueMappingFixture(referenceValueMappingRepository);
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
@@ -144,8 +147,8 @@ class BorrowingAgencyServiceTests {
                         .toValue("ab6")
                         .build();
 
-                Mono.from(referenceValueMappingRepository.save(rvm))
-                        .block();
+                // Mono.from(referenceValueMappingRepository.save(rvm))
+                referenceValueMappingFixture.saveReferenceValueMapping(rvm);
 	}
 
 	@AfterAll
