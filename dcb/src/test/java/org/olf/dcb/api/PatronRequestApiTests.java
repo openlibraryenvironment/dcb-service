@@ -16,8 +16,10 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.ShelvingLocation;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.test.*;
 
 import reactor.core.publisher.Mono;
@@ -74,6 +76,8 @@ class PatronRequestApiTests {
 	private AdminApiClient adminApiClient;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
+        @Inject
+        private ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	@Inject
@@ -161,6 +165,20 @@ class PatronRequestApiTests {
 
 		Mono.from(shelvingLocationRepository.save(shelvingLocation))
 			.block();
+
+                ReferenceValueMapping rvm = ReferenceValueMapping.builder()
+                        .id(randomUUID())
+                        .fromCategory("ShelvingLocation")
+                        .fromContext("patron-request-api-tests")
+                        .fromValue("ab6")
+                        .toCategory("AGENCY")
+                        .toContext("DCB")
+                        .toValue("ab6")
+                        .build();
+
+                Mono.from(referenceValueMappingRepository.save(rvm))
+                        .block();
+                        
 	}
 
 	@AfterAll

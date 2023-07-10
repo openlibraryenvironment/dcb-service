@@ -9,11 +9,13 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.ClusterRecordRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
@@ -39,6 +41,7 @@ public class BorrowingAgencyService {
 	private final ClusterRecordRepository clusterRecordRepository;
 	private final ShelvingLocationRepository shelvingLocationRepository;
 	private final PatronRequestTransitionErrorService errorService;
+        private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	public BorrowingAgencyService(HostLmsService hostLmsService,
 		PatronIdentityRepository patronIdentityRepository,
@@ -46,7 +49,9 @@ public class BorrowingAgencyService {
 		BibRepository bibRepository,
 		ClusterRecordRepository clusterRecordRepository,
 		ShelvingLocationRepository shelvingLocationRepository,
-		PatronRequestTransitionErrorService errorService) {
+		PatronRequestTransitionErrorService errorService,
+		ReferenceValueMappingRepository referenceValueMappingRepository
+                ) {
 
 		this.hostLmsService = hostLmsService;
 		this.patronIdentityRepository = patronIdentityRepository;
@@ -55,6 +60,7 @@ public class BorrowingAgencyService {
 		this.clusterRecordRepository = clusterRecordRepository;
 		this.shelvingLocationRepository = shelvingLocationRepository;
 		this.errorService = errorService;
+		this.referenceValueMappingRepository = referenceValueMappingRepository;
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(PatronRequest patronRequest) {
@@ -105,12 +111,23 @@ public class BorrowingAgencyService {
 		PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 		SupplierRequest supplierRequest, String localBibId) {
 
-		log.debug("createVirtualItem for localBibId {}", localBibId);
+		log.debug("createVirtualItem for localBibId {}/{}", localBibId,supplierRequest.getLocalItemLocationCode());
 
-		return Mono.from(shelvingLocationRepository.findOneByCode(supplierRequest.getLocalItemLocationCode()))
-			.doOnSuccess(shelvingLocation -> log.debug("Result from getting shelving location: {}", shelvingLocation))
-			.flatMap(shelvingLocation -> {
-				String agencyCode = shelvingLocation.getAgency() != null ? shelvingLocation.getAgency().getCode() : null;
+                // referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+                // "ShelvingLocation",hostLmsClient.getHostLms().getCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB");
+                // sourceCategory, sourceContext, sourceValue, targetCategory, targetContext);
+                // referenceValueMappingRepository.getMapping("ShelvingLocation",
+                //     hostLmsClient.getHostLms().getCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB")
+
+		// return Mono.from(shelvingLocationRepository.findOneByCode(supplierRequest.getLocalItemLocationCode()))
+
+                log.debug("slToAgency:{} {} {} {} {}","ShelvingLocation",hostLmsClient.getHostLms().getCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB");
+
+		return Mono.from(referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+                                "ShelvingLocation",hostLmsClient.getHostLms().getCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB"))
+			.doOnSuccess(mapping -> log.debug("Result from getting agency for shelving location: {}", mapping))
+			.flatMap(mapping -> {
+				String agencyCode = mapping.getToValue();
 				return hostLmsClient.createItem(localBibId, agencyCode, supplierRequest.getLocalItemBarcode());
 			})
 			.map(HostLmsItem::getLocalId)
