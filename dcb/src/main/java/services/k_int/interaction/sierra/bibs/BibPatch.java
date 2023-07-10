@@ -3,6 +3,7 @@ package services.k_int.interaction.sierra.bibs;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
+import java.util.Map;
 
 import java.time.LocalDate;
 
@@ -39,5 +40,5 @@ public class BibPatch {
 	String bibCode3;
 	String country;
 	String marcType;
-	// Map<Integer,FixedField> fixedFields;
+	Map<Integer,FixedField> fixedFields;
 }
