@@ -730,11 +730,19 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	private HostLmsPatronDTO sierraPatronToHostLmsPatron(SierraPatronRecord spr) {
 		log.debug("sierraPatronToHostLmsPatron({})",spr);
+                String patronLocalAgency = null;
+
+                // If we were supplied fixed fields, and we can find an entry for fixed field 158, grab the patron agency
+                if ( ( spr.getFixedFields() != null ) &&
+                     ( spr.getFixedFields().get(Integer.valueOf(158)) != null ) ) {
+                        patronLocalAgency = spr.getFixedFields().get(new Integer(158)).getValue().toString();
+                }
 		return HostLmsPatronDTO.builder()
 			.localId(spr.getId().toString())
 			.localPatronType(spr.getPatronType().toString())
 			.localBarcodes(toCsv(Arrays.asList(spr.getBarcodes() != null ? spr.getBarcodes() : new String[0] )))
 			.localNames(toCsv(Arrays.asList(spr.getNames() != null ? spr.getNames() : new String[0] )))
+                        .localPatronAgency(patronLocalAgency)
 			.build();
 	}
 

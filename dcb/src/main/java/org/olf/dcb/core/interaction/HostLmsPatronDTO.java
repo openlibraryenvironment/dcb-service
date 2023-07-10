@@ -24,4 +24,5 @@ public class HostLmsPatronDTO {
 	private String localNames;
 	private String localBarcodes;
 	private String localPatronType;
+	private String localPatronAgency;
 }
