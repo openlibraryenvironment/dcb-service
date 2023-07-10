@@ -1,4 +1,4 @@
-package org.olf.dcb.request.fulfilment;
+package org.olf.dcb.request.workflow;
 
 import org.olf.dcb.core.model.PatronRequest;
 

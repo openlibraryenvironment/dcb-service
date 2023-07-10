@@ -6,8 +6,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
+import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.RESOLVED;
+import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -15,9 +15,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.request.fulfilment.PatronRequestResolutionStateTransition;
-import org.olf.dcb.request.fulfilment.PatronRequestWorkflow;
-import org.olf.dcb.request.fulfilment.PlacePatronRequestAtSupplyingAgencyStateTransition;
+import org.olf.dcb.request.fulfilment.PatronRequestWorkflowService;
+import org.olf.dcb.request.workflow.PatronRequestResolutionStateTransition;
+import org.olf.dcb.request.workflow.PlacePatronRequestAtSupplyingAgencyStateTransition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +56,7 @@ class PatronRequestWorkflowTests {
 
 		// Create a PatronRequestWorkflow instance
 		final var l = Arrays.asList(resolutionTransition, placeTransition);
-		PatronRequestWorkflow workflow = new PatronRequestWorkflow(l, Duration.ofSeconds(1));
+		PatronRequestWorkflowService workflow = new PatronRequestWorkflowService(l, Duration.ofSeconds(1));
 
 		// Call initiate method
 		workflow.initiate(patronRequestSubmitted);
@@ -92,7 +92,7 @@ class PatronRequestWorkflowTests {
 		final var stateTransitionDelay = Duration.ofSeconds(1);
 
 		final var l = Arrays.asList(resolutionTransition, placeTransition);
-		final var requestWorkflow = new PatronRequestWorkflow(l, stateTransitionDelay);
+		final var requestWorkflow = new PatronRequestWorkflowService(l, stateTransitionDelay);
 
 		requestWorkflow.initiate(patronRequest);
 
@@ -118,7 +118,7 @@ class PatronRequestWorkflowTests {
 		final var stateTransitionDelay = Duration.ofSeconds(0);
 
 		final var l = Arrays.asList(resolutionTransition,placeTransition);
-		final var requestWorkflow = new PatronRequestWorkflow(l, stateTransitionDelay);
+		final var requestWorkflow = new PatronRequestWorkflowService(l, stateTransitionDelay);
 
 		requestWorkflow.initiate(patronRequest);
 

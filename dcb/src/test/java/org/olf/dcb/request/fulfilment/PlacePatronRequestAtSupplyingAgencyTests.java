@@ -12,7 +12,7 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.request.fulfilment.PlacePatronRequestAtSupplyingAgencyStateTransition;
+import org.olf.dcb.request.workflow.PlacePatronRequestAtSupplyingAgencyStateTransition;
 import org.olf.dcb.test.*;
 
 import services.k_int.interaction.sierra.SierraTestUtils;
@@ -24,8 +24,8 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

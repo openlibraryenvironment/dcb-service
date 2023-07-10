@@ -1,8 +1,8 @@
-package org.olf.dcb.request.fulfilment;
+package org.olf.dcb.request.workflow;
 
 import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.PATRON_VERIFIED;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
+import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.PATRON_VERIFIED;
+import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 import java.time.Instant;
 
@@ -61,14 +61,6 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 			});
 	}
 
-	private PatronRequest setRequestingPatronIdentity(PatronRequest patronRequest,
-		PatronIdentity pi) {
-
-		patronRequest.setRequestingIdentity(pi);
-
-		return patronRequest;
-	}
-
 	/**
 	 * Attempts to transition the patron request to the next state, which is placing the request at the supplying agency.
 	 *
@@ -85,8 +77,8 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		// patronRequest.patron
 		return Mono.from(patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), TRUE))
 			.flatMap(this::validatePatronIdentity)
-			.map(pi -> this.setRequestingPatronIdentity(patronRequest, pi))
-			.then(updatePatronRequest(patronRequest))
+			.map(patronRequest::setRequestingIdentity)
+			.flatMap(this::updatePatronRequest)
 			.onErrorResume(error -> errorService.moveRequestToErrorStatus(error, patronRequest));
 	}
 

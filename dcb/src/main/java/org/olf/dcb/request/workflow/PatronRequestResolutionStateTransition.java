@@ -1,4 +1,4 @@
-package org.olf.dcb.request.fulfilment;
+package org.olf.dcb.request.workflow;
 
 import io.micronaut.context.annotation.Prototype;
 
@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.PATRON_VERIFIED;
+import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.PATRON_VERIFIED;
 
 import java.util.Optional;
 

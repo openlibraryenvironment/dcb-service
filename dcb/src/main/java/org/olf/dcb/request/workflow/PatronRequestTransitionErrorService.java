@@ -1,8 +1,8 @@
-package org.olf.dcb.request.fulfilment;
+package org.olf.dcb.request.workflow;
 
 import io.micronaut.context.annotation.Prototype;
 
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.ERROR;
+import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.ERROR;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.storage.PatronRequestRepository;

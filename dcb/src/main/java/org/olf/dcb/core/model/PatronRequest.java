@@ -16,7 +16,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.*;
+import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.*;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -28,13 +28,13 @@ import java.util.UUID;
 @Serdeable
 @MappedEntity
 @ExcludeFromGeneratedCoverageReport
-@Accessors(chain=true)
+@Accessors(chain = true)
 public class PatronRequest {
 
 	@NotNull
 	@NonNull
 	@Id
-	@TypeDef( type = DataType.UUID)
+	@TypeDef(type = DataType.UUID)
 	private UUID id;
 
 	@Nullable
@@ -45,9 +45,9 @@ public class PatronRequest {
 	@DateUpdated
 	private Instant dateUpdated;
 
-        @Nullable
-        @Size(max=200)
-        private String patronHostlmsCode;
+	@Nullable
+	@Size(max = 200)
+	private String patronHostlmsCode;
 
 	@Nullable
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
@@ -58,34 +58,36 @@ public class PatronRequest {
 	private PatronIdentity requestingIdentity;
 
 	@Nullable
-	@TypeDef( type = DataType.UUID)
+	@TypeDef(type = DataType.UUID)
 	private UUID bibClusterId;
 
 	@Nullable
 	@Size(max = 200)
 	private String pickupLocationCode;
 
-        // We may need to create a virtual patron at the pickup library as the item passes through. Record that here.
+	// We may need to create a virtual patron at the pickup library as the item
+	// passes through. Record that here.
 	@Nullable
 	@Size(max = 200)
 	private String pickupPatronId;
 
-        // We may need to create a item patron at the pickup library. Record that here.
+	// We may need to create a item patron at the pickup library. Record that here.
 	@Nullable
 	@Size(max = 200)
 	private String pickupItemId;
 
-        // track the status of an item created for the pickup hold
+	// track the status of an item created for the pickup hold
 	@Nullable
 	@Size(max = 200)
 	private String pickupItemStatus;
 
-        // In order to hand the temporary item over the the patron at the pickup library, place a hold at the pickup lib and record it here
+	// In order to hand the temporary item over the the patron at the pickup
+	// library, place a hold at the pickup lib and record it here
 	@Nullable
 	@Size(max = 200)
 	private String pickupRequestId;
 
-        // Track the state of the pickup hold here
+	// Track the state of the pickup hold here
 	@Nullable
 	@Size(max = 200)
 	private String pickupRequestStatus;
@@ -94,7 +96,8 @@ public class PatronRequest {
 	@Size(max = 200)
 	private String statusCode;
 
-	// Once we create a hold in the patrons home system, track it's ID here (Only unique in the context of the agencies host lms)
+	// Once we create a hold in the patrons home system, track it's ID here (Only
+	// unique in the context of the agencies host lms)
 	@Nullable
 	private String localRequestId;
 
@@ -112,7 +115,6 @@ public class PatronRequest {
 
 	@Nullable
 	private String errorMessage;
-
 
 	public PatronRequest resolve() {
 		statusCode = RESOLVED;
@@ -140,6 +142,3 @@ public class PatronRequest {
 		return this;
 	}
 }
-
-
-

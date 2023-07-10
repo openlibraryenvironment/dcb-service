@@ -1,12 +1,13 @@
 package org.olf.dcb.request.fulfilment;
 
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
+import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
+import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,12 +20,12 @@ public class PatronRequestService {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestService.class);
 
 	private final PatronRequestRepository patronRequestRepository;
-	private final PatronRequestWorkflow requestWorkflow;
+	private final PatronRequestWorkflowService requestWorkflow;
 	private final PatronService patronService;
 	private final FindOrCreatePatronService findOrCreatePatronService;
 
 	public PatronRequestService(PatronRequestRepository patronRequestRepository,
-		PatronRequestWorkflow requestWorkflow, PatronService patronService,
+		PatronRequestWorkflowService requestWorkflow, PatronService patronService,
 		FindOrCreatePatronService findOrCreatePatronService) {
 		
 		this.patronRequestRepository = patronRequestRepository;

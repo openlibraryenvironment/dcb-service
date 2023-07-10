@@ -1,10 +1,11 @@
-package org.olf.dcb.request.fulfilment;
+package org.olf.dcb.request.workflow;
 
 import io.micronaut.context.annotation.Prototype;
 
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,13 +40,13 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
 		log.debug("makeTransition({})", patronRequest);
 		return borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest)
+			.flatMap(this::updatePatronRequest)
 			.doOnSuccess(
 				pr -> log.debug("Placed patron request to borrowing agency: {}", pr))
 			.doOnError(
 				error -> log.error(
 					"Error occurred during placing a patron request to borrowing agency: {}",
-					error.getMessage()))
-			.flatMap(this::updatePatronRequest);
+					error.getMessage()));
 
 	}
 

@@ -11,9 +11,9 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.request.fulfilment.PatronRequestResolutionStateTransition;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.UnableToResolvePatronRequest;
+import org.olf.dcb.request.workflow.PatronRequestResolutionStateTransition;
 import org.olf.dcb.test.*;
 
 import services.k_int.interaction.sierra.SierraTestUtils;
@@ -24,7 +24,7 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.*;
+import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.*;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 @MockServerMicronautTest

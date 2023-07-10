@@ -1,4 +1,4 @@
-package org.olf.dcb.request.fulfilment;
+package org.olf.dcb.request.workflow;
 
 public interface PatronRequestStatusConstants {
 	String SUBMITTED_TO_DCB = "SUBMITTED_TO_DCB";

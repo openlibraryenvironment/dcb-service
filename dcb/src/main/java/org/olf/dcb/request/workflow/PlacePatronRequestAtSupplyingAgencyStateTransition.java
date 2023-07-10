@@ -1,8 +1,9 @@
-package org.olf.dcb.request.fulfilment;
+package org.olf.dcb.request.workflow;
 
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.RESOLVED;
+import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.RESOLVED;
 
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -5,7 +5,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.UUID;

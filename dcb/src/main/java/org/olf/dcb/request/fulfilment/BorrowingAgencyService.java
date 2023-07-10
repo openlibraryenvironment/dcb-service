@@ -10,6 +10,7 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.resolution.SupplierRequestService;
+import org.olf.dcb.request.workflow.PatronRequestTransitionErrorService;
 import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.ClusterRecordRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
