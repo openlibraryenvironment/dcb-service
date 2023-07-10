@@ -86,6 +86,13 @@ public class SupplierRequest {
 	@Size(max = 32)
 	private String localStatus;
 
+	@Nullable
+        private String localAgency;
+
+        @Nullable
+        @Relation(value = Relation.Kind.MANY_TO_ONE)
+        private DataAgency resolvedAgency;
+
 	public SupplierRequest placed(String localId, String localStatus) {
 		setLocalId(localId);
 		setLocalStatus(localStatus);
