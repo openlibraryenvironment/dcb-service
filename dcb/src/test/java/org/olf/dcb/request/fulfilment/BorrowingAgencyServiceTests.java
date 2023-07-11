@@ -97,7 +97,7 @@ class BorrowingAgencyServiceTests {
 		final var bibPatch = BibPatch.builder()
 			.authors(new String[]{"Stafford Beer"})
 			.titles(new String[]{"Brain of the Firm"})
-			.bibCode3("n")
+			// .bibCode3("n")
 			.build();
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
