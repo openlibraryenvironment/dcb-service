@@ -415,7 +415,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                 BibPatch bibPatch = BibPatch.builder()
                         .authors(authors)
                         .titles(titles)
-                        .bibCode3("n")
+                        // .bibCode3("n")
                         // .fixedFields(fixedFields)
                         .build();
 
