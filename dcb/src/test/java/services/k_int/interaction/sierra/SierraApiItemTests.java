@@ -1,6 +1,6 @@
 package services.k_int.interaction.sierra;
 
-import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -102,7 +102,7 @@ class SierraApiItemTests {
 		final var response = exception.getResponse();
 
 		assertThat("Should return a bad request status",
-			response.getStatus(), is(INTERNAL_SERVER_ERROR));
+			response.getStatus(), is(BAD_REQUEST));
 
 		final var optionalBody = response.getBody(SierraError.class);
 
