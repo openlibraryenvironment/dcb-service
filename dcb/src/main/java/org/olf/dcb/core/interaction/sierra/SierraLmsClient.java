@@ -62,6 +62,7 @@ import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibPatch;
+import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchInfo;
@@ -402,6 +403,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                 // Suppressed from discovery
                 log.debug("createBib({})", bibDescription);
 
+                Map<Integer, FixedField> fixedFields = new HashMap();
+                fixedFields.put(Integer.valueOf(31), FixedField.builder().value("n").build());
+
                 String[] authors = null;
                 if ( bibDescription.get("author") != null ) { authors = new String[]{bibDescription.get("author")}; }
 
@@ -412,6 +416,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                         .authors(authors)
                         .titles(titles)
                         .bibCode3("n")
+                        // .fixedFields(fixedFields)
                         .build();
 
                 return Mono.from(client.bibs(bibPatch))

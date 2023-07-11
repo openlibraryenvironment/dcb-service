@@ -112,15 +112,6 @@ public class BorrowingAgencyService {
 		SupplierRequest supplierRequest, String localBibId) {
 
 		log.debug("createVirtualItem for localBibId {}/{}", localBibId,supplierRequest.getLocalItemLocationCode());
-
-                // referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-                // "ShelvingLocation",hostLmsClient.getHostLms().getCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB");
-                // sourceCategory, sourceContext, sourceValue, targetCategory, targetContext);
-                // referenceValueMappingRepository.getMapping("ShelvingLocation",
-                //     hostLmsClient.getHostLms().getCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB")
-
-		// return Mono.from(shelvingLocationRepository.findOneByCode(supplierRequest.getLocalItemLocationCode()))
-
                 log.debug("slToAgency:{} {} {} {} {}","ShelvingLocation",hostLmsClient.getHostLms().getCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB");
 
 		return Mono.from(referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
