@@ -83,7 +83,7 @@ public interface CoreBibliographicMetadata {
 	}
 	
 	public default CoreBibliographicMetadata setRecordStatus(String recordStatus) {
-		return setMetadataValue(MD_DERIVED_TYPE, recordStatus);
+		return setMetadataValue(MD_RECORD_STATUS, recordStatus);
 	}	
 	
 	public default CoreBibliographicMetadata setTitle(String title) {
