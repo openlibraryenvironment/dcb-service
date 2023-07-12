@@ -1,73 +1,118 @@
 package org.olf.dcb.request.workflow;
 
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.context.annotation.Value;
-
-import org.olf.dcb.core.model.PatronRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
-
-import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.RESOLVED;
-import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
-
 import java.time.Duration;
 import java.util.List;
-import java.util.Iterator;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.storage.PatronRequestRepository;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.context.annotation.Value;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Prototype
+@ExecuteOn(value = TaskExecutors.IO)
 public class PatronRequestWorkflowService {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestWorkflowService.class);
+	
+	/**
+	 * Duration of delay before task is started Uses ISO-8601 format, as described
+	 * <a href="https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html#parse-java.lang.CharSequence-">here</a>
+	 */
+	@Value("${dcb.request-workflow.state-transition-delay:PT0.0S}")
+	private Duration stateTransitionDelay;
 
-	private final Duration stateTransitionDelay;
+	private final PatronRequestRepository patronRequestRepository;
+	
 
 	private final List<PatronRequestStateTransition> allTransitions;
 
-	/**
-	 * @param stateTransitionDelay Duration of delay before task is started Uses
-	 *                             ISO-8601 format, as described <a href=
-	 *                             "https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html#parse-java.lang.CharSequence-">here</a>
-	 */
-	public PatronRequestWorkflowService(List<PatronRequestStateTransition> allTransitions,
-			@Value("${dcb.request-workflow.state-transition-delay:PT0.0S}") Duration stateTransitionDelay) {
-
-		this.stateTransitionDelay = stateTransitionDelay;
+	public PatronRequestWorkflowService(
+			List<PatronRequestStateTransition> allTransitions,
+			PatronRequestRepository patronRequestRepository) {
 
 		// By loading the list of all transitions, we can declare new transitions
 		// without having to modify the
 		// workflow engine constructor every time.
 		this.allTransitions = allTransitions;
+		
+		this.patronRequestRepository = patronRequestRepository;
 
 		log.debug("Initialising workflow engine with available transitions");
 		for (PatronRequestStateTransition t : allTransitions) {
-			log.debug("{} attempt when {}", t.getClass().getName(), t.getGuardCondition());
+			log.debug(t.getClass().getName()); //);
 		}
 	}
 
-	public boolean initiate(PatronRequest patronRequest) {
+	public void initiate(PatronRequest patronRequest) {
 		log.debug("initiate({})", patronRequest);
-		String status = patronRequest.getStatusCode();
-		String guardCondition = "state==" + status;
-		log.debug("Searching for action when {}", guardCondition);
-		PatronRequestStateTransition action = getTransitionFor(guardCondition);
-		return progress(patronRequest, action);
+//		Status status = patronRequest.getStatusCode();
+//		String guardCondition = "state==" + status;
+//		log.debug("Searching for action when {}", guardCondition);		
+		
+		progressAll(patronRequest).subscribe();
+	}
+	
+	public Flux<PatronRequest> progressAll(PatronRequest patronRequest) {
+		log.debug("progressAll({})", patronRequest);
+//		Status status = patronRequest.getStatusCode();
+//		String guardCondition = "state==" + status;
+//		log.debug("Searching for action when {}", guardCondition);		
+		
+		return progressUsing(patronRequest, getApplicableTransitionFor(patronRequest));
 	}
 
-	public boolean progress(PatronRequest patronRequest, PatronRequestStateTransition action) {
+	public Flux<PatronRequest> progressUsing(PatronRequest patronRequest, Optional<PatronRequestStateTransition> action) {
 
-		boolean complete = false;
-		if (action != null) {
-			log.debug("found action {} applying transition", action.getClass().getName());
-			applyTransition(action, patronRequest);
-			log.debug("action applied, there may be subsequent transitions possible");
-		} else {
-			// There ar eno more actions that we can take for this patron request
-			complete = true;
-			log.debug("Unable to progress {} any further - no transformations available from state {}", patronRequest.getId(),
-					patronRequest.getStatusCode());
+		if (action.isEmpty()) {
+			log.debug("Unable to progress {} - no transformations available from state {}", patronRequest.getId(),
+					patronRequest.getStatus());
 		}
-		return complete;
+		
+		return Mono.justOrEmpty(action)
+			.flatMapMany(transition -> {
+				log.debug("found action {} applying transition", action.getClass().getName());
+				Flux<PatronRequest> pr = applyTransition(transition, patronRequest);
+				log.debug("start applying actions, there may be subsequent transitions possible");
+				
+				// Resolve as incomplete.
+				return pr;
+			})
+			.onErrorResume( throwable -> {
+				
+				final UUID prId = patronRequest.getId();
+				if (prId == null) return Mono.error(throwable);
+				
+				// When we encounter an error we should set the status in the DB only to avoid,
+				// partial state saves.
+				
+				return Mono.from(patronRequestRepository.updateStatus(null, null))
+					.onErrorResume(saveError -> {
+						log.error("Could not update PatronRequest with error state", saveError);
+						return Mono.empty();
+					})
+					.then(Mono.error(throwable));
+			});
+		
+//		boolean complete = false;
+//		if (action != null) {
+//			
+//		} else {
+//			// There ar eno more actions that we can take for this patron request
+//			complete = true;
+//			log.debug("Unable to progress {} any further - no transformations available from state {}", patronRequest.getId(),
+//					patronRequest.getStatusCode());
+//		}
+//		return complete;
 	}
 
 	/**
@@ -75,32 +120,53 @@ public class PatronRequestWorkflowService {
 	 * Eventually we wil likely use JXEL, janino or some other expresion language
 	 * here, but for now simple string comparisons are more than sufficient.
 	 */
-	private PatronRequestStateTransition getTransitionFor(String guardCondition) {
+	private Optional<PatronRequestStateTransition> getApplicableTransitionFor(PatronRequest patronRequest) {
 
-		log.debug("getTransitionFor({})", guardCondition);
+		log.debug("getApplicableTransitionFor({})", patronRequest);
+		
+		return allTransitions.stream()
+			.filter(transition -> transition.isApplicableFor(patronRequest))
+			.findFirst();
+		
 
-		PatronRequestStateTransition result = null;
-		Iterator<PatronRequestStateTransition> i = allTransitions.iterator();
-		while ((result == null) && (i.hasNext())) {
-			PatronRequestStateTransition candidate = i.next();
-			// log.debug("testing({},{})",candidate.getGuardCondition(),guardCondition);
-			if (candidate.getGuardCondition().equals(guardCondition))
-				result = candidate;
-		}
-		return result;
+//		PatronRequestStateTransition result = null;
+//		Iterator<PatronRequestStateTransition> i = allTransitions.iterator();
+//		while ((result == null) && (i.hasNext())) {
+//			PatronRequestStateTransition candidate = i.next();
+//			// log.debug("testing({},{})",candidate.getGuardCondition(),guardCondition);
+//			if (candidate.getGuardCondition().equals(guardCondition))
+//				result = candidate;
+//		}
+//		return result;
 	}
 
-	private void applyTransition(PatronRequestStateTransition action, PatronRequest patronRequest) {
+	private Flux<PatronRequest> applyTransition(PatronRequestStateTransition action, PatronRequest patronRequest) {
 		log.debug("applyTransition({},{})", action.getClass().getName(), patronRequest);
-		action.attempt(patronRequest)
+		
+		return action.attempt(patronRequest)
+			.flux()
+			.flatMap(patronRequestRepository::save)
+			.concatMap( request -> {
+				
+				// Recall if there are more...
+				return Mono.justOrEmpty(getApplicableTransitionFor( request ))
+					.delayElement(stateTransitionDelay)
+					.flatMapMany( transition -> applyTransition(transition, request));
+				
+//				PatronRequestStateTransition next_action = getApplicableTransitionFor(request);
+//				if (next_action != null)
+//					progress(request, next_action);
+			});
+		
+			
+		
 				// If the transition was successful, see if there is a next step we can try to
 				// take, and if so, try to progress it, otherwise exit
-				.doOnSuccess(result -> {
-					PatronRequestStateTransition next_action = getTransitionFor("state==" + result.getStatusCode());
-					if (next_action != null)
-						progress(result, next_action);
-				}).flatMap(result -> Mono.delay(stateTransitionDelay, Schedulers.boundedElastic()).thenReturn(result))
-				.subscribeOn(Schedulers.boundedElastic()).subscribe();
+//				.doOnSuccess(result -> {
+//					PatronRequestStateTransition next_action = getTransitionFor("state==" + result.getStatusCode());
+//					if (next_action != null)
+//						progress(result, next_action);
+//				}).flatMap(result -> Mono.delay(stateTransitionDelay, Schedulers.boundedElastic()).thenReturn(result))
+//				.subscribeOn(Schedulers.boundedElastic()).subscribe();
 	}
-
 }

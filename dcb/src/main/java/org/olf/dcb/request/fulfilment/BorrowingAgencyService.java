@@ -86,7 +86,7 @@ public class BorrowingAgencyService {
 	// private Tuple2<String, String> extractBibData(BibRecord bibRecord) {
 	private Map<String, String> extractBibData(BibRecord bibRecord) {
 		log.debug("extractBibData(bibRecord: {})", bibRecord);
-		Map<String,String> result = new HashMap();
+		Map<String,String> result = new HashMap<>();
 
 		// guard clause
 		if (bibRecord.getTitle() == null) {

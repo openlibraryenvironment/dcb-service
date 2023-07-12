@@ -1,8 +1,9 @@
 package org.olf.dcb.request.workflow;
 
-import io.micronaut.context.annotation.Prototype;
+import java.util.Optional;
 
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
@@ -10,11 +11,9 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
-
-import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.PATRON_VERIFIED;
-
-import java.util.Optional;
 
 @Prototype
 public class PatronRequestResolutionStateTransition implements PatronRequestStateTransition {
@@ -36,10 +35,6 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.errorService = errorService;
-	}
-
-	public String getGuardCondition() {
-		return "state=="+PATRON_VERIFIED;
 	}
 
 	@Override
@@ -84,5 +79,11 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		log.debug("saveSupplierRequest({})", supplierRequest);
 
 		return Mono.from(supplierRequestRepository.save(supplierRequest));
+	}
+
+	@Override
+	public boolean isApplicableFor(PatronRequest pr) {
+
+		return pr.getStatus() == Status.PATRON_VERIFIED;
 	}
 }

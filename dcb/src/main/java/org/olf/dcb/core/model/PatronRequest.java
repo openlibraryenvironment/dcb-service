@@ -16,8 +16,6 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
-import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.*;
-
 import java.time.Instant;
 import java.util.UUID;
 
@@ -30,6 +28,17 @@ import java.util.UUID;
 @ExcludeFromGeneratedCoverageReport
 @Accessors(chain = true)
 public class PatronRequest {
+	
+	@Serdeable
+	public static enum Status {
+		SUBMITTED_TO_DCB,
+		PATRON_VERIFIED,
+		RESOLVED,
+		NO_ITEMS_AVAILABLE_AT_ANY_AGENCY,
+		REQUEST_PLACED_AT_SUPPLYING_AGENCY,
+		REQUEST_PLACED_AT_BORROWING_AGENCY,
+		ERROR
+	}
 
 	@NotNull
 	@NonNull
@@ -93,8 +102,7 @@ public class PatronRequest {
 	private String pickupRequestStatus;
 
 	@Nullable
-	@Size(max = 200)
-	private String statusCode;
+	private Status status;
 
 	// Once we create a hold in the patrons home system, track it's ID here (Only
 	// unique in the context of the agencies host lms)
@@ -117,28 +125,20 @@ public class PatronRequest {
 	private String errorMessage;
 
 	public PatronRequest resolve() {
-		statusCode = RESOLVED;
-
-		return this;
+		return setStatus(Status.RESOLVED);
 	}
 
 	public PatronRequest resolveToNoItemsAvailable() {
-		statusCode = NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
-
-		return this;
+		return setStatus(Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
 	}
 
 	public PatronRequest placedAtBorrowingAgency(String localId, String localStatus) {
-		localRequestId = localId;
-		localRequestStatus = localStatus;
-		statusCode = REQUEST_PLACED_AT_BORROWING_AGENCY;
-
-		return this;
+		return setLocalRequestId(localId)
+			.setLocalRequestStatus(localStatus)
+			.setStatus(Status.REQUEST_PLACED_AT_BORROWING_AGENCY);
 	}
 
 	public PatronRequest placedAtSupplyingAgency() {
-		statusCode = REQUEST_PLACED_AT_SUPPLYING_AGENCY;
-
-		return this;
+		return setStatus(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY);
 	}
 }

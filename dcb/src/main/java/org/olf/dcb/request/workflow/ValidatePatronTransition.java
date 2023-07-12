@@ -9,6 +9,7 @@ import java.time.Instant;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
@@ -35,11 +36,6 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		this.hostLmsService = hostLmsService;
 		this.errorService = errorService;
 	}
-
-	public String getGuardCondition() {
-		return "state=="+SUBMITTED_TO_DCB;
-	}
-
 	/**
 	 * We are passed in a local patron identity record
 	 * Validate and refresh any local properties we wish to sync before commencement of the requesting process.
@@ -84,5 +80,10 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 	private Mono<PatronRequest> updatePatronRequest(PatronRequest patronRequest) {
 		return Mono.fromDirect(patronRequestRepository.update(patronRequest));
+	}
+
+	@Override
+	public boolean isApplicableFor(PatronRequest pr) {
+		return pr.getStatus() == Status.SUBMITTED_TO_DCB;
 	}
 }
