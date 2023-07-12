@@ -12,6 +12,7 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestAtSupplyingAgencyStateTransition;
 import org.olf.dcb.test.*;
 
@@ -22,10 +23,11 @@ import java.util.UUID;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.*;
+import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.PATRON_VERIFIED;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -108,6 +110,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
 		assertThat("Status wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		assertSuccessfulTransitionAudit(pr);
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
@@ -140,6 +143,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
 		assertThat("Status wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		assertSuccessfulTransitionAudit(pr);
 	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
@@ -171,9 +175,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
 		assertThat("Status wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
-
-		// II comment out for now - don't understand how to make ^^ work
-		assert 1==1;
+		assertSuccessfulTransitionAudit(pr);
 	}
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")
@@ -209,8 +211,39 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is("Internal Server Error"));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, "Internal Server Error");
 	}
 
+	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
+
+		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+
+		assertThat("Patron Request audit should NOT have brief description",
+			fetchedAudit.getBriefDescription(),
+			is(nullValue()));
+
+		assertThat("Patron Request audit should have from state",
+			fetchedAudit.getFromStatus(), is(RESOLVED));
+
+		assertThat("Patron Request audit should have to state",
+			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+	}
+
+	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
+
+		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+
+		assertThat("Patron Request audit should have brief description",
+			fetchedAudit.getBriefDescription(),
+			is(description));
+
+		assertThat("Patron Request audit should have from state",
+			fetchedAudit.getFromStatus(), is(RESOLVED));
+
+		assertThat("Patron Request audit should have to state",
+			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+	}
 
 	private UUID createClusterRecord() {
 		final UUID clusterRecordId = randomUUID();

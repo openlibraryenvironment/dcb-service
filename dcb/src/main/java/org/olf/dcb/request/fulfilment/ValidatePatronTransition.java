@@ -9,6 +9,7 @@ import java.time.Instant;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
@@ -17,19 +18,26 @@ import org.slf4j.LoggerFactory;
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 
+import static java.util.UUID.randomUUID;
+
 @Prototype
 public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private static final Logger log = LoggerFactory.getLogger(ValidatePatronTransition.class);
 
+	private final PatronRequestAuditService patronRequestAuditService;
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final HostLmsService hostLmsService;
 	private final PatronRequestTransitionErrorService errorService;
 
-	public ValidatePatronTransition(PatronRequestRepository patronRequestRepository,
-		PatronIdentityRepository patronIdentityRepository, HostLmsService hostLmsService,
+	public ValidatePatronTransition(
+		PatronRequestAuditService patronRequestAuditService,
+		PatronRequestRepository patronRequestRepository,
+		PatronIdentityRepository patronIdentityRepository,
+		HostLmsService hostLmsService,
 		PatronRequestTransitionErrorService errorService) {
 
+		this.patronRequestAuditService = patronRequestAuditService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.hostLmsService = hostLmsService;
@@ -88,7 +96,29 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 			.flatMap(this::validatePatronIdentity)
 			.map(pi -> this.setRequestingPatronIdentity(patronRequest, pi))
 			.then(updatePatronRequest(patronRequest))
-			.onErrorResume(error -> errorService.moveRequestToErrorStatus(error, patronRequest));
+			.flatMap(this::createAuditEntry)
+			.onErrorResume(error -> addAuditLogEntry(error, patronRequest));
+	}
+
+	private Mono<PatronRequest> addAuditLogEntry(Throwable error, PatronRequest patronRequest) {
+		var audit = createPatronRequestAudit(patronRequest).briefDescription(error.getMessage()).build();
+		return errorService.recordError(error, audit);
+	}
+
+	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
+		log.debug("createAuditEntry: {}}",patronRequest);
+		var audit = createPatronRequestAudit(patronRequest).build();
+		return patronRequestAuditService.audit(audit, false).map(PatronRequestAudit::getPatronRequest);
+	}
+
+	private PatronRequestAudit.PatronRequestAuditBuilder createPatronRequestAudit(
+		PatronRequest patronRequest) {
+		return PatronRequestAudit.builder()
+			.id(randomUUID())
+			.patronRequest(patronRequest)
+			.auditDate(Instant.now())
+			.fromStatus(SUBMITTED_TO_DCB)
+			.toStatus(PATRON_VERIFIED);
 	}
 
 	private Mono<PatronRequest> updatePatronRequest(PatronRequest patronRequest) {

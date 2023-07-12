@@ -8,6 +8,7 @@ import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsPatronDTO;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.slf4j.Logger;
@@ -16,8 +17,12 @@ import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
 import reactor.util.function.Tuples;
+
+import java.time.Instant;
 import java.util.Map;
 
+import static java.util.UUID.randomUUID;
+import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.*;
 import static reactor.function.TupleUtils.function;
 
 @Prototype
@@ -29,17 +34,20 @@ public class SupplyingAgencyService {
 	private final PatronService patronService;
 	private final PatronTypeService patronTypeService;
 	private final PatronRequestTransitionErrorService errorService;
+	private final PatronRequestAuditService patronRequestAuditService;
 
 	public SupplyingAgencyService(
 		HostLmsService hostLmsService, SupplierRequestService supplierRequestService,
 		PatronService patronService, PatronTypeService patronTypeService,
-		PatronRequestTransitionErrorService errorService) {
+		PatronRequestTransitionErrorService errorService,
+		PatronRequestAuditService patronRequestAuditService) {
 
 		this.hostLmsService = hostLmsService;
 		this.supplierRequestService = supplierRequestService;
 		this.patronService = patronService;
 		this.patronTypeService = patronTypeService;
 		this.errorService = errorService;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtSupplyingAgency(PatronRequest patronRequest) {
@@ -50,7 +58,28 @@ public class SupplyingAgencyService {
 			.flatMap(function(this::placeRequestAtSupplier))
 			.flatMap(function(this::updateSupplierRequest))
 			.map(PatronRequest::placedAtSupplyingAgency)
-			.onErrorResume(error -> errorService.moveRequestToErrorStatus(error, patronRequest));
+			.flatMap(this::createAuditEntry)
+			.onErrorResume(error -> addAuditLogEntry(error, patronRequest));
+	}
+
+	private Mono<PatronRequest> addAuditLogEntry(Throwable error, PatronRequest patronRequest) {
+		var audit = createPatronRequestAudit(patronRequest).briefDescription(error.getMessage()).build();
+		return errorService.recordError(error, audit);
+	}
+
+	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
+		var audit = createPatronRequestAudit(patronRequest).build();
+		return patronRequestAuditService.audit(audit, false).thenReturn(patronRequest);
+	}
+
+	private PatronRequestAudit.PatronRequestAuditBuilder createPatronRequestAudit(
+		PatronRequest patronRequest) {
+		return PatronRequestAudit.builder()
+			.id(randomUUID())
+			.patronRequest(patronRequest)
+			.auditDate(Instant.now())
+			.fromStatus(RESOLVED)
+			.toStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY);
 	}
 
 	private Mono<Tuple3<PatronRequest, SupplierRequest, PatronIdentity>> checkAndCreatePatronAtSupplier(

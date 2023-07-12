@@ -24,6 +24,8 @@ import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.*;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -74,7 +76,9 @@ public class ValidatePatronTransitionTests {
 
 		// Assert
 		final var patronType = validatedPatron.getRequestingIdentity().getLocalPtype();
+
 		assertThat(patronType, is("15"));
+		assertSuccessfulTransitionAudit(patronRequest);
 	}
 
 	@Test
@@ -105,6 +109,38 @@ public class ValidatePatronTransitionTests {
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is("No patron found"));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, "No patron found");
+	}
+
+	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
+
+		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+
+		assertThat("Patron Request audit should NOT have brief description",
+			fetchedAudit.getBriefDescription(),
+			is(nullValue()));
+
+		assertThat("Patron Request audit should have from state",
+			fetchedAudit.getFromStatus(), is(SUBMITTED_TO_DCB));
+
+		assertThat("Patron Request audit should have to state",
+			fetchedAudit.getToStatus(), is(PATRON_VERIFIED));
+	}
+
+	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
+
+		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+
+		assertThat("Patron Request audit should have brief description",
+			fetchedAudit.getBriefDescription(),
+			is(description));
+
+		assertThat("Patron Request audit should have from state",
+			fetchedAudit.getFromStatus(), is(SUBMITTED_TO_DCB));
+
+		assertThat("Patron Request audit should have to state",
+			fetchedAudit.getToStatus(), is(PATRON_VERIFIED));
 	}
 
 	@Test

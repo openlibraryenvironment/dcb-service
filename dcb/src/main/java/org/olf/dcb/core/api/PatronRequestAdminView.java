@@ -5,10 +5,12 @@ import io.micronaut.serde.annotation.Serdeable;
 
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequestAudit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -16,12 +18,13 @@ import java.util.stream.Collectors;
 record PatronRequestAdminView(UUID id, Citation citation,
 	PickupLocation pickupLocation, Requestor requestor,
 	List<SupplierRequest> supplierRequests, Status status,
-	LocalRequest localRequest) {
+	LocalRequest localRequest, List<Audit> audits) {
 
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestAdminView.class);
 
 	static PatronRequestAdminView from(PatronRequest patronRequest,
-		List<org.olf.dcb.core.model.SupplierRequest> supplierRequests) {
+		List<org.olf.dcb.core.model.SupplierRequest> supplierRequests,
+		List<PatronRequestAudit> audits) {
 
 		// log.debug("Mapping patron request to view: {}", patronRequest);
 		// log.debug("Mapping supplier requests to view: {}", supplierRequests);
@@ -38,7 +41,8 @@ record PatronRequestAdminView(UUID id, Citation citation,
 			new LocalRequest(patronRequest.getLocalRequestId(),
 				patronRequest.getLocalRequestStatus(),
 				patronRequest.getLocalItemId(),
-				patronRequest.getLocalBibId()));
+				patronRequest.getLocalBibId()),
+			Audit.fromList(audits));
 	}
 
 	@Serdeable
@@ -87,6 +91,28 @@ record PatronRequestAdminView(UUID id, Citation citation,
 			return supplierRequests.stream()
 				.map(SupplierRequest::from)
 				.collect(Collectors.toList());
+		}
+	}
+
+	@Serdeable
+	record Audit(String id, String patronRequestId,
+		@Nullable String date, @Nullable String description,
+		@Nullable String fromStatus, @Nullable String toStatus,
+		@Nullable Map<String, Object> data) {
+		public static List<Audit> fromList(List<PatronRequestAudit> audits) {
+
+			return audits.stream()
+				.map(Audit::from)
+				.collect(Collectors.toList());
+		}
+
+		static Audit from(PatronRequestAudit patronRequestAudit) {
+
+			return new Audit(patronRequestAudit.getId().toString(),
+				patronRequestAudit.getPatronRequest().getId().toString(),
+				patronRequestAudit.getAuditDate().toString(), patronRequestAudit.getBriefDescription(),
+				patronRequestAudit.getFromStatus(), patronRequestAudit.getToStatus(),
+				patronRequestAudit.getAuditData());
 		}
 	}
 
