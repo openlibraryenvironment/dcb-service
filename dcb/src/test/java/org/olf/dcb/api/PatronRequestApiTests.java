@@ -30,7 +30,6 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 import java.util.UUID;
 
 import static io.micronaut.http.HttpStatus.*;
-import static java.util.Objects.isNull;
 import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -40,6 +39,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -235,7 +235,6 @@ class PatronRequestApiTests {
 			.until(() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.id()),
 				isPlacedAtBorrowingAgency());
 
-
 		assertThat(fetchedPatronRequest, is(notNullValue()));
 
 		assertThat(fetchedPatronRequest.citation(), is(notNullValue()));
@@ -283,6 +282,17 @@ class PatronRequestApiTests {
 		assertThat(supplierRequest.item().id(), is("1000002"));
 		assertThat(supplierRequest.item().localItemBarcode(), is("6565750674"));
 		assertThat(supplierRequest.item().localItemLocationCode(), is("ab6"));
+
+		assertThat(fetchedPatronRequest.audits(), is(notNullValue()));
+
+		final var lastAuditValue = fetchedPatronRequest.audits().size();
+		final var lastAudit = fetchedPatronRequest.audits().get(lastAuditValue-1);
+
+		assertThat(lastAudit.patronRequestId(), is(fetchedPatronRequest.id().toString()));
+		assertThat(lastAudit.description(), is(nullValue()));
+		assertThat(lastAudit.fromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		assertThat(lastAudit.toStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
+		assertThat(lastAudit.date(), is(notNullValue()));
 	}
 
 	@Test
@@ -324,6 +334,17 @@ class PatronRequestApiTests {
 
 		// No supplier request
 		assertThat(fetchedPatronRequest.supplierRequests(), is(nullValue()));
+
+		assertThat(fetchedPatronRequest.audits(), is(notNullValue()));
+
+		final var lastAuditValue = fetchedPatronRequest.audits().size();
+		final var lastAudit = fetchedPatronRequest.audits().get(lastAuditValue-1);
+
+		assertThat(lastAudit.patronRequestId(), is(fetchedPatronRequest.id().toString()));
+		assertThat(lastAudit.description(), is(nullValue()));
+		assertThat(lastAudit.fromStatus(), is(PATRON_VERIFIED));
+		assertThat(lastAudit.toStatus(), is(RESOLVED));
+		assertThat(lastAudit.date(), is(notNullValue()));
 	}
 
 	@Test

@@ -238,5 +238,3 @@ CREATE TABLE patron_request_audit (
 );
 
 CREATE INDEX pra_pr_fk ON patron_request_audit (patron_request_id);
-
-

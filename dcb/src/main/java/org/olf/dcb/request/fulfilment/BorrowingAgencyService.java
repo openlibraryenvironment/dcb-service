@@ -5,11 +5,11 @@ import io.micronaut.context.annotation.Prototype;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.ClusterRecordRepository;
@@ -24,10 +24,14 @@ import reactor.util.function.Tuple4;
 import reactor.util.function.Tuple5;
 import reactor.util.function.Tuples;
 
+import java.time.Instant;
 import java.util.UUID;
 import java.util.Map;
 import java.util.HashMap;
 
+import static java.util.UUID.randomUUID;
+import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static reactor.function.TupleUtils.function;
 
 @Prototype
@@ -71,7 +75,21 @@ public class BorrowingAgencyService {
 			.flatMap(function(this::createVirtualItem))
 			.flatMap(function(this::placeHoldRequest))
 			.map(function(patronRequest::placedAtBorrowingAgency))
-			.onErrorResume(error -> errorService.moveRequestToErrorStatus(error, patronRequest));
+			.onErrorResume(error -> addAuditLogEntry(error, patronRequest));
+	}
+
+	private Mono<PatronRequest> addAuditLogEntry(Throwable error, PatronRequest patronRequest) {
+
+		var audit = PatronRequestAudit.builder()
+			.id(randomUUID())
+			.patronRequest(patronRequest)
+			.auditDate(Instant.now())
+			.briefDescription(error.getMessage())
+			.fromStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.toStatus(REQUEST_PLACED_AT_BORROWING_AGENCY)
+			.build();
+
+		return errorService.recordError(error, audit);
 	}
 
 	private Mono<Tuple5<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest, String>> createVirtualBib(

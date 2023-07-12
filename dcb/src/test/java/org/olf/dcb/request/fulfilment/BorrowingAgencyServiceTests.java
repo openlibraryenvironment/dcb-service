@@ -1,11 +1,10 @@
 package org.olf.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.*;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.UUID;
@@ -27,6 +26,7 @@ import org.olf.dcb.core.model.ShelvingLocation;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
+import org.olf.dcb.test.*;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -61,6 +61,8 @@ class BorrowingAgencyServiceTests {
 	@Inject
 	private BorrowingAgencyService borrowingAgencyService;
 	@Inject
+	private PlacePatronRequestAtBorrowingAgencyStateTransition placePatronRequestAtBorrowingAgencyStateTransition;
+	@Inject
 	private BibRecordFixture bibRecordFixture;
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
@@ -68,8 +70,8 @@ class BorrowingAgencyServiceTests {
 	private ShelvingLocationRepository shelvingLocationRepository;
 	@Inject
 	private AgencyRepository agencyRepository;
-        @Inject
-        private ReferenceValueMappingRepository referenceValueMappingRepository;
+	@Inject
+	private ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
@@ -156,6 +158,7 @@ class BorrowingAgencyServiceTests {
 		Mono.from(shelvingLocationRepository.deleteByCode("ab6")).block();
 		Mono.from(agencyRepository.deleteByCode("ab6")).block();
 		hostLmsFixture.deleteAllHostLMS();
+		patronRequestsFixture.deleteAll();
 	}
 
 	@Test
@@ -194,13 +197,14 @@ class BorrowingAgencyServiceTests {
 			"Consortial Hold. tno="+patronRequest.getId());
 
 		// Act
-		final var pr = borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest).block();
+		final var pr = placePatronRequestAtBorrowingAgencyStateTransition.attempt(patronRequest).block();
 
 		// Assert
 		assertThat("Patron request should not be null", pr, is(notNullValue()));
 		assertThat("Status code wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
 		assertThat("Local request id wasn't expected.", pr.getLocalRequestId(), is("864902"));
 		assertThat("Local request status wasn't expected.", pr.getLocalRequestStatus(), is("PLACED"));
+		assertSuccessfulTransitionAudit(pr);
 	}
 
 	@Test
@@ -244,6 +248,8 @@ class BorrowingAgencyServiceTests {
 
 		assertThat("Request should have error status afterwards",
 			fetchedPatronRequest.getStatusCode(), is("ERROR"));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, "Internal Server Error");
 	}
 
 	@Test
@@ -280,7 +286,7 @@ class BorrowingAgencyServiceTests {
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
-			() -> borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest).block());
+			() -> placePatronRequestAtBorrowingAgencyStateTransition.attempt(patronRequest).block());
 
 		// Assert
 		assertThat(exception.getMessage(),
@@ -294,5 +300,38 @@ class BorrowingAgencyServiceTests {
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(),
 			is("No hold request found for the given note: Consortial Hold. tno=" + patronRequestId));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest,
+			"No hold request found for the given note: Consortial Hold. tno=" + patronRequestId);
+	}
+
+	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
+
+		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+
+		assertThat("Patron Request audit should NOT have brief description",
+			fetchedAudit.getBriefDescription(),
+			is(nullValue()));
+
+		assertThat("Patron Request audit should have from state",
+			fetchedAudit.getFromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+
+		assertThat("Patron Request audit should have to state",
+			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
+	}
+
+	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
+
+		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+
+		assertThat("Patron Request audit should have brief description",
+			fetchedAudit.getBriefDescription(),
+			is(description));
+
+		assertThat("Patron Request audit should have from state",
+			fetchedAudit.getFromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+
+		assertThat("Patron Request audit should have to state",
+			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
 	}
 }

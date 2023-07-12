@@ -6,6 +6,7 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.data.annotation.*;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
+import jakarta.persistence.OneToMany;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,6 +20,7 @@ import javax.validation.constraints.Size;
 import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.*;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Builder
@@ -112,6 +114,9 @@ public class PatronRequest {
 
 	@Nullable
 	private String errorMessage;
+
+	@OneToMany(mappedBy = "patronRequestAuditId")
+	private List<PatronRequestAudit> patronRequestAudits;
 
 
 	public PatronRequest resolve() {

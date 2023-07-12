@@ -3,6 +3,7 @@ package org.olf.dcb.request.fulfilment;
 import io.micronaut.context.annotation.Prototype;
 
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
@@ -12,9 +13,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.PATRON_VERIFIED;
-
+import java.time.Instant;
 import java.util.Optional;
+
+import static java.util.UUID.randomUUID;
+import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.*;
 
 @Prototype
 public class PatronRequestResolutionStateTransition implements PatronRequestStateTransition {
@@ -24,18 +27,21 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	private final PatronRequestRepository patronRequestRepository;
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final PatronRequestTransitionErrorService errorService;
+	private final PatronRequestAuditService patronRequestAuditService;
 
 
 	public PatronRequestResolutionStateTransition(
 		PatronRequestResolutionService patronRequestResolutionService,
 		PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
-		PatronRequestTransitionErrorService errorService) {
+		PatronRequestTransitionErrorService errorService,
+		PatronRequestAuditService patronRequestAuditService) {
 
 		this.patronRequestResolutionService = patronRequestResolutionService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.errorService = errorService;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	public String getGuardCondition() {
@@ -52,7 +58,28 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.flatMap(this::updatePatronRequest)
 			.flatMap(this::saveSupplierRequest)
 			.map(Resolution::getPatronRequest)
-			.onErrorResume(error -> errorService.moveRequestToErrorStatus(error, patronRequest));
+			.flatMap(this::createAuditEntry)
+			.onErrorResume(error -> addAuditLogEntry(error, patronRequest));
+	}
+
+	private Mono<PatronRequest> addAuditLogEntry(Throwable error, PatronRequest patronRequest) {
+		var audit = createPatronRequestAudit(patronRequest).briefDescription(error.getMessage()).build();
+		return errorService.recordError(error, audit);
+	}
+
+	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
+		var audit = createPatronRequestAudit(patronRequest).build();
+		return patronRequestAuditService.audit(audit, false).thenReturn(patronRequest);
+	}
+
+	private PatronRequestAudit.PatronRequestAuditBuilder createPatronRequestAudit(
+		PatronRequest patronRequest) {
+		return PatronRequestAudit.builder()
+			.id(randomUUID())
+			.patronRequest(patronRequest)
+			.auditDate(Instant.now())
+			.fromStatus(PATRON_VERIFIED)
+			.toStatus(RESOLVED);
 	}
 
 	private Mono<Resolution> updatePatronRequest(Resolution resolution) {
