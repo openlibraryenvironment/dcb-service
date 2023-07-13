@@ -9,9 +9,9 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
-import org.olf.dcb.request.workflow.PatronRequestStatusConstants;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +58,7 @@ public class PatronRequestController {
 		PatronRequest pr = null;
 		patronRequestService
 			.findById(patronRequestId)
-			.filter( request -> request.getStatusCode() != PatronRequestStatusConstants.ERROR )
+			.filter( request -> request.getStatus() != Status.ERROR )
 			.map( request -> {
 				
 				// Found.

@@ -22,19 +22,16 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	private final PatronRequestResolutionService patronRequestResolutionService;
 	private final PatronRequestRepository patronRequestRepository;
 	private final SupplierRequestRepository supplierRequestRepository;
-	private final PatronRequestTransitionErrorService errorService;
 
 
 	public PatronRequestResolutionStateTransition(
 		PatronRequestResolutionService patronRequestResolutionService,
 		PatronRequestRepository patronRequestRepository,
-		SupplierRequestRepository supplierRequestRepository,
-		PatronRequestTransitionErrorService errorService) {
+		SupplierRequestRepository supplierRequestRepository) {
 
 		this.patronRequestResolutionService = patronRequestResolutionService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
-		this.errorService = errorService;
 	}
 
 	@Override
@@ -47,7 +44,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.flatMap(this::updatePatronRequest)
 			.flatMap(this::saveSupplierRequest)
 			.map(Resolution::getPatronRequest)
-			.onErrorResume(error -> errorService.moveRequestToErrorStatus(error, patronRequest));
+			.transform(PatronRequestWorkflowService.getErrorTransformerFor(patronRequest, patronRequestRepository::updateStatus));
 	}
 
 	private Mono<Resolution> updatePatronRequest(Resolution resolution) {

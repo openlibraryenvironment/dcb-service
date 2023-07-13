@@ -1,8 +1,14 @@
 package org.olf.dcb.request.fulfilment;
 
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import jakarta.inject.Inject;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,19 +19,18 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtSupplyingAgencyStateTransition;
-import org.olf.dcb.test.*;
+import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
 
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.util.UUID;
-
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -81,7 +86,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithAnUnexpectedPtype() {
 		// Arrange
 		final var localId = "872321";
-		final var homeLibraryCode = "123456";
+//		final var homeLibraryCode = "123456";
 		final var patronRequestId = randomUUID();
 
 		final var clusterRecordId = createClusterRecord();
@@ -107,7 +112,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
-		assertThat("Status wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		assertThat("Status wasn't expected.", pr.getStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
@@ -116,7 +121,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		// Arrange
 		final var localId = "32453";
-		final var homeLibraryCode = "123456";
+//		final var homeLibraryCode = "123456";
 		final var patronRequestId = randomUUID();
 
 		final var clusterRecordId = createClusterRecord();
@@ -139,7 +144,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
-		assertThat("Status wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		assertThat("Status wasn't expected.", pr.getStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
@@ -170,7 +175,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
-		assertThat("Status wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		assertThat("Status wasn't expected.", pr.getStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 
 		// II comment out for now - don't understand how to make ^^ work
 		assert 1==1;
@@ -205,7 +210,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatusCode(), is("ERROR"));
+			fetchedPatronRequest.getStatus(), is("ERROR"));
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is("Internal Server Error"));
@@ -242,7 +247,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			.requestingIdentity(requestingIdentity)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
-			.statusCode(REQUEST_PLACED_AT_BORROWING_AGENCY)
+			.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);

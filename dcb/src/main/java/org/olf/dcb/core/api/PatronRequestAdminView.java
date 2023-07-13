@@ -34,7 +34,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 			new Requestor(patron.getId().toString(), patron.getHomeLibraryCode(),
 				Identity.fromList(patron.getPatronIdentities())),
 			SupplierRequest.fromList(supplierRequests),
-			new Status(patronRequest.getStatusCode(), patronRequest.getErrorMessage()),
+			new Status(patronRequest.getStatus(), patronRequest.getErrorMessage()),
 			new LocalRequest(patronRequest.getLocalRequestId(),
 				patronRequest.getLocalRequestStatus(),
 				patronRequest.getLocalItemId(),
@@ -94,7 +94,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	record Item(String id, String localItemBarcode, String localItemLocationCode) {}
 
 	@Serdeable
-	record Status(String code, String errorMessage) {}
+	record Status(org.olf.dcb.core.model.PatronRequest.Status code, String errorMessage) {}
 
 	@Serdeable
 	record LocalRequest(String id, String status, String itemId, String bibId) {}

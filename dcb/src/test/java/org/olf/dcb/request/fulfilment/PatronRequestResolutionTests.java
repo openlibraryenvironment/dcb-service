@@ -1,8 +1,18 @@
 package org.olf.dcb.request.fulfilment;
 
-import io.micronaut.core.io.ResourceLoader;
-import jakarta.inject.Inject;
-import lombok.SneakyThrows;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
+import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,18 +24,18 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.UnableToResolvePatronRequest;
 import org.olf.dcb.request.workflow.PatronRequestResolutionStateTransition;
-import org.olf.dcb.test.*;
+import org.olf.dcb.test.BibRecordFixture;
+import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
 
+import io.micronaut.core.io.ResourceLoader;
+import jakarta.inject.Inject;
+import lombok.SneakyThrows;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.*;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -99,7 +109,7 @@ class PatronRequestResolutionTests {
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
 			.pickupLocationCode("ABC123")
-			.statusCode(PATRON_VERIFIED)
+			.status(PATRON_VERIFIED)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -111,7 +121,7 @@ class PatronRequestResolutionTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should be resolved",
-			fetchedPatronRequest.getStatusCode(), is(RESOLVED));
+			fetchedPatronRequest.getStatus(), is(RESOLVED));
 
 		final var onlySupplierRequest = supplierRequestsFixture.findFor(patronRequest);
 
@@ -156,7 +166,7 @@ class PatronRequestResolutionTests {
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
 			.pickupLocationCode("ABC123")
-			.statusCode(PATRON_VERIFIED)
+			.status(PATRON_VERIFIED)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -168,7 +178,7 @@ class PatronRequestResolutionTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have no items available at any agency",
-			fetchedPatronRequest.getStatusCode(), is(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
+			fetchedPatronRequest.getStatus(), is(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
 
 		assertThat("Should not find any supplier requests",
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
@@ -187,7 +197,7 @@ class PatronRequestResolutionTests {
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
-			.statusCode(PATRON_VERIFIED)
+			.status(PATRON_VERIFIED)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -204,7 +214,7 @@ class PatronRequestResolutionTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should be in error status",
-			fetchedPatronRequest.getStatusCode(), is(ERROR));
+			fetchedPatronRequest.getStatus(), is(ERROR));
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is("Cannot find cluster record for: " + clusterRecordId));
@@ -226,7 +236,7 @@ class PatronRequestResolutionTests {
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
 			.pickupLocationCode("ABC123")
-			.statusCode(PATRON_VERIFIED)
+			.status(PATRON_VERIFIED)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -243,7 +253,7 @@ class PatronRequestResolutionTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should be in error status",
-			fetchedPatronRequest.getStatusCode(), is(ERROR));
+			fetchedPatronRequest.getStatus(), is(ERROR));
 
 		assertThat("Should not find any supplier requests",
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));

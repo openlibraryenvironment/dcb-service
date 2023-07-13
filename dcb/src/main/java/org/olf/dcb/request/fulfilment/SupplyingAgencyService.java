@@ -1,6 +1,8 @@
 package org.olf.dcb.request.fulfilment;
 
-import io.micronaut.context.annotation.Prototype;
+import static reactor.function.TupleUtils.function;
+
+import java.util.Map;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -10,16 +12,16 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.resolution.SupplierRequestService;
-import org.olf.dcb.request.workflow.PatronRequestTransitionErrorService;
+import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
+import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
 import reactor.util.function.Tuples;
-import java.util.Map;
-
-import static reactor.function.TupleUtils.function;
 
 @Prototype
 public class SupplyingAgencyService {
@@ -29,18 +31,18 @@ public class SupplyingAgencyService {
 	private final SupplierRequestService supplierRequestService;
 	private final PatronService patronService;
 	private final PatronTypeService patronTypeService;
-	private final PatronRequestTransitionErrorService errorService;
+	private final PatronRequestRepository patronRequestRepository;
 
 	public SupplyingAgencyService(
 		HostLmsService hostLmsService, SupplierRequestService supplierRequestService,
 		PatronService patronService, PatronTypeService patronTypeService,
-		PatronRequestTransitionErrorService errorService) {
+		PatronRequestRepository patronRequestRepository) {
 
 		this.hostLmsService = hostLmsService;
 		this.supplierRequestService = supplierRequestService;
 		this.patronService = patronService;
 		this.patronTypeService = patronTypeService;
-		this.errorService = errorService;
+		this.patronRequestRepository = patronRequestRepository;
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtSupplyingAgency(PatronRequest patronRequest) {
@@ -51,7 +53,7 @@ public class SupplyingAgencyService {
 			.flatMap(function(this::placeRequestAtSupplier))
 			.flatMap(function(this::updateSupplierRequest))
 			.map(PatronRequest::placedAtSupplyingAgency)
-			.onErrorResume(error -> errorService.moveRequestToErrorStatus(error, patronRequest));
+			.transform(PatronRequestWorkflowService.getErrorTransformerFor(patronRequest, patronRequestRepository::updateStatus));
 	}
 
 	private Mono<Tuple3<PatronRequest, SupplierRequest, PatronIdentity>> checkAndCreatePatronAtSupplier(

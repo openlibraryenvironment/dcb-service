@@ -1,6 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
-import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
+import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 
 import java.util.UUID;
 
@@ -69,7 +69,7 @@ public class PatronRequestService {
 			.patron(patron)
 			.bibClusterId(command.citation().bibClusterId())
 			.pickupLocationCode(command.pickupLocation().code())
-			.statusCode(SUBMITTED_TO_DCB)
+			.status(SUBMITTED_TO_DCB)
 			.description(command.description())
 			.build();
 	}

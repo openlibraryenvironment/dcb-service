@@ -4,6 +4,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -87,21 +89,7 @@ public class PatronRequestWorkflowService {
 				// Resolve as incomplete.
 				return pr;
 			})
-			.onErrorResume( throwable -> {
-				
-				final UUID prId = patronRequest.getId();
-				if (prId == null) return Mono.error(throwable);
-				
-				// When we encounter an error we should set the status in the DB only to avoid,
-				// partial state saves.
-				
-				return Mono.from(patronRequestRepository.updateStatus(null, null))
-					.onErrorResume(saveError -> {
-						log.error("Could not update PatronRequest with error state", saveError);
-						return Mono.empty();
-					})
-					.then(Mono.error(throwable));
-			});
+			.transform(getErrorTransformerFor(patronRequest));
 		
 //		boolean complete = false;
 //		if (action != null) {
@@ -145,7 +133,7 @@ public class PatronRequestWorkflowService {
 		
 		return action.attempt(patronRequest)
 			.flux()
-			.flatMap(patronRequestRepository::save)
+			.flatMap(patronRequestRepository::saveOrUpdate)
 			.concatMap( request -> {
 				
 				// Recall if there are more...
@@ -168,5 +156,29 @@ public class PatronRequestWorkflowService {
 //						progress(result, next_action);
 //				}).flatMap(result -> Mono.delay(stateTransitionDelay, Schedulers.boundedElastic()).thenReturn(result))
 //				.subscribeOn(Schedulers.boundedElastic()).subscribe();
+	}
+	
+	public Function<Publisher<PatronRequest>,Flux<PatronRequest>> getErrorTransformerFor( PatronRequest patronRequest ) {
+		return getErrorTransformerFor(patronRequest, patronRequestRepository::updateStatus);
+	}
+	
+	public static Function<Publisher<PatronRequest>,Flux<PatronRequest>> getErrorTransformerFor( PatronRequest patronRequest, BiFunction<UUID, Status, Publisher<?>> reaction) {
+		
+		return ( Publisher<PatronRequest> pub  ) -> Flux.from(pub)
+				.onErrorResume( throwable -> {
+					
+					final UUID prId = patronRequest.getId();
+					if (prId == null) return Mono.error(throwable);
+					
+					// When we encounter an error we should set the status in the DB only to avoid,
+					// partial state saves.
+					
+					return Mono.from(reaction.apply(prId, Status.ERROR))
+						.onErrorResume(saveError -> {
+							log.error("Could not update PatronRequest with error state", saveError);
+							return Mono.empty();
+						})
+						.then(Mono.error(throwable));
+				});
 	}
 }

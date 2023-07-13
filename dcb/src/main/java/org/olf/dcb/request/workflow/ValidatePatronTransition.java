@@ -1,8 +1,6 @@
 package org.olf.dcb.request.workflow;
 
 import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.PATRON_VERIFIED;
-import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 import java.time.Instant;
 
@@ -11,7 +9,6 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.storage.PatronIdentityRepository;
-import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,19 +19,13 @@ import reactor.core.publisher.Mono;
 public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private static final Logger log = LoggerFactory.getLogger(ValidatePatronTransition.class);
 
-	private final PatronRequestRepository patronRequestRepository;
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final HostLmsService hostLmsService;
-	private final PatronRequestTransitionErrorService errorService;
 
-	public ValidatePatronTransition(PatronRequestRepository patronRequestRepository,
-		PatronIdentityRepository patronIdentityRepository, HostLmsService hostLmsService,
-		PatronRequestTransitionErrorService errorService) {
+	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository, HostLmsService hostLmsService) {
 
-		this.patronRequestRepository = patronRequestRepository;
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.hostLmsService = hostLmsService;
-		this.errorService = errorService;
 	}
 	/**
 	 * We are passed in a local patron identity record
@@ -67,19 +58,13 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
 		log.debug("verifyPatron {}", patronRequest);
 
-		patronRequest.setStatusCode(PATRON_VERIFIED);
+		patronRequest.setStatus(Status.PATRON_VERIFIED);
 		
 		// pull out patronRequest.patron and get the home patron then use the web service to look up the patron
 		// patronRequest.patron
 		return Mono.from(patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), TRUE))
 			.flatMap(this::validatePatronIdentity)
-			.map(patronRequest::setRequestingIdentity)
-			.flatMap(this::updatePatronRequest)
-			.onErrorResume(error -> errorService.moveRequestToErrorStatus(error, patronRequest));
-	}
-
-	private Mono<PatronRequest> updatePatronRequest(PatronRequest patronRequest) {
-		return Mono.fromDirect(patronRequestRepository.update(patronRequest));
+			.map(patronRequest::setRequestingIdentity);
 	}
 
 	@Override

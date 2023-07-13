@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction.sierra;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.mockserver.client.MockServerClient;
@@ -110,7 +111,7 @@ public class SierraPatronsAPIFixture {
 	}
 
 	public void patronHoldResponse(String patronId, String holdIdUrl, String note) {
-		List<PatronHoldResponse> phre = new java.util.ArrayList();
+		List<PatronHoldResponse> phre = new ArrayList<>();
 		phre.add(PatronHoldResponse.builder()
 			.id(holdIdUrl)
 			.record("https://some/record/" + patronId)

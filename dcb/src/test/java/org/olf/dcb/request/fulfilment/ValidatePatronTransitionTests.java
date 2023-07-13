@@ -4,7 +4,7 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.request.workflow.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
+import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 
 import java.util.UUID;
 
@@ -102,7 +102,7 @@ public class ValidatePatronTransitionTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatusCode(), is("ERROR"));
+			fetchedPatronRequest.getStatus(), is("ERROR"));
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is("No patron found"));
@@ -132,7 +132,7 @@ public class ValidatePatronTransitionTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatusCode(), is("ERROR"));
+			fetchedPatronRequest.getStatus(), is("ERROR"));
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is("Internal Server Error"));
@@ -152,7 +152,7 @@ public class ValidatePatronTransitionTests {
 		var patronRequest = PatronRequest.builder()
 			.id(patronRequestId)
 			.patron(patron)
-			.statusCode(SUBMITTED_TO_DCB)
+			.status(SUBMITTED_TO_DCB)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
