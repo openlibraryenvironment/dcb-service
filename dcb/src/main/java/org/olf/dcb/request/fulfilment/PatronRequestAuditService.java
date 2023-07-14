@@ -34,21 +34,28 @@ public class PatronRequestAuditService {
 		return addAuditEntry(patronRequest, from, to, Optional.empty());
 	}
 
-	public Mono<PatronRequestAudit> addAuditEntry(PatronRequest patronRequest, Status from, Status to,
-			Optional<String> message) {
-		var builder = PatronRequestAudit.builder().id(UUID.randomUUID()).patronRequest(patronRequest)
-				.auditDate(Instant.now()).fromStatus(from).toStatus(to);
+	public Mono<PatronRequestAudit> addAuditEntry(PatronRequest patronRequest, Status from, Status to, Optional<String> message) {
+		var builder = PatronRequestAudit.builder()
+			.id(UUID.randomUUID())
+			.patronRequest(patronRequest)
+			.auditDate(Instant.now())
+			.fromStatus(from)
+			.toStatus(to);
 
 		message.ifPresent(builder::briefDescription);
 
-		return Mono.just(builder.build())
-				.flatMap(auditEntry -> Mono.from(patronRequestAuditRepository.save(auditEntry))
-						.cast(PatronRequestAudit.class))
+		PatronRequestAudit pra = builder.build();
+
+		this.log(pra);
+
+		return Mono.just(pra)
+				.flatMap(auditEntry -> Mono.from(patronRequestAuditRepository.save(auditEntry)).cast(PatronRequestAudit.class))
 				.doOnSuccess(this::log);
 	}
 
 	
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, Status from, Throwable error) {
+		log.debug("addErrorAuditEntry");
 		return addAuditEntry(patronRequest, from, Status.ERROR, Optional.ofNullable(error.getMessage()));
 	}
 }
