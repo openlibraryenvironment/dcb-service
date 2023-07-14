@@ -55,7 +55,7 @@ public class SierraPatronsAPIFixture {
 			.when(request()
 				.withMethod("GET")
 				.withPath("/iii/sierra-api/v6/patrons/" + patronId))
-			.respond(patronNotFoundResponse());
+			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
 	public void serverErrorWhenGettingPatronByLocalId(String patronId) {
@@ -89,7 +89,7 @@ public class SierraPatronsAPIFixture {
 	public void patronNotFoundResponseForUniqueId(String uniqueId) {
 		mockServer
 			.when(getPatronFindRequest(uniqueId))
-			.respond(patronNotFoundResponse());
+			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
 	public void patronHoldRequestResponse(String patronId) {
@@ -149,13 +149,13 @@ public class SierraPatronsAPIFixture {
 			.when(request()
 				.withMethod("GET")
 				.withPath("/iii/sierra-api/v6/patrons/" + patronId + "/holds"))
-			.respond(sierraMockServerResponses.notFound("patrons/sierra-api-patron-not-found.json"));
+			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
 	public void patronHoldNotFoundErrorResponse(String id) {
 		mockServer
 			.when(sierraMockServerRequests.get("/" + id + "/holds"))
-			.respond(sierraMockServerResponses.notFound("patrons/sierra-api-patron-not-found.json"));
+			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
 	public void patronHoldErrorResponse(String id) {
@@ -167,10 +167,6 @@ public class SierraPatronsAPIFixture {
 	public void addPatronGetExpectation(Long localId) {
 		mockServer.when(getPatronRequest(localId))
 			.respond(sierraPatronRecord(localId));
-	}
-
-	private HttpResponse patronNotFoundResponse() {
-		return sierraMockServerResponses.notFound("patrons/sierra-api-patron-not-found.json");
 	}
 
 	private HttpResponse patronFoundResponse() {

@@ -3,11 +3,13 @@ package org.olf.dcb.request.workflow;
 import static java.lang.Boolean.TRUE;
 
 import java.time.Instant;
+import java.util.Objects;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.storage.PatronIdentityRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,11 +23,13 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final HostLmsService hostLmsService;
+	private final PatronRequestAuditService patronRequestAuditService;
 
-	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository, HostLmsService hostLmsService) {
+	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository, HostLmsService hostLmsService, PatronRequestAuditService patronRequestAuditService) {
 
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.hostLmsService = hostLmsService;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 	/**
 	 * We are passed in a local patron identity record
@@ -41,8 +45,8 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				// Update the patron identity with the current patron type and set the last validated date to now()
 				pi.setLocalPtype(hostLmsPatron.getLocalPatronType());
 				pi.setLastValidated(Instant.now());
-				pi.setLocalBarcode(hostLmsPatron.getLocalBarcodes());
-				pi.setLocalNames(hostLmsPatron.getLocalNames());
+				pi.setLocalBarcode(Objects.toString(hostLmsPatron.getLocalBarcodes(), null));
+				pi.setLocalNames(Objects.toString(hostLmsPatron.getLocalNames(), null));
 
 				return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(pi));
 			});
@@ -64,9 +68,15 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		// patronRequest.patron
 		return Mono.from(patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), TRUE))
 			.flatMap(this::validatePatronIdentity)
-			.map(patronRequest::setRequestingIdentity);
+			.map(patronRequest::setRequestingIdentity)
+			.flatMap(this::createAuditEntry);
 	}
-
+	
+	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
+		return patronRequestAuditService.addAuditEntry(patronRequest, Status.SUBMITTED_TO_DCB, Status.PATRON_VERIFIED)
+				.thenReturn(patronRequest);
+	}
+	
 	@Override
 	public boolean isApplicableFor(PatronRequest pr) {
 		return pr.getStatus() == Status.SUBMITTED_TO_DCB;

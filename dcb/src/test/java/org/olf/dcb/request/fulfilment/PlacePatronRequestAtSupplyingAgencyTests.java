@@ -176,9 +176,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
 		assertThat("Status wasn't expected.", pr.getStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
-
-		// II comment out for now - don't understand how to make ^^ work
-		assert 1==1;
+		assertSuccessfulTransitionAudit(pr);
 	}
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")
@@ -214,8 +212,39 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is("Internal Server Error"));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, "Internal Server Error");
 	}
 
+	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
+
+		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+
+		assertThat("Patron Request audit should NOT have brief description",
+			fetchedAudit.getBriefDescription(),
+			is(nullValue()));
+
+		assertThat("Patron Request audit should have from state",
+			fetchedAudit.getFromStatus(), is(RESOLVED));
+
+		assertThat("Patron Request audit should have to state",
+			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+	}
+
+	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
+
+		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+
+		assertThat("Patron Request audit should have brief description",
+			fetchedAudit.getBriefDescription(),
+			is(description));
+
+		assertThat("Patron Request audit should have from state",
+			fetchedAudit.getFromStatus(), is(RESOLVED));
+
+		assertThat("Patron Request audit should have to state",
+			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+	}
 
 	private UUID createClusterRecord() {
 		final UUID clusterRecordId = randomUUID();

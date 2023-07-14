@@ -19,6 +19,7 @@ import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.ClusterRecordRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,21 +40,21 @@ public class BorrowingAgencyService {
 	private final SupplierRequestService supplierRequestService;
 	private final BibRepository bibRepository;
 	private final ClusterRecordRepository clusterRecordRepository;
-	private final ShelvingLocationRepository shelvingLocationRepository;
-	private final PatronRequestRepository patronRequestRepository;
+	private final PatronRequestWorkflowService patronRequestWorkflowService;
+  private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	public BorrowingAgencyService(HostLmsService hostLmsService, PatronIdentityRepository patronIdentityRepository,
 			SupplierRequestService supplierRequestService, BibRepository bibRepository,
 			ClusterRecordRepository clusterRecordRepository, ShelvingLocationRepository shelvingLocationRepository,
-			PatronRequestRepository patronRequestRepository) {
+			PatronRequestRepository patronRequestRepository, PatronRequestWorkflowService patronRequestWorkflowService, ReferenceValueMappingRepository referenceValueMappingRepository) {
 
 		this.hostLmsService = hostLmsService;
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.supplierRequestService = supplierRequestService;
 		this.bibRepository = bibRepository;
 		this.clusterRecordRepository = clusterRecordRepository;
-		this.shelvingLocationRepository = shelvingLocationRepository;
-		this.patronRequestRepository = patronRequestRepository;
+		this.patronRequestWorkflowService = patronRequestWorkflowService;
+		this.referenceValueMappingRepository = referenceValueMappingRepository;
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(PatronRequest patronRequest) {
@@ -62,7 +63,7 @@ public class BorrowingAgencyService {
 		return getHoldRequestData(patronRequest).flatMap(function(this::createVirtualBib))
 				.flatMap(function(this::createVirtualItem)).flatMap(function(this::placeHoldRequest))
 				.map(function(patronRequest::placedAtBorrowingAgency)).transform(
-						PatronRequestWorkflowService.getErrorTransformerFor(patronRequest, patronRequestRepository::updateStatus));
+						patronRequestWorkflowService.getErrorTransformerFor(patronRequest));
 	}
 
 	private Mono<Tuple5<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest, String>> createVirtualBib(
@@ -89,52 +90,55 @@ public class BorrowingAgencyService {
 		}
 
 		result.put("title", bibRecord.getTitle());
-		if (bibRecord.getAuthor() != null)
+		if ( bibRecord.getAuthor() != null )
 			result.put("author", bibRecord.getAuthor().getName());
 
-		// Tuples.of fails if either is null - this modelling won't work - so we use a
-		// Map instead
+
+		// Tuples.of fails if either is null - this modelling won't work - so we use a Map instead
 		return result;
 	}
 
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, String>> createVirtualItem(
-			PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
-			SupplierRequest supplierRequest, String localBibId) {
+		PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
+		SupplierRequest supplierRequest, String localBibId) {
 
-		log.debug("createVirtualItem for localBibId {}", localBibId);
+		log.debug("createVirtualItem for localBibId {}/{}", localBibId,supplierRequest.getLocalItemLocationCode());
+                log.debug("slToAgency:{} {} {} {} {}","ShelvingLocation",hostLmsClient.getHostLms().getCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB");
 
-		return Mono.from(shelvingLocationRepository.findOneByCode(supplierRequest.getLocalItemLocationCode()))
-				.doOnSuccess(shelvingLocation -> log.debug("Result from getting shelving location: {}", shelvingLocation))
-				.flatMap(shelvingLocation -> {
-					String agencyCode = shelvingLocation.getAgency() != null ? shelvingLocation.getAgency().getCode() : null;
-					return hostLmsClient.createItem(localBibId, agencyCode, supplierRequest.getLocalItemBarcode());
-				}).map(HostLmsItem::getLocalId).doOnNext(patronRequest::setLocalItemId)
-				.map(localItemId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId))
-				.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));
+                return Mono.from(referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+                    "ShelvingLocation",hostLmsClient.getHostLms().getCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB"))
+.doOnSuccess(mapping -> log.debug("Result from getting agency for shelving location: {}", mapping))
+.flatMap(mapping -> {
+String agencyCode = mapping.getToValue();
+return hostLmsClient.createItem(localBibId, agencyCode, supplierRequest.getLocalItemBarcode());
+})
+.map(HostLmsItem::getLocalId)
+.doOnNext(patronRequest::setLocalItemId)
+.map(localItemId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId))
+.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));
 	}
 
-	private Mono<Tuple2<String, String>> placeHoldRequest(PatronRequest patronRequest, PatronIdentity patronIdentity,
-			HostLmsClient hostLmsClient, String localItemId) {
+	private Mono<Tuple2<String,String>> placeHoldRequest(PatronRequest patronRequest,
+			PatronIdentity patronIdentity, HostLmsClient hostLmsClient, String localItemId) {
 
-		log.debug("placeHoldRequest for localItemId {} {}", localItemId, patronIdentity);
+			log.debug("placeHoldRequest for localItemId {} {}",localItemId,patronIdentity);
 
-		String note = "Consortial Hold. tno=" + patronRequest.getId();
-		return hostLmsClient
-				.placeHoldRequest(patronIdentity.getLocalId(), "i", localItemId, patronRequest.getPickupLocationCode(), note,
-						patronRequest.getId().toString())
+			String note="Consortial Hold. tno="+patronRequest.getId();
+			return hostLmsClient.placeHoldRequest(patronIdentity.getLocalId(), "i", localItemId, patronRequest.getPickupLocationCode(), 
+	                                                      note, patronRequest.getId().toString())
 				.map(response -> Tuples.of(response.getT1(), response.getT2()))
 				.switchIfEmpty(Mono.error(new RuntimeException("Failed to place hold request.")));
 	}
 
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest>> getHoldRequestData(
 			PatronRequest patronRequest) {
-		return Mono
-				.from(
-						patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), Boolean.TRUE))
-				.flatMap(pi -> hostLmsService.getClientFor(pi.getHostLms().code).map(client -> Tuples.of(pi, client))
-						.switchIfEmpty(Mono.error(new RuntimeException("Failed to get HostLmsClient."))))
-				.flatMap(tuple -> supplierRequestService.findSupplierRequestFor(patronRequest)
-						.map(supplierRequest -> Tuples.of(patronRequest, tuple.getT1(), tuple.getT2(), supplierRequest))
-						.switchIfEmpty(Mono.error(new RuntimeException("Failed to find SupplierRequest."))));
+		return Mono.from(patronIdentityRepository
+				.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), Boolean.TRUE))
+			.flatMap(pi -> hostLmsService.getClientFor(pi.getHostLms().code)
+				.map(client -> Tuples.of(pi, client))
+				.switchIfEmpty(Mono.error(new RuntimeException("Failed to get HostLmsClient."))))
+			.flatMap(tuple -> supplierRequestService.findSupplierRequestFor(patronRequest)
+				.map(supplierRequest -> Tuples.of(patronRequest, tuple.getT1(), tuple.getT2(), supplierRequest))
+				.switchIfEmpty(Mono.error(new RuntimeException("Failed to find SupplierRequest."))));
 	}
 }

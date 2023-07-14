@@ -2,19 +2,15 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
+import static java.util.Arrays.stream;
+import static java.util.Collections.singletonList;
 import static java.util.Objects.nonNull;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
-import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import javax.transaction.Transactional;
 import javax.transaction.Transactional.TxType;
@@ -30,7 +26,7 @@ import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPatronDTO;
+import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.ingest.marc.MarcIngestSource;
@@ -62,6 +58,7 @@ import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibPatch;
+import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchInfo;
@@ -86,6 +83,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private static final Logger log = LoggerFactory.getLogger(SierraLmsClient.class);
 
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
+        private static final Integer FIXED_FIELD_158 = Integer.valueOf(158);
 	private final ConversionService<?> conversionService = ConversionService.SHARED;
 	private final HostLms lms;
 	private final SierraApiClient client;
@@ -377,13 +375,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<String> createPatron(String uniqueId, String patronType) {
-		log.debug("postPatron({}, {})", uniqueId, patronType);
+	public Mono<String> createPatron(Patron patron) {
+		log.debug("postPatron({})", patron);
 
-		PatronPatch patronPatch = new PatronPatch();
-		patronPatch.setPatronType(parseInt(patronType));
-		patronPatch.setUniqueIds(new String[]{uniqueId});
-		patronPatch.setNames(new String[]{uniqueId});
+		final var patronPatch = PatronPatch.builder()
+			.patronType( parseInt(patron.getLocalPatronType()) )
+			.uniqueIds( patron.getUniqueIds().toArray(String[]::new) )
+			.names( patron.getUniqueIds().toArray(String[]::new) )
+			.barcodes( patron.getLocalBarcodes().toArray(String[]::new) )
+			.build();
 
 		return Mono.from(client.patrons(patronPatch))
 			.doOnSuccess(result -> log.debug("the result of createPatron({})", result))
@@ -414,7 +414,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			titles = new String[] { bibDescription.get("title") };
 		}
 
-		BibPatch bibPatch = BibPatch.builder().authors(authors).titles(titles).bibCode3("n").build();
+		BibPatch bibPatch = BibPatch.builder()
+        .authors(authors)
+        .titles(titles)
+        // .bibCode3("n")  // -- COOLCAT seems to choke on this value
+        // .fixedFields(fixedFields)
+        .build();
 
 		return Mono.from(client.bibs(bibPatch)).doOnSuccess(result -> log.debug("the result of createBib({})", result))
 				.map(bibResult -> deRestify(bibResult.getLink())).onErrorResume(NullPointerException.class, error -> {
@@ -729,17 +734,35 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			});
 	}
 
-	private HostLmsPatronDTO sierraPatronToHostLmsPatron(SierraPatronRecord spr) {
+	private Patron sierraPatronToHostLmsPatron(SierraPatronRecord spr) {
 		log.debug("sierraPatronToHostLmsPatron({})",spr);
-		return HostLmsPatronDTO.builder()
-			.localId(spr.getId().toString())
-			.localPatronType(spr.getPatronType().toString())
-			.localBarcodes(toCsv(Arrays.asList(spr.getBarcodes() != null ? spr.getBarcodes() : new String[0] )))
-			.localNames(toCsv(Arrays.asList(spr.getNames() != null ? spr.getNames() : new String[0] )))
+		String patronLocalAgency = null;
+
+		// If we were supplied fixed fields, and we can find an entry for fixed field 158, grab the patron agency
+		if ( ( spr.getFixedFields() != null ) &&
+				 ( spr.getFixedFields().get(FIXED_FIELD_158) != null ) ) {
+						patronLocalAgency = spr.getFixedFields().get(FIXED_FIELD_158).getValue().toString();
+		}
+
+		return Patron.builder()
+			.localId( singletonList( valueOf(spr.getId()) ) )
+			.localPatronType( valueOf(spr.getPatronType())  )
+			.localBarcodes( listOfNotNull(spr.getBarcodes()) )
+			.localNames( listOfNotNull(spr.getNames()) )
+			.localPatronAgency( patronLocalAgency )
 			.build();
 	}
 
-	public Mono<HostLmsPatronDTO> getPatronByLocalId(String localPatronId) {
+	private List<String> listOfNotNull(String[] stringArray) {
+		return stringArray != null ? List.of(stringArray) : null;
+	}
+
+//	public <T> List<T> getListIfNotNull(SierraPatronRecord sierraPatronRecord, Function<SierraPatronRecord, T[]> getter) {
+//		T[] result = getter.apply(sierraPatronRecord);
+//		return result != null ? List.of(result) : null;
+//	}
+
+	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		log.debug("getPatronByLocalId({})",localPatronId);
 
 		return Mono.from(client.getPatron(Long.valueOf(localPatronId)))
@@ -748,11 +771,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<HostLmsPatronDTO> updatePatron(String localPatronId, String patronType) {
+	public Mono<Patron> updatePatron(String localPatronId, String patronType) {
 		log.debug("updatePatronByLocalId({})",localPatronId);
 
-		final PatronPatch patronPatch = new PatronPatch();
-		patronPatch.setPatronType(Integer.valueOf(patronType));
+		final var patronPatch = PatronPatch.builder()
+			.patronType( parseInt(patronType) )
+			.build();
 
 		return Mono.from( client.updatePatron(Long.valueOf(localPatronId), patronPatch))
 			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")))

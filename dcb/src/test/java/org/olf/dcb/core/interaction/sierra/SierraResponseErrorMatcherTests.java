@@ -1,12 +1,13 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import static io.micronaut.http.HttpResponse.notFound;
+import static io.micronaut.http.HttpResponse.ok;
+import static io.micronaut.http.HttpResponse.unauthorized;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.junit.jupiter.api.Test;
-import org.olf.dcb.core.interaction.sierra.SierraResponseErrorMatcher;
 
-import io.micronaut.http.HttpResponse;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import services.k_int.interaction.sierra.SierraError;
 
@@ -20,8 +21,7 @@ class SierraResponseErrorMatcherTests {
 
 	@Test
 	void shouldNotBeNoRecordsFoundWhenStatusCodeIsAnythingExceptNotFound() {
-		final var exception = new HttpClientResponseException("",
-			HttpResponse.ok());
+		final var exception = new HttpClientResponseException("", ok());
 
 		assertThat(errorMatcher.isNoRecordsError(exception), is(false));
 	}
@@ -29,7 +29,7 @@ class SierraResponseErrorMatcherTests {
 	@Test
 	void shouldNotBeNoRecordsFoundWhenBodyIsNotSierraError() {
 		final var exception = new HttpClientResponseException("",
-			HttpResponse.notFound("Some message"));
+			notFound("Some message"));
 
 		assertThat(errorMatcher.isNoRecordsError(exception), is(false));
 	}
@@ -37,7 +37,7 @@ class SierraResponseErrorMatcherTests {
 	@Test
 	void shouldNotBeNoRecordsFoundWhenCodeIsAnythingExcept107() {
 		final var exception = new HttpClientResponseException("",
-			HttpResponse.notFound(createSierraError(345)));
+			notFound(createSierraError(345)));
 
 		assertThat(errorMatcher.isNoRecordsError(exception), is(false));
 	}
@@ -45,9 +45,23 @@ class SierraResponseErrorMatcherTests {
 	@Test
 	void shouldBeNoRecordsFoundWhenCodeIs107() {
 		final var exception = new HttpClientResponseException("",
-			HttpResponse.notFound().body(createSierraError(107)));
+			notFound().body(createSierraError(107)));
 
 		assertThat(errorMatcher.isNoRecordsError(exception), is(true));
+	}
+
+	@Test
+	void shouldNotBeUnauthorisedWhenStatusCodeIsAnythingExceptUnauthorised() {
+		final var exception = new HttpClientResponseException("", ok());
+
+		assertThat(errorMatcher.isUnauthorised(exception), is(false));
+	}
+
+	@Test
+	void shouldBeUnauthorisedWhenStatusCodeIsUnauthorised() {
+		final var exception = new HttpClientResponseException("", unauthorized());
+
+		assertThat(errorMatcher.isUnauthorised(exception), is(true));
 	}
 
 	private static SierraError createSierraError(int code) {

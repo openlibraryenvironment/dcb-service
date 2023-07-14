@@ -8,6 +8,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 class AdminApiClient {
@@ -26,7 +27,8 @@ class AdminApiClient {
 	 @Nullable Citation citation, @Nullable Requestor requestor,
 	 @Nullable PickupLocation pickupLocation,
 	 @Nullable List<SupplierRequest> supplierRequests,
-	 @Nullable Status status, LocalRequest localRequest) {
+	 @Nullable Status status, LocalRequest localRequest,
+	 @Nullable List<Audit> audits) {
 
 		@Serdeable
 		record Citation(@Nullable UUID bibClusterId) { }
@@ -59,9 +61,18 @@ class AdminApiClient {
 		record LocalRequest(@Nullable String id, @Nullable String status,
 			@Nullable String itemId, @Nullable String bibId) { }
 
+		@Serdeable
+		record Audit(@Nullable String id,
+			@Nullable String patronRequestId,
+			@Nullable String date, @Nullable String description,
+			@Nullable String fromStatus, @Nullable String toStatus,
+			@Nullable Map<String, Object> data) {}
+
 		// Workaround: records do not support been style properties
 		public String getStatusCode() {
 			return status().code();
 		}
+
 	}
+
 }

@@ -82,4 +82,9 @@ public class PatronIdentity {
 
 	@Nullable
 	private Instant lastValidated;
+
+	@Nullable
+        @Relation(value = Relation.Kind.MANY_TO_ONE)
+	private DataAgency resolvedAgency;
+
 }

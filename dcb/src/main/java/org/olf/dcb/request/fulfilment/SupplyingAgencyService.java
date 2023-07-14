@@ -2,14 +2,16 @@ package org.olf.dcb.request.fulfilment;
 
 import static reactor.function.TupleUtils.function;
 
+import java.util.List;
 import java.util.Map;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
-import org.olf.dcb.core.interaction.HostLmsPatronDTO;
+import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
@@ -31,18 +33,21 @@ public class SupplyingAgencyService {
 	private final SupplierRequestService supplierRequestService;
 	private final PatronService patronService;
 	private final PatronTypeService patronTypeService;
-	private final PatronRequestRepository patronRequestRepository;
+	private final PatronRequestWorkflowService patronRequestWorkflowService;
+	private final PatronRequestAuditService patronRequestAuditService;
 
 	public SupplyingAgencyService(
 		HostLmsService hostLmsService, SupplierRequestService supplierRequestService,
 		PatronService patronService, PatronTypeService patronTypeService,
-		PatronRequestRepository patronRequestRepository) {
+		PatronRequestRepository patronRequestRepository,
+		PatronRequestAuditService patronRequestAuditService, PatronRequestWorkflowService patronRequestWorkflowService) {
 
 		this.hostLmsService = hostLmsService;
 		this.supplierRequestService = supplierRequestService;
 		this.patronService = patronService;
 		this.patronTypeService = patronTypeService;
-		this.patronRequestRepository = patronRequestRepository;
+		this.patronRequestWorkflowService = patronRequestWorkflowService;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtSupplyingAgency(PatronRequest patronRequest) {
@@ -53,7 +58,14 @@ public class SupplyingAgencyService {
 			.flatMap(function(this::placeRequestAtSupplier))
 			.flatMap(function(this::updateSupplierRequest))
 			.map(PatronRequest::placedAtSupplyingAgency)
-			.transform(PatronRequestWorkflowService.getErrorTransformerFor(patronRequest, patronRequestRepository::updateStatus));
+			.flatMap(this::createAuditEntry)
+			.transform(patronRequestWorkflowService.getErrorTransformerFor(patronRequest));
+	}
+
+	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
+		return patronRequestAuditService
+			.addAuditEntry(patronRequest, Status.RESOLVED, Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.thenReturn(patronRequest);
 	}
 
 	private Mono<Tuple3<PatronRequest, SupplierRequest, PatronIdentity>> checkAndCreatePatronAtSupplier(
@@ -144,7 +156,7 @@ public class SupplyingAgencyService {
 		log.debug("updateVirtualPatron {}, {}", localId, patronType);
 		return hostLmsService.getClientFor(supplierHostLmsCode)
 			.flatMap(hostLmsClient -> hostLmsClient.updatePatron(localId, patronType))
-			.map(HostLmsPatronDTO::getLocalPatronType);
+			.map(Patron::getLocalPatronType);
 	}
 
 	private Mono<PatronIdentity> getRequestingIdentity(PatronRequest patronRequest) {
@@ -181,12 +193,19 @@ public class SupplyingAgencyService {
                         PatronIdentity requestingPatronIdentity,
                         String supplierHostLmsCode) {
                 // Using the patron type from the patrons "Home" patronIdentity, look up what the equivalent patron type is at
-                // the supplying system. Then create a patron in the supplying system using that type value. 
+                // the supplying system. Then create a patron in the supplying system using that type value.
+
 		return determinePatronType(supplierHostLmsCode, requestingPatronIdentity)
-			.flatMap(patronType ->
-				client.createPatron(patronService.getUniqueIdStringFor(patronRequest.getPatron()), patronType)
-					.map(createdPatron -> Tuples.of(createdPatron, patronType)));
+			.flatMap(patronType -> client.createPatron(
+				Patron.builder()
+					.uniqueIds( stringToList(patronService.getUniqueIdStringFor(patronRequest.getPatron()) ))
+					.localBarcodes( stringToList(requestingPatronIdentity.getLocalBarcode()))
+					.localPatronType( patronType )
+					.build())
+				.map(createdPatron -> Tuples.of(createdPatron, patronType)));
 	}
+
+	private List<String> stringToList(String string) {return string != null ? List.of(string) : null;}
 
 	private Mono<PatronIdentity> checkForPatronIdentity(PatronRequest patronRequest,
 		String hostLmsCode, String localId, String localPType) {

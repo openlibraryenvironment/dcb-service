@@ -1,8 +1,14 @@
 package org.olf.dcb.request.workflow;
 
+import static java.util.UUID.randomUUID;
+
+import java.time.Instant;
+
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,11 +23,13 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 		LoggerFactory.getLogger(PlacePatronRequestAtBorrowingAgencyStateTransition.class);
 
 	private final BorrowingAgencyService borrowingAgencyService;
+	private final PatronRequestAuditService patronRequestAuditService;
 
 	public PlacePatronRequestAtBorrowingAgencyStateTransition(
 		BorrowingAgencyService borrowingAgencyService,
-		PatronRequestRepository patronRequestRepository) {
+		PatronRequestRepository patronRequestRepository, PatronRequestAuditService patronRequestAuditService) {
 		this.borrowingAgencyService = borrowingAgencyService;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	/**
@@ -39,12 +47,20 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 			.doOnError(
 				error -> log.error(
 					"Error occurred during placing a patron request to borrowing agency: {}",
-					error.getMessage()));
+					error.getMessage()))
+			.flatMap(this::createAuditEntry);
 
 	}
 	@Override
 	public boolean isApplicableFor(PatronRequest pr) {
     return pr.getStatus() == Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+	}
+	
+	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
+
+		return patronRequestAuditService
+				.addAuditEntry(patronRequest,	Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY, Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
+					.map(PatronRequestAudit::getPatronRequest);
 	}
 }
 

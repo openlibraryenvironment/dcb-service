@@ -39,12 +39,12 @@ public class SierraItemsAPIFixture {
 
 	public void zeroItemsResponseForBibId(String bibId) {
 		mockServer.when(getItemsForBib(bibId))
-			.respond(zeroItemsResponse());
+			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
 	public void errorResponseForBibId(String bibId) {
 		mockServer.when(getItemsForBib(bibId))
-			.respond(sierraMockServerResponses.jsonError("json-error.json"));
+			.respond(sierraMockServerResponses.jsonError());
 	}
 
 	public HttpResponse threeItemsResponse() {
@@ -57,16 +57,11 @@ public class SierraItemsAPIFixture {
 			"items/sierra-api-two-items.json");
 	}
 
-	private HttpResponse zeroItemsResponse() {
-		return sierraMockServerResponses.notFound(
-			"items/sierra-api-zero-items.json");
-	}
-
 	public void jsonErrorResponseForCreateItem() {
 		mockServer.clear(sierraMockServerRequests.post());
 
 		mockServer.when(sierraMockServerRequests.post())
-			.respond(sierraMockServerResponses.jsonError("json-error.json"));
+			.respond(sierraMockServerResponses.jsonError());
 	}
 
 	public void successResponseForCreateItem(Integer bibId, String locationCode, String barcode) {

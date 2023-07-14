@@ -26,7 +26,7 @@ public class PatronTypeService {
 	 */
 	public Mono<String> determinePatronType(String supplierHostLmsCode, String requesterHostLmsCode,
 		String requesterPatronType) {
-		log.debug("determinePatronType {} {} {}",supplierHostLmsCode,requesterHostLmsCode,requesterPatronType);
+		log.debug("determinePatronType supplier={} requester={} ptype={}",supplierHostLmsCode,requesterHostLmsCode,requesterPatronType);
 		// Get the "Spine" mapping
 		return findMapping("DCB",requesterHostLmsCode, requesterPatronType)
 			.doOnNext ( spineMapping -> log.debug("Got spine mapping {}",spineMapping) )
@@ -39,7 +39,7 @@ public class PatronTypeService {
 	}
 
 	private Mono<ReferenceValueMapping> findMapping(String targetContext, String sourceContext, String sourceValue) {
-                log.debug("findMapping {} {} {}",targetContext,sourceContext,sourceValue);
+                log.debug("findMapping targetCtx={} sourceCtx={} value={}",targetContext,sourceContext,sourceValue);
 		return Mono.from(
 			referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToContext(
 				"patronType", sourceContext, sourceValue, targetContext));
