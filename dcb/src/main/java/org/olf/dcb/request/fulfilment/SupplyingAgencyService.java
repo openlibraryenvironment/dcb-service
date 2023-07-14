@@ -26,6 +26,9 @@ import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
 import reactor.util.function.Tuples;
 
+import lombok.experimental.Accessors;
+import lombok.Data;
+
 @Prototype
 public class SupplyingAgencyService {
 	private static final Logger log = LoggerFactory.getLogger(SupplyingAgencyService.class);
@@ -37,8 +40,28 @@ public class SupplyingAgencyService {
 	
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
-	
 	private final PatronRequestAuditService patronRequestAuditService;
+
+        @Data
+        @Accessors(chain=true)
+        private class PlaceSupplierRequestContext {
+                String patronAgencyCode;
+                String patronSystemCode;
+                String pickupAgencyCode;
+                String pickupSystemCode;
+                String lenderAgencyCode;
+                String lenderSystemCode;
+
+                PatronIdentity patronHomeIdentity;
+                PatronIdentity patronVirtualIdentity;
+
+                PatronRequest patronRequest;
+                SupplierRequest supplierRequest;
+
+                String supplierHoldId;
+                String supplierHoldStatus;
+        }
+
 
 	public SupplyingAgencyService(
 		HostLmsService hostLmsService, SupplierRequestService supplierRequestService,
@@ -57,6 +80,26 @@ public class SupplyingAgencyService {
 	public Mono<PatronRequest> placePatronRequestAtSupplyingAgency(PatronRequest patronRequest) {
 		log.debug("placePatronRequestAtSupplyingAgency {}", patronRequest.getId());
 
+                // In order to place a request at the supplying agency we need to know
+                // The agency-code and system-code of the patron, 
+                // the agency-code and system-code of the supplier
+                // The agency-code and system code of the pickup location
+                //
+                // If all three are in the same system this is a local hold - variant 1
+                // If the pickup system and the borrower system are the same then this is a simple 2 party loan
+                // psrc If the loan system and the pickup system are the same it's also a simple (Ish) 2 party loan
+                // If the pickup system and the borrower system and the lending system are all different it's a three-party loan 
+                PlaceSupplierRequestContext src = new PlaceSupplierRequestContext().setPatronRequest(patronRequest);
+
+                return findSupplierRequest(src)
+                        .flatMap(this::checkAndCreatePatronAtSupplier)
+                        .flatMap(this::placeRequestAtSupplier)
+                        .flatMap(this::updateSupplierRequest)
+                        .map(PatronRequest::placedAtSupplyingAgency)
+			.flatMap(this::createAuditEntry)
+			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
+
+		/*
 		return findSupplierRequestFor(patronRequest)
 			.flatMap(function(this::checkAndCreatePatronAtSupplier))
 			.flatMap(function(this::placeRequestAtSupplier))
@@ -64,6 +107,7 @@ public class SupplyingAgencyService {
 			.map(PatronRequest::placedAtSupplyingAgency)
 			.flatMap(this::createAuditEntry)
 			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
+		*/
 	}
 
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
@@ -75,28 +119,31 @@ public class SupplyingAgencyService {
 			.thenReturn(patronRequest);
 	}
 
-	private Mono<Tuple3<PatronRequest, SupplierRequest, PatronIdentity>> checkAndCreatePatronAtSupplier(
-		PatronRequest patronRequest, SupplierRequest supplierRequest) {
+	private Mono<PlaceSupplierRequestContext> checkAndCreatePatronAtSupplier(PlaceSupplierRequestContext psrc) {
 
-		log.debug("checkAndCreatePatronAtSupplier {} {}",patronRequest,supplierRequest);
+		log.debug("checkAndCreatePatronAtSupplier {}",psrc);
+
+		PatronRequest patronRequest = psrc.getPatronRequest();
+		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 
 		return upsertPatronIdentityAtSupplier(patronRequest,supplierRequest)
-			.map(patronIdentity -> { supplierRequest.setVirtualIdentity(patronIdentity); return patronIdentity; } )
-			.map(patronIdentity -> Tuples.of(patronRequest, supplierRequest, patronIdentity));
+			.map(patronIdentity -> { supplierRequest.setVirtualIdentity(patronIdentity); return psrc; } );
 	}
 
-	private Mono<Tuple2<SupplierRequest, PatronRequest>> placeRequestAtSupplier(
-		PatronRequest patronRequest,
-		SupplierRequest supplierRequest, 
-		PatronIdentity patronIdentityAtSupplier) {
+	private Mono<PlaceSupplierRequestContext> placeRequestAtSupplier(PlaceSupplierRequestContext psrc) {
 
-		log.debug("placeRequestAtSupplier {}, {}", patronRequest.getId(), patronIdentityAtSupplier.getId());
+		log.debug("placeRequestAtSupplier {}", psrc);
+
+		PatronRequest patronRequest = psrc.getPatronRequest();
+		SupplierRequest supplierRequest = psrc.getSupplierRequest();
+		PatronIdentity patronIdentityAtSupplier = psrc.getPatronVirtualIdentity();
+
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
 			.flatMap(client -> this.placeHoldRequest(patronIdentityAtSupplier, supplierRequest,patronRequest, client) )
 			.doOnSuccess(result -> log.info("Hold placed({})", result))
 			.map(function(supplierRequest::placed))
-			.map(changedSupplierRequest -> Tuples.of(supplierRequest, patronRequest));
+			.thenReturn(psrc);
 	}
 
         private Mono<Tuple2<String, String>> placeHoldRequest(
@@ -124,8 +171,10 @@ public class SupplyingAgencyService {
         }
                 
 
-	private Mono<PatronRequest> updateSupplierRequest(
-		SupplierRequest supplierRequest, PatronRequest patronRequest) {
+	private Mono<PatronRequest> updateSupplierRequest(PlaceSupplierRequestContext psrc) {
+
+		SupplierRequest supplierRequest = psrc.getSupplierRequest();
+		PatronRequest patronRequest = psrc.getPatronRequest();
 
 		return supplierRequestService.updateSupplierRequest(supplierRequest)
 			.thenReturn(patronRequest);
@@ -221,14 +270,11 @@ public class SupplyingAgencyService {
 				hostLmsCode, localId, localPType);
 	}
 
-	private Mono<Tuple2<PatronRequest, SupplierRequest>> findSupplierRequestFor(
-		PatronRequest patronRequest) {
-
-                log.debug("findSupplierRequestFor {}",patronRequest);
-
-		return supplierRequestService.findSupplierRequestFor(patronRequest)
-			.map(supplierRequest -> Tuples.of(patronRequest, supplierRequest));
-	}
+        // Remember that @Accessors means that setSupplierRequest returns this
+        private Mono<PlaceSupplierRequestContext> findSupplierRequest(PlaceSupplierRequestContext ctx) {
+                return supplierRequestService.findSupplierRequestFor(ctx.getPatronRequest())
+                        .map(supplierRequest -> ctx.setSupplierRequest(supplierRequest));
+        }
 
 	private Mono<String> determinePatronType(String supplyingHostLmsCode, PatronIdentity requestingIdentity) {
                 if ( requestingIdentity != null ) {
