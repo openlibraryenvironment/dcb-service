@@ -6,6 +6,8 @@ import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.PATRON
 import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import org.olf.dcb.core.HostLmsService;
@@ -21,6 +23,7 @@ import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 
 import static java.util.UUID.randomUUID;
+import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
 
 @Prototype
 public class ValidatePatronTransition implements PatronRequestStateTransition {
@@ -64,8 +67,8 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				// Update the patron identity with the current patron type and set the last validated date to now()
 				pi.setLocalPtype(patron.getLocalPatronType());
 				pi.setLastValidated(Instant.now());
-				pi.setLocalBarcode( patron.getLocalBarcodes() != null ?  join(",", patron.getLocalBarcodes()) : null );
-				pi.setLocalNames( patron.getLocalNames() != null ?  join(",", patron.getLocalNames()) : null );
+				pi.setLocalBarcode( Objects.toString(patron.getLocalBarcodes()) );
+				pi.setLocalNames( Objects.toString(patron.getLocalNames()) );
 				pi.setLocalAgency(patron.getLocalPatronAgency());
 
 				return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(pi));
