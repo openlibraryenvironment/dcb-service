@@ -24,6 +24,7 @@ import org.olf.dcb.storage.ShelvingLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
@@ -40,20 +41,22 @@ public class BorrowingAgencyService {
 	private final SupplierRequestService supplierRequestService;
 	private final BibRepository bibRepository;
 	private final ClusterRecordRepository clusterRecordRepository;
-	private final PatronRequestWorkflowService patronRequestWorkflowService;
+	
+	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
+	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
   private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	public BorrowingAgencyService(HostLmsService hostLmsService, PatronIdentityRepository patronIdentityRepository,
 			SupplierRequestService supplierRequestService, BibRepository bibRepository,
 			ClusterRecordRepository clusterRecordRepository, ShelvingLocationRepository shelvingLocationRepository,
-			PatronRequestRepository patronRequestRepository, PatronRequestWorkflowService patronRequestWorkflowService, ReferenceValueMappingRepository referenceValueMappingRepository) {
+			PatronRequestRepository patronRequestRepository, ReferenceValueMappingRepository referenceValueMappingRepository, BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
 
 		this.hostLmsService = hostLmsService;
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.supplierRequestService = supplierRequestService;
 		this.bibRepository = bibRepository;
 		this.clusterRecordRepository = clusterRecordRepository;
-		this.patronRequestWorkflowService = patronRequestWorkflowService;
+		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 	}
 
@@ -63,7 +66,7 @@ public class BorrowingAgencyService {
 		return getHoldRequestData(patronRequest).flatMap(function(this::createVirtualBib))
 				.flatMap(function(this::createVirtualItem)).flatMap(function(this::placeHoldRequest))
 				.map(function(patronRequest::placedAtBorrowingAgency)).transform(
-						patronRequestWorkflowService.getErrorTransformerFor(patronRequest));
+						patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
 
 	private Mono<Tuple5<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest, String>> createVirtualBib(

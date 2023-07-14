@@ -13,6 +13,7 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 
@@ -50,6 +51,7 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 	
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
 
+		if (patronRequest.getStatus() == Status.ERROR) return Mono.just(patronRequest);
 		return patronRequestAuditService
 				.addAuditEntry(patronRequest, Status.RESOLVED, Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 				.map(PatronRequestAudit::getPatronRequest);

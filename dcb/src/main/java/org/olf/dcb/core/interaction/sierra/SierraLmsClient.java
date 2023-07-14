@@ -2,7 +2,6 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
-import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.nonNull;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
@@ -10,7 +9,13 @@ import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 
 import javax.transaction.Transactional;
 import javax.transaction.Transactional.TxType;
@@ -58,7 +63,6 @@ import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibPatch;
-import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchInfo;
@@ -380,9 +384,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		final var patronPatch = PatronPatch.builder()
 			.patronType( parseInt(patron.getLocalPatronType()) )
-			.uniqueIds( patron.getUniqueIds().toArray(String[]::new) )
-			.names( patron.getUniqueIds().toArray(String[]::new) )
-			.barcodes( patron.getLocalBarcodes().toArray(String[]::new) )
+			.uniqueIds( Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList).toArray(String[]::new) )
+			.names( Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList).toArray(String[]::new) )
+			.barcodes( Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList).toArray(String[]::new) )
 			.build();
 
 		return Mono.from(client.patrons(patronPatch))

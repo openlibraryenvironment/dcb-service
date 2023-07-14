@@ -19,6 +19,7 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
@@ -33,20 +34,23 @@ public class SupplyingAgencyService {
 	private final SupplierRequestService supplierRequestService;
 	private final PatronService patronService;
 	private final PatronTypeService patronTypeService;
-	private final PatronRequestWorkflowService patronRequestWorkflowService;
+	
+	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
+	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
+	
 	private final PatronRequestAuditService patronRequestAuditService;
 
 	public SupplyingAgencyService(
 		HostLmsService hostLmsService, SupplierRequestService supplierRequestService,
 		PatronService patronService, PatronTypeService patronTypeService,
 		PatronRequestRepository patronRequestRepository,
-		PatronRequestAuditService patronRequestAuditService, PatronRequestWorkflowService patronRequestWorkflowService) {
+		PatronRequestAuditService patronRequestAuditService, BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
 
 		this.hostLmsService = hostLmsService;
 		this.supplierRequestService = supplierRequestService;
 		this.patronService = patronService;
 		this.patronTypeService = patronTypeService;
-		this.patronRequestWorkflowService = patronRequestWorkflowService;
+		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
@@ -59,10 +63,13 @@ public class SupplyingAgencyService {
 			.flatMap(function(this::updateSupplierRequest))
 			.map(PatronRequest::placedAtSupplyingAgency)
 			.flatMap(this::createAuditEntry)
-			.transform(patronRequestWorkflowService.getErrorTransformerFor(patronRequest));
+			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
 
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
+		
+		if (patronRequest.getStatus() == Status.ERROR) return Mono.just(patronRequest);
+		
 		return patronRequestAuditService
 			.addAuditEntry(patronRequest, Status.RESOLVED, Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.thenReturn(patronRequest);

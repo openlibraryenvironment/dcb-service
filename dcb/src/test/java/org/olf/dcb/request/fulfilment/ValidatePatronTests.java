@@ -5,8 +5,6 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.PATRON_VERIFIED;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 import java.util.UUID;
 
@@ -18,6 +16,8 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.workflow.ValidatePatronTransition;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
@@ -105,7 +105,7 @@ public class ValidatePatronTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatusCode(), is("ERROR"));
+			fetchedPatronRequest.getStatus(), is("ERROR"));
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is("No patron found"));
@@ -122,10 +122,10 @@ public class ValidatePatronTests {
 			is(nullValue()));
 
 		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(SUBMITTED_TO_DCB));
+			fetchedAudit.getFromStatus(), is(Status.SUBMITTED_TO_DCB));
 
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(PATRON_VERIFIED));
+			fetchedAudit.getToStatus(), is(Status.PATRON_VERIFIED));
 	}
 
 	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
@@ -137,10 +137,10 @@ public class ValidatePatronTests {
 			is(description));
 
 		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(SUBMITTED_TO_DCB));
+			fetchedAudit.getFromStatus(), is(Status.SUBMITTED_TO_DCB));
 
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(PATRON_VERIFIED));
+			fetchedAudit.getToStatus(), is(Status.PATRON_VERIFIED));
 	}
 
 	@Test
@@ -167,7 +167,7 @@ public class ValidatePatronTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatusCode(), is("ERROR"));
+			fetchedPatronRequest.getStatus(), is("ERROR"));
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is("Internal Server Error"));
@@ -187,7 +187,7 @@ public class ValidatePatronTests {
 		var patronRequest = PatronRequest.builder()
 			.id(patronRequestId)
 			.patron(patron)
-			.statusCode(SUBMITTED_TO_DCB)
+			.status(Status.SUBMITTED_TO_DCB)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);

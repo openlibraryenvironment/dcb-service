@@ -1,35 +1,8 @@
 package org.olf.dcb.api;
 
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import jakarta.inject.Inject;
-import net.minidev.json.JSONObject;
-import org.hamcrest.Matcher;
-import org.junit.jupiter.api.*;
-import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
-import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
-import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.core.model.ShelvingLocation;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.ShelvingLocationRepository;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
-import org.olf.dcb.test.*;
-
-import reactor.core.publisher.Mono;
-import services.k_int.interaction.sierra.SierraTestUtils;
-import services.k_int.interaction.sierra.bibs.BibPatch;
-import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.util.UUID;
-
-import static io.micronaut.http.HttpStatus.*;
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
+import static io.micronaut.http.HttpStatus.NOT_FOUND;
+import static io.micronaut.http.HttpStatus.OK;
 import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -37,20 +10,61 @@ import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.*;
+import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 
+import java.util.UUID;
+
+import org.hamcrest.Matcher;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
+import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.model.ShelvingLocation;
+import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
+import org.olf.dcb.storage.ShelvingLocationRepository;
+import org.olf.dcb.test.BibRecordFixture;
+import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.annotation.Client;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import jakarta.inject.Inject;
+import net.minidev.json.JSONObject;
+import reactor.core.publisher.Mono;
+import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.interaction.sierra.bibs.BibPatch;
+import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PatronRequestApiTests {
 
-        private final Logger log = LoggerFactory.getLogger(PatronRequestApiTests.class);
+	private final Logger log = LoggerFactory.getLogger(PatronRequestApiTests.class);
 
 	private static final String HOST_LMS_CODE = "patron-request-api-tests";
 
@@ -76,8 +90,8 @@ class PatronRequestApiTests {
 	private AdminApiClient adminApiClient;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
-        @Inject
-        private ReferenceValueMappingRepository referenceValueMappingRepository;
+	@Inject
+	private ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	@Inject
@@ -91,8 +105,7 @@ class PatronRequestApiTests {
 		final String KEY = "patron-request-key";
 		final String SECRET = "patron-request-secret";
 
-		SierraTestUtils.mockFor(mock, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+		SierraTestUtils.mockFor(mock, BASE_URL).setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		hostLmsFixture.deleteAllHostLMS();
 
@@ -100,7 +113,8 @@ class PatronRequestApiTests {
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 		// Moved to class level var so we can install fixtures elsewhere
-		// final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		// final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock,
+		// loader);
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
 
@@ -117,11 +131,10 @@ class PatronRequestApiTests {
 		// sierraPatronsAPIFixture.patronHoldResponse("2745326");
 
 		// borrowing agency service
-		final var bibPatch = BibPatch.builder()
-			.authors(new String[] {"Stafford Beer"})
-			.titles(new String[] {"Brain of the Firm"})
-			// .bibCode3("n")
-			.build();
+		final var bibPatch = BibPatch.builder().authors(new String[] { "Stafford Beer" })
+				.titles(new String[] { "Brain of the Firm" })
+				// .bibCode3("n")
+				.build();
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916920, "ab6", "6565750674");
@@ -152,34 +165,22 @@ class PatronRequestApiTests {
 		UUID id = randomUUID();
 		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
 
-		DataAgency dataAgency = Mono.from(
-			agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2))).block();
+		DataAgency dataAgency = Mono.from(agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2)))
+				.block();
 
-		ShelvingLocation shelvingLocation = ShelvingLocation.builder()
-			.id(randomUUID())
-			.code("ab6")
-			.name("name")
-			.hostSystem(dataHostLms1)
-			.agency(dataAgency)
-			.build();
+		ShelvingLocation shelvingLocation = ShelvingLocation.builder().id(randomUUID()).code("ab6").name("name")
+				.hostSystem(dataHostLms1).agency(dataAgency).build();
 
-		Mono.from(shelvingLocationRepository.save(shelvingLocation))
-			.block();
+		Mono.from(shelvingLocationRepository.save(shelvingLocation)).block();
 
-                ReferenceValueMapping rvm = ReferenceValueMapping.builder()
-                        .id(randomUUID())
-                        .fromCategory("ShelvingLocation")
-                        .fromContext("patron-request-api-tests")
-                        .fromValue("ab6")
-                        .toCategory("AGENCY")
-                        .toContext("DCB")
-                        .toValue("ab6")
-                        .build();
+		ReferenceValueMapping rvm = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("ShelvingLocation")
+				.fromContext("patron-request-api-tests").fromValue("ab6").toCategory("AGENCY").toContext("DCB").toValue("ab6")
+				.build();
 
-                referenceValueMappingFixture.saveReferenceValueMapping(rvm);
-                // Mono.from(referenceValueMappingRepository.save(rvm))
-                //         .block();
-                        
+		referenceValueMappingFixture.saveReferenceValueMapping(rvm);
+		// Mono.from(referenceValueMappingRepository.save(rvm))
+		// .block();
+
 	}
 
 	@AfterAll
@@ -203,8 +204,8 @@ class PatronRequestApiTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		// Act
-		var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, "872321", "ABC123", HOST_LMS_CODE, "home-library");
+		var placedRequestResponse = patronRequestApiClient.placePatronRequest(clusterRecordId, "872321", "ABC123",
+				HOST_LMS_CODE, "home-library");
 
 		// Assert
 		assertThat(placedRequestResponse.getStatus(), is(OK));
@@ -215,15 +216,22 @@ class PatronRequestApiTests {
 
 		// Fix up the sierra mock so that it finds a hold with the right note in it
 		// 2745326 will be the identity of this patron in the supplier side system
-		log.info("Inserting hold response for patron 2745326 - placedPatronRequest.id="+placedPatronRequest.id());
-		sierraPatronsAPIFixture.patronHoldResponse("2745326", "https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/407557", "Consortial Hold. tno="+placedPatronRequest.id());
+		log.info("Inserting hold response for patron 2745326 - placedPatronRequest.id=" + placedPatronRequest.id());
+		sierraPatronsAPIFixture.patronHoldResponse("2745326",
+				"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/407557",
+				"Consortial Hold. tno=" + placedPatronRequest.id());
 
 		// This one is for the borrower side hold
-		sierraPatronsAPIFixture.patronHoldResponse("872321", "https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864902", "Consortial Hold. tno="+placedPatronRequest.id());
+		sierraPatronsAPIFixture.patronHoldResponse("872321",
+				"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864902",
+				"Consortial Hold. tno=" + placedPatronRequest.id());
 
-		// We need to take the placedRequestResponse and somehow inject it's ID into the patronHolds respons message as note="Consortial Hold. tno=UUID"
-		// This will ensure that the subsequent lookup can correlate the hold with the request
-		// maybe something like sierraPatronsAPIFixture.patronHoldResponse("872321", placedRequestResponse.id);
+		// We need to take the placedRequestResponse and somehow inject it's ID into the
+		// patronHolds respons message as note="Consortial Hold. tno=UUID"
+		// This will ensure that the subsequent lookup can correlate the hold with the
+		// request
+		// maybe something like sierraPatronsAPIFixture.patronHoldResponse("872321",
+		// placedRequestResponse.id);
 
 		assertThat(placedPatronRequest.requestor(), is(notNullValue()));
 		assertThat(placedPatronRequest.requestor().homeLibraryCode(), is("home-library"));
@@ -232,8 +240,7 @@ class PatronRequestApiTests {
 
 		log.info("Waiting for placed....");
 		AdminApiClient.AdminAccessPatronRequest fetchedPatronRequest = await().atMost(5, SECONDS)
-			.until(() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.id()),
-				isPlacedAtBorrowingAgency());
+				.until(() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.id()), isPlacedAtBorrowingAgency());
 
 		assertThat(fetchedPatronRequest, is(notNullValue()));
 
@@ -251,7 +258,7 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.localRequest().status(), is("PLACED"));
 		assertThat(fetchedPatronRequest.localRequest().itemId(), is("7916922"));
 		assertThat(fetchedPatronRequest.localRequest().bibId(), is("7916920"));
-		
+
 		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
 
 		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
@@ -286,7 +293,7 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.audits(), is(notNullValue()));
 
 		final var lastAuditValue = fetchedPatronRequest.audits().size();
-		final var lastAudit = fetchedPatronRequest.audits().get(lastAuditValue-1);
+		final var lastAudit = fetchedPatronRequest.audits().get(lastAuditValue - 1);
 
 		assertThat(lastAudit.patronRequestId(), is(fetchedPatronRequest.id().toString()));
 		assertThat(lastAudit.description(), is(nullValue()));
@@ -307,14 +314,14 @@ class PatronRequestApiTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "565382", clusterRecord);
 
 		// Act
-		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(clusterRecordId, "43546",
-			"ABC123", HOST_LMS_CODE, "homeLibraryCode");
+		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(clusterRecordId, "43546", "ABC123",
+				HOST_LMS_CODE, "homeLibraryCode");
 
 		// Need a longer timeout because retrying the Sierra API,
 		// which happens when the zero items 404 response is received,
 		// takes longer than success
-		final var fetchedPatronRequest = await().atMost(12, SECONDS)
-			.until(() -> adminApiClient.getPatronRequestViaAdminApi( requireNonNull(placedRequestResponse.body()).id() ),
+		final var fetchedPatronRequest = await().atMost(12, SECONDS).until(
+				() -> adminApiClient.getPatronRequestViaAdminApi(requireNonNull(placedRequestResponse.body()).id()),
 				isNotAvailableToRequest());
 
 		// Assert
@@ -338,7 +345,7 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.audits(), is(notNullValue()));
 
 		final var lastAuditValue = fetchedPatronRequest.audits().size();
-		final var lastAudit = fetchedPatronRequest.audits().get(lastAuditValue-1);
+		final var lastAudit = fetchedPatronRequest.audits().get(lastAuditValue - 1);
 
 		assertThat(lastAudit.patronRequestId(), is(fetchedPatronRequest.id().toString()));
 		assertThat(lastAudit.description(), is(nullValue()));
@@ -355,8 +362,7 @@ class PatronRequestApiTests {
 		final var request = HttpRequest.POST("/patrons/requests/place", requestBody);
 
 		// When placing a request without providing any information
-		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> client.toBlocking().exchange(request));
+		final var exception = assertThrows(HttpClientResponseException.class, () -> client.toBlocking().exchange(request));
 
 		// Then a bad request response should be returned
 		final var response = exception.getResponse();
@@ -375,46 +381,51 @@ class PatronRequestApiTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		// Act
-		final var requestBody = new JSONObject() {{
-			put("citation", new JSONObject() {{
-				put("bibClusterId", clusterRecordId.toString());
-			}});
-			put("requestor", new JSONObject() {{
-				put("localId", "73825");
-				put("localSystemCode", "unknown-system");
-				put("homeLibraryCode", "home-library-code");
-			}});
-			put("pickupLocation", new JSONObject() {{
-				put("code", "ABC123");
-			}});
-		}};
+		final var requestBody = new JSONObject() {
+			{
+				put("citation", new JSONObject() {
+					{
+						put("bibClusterId", clusterRecordId.toString());
+					}
+				});
+				put("requestor", new JSONObject() {
+					{
+						put("localId", "73825");
+						put("localSystemCode", "unknown-system");
+						put("homeLibraryCode", "home-library-code");
+					}
+				});
+				put("pickupLocation", new JSONObject() {
+					{
+						put("code", "ABC123");
+					}
+				});
+			}
+		};
 
 		final var request = HttpRequest.POST("/patrons/requests/place", requestBody);
 
 		// When placing a request for a patron at an unknown local system
-		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> client.toBlocking().exchange(request));
+		final var exception = assertThrows(HttpClientResponseException.class, () -> client.toBlocking().exchange(request));
 
 		// Then a bad request response should be returned
 		final var response = exception.getResponse();
 
-		assertThat("Should return a bad request status",
-			response.getStatus(), is(BAD_REQUEST));
+		assertThat("Should return a bad request status", response.getStatus(), is(BAD_REQUEST));
 
 		final var optionalBody = response.getBody(String.class);
 
-		assertThat("Response should have a body",
-			optionalBody.isPresent(), is(true));
+		assertThat("Response should have a body", optionalBody.isPresent(), is(true));
 
-		assertThat("Body should report no Host LMS found error",
-			optionalBody.get(), is("No Host LMS found for code: unknown-system"));
+		assertThat("Body should report no Host LMS found error", optionalBody.get(),
+				is("No Host LMS found for code: unknown-system"));
 	}
 
 	@Test
 	void cannotFindPatronRequestForUnknownId() {
 		log.info("\n\ncannotFindPatronRequestForUnknownId\n\n");
 		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> adminApiClient.getPatronRequestViaAdminApi(randomUUID()));
+				() -> adminApiClient.getPatronRequestViaAdminApi(randomUUID()));
 
 		final var response = exception.getResponse();
 
@@ -430,10 +441,10 @@ class PatronRequestApiTests {
 	}
 
 	private void savePatronTypeMappings() {
-		referenceValueMappingFixture.saveReferenceValueMapping(patronFixture.createPatronTypeMapping(
-			"patron-request-api-tests", "15", "DCB", "15"));
+		referenceValueMappingFixture.saveReferenceValueMapping(
+				patronFixture.createPatronTypeMapping("patron-request-api-tests", "15", "DCB", "15"));
 
-		referenceValueMappingFixture.saveReferenceValueMapping(patronFixture.createPatronTypeMapping(
-			"DCB", "15", "patron-request-api-tests", "15"));
+		referenceValueMappingFixture.saveReferenceValueMapping(
+				patronFixture.createPatronTypeMapping("DCB", "15", "patron-request-api-tests", "15"));
 	}
 }

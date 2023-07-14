@@ -6,8 +6,6 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.UUID;
@@ -23,8 +21,10 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.ShelvingLocation;
+import org.olf.dcb.request.workflow.PlacePatronRequestAtBorrowingAgencyStateTransition;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
 import org.olf.dcb.test.BibRecordFixture;
@@ -201,7 +201,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		// Assert
 		assertThat("Patron request should not be null", pr, is(notNullValue()));
-		assertThat("Status code wasn't expected.", pr.getStatusCode(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
+		assertThat("Status code wasn't expected.", pr.getStatus(), is(Status.REQUEST_PLACED_AT_BORROWING_AGENCY));
 		assertThat("Local request id wasn't expected.", pr.getLocalRequestId(), is("864902"));
 		assertThat("Local request status wasn't expected.", pr.getLocalRequestStatus(), is("PLACED"));
 		assertSuccessfulTransitionAudit(pr);
@@ -247,7 +247,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatusCode(), is("ERROR"));
+			fetchedPatronRequest.getStatus(), is("ERROR"));
 
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, "Internal Server Error");
 	}
@@ -295,7 +295,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatusCode(), is("ERROR"));
+			fetchedPatronRequest.getStatus(), is(Status.ERROR));
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(),
@@ -313,10 +313,10 @@ class PlaceRequestAtBorrowingAgencyTests {
 			fetchedAudit.getBriefDescription(), is(nullValue()));
 
 		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+			fetchedAudit.getFromStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
+			fetchedAudit.getToStatus(), is(Status.REQUEST_PLACED_AT_BORROWING_AGENCY));
 	}
 
 	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
@@ -327,10 +327,10 @@ class PlaceRequestAtBorrowingAgencyTests {
 			fetchedAudit.getBriefDescription(), is(description));
 
 		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+			fetchedAudit.getFromStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
+			fetchedAudit.getToStatus(), is(Status.REQUEST_PLACED_AT_BORROWING_AGENCY));
 	}
 
 	private PatronRequest placeRequestAtBorrowingAgency(PatronRequest patronRequest) {

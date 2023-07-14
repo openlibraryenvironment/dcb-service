@@ -73,6 +73,8 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	}
 	
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
+
+		if (patronRequest.getStatus() == Status.ERROR) return Mono.just(patronRequest);
 		return patronRequestAuditService.addAuditEntry(patronRequest, Status.SUBMITTED_TO_DCB, Status.PATRON_VERIFIED)
 				.thenReturn(patronRequest);
 	}

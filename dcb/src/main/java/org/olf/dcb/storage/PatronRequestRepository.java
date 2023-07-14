@@ -6,6 +6,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.StatusCode;
 import org.reactivestreams.Publisher;
 
@@ -61,5 +62,11 @@ public interface PatronRequestRepository {
 	
 	@NonNull
 	@SingleResult
-	Publisher<Void> updateStatus(@Id UUID id, PatronRequest.Status status);
+	Publisher<Void> updateStatusAndErrorMessage(@Id UUID id, PatronRequest.Status status, String errorMessage);
+	
+	@NonNull
+	@SingleResult
+	default Publisher<Void> updateStatusWithError(@Id UUID id, Throwable t) {
+		return this.updateStatusAndErrorMessage(id, Status.ERROR, t.getMessage());
+	};
 }

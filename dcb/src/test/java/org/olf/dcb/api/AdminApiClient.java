@@ -65,7 +65,7 @@ class AdminApiClient {
 		record Audit(@Nullable String id,
 			@Nullable String patronRequestId,
 			@Nullable String date, @Nullable String description,
-			@Nullable String fromStatus, @Nullable String toStatus,
+			@Nullable org.olf.dcb.core.model.PatronRequest.Status fromStatus, @Nullable org.olf.dcb.core.model.PatronRequest.Status toStatus,
 			@Nullable Map<String, Object> data) {}
 
 		// Workaround: records do not support been style properties

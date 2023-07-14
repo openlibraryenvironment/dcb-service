@@ -173,7 +173,7 @@ public class PatronRequestWorkflowService {
 					// When we encounter an error we should set the status in the DB only to avoid,
 					// partial state saves.
 					
-					return Mono.from(patronRequestRepository.updateStatus(prId, Status.ERROR))	
+					return Mono.from(patronRequestRepository.updateStatusWithError(prId, throwable))
 						.flatMap(_void -> patronRequestAuditService.addErrorAuditEntry(patronRequest, fromState, throwable))
 						.onErrorResume(saveError -> {
 							log.error("Could not update PatronRequest with error state", saveError);

@@ -11,10 +11,10 @@ import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
-@Prototype
+@Singleton
 public class PatronRequestAuditService {
 
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestAuditService.class);
@@ -41,10 +41,13 @@ public class PatronRequestAuditService {
 
 		message.ifPresent(builder::briefDescription);
 
-		return Mono.just(builder.build()).flatMap(auditEntry -> Mono.from(patronRequestAuditRepository.save(auditEntry)))
+		return Mono.just(builder.build())
+				.flatMap(auditEntry -> Mono.from(patronRequestAuditRepository.save(auditEntry))
+						.cast(PatronRequestAudit.class))
 				.doOnSuccess(this::log);
 	}
 
+	
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, Status from, Throwable error) {
 		return addAuditEntry(patronRequest, from, Status.ERROR, Optional.ofNullable(error.getMessage()));
 	}

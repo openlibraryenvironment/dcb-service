@@ -57,7 +57,8 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 	}
 	
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
-
+		
+		if (patronRequest.getStatus() == Status.ERROR) return Mono.just(patronRequest);
 		return patronRequestAuditService
 				.addAuditEntry(patronRequest,	Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY, Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
 					.map(PatronRequestAudit::getPatronRequest);

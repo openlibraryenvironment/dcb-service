@@ -13,7 +13,7 @@ public interface PatronRequestAuditRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<PatronRequestAudit> save(@Valid @NotNull @NonNull PatronRequestAudit patronRequestAudit);
+	Publisher<? extends PatronRequestAudit> save(@Valid @NotNull @NonNull PatronRequestAudit patronRequestAudit);
 
 	Publisher<PatronRequestAudit> findByPatronRequest(@NotNull @NonNull PatronRequest patronRequest);
 
