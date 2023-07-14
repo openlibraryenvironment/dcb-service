@@ -18,7 +18,7 @@ public interface HostLmsClient {
 
 	Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode);
 
-	Mono<String> createPatron(String uniqueId, String patronType);
+	Mono<String> createPatron(Patron patron);
 
 	Mono<String> createBib(String author, String title);
 
@@ -37,9 +37,9 @@ public interface HostLmsClient {
                 String patronRequestId);
 
 	// Flux<?> getAllAgencies();
-	Mono<HostLmsPatronDTO> getPatronByLocalId(String localPatronId);
+	Mono<Patron> getPatronByLocalId(String localPatronId);
 
-	Mono<HostLmsPatronDTO> updatePatron(String localId, String patronType);
+	Mono<Patron> updatePatron(String localId, String patronType);
 
 	Mono<HostLmsItem> createItem(String bibId, String locationCode, String barcode);
 

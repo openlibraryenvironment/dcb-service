@@ -1,10 +1,12 @@
 package org.olf.dcb.request.fulfilment;
 
 import static java.lang.Boolean.TRUE;
+import static java.lang.String.join;
 import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.PATRON_VERIFIED;
 import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 import java.time.Instant;
+import java.util.Objects;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronIdentity;
@@ -56,15 +58,15 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		log.debug("validatePatronIdentity by calling out to host LMS - PI is {} host lms client is {}", pi, pi.getHostLms());
 		return hostLmsService.getClientFor(pi.getHostLms())
 			.flatMap(client -> client.getPatronByLocalId(pi.getLocalId()))
-			.flatMap(hostLmsPatron -> {
-				log.debug("update patron identity with latest info from host {}", hostLmsPatron);
+			.flatMap(patron -> {
+				log.debug("update patron identity with latest info from host {}", patron);
 
 				// Update the patron identity with the current patron type and set the last validated date to now()
-				pi.setLocalPtype(hostLmsPatron.getLocalPatronType());
+				pi.setLocalPtype(patron.getLocalPatronType());
 				pi.setLastValidated(Instant.now());
-				pi.setLocalBarcode(hostLmsPatron.getLocalBarcodes());
-				pi.setLocalNames(hostLmsPatron.getLocalNames());
-				pi.setLocalAgency(hostLmsPatron.getLocalPatronAgency());
+				pi.setLocalBarcode( patron.getLocalBarcodes() != null ?  join(",", patron.getLocalBarcodes()) : null );
+				pi.setLocalNames( patron.getLocalNames() != null ?  join(",", patron.getLocalNames()) : null );
+				pi.setLocalAgency(patron.getLocalPatronAgency());
 
 				return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(pi));
 			});
