@@ -1,10 +1,13 @@
 package org.olf.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.*;
+import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.UUID;
@@ -18,21 +21,18 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.ShelvingLocation;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.model.ShelvingLocation;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
-import org.olf.dcb.test.*;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 
 import io.micronaut.core.io.ResourceLoader;
@@ -45,11 +45,12 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class BorrowingAgencyServiceTests {
+class PlaceRequestAtBorrowingAgencyTests {
 	private static final String HOST_LMS_CODE = "borrowing-agency-service-tests";
 
 	@Inject
-	ResourceLoader loader;
+	private ResourceLoader loader;
+
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
@@ -59,22 +60,21 @@ class BorrowingAgencyServiceTests {
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
 	@Inject
-	private BorrowingAgencyService borrowingAgencyService;
-	@Inject
-	private PlacePatronRequestAtBorrowingAgencyStateTransition placePatronRequestAtBorrowingAgencyStateTransition;
-	@Inject
 	private BibRecordFixture bibRecordFixture;
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
 	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+
+	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+
+	@Inject
+	private PlacePatronRequestAtBorrowingAgencyStateTransition placePatronRequestAtBorrowingAgencyStateTransition;
+
+	@Inject
 	private ShelvingLocationRepository shelvingLocationRepository;
 	@Inject
 	private AgencyRepository agencyRepository;
-	@Inject
-	private ReferenceValueMappingRepository referenceValueMappingRepository;
-
-	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
-	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
@@ -91,7 +91,6 @@ class BorrowingAgencyServiceTests {
 		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
-		this.referenceValueMappingFixture = new ReferenceValueMappingFixture(referenceValueMappingRepository);
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
@@ -122,14 +121,15 @@ class BorrowingAgencyServiceTests {
 
 		// add shelving location
 		UUID id1 = randomUUID();
-		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms(id1, "code");
-		UUID id = randomUUID();
-		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
+		final var dataHostLms1 = hostLmsFixture.createHostLms(id1, "code");
 
-		DataAgency dataAgency = singleValueFrom(
+		UUID id = randomUUID();
+		final var dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
+
+		final var dataAgency = singleValueFrom(
 			agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2)));
 
-		ShelvingLocation shelvingLocation = ShelvingLocation.builder()
+		final var shelvingLocation = ShelvingLocation.builder()
 			.id(randomUUID())
 			.code("ab6")
 			.name("name")
@@ -139,18 +139,17 @@ class BorrowingAgencyServiceTests {
 
 		singleValueFrom(shelvingLocationRepository.save(shelvingLocation));
 
-                ReferenceValueMapping rvm = ReferenceValueMapping.builder()
-                        .id(randomUUID())
-                        .fromCategory("ShelvingLocation")
-                        .fromContext("borrowing-agency-service-tests")
-                        .fromValue("ab6")
-                        .toCategory("AGENCY")
-                        .toContext("DCB")
-                        .toValue("ab6")
-                        .build();
+		final var rvm = ReferenceValueMapping.builder()
+			.id(randomUUID())
+			.fromCategory("ShelvingLocation")
+			.fromContext("borrowing-agency-service-tests")
+			.fromValue("ab6")
+			.toCategory("AGENCY")
+			.toContext("DCB")
+			.toValue("ab6")
+			.build();
 
-                // Mono.from(referenceValueMappingRepository.save(rvm))
-                referenceValueMappingFixture.saveReferenceValueMapping(rvm);
+		referenceValueMappingFixture.saveReferenceValueMapping(rvm);
 	}
 
 	@AfterAll
@@ -173,6 +172,7 @@ class BorrowingAgencyServiceTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron("872321");
+
 		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-");
 
 		final var patronRequestId = randomUUID();
@@ -197,7 +197,7 @@ class BorrowingAgencyServiceTests {
 			"Consortial Hold. tno="+patronRequest.getId());
 
 		// Act
-		final var pr = placePatronRequestAtBorrowingAgencyStateTransition.attempt(patronRequest).block();
+		final var pr = placeRequestAtBorrowingAgency(patronRequest);
 
 		// Assert
 		assertThat("Patron request should not be null", pr, is(notNullValue()));
@@ -239,7 +239,7 @@ class BorrowingAgencyServiceTests {
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest).block());
+			() -> placeRequestAtBorrowingAgency(patronRequest));
 
 		// Assert
 		assertThat(exception.getMessage(), is("Internal Server Error"));
@@ -286,7 +286,7 @@ class BorrowingAgencyServiceTests {
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
-			() -> placePatronRequestAtBorrowingAgencyStateTransition.attempt(patronRequest).block());
+			() -> placeRequestAtBorrowingAgency(patronRequest));
 
 		// Assert
 		assertThat(exception.getMessage(),
@@ -305,13 +305,12 @@ class BorrowingAgencyServiceTests {
 			"No hold request found for the given note: Consortial Hold. tno=" + patronRequestId);
 	}
 
-	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
-
-		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
+		final var fetchedAudit = patronRequestsFixture
+			.findAuditByPatronRequest(patronRequest).blockFirst();
 
 		assertThat("Patron Request audit should NOT have brief description",
-			fetchedAudit.getBriefDescription(),
-			is(nullValue()));
+			fetchedAudit.getBriefDescription(), is(nullValue()));
 
 		assertThat("Patron Request audit should have from state",
 			fetchedAudit.getFromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
@@ -320,18 +319,21 @@ class BorrowingAgencyServiceTests {
 			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
 	}
 
-	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
-
-		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
+		final var fetchedAudit = patronRequestsFixture
+			.findAuditByPatronRequest(patronRequest).blockFirst();
 
 		assertThat("Patron Request audit should have brief description",
-			fetchedAudit.getBriefDescription(),
-			is(description));
+			fetchedAudit.getBriefDescription(), is(description));
 
 		assertThat("Patron Request audit should have from state",
 			fetchedAudit.getFromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 
 		assertThat("Patron Request audit should have to state",
 			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
+	}
+
+	private PatronRequest placeRequestAtBorrowingAgency(PatronRequest patronRequest) {
+		return placePatronRequestAtBorrowingAgencyStateTransition.attempt(patronRequest).block();
 	}
 }

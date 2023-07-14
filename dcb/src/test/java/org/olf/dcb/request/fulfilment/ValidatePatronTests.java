@@ -2,8 +2,10 @@ package org.olf.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.PATRON_VERIFIED;
 import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.SUBMITTED_TO_DCB;
 
 import java.util.UUID;
@@ -24,12 +26,10 @@ import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.olf.dcb.request.fulfilment.PatronRequestStatusConstants.*;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class ValidatePatronTransitionTests {
+public class ValidatePatronTests {
 	private static final String HOST_LMS_CODE = "validate-patron-transition-tests";
 
 	@Inject
