@@ -8,6 +8,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
+import java.util.List;
+
 /**
  *
  */
@@ -19,10 +21,11 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @AllArgsConstructor
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
-public class HostLmsPatronDTO {
-	private String localId;
-	private String localNames;
-	private String localBarcodes;
+public class Patron {
+	private List<String> localId;
+	private List<String> localNames;
+	private List<String> localBarcodes;
+	private List<String> uniqueIds;
 	private String localPatronType;
 	private String localPatronAgency;
 }
