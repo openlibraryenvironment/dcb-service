@@ -127,7 +127,11 @@ public class SupplyingAgencyService {
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 
 		return upsertPatronIdentityAtSupplier(patronRequest,supplierRequest)
-			.map(patronIdentity -> { supplierRequest.setVirtualIdentity(patronIdentity); return psrc; } );
+			.map(patronIdentity -> { 
+				psrc.setPatronVirtualIdentity(patronIdentity); 
+				supplierRequest.setVirtualIdentity(patronIdentity);
+				return psrc; 
+			});
 	}
 
 	private Mono<PlaceSupplierRequestContext> placeRequestAtSupplier(PlaceSupplierRequestContext psrc) {
@@ -138,9 +142,10 @@ public class SupplyingAgencyService {
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 		PatronIdentity patronIdentityAtSupplier = psrc.getPatronVirtualIdentity();
 
+		assert ( ( patronRequest != null ) && ( supplierRequest != null ) && ( patronIdentityAtSupplier != null ) );
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
-			.flatMap(client -> this.placeHoldRequest(patronIdentityAtSupplier, supplierRequest,patronRequest, client) )
+			.flatMap(client -> this.placeHoldRequest(patronIdentityAtSupplier, supplierRequest, patronRequest, client) )
 			.doOnSuccess(result -> log.info("Hold placed({})", result))
 			.map(function(supplierRequest::placed))
 			.thenReturn(psrc);
