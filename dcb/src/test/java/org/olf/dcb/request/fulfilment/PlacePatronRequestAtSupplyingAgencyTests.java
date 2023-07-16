@@ -167,12 +167,11 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertThat(exception.getMessage(), is("Internal Server Error"));
 		assertThat(exception.getLocalizedMessage(), is("Internal Server Error"));
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
-		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(Status.ERROR));
-		assertThat("Request should have error message afterwards",
-			fetchedPatronRequest.getErrorMessage(), is("Internal Server Error"));
+		assertThat("Request should have error status afterwards", fetchedPatronRequest.getStatus(), is(Status.ERROR));
+		assertThat("Request should have error message afterwards", fetchedPatronRequest.getErrorMessage(), is("Internal Server Error"));
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, "Internal Server Error");
 	}
+
 	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
 		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
 		assertThat("Patron Request audit should NOT have brief description",
@@ -191,7 +190,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertThat("Patron Request audit should have from state",
 			fetchedAudit.getFromStatus(), is(Status.RESOLVED));
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+			fetchedAudit.getToStatus(), is(Status.ERROR));
 	}
 	private UUID createClusterRecord() {
 		final UUID clusterRecordId = randomUUID();
@@ -214,7 +213,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			.requestingIdentity(requestingIdentity)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
-			.status(Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
+			// .status(Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
+			.status(Status.RESOLVED)
 			.build();
 		patronRequestsFixture.savePatronRequest(patronRequest);
 		return patronRequest;

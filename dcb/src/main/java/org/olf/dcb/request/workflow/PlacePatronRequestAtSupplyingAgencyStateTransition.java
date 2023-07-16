@@ -41,6 +41,11 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 	 */
 	@Override
 	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
+
+		// Some of the tests seem to set up odd states and then explicitly invoke the attempt method. Transitions should
+		// assert the correct state.
+		assert isApplicableFor(patronRequest);
+
 		log.debug("makeTransition({})", patronRequest);
 		return supplyingAgencyService.placePatronRequestAtSupplyingAgency(patronRequest)
 				.doOnSuccess(pr -> log.debug("Placed patron request to supplier: {}", pr))
