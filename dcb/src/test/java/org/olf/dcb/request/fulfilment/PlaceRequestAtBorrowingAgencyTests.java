@@ -180,6 +180,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.id(patronRequestId)
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
+			.status(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.pickupLocationCode("ABC123")
 			.build();
 
@@ -228,6 +229,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
+			.status(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -247,7 +249,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is("ERROR"));
+			fetchedPatronRequest.getStatus(), is(Status.ERROR));
 
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, "Internal Server Error");
 	}
@@ -273,6 +275,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
+			.status(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -330,7 +333,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			fetchedAudit.getFromStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(Status.REQUEST_PLACED_AT_BORROWING_AGENCY));
+			fetchedAudit.getToStatus(), is(Status.ERROR));
 	}
 
 	private PatronRequest placeRequestAtBorrowingAgency(PatronRequest patronRequest) {

@@ -62,6 +62,8 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
 		log.debug("verifyPatron {}", patronRequest);
 
+		assert isApplicableFor(patronRequest);
+
 		patronRequest.setStatus(Status.PATRON_VERIFIED);
 		
 		// pull out patronRequest.patron and get the home patron then use the web service to look up the patron
