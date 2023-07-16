@@ -137,10 +137,10 @@ public class ValidatePatronTests {
 			is(description));
 
 		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(Status.SUBMITTED_TO_DCB));
+			fetchedAudit.getFromStatus(), is(Status.PATRON_VERIFIED));
 
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(Status.PATRON_VERIFIED));
+			fetchedAudit.getToStatus(), is(Status.ERROR));
 	}
 
 	@Test
