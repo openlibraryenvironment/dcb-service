@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.Objects;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -58,13 +59,21 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				pi.setLocalBarcode(Objects.toString(hostLmsPatron.getLocalBarcodes(), null));
 				pi.setLocalNames(Objects.toString(hostLmsPatron.getLocalNames(), null));
 				pi.setLocalAgency(hostLmsPatron.getLocalPatronAgency());
-
-                                log.debug("ConvertToAgency host={} agency={}",pi.getHostLms(), hostLmsPatron.getLocalPatronAgency());
+                                pi.setResolvedAgency(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(), hostLmsPatron.getLocalPatronAgency()));
 
 				return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(pi));
 			});
 
 	}
+
+        private DataAgency resolveHomeLibraryCodeFromSystemToAgencyCode(String systemCode, String homeLibraryCode) {
+                DataAgency result = null;
+                log.debug("resolveHomeLibraryCodeFromSystemToAgencyCode({},{})",systemCode,homeLibraryCode);
+                if ( ( systemCode != null ) && ( homeLibraryCode != null ) ) {
+                        // Try to resolve
+                }
+                return result;
+        }
 
 	/**
 	 * Attempts to transition the patron request to the next state, which is placing the request at the supplying agency.
