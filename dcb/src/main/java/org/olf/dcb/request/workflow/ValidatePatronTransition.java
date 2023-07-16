@@ -16,6 +16,9 @@ import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
+import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
+import io.micronaut.context.BeanProvider;
+
 
 @Prototype
 public class ValidatePatronTransition implements PatronRequestStateTransition {
@@ -25,11 +28,18 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private final HostLmsService hostLmsService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
-	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository, HostLmsService hostLmsService, PatronRequestAuditService patronRequestAuditService) {
+	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
+        private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
+
+	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository, 
+			HostLmsService hostLmsService, 
+			PatronRequestAuditService patronRequestAuditService,
+			BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
 
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.hostLmsService = hostLmsService;
 		this.patronRequestAuditService = patronRequestAuditService;
+		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 	}
 	/**
 	 * We are passed in a local patron identity record
@@ -50,6 +60,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 				return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(pi));
 			});
+
 	}
 
 	/**
@@ -71,7 +82,10 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		return Mono.from(patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), TRUE))
 			.flatMap(this::validatePatronIdentity)
 			.map(patronRequest::setRequestingIdentity)
-			.flatMap(this::createAuditEntry);
+			.doOnSuccess( pr -> log.debug("Validated patron request: {}", pr))
+                        .doOnError( error -> log.error( "Error occurred validating a patron request: {}", error.getMessage()))
+			.flatMap(this::createAuditEntry)
+		        .transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
 	
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {

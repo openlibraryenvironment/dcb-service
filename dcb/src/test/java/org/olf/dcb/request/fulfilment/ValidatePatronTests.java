@@ -105,7 +105,7 @@ public class ValidatePatronTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is("ERROR"));
+			fetchedPatronRequest.getStatus(), is(Status.ERROR));
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is("No patron found"));
@@ -167,7 +167,7 @@ public class ValidatePatronTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is("ERROR"));
+			fetchedPatronRequest.getStatus(), is(Status.ERROR));
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is("Internal Server Error"));
