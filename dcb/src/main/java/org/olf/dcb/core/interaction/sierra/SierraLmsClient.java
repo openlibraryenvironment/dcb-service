@@ -753,7 +753,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.localPatronType( valueOf(spr.getPatronType())  )
 			.localBarcodes( listOfNotNull(spr.getBarcodes()) )
 			.localNames( listOfNotNull(spr.getNames()) )
-			.localPatronAgency( patronLocalAgency )
+			.localPatronAgency( spr.getHomeLibraryCode() ) // .localPatronAgency( patronLocalAgency )
 			.build();
 	}
 
