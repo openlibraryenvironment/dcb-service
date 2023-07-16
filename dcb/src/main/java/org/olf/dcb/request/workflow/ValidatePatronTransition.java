@@ -57,6 +57,9 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				pi.setLastValidated(Instant.now());
 				pi.setLocalBarcode(Objects.toString(hostLmsPatron.getLocalBarcodes(), null));
 				pi.setLocalNames(Objects.toString(hostLmsPatron.getLocalNames(), null));
+				pi.setLocalAgency(hostLmsPatron.getLocalPatronAgency());
+
+                                log.debug("ConvertToAgency host={} agency={}",pi.getHostLms(), hostLmsPatron.getLocalPatronAgency());
 
 				return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(pi));
 			});

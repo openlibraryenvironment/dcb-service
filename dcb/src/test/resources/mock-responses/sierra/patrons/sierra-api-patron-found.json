@@ -9,10 +9,10 @@
 		"pcode3": 68,
 		"pcode4": 0
 	},
-	"homeLibraryCode": "",
+	"homeLibraryCode": "testbbb",
 	"homeLibrary": {
-		"code": "",
-		"name": ""
+		"code": "testaaa",
+		"name": "Test aaa"
 	},
 	"message": {
 		"code": "p",
