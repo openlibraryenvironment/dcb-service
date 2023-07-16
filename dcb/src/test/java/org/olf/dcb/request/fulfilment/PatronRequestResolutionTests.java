@@ -293,9 +293,9 @@ class PatronRequestResolutionTests {
 			is(description));
 
 		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(PATRON_VERIFIED));
+			fetchedAudit.getFromStatus(), is(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
 
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(RESOLVED));
+			fetchedAudit.getToStatus(), is(ERROR));
 	}
 }

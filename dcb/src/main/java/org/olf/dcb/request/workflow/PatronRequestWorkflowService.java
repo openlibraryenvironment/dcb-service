@@ -176,8 +176,7 @@ public class PatronRequestWorkflowService {
 					log.debug("update to error state");
 					
 					return Mono.from(patronRequestRepository.updateStatusWithError(prId, throwable))
-						.doOnNext(_void -> log.debug("one"))
-						.flatMap(_void -> patronRequestAuditService.addErrorAuditEntry(patronRequest, fromState, throwable))
+						.then(patronRequestAuditService.addErrorAuditEntry(patronRequest, fromState, throwable))
 						.doOnNext(pra -> log.debug("two"))
 						.onErrorResume(saveError -> {
 							log.error("Could not update PatronRequest with error state", saveError);
