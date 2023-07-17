@@ -58,6 +58,7 @@ public class PatronFixture {
 			.hostLms(homeHostLms)
 			.homeIdentity(homeIdentity)
 			.localPtype(localPtype)
+			.localBarcode("8675309012")
 			.build());
 	}
 

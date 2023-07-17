@@ -6,7 +6,7 @@ import java.util.Map;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
-import services.k_int.interaction.sierra.patrons.FixedField;
+import services.k_int.interaction.sierra.FixedField;
 
 @Data
 @Serdeable

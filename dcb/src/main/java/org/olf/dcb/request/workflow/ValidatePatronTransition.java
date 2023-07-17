@@ -3,17 +3,23 @@ package org.olf.dcb.request.workflow;
 import static java.lang.Boolean.TRUE;
 
 import java.time.Instant;
+import java.util.Objects;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.storage.PatronIdentityRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
+import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
+import io.micronaut.context.BeanProvider;
+
 
 @Prototype
 public class ValidatePatronTransition implements PatronRequestStateTransition {
@@ -21,11 +27,20 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final HostLmsService hostLmsService;
+	private final PatronRequestAuditService patronRequestAuditService;
 
-	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository, HostLmsService hostLmsService) {
+	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
+        private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
+
+	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository, 
+			HostLmsService hostLmsService, 
+			PatronRequestAuditService patronRequestAuditService,
+			BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
 
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.hostLmsService = hostLmsService;
+		this.patronRequestAuditService = patronRequestAuditService;
+		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 	}
 	/**
 	 * We are passed in a local patron identity record
@@ -41,12 +56,24 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				// Update the patron identity with the current patron type and set the last validated date to now()
 				pi.setLocalPtype(hostLmsPatron.getLocalPatronType());
 				pi.setLastValidated(Instant.now());
-				pi.setLocalBarcode(hostLmsPatron.getLocalBarcodes());
-				pi.setLocalNames(hostLmsPatron.getLocalNames());
+				pi.setLocalBarcode(Objects.toString(hostLmsPatron.getLocalBarcodes(), null));
+				pi.setLocalNames(Objects.toString(hostLmsPatron.getLocalNames(), null));
+				pi.setLocalAgency(hostLmsPatron.getLocalPatronAgency());
+                                pi.setResolvedAgency(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(), hostLmsPatron.getLocalPatronAgency()));
 
 				return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(pi));
 			});
+
 	}
+
+        private DataAgency resolveHomeLibraryCodeFromSystemToAgencyCode(String systemCode, String homeLibraryCode) {
+                DataAgency result = null;
+                log.debug("resolveHomeLibraryCodeFromSystemToAgencyCode({},{})",systemCode,homeLibraryCode);
+                if ( ( systemCode != null ) && ( homeLibraryCode != null ) ) {
+                        // Try to resolve
+                }
+                return result;
+        }
 
 	/**
 	 * Attempts to transition the patron request to the next state, which is placing the request at the supplying agency.
@@ -58,15 +85,28 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
 		log.debug("verifyPatron {}", patronRequest);
 
+		assert isApplicableFor(patronRequest);
+
 		patronRequest.setStatus(Status.PATRON_VERIFIED);
 		
 		// pull out patronRequest.patron and get the home patron then use the web service to look up the patron
 		// patronRequest.patron
 		return Mono.from(patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), TRUE))
 			.flatMap(this::validatePatronIdentity)
-			.map(patronRequest::setRequestingIdentity);
+			.map(patronRequest::setRequestingIdentity)
+			.doOnSuccess( pr -> log.debug("Validated patron request: {}", pr))
+                        .doOnError( error -> log.error( "Error occurred validating a patron request: {}", error.getMessage()))
+			.flatMap(this::createAuditEntry)
+		        .transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
+	
+	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
 
+		if (patronRequest.getStatus() == Status.ERROR) return Mono.just(patronRequest);
+		return patronRequestAuditService.addAuditEntry(patronRequest, Status.SUBMITTED_TO_DCB, Status.PATRON_VERIFIED)
+				.thenReturn(patronRequest);
+	}
+	
 	@Override
 	public boolean isApplicableFor(PatronRequest pr) {
 		return pr.getStatus() == Status.SUBMITTED_TO_DCB;

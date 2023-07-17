@@ -1,19 +1,25 @@
 package org.olf.dcb.core.api;
 
+import static io.micronaut.http.HttpResponse.status;
+import static io.micronaut.http.HttpStatus.NOT_FOUND;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 import java.util.UUID;
 
+import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.security.authentication.Authentication;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.stats.StatsService;
+import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,8 +39,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuple3;
+import reactor.util.function.Tuples;
 
 @Secured(SecurityRule.IS_ANONYMOUS)
 @Produces(APPLICATION_JSON)
@@ -45,18 +53,21 @@ public class AdminController {
 
 	private final PatronRequestService patronRequestService;
 	private final SupplierRequestService supplierRequestService;
-        private final PatronRequestRepository patronRequestRepository;
+	private final PatronRequestRepository patronRequestRepository;
+	private final PatronRequestAuditRepository patronRequestAuditRepository;
 	private final StatsService statsService;
 
 	public AdminController(PatronRequestService patronRequestService,
-				SupplierRequestService supplierRequestService,
-				StatsService statsService,
-                                PatronRequestRepository patronRequestRepository) {
+		SupplierRequestService supplierRequestService,
+		StatsService statsService,
+		PatronRequestRepository patronRequestRepository,
+		PatronRequestAuditRepository patronRequestAuditRepository) {
 
 		this.patronRequestService = patronRequestService;
 		this.supplierRequestService = supplierRequestService;
 		this.statsService = statsService;
 		this.patronRequestRepository = patronRequestRepository;
+		this.patronRequestAuditRepository = patronRequestAuditRepository;
 	}
 
 	@SingleResult
@@ -66,7 +77,9 @@ public class AdminController {
 		log.debug("REST, get patron request by id: {}", id);
 
 		return patronRequestService.findById(id)
-			.zipWhen(this::findSupplierRequests, this::mapToView)
+			.flatMap(this::findSupplierRequests)
+			.flatMap(function(this::findAudits))
+			.map(function(this::mapToView))
 			.map(HttpResponse::ok);
 	}
 
@@ -90,14 +103,21 @@ public class AdminController {
         }
 
 
-	private Mono<List<SupplierRequest>> findSupplierRequests(PatronRequest patronRequest) {
-		return supplierRequestService.findAllSupplierRequestsFor(patronRequest);
+	private Mono<Tuple2<PatronRequest, List<SupplierRequest>>> findSupplierRequests(PatronRequest patronRequest) {
+		return supplierRequestService.findAllSupplierRequestsFor(patronRequest)
+				.map(supplierRequests -> Tuples.of(patronRequest, supplierRequests));
 	}
 
-	private PatronRequestAdminView mapToView(
+	private Mono<Tuple3<PatronRequest, List<SupplierRequest>, List<PatronRequestAudit>>> findAudits(
 		PatronRequest patronRequest, List<SupplierRequest> supplierRequests) {
+		return patronRequestService.findAllAuditsFor(patronRequest)
+			.map(audits -> Tuples.of(patronRequest, supplierRequests, audits));
+	}
 
-		return PatronRequestAdminView.from(patronRequest, supplierRequests);
+	private PatronRequestAdminView mapToView(PatronRequest patronRequest,
+		List<SupplierRequest> supplierRequests, List<PatronRequestAudit> audits) {
+
+		return PatronRequestAdminView.from(patronRequest, supplierRequests, audits);
 	}
 
 	@SingleResult

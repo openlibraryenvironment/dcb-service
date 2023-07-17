@@ -4,24 +4,24 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micronaut.context.annotation.Prototype;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
+import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-@Prototype
+@Singleton
 @ExecuteOn(value = TaskExecutors.IO)
 public class PatronRequestWorkflowService {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestWorkflowService.class);
@@ -34,14 +34,16 @@ public class PatronRequestWorkflowService {
 	private Duration stateTransitionDelay;
 
 	private final PatronRequestRepository patronRequestRepository;
+	private final PatronRequestAuditService patronRequestAuditService;
 	
 
 	private final List<PatronRequestStateTransition> allTransitions;
 
 	public PatronRequestWorkflowService(
 			List<PatronRequestStateTransition> allTransitions,
-			PatronRequestRepository patronRequestRepository) {
+			PatronRequestRepository patronRequestRepository, PatronRequestAuditService patronRequestAuditService) {
 
+		this.patronRequestAuditService = patronRequestAuditService;
 		// By loading the list of all transitions, we can declare new transitions
 		// without having to modify the
 		// workflow engine constructor every time.
@@ -159,10 +161,8 @@ public class PatronRequestWorkflowService {
 	}
 	
 	public Function<Publisher<PatronRequest>,Flux<PatronRequest>> getErrorTransformerFor( PatronRequest patronRequest ) {
-		return getErrorTransformerFor(patronRequest, patronRequestRepository::updateStatus);
-	}
-	
-	public static Function<Publisher<PatronRequest>,Flux<PatronRequest>> getErrorTransformerFor( PatronRequest patronRequest, BiFunction<UUID, Status, Publisher<?>> reaction) {
+		
+		final Status fromState = patronRequest.getStatus();
 		
 		return ( Publisher<PatronRequest> pub  ) -> Flux.from(pub)
 				.onErrorResume( throwable -> {
@@ -172,8 +172,12 @@ public class PatronRequestWorkflowService {
 					
 					// When we encounter an error we should set the status in the DB only to avoid,
 					// partial state saves.
+
+					log.debug("update to error state");
 					
-					return Mono.from(reaction.apply(prId, Status.ERROR))
+					return Mono.from(patronRequestRepository.updateStatusWithError(prId, throwable))
+						.then(patronRequestAuditService.addErrorAuditEntry(patronRequest, fromState, throwable))
+						.doOnNext(pra -> log.debug("two"))
 						.onErrorResume(saveError -> {
 							log.error("Could not update PatronRequest with error state", saveError);
 							return Mono.empty();

@@ -6,6 +6,8 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.data.annotation.*;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
+import jakarta.persistence.Column;
+import jakarta.persistence.OneToMany;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,6 +19,7 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Builder
@@ -102,6 +105,7 @@ public class PatronRequest {
 	private String pickupRequestStatus;
 
 	@Nullable
+	@Column(name = "status_code") // Preserve the data mapping value from the old string type.
 	private Status status;
 
 	// Once we create a hold in the patrons home system, track it's ID here (Only
@@ -123,6 +127,9 @@ public class PatronRequest {
 
 	@Nullable
 	private String errorMessage;
+
+	@OneToMany(mappedBy = "patronRequestAuditId")
+	private List<PatronRequestAudit> patronRequestAudits;
 
 	public PatronRequest resolve() {
 		return setStatus(Status.RESOLVED);
