@@ -21,11 +21,13 @@ import org.olf.dcb.request.workflow.ValidatePatronTransition;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -42,6 +44,8 @@ public class ValidatePatronTests {
 	private PatronFixture patronFixture;
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+        @Inject
+        private ReferenceValueMappingFixture referenceValueMappingFixture;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
@@ -59,6 +63,8 @@ public class ValidatePatronTests {
 		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 
 		sierraPatronsAPIFixture.getPatronByLocalId("467295");
+
+                referenceValueMappingFixture.deleteAllReferenceValueMappings();
 	}
 
 	@Test
@@ -68,6 +74,8 @@ public class ValidatePatronTests {
 		final var localId = "467295";
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var patron = createPatron(localId, hostLms);
+
+                referenceValueMappingFixture.saveReferenceValueMapping( createLocationToAgencyMapping( "validate-patron-transition-tests","testccc","dcb","AGENCY1" ) );
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
@@ -194,4 +202,22 @@ public class ValidatePatronTests {
 
 		return patronRequest;
 	}
+
+        private ReferenceValueMapping createLocationToAgencyMapping(
+                String fromContext,
+                String fromValue,
+                String toContext,
+                String toValue ) {
+                return ReferenceValueMapping.builder()
+                        .id(UUID.randomUUID())
+                        .fromCategory("location")
+                        .fromContext(fromContext)
+                        .fromValue(fromValue)
+                        .toCategory("agency")
+                        .toContext(toContext)
+                        .toValue(toValue)
+                        .reciprocal(false)
+                        .build();
+        }
+
 }
