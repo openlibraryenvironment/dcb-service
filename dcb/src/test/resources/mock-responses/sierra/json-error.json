@@ -1,7 +1,0 @@
-{
-	"code": 130,
-	"specificCode": 0,
-	"httpStatus": 400,
-	"name": "Bad JSON/XML Syntax",
-	"description": "Please check that the JSON fields/values are of the expected JSON data types"
-}

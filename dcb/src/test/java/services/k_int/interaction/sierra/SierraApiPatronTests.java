@@ -59,8 +59,9 @@ class SierraApiPatronTests {
 	@Test
 	void shouldReportErrorWhenPlacingAPatronRespondsWithInternalServerError() {
 		// Arrange
-		final var patronPatch = new PatronPatch();
-		patronPatch.setUniqueIds(new String[]{"0987654321"});
+		final var patronPatch = PatronPatch.builder()
+			.uniqueIds(new String[]{"0987654321"})
+			.build();
 		sierraPatronsAPIFixture.postPatronErrorResponse("0987654321");
 		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
 
@@ -86,8 +87,9 @@ class SierraApiPatronTests {
 	@Test
 	void testPostPatron() {
 		// Arrange
-		final var patronPatch = new PatronPatch();
-		patronPatch.setUniqueIds(new String[]{"1234567890"});
+		final var patronPatch = PatronPatch.builder()
+			.uniqueIds(new String[]{"1234567890"})
+			.build();
 		sierraPatronsAPIFixture.postPatronResponse("1234567890", 2745326);
 		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
 

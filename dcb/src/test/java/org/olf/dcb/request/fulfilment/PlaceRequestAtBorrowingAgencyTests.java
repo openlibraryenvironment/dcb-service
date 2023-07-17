@@ -3,10 +3,9 @@ package org.olf.dcb.request.fulfilment;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.UUID;
@@ -21,9 +20,11 @@ import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.ShelvingLocation;
+import org.olf.dcb.request.workflow.PlacePatronRequestAtBorrowingAgencyStateTransition;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
 import org.olf.dcb.test.BibRecordFixture;
@@ -31,6 +32,7 @@ import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 
 import io.micronaut.core.io.ResourceLoader;
@@ -43,11 +45,12 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class BorrowingAgencyServiceTests {
+class PlaceRequestAtBorrowingAgencyTests {
 	private static final String HOST_LMS_CODE = "borrowing-agency-service-tests";
 
 	@Inject
-	ResourceLoader loader;
+	private ResourceLoader loader;
+
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
@@ -57,17 +60,21 @@ class BorrowingAgencyServiceTests {
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
 	@Inject
-	private BorrowingAgencyService borrowingAgencyService;
-	@Inject
 	private BibRecordFixture bibRecordFixture;
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
 	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+
+	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+
+	@Inject
+	private PlacePatronRequestAtBorrowingAgencyStateTransition placePatronRequestAtBorrowingAgencyStateTransition;
+
+	@Inject
 	private ShelvingLocationRepository shelvingLocationRepository;
 	@Inject
 	private AgencyRepository agencyRepository;
-
-	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
@@ -91,7 +98,7 @@ class BorrowingAgencyServiceTests {
 		final var bibPatch = BibPatch.builder()
 			.authors(new String[]{"Stafford Beer"})
 			.titles(new String[]{"Brain of the Firm"})
-			.bibCode3("n")
+			// .bibCode3("n")
 			.build();
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
@@ -114,14 +121,15 @@ class BorrowingAgencyServiceTests {
 
 		// add shelving location
 		UUID id1 = randomUUID();
-		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms(id1, "code");
-		UUID id = randomUUID();
-		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
+		final var dataHostLms1 = hostLmsFixture.createHostLms(id1, "code");
 
-		DataAgency dataAgency = singleValueFrom(
+		UUID id = randomUUID();
+		final var dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
+
+		final var dataAgency = singleValueFrom(
 			agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2)));
 
-		ShelvingLocation shelvingLocation = ShelvingLocation.builder()
+		final var shelvingLocation = ShelvingLocation.builder()
 			.id(randomUUID())
 			.code("ab6")
 			.name("name")
@@ -130,6 +138,18 @@ class BorrowingAgencyServiceTests {
 			.build();
 
 		singleValueFrom(shelvingLocationRepository.save(shelvingLocation));
+
+		final var rvm = ReferenceValueMapping.builder()
+			.id(randomUUID())
+			.fromCategory("ShelvingLocation")
+			.fromContext("borrowing-agency-service-tests")
+			.fromValue("ab6")
+			.toCategory("AGENCY")
+			.toContext("DCB")
+			.toValue("ab6")
+			.build();
+
+		referenceValueMappingFixture.saveReferenceValueMapping(rvm);
 	}
 
 	@AfterAll
@@ -137,6 +157,7 @@ class BorrowingAgencyServiceTests {
 		Mono.from(shelvingLocationRepository.deleteByCode("ab6")).block();
 		Mono.from(agencyRepository.deleteByCode("ab6")).block();
 		hostLmsFixture.deleteAllHostLMS();
+		patronRequestsFixture.deleteAll();
 	}
 
 	@Test
@@ -151,6 +172,7 @@ class BorrowingAgencyServiceTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron("872321");
+
 		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-");
 
 		final var patronRequestId = randomUUID();
@@ -158,6 +180,7 @@ class BorrowingAgencyServiceTests {
 			.id(patronRequestId)
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
+			.status(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.pickupLocationCode("ABC123")
 			.build();
 
@@ -175,13 +198,14 @@ class BorrowingAgencyServiceTests {
 			"Consortial Hold. tno="+patronRequest.getId());
 
 		// Act
-		final var pr = borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest).block();
+		final var pr = placeRequestAtBorrowingAgency(patronRequest);
 
 		// Assert
 		assertThat("Patron request should not be null", pr, is(notNullValue()));
-		assertThat("Status code wasn't expected.", pr.getStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
+		assertThat("Status code wasn't expected.", pr.getStatus(), is(Status.REQUEST_PLACED_AT_BORROWING_AGENCY));
 		assertThat("Local request id wasn't expected.", pr.getLocalRequestId(), is("864902"));
 		assertThat("Local request status wasn't expected.", pr.getLocalRequestStatus(), is("PLACED"));
+		assertSuccessfulTransitionAudit(pr);
 	}
 
 	@Test
@@ -205,6 +229,7 @@ class BorrowingAgencyServiceTests {
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
+			.status(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -216,7 +241,7 @@ class BorrowingAgencyServiceTests {
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest).block());
+			() -> placeRequestAtBorrowingAgency(patronRequest));
 
 		// Assert
 		assertThat(exception.getMessage(), is("Internal Server Error"));
@@ -224,7 +249,9 @@ class BorrowingAgencyServiceTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(ERROR));
+			fetchedPatronRequest.getStatus(), is(Status.ERROR));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, "Internal Server Error");
 	}
 
 	@Test
@@ -248,6 +275,7 @@ class BorrowingAgencyServiceTests {
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
+			.status(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -261,7 +289,7 @@ class BorrowingAgencyServiceTests {
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
-			() -> borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest).block());
+			() -> placeRequestAtBorrowingAgency(patronRequest));
 
 		// Assert
 		assertThat(exception.getMessage(),
@@ -270,10 +298,45 @@ class BorrowingAgencyServiceTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(ERROR));
+			fetchedPatronRequest.getStatus(), is(Status.ERROR));
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(),
 			is("No hold request found for the given note: Consortial Hold. tno=" + patronRequestId));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest,
+			"No hold request found for the given note: Consortial Hold. tno=" + patronRequestId);
+	}
+
+	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
+		final var fetchedAudit = patronRequestsFixture
+			.findAuditByPatronRequest(patronRequest).blockFirst();
+
+		assertThat("Patron Request audit should NOT have brief description",
+			fetchedAudit.getBriefDescription(), is(nullValue()));
+
+		assertThat("Patron Request audit should have from state",
+			fetchedAudit.getFromStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+
+		assertThat("Patron Request audit should have to state",
+			fetchedAudit.getToStatus(), is(Status.REQUEST_PLACED_AT_BORROWING_AGENCY));
+	}
+
+	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
+		final var fetchedAudit = patronRequestsFixture
+			.findAuditByPatronRequest(patronRequest).blockFirst();
+
+		assertThat("Patron Request audit should have brief description",
+			fetchedAudit.getBriefDescription(), is(description));
+
+		assertThat("Patron Request audit should have from state",
+			fetchedAudit.getFromStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+
+		assertThat("Patron Request audit should have to state",
+			fetchedAudit.getToStatus(), is(Status.ERROR));
+	}
+
+	private PatronRequest placeRequestAtBorrowingAgency(PatronRequest patronRequest) {
+		return placePatronRequestAtBorrowingAgencyStateTransition.attempt(patronRequest).block();
 	}
 }

@@ -1,10 +1,14 @@
 package org.olf.dcb.request.workflow;
 
+import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
+import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+
 import java.util.Optional;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
 import org.olf.dcb.storage.PatronRequestRepository;
@@ -12,6 +16,7 @@ import org.olf.dcb.storage.SupplierRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 
@@ -22,16 +27,22 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	private final PatronRequestResolutionService patronRequestResolutionService;
 	private final PatronRequestRepository patronRequestRepository;
 	private final SupplierRequestRepository supplierRequestRepository;
+	private final PatronRequestAuditService patronRequestAuditService;
+	
+	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
+	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 
 
 	public PatronRequestResolutionStateTransition(
 		PatronRequestResolutionService patronRequestResolutionService,
 		PatronRequestRepository patronRequestRepository,
-		SupplierRequestRepository supplierRequestRepository) {
+		SupplierRequestRepository supplierRequestRepository, PatronRequestAuditService patronRequestAuditService, BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
 
 		this.patronRequestResolutionService = patronRequestResolutionService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
+		this.patronRequestAuditService = patronRequestAuditService;
+		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 	}
 
 	@Override
@@ -44,9 +55,17 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.flatMap(this::updatePatronRequest)
 			.flatMap(this::saveSupplierRequest)
 			.map(Resolution::getPatronRequest)
-			.transform(PatronRequestWorkflowService.getErrorTransformerFor(patronRequest, patronRequestRepository::updateStatus));
+			.flatMap(this::createAuditEntry)
+			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
 
+	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
+		
+		if (patronRequest.getStatus() == Status.ERROR) return Mono.just(patronRequest);
+		
+		return patronRequestAuditService.addAuditEntry(patronRequest, PATRON_VERIFIED, RESOLVED).thenReturn(patronRequest);
+	}
+	
 	private Mono<Resolution> updatePatronRequest(Resolution resolution) {
 		log.debug("updatePatronRequest({})", resolution);
 
@@ -81,6 +100,6 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	@Override
 	public boolean isApplicableFor(PatronRequest pr) {
 
-		return pr.getStatus() == Status.PATRON_VERIFIED;
+		return pr.getStatus() == PATRON_VERIFIED;
 	}
 }

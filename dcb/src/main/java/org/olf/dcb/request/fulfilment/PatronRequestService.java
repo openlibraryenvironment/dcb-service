@@ -2,17 +2,22 @@ package org.olf.dcb.request.fulfilment;
 
 import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 
+import java.util.List;
 import java.util.UUID;
 
+import io.micronaut.asm.commons.Remapper;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
+import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Prototype;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Prototype
@@ -23,15 +28,18 @@ public class PatronRequestService {
 	private final PatronRequestWorkflowService requestWorkflow;
 	private final PatronService patronService;
 	private final FindOrCreatePatronService findOrCreatePatronService;
+	private final PatronRequestAuditRepository patronRequestAuditRepository;
 
 	public PatronRequestService(PatronRequestRepository patronRequestRepository,
 		PatronRequestWorkflowService requestWorkflow, PatronService patronService,
-		FindOrCreatePatronService findOrCreatePatronService) {
+		FindOrCreatePatronService findOrCreatePatronService,
+		PatronRequestAuditRepository patronRequestAuditRepository) {
 		
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflow = requestWorkflow;
 		this.patronService = patronService;
 		this.findOrCreatePatronService = findOrCreatePatronService;
+		this.patronRequestAuditRepository = patronRequestAuditRepository;
 	}
 
 	public Mono<? extends PatronRequest> placePatronRequest(
@@ -96,5 +104,9 @@ public class PatronRequestService {
 		patronRequest.setPatron(patron);
 
 		return patronRequest;
+	}
+
+	public Mono<List<PatronRequestAudit>> findAllAuditsFor(PatronRequest patronRequest) {
+		return Flux.from(patronRequestAuditRepository.findByPatronRequest(patronRequest)).collectList();
 	}
 }

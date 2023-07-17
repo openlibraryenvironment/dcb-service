@@ -1,12 +1,19 @@
 package org.olf.dcb.request.workflow;
 
+import static java.util.UUID.randomUUID;
+
+import java.time.Instant;
+
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 
@@ -16,10 +23,12 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 	private static final Logger log = LoggerFactory.getLogger(PlacePatronRequestAtSupplyingAgencyStateTransition.class);
 
 	private final SupplyingAgencyService supplyingAgencyService;
+	private final PatronRequestAuditService patronRequestAuditService;
 
 	public PlacePatronRequestAtSupplyingAgencyStateTransition(SupplyingAgencyService supplierRequestService,
-			PatronRequestRepository patronRequestRepository) {
+			PatronRequestRepository patronRequestRepository, PatronRequestAuditService patronRequestAuditService) {
 		this.supplyingAgencyService = supplierRequestService;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	/**
@@ -32,11 +41,25 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 	 */
 	@Override
 	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
+
+		// Some of the tests seem to set up odd states and then explicitly invoke the attempt method. Transitions should
+		// assert the correct state.
+		assert isApplicableFor(patronRequest);
+
 		log.debug("makeTransition({})", patronRequest);
 		return supplyingAgencyService.placePatronRequestAtSupplyingAgency(patronRequest)
 				.doOnSuccess(pr -> log.debug("Placed patron request to supplier: {}", pr))
 				.doOnError(
-						error -> log.error("Error occurred during placing a patron request to supplier: {}", error.getMessage()));
+						error -> log.error("Error occurred during placing a patron request to supplier: {}", error.getMessage()))
+				.flatMap(this::createAuditEntry);
+	}
+	
+	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
+
+		if (patronRequest.getStatus() == Status.ERROR) return Mono.just(patronRequest);
+		return patronRequestAuditService
+				.addAuditEntry(patronRequest, Status.RESOLVED, Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+				.map(PatronRequestAudit::getPatronRequest);
 	}
 
 	@Override

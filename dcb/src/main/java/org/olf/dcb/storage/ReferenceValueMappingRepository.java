@@ -55,4 +55,12 @@ public interface ReferenceValueMappingRepository {
 		@NonNull String sourceContext,
 		@NonNull String sourceValue,
 		@NonNull String targetContext);
+
+        Publisher<ReferenceValueMapping> findByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+                @NonNull String sourceCategory,
+                @NonNull String sourceContext,
+                @NonNull String sourceValue,
+                @NonNull String targetCategory,
+                @NonNull String targetContext);
+
 }

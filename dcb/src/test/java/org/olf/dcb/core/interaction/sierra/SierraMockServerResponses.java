@@ -2,6 +2,7 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
+import static org.mockserver.model.HttpStatusCode.BAD_REQUEST_400;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
 import static org.mockserver.model.MediaType.TEXT_PLAIN;
@@ -46,12 +47,25 @@ public class SierraMockServerResponses {
 		return response().withStatusCode(204);
 	}
 
-	HttpResponse notFound(String responseBodySubPath) {
-		return jsonResponse(notFoundResponse(), responseBodySubPath);
+	HttpResponse noRecordsFound() {
+		return jsonResponse(notFoundResponse(),
+			json(Error.builder()
+				.code(107)
+				.specificCode(0)
+				.httpStatus(404)
+				.name("Record not found")
+				.build()));
 	}
 
-	HttpResponse jsonError(String responseBodySubPath) {
-		return jsonResponse(serverErrorResponse(), responseBodySubPath);
+	HttpResponse jsonError() {
+		return jsonResponse(response().withStatusCode(BAD_REQUEST_400.code()),
+			json(Error.builder()
+				.code(130)
+				.specificCode(0)
+				.httpStatus(400)
+				.name("Bad JSON/XML Syntax")
+				.description("Please check that the JSON fields/values are of the expected JSON data types")
+				.build()));
 	}
 
 	HttpResponse textError() {
@@ -59,10 +73,6 @@ public class SierraMockServerResponses {
 			.withStatusCode(500)
 			.withContentType(TEXT_PLAIN)
 			.withBody("Broken");
-	}
-
-	private static HttpResponse serverErrorResponse() {
-		return response().withStatusCode(500);
 	}
 
 	public HttpResponse unauthorised() {
@@ -103,5 +113,16 @@ public class SierraMockServerResponses {
 	@Builder
 	private static class LinkResult {
 		String link;
+	}
+
+	@Serdeable
+	@Data
+	@Builder
+	private static class Error {
+		Integer code;
+		Integer specificCode;
+		Integer httpStatus;
+		String name;
+		String description;
 	}
 }

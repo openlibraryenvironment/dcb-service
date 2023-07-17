@@ -6,6 +6,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
@@ -142,6 +143,8 @@ class PatronRequestResolutionTests {
 
 		assertThat("Should not have local status",
 			onlySupplierRequest.getLocalStatus(), is(nullValue()));
+
+		assertSuccessfulTransitionAudit(fetchedPatronRequest);
 	}
 
 	@Test
@@ -182,6 +185,8 @@ class PatronRequestResolutionTests {
 
 		assertThat("Should not find any supplier requests",
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
+
+		assertSuccessfulTransitionAudit(fetchedPatronRequest);
 	}
 
 	@Test
@@ -221,6 +226,9 @@ class PatronRequestResolutionTests {
 
 		assertThat("Should not find any supplier requests",
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest,
+			"Cannot find cluster record for: " + clusterRecordId);
 	}
 
 	@Test
@@ -257,5 +265,37 @@ class PatronRequestResolutionTests {
 
 		assertThat("Should not find any supplier requests",
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
+	}
+
+	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
+
+		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+
+		assertThat("Patron Request audit should NOT have brief description",
+			fetchedAudit.getBriefDescription(),
+			is(nullValue()));
+
+		assertThat("Patron Request audit should have from state",
+			fetchedAudit.getFromStatus(), is(PATRON_VERIFIED));
+
+		assertThat("Patron Request audit should have to state",
+			fetchedAudit.getToStatus(), is(RESOLVED));
+	}
+
+	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
+
+		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+
+		assertNotNull(fetchedAudit);
+		
+		assertThat("Patron Request audit should have brief description",
+			fetchedAudit.getBriefDescription(),
+			is(description));
+
+		assertThat("Patron Request audit should have from state",
+			fetchedAudit.getFromStatus(), is(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
+
+		assertThat("Patron Request audit should have to state",
+			fetchedAudit.getToStatus(), is(ERROR));
 	}
 }
