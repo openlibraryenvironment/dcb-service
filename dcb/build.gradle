@@ -119,6 +119,8 @@ dependencies {
 	testImplementation(platform("org.testcontainers:testcontainers-bom"))
 	
 	testRuntimeOnly("org.testcontainers:postgresql")
+
+        implementation("jakarta.persistence:jakarta.persistence-api:3.0.0")
 }
 
 //configurations.all {
