@@ -6,6 +6,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.UUID;
@@ -244,14 +245,16 @@ class PlaceRequestAtBorrowingAgencyTests {
 			() -> placeRequestAtBorrowingAgency(patronRequest));
 
 		// Assert
-		assertThat(exception.getMessage(), is("Internal Server Error"));
+		final var expectedMessage = "Internal server error: Invalid configuration - [109 / 0]";
+
+		assertThat(exception.getMessage(), is(expectedMessage));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(Status.ERROR));
+			fetchedPatronRequest.getStatus(), is(ERROR));
 
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, "Internal Server Error");
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedMessage);
 	}
 
 	@Test
@@ -298,7 +301,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(Status.ERROR));
+			fetchedPatronRequest.getStatus(), is(ERROR));
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(),
@@ -333,7 +336,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			fetchedAudit.getFromStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(Status.ERROR));
+			fetchedAudit.getToStatus(), is(ERROR));
 	}
 
 	private PatronRequest placeRequestAtBorrowingAgency(PatronRequest patronRequest) {

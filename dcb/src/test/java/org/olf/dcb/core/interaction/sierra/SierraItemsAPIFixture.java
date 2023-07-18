@@ -44,7 +44,7 @@ public class SierraItemsAPIFixture {
 
 	public void errorResponseForBibId(String bibId) {
 		mockServer.when(getItemsForBib(bibId))
-			.respond(sierraMockServerResponses.jsonError());
+			.respond(sierraMockServerResponses.badRequestError());
 	}
 
 	public HttpResponse threeItemsResponse() {
@@ -61,7 +61,7 @@ public class SierraItemsAPIFixture {
 		mockServer.clear(sierraMockServerRequests.post());
 
 		mockServer.when(sierraMockServerRequests.post())
-			.respond(sierraMockServerResponses.jsonError());
+			.respond(sierraMockServerResponses.badRequestError());
 	}
 
 	public void successResponseForCreateItem(Integer bibId, String locationCode, String barcode) {
