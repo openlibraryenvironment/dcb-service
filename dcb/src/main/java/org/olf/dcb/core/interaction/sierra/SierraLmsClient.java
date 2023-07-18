@@ -61,6 +61,7 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
+import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResult;
@@ -434,24 +435,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public Mono<String> createBib(String author, String title) {
-		// See https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_biblio.html for info on FixedFields
-		// bibPatch contains a map of Integer to FixedField type info. Setting fixedField 031 to n which indicates that the record should be
-		// Suppressed from discovery
 		log.debug("createBib(author: {}, title: {})", author, title);
 
-		String[] authors = null;
-		if ( author != null ) { authors = new String[]{author}; }
+		// Setting fixedField 031 to n which indicates that the record should be suppressed from discovery.
+		final var fixedFields = Map.of(31, FixedField.builder().value("n").build());
+		final var authors = (author != null) ? new String[]{author} : null;
+		final var titles = (title != null) ? new String[]{title} : null;
 
-		String[] titles = null;
-		if ( title != null ) { titles = new String[]{title}; }
-
-		BibPatch bibPatch = BibPatch.builder()
-			.authors(authors)
-			.titles(titles)
-			.bibCode3("n")
-			.build();
-
-		return Mono.from(client.bibs(bibPatch))
+		return Mono.from( client.bibs(BibPatch.builder().authors(authors).titles(titles).fixedFields(fixedFields).build()) )
 			.doOnSuccess(result -> log.debug("the result of createBib({})", result))
 			.map(bibResult -> deRestify( bibResult.getLink() ))
 			.onErrorResume(NullPointerException.class, error -> {
