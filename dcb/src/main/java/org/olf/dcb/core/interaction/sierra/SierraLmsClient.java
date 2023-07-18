@@ -28,10 +28,7 @@ import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
 import org.olf.dcb.configuration.ShelvingLocationRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsHold;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.ingest.marc.MarcIngestSource;
@@ -400,47 +397,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<String> createBibFromDescription(Map<String,String> bibDescription) {
-		// See
-		// https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_biblio.html
-		// for info on FixedFields
-		// bibPatch contains a map of Integer to FixedField type info. Setting
-		// fixedField 031 to n which indicates that the record should be
-		// Suppressed from discovery
-		log.debug("createBib({})", bibDescription);
-
-		String[] authors = null;
-		if (bibDescription.get("author") != null) {
-			authors = new String[] { bibDescription.get("author") };
-		}
-
-		String[] titles = null;
-		if (bibDescription.get("title") != null) {
-			titles = new String[] { bibDescription.get("title") };
-		}
-
-		BibPatch bibPatch = BibPatch.builder()
-        .authors(authors)
-        .titles(titles)
-        // .bibCode3("n")  // -- COOLCAT seems to choke on this value
-        // .fixedFields(fixedFields)
-        .build();
-
-		return Mono.from(client.bibs(bibPatch)).doOnSuccess(result -> log.debug("the result of createBib({})", result))
-				.map(bibResult -> deRestify(bibResult.getLink())).onErrorResume(NullPointerException.class, error -> {
-					log.debug("NullPointerException occurred when creating Bib: {}", error.getMessage());
-					return Mono.error(new RuntimeException("Error occurred when creating Bib"));
-				});
-	}
-
-	@Override
-	public Mono<String> createBib(String author, String title) {
-		log.debug("createBib(author: {}, title: {})", author, title);
+	public Mono<String> createBib(Bib bib) {
+		log.debug("createBib(bib: {})", bib);
 
 		// Setting fixedField 031 to n which indicates that the record should be suppressed from discovery.
 		final var fixedFields = Map.of(31, FixedField.builder().value("n").build());
-		final var authors = (author != null) ? new String[]{author} : null;
-		final var titles = (title != null) ? new String[]{title} : null;
+		final var authors = (bib.getAuthor() != null) ? new String[]{bib.getAuthor()} : null;
+		final var titles = (bib.getTitle() != null) ? new String[]{bib.getTitle()} : null;
 
 		return Mono.from( client.bibs(BibPatch.builder().authors(authors).titles(titles).fixedFields(fixedFields).build()) )
 			.doOnSuccess(result -> log.debug("the result of createBib({})", result))

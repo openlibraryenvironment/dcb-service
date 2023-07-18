@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.BibRecord;
@@ -75,31 +76,28 @@ public class BorrowingAgencyService {
 		final UUID bibClusterId = patronRequest.getBibClusterId();
 		log.debug("createVirtualBib for cluster {}", bibClusterId);
 		return Mono.from(clusterRecordRepository.findById(bibClusterId))
-				.flatMap(clusterRecord -> Mono.from(bibRepository.findById(clusterRecord.getSelectedBib())))
-				.map(this::extractBibData).flatMap(hostLmsClient::createBibFromDescription)
-				.doOnNext(patronRequest::setLocalBibId)
-				.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual bib.")))
-				.map(localBibId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, supplierRequest, localBibId));
+			.flatMap(clusterRecord -> Mono.from(bibRepository.findById(clusterRecord.getSelectedBib())))
+			.map(this::extractBibData)
+			.flatMap(hostLmsClient::createBib)
+			.doOnNext(patronRequest::setLocalBibId)
+			.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual bib.")))
+			.map(localBibId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, supplierRequest, localBibId));
 	}
 
-	// private Tuple2<String, String> extractBibData(BibRecord bibRecord) {
-	private Map<String, String> extractBibData(BibRecord bibRecord) {
+	private Bib extractBibData(BibRecord bibRecord) {
 		log.debug("extractBibData(bibRecord: {})", bibRecord);
-		Map<String, String> result = new HashMap<>();
 
-		// guard clause
+		// Guard clause
 		if (bibRecord.getTitle() == null) {
 			throw new IllegalArgumentException("Missing title information.");
 		}
 
-		result.put("title", bibRecord.getTitle());
-		if ( bibRecord.getAuthor() != null )
-			result.put("author", bibRecord.getAuthor().getName());
-
-
-		// Tuples.of fails if either is null - this modelling won't work - so we use a Map instead
-		return result;
+		return Bib.builder()
+			.title(bibRecord.getTitle())
+			.author(bibRecord.getAuthor() != null ? bibRecord.getAuthor().getName() : null)
+			.build();
 	}
+
 
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, String>> createVirtualItem(
 		PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
