@@ -35,6 +35,15 @@ public class QueryService {
                 try {
                         Query parsed_query = parse(q);
                         dumpQuery(0, parsed_query);
+                        PredicateSpecification ps = convertQuery(parsed_query, c);
+
+                        // @NonNull org.reactivestreams.Publisher<T> findAll(@Nullable QuerySpecification<T> spec)
+                        // https://micronaut-projects.github.io/micronaut-data/snapshot/api/io/micronaut/data/repository/jpa/criteria/PredicateSpecification.html
+                        // Nullable jakarta.persistence.criteria.Predicate toPredicate(@NonNull
+                        //      jakarta.persistence.criteria.Root<T> root,
+                        //      jakarta.persistence.criteria.CriteriaBuilder criteriaBuilder)
+                        
+
                 }
                 catch ( QueryNodeException qne ) {
                         log.error("Problem parsing query");
@@ -48,5 +57,9 @@ public class QueryService {
                         org.apache.lucene.search.TermQuery tq = (org.apache.lucene.search.TermQuery) q;
                         log.debug("TermQuery: {} {}",tq.getTerm().field(), tq.getTerm().text());
                 }
+        }
+
+        private PredicateSpecification convertQuery(Query q, Class c) {
+                return null;
         }
 }
