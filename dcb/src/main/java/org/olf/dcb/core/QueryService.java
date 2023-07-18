@@ -34,10 +34,19 @@ public class QueryService {
                 log.debug("evaluate({},{},...)",q,c);
                 try {
                         Query parsed_query = parse(q);
+                        dumpQuery(0, parsed_query);
                 }
                 catch ( QueryNodeException qne ) {
                         log.error("Problem parsing query");
                 }
         }
 
+        private void dumpQuery(int depth, Query q) {
+                log.debug("[{}] {}", depth, q.getClass().getName());
+                if ( q instanceof org.apache.lucene.search.TermQuery ) {
+                        // https://lucene.apache.org/core/7_0_0/core/org/apache/lucene/search/TermQuery.html
+                        org.apache.lucene.search.TermQuery tq = (org.apache.lucene.search.TermQuery) q;
+                        log.debug("TermQuery: {} {}",tq.getTerm().field(), tq.getTerm().text());
+                }
+        }
 }
