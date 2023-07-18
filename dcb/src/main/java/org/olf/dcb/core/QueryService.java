@@ -13,6 +13,9 @@ import org.apache.lucene.search.Query;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// Import where(nameEquals("Dennis"))  Person.findAll(where(nameEquals("Dennis")));
+import static io.micronaut.data.repository.jpa.criteria.PredicateSpecification.where;
+
 
 public class QueryService {
 
@@ -60,6 +63,15 @@ public class QueryService {
         }
 
         private PredicateSpecification convertQuery(Query q, Class c) {
+                // return (root, criteriaBuilder, q) -> recurseQueryTree(root, criteriaBuilder, q);
                 return null;
         }
+
+/*
+        private PredicateSpecification recurseQueryTree(jakarta.persistence.criteria.Root root,
+                                                        jakarta.persistence.criteria.CriteriaBuilder criteriaBuilder,
+                                                        Query q) {
+                return null;
+        }
+*/
 }
