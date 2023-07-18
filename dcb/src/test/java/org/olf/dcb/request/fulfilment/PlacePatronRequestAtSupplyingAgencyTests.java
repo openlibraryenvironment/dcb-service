@@ -4,6 +4,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 
 import java.util.UUID;
 
@@ -155,21 +156,32 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var clusterRecordId = createClusterRecord();
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var patron = createPatron(localId, hostLms);
+
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
+
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("931824@123456");
 		sierraPatronsAPIFixture.postPatronResponse("931824@123456", 1000001);
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001");
+
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> placePatronRequestAtSupplyingAgencyStateTransition.attempt(patronRequest).block());
+
 		// Assert
-		assertThat(exception.getMessage(), is("Internal Server Error"));
-		assertThat(exception.getLocalizedMessage(), is("Internal Server Error"));
+		final var expectedMessage = "Internal server error: Invalid configuration - [109 / 0]";
+
+		assertThat("Should report exception message", exception.getMessage(), is(expectedMessage));
+
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
-		assertThat("Request should have error status afterwards", fetchedPatronRequest.getStatus(), is(Status.ERROR));
-		assertThat("Request should have error message afterwards", fetchedPatronRequest.getErrorMessage(), is("Internal Server Error"));
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, "Internal Server Error");
+
+		assertThat("Request should have error status afterwards",
+			fetchedPatronRequest.getStatus(), is(ERROR));
+
+		assertThat("Request should have error message afterwards",
+			fetchedPatronRequest.getErrorMessage(), is(expectedMessage));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedMessage);
 	}
 
 	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
@@ -190,7 +202,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertThat("Patron Request audit should have from state",
 			fetchedAudit.getFromStatus(), is(Status.RESOLVED));
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(Status.ERROR));
+			fetchedAudit.getToStatus(), is(ERROR));
 	}
 	private UUID createClusterRecord() {
 		final UUID clusterRecordId = randomUUID();

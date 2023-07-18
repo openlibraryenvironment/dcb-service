@@ -5,6 +5,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 
 import java.util.UUID;
 
@@ -17,6 +18,7 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.request.workflow.ValidatePatronTransition;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
@@ -27,7 +29,6 @@ import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -113,7 +114,7 @@ public class ValidatePatronTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(Status.ERROR));
+			fetchedPatronRequest.getStatus(), is(ERROR));
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is("No patron found"));
@@ -148,7 +149,7 @@ public class ValidatePatronTests {
 			fetchedAudit.getFromStatus(), is(Status.PATRON_VERIFIED));
 
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(Status.ERROR));
+			fetchedAudit.getToStatus(), is(ERROR));
 	}
 
 	@Test
@@ -163,22 +164,24 @@ public class ValidatePatronTests {
 
 		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
 
-		sierraPatronsAPIFixture.serverErrorWhenGettingPatronByLocalId("236462");
+		sierraPatronsAPIFixture.badRequestWhenGettingPatronByLocalId("236462");
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
 			() -> validatePatronTransition.attempt(patronRequest).block());
 
 		// Assert
-		assertThat(exception.getMessage(), is("Internal Server Error"));
+		final var expectedMessage = "Bad JSON/XML Syntax: Please check that the JSON fields/values are of the expected JSON data types - [130 / 0]";
+
+		assertThat(exception.getMessage(), is(expectedMessage));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(Status.ERROR));
+			fetchedPatronRequest.getStatus(), is(ERROR));
 
 		assertThat("Request should have error message afterwards",
-			fetchedPatronRequest.getErrorMessage(), is("Internal Server Error"));
+			fetchedPatronRequest.getErrorMessage(), is(expectedMessage));
 	}
 
 	private Patron createPatron(String localId, DataHostLms hostLms) {

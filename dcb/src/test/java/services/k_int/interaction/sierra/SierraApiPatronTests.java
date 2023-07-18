@@ -1,12 +1,15 @@
 package services.k_int.interaction.sierra;
 
-import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.SierraErrorMatchers.getResponseBody;
+import static org.olf.dcb.test.matchers.SierraErrorMatchers.isBadJsonError;
+import static org.olf.dcb.test.matchers.SierraErrorMatchers.isServerError;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -57,31 +60,28 @@ class SierraApiPatronTests {
 	}
 
 	@Test
-	void shouldReportErrorWhenPlacingAPatronRespondsWithInternalServerError() {
+	void shouldReportErrorWhenCreatingAPatronRespondsWithBadRequest() {
 		// Arrange
 		final var patronPatch = PatronPatch.builder()
 			.uniqueIds(new String[]{"0987654321"})
 			.build();
+
 		sierraPatronsAPIFixture.postPatronErrorResponse("0987654321");
+
 		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> Mono.from(sierraApiClient.patrons(patronPatch)).block());
+			() -> singleValueFrom(sierraApiClient.patrons(patronPatch)));
 
 		// Assert
 		final var response = exception.getResponse();
 
-		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
-		assertThat(response.code(), is(500));
+		assertThat(response.getStatus(), is(BAD_REQUEST));
 
-		final var optionalBody = response.getBody(String.class);
+		final var body = getResponseBody(exception);
 
-		assertThat(optionalBody.isPresent(), is(true));
-
-		final var body = optionalBody.get();
-
-		assertThat(body, is("Broken"));
+		assertThat(body, is(isBadJsonError()));
 	}
 
 	@Test
@@ -176,18 +176,9 @@ class SierraApiPatronTests {
 			() -> Mono.from(sierraApiClient.patronHolds(patronLocalId)).block());
 
 		// Assert
-		final var response = exception.getResponse();
+		final var body = getResponseBody(exception);
 
-		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
-		assertThat(response.code(), is(500));
-
-		final var optionalBody = response.getBody(String.class);
-
-		assertThat(optionalBody.isPresent(), is(true));
-
-		final var body = optionalBody.get();
-
-		assertThat(body, is("Broken"));
+		assertThat(body, isBadJsonError());
 	}
 
 	@Test
@@ -228,17 +219,8 @@ class SierraApiPatronTests {
 			() -> Mono.from(sierraApiClient.placeHoldRequest(patronLocalId, patronHoldPost)).block());
 
 		// Assert
-		final var response = exception.getResponse();
+		final var body = getResponseBody(exception);
 
-		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
-		assertThat(response.code(), is(500));
-
-		final var optionalBody = response.getBody(String.class);
-
-		assertThat(optionalBody.isPresent(), is(true));
-
-		final var body = optionalBody.get();
-
-		assertThat(body, is("Broken"));
+		assertThat(body, isServerError());
 	}
 }
