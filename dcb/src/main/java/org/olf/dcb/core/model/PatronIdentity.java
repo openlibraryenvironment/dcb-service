@@ -78,7 +78,7 @@ public class PatronIdentity {
 	private String localPtype;
 
 	@Nullable
-	private String localAgency;
+	private String localHomeLibraryCode;
 
 	@Nullable
 	private Instant lastValidated;
