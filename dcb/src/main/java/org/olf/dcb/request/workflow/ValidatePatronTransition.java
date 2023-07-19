@@ -19,6 +19,8 @@ import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import io.micronaut.context.BeanProvider;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
 
 
 @Prototype
@@ -28,6 +30,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final HostLmsService hostLmsService;
 	private final PatronRequestAuditService patronRequestAuditService;
+        private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
         private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
@@ -35,11 +38,13 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository, 
 			HostLmsService hostLmsService, 
 			PatronRequestAuditService patronRequestAuditService,
+                        ReferenceValueMappingRepository referenceValueMappingRepository,
 			BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
 
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.hostLmsService = hostLmsService;
 		this.patronRequestAuditService = patronRequestAuditService;
+                this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 	}
 	/**
@@ -60,16 +65,20 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				pi.setLocalNames(Objects.toString(hostLmsPatron.getLocalNames(), null));
 				pi.setLocalHomeLibraryCode(hostLmsPatron.getLocalHomeLibraryCode());
                                 pi.setResolvedAgency(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(), hostLmsPatron.getLocalHomeLibraryCode()));
-
-				return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(pi));
-			});
-
+                                return Mono.just(pi);
+                        })
+                        .flatMap(updatedPatronIdentity -> {
+                                return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(updatedPatronIdentity));
+                        });
 	}
 
         private DataAgency resolveHomeLibraryCodeFromSystemToAgencyCode(String systemCode, String homeLibraryCode) {
                 DataAgency result = null;
                 log.debug("resolveHomeLibraryCodeFromSystemToAgencyCode({},{})",systemCode,homeLibraryCode);
                 if ( ( systemCode != null ) && ( homeLibraryCode != null ) ) {
+
+                        // Mono<ReferenceValueMapping> findMapping("dcb", "agency", "locaton", systemCode, homeLibraryCode) {
+
                         // Try to resolve
                 }
                 return result;
@@ -94,12 +103,18 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		return Mono.from(patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), TRUE))
 			.flatMap(this::validatePatronIdentity)
 			.map(patronRequest::setRequestingIdentity)
+                        .then(validateLocations(patronRequest))
 			.doOnSuccess( pr -> log.debug("Validated patron request: {}", pr))
                         .doOnError( error -> log.error( "Error occurred validating a patron request: {}", error.getMessage()))
 			.flatMap(this::createAuditEntry)
 		        .transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
 	
+	private Mono<PatronRequest> validateLocations(PatronRequest patronRequest) {
+                log.debug("validateLocations({})",patronRequest);
+                return Mono.just(patronRequest);
+        }
+
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
 
 		if (patronRequest.getStatus() == Status.ERROR) return Mono.just(patronRequest);
@@ -111,4 +126,14 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	public boolean isApplicableFor(PatronRequest pr) {
 		return pr.getStatus() == Status.SUBMITTED_TO_DCB;
 	}
+
+        private Mono<ReferenceValueMapping> findMapping(String targetContext, String targetCategory, String sourceCategory, String sourceContext, String sourceValue) {
+                log.debug("findMapping targetCtx={} sourceCtx={} value={}",targetContext,sourceContext,sourceValue);
+                return Mono.from(
+                        // referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToContext(
+                        //         sourceCategory, sourceContext, sourceValue, targetContext));
+                        referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+                                sourceCategory, sourceContext, sourceValue, targetCategory, targetContext));
+        }
+
 }
