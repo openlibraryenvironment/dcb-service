@@ -26,7 +26,7 @@ import org.olf.dcb.configuration.BranchRecord;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
-import org.olf.dcb.configuration.ShelvingLocationRecord;
+import org.olf.dcb.configuration.LocationRecord;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.HostLms;
@@ -528,7 +528,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
-	public UUID uuid5ForShelvingLocation(@NotNull final String hostLmsCode, @NotNull final String localBranchId,
+	public UUID uuid5ForLocation(@NotNull final String hostLmsCode, @NotNull final String localBranchId,
 		@NotNull final String locationCode) {
 		final String concat = UUID5_PREFIX + ":SL:" + hostLmsCode + ":" + localBranchId + ":" + locationCode;
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
@@ -545,20 +545,20 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private ConfigurationRecord mapSierraBranchToBranchConfigurationRecord(BranchInfo bi) {
-		List<ShelvingLocationRecord> locations = new ArrayList<>();
+		List<LocationRecord> locations = new ArrayList<>();
 		if (bi.locations() != null) {
-			for (Map<String, String> shelving_location : bi.locations()) {
+			for (Map<String, String> sub_location : bi.locations()) {
 				// It appears these are not only shelving locations but more general location records attached to the location
-				locations.add(new ShelvingLocationRecord(
-					uuid5ForShelvingLocation(lms.getCode(), bi.id(), shelving_location.get("code")),
-					shelving_location.get("code"), shelving_location.get("name")));
+				locations.add(new LocationRecord(
+					uuid5ForLocation(lms.getCode(), bi.id(), sub_location.get("code")),
+					sub_location.get("code"), sub_location.get("name")));
 			}
 		}
 
 		return BranchRecord.builder().id(uuid5ForBranch(lms.getCode(), bi.id()))
 			.lms(lms).localBranchId(bi.id()).branchName(bi.name())
 			.lat(bi.latitude() != null ? Float.valueOf(bi.latitude()) : null)
-			.lon(bi.longitude() != null ? Float.valueOf(bi.longitude()) : null).shelvingLocations(locations).build();
+			.lon(bi.longitude() != null ? Float.valueOf(bi.longitude()) : null).subLocations(locations).build();
 	}
 
 	private ConfigurationRecord mapSierraPickupLocationToPickupLocationRecord(PickupLocationInfo pli) {

@@ -17,9 +17,9 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @AllArgsConstructor
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
-public class ShelvingLocationRecord implements ConfigurationRecord {
+public class LocationRecord implements ConfigurationRecord {
 
-    public static final String RECORD_TYPE = "SHELVING_LOCATION";
+    public static final String RECORD_TYPE = "LOCATION";
 
     private UUID id;
 
