@@ -6,6 +6,7 @@ import lombok.Value;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.storage.PatronIdentityRepository;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import reactor.function.TupleUtils;
 
 import static java.util.UUID.randomUUID;
 import static lombok.AccessLevel.PACKAGE;
@@ -161,7 +163,14 @@ public class PatronService {
 
 	public String getUniqueIdStringFor(Patron patron) {
 		return patron.getPatronIdentities().stream().filter(PatronIdentity::getHomeIdentity)
-				.map(pi -> pi.getLocalId() + "@" + patron.getHomeLibraryCode()).collect(Collectors.joining());
+                                .zipWhen( pi -> patronIdentityRepository.getResolveAgencyById(pi.getId() ) )
+                                .map(TupleUtils.function(( pi, agency ) -> { 
+                                        return pi.getLocalId() + "@" + agency.getCode();
+                                }))
+                                .collect(Collectors.joining());
+
+				// .map(pi -> pi.getLocalId() + "@" + patron.getHomeLibraryCode()).collect(Collectors.joining());
+
 	}
 
 	public Optional<PatronIdentity> findIdentityByLocalId(Patron patron, String localId) {
