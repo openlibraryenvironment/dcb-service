@@ -60,6 +60,10 @@ public class Location {
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private DataAgency agency;
 
+        @Column(name = "parent_location_fk")
+	@Relation(value = Relation.Kind.MANY_TO_ONE)
+	private Location parentLocation;
+
     /**
      * The host system on which this location is managed
      */

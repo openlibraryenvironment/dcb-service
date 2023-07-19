@@ -94,13 +94,13 @@ public class ConfigurationService implements Runnable {
                         }));
     }
 
-    private ShelvingLocation mapShelvingLocationRecordToShelvingLocation(ShelvingLocationRecord slr, Location l, BranchRecord br) {
+    private ShelvingLocation mapLocationRecordToShelvingLocation(LocationRecord lr, Location l, BranchRecord br) {
         // log.debug("create ShelvingLocation for {} at {}",slr,l);
         return new ShelvingLocation()
                 .builder()
-                .id(slr.getId())
-                .code(slr.getCode())
-                .name(slr.getName())
+                .id(lr.getId())
+                .code(lr.getCode())
+                .name(lr.getName())
                 .hostSystem((DataHostLms) br.getLms())
                 .location(l)
                 .build();
@@ -114,10 +114,10 @@ public class ConfigurationService implements Runnable {
     }
 
   	@Transactional(value = TxType.REQUIRED)
-    public Mono<Void> createShelvingLocations(Location l, BranchRecord br) {
+    public Mono<Void> createSubLocations(Location l, BranchRecord br) {
 	// log.debug("Create shelving locations at {} for {}",l,br);
-        return Flux.fromIterable(br.getShelvingLocations())
-                .map(slr -> mapShelvingLocationRecordToShelvingLocation(slr, l, br))
+        return Flux.fromIterable(br.getSubLocations())
+                .map(slr -> mapLocationRecordToShelvingLocation(slr, l, br))
                 .flatMap(sl -> upsertShelvingLocation(sl))
                 .then(Mono.empty());
     }
@@ -174,7 +174,8 @@ public class ConfigurationService implements Runnable {
 
 					return Mono.from(locationRepository.existsById(l.getId()))
 						.flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)))
-						.flatMap(savedLocation -> createShelvingLocations(savedLocation, br))
+                                                // For now we do not create shelving location records based on this data.
+						//.flatMap(savedLocation -> createSubLocations(savedLocation, br))
 						.thenReturn(l);
 
 				} else {
@@ -252,11 +253,8 @@ public class ConfigurationService implements Runnable {
                 });
     }
 
-    /*
     @Scheduled(initialDelay = "10s", fixedDelay = "${dcb.networkconfigingest.interval:24h}")
     @AppTask
-    */
-
     @Override
     public void run() {
 

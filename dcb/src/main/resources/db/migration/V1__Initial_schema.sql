@@ -56,7 +56,8 @@ CREATE TABLE location (
 	type varchar(32),
 	agency_fk uuid,
 	host_system_id uuid,
-	is_pickup boolean
+	is_pickup boolean,
+        parent_location_fk uuid
 );
 
 CREATE TABLE patron (

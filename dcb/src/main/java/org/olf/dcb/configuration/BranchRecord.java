@@ -23,14 +23,14 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @ExcludeFromGeneratedCoverageReport
 public class BranchRecord implements ConfigurationRecord {
 
-				public static final String RECORD_TYPE="BRANCH";
+        public static final String RECORD_TYPE="BRANCH";
+        
+        private UUID id;
 
-				private UUID id;
+        // The host LMS system which managed this shelving location
+        private HostLms lms;
 
-				// The host LMS system which managed this shelving location
-				private HostLms lms;
-
-				private String localBranchId;
+        private String localBranchId;
 
         private String branchName;
 
@@ -44,7 +44,7 @@ public class BranchRecord implements ConfigurationRecord {
         private String email;
 
         @Nullable
-        private List<ShelvingLocationRecord> shelvingLocations;
+        private List<LocationRecord> subLocations;
 
         public String getRecordType() {
                 return RECORD_TYPE;
