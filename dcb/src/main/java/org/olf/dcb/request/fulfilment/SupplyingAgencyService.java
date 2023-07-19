@@ -98,16 +98,6 @@ public class SupplyingAgencyService {
                         .map(PatronRequest::placedAtSupplyingAgency)
 			.flatMap(this::createAuditEntry)
 			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
-
-		/*
-		return findSupplierRequestFor(patronRequest)
-			.flatMap(function(this::checkAndCreatePatronAtSupplier))
-			.flatMap(function(this::placeRequestAtSupplier))
-			.flatMap(function(this::updateSupplierRequest))
-			.map(PatronRequest::placedAtSupplyingAgency)
-			.flatMap(this::createAuditEntry)
-			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
-		*/
 	}
 
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
@@ -126,7 +116,8 @@ public class SupplyingAgencyService {
 		PatronRequest patronRequest = psrc.getPatronRequest();
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 
-		return upsertPatronIdentityAtSupplier(patronRequest,supplierRequest)
+		// return upsertPatronIdentityAtSupplier(patronRequest,supplierRequest)
+		return upsertPatronIdentityAtSupplier(psrc)
 			.map(patronIdentity -> { 
 				psrc.setPatronVirtualIdentity(patronIdentity); 
 				supplierRequest.setVirtualIdentity(patronIdentity);
@@ -185,14 +176,19 @@ public class SupplyingAgencyService {
 			.thenReturn(patronRequest);
 	}
 
-	private Mono<PatronIdentity> upsertPatronIdentityAtSupplier(PatronRequest patronRequest, SupplierRequest supplierRequest) {
-		return checkIfPatronExistsAtSupplier(patronRequest, supplierRequest)
+	private Mono<PatronIdentity> upsertPatronIdentityAtSupplier(PlaceSupplierRequestContext psrc) {
+
+                PatronRequest patronRequest = psrc.getPatronRequest();
+                SupplierRequest supplierRequest = psrc.getSupplierRequest();
+
+		return checkIfPatronExistsAtSupplier(psrc)
                         .switchIfEmpty(Mono.defer(() -> createPatronAtSupplier(patronRequest, supplierRequest)));
 	}
 
-	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(PatronRequest patronRequest,
-		SupplierRequest supplierRequest) {
+	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(PlaceSupplierRequestContext psrc) {
 
+                PatronRequest patronRequest = psrc.getPatronRequest();
+                SupplierRequest supplierRequest = psrc.getSupplierRequest();
 		log.debug("checkIfPatronExistsAtSupplier req={}, supplierSystemCode={}", patronRequest.getId(), supplierRequest.getHostLmsCode());
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
