@@ -78,7 +78,7 @@ CREATE TABLE patron_identity (
         local_ptype varchar(200),
         last_validated timestamp,
         local_names varchar(256),
-        local_agency varchar(256),
+        local_home_library_code varchar(256),
         resolved_agency_id uuid
 );
 
@@ -232,9 +232,10 @@ CREATE TABLE patron_request_audit (
 	id uuid PRIMARY KEY,
 	patron_request_id uuid,
 	audit_date timestamp,
-	briefDescription varchar(256),
+	brief_description varchar(256),
 	audit_data JSONB,
-        CONSTRAINT fk_patron_request FOREIGN KEY (patron_request_id) REFERENCES patron_request(id)
+        from_status varchar(200),
+        to_status varchar(200)
 );
 
 CREATE INDEX pra_pr_fk ON patron_request_audit (patron_request_id);

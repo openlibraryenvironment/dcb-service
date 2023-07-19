@@ -253,9 +253,12 @@ public class ConfigurationService implements Runnable {
                 });
     }
 
-    @Override
+    /*
     @Scheduled(initialDelay = "10s", fixedDelay = "${dcb.networkconfigingest.interval:24h}")
     @AppTask
+    */
+
+    @Override
     public void run() {
 
         if (this.mutex != null && !this.mutex.isDisposed()) {

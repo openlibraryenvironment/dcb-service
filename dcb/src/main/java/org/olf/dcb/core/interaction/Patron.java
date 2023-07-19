@@ -27,5 +27,5 @@ public class Patron {
 	private List<String> localBarcodes;
 	private List<String> uniqueIds;
 	private String localPatronType;
-	private String localPatronAgency;
+	private String localHomeLibraryCode;
 }
