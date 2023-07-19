@@ -106,19 +106,41 @@ public class ConfigurationService implements Runnable {
                 .build();
     }
 
+        private Location mapLocationRecordToSubLocation(LocationRecord lr, Location l, BranchRecord br) {
+                log.debug("create sub location record for {} at {}",lr,l);
+                return new Location()
+                        .builder()
+                        .id(lr.getId())
+                        .code(lr.getCode())
+                        .name(lr.getName())
+                        .hostSystem((DataHostLms) br.getLms())
+                        .parentLocation(l)
+                        .type("LOCATION")
+                        .build();
+        }
+
+
   	@Transactional(value = TxType.REQUIRED)
-    public Mono<ShelvingLocation> upsertShelvingLocation(ShelvingLocation sl) {
-        // log.debug("upsertShelvingLocation {}", sl);
-        return Mono.from(shelvingLocationRepository.existsById(sl.getId()))
-                .flatMap(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)));
-    }
+        public Mono<ShelvingLocation> upsertShelvingLocation(ShelvingLocation sl) {
+                // log.debug("upsertShelvingLocation {}", sl);
+                return Mono.from(shelvingLocationRepository.existsById(sl.getId()))
+                        .flatMap(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)));
+        }
+
+        @Transactional(value = TxType.REQUIRED)
+        public Mono<Location> upsertLocation(Location l) {
+                // log.debug("upsertShelvingLocation {}", sl);
+                return Mono.from(locationRepository.existsById(l.getId()))
+                        .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)));
+        }
+
 
   	@Transactional(value = TxType.REQUIRED)
     public Mono<Void> createSubLocations(Location l, BranchRecord br) {
 	// log.debug("Create shelving locations at {} for {}",l,br);
         return Flux.fromIterable(br.getSubLocations())
-                .map(slr -> mapLocationRecordToShelvingLocation(slr, l, br))
-                .flatMap(sl -> upsertShelvingLocation(sl))
+                .map(slr -> mapLocationRecordToSubLocation(slr, l, br))
+                .flatMap(locrec -> upsertLocation(locrec))
                 .then(Mono.empty());
     }
 
