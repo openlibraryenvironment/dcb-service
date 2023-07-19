@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
@@ -22,6 +23,7 @@ import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.request.workflow.ValidatePatronTransition;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
@@ -45,6 +47,8 @@ public class ValidatePatronTests {
 	private PatronFixture patronFixture;
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
         @Inject
         private ReferenceValueMappingFixture referenceValueMappingFixture;
 
@@ -59,13 +63,21 @@ public class ValidatePatronTests {
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		hostLmsFixture.deleteAllHostLMS();
-		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+		DataHostLms s1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 
 		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 
 		sierraPatronsAPIFixture.getPatronByLocalId("467295");
 
                 referenceValueMappingFixture.deleteAllReferenceValueMappings();
+
+                agencyFixture.deleteAllAgencies();
+                agencyFixture.saveAgency( DataAgency.builder()
+                                                .id(UUID.randomUUID())
+                                                .code("AGENCY1")
+                                                .name("Test AGENCY1")
+                                                .hostLms(s1)
+                                                .build() );
 	}
 
 	@Test
