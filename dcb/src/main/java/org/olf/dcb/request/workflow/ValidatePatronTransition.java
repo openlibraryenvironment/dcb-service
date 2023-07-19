@@ -21,6 +21,7 @@ import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import io.micronaut.context.BeanProvider;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
+import org.olf.dcb.storage.AgencyRepository;
 
 
 @Prototype
@@ -31,6 +32,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private final HostLmsService hostLmsService;
 	private final PatronRequestAuditService patronRequestAuditService;
         private final ReferenceValueMappingRepository referenceValueMappingRepository;
+        private final AgencyRepository agencyRepository;
 
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
         private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
@@ -39,13 +41,15 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 			HostLmsService hostLmsService, 
 			PatronRequestAuditService patronRequestAuditService,
                         ReferenceValueMappingRepository referenceValueMappingRepository,
-			BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
+			BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
+                        AgencyRepository agencyRepository) {
 
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.hostLmsService = hostLmsService;
 		this.patronRequestAuditService = patronRequestAuditService;
                 this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
+		this.agencyRepository = agencyRepository;
 	}
 	/**
 	 * We are passed in a local patron identity record
@@ -64,24 +68,34 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				pi.setLocalBarcode(Objects.toString(hostLmsPatron.getLocalBarcodes(), null));
 				pi.setLocalNames(Objects.toString(hostLmsPatron.getLocalNames(), null));
 				pi.setLocalHomeLibraryCode(hostLmsPatron.getLocalHomeLibraryCode());
-                                pi.setResolvedAgency(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(), hostLmsPatron.getLocalHomeLibraryCode()));
+                                // pi.setResolvedAgency(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(), hostLmsPatron.getLocalHomeLibraryCode()));
                                 return Mono.just(pi);
+                        })
+                        .flatMap(updatedPatronIdentity -> {
+                                return Mono.fromDirect(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(), pi.getLocalHomeLibraryCode(), pi));
                         })
                         .flatMap(updatedPatronIdentity -> {
                                 return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(updatedPatronIdentity));
                         });
 	}
 
-        private DataAgency resolveHomeLibraryCodeFromSystemToAgencyCode(String systemCode, String homeLibraryCode) {
-                DataAgency result = null;
+        private Mono<PatronIdentity> resolveHomeLibraryCodeFromSystemToAgencyCode(String systemCode, String homeLibraryCode, PatronIdentity pi) {
+                // DataAgency result = null;
+
                 log.debug("resolveHomeLibraryCodeFromSystemToAgencyCode({},{})",systemCode,homeLibraryCode);
-                if ( ( systemCode != null ) && ( homeLibraryCode != null ) ) {
+                if ( ( systemCode == null ) || ( homeLibraryCode == null ) ) 
+                        throw new java.lang.RuntimeException("Missing system code or home library code. Unable to accept request");
 
-                        // Mono<ReferenceValueMapping> findMapping("dcb", "agency", "locaton", systemCode, homeLibraryCode) {
-
-                        // Try to resolve
-                }
-                return result;
+                return findMapping("dcb", "agency", "location", systemCode, homeLibraryCode)
+                        .flatMap( locatedMapping -> {
+                                log.debug("Located mapping {}",locatedMapping);
+                                return Mono.from(agencyRepository.findOneByCode(locatedMapping.getToValue()));
+                        })
+                        .flatMap( locatedAgency -> {
+                                log.debug("Located agency {}",locatedAgency);
+                                pi.setResolvedAgency(locatedAgency);
+                                return Mono.just(pi);
+                        });
         }
 
 	/**
