@@ -4,14 +4,14 @@ hosts:
   SANDBOX:
     name: SANDBOX
     code: SANDBOX
-    type: org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient
+    type: org.olf.dcb.core.interaction.sierra.SierraLmsClient
     client:
       base-url: "https://sandbox.iii.com"
       ingest: true
   KCTOWERS:
     name: KCTOWERS
     code: KCTOWERS
-    type: org.olf.reshare.dcb.core.interaction.sierra.SierraLmsClient
+    type: org.olf.dcb.core.interaction.sierra.SierraLmsClient
     client:
       base-url: "https://kc-towers.searchmobius.org:443"
 
