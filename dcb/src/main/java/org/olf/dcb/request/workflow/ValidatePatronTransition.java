@@ -90,6 +90,8 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
                 if ( ( systemCode == null ) || ( homeLibraryCode == null ) ) 
                         throw new java.lang.RuntimeException("Missing system code or home library code. Unable to accept request");
 
+                log.debug("findMapping(targetContext=dcb, targetCategory=agency, sourceCategory=location, sourceContext={}, sourceValue={}",systemCode,homeLibraryCode);
+
                 return findMapping("dcb", "agency", "location", systemCode, homeLibraryCode)
                         .flatMap( locatedMapping -> {
                                 log.debug("Located mapping {}",locatedMapping);

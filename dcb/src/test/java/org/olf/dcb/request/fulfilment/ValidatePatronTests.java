@@ -199,7 +199,7 @@ public class ValidatePatronTests {
 	private Patron createPatron(String localId, DataHostLms hostLms) {
 		final Patron patron = patronFixture.savePatron("123456");
 
-		patronFixture.saveIdentity(patron, hostLms, localId, true, "-");
+		patronFixture.saveIdentity(patron, hostLms, localId, true, "-", "123456", null);
 
 		patron.setPatronIdentities(patronFixture.findIdentities(patron));
 

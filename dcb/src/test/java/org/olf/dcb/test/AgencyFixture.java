@@ -18,8 +18,9 @@ public class AgencyFixture {
 		this.agencyRepository = agencyRepository;
 	}
 
-	public void saveAgency(DataAgency agency) {
+	public DataAgency saveAgency(DataAgency agency) {
 		singleValueFrom(agencyRepository.save(agency));
+                return agency;
 	}
 
 	public void deleteAllAgencies() {

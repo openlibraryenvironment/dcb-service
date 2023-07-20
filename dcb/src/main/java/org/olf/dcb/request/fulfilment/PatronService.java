@@ -180,7 +180,7 @@ public class PatronService {
 	public String getUniqueIdStringFor(Patron patron) {
 		return patron.getPatronIdentities().stream().filter(PatronIdentity::getHomeIdentity).map(pi -> {
 			if (pi.getResolvedAgency() == null)
-				throw new RuntimeException("No resolved agency for patron " + patron.getId());
+				throw new RuntimeException("No resolved agency for patron " + patron.getId() + "homeLibraryCode was "+patron.getHomeLibraryCode());
 			return pi.getLocalId() + "@" + pi.getResolvedAgency().getCode();
 		}).collect(Collectors.joining());
 	}

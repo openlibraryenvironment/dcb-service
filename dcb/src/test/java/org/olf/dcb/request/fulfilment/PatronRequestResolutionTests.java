@@ -103,7 +103,7 @@ class PatronRequestResolutionTests {
 		sierraItemsAPIFixture.twoItemsResponseForBibId("465675");
 
 		final var patron = patronFixture.savePatron("465636");
-		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-");
+		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-", "465636", null);
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -162,7 +162,7 @@ class PatronRequestResolutionTests {
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("245375");
 
 		final var patron = patronFixture.savePatron("294385");
-		patronFixture.saveIdentity(patron, hostLms, "872321", true,"-");
+		patronFixture.saveIdentity(patron, hostLms, "872321", true,"-", "294385", null);
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -193,7 +193,7 @@ class PatronRequestResolutionTests {
 	void shouldFailToResolveVerifiedRequestWhenClusterRecordCannotBeFound() {
 		// Arrange
 		final var patron = patronFixture.savePatron("757646");
-		patronFixture.saveIdentity(patron, hostLms, "86848", true, "-");
+		patronFixture.saveIdentity(patron, hostLms, "86848", true, "-", "757646", null);
 
 		final var clusterRecordId = randomUUID();
 
@@ -237,7 +237,7 @@ class PatronRequestResolutionTests {
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
 
 		final var patron = patronFixture.savePatron("757646");
-		patronFixture.saveIdentity(patron, hostLms, "86848", true, "-");
+		patronFixture.saveIdentity(patron, hostLms, "86848", true, "-", "757646", null);
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())

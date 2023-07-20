@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.ReferenceValueMapping;
@@ -49,7 +50,7 @@ public class PatronFixture {
 	}
 
 	public void saveIdentity(Patron patron, DataHostLms homeHostLms,
-		String localId, boolean homeIdentity, String localPtype) {
+		String localId, boolean homeIdentity, String localPtype, String localHomeLibraryCode, DataAgency resolvedAgency) {
 
 		saveIdentity(PatronIdentity.builder()
 			.id(randomUUID())
@@ -58,6 +59,8 @@ public class PatronFixture {
 			.hostLms(homeHostLms)
 			.homeIdentity(homeIdentity)
 			.localPtype(localPtype)
+			.localHomeLibraryCode(localHomeLibraryCode)
+			.resolvedAgency(resolvedAgency)
 			.localBarcode("8675309012")
 			.build());
 	}
