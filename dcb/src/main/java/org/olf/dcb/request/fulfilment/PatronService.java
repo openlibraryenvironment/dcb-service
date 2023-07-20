@@ -103,7 +103,8 @@ public class PatronService {
 			return Mono.just(patronIdentity);
 
 		return Mono.from( agencyRepository.findById(patronIdentity.getResolvedAgency().getId()) )
-				.map(patronIdentity::setResolvedAgency);
+				.map(patronIdentity::setResolvedAgency)
+                                .defaultIfEmpty(patronIdentity);
 	}
 
 	private Patron createPatron(String homeLibraryCode) {
@@ -179,7 +180,7 @@ public class PatronService {
 	public String getUniqueIdStringFor(Patron patron) {
 		return patron.getPatronIdentities().stream().filter(PatronIdentity::getHomeIdentity).map(pi -> {
 			if (pi.getResolvedAgency() == null)
-				throw new RuntimeException("No resolved agency for patron " + patron.toString());
+				throw new RuntimeException("No resolved agency for patron " + patron.getId());
 			return pi.getLocalId() + "@" + pi.getResolvedAgency().getCode();
 		}).collect(Collectors.joining());
 	}

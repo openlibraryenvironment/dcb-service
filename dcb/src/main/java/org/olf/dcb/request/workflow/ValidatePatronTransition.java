@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import io.micronaut.context.BeanProvider;
 import org.olf.dcb.core.model.ReferenceValueMapping;
@@ -67,7 +68,10 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				pi.setLastValidated(Instant.now());
 				pi.setLocalBarcode(Objects.toString(hostLmsPatron.getLocalBarcodes(), null));
 				pi.setLocalNames(Objects.toString(hostLmsPatron.getLocalNames(), null));
+
+                                log.debug("setLocalHomeLibraryCode({})",hostLmsPatron.getLocalHomeLibraryCode());
 				pi.setLocalHomeLibraryCode(hostLmsPatron.getLocalHomeLibraryCode());
+
                                 // pi.setResolvedAgency(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(), hostLmsPatron.getLocalHomeLibraryCode()));
                                 return Mono.just(pi);
                         })
@@ -114,7 +118,12 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		
 		// pull out patronRequest.patron and get the home patron then use the web service to look up the patron
 		// patronRequest.patron
-		return Mono.from(patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), TRUE))
+                // This was the original design - where we use the DB to return the patron home identity
+		// return Mono.from(patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), TRUE))
+
+                // This version searches through the patron identities attached to the patron request and selects the home identity
+                return Flux.fromIterable(patronRequest.getPatron().getPatronIdentities())
+                        .filter(PatronIdentity::getHomeIdentity)
 			.flatMap(this::validatePatronIdentity)
 			.map(patronRequest::setRequestingIdentity)
                         .then(validateLocations(patronRequest))
