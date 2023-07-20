@@ -75,7 +75,7 @@ public class PatronService {
 		return Mono.from(patronIdentityRepository.findOneByLocalIdAndHostLmsAndHomeIdentity(localId, hostLms, true));
 	}
 
-	private Flux<PatronIdentity> findAllPatronIdentitiesByPatron(Patron patron) {
+	public Flux<PatronIdentity> findAllPatronIdentitiesByPatron(Patron patron) {
 		// log.debug("findAllPatronIdentitiesByPatron({})", patron);
 
 		return Flux.from(patronIdentityRepository.findAllByPatron(patron)).flatMap(this::addHostLmsToPatronIdentities)

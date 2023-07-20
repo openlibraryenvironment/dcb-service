@@ -17,6 +17,7 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.ReferenceValueMapping;
@@ -28,6 +29,8 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
+
+import org.olf.dcb.request.fulfilment.PatronService;
 
 import reactor.core.publisher.Mono;
 
@@ -58,10 +61,15 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	private PlacePatronRequestAtSupplyingAgencyStateTransition placePatronRequestAtSupplyingAgencyStateTransition;
         @Inject
         private AgencyFixture agencyFixture;
+        @Inject
+        private PatronService patronService;
+
 
         private DataAgency agency_ab6 = null;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+
+
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
 		final String TOKEN = "test-token";
@@ -232,10 +240,14 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		return clusterRecordId;
 	}
 	private Patron createPatron(String localId, DataHostLms hostLms) {
+
+                if ( agency_ab6 == null )
+                        throw new RuntimeException("Fixtures have not properly initialised data agency ab6");
+
 		final Patron patron = patronFixture.savePatron("123456");
 		patronFixture.saveIdentity(patron, hostLms, localId, true, "-", "123456", agency_ab6);
 		patronFixture.saveIdentity(patron, hostLms, localId, false, "-", null, null);
-		patron.setPatronIdentities(patronFixture.findIdentities(patron));
+		patron.setPatronIdentities(patronService.findAllPatronIdentitiesByPatron(patron).collectList().block());
 		return patron;
 	}
 	private PatronRequest savePatronRequest(UUID patronRequestId, Patron patron,

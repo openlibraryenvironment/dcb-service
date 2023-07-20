@@ -52,7 +52,7 @@ public class PatronFixture {
 	public void saveIdentity(Patron patron, DataHostLms homeHostLms,
 		String localId, boolean homeIdentity, String localPtype, String localHomeLibraryCode, DataAgency resolvedAgency) {
 
-		saveIdentity(PatronIdentity.builder()
+                PatronIdentity pi = PatronIdentity.builder()
 			.id(randomUUID())
 			.patron(patron)
 			.localId(localId)
@@ -62,7 +62,9 @@ public class PatronFixture {
 			.localHomeLibraryCode(localHomeLibraryCode)
 			.resolvedAgency(resolvedAgency)
 			.localBarcode("8675309012")
-			.build());
+			.build();
+
+		saveIdentity(pi);
 	}
 
 	private void saveIdentity(PatronIdentity identity) {
