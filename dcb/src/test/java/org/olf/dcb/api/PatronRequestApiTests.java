@@ -19,7 +19,6 @@ import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORR
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 
-import java.util.Collections;
 import java.util.UUID;
 
 import org.hamcrest.Matcher;
@@ -126,11 +125,11 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");
 
 		// patron service
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@home-library");
-		// sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@ab6");
+//		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@home-library");
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@ab6");
 
-		sierraPatronsAPIFixture.postPatronResponse("872321@home-library", 2745326);
-		// sierraPatronsAPIFixture.postPatronResponse("872321@ab6", 2745326);
+//		sierraPatronsAPIFixture.postPatronResponse("872321@home-library", 2745326);
+		 sierraPatronsAPIFixture.postPatronResponse("872321@ab6", 2745326);
 
 		// supplying agency service
 		sierraPatronsAPIFixture.patronHoldRequestResponse("2745326");
@@ -292,7 +291,7 @@ class PatronRequestApiTests {
                 // The order can change depending upon access, so force the order so that the get(n) below work as expected
                 // Collections.sort(fetchedPatronRequest.requestor().identities(), (i1, i2) -> { return i1.localId().compareTo(i2.localId()); });
 
-		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(0);
+		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(1);
 
 		assertThat(homeIdentity.localId(), is("872321"));
 		assertThat(homeIdentity.homeIdentity(), is(true));
