@@ -122,14 +122,14 @@ public class ConfigurationService implements Runnable {
 
   	@Transactional(value = TxType.REQUIRED)
         public Mono<ShelvingLocation> upsertShelvingLocation(ShelvingLocation sl) {
-                // log.debug("upsertShelvingLocation {}", sl);
+                log.debug("upsertShelvingLocation {}", sl);
                 return Mono.from(shelvingLocationRepository.existsById(sl.getId()))
                         .flatMap(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)));
         }
 
         @Transactional(value = TxType.REQUIRED)
         public Mono<Location> upsertLocation(Location l) {
-                // log.debug("upsertShelvingLocation {}", sl);
+                log.debug("upsertLocation {}", l);
                 return Mono.from(locationRepository.existsById(l.getId()))
                         .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)));
         }
@@ -181,8 +181,9 @@ public class ConfigurationService implements Runnable {
      */
 
   	@Transactional(value = TxType.REQUIRED)
-    public Mono<Location> handleBranchRecord(BranchRecord br) {
-        //log.debug("handleBranchRecord {}",br);
+        public Mono<Location> handleBranchRecord(BranchRecord br) {
+        log.debug("handleBranchRecord {} {}",br.getId(),br.getLocalBranchId());
+
 				// Branch records map onto Location (Type=Branch) records for us
         if ( ( br.getLms() instanceof DataHostLms) &&
              ( br.getLocalBranchId() != null ) )  {
@@ -208,7 +209,7 @@ public class ConfigurationService implements Runnable {
 
     @Transactional(value = TxType.REQUIRED)
     protected Mono<Location> handlePickupLocation(PickupLocationRecord pickupLocationRecord) {
-        //log.debug("handlePickupLocation {}",pickupLocationRecord);
+        log.debug("handlePickupLocation {}",pickupLocationRecord);
         if (pickupLocationRecord.getLms() instanceof DataHostLms) {
             Location upsert_location = Location
                     .builder()
