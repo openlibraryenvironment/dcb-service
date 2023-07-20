@@ -136,13 +136,13 @@ public class ConfigurationService implements Runnable {
 
 
   	@Transactional(value = TxType.REQUIRED)
-    public Mono<Void> createSubLocations(Location l, BranchRecord br) {
-	// log.debug("Create shelving locations at {} for {}",l,br);
-        return Flux.fromIterable(br.getSubLocations())
-                .map(slr -> mapLocationRecordToSubLocation(slr, l, br))
-                .flatMap(locrec -> upsertLocation(locrec))
-                .then(Mono.empty());
-    }
+        public Mono<Void> createSubLocations(Location l, BranchRecord br) {
+	        log.debug("Create sub locations at {} for {}",l,br);
+                return Flux.fromIterable(br.getSubLocations())
+                        .map(slr -> mapLocationRecordToSubLocation(slr, l, br))
+                        .flatMap(locrec -> upsertLocation(locrec))
+                        .then(Mono.empty());
+        }
 
   	@Transactional(value = TxType.REQUIRED)
 	public Mono<Agency> handleAgencyRecord(BranchRecord br) {
@@ -281,11 +281,11 @@ public class ConfigurationService implements Runnable {
     public void run() {
 
         if (this.mutex != null && !this.mutex.isDisposed()) {
-            log.info("Ingest already running skipping. Mutex: {}", this.mutex);
+            log.info("Configuration Ingest already running skipping. Mutex: {}", this.mutex);
             return;
         }
 
-        log.info("Scheduled Ingest");
+        log.info("Scheduled Configuration Ingest");
 
         this.mutex = getConfigRecordStream()
                 .doOnCancel(cleanUp())
