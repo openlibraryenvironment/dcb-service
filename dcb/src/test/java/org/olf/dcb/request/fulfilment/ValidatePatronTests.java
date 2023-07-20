@@ -26,6 +26,7 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.request.fulfilment.PatronService;
 
 import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
@@ -51,6 +52,8 @@ public class ValidatePatronTests {
 	private AgencyFixture agencyFixture;
         @Inject
         private ReferenceValueMappingFixture referenceValueMappingFixture;
+        @Inject
+        private PatronService patronService;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
@@ -201,7 +204,9 @@ public class ValidatePatronTests {
 
 		patronFixture.saveIdentity(patron, hostLms, localId, true, "-", "123456", null);
 
-		patron.setPatronIdentities(patronFixture.findIdentities(patron));
+		// patron.setPatronIdentities(patronFixture.findIdentities(patron));
+                patron.setPatronIdentities(patronService.findAllPatronIdentitiesByPatron(patron).collectList().block());
+
 
 		return patron;
 	}
