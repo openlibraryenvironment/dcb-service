@@ -17,6 +17,7 @@ import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.ToString;
+import lombok.experimental.Accessors;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -30,6 +31,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Builder
 @Data
 @NoArgsConstructor(onConstructor_ = @Creator())
+@Accessors(chain = true)
 @AllArgsConstructor
 @Serdeable
 @MappedEntity
