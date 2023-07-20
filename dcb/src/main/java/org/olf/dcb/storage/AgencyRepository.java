@@ -39,6 +39,9 @@ public interface AgencyRepository {
 	Publisher<Page<DataAgency>> findAll(Pageable page);
 
 	@NonNull
+	Publisher<? extends DataAgency> findOneByCode(String code);
+
+	@NonNull
 	Publisher<? extends DataAgency> findAll();
 
 	Publisher<Void> delete(UUID id);

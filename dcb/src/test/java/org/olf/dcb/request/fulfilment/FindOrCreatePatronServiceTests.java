@@ -88,7 +88,7 @@ class FindOrCreatePatronServiceTests {
 
 		final var homeHostLms = hostLmsFixture.createHostLms(hostLmsId, LOCAL_SYSTEM_CODE);
 
-		patronFixture.saveIdentity(existingPatron, homeHostLms, LOCAL_ID, true, "-");
+		patronFixture.saveIdentity(existingPatron, homeHostLms, LOCAL_ID, true, "-", "local-system-code", null);
 
 		// Act
 		findOrCreatePatronService

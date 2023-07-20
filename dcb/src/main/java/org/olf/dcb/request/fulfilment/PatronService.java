@@ -6,10 +6,12 @@ import lombok.Value;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.PatronRepository;
+import org.olf.dcb.storage.AgencyRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import reactor.function.TupleUtils;
 
 import static java.util.UUID.randomUUID;
 import static lombok.AccessLevel.PACKAGE;
@@ -31,13 +34,15 @@ public class PatronService {
 	private final PatronRepository patronRepository;
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final HostLmsService hostLmsService;
+	private final AgencyRepository agencyRepository;
 
 	public PatronService(PatronRepository patronRepository, PatronIdentityRepository patronIdentityRepository,
-			HostLmsService hostLmsService) {
+			HostLmsService hostLmsService, AgencyRepository agencyRepository) {
 
 		this.patronRepository = patronRepository;
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.hostLmsService = hostLmsService;
+		this.agencyRepository = agencyRepository;
 	}
 
 	public Mono<PatronId> findPatronFor(String localSystemCode, String localId) {
@@ -70,10 +75,11 @@ public class PatronService {
 		return Mono.from(patronIdentityRepository.findOneByLocalIdAndHostLmsAndHomeIdentity(localId, hostLms, true));
 	}
 
-	private Flux<PatronIdentity> findAllPatronIdentitiesByPatron(Patron patron) {
+	public Flux<PatronIdentity> findAllPatronIdentitiesByPatron(Patron patron) {
 		// log.debug("findAllPatronIdentitiesByPatron({})", patron);
 
-		return Flux.from(patronIdentityRepository.findAllByPatron(patron)).flatMap(this::addHostLmsToPatronIdentities);
+		return Flux.from(patronIdentityRepository.findAllByPatron(patron)).flatMap(this::addHostLmsToPatronIdentities)
+				.flatMap(this::addResolvedAgencyToPatronIdentity);
 	}
 
 	private Mono<PatronIdentity> addHostLmsToPatronIdentities(PatronIdentity patronIdentity) {
@@ -85,8 +91,20 @@ public class PatronService {
 	private Mono<PatronIdentity> getHostLmsOfPatronIdentity(PatronIdentity patronIdentity) {
 		// log.debug("getHostLmsOfPatronIdentity({})", patronIdentity);
 
-		return fetchDataHostLmsByHostLmsId(patronIdentity.getHostLms().getId()).doOnNext(patronIdentity::setHostLms)
+		return hostLmsService.findById(patronIdentity.getHostLms().getId()).doOnNext(patronIdentity::setHostLms)
 				.thenReturn(patronIdentity);
+	}
+
+	private Mono<PatronIdentity> addResolvedAgencyToPatronIdentity(PatronIdentity patronIdentity) {
+
+		// Exit early if there is no attached resolved agency - we generally only set
+		// resolvedAgency for "Home" identities
+		if (patronIdentity.getResolvedAgency() == null)
+			return Mono.just(patronIdentity);
+
+		return Mono.from( agencyRepository.findById(patronIdentity.getResolvedAgency().getId()) )
+				.map(patronIdentity::setResolvedAgency)
+                                .defaultIfEmpty(patronIdentity);
 	}
 
 	private Patron createPatron(String homeLibraryCode) {
@@ -160,8 +178,11 @@ public class PatronService {
 	}
 
 	public String getUniqueIdStringFor(Patron patron) {
-		return patron.getPatronIdentities().stream().filter(PatronIdentity::getHomeIdentity)
-				.map(pi -> pi.getLocalId() + "@" + patron.getHomeLibraryCode()).collect(Collectors.joining());
+		return patron.getPatronIdentities().stream().filter(PatronIdentity::getHomeIdentity).map(pi -> {
+			if (pi.getResolvedAgency() == null)
+				throw new RuntimeException("No resolved agency for patron " + patron.getId() + "homeLibraryCode was "+patron.getHomeLibraryCode());
+			return pi.getLocalId() + "@" + pi.getResolvedAgency().getCode();
+		}).collect(Collectors.joining());
 	}
 
 	public Optional<PatronIdentity> findIdentityByLocalId(Patron patron, String localId) {

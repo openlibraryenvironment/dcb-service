@@ -174,7 +174,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		final var patron = patronFixture.savePatron("872321");
 
-		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-");
+		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-", "872321", null);
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()
@@ -222,7 +222,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		final var patron = patronFixture.savePatron("972321");
 
-		patronFixture.saveIdentity(patron, hostLms, "972321", true, "-");
+		patronFixture.saveIdentity(patron, hostLms, "972321", true, "-", "972321", null);
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()
@@ -270,7 +270,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		final var patron = patronFixture.savePatron("972321");
 
-		patronFixture.saveIdentity(patron, hostLms, "785843", true, "-");
+		patronFixture.saveIdentity(patron, hostLms, "785843", true, "-", "972321", null);
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()

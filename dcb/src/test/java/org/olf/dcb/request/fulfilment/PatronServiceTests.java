@@ -44,7 +44,7 @@ class PatronServiceTests {
 
 		final var homeHostLms = hostLmsFixture.createHostLms(hostLmsId, LOCAL_SYSTEM_CODE);
 
-		patronFixture.saveIdentity(existingPatron, homeHostLms, LOCAL_ID, true, "-");
+		patronFixture.saveIdentity(existingPatron, homeHostLms, LOCAL_ID, true, "-", LOCAL_SYSTEM_CODE, null);
 
 		// Act
 		final var foundPatron = patronService

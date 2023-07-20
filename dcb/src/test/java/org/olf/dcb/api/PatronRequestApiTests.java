@@ -43,6 +43,7 @@ import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.slf4j.Logger;
@@ -92,6 +93,8 @@ class PatronRequestApiTests {
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private ReferenceValueMappingRepository referenceValueMappingRepository;
+        @Inject
+        private AgencyFixture agencyFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	@Inject
@@ -109,7 +112,7 @@ class PatronRequestApiTests {
 
 		hostLmsFixture.deleteAllHostLMS();
 
-		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+		DataHostLms h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 		// Moved to class level var so we can install fixtures elsewhere
@@ -122,9 +125,11 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");
 
 		// patron service
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@home-library");
+//		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@home-library");
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@ab6");
 
-		sierraPatronsAPIFixture.postPatronResponse("872321@home-library", 2745326);
+//		sierraPatronsAPIFixture.postPatronResponse("872321@home-library", 2745326);
+		 sierraPatronsAPIFixture.postPatronResponse("872321@ab6", 2745326);
 
 		// supplying agency service
 		sierraPatronsAPIFixture.patronHoldRequestResponse("2745326");
@@ -146,6 +151,15 @@ class PatronRequestApiTests {
 
 		sierraPatronsAPIFixture.addPatronGetExpectation(43546L);
 		sierraPatronsAPIFixture.addPatronGetExpectation(872321L);
+
+                agencyFixture.deleteAllAgencies();
+                agencyFixture.saveAgency( DataAgency.builder()
+                                                .id(UUID.randomUUID())
+                                                .code("AGENCY1")
+                                                .name("Test AGENCY1")
+                                                .hostLms(h1)
+                                                .build() );
+
 	}
 
 	@BeforeEach
@@ -178,6 +192,13 @@ class PatronRequestApiTests {
 				.build();
 
 		referenceValueMappingFixture.saveReferenceValueMapping(rvm);
+
+                ReferenceValueMapping rvm2= ReferenceValueMapping.builder().id(randomUUID()).fromCategory("location")
+                                .fromContext("patron-request-api-tests").fromValue("tstce").toCategory("agency").toContext("dcb").toValue("ab6")
+                                .build();
+
+                referenceValueMappingFixture.saveReferenceValueMapping(rvm2);
+
 		// Mono.from(referenceValueMappingRepository.save(rvm))
 		// .block();
 
@@ -267,17 +288,20 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.requestor().identities(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(2));
 
-		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(0);
+                // The order can change depending upon access, so force the order so that the get(n) below work as expected
+                // Collections.sort(fetchedPatronRequest.requestor().identities(), (i1, i2) -> { return i1.localId().compareTo(i2.localId()); });
 
+		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(1);
+
+		assertThat(homeIdentity.localId(), is("872321"));
 		assertThat(homeIdentity.homeIdentity(), is(true));
 		assertThat(homeIdentity.hostLmsCode(), is(HOST_LMS_CODE));
-		assertThat(homeIdentity.localId(), is("872321"));
 
-		final var supplierIdentity = fetchedPatronRequest.requestor().identities().get(1);
+		final var supplierIdentity = fetchedPatronRequest.requestor().identities().get(0);
 
+		assertThat(supplierIdentity.localId(), is("2745326"));
 		assertThat(supplierIdentity.homeIdentity(), is(false));
 		assertThat(supplierIdentity.hostLmsCode(), is(HOST_LMS_CODE));
-		assertThat(supplierIdentity.localId(), is("2745326"));
 
 		final var supplierRequest = fetchedPatronRequest.supplierRequests().get(0);
 
