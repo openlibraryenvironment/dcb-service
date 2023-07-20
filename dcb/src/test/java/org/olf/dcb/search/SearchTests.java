@@ -33,12 +33,12 @@ class SearchTests {
 	void beforeEach() {
 	}
 
-        @Inject
-        PostgresAgencyRepository agencyRepository;
+	@Inject
+	PostgresAgencyRepository agencyRepository;
 
 	@Test
 	void testSearchUtility() {
-                QueryService qs = new QueryService();
-                qs.evaluate("code:KCTOWERS", DataAgency.class, agencyRepository);
+		QueryService qs = new QueryService();
+		qs.evaluate("code:KCTOWERS", DataAgency.class, agencyRepository);
 	}
 }
