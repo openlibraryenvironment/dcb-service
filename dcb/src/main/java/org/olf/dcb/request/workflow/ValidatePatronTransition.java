@@ -90,7 +90,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
                 if ( ( systemCode == null ) || ( homeLibraryCode == null ) ) 
                         throw new java.lang.RuntimeException("Missing system code or home library code. Unable to accept request");
 
-                log.debug("findMapping(targetContext=dcb, targetCategory=agency, sourceCategory=location, sourceContext={}, sourceValue={}",systemCode,homeLibraryCode);
+                log.debug("findMapping(targetContext=DCB, targetCategory=AGENCY, sourceCategory=Location, sourceContext={}, sourceValue={}",systemCode,homeLibraryCode);
 
                 return findMapping("DCB", "AGENCY", "Location", systemCode, homeLibraryCode)
                         .flatMap( locatedMapping -> {
@@ -153,11 +153,9 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	}
 
         private Mono<ReferenceValueMapping> findMapping(String targetContext, String targetCategory, String sourceCategory, String sourceContext, String sourceValue) {
-                log.debug("findMapping targetCtx={} srcCtx={} targCat={} srcCat={} srcVal={} targCat={}",
-                        targetContext,sourceContext,targetCategory,sourceCategory,sourceValue,targetCategory);
+                log.debug("findMapping src ctx={} cat={} val={} target ctx={} cat={}",
+                        sourceContext,sourceCategory,sourceValue,targetContext,targetCategory);
                 return Mono.from(
-                        // referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToContext(
-                        //         sourceCategory, sourceContext, sourceValue, targetContext));
                         referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
                                 sourceCategory, sourceContext, sourceValue, targetCategory, targetContext));
         }
