@@ -146,7 +146,6 @@ public class ConfigurationService implements Runnable {
 
   	@Transactional(value = TxType.REQUIRED)
 	public Mono<Agency> handleAgencyRecord(BranchRecord br) {
-		//log.debug("handleBranchRecord {}",br);
 		// Different host LMS systems will have different policies on how BranchRecords map to agencies
 		// In a multi-tenant sierra for example, branch records represent institutions and we should create
 		// an agency for each branch record. This method will take account of policies configured for the
@@ -182,7 +181,7 @@ public class ConfigurationService implements Runnable {
 
   	@Transactional(value = TxType.REQUIRED)
         public Mono<Location> handleBranchRecord(BranchRecord br) {
-        log.debug("handleBranchRecord {} {}",br.getId(),br.getLocalBranchId());
+        log.debug("handleBranchRecord {} {} {}",br.getId(),br.getLocalBranchId(),br.getBranchName());
 
 				// Branch records map onto Location (Type=Branch) records for us
         if ( ( br.getLms() instanceof DataHostLms) &&
@@ -197,8 +196,7 @@ public class ConfigurationService implements Runnable {
 
 					return Mono.from(locationRepository.existsById(l.getId()))
 						.flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)))
-                                                // For now we do not create shelving location records based on this data.
-						//.flatMap(savedLocation -> createSubLocations(savedLocation, br))
+						.flatMap(savedLocation -> createSubLocations(savedLocation, br))
 						.thenReturn(l);
 
 				} else {
