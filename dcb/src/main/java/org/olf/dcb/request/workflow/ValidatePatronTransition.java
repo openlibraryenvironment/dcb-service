@@ -153,7 +153,8 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	}
 
         private Mono<ReferenceValueMapping> findMapping(String targetContext, String targetCategory, String sourceCategory, String sourceContext, String sourceValue) {
-                log.debug("findMapping targetCtx={} sourceCtx={} value={}",targetContext,sourceContext,sourceValue);
+                log.debug("findMapping targetCtx={} srcCtx={} targCat={} srcCat={} srcVal={} targCat={}",
+                        targetContext,sourceContext,targetCategory,sourceCategory,sourceValue,targetCategory);
                 return Mono.from(
                         // referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToContext(
                         //         sourceCategory, sourceContext, sourceValue, targetContext));
