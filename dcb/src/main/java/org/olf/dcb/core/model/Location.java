@@ -17,6 +17,7 @@ import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
@@ -56,10 +57,12 @@ public class Location {
 
 	// The UUID of the agency that owns this location record - We may not be able to infer this, so it's nullable
 	// in order that a human can establish the correct relationship after initial discovery
+        @ToString.Exclude
 	@Column(name = "agency_fk")
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private DataAgency agency;
 
+        @ToString.Exclude
         @Column(name = "parent_location_fk")
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private Location parentLocation;

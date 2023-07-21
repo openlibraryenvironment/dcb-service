@@ -17,6 +17,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+import lombok.ToString;
 
 @Data
 @Serdeable
@@ -40,6 +41,7 @@ public class DataAgency implements Agency {
 	@Size(max = 200)
 	private String name;
 
+        @ToString.Exclude
 	@NonNull
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private DataHostLms hostLms;

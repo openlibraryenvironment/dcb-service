@@ -10,6 +10,7 @@ import jakarta.persistence.OneToMany;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
@@ -39,10 +40,12 @@ public class Patron {
 	@TypeDef( type = DataType.UUID)
 	private UUID id;
 
+        @ToString.Exclude
 	@Nullable
 	@DateCreated
 	private Instant dateCreated;
 
+        @ToString.Exclude
 	@Nullable
 	@DateUpdated
 	private Instant dateUpdated;
@@ -51,6 +54,7 @@ public class Patron {
 	@Size(max = 200)
 	private String homeLibraryCode;
 
+        @ToString.Exclude
 	@OneToMany(mappedBy = "patronId")
 	private List<PatronIdentity> patronIdentities;
 }
