@@ -1,0 +1,714 @@
+{
+	"total": 3,
+	"start": 0,
+	"entries": [
+		{
+			"id": "1000001",
+			"deleted": false,
+			"title": "Hey, what's wrong with this one",
+			"author": "Wojciechowska, Maia,",
+			"marc": {
+				"leader": "00000cam  2200000   4500",
+				"fields": [
+					{
+						"100": {
+							"subfields": [
+								{
+									"a": "Wojciechowska, Maia,"
+								}
+							],
+							"ind1": "1",
+							"ind2": " "
+						}
+					},
+					{
+						"700": {
+							"subfields": [
+								{
+									"a": "Sandin, Joan."
+								}
+							],
+							"ind1": "1",
+							"ind2": " "
+						}
+					},
+					{
+						"650": {
+							"subfields": [
+								{
+									"a": "Families"
+								},
+								{
+									"v": "Fiction."
+								}
+							],
+							"ind1": " ",
+							"ind2": "0"
+						}
+					},
+					{
+						"010": {
+							"subfields": [
+								{
+									"a": "67014071 /AC/r72"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"520": {
+							"subfields": [
+								{
+									"a": "Three brothers have everything they want except a mother and, after the latest housekeeper leaves in despair, they decide to help father find a new wife."
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"521": {
+							"subfields": [
+								{
+									"a": "Grade 3-6."
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"001": "170"
+					},
+					{
+						"967": {
+							"subfields": [
+								{
+									"a": "ib1000001x"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"260": {
+							"subfields": [
+								{
+									"a": "New York,"
+								},
+								{
+									"b": "Harper & Row"
+								},
+								{
+									"c": "[1969]"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"300": {
+							"subfields": [
+								{
+									"a": "72 p."
+								},
+								{
+									"b": "illus."
+								},
+								{
+									"c": "24 cm."
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"008": "690505s1969    nyua   j      000 1 eng  cam   "
+					},
+					{
+						"040": {
+							"subfields": [
+								{
+									"a": "DLC"
+								},
+								{
+									"c": "DLC"
+								},
+								{
+									"d": "CSJ"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"049": {
+							"subfields": [
+								{
+									"a": "CSJJ"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"099": {
+							"subfields": [
+								{
+									"a": "W847h"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"910": {
+							"subfields": [
+								{
+									"a": "eng"
+								},
+								{
+									"b": "901010"
+								},
+								{
+									"c": "m"
+								},
+								{
+									"d": "a"
+								},
+								{
+									"e": "nyu"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"910": {
+							"subfields": [
+								{
+									"a": "06NOV80/r cb 170"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "1000002",
+			"deleted": false,
+			"title": "Basic circuit theory",
+			"author": "Desoer, Charles A.",
+			"marc": {
+				"leader": "00000nam  2200000   4500",
+				"fields": [
+					{
+						"100": {
+							"subfields": [
+								{
+									"a": "Desoer, Charles A."
+								}
+							],
+							"ind1": "1",
+							"ind2": " "
+						}
+					},
+					{
+						"700": {
+							"subfields": [
+								{
+									"a": "Kuh, Ernest S."
+								}
+							],
+							"ind1": "1",
+							"ind2": " "
+						}
+					},
+					{
+						"650": {
+							"subfields": [
+								{
+									"a": "Electric circuits."
+								}
+							],
+							"ind1": " ",
+							"ind2": "0"
+						}
+					},
+					{
+						"650": {
+							"subfields": [
+								{
+									"a": "Electric networks."
+								}
+							],
+							"ind1": " ",
+							"ind2": "0"
+						}
+					},
+					{
+						"010": {
+							"subfields": [
+								{
+									"a": "68009551"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"504": {
+							"subfields": [
+								{
+									"a": "Bibliography: p. 268-271."
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"500": {
+							"subfields": [
+								{
+									"a": "Reprint of the 1921 ed."
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"967": {
+							"subfields": [
+								{
+									"a": "ib10000082"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"020": {
+							"subfields": [
+								{
+									"a": "9781234567890"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"022": {
+							"subfields": [
+								{
+									"a": "1234-5678"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"260": {
+							"subfields": [
+								{
+									"a": "New York,"
+								},
+								{
+									"b": "McGraw-Hill"
+								},
+								{
+									"c": "[1969]"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"300": {
+							"subfields": [
+								{
+									"a": "xix, 876 p."
+								},
+								{
+									"b": "illus."
+								},
+								{
+									"c": "23 cm."
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"490": {
+							"subfields": [
+								{
+									"a": "Library of early American business and industry, 18."
+								}
+							],
+							"ind1": "1",
+							"ind2": " "
+						}
+					},
+					{
+						"440": {
+							"subfields": [
+								{
+									"a": "Reprints of economic classics"
+								}
+							],
+							"ind1": " ",
+							"ind2": "0"
+						}
+					},
+					{
+						"830": {
+							"subfields": [
+								{
+									"a": "Library of early American business & industry ;"
+								},
+								{
+									"v": "18."
+								}
+							],
+							"ind1": " ",
+							"ind2": "0"
+						}
+					},
+					{
+						"245": {
+							"subfields": [
+								{
+									"a": "Basic circuit theory"
+								},
+								{
+									"c": "[by] Charles A. Desoer and Ernest S. Kuh."
+								}
+							],
+							"ind1": "1",
+							"ind2": "0"
+						}
+					},
+					{
+						"910": {
+							"subfields": [
+								{
+									"a": "rcp"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"050": {
+							"subfields": [
+								{
+									"a": "TK454.2"
+								},
+								{
+									"b": ".D4"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"040": {
+							"subfields": [
+								{
+									"a": "DLC"
+								},
+								{
+									"c": "DLC"
+								},
+								{
+									"d": "CSJ"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"049": {
+							"subfields": [
+								{
+									"a": "CSJM"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"910": {
+							"subfields": [
+								{
+									"a": "eng"
+								},
+								{
+									"b": "901010"
+								},
+								{
+									"c": "m"
+								},
+								{
+									"d": "a"
+								},
+								{
+									"e": "nyu"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "1000003",
+			"deleted": false,
+			"title": "Basic circuit theory",
+			"author": "Desoer, Charles A.",
+			"marc": {
+				"leader": "00000nam  2200000   4500",
+				"fields": [
+					{
+						"100": {
+							"subfields": [
+								{
+									"a": "Desoer, Charles A."
+								}
+							],
+							"ind1": "1",
+							"ind2": " "
+						}
+					},
+					{
+						"700": {
+							"subfields": [
+								{
+									"a": "Kuh, Ernest S."
+								}
+							],
+							"ind1": "1",
+							"ind2": " "
+						}
+					},
+					{
+						"650": {
+							"subfields": [
+								{
+									"a": "Electric circuits."
+								}
+							],
+							"ind1": " ",
+							"ind2": "0"
+						}
+					},
+					{
+						"650": {
+							"subfields": [
+								{
+									"a": "Electric networks."
+								}
+							],
+							"ind1": " ",
+							"ind2": "0"
+						}
+					},
+					{
+						"010": {
+							"subfields": [
+								{
+									"a": "68009551"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"504": {
+							"subfields": [
+								{
+									"a": "Bibliography: p. 103-104."
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"967": {
+							"subfields": [
+								{
+									"a": "ib10000082"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"260": {
+							"subfields": [
+								{
+									"a": "New York,"
+								},
+								{
+									"b": "McGraw-Hill"
+								},
+								{
+									"c": "[1969]"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"300": {
+							"subfields": [
+								{
+									"a": "xix, 876 p."
+								},
+								{
+									"b": "illus."
+								},
+								{
+									"c": "23 cm."
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"440": {
+							"subfields": [
+								{
+									"a": "Problems in European civilization"
+								}
+							],
+							"ind1": " ",
+							"ind2": "0"
+						}
+					},
+					{
+						"245": {
+							"subfields": [
+								{
+									"a": "Basic circuit theory"
+								},
+								{
+									"c": "[by] Charles A. Desoer and Ernest S. Kuh."
+								}
+							],
+							"ind1": "1",
+							"ind2": "0"
+						}
+					},
+					{
+						"910": {
+							"subfields": [
+								{
+									"a": "rcp"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"050": {
+							"subfields": [
+								{
+									"a": "TK454.2"
+								},
+								{
+									"b": ".D4"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"040": {
+							"subfields": [
+								{
+									"a": "DLC"
+								},
+								{
+									"c": "DLC"
+								},
+								{
+									"d": "CSJ"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"049": {
+							"subfields": [
+								{
+									"a": "CSJM"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					},
+					{
+						"910": {
+							"subfields": [
+								{
+									"a": "eng"
+								},
+								{
+									"b": "901010"
+								},
+								{
+									"c": "m"
+								},
+								{
+									"d": "a"
+								},
+								{
+									"e": "nyu"
+								}
+							],
+							"ind1": " ",
+							"ind2": " "
+						}
+					}
+				]
+			}
+		}
+	]
+}
