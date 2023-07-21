@@ -1,26 +1,17 @@
 package org.olf.dcb.search;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-
-import java.util.UUID;
-
+import org.joda.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.olf.dcb.core.model.Location;
-import org.olf.dcb.core.model.LocationSymbol;
-import org.olf.dcb.storage.LocationRepository;
-import org.olf.dcb.storage.LocationSymbolRepository;
+import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.storage.postgres.PostgresClusterRecordRepository;
 import org.olf.dcb.test.DcbTest;
 
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import jakarta.inject.Inject;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import org.olf.dcb.core.QueryService;
-import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
-import org.olf.dcb.core.model.DataAgency;
+import services.k_int.data.querying.QueryService;
 
 @DcbTest
 class SearchTests {
@@ -34,11 +25,21 @@ class SearchTests {
 	}
 
 	@Inject
-	PostgresAgencyRepository agencyRepository;
+	PostgresClusterRecordRepository clusterRecordRepo;
 
 	@Test
 	void testSearchUtility() {
 		QueryService qs = new QueryService();
-		qs.evaluate("code:KCTOWERS", DataAgency.class, agencyRepository);
+		try {
+			Mono.justOrEmpty( qs.evaluate("title:\"My Special Title\" AND dateUpdated:\"" + Instant.now().toString() + "\"", ClusterRecord.class) )
+				.flatMapMany(clusterRecordRepo::findAll)
+				.map(ClusterRecord::toString)
+				.doOnNext(System.out::println)
+				.blockLast();
+			
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 }

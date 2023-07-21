@@ -34,5 +34,5 @@ import io.micronaut.data.repository.jpa.reactive.ReactorJpaSpecificationExecutor
 @Singleton
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 @Transactional
-public interface PostgresAgencyRepository extends ReactiveStreamsPageableRepository<DataAgency, UUID>, AgencyRepository, ReactorJpaSpecificationExecutor<DataAgency> {
+public interface PostgresAgencyRepository extends ReactiveStreamsPageableRepository<DataAgency, UUID>, AgencyRepository {
 }

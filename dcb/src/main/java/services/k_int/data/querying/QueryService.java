@@ -1,43 +1,32 @@
 package services.k_int.data.querying;
 
-import org.olf.dcb.core.model.DataAgency;
-import io.micronaut.data.repository.jpa.criteria.PredicateSpecification;
-// import io.micronaut.data.repository.jpa.JpaSpecificationExecutor;
-import io.micronaut.data.repository.jpa.reactive.ReactiveStreamsJpaSpecificationExecutor;
+import java.util.Objects;
 
-import org.apache.lucene.queryparser.flexible.standard.StandardQueryParser;
-import org.apache.lucene.queryparser.flexible.core.config.QueryConfigHandler;
 import org.apache.lucene.queryparser.flexible.core.QueryNodeException;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TermQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Import where(nameEquals("Dennis"))  Person.findAll(where(nameEquals("Dennis")));
-import static io.micronaut.data.repository.jpa.criteria.PredicateSpecification.where;
+import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
+import services.k_int.data.querying.lucene.JpaSpecificationQueryParser;
 
 public class QueryService {
 
 	private static final Logger log = LoggerFactory.getLogger(QueryService.class);
 
-	private PredicateSpecification<DataAgency> codeLike(String code) {
-		return (root, criteriaBuilder) -> criteriaBuilder.like(root.get("code"), "%" + code + "%");
-	}
-
-	private Query parse(String q) throws QueryNodeException {
+	private <T> QuerySpecification<T> parse(String q, Class<T> entitiyClass) throws QueryNodeException {
 		log.debug("parse({})", q);
-		StandardQueryParser qpHelper = new StandardQueryParser();
-		Query query = qpHelper.parse(q, "defaultField");
-		log.debug("returning: {}", query.toString());
+		JpaSpecificationQueryParser<T> qpHelper = new JpaSpecificationQueryParser<>();
+		QuerySpecification<T> query = qpHelper.parse(q, "defaultField");
+		log.debug("returning: {}", Objects.toString(query, null));
 		return query;
 	}
 
-	public void evaluate(String q, Class c, ReactiveStreamsJpaSpecificationExecutor repo) {
+	public <T> QuerySpecification<T> evaluate(String q, Class<T> c) throws Exception {
 		log.debug("evaluate({},{},...)", q, c);
 		try {
-			Query parsed_query = parse(q);
-			dumpQuery(0, parsed_query);
-			PredicateSpecification ps = convertQuery(parsed_query, c);
+			QuerySpecification<T> parsed_query = parse(q, c);
+			return parsed_query;
+//			dumpQuery(0, parsed_query);
 
 			// @NonNull org.reactivestreams.Publisher<T> findAll(@Nullable
 			// QuerySpecification<T> spec)
@@ -48,24 +37,13 @@ public class QueryService {
 
 		} catch (QueryNodeException qne) {
 			log.error("Problem parsing query");
+			throw qne;
 		}
 	}
 
-	private void dumpQuery(int depth, Query q) {
-    log.debug("[{}] {}", depth, q.getClass().getName());
-    if ( q instanceof org.apache.lucene.search.TermQuery ) {
-      // https://lucene.apache.org/core/7_0_0/core/org/apache/lucene/search/TermQuery.html
-      TermQuery tq = (org.apache.lucene.search.TermQuery) q;
-      log.debug("TermQuery: {} {}",tq.getTerm().field(), tq.getTerm().text());
-    }
+	private <T> void dumpQuery(int depth, QuerySpecification<T> q) {
+    log.debug("[{}]", q.getClass().getName());
   }
-
-	private PredicateSpecification convertQuery(Query q, Class c) {
-		// return (root, criteriaBuilder, q) -> recurseQueryTree(root, criteriaBuilder,
-		// q);
-		return null;
-	}
-
 	/*
 	 * private PredicateSpecification
 	 * recurseQueryTree(jakarta.persistence.criteria.Root root,
