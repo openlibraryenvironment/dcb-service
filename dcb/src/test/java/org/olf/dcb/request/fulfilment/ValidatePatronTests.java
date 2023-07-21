@@ -21,12 +21,11 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.request.workflow.ValidatePatronTransition;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
-import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-import org.olf.dcb.request.fulfilment.PatronService;
 
 import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
@@ -50,10 +49,10 @@ public class ValidatePatronTests {
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
-        @Inject
-        private ReferenceValueMappingFixture referenceValueMappingFixture;
-        @Inject
-        private PatronService patronService;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private PatronService patronService;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
@@ -70,17 +69,17 @@ public class ValidatePatronTests {
 
 		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 
-		sierraPatronsAPIFixture.getPatronByLocalId("467295");
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("467295");
 
-                referenceValueMappingFixture.deleteAllReferenceValueMappings();
+		referenceValueMappingFixture.deleteAllReferenceValueMappings();
 
-                agencyFixture.deleteAllAgencies();
-                agencyFixture.saveAgency( DataAgency.builder()
-                                                .id(UUID.randomUUID())
-                                                .code("AGENCY1")
-                                                .name("Test AGENCY1")
-                                                .hostLms(s1)
-                                                .build() );
+		agencyFixture.deleteAllAgencies();
+		agencyFixture.saveAgency(DataAgency.builder()
+			.id(UUID.randomUUID())
+			.code("AGENCY1")
+			.name("Test AGENCY1")
+			.hostLms(s1)
+			.build());
 	}
 
 	@Test

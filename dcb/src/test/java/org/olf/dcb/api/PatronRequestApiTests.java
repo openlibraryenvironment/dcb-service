@@ -19,6 +19,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORR
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.hamcrest.Matcher;
@@ -37,13 +38,12 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.ShelvingLocation;
 import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
-import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.slf4j.Logger;
@@ -64,7 +64,6 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PatronRequestApiTests {
-
 	private final Logger log = LoggerFactory.getLogger(PatronRequestApiTests.class);
 
 	private static final String HOST_LMS_CODE = "patron-request-api-tests";
@@ -92,11 +91,10 @@ class PatronRequestApiTests {
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
-	private ReferenceValueMappingRepository referenceValueMappingRepository;
-        @Inject
-        private AgencyFixture agencyFixture;
+	private AgencyFixture agencyFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+
 	@Inject
 	@Client("/")
 	private HttpClient client;
@@ -133,33 +131,30 @@ class PatronRequestApiTests {
 
 		// supplying agency service
 		sierraPatronsAPIFixture.patronHoldRequestResponse("2745326");
-		// sierraPatronsAPIFixture.patronHoldResponse("2745326");
 
 		// borrowing agency service
-		final var bibPatch = BibPatch.builder().authors(new String[] { "Stafford Beer" })
-				.titles(new String[] { "Brain of the Firm" })
-				// .bibCode3("n")
-				.build();
+		final var bibPatch = BibPatch.builder()
+			.authors(List.of("Stafford Beer"))
+			.titles(List.of("Brain of the Firm"))
+			.build();
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916920, "ab6", "6565750674");
 		sierraPatronsAPIFixture.patronHoldRequestResponse("872321");
-		// sierraPatronsAPIFixture.patronHoldResponse("872321");
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
 
-		sierraPatronsAPIFixture.addPatronGetExpectation(43546L);
-		sierraPatronsAPIFixture.addPatronGetExpectation(872321L);
+		agencyFixture.deleteAllAgencies();
+		agencyFixture.saveAgency(DataAgency.builder()
+			.id(UUID.randomUUID())
+			.code("AGENCY1")
+			.name("Test AGENCY1")
+			.hostLms(h1)
+			.build());
 
-                agencyFixture.deleteAllAgencies();
-                agencyFixture.saveAgency( DataAgency.builder()
-                                                .id(UUID.randomUUID())
-                                                .code("AGENCY1")
-                                                .name("Test AGENCY1")
-                                                .hostLms(h1)
-                                                .build() );
-
+		sierraPatronsAPIFixture.addPatronGetExpectation("43546");
+		sierraPatronsAPIFixture.addPatronGetExpectation("872321");
 	}
 
 	@BeforeEach

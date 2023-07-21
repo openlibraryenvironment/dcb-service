@@ -76,9 +76,8 @@ class SierraApiBibTests {
 	void testBibsPOST() {
 		// Arrange
 		final var bibPatch = BibPatch.builder()
-			.authors(new String[]{"John Smith"})
-			.titles(new String[]{"The Book of John"})
-			.bibCode3("n")
+			.authors(List.of("John Smith"))
+			.titles(List.of("The Book of John"))
 			.build();
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916922);

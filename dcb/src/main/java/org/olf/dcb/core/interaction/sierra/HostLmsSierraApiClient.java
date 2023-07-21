@@ -33,9 +33,6 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpRequest;
-import io.micronaut.http.annotation.Body;
-import io.micronaut.http.annotation.PathVariable;
-import io.micronaut.http.annotation.Put;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
@@ -195,7 +192,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 	@SingleResult
 	public Publisher<LinkResult> bibs(BibPatch body) {
-		// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/bibs/Create_a_Bib_record_post_0
+		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/bibs/Create_a_Bib_record_post_0
 		return postRequest("bibs")
 			.map(req -> req.body(body))
 			.flatMap(this::ensureToken)
@@ -264,9 +261,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	}
 
 	@SingleResult
-	@Put("/patrons/{id}")
-	public Publisher<SierraPatronRecord> updatePatron(@Nullable @PathVariable("id") final Long patronId,
-		@Body PatronPatch patronPatch) {
+	public Publisher<SierraPatronRecord> updatePatron(@Nullable final Long patronId,
+		PatronPatch patronPatch) {
 
 		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Update_the_Patron_record_put_19
 		return createRequest(HttpMethod.PUT, "patrons/" + patronId)
@@ -387,7 +383,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		final String secret = (String) conf.get(CLIENT_SECRET);
 
 		return Mono.from(login(key, secret))
-			.map( newToken -> {
+			.map(newToken -> {
 				currentToken = newToken;
 				return newToken;
 			});
