@@ -229,12 +229,11 @@ public class SupplyingAgencyService {
 		}
 	}
 
-	private Mono<PatronIdentity> createPatronAtSupplier(PatronRequest patronRequest,
-		SupplierRequest supplierRequest) {
-
-		log.debug("createPatronAtSupplier {}, {}", patronRequest.getId(), supplierRequest.getId());
+	private Mono<PatronIdentity> createPatronAtSupplier(PatronRequest patronRequest, SupplierRequest supplierRequest) {
 
 		final var hostLmsCode = supplierRequest.getHostLmsCode();
+
+		log.debug("createPatronAtSupplier prid={}, srid={} supplierCode={}", patronRequest.getId(), supplierRequest.getId(),hostLmsCode);
 
 		return hostLmsService.getClientFor(hostLmsCode)
 			.zipWhen(client -> getRequestingIdentity(patronRequest), Tuples::of)
@@ -278,10 +277,21 @@ public class SupplyingAgencyService {
         }
 
 	private Mono<String> determinePatronType(String supplyingHostLmsCode, PatronIdentity requestingIdentity) {
+
+                log.debug("determinePatronType({},{})",supplyingHostLmsCode,requestingIdentity);
+
+                if ( supplyingHostLmsCode == null || requestingIdentity == null || requestingIdentity.getHostLms() == null || 
+                        requestingIdentity.getHostLms().getCode() == null ) {
+                        throw new RuntimeException("Missing patron data - unable to determine patron type at supplier:"+supplyingHostLmsCode);
+                }
+
+                log.debug("determinePatronType {} {} {} requesting identity present",supplyingHostLmsCode, requestingIdentity.getHostLms().getCode(),
+                        requestingIdentity.getLocalPtype());
+                
                 if ( requestingIdentity != null ) {
                         // We need to look up the requestingHostLmsCode and not pass supplyingHostLmsCode
 		        return patronTypeService.determinePatronType(supplyingHostLmsCode, 
-                                supplyingHostLmsCode, 
+                                requestingIdentity.getHostLms().getCode(),
                                 requestingIdentity.getLocalPtype());
                 }
                 else {
