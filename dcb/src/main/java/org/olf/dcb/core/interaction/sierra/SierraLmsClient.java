@@ -81,11 +81,11 @@ import services.k_int.utils.UUIDUtils;
  */
 @Prototype
 public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
-
 	private static final Logger log = LoggerFactory.getLogger(SierraLmsClient.class);
 
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
-        private static final Integer FIXED_FIELD_158 = Integer.valueOf(158);
+	private static final Integer FIXED_FIELD_158 = Integer.valueOf(158);
+
 	private final ConversionService<?> conversionService = ConversionService.SHARED;
 	private final HostLms lms;
 	private final SierraApiClient client;
@@ -112,7 +112,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private Mono<BibResultSet> fetchPage(Instant since, int offset, int limit) {
-//		log.info("Fetching batch from Sierra API with since={} offset={} limit={}", since, offset, limit);
 		log.info("Creating subscribeable batch;  since={} offset={} limit={}", since, offset, limit);
 		return Mono.from(client.bibs(params -> {
 				params.deleted(false).offset(offset).limit(limit)
@@ -120,15 +119,17 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 				if (since != null) {
 					params.updatedDate(dtr -> {
-                                                LocalDateTime from_as_local_date_time = since.atZone(java.time.ZoneId.of("UTC")).toLocalDateTime();
-                                                log.info("Setting from date for {} to {}",lms.getName(),from_as_local_date_time);
-						// dtr.to(LocalDateTime.now()).fromDate(LocalDateTime.from(since));
-						dtr.to(LocalDateTime.now())
-                                                   .fromDate(from_as_local_date_time);
+						LocalDateTime from_as_local_date_time = since.atZone(java.time.ZoneId.of("UTC")).toLocalDateTime();
+						log.info("Setting from date for {} to {}", lms.getName(), from_as_local_date_time);
+
+						dtr
+							.to(LocalDateTime.now())
+							.fromDate(from_as_local_date_time);
 					});
 				}
 			}))
-			.doOnSubscribe(_s -> log.info("Fetching batch from Sierra {} with since={} offset={} limit={}", lms.getName(), since, offset, limit));
+			.doOnSubscribe(_s -> log.info("Fetching batch from Sierra {} with since={} offset={} limit={}",
+				lms.getName(), since, offset, limit));
 	}
 
 	/**
@@ -139,9 +140,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	 */
 	private Mono<PublisherState> getInitialState(UUID context, String process) {
 		return processStateService.getStateMap(context, process)
-			.defaultIfEmpty(new HashMap<String, Object>())
+			.defaultIfEmpty(new HashMap<>())
 			.map(current_state -> {
-
 				PublisherState generator_state = new PublisherState(current_state);
 				log.info("backpressureAwareBibResultGenerator - state=" + current_state + " lmsid=" + lms.getId() + " thread="
 					+ Thread.currentThread().getName());
@@ -175,14 +175,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 				// Make a note of the time before we start
 				generator_state.request_start_time = System.currentTimeMillis();
-				log.debug("Create generator: name={} offset={} since={}", lms.getName(), generator_state.offset, generator_state.since);
+				log.debug("Create generator: name={} offset={} since={}", lms.getName(),
+					generator_state.offset, generator_state.since);
 
 				return generator_state;
 			});
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	protected Mono<PublisherState> saveState( PublisherState state ) {
+	protected Mono<PublisherState> saveState(PublisherState state) {
 		log.debug("Update state {} - {}", state,lms.getName());
 
 		return Mono.from(processStateService.updateState(lms.getId(), "ingest", state.storred_state))
@@ -235,7 +236,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			}))
 			.concatMap( TupleUtils.function((state, page) -> {
 				return Flux.fromIterable(page.entries())
-					// Concatenate with the state so we can propogate signals from the save operation.
+					// Concatenate with the state so we can propagate signals from the save operation.
 					.concatWith(Mono.defer(() ->
 							saveState(state))
 						.flatMap(_s -> {
@@ -373,7 +374,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	public Tuple2<String, String> returnPatronValues(SierraPatronRecord record) {
-		return Tuples.of(valueOf( record.getId() ), valueOf( record.getPatronType() ));
+		return Tuples.of(valueOf(record.getId()), valueOf(record.getPatronType()));
 	}
 
 	@Override
@@ -381,15 +382,16 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("postPatron({})", patron);
 
 		final var patronPatch = PatronPatch.builder()
-			.patronType( parseInt(patron.getLocalPatronType()) )
-			.uniqueIds( Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList).toArray(String[]::new) )
-			.names( Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList).toArray(String[]::new) )
-			.barcodes( Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList).toArray(String[]::new) )
+			.patronType(parseInt(patron.getLocalPatronType()))
+			.uniqueIds(Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList))
+			// Unique IDs are used for names to avoid transmission of personally identifiable information
+			.names(Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList))
+			.barcodes(Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList))
 			.build();
 
 		return Mono.from(client.patrons(patronPatch))
 			.doOnSuccess(result -> log.debug("the result of createPatron({})", result))
-			.map(patronResult -> deRestify( patronResult.getLink() ))
+			.map(patronResult -> deRestify(patronResult.getLink()))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Patron: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Patron"));
@@ -399,15 +401,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	public Mono<String> createBib(Bib bib) {
 		log.debug("createBib(bib: {})", bib);
-
+		
 		// Setting fixedField 031 to n which indicates that the record should be suppressed from discovery.
 		final var fixedFields = Map.of(31, FixedField.builder().value("n").build());
-		final var authors = (bib.getAuthor() != null) ? new String[]{bib.getAuthor()} : null;
-		final var titles = (bib.getTitle() != null) ? new String[]{bib.getTitle()} : null;
+		final var authors = (bib.getAuthor() != null) ? List.of(bib.getAuthor()) : null;
+		final var titles = (bib.getTitle() != null) ? List.of(bib.getTitle()) : null;
 
-		return Mono.from( client.bibs(BibPatch.builder().authors(authors).titles(titles).fixedFields(fixedFields).build()) )
+		final var bibPatch = BibPatch.builder()
+			.authors(authors)
+			.titles(titles)
+			.fixedFields(fixedFields)
+			.build();
+
+		return Mono.from(client.bibs(bibPatch))
 			.doOnSuccess(result -> log.debug("the result of createBib({})", result))
-			.map(bibResult -> deRestify( bibResult.getLink() ))
+			.map(bibResult -> deRestify( bibResult.getLink()))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Bib: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Bib"));
@@ -477,20 +485,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	// Informed by https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
 	private String mapSierraHoldStatusToDCBHoldStatus(String code) {
-                String result = null;
-                switch (code) {
-                        case "0" -> result = HostLmsHold.HOLD_PLACED;
-                        case "b" -> result = HostLmsHold.HOLD_READY; // Bib ready for pickup
-                        case "j" -> result = HostLmsHold.HOLD_READY; // volume ready for pickup
-                        case "i" -> result = HostLmsHold.HOLD_READY; // Item ready for pickup
-                        case "t" -> result = HostLmsHold.HOLD_TRANSIT; // IN Transit
-                        default -> result = code;
-                }
-                return result;
-        }
-	private Tuple2<String, String> chooseHold(String note, List<SierraPatronHold> filteredHolds) {
+		String result;
 
-		log.debug("chooseHold({},{})",note,filteredHolds);
+		switch (code) {
+			case "0" -> result = HostLmsHold.HOLD_PLACED;
+			case "b" -> result = HostLmsHold.HOLD_READY; // Bib ready for pickup
+			case "j" -> result = HostLmsHold.HOLD_READY; // volume ready for pickup
+			case "i" -> result = HostLmsHold.HOLD_READY; // Item ready for pickup
+			case "t" -> result = HostLmsHold.HOLD_TRANSIT; // IN Transit
+			default -> result = code;
+		}
+
+		return result;
+	}
+	private Tuple2<String, String> chooseHold(String note, List<SierraPatronHold> filteredHolds) {
+		log.debug("chooseHold({},{})", note, filteredHolds);
 
 		if (filteredHolds.size() == 1) {
 			final String extractedId = deRestify(filteredHolds.get(0).id());
@@ -703,25 +712,16 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		}
 
 		return Patron.builder()
-			.localId( singletonList( valueOf(spr.getId()) ) )
-			.localPatronType( valueOf(spr.getPatronType())  )
-			.localBarcodes( listOfNotNull(spr.getBarcodes()) )
-			.localNames( listOfNotNull(spr.getNames()) )
-			.localHomeLibraryCode( spr.getHomeLibraryCode() ) // .localPatronAgency( patronLocalAgency )
+			.localId(singletonList(valueOf(spr.getId())))
+			.localPatronType(valueOf(spr.getPatronType()))
+			.localBarcodes(spr.getBarcodes())
+			.localNames(spr.getNames())
+			.localHomeLibraryCode(spr.getHomeLibraryCode())
 			.build();
 	}
 
-	private List<String> listOfNotNull(String[] stringArray) {
-		return stringArray != null ? List.of(stringArray) : null;
-	}
-
-//	public <T> List<T> getListIfNotNull(SierraPatronRecord sierraPatronRecord, Function<SierraPatronRecord, T[]> getter) {
-//		T[] result = getter.apply(sierraPatronRecord);
-//		return result != null ? List.of(result) : null;
-//	}
-
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
-		log.debug("getPatronByLocalId({})",localPatronId);
+		log.debug("getPatronByLocalId({})", localPatronId);
 
 		return Mono.from(client.getPatron(Long.valueOf(localPatronId)))
 			.map(this::sierraPatronToHostLmsPatron)
@@ -730,15 +730,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public Mono<Patron> updatePatron(String localPatronId, String patronType) {
-		log.debug("updatePatronByLocalId({})",localPatronId);
+		log.debug("updatePatron({})", localPatronId);
 
 		final var patronPatch = PatronPatch.builder()
-			.patronType( parseInt(patronType) )
+			.patronType(parseInt(patronType))
 			.build();
 
 		return Mono.from( client.updatePatron(Long.valueOf(localPatronId), patronPatch))
-			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")))
-			.flatMap(spr -> Mono.just(sierraPatronToHostLmsPatron(spr)));
+			.map(this::sierraPatronToHostLmsPatron)
+			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")));
 	}
 
 	public HostLmsHold sierraPatronHoldToHostLmsHold(SierraPatronHold sierraHold) {
@@ -760,5 +760,4 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.from(client.getHold(Long.valueOf(holdId))).flatMap(sh -> Mono.just(sierraPatronHoldToHostLmsHold(sh)))
 				.defaultIfEmpty(new HostLmsHold(holdId, "MISSING"));
 	}
-
 }

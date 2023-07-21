@@ -3,6 +3,7 @@ package services.k_int.interaction.sierra;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -10,6 +11,8 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.SierraErrorMatchers.getResponseBody;
 import static org.olf.dcb.test.matchers.SierraErrorMatchers.isBadJsonError;
 import static org.olf.dcb.test.matchers.SierraErrorMatchers.isServerError;
+
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -25,7 +28,6 @@ import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -63,7 +65,7 @@ class SierraApiPatronTests {
 	void shouldReportErrorWhenCreatingAPatronRespondsWithBadRequest() {
 		// Arrange
 		final var patronPatch = PatronPatch.builder()
-			.uniqueIds(new String[]{"0987654321"})
+			.uniqueIds(List.of("0987654321"))
 			.build();
 
 		sierraPatronsAPIFixture.postPatronErrorResponse("0987654321");
@@ -88,8 +90,9 @@ class SierraApiPatronTests {
 	void testPostPatron() {
 		// Arrange
 		final var patronPatch = PatronPatch.builder()
-			.uniqueIds(new String[]{"1234567890"})
+			.uniqueIds(List.of("1234567890"))
 			.build();
+
 		sierraPatronsAPIFixture.postPatronResponse("1234567890", 2745326);
 		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
 
@@ -102,19 +105,45 @@ class SierraApiPatronTests {
 	}
 
 	@Test
-	public void testPatronFind() {
+	public void shouldFindPatronByUniqueId() {
 		// Arrange
 		var uniqueId = "1234567890";
+
 		sierraPatronsAPIFixture.patronResponseForUniqueId(uniqueId);
+
 		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
 
 		// Act
-		var response = Mono.from(sierraApiClient.patronFind("u", uniqueId)).block();
+		var response = singleValueFrom(sierraApiClient.patronFind("u", uniqueId));
 
 		// Assert
-		assertThat(response, is(notNullValue()));
-		assertThat(response.getClass(), is(SierraPatronRecord.class));
-		assertThat(response.getId(), is(1000002));
+		assertThat("Response should not be null", response, is(notNullValue()));
+		assertThat("Should have expected ID", response.getId(), is(1000002));
+		assertThat("Should have expected patron type", response.getPatronType(), is(22));
+		assertThat("Should have expected home library code", response.getHomeLibraryCode(), is("testbbb"));
+		assertThat("Should have no barcodes", response.getBarcodes(), is(nullValue()));
+		assertThat("Should have no names", response.getNames(), is(nullValue()));
+	}
+
+	@Test
+	public void shouldFindPatronByLocalId() {
+		// Arrange
+		var uniqueId = "6748687";
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(uniqueId);
+
+		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+
+		// Act
+		var response = singleValueFrom(sierraApiClient.getPatron(Long.valueOf(uniqueId)));
+
+		// Assert
+		assertThat("Response should not be null", response, is(notNullValue()));
+		assertThat("Should have expected ID", response.getId(), is(1000002));
+		assertThat("Should have expected patron type", response.getPatronType(), is(15));
+		assertThat("Should have expected home library code", response.getHomeLibraryCode(), is("testccc"));
+		assertThat("Should have a barcode", response.getBarcodes(), contains("647647746"));
+		assertThat("Should have a name", response.getNames(), contains("Bob"));
 	}
 
 	@Test

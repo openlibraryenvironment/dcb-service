@@ -5,6 +5,7 @@ import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
 import org.mockserver.model.HttpRequest;
+import org.mockserver.model.RequestDefinition;
 
 public class SierraMockServerRequests {
 	private final String basePath;
@@ -35,6 +36,10 @@ public class SierraMockServerRequests {
 
 	HttpRequest get(String subPath) {
 		return acceptsJson("GET", subPath);
+	}
+
+	public RequestDefinition put(String subPath) {
+		return acceptsJson("PUT", subPath);
 	}
 
 	private HttpRequest acceptsJson(String method, String subPath) {
