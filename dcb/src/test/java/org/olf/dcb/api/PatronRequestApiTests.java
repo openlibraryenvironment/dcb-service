@@ -193,8 +193,8 @@ class PatronRequestApiTests {
 
 		referenceValueMappingFixture.saveReferenceValueMapping(rvm);
 
-                ReferenceValueMapping rvm2= ReferenceValueMapping.builder().id(randomUUID()).fromCategory("location")
-                                .fromContext("patron-request-api-tests").fromValue("tstce").toCategory("agency").toContext("dcb").toValue("ab6")
+                ReferenceValueMapping rvm2= ReferenceValueMapping.builder().id(randomUUID()).fromCategory("Location")
+                                .fromContext("patron-request-api-tests").fromValue("tstce").toCategory("AGENCY").toContext("DCB").toValue("ab6")
                                 .build();
 
                 referenceValueMappingFixture.saveReferenceValueMapping(rvm2);

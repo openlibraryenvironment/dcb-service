@@ -92,7 +92,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
                 log.debug("findMapping(targetContext=dcb, targetCategory=agency, sourceCategory=location, sourceContext={}, sourceValue={}",systemCode,homeLibraryCode);
 
-                return findMapping("dcb", "agency", "location", systemCode, homeLibraryCode)
+                return findMapping("DCB", "AGENCY", "Location", systemCode, homeLibraryCode)
                         .flatMap( locatedMapping -> {
                                 log.debug("Located mapping {}",locatedMapping);
                                 return Mono.from(agencyRepository.findOneByCode(locatedMapping.getToValue()));

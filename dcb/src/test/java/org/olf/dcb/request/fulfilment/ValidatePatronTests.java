@@ -91,7 +91,7 @@ public class ValidatePatronTests {
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var patron = createPatron(localId, hostLms);
 
-                referenceValueMappingFixture.saveReferenceValueMapping( createLocationToAgencyMapping( "validate-patron-transition-tests","testccc","dcb","AGENCY1" ) );
+                referenceValueMappingFixture.saveReferenceValueMapping( createLocationToAgencyMapping( "validate-patron-transition-tests","testccc","DCB","AGENCY1" ) );
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
@@ -230,10 +230,10 @@ public class ValidatePatronTests {
                 String toValue ) {
                 return ReferenceValueMapping.builder()
                         .id(UUID.randomUUID())
-                        .fromCategory("location")
+                        .fromCategory("Location")
                         .fromContext(fromContext)
                         .fromValue(fromValue)
-                        .toCategory("agency")
+                        .toCategory("AGENCY")
                         .toContext(toContext)
                         .toValue(toValue)
                         .reciprocal(false)
