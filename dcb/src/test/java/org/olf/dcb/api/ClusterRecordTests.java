@@ -2,8 +2,7 @@ package org.olf.dcb.api;
 
 import static io.micronaut.http.HttpStatus.OK;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.*;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
 import java.io.IOException;
@@ -101,16 +100,32 @@ class ClusterRecordTests {
 		final var title = metadata.title();
 		assertThat(title, is("Basic circuit theory [by] Charles A. Desoer and Ernest S. Kuh."));
 
-		final var subject = metadata.subjects().get(0);
+		final var subjects = metadata.subjects();
+
+		final var subject = subjects.stream()
+			.filter(s -> "topical-term".equals(s.subtype()))
+			.findFirst()
+			.orElse(null);
+
+		assertThat(subject, is(notNullValue()));
 		assertThat(subject.label(), is("Electric circuits."));
-		assertThat(subject.subtype(), is("topical-term"));
 
-		final var ISBN = metadata.identifiers().get(1);
-		assertThat(ISBN.namespace(), is("ISBN"));
-		assertThat(ISBN.value(), is("9781234567890"));
+		final var identifiers = metadata.identifiers();
 
-		final var ISSN = metadata.identifiers().get(3);
-		assertThat(ISSN.namespace(), is("ISSN"));
-		assertThat(ISSN.value(), is("1234-5678"));
+		final var isbnIdentifier = identifiers.stream()
+			.filter(identifier -> "ISBN".equals(identifier.namespace()))
+			.findFirst()
+			.orElse(null);
+
+		assertThat(isbnIdentifier, is(notNullValue()));
+		assertThat(isbnIdentifier.value(), is("9781234567890"));
+
+		final var issnIdentifier = identifiers.stream()
+			.filter(identifier -> "ISSN".equals(identifier.namespace()))
+			.findFirst()
+			.orElse(null);
+
+		assertThat(issnIdentifier, is(notNullValue()));
+		assertThat(issnIdentifier.value(), is("1234-5678"));
 	}
 }
