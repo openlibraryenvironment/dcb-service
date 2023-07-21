@@ -78,12 +78,13 @@ public class PatronService {
 	public Flux<PatronIdentity> findAllPatronIdentitiesByPatron(Patron patron) {
 		// log.debug("findAllPatronIdentitiesByPatron({})", patron);
 
-		return Flux.from(patronIdentityRepository.findAllByPatron(patron)).flatMap(this::addHostLmsToPatronIdentities)
+		return Flux.from(patronIdentityRepository.findAllByPatron(patron))
+                                .flatMap(this::addHostLmsToPatronIdentity)
 				.flatMap(this::addResolvedAgencyToPatronIdentity);
 	}
 
-	private Mono<PatronIdentity> addHostLmsToPatronIdentities(PatronIdentity patronIdentity) {
-		// log.debug("addHostLmsToPatronIdentities({})", patronIdentity);
+	private Mono<PatronIdentity> addHostLmsToPatronIdentity(PatronIdentity patronIdentity) {
+		// log.debug("addHostLmsToPatronIdentity({})", patronIdentity);
 
 		return Mono.just(patronIdentity).flatMap(this::getHostLmsOfPatronIdentity);
 	}
@@ -202,7 +203,10 @@ public class PatronService {
 	}
 
 	public Mono<PatronIdentity> getPatronIdentityById(UUID id) {
-		return Mono.from(patronIdentityRepository.findById(id));
+		return Mono.from(patronIdentityRepository.findById(id))
+                                .flatMap(this::addHostLmsToPatronIdentity)
+                                .flatMap(this::addResolvedAgencyToPatronIdentity);
+
 	}
 
 	@Value
