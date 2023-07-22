@@ -31,7 +31,7 @@ class SearchTests {
 	void testSearchUtility() {
 		QueryService qs = new QueryService();
 		try {
-			Mono.justOrEmpty( qs.evaluate("title:\"My Special Title\" OR (-dateUpdated:\"" + Instant.now().toString() + "\" AND title:\"Test title\")", ClusterRecord.class) )
+			Mono.justOrEmpty( qs.evaluate("title:(\"My Special Title\" AND edition) OR (-dateUpdated:\"" + Instant.now().toString() + "\" AND title:\"Test title\")", ClusterRecord.class) )
 				.flatMapMany(clusterRecordRepo::findAll)
 				.map(ClusterRecord::toString)
 				.doOnNext(System.out::println)
