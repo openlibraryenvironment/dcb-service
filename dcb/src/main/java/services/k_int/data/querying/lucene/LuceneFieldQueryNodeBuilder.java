@@ -19,7 +19,7 @@ public class LuceneFieldQueryNodeBuilder<T> implements JpaQuerySpecificationBuil
 		
 		log.info("Field... {}:{}", fieldName, fieldText);
 		QuerySpecification<T> cb = (root, query, criteriaBuilder) -> {
-			Path<T> path = root.get(fieldName);
+			Path<String> path = root.get(fieldName);
 			return criteriaBuilder.equal(path, fieldText);
 		};
 		return cb;
