@@ -26,28 +26,10 @@ public class QueryService {
 		try {
 			QuerySpecification<T> parsed_query = parse(q, c);
 			return parsed_query;
-//			dumpQuery(0, parsed_query);
-
-			// @NonNull org.reactivestreams.Publisher<T> findAll(@Nullable
-			// QuerySpecification<T> spec)
-			// https://micronaut-projects.github.io/micronaut-data/snapshot/api/io/micronaut/data/repository/jpa/criteria/PredicateSpecification.html
-			// Nullable jakarta.persistence.criteria.Predicate toPredicate(@NonNull
-			// jakarta.persistence.criteria.Root<T> root,
-			// jakarta.persistence.criteria.CriteriaBuilder criteriaBuilder)
 
 		} catch (QueryNodeException qne) {
 			log.error("Problem parsing query");
 			throw qne;
 		}
 	}
-
-	private <T> void dumpQuery(int depth, QuerySpecification<T> q) {
-    log.debug("[{}]", q.getClass().getName());
-  }
-	/*
-	 * private PredicateSpecification
-	 * recurseQueryTree(jakarta.persistence.criteria.Root root,
-	 * jakarta.persistence.criteria.CriteriaBuilder criteriaBuilder, Query q) {
-	 * return null; }
-	 */
 }

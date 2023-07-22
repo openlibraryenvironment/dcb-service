@@ -5,9 +5,9 @@ import java.util.stream.Stream;
 
 import org.apache.lucene.queryparser.flexible.core.nodes.BooleanQueryNode;
 import org.apache.lucene.queryparser.flexible.core.nodes.FieldQueryNode;
+import org.apache.lucene.queryparser.flexible.core.nodes.GroupQueryNode;
 import org.apache.lucene.queryparser.flexible.core.nodes.ModifierQueryNode;
 import org.apache.lucene.queryparser.flexible.core.nodes.QueryNode;
-import org.apache.lucene.queryparser.flexible.standard.nodes.BooleanModifierNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,6 +16,7 @@ import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import services.k_int.data.querying.lucene.LuceneModifierQueryNodeBuilder;
 import services.k_int.data.querying.lucene.LuceneBooleanQueryNodeBuilder;
 import services.k_int.data.querying.lucene.LuceneFieldQueryNodeBuilder;
+import services.k_int.data.querying.lucene.LuceneGroupQueryNodeBuilder;
 
 public interface JpaQuerySpecificationBuilder<T,S> {
 	
@@ -44,6 +45,9 @@ public interface JpaQuerySpecificationBuilder<T,S> {
 			
 		} else if ( ModifierQueryNode.class.isAssignableFrom( queryNode.getClass())) {
 			builder = new LuceneModifierQueryNodeBuilder<R>();
+			
+		} else if ( GroupQueryNode.class.isAssignableFrom( queryNode.getClass())) {
+			builder = new LuceneGroupQueryNodeBuilder<R>();
 		}
 		
 		// Default implementation.

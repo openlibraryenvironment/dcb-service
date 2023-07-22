@@ -5,7 +5,6 @@ import java.util.Optional;
 
 import org.apache.lucene.queryparser.flexible.core.nodes.ModifierQueryNode;
 import org.apache.lucene.queryparser.flexible.core.nodes.ModifierQueryNode.Modifier;
-import org.apache.lucene.queryparser.flexible.standard.nodes.BooleanModifierNode;
 
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import services.k_int.data.querying.JpaQuerySpecificationBuilder;
