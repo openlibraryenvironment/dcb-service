@@ -276,12 +276,20 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		);
 	}
 	private void savePatronTypeMappings() {
+
 		referenceValueMappingFixture.saveReferenceValueMapping(
 			patronFixture.createPatronTypeMapping(
 				"supplying-agency-service-tests", "-", "DCB", "-"));
+
 		referenceValueMappingFixture.saveReferenceValueMapping(
 			patronFixture.createPatronTypeMapping(
 				"DCB", "-", "supplying-agency-service-tests", "15"));
+
+                ReferenceValueMapping pul = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("PickupLocation")
+                                .fromContext("DCB").fromValue("ABC123").toCategory("AGENCY").toContext("DCB").toValue("ab6")
+                                .build();
+                referenceValueMappingFixture.saveReferenceValueMapping(pul);
+
 	}
         private void saveHomeLibraryMappings(DataHostLms d1, DataAgency dataAgency) {
 

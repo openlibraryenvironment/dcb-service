@@ -45,7 +45,7 @@ public class BorrowingAgencyService {
 	
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
-  private final ReferenceValueMappingRepository referenceValueMappingRepository;
+        private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	public BorrowingAgencyService(HostLmsService hostLmsService, PatronIdentityRepository patronIdentityRepository,
 			SupplierRequestService supplierRequestService, BibRepository bibRepository,

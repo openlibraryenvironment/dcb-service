@@ -8,6 +8,7 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
+import io.micronaut.data.annotation.Transient;
 
 @Introspected
 public interface HostLms {
@@ -22,7 +23,7 @@ public interface HostLms {
 	@NonNull
 	public String getName();
 	
-	@NonNull
+        @NonNull
 	public Class<? extends HostLmsClient> getType();
 	
 	@NonNull

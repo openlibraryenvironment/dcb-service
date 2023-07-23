@@ -41,7 +41,6 @@ public class DataAgency implements Agency {
 	@Size(max = 200)
 	private String name;
 
-        @ToString.Exclude
 	@NonNull
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private DataHostLms hostLms;
