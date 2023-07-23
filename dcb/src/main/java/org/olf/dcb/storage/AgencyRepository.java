@@ -6,6 +6,7 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.DataHostLms;
 import org.reactivestreams.Publisher;
 
 import javax.validation.Valid;
@@ -47,4 +48,7 @@ public interface AgencyRepository {
 	Publisher<Void> delete(UUID id);
 
 	Publisher<Void> deleteByCode(@NotNull String code);
+
+        // Find the ID Of the HostLms for this repository. Wanted findHostLmsById but that seems to cause problems.
+        Publisher<UUID> findHostLmsIdById(@NonNull UUID id);
 }

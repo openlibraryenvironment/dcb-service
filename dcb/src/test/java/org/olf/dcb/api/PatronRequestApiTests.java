@@ -111,6 +111,7 @@ class PatronRequestApiTests {
 		hostLmsFixture.deleteAllHostLMS();
 
 		DataHostLms h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+                log.debug("Created dataHostLms {}",h1);
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 		// Moved to class level var so we can install fixtures elsewhere
@@ -146,12 +147,14 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
 
 		agencyFixture.deleteAllAgencies();
-		agencyFixture.saveAgency(DataAgency.builder()
+		DataAgency da = agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
 			.code("AGENCY1")
 			.name("Test AGENCY1")
 			.hostLms(h1)
 			.build());
+
+                log.debug("Create dataAgency {}",da);
 
 		sierraPatronsAPIFixture.addPatronGetExpectation("43546");
 		sierraPatronsAPIFixture.addPatronGetExpectation("872321");
@@ -170,9 +173,10 @@ class PatronRequestApiTests {
 
 		// add shelving location
 		UUID id1 = randomUUID();
-		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms(id1, "code");
+		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms(id1, "codeAA");
+
 		UUID id = randomUUID();
-		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
+		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "codeBB");
 
 		DataAgency dataAgency = Mono.from(agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2)))
 				.block();
@@ -182,6 +186,11 @@ class PatronRequestApiTests {
 
 		Mono.from(shelvingLocationRepository.save(shelvingLocation)).block();
 
+		ReferenceValueMapping pul = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("PickupLocation")
+				.fromContext("DCB").fromValue("ABC123").toCategory("AGENCY").toContext("DCB").toValue("AGENCY1")
+				.build();
+		referenceValueMappingFixture.saveReferenceValueMapping(pul);
+        
 		ReferenceValueMapping rvm = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("ShelvingLocation")
 				.fromContext("patron-request-api-tests").fromValue("ab6").toCategory("AGENCY").toContext("DCB").toValue("ab6")
 				.build();
