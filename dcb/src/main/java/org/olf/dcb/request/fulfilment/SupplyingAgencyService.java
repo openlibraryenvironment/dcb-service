@@ -60,7 +60,7 @@ public class SupplyingAgencyService {
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtSupplyingAgency(PatronRequest patronRequest) {
-		log.debug("placePatronRequestAtSupplyingAgency {}", patronRequest.getId());
+		log.debug("placePatronRequestAtSupplyingAgency... {}", patronRequest.getId());
 
                 // In order to place a request at the supplying agency we need to know
                 // The agency-code and system-code of the patron, 
@@ -76,7 +76,10 @@ public class SupplyingAgencyService {
                 // 2. Pickup at lender - Patron will pick item up from lender system, but borrower system is different
                 // 3. Pickup at borrower - Patron will pick item up from one of their home libraries, borrower system is different
                 // 4. PUA - Lender, Pickup and Borrower systems are all different.
-                RequestWorkflowContext rwc = new RequestWorkflowContext().setPatronRequest(patronRequest);
+                RequestWorkflowContext rwc = new RequestWorkflowContext();
+                rwc.setPatronRequest(patronRequest);
+
+                log.debug("Execute flow... {}",rwc);
 
                 // For now, the collect method just attaches the suppier request, but more coming
                 return requestWorkflowContextHelper.collect(rwc)
