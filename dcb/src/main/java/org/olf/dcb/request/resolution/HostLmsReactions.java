@@ -9,14 +9,16 @@ import io.micronaut.context.event.ApplicationEventListener;
 import jakarta.inject.Singleton;
 import org.olf.dcb.tracking.model.StateChange;
 import io.micronaut.context.annotation.Context;
+import io.micronaut.runtime.event.annotation.EventListener;
 
 /**
  * This class gathers together the code which detects that an object in a remote system has
  * changed state, and attempts to trigger the appropriate local workflow for dealing with that
  * scenario.
  */
+// public class HostLmsReactions implements ApplicationEventListener<StateChange> {
 @Context
-public class HostLmsReactions implements ApplicationEventListener<StateChange> {
+public class HostLmsReactions {
 
         private static final Logger log = LoggerFactory.getLogger(HostLmsReactions.class);
 
@@ -29,8 +31,7 @@ public class HostLmsReactions implements ApplicationEventListener<StateChange> {
                 log.info("HostLmsReactions::init");
         }
 
-
-        @Override
+        @EventListener
         public void onApplicationEvent(StateChange stateChangeEvent) {
                 log.debug("onApplicationEvent {}",stateChangeEvent);
         }
