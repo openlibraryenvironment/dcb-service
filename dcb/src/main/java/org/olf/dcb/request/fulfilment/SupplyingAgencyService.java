@@ -89,6 +89,9 @@ public class SupplyingAgencyService {
 	}
 
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
+
+		log.debug("createAuditEntry {}", patronRequest.getStatus());
+
 		
 		if (patronRequest.getStatus() == Status.ERROR) return Mono.just(patronRequest);
 		
@@ -99,7 +102,7 @@ public class SupplyingAgencyService {
 
 	private Mono<RequestWorkflowContext> checkAndCreatePatronAtSupplier(RequestWorkflowContext psrc) {
 
-		log.debug("checkAndCreatePatronAtSupplier {}",psrc);
+		log.debug("checkAndCreatePatronAtSupplier");
 
 		PatronRequest patronRequest = psrc.getPatronRequest();
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
@@ -115,7 +118,7 @@ public class SupplyingAgencyService {
 
 	private Mono<RequestWorkflowContext> placeRequestAtSupplier(RequestWorkflowContext psrc) {
 
-		// log.debug("placeRequestAtSupplier {}", psrc);
+		log.debug("placeRequestAtSupplier");
 
 		PatronRequest patronRequest = psrc.getPatronRequest();
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
@@ -138,6 +141,8 @@ public class SupplyingAgencyService {
         private Mono<Tuple2<String, String>> placeHoldRequest(
                 HostLmsClient client,
                 RequestWorkflowContext psrc) {
+
+		log.debug("placeHoldRequest");
 
 		PatronRequest patronRequest = psrc.getPatronRequest();
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
@@ -168,6 +173,8 @@ public class SupplyingAgencyService {
 
 	private Mono<PatronRequest> updateSupplierRequest(RequestWorkflowContext psrc) {
 
+		log.debug("updateSupplierRequest");
+
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 		PatronRequest patronRequest = psrc.getPatronRequest();
 
@@ -177,6 +184,8 @@ public class SupplyingAgencyService {
 
 	private Mono<PatronIdentity> upsertPatronIdentityAtSupplier(RequestWorkflowContext psrc) {
 
+		log.debug("upsertPatronIdentityAtSupplier");
+
                 PatronRequest patronRequest = psrc.getPatronRequest();
                 SupplierRequest supplierRequest = psrc.getSupplierRequest();
 
@@ -185,6 +194,8 @@ public class SupplyingAgencyService {
 	}
 
 	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(RequestWorkflowContext psrc) {
+
+		log.debug("checkIfPatronExistsAtSupplier");
 
                 PatronRequest patronRequest = psrc.getPatronRequest();
                 SupplierRequest supplierRequest = psrc.getSupplierRequest();
@@ -201,6 +212,9 @@ public class SupplyingAgencyService {
 
 	private Mono<Tuple2<String, String>> checkPatronType(String localId, String patronType,
 			PatronRequest patronRequest, String supplierHostLmsCode) {
+
+		log.debug("checkPatronType {}, {}", localId, patronType);
+
 		return getRequestingIdentity(patronRequest)
 			.flatMap(requestingIdentity -> determinePatronType(supplierHostLmsCode, requestingIdentity))
 			.filter(dcbPatronType -> dcbPatronType.equals(patronType))
@@ -250,6 +264,8 @@ public class SupplyingAgencyService {
                 // Using the patron type from the patrons "Home" patronIdentity, look up what the equivalent patron type is at
                 // the supplying system. Then create a patron in the supplying system using that type value.
 
+		log.debug("createPatronAtSupplier2");
+
 		return determinePatronType(supplierHostLmsCode, requestingPatronIdentity)
 			.flatMap(patronType -> client.createPatron(
 				Patron.builder()
@@ -260,7 +276,10 @@ public class SupplyingAgencyService {
 				.map(createdPatron -> Tuples.of(createdPatron, patronType)));
 	}
 
-	private List<String> stringToList(String string) {return string != null ? List.of(string) : null;}
+	private List<String> stringToList(String string) {
+		log.debug("stringToList {}",string);
+                return string != null ? List.of(string) : null;
+        }
 
 	private Mono<PatronIdentity> checkForPatronIdentity(PatronRequest patronRequest,
 		String hostLmsCode, String localId, String localPType) {
@@ -271,7 +290,7 @@ public class SupplyingAgencyService {
 
 	private Mono<String> determinePatronType(String supplyingHostLmsCode, PatronIdentity requestingIdentity) {
 
-                // log.debug("determinePatronType({},{})",supplyingHostLmsCode,requestingIdentity);
+                log.debug("determinePatronType");
 
                 if ( supplyingHostLmsCode == null || requestingIdentity == null || requestingIdentity.getHostLms() == null || 
                         requestingIdentity.getHostLms().getCode() == null ) {
@@ -288,7 +307,7 @@ public class SupplyingAgencyService {
 	}
 
 	public Mono<HostLmsHold> getHold(String hostLmsCode, String holdId) {
-		// log.debug("getHoldStatus({},{})",hostLmsCode,holdId);
+		log.debug("getHold({},{})",hostLmsCode,holdId);
 		return hostLmsService.getClientFor(hostLmsCode)
 			.flatMap( client -> client.getHold(holdId) );
 	}
