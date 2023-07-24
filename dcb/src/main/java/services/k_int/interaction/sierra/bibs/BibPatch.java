@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
@@ -12,6 +13,7 @@ import services.k_int.interaction.sierra.FixedField;
 @Data
 @Serdeable
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class BibPatch {
 	List<String> authors;
 	List<String> callNumbers;
