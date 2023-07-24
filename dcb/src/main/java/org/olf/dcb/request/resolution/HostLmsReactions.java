@@ -19,6 +19,9 @@ public class HostLmsReactions implements ApplicationEventListener<StateChange> {
 
         private static final Logger log = LoggerFactory.getLogger(HostLmsReactions.class);
 
+        public HostLmsReactions() {
+                log.debug("HostLmsReactions::HostLmsReactions");
+        }
 
         @Override
         public void onApplicationEvent(StateChange stateChangeEvent) {
