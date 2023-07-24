@@ -559,8 +559,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			for (Map<String, String> sub_location : bi.locations()) {
 				// It appears these are not only shelving locations but more general location records attached to the location
 				locations.add(new LocationRecord(
-					uuid5ForLocation(lms.getCode(), bi.id(), sub_location.get("code")),
-					sub_location.get("code"), sub_location.get("name")));
+					uuid5ForLocation(lms.getCode(), bi.id(), sub_location.get("code").trim()),
+					sub_location.get("code").trim(), sub_location.get("name")));
 			}
 		}
 
@@ -571,8 +571,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private ConfigurationRecord mapSierraPickupLocationToPickupLocationRecord(PickupLocationInfo pli) {
-		return PickupLocationRecord.builder().id(uuid5ForPickupLocation(lms.getCode(), pli.code())).lms(lms)
-			.code(pli.code()).name(pli.name()).build();
+		return PickupLocationRecord.builder().id(uuid5ForPickupLocation(lms.getCode(), pli.code().trim())).lms(lms)
+			.code(pli.code().trim()).name(pli.name()).build();
 	}
 
 	private Publisher<ConfigurationRecord> getBranches() {
@@ -599,9 +599,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return RefdataRecord.builder()
 			.category(field)
 			.context(lms.getCode())
-			.id(uuid5ForConfigRecord(field, rdv.get("code").toString()))
+			.id(uuid5ForConfigRecord(field, rdv.get("code").toString().trim()))
 			.lms(lms)
-			.value(rdv.get("code").toString())
+			.value(rdv.get("code").toString().trim())
 			.label(rdv.get("desc").toString())
 			.build();
 	}

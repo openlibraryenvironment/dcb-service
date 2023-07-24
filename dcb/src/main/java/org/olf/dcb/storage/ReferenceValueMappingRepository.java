@@ -50,13 +50,13 @@ public interface ReferenceValueMappingRepository {
 	 * Which is the patron type to use for undergraduates in the SANDBOX system 
 	 * (Where UG is the canonical DCB code for the undergraduate Patron Type)
 	 */
-	Publisher<ReferenceValueMapping> findByFromCategoryAndFromContextAndFromValueAndToContext(
+	Publisher<ReferenceValueMapping> findOneByFromCategoryAndFromContextAndFromValueAndToContext(
 		@NonNull String sourceCategory,
 		@NonNull String sourceContext,
 		@NonNull String sourceValue,
 		@NonNull String targetContext);
 
-        Publisher<ReferenceValueMapping> findByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+        Publisher<ReferenceValueMapping> findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
                 @NonNull String sourceCategory,
                 @NonNull String sourceContext,
                 @NonNull String sourceValue,

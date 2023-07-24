@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 public class RequestWorkflowContextHelper {
 
         private static final Logger log = LoggerFactory.getLogger(RequestWorkflowContextHelper.class);
+
         private final SupplierRequestService supplierRequestService;
         private final ReferenceValueMappingRepository referenceValueMappingRepository;
         private final AgencyRepository agencyRepository;
@@ -35,6 +36,7 @@ public class RequestWorkflowContextHelper {
         }
 
         public Mono<RequestWorkflowContext> collect(RequestWorkflowContext context) {
+                log.debug("collect....");
                 return findSupplierRequest(context)
                         .flatMap(this::resolvePickupLocationAgency)
                         ;
@@ -45,6 +47,7 @@ public class RequestWorkflowContextHelper {
         // If there is a -live- supplier request availabe for this patron request attach it to the context
         //
         private Mono<RequestWorkflowContext> findSupplierRequest(RequestWorkflowContext ctx) {
+                log.debug("findSupplierRequst....");
                 return supplierRequestService.findSupplierRequestFor(ctx.getPatronRequest())
                         .map(supplierRequest -> ctx.setSupplierRequest(supplierRequest))
                         .defaultIfEmpty(ctx);
@@ -52,12 +55,14 @@ public class RequestWorkflowContextHelper {
 
         // A Patron request can specify a pickup location - resolve the agency and system for that location given
         private Mono<RequestWorkflowContext> resolvePickupLocationAgency(RequestWorkflowContext ctx) {
-                return Mono.from(referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+                log.debug("resolve pickup location....{}",ctx.getPatronRequest().getPickupLocationCode());
+                return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
                         "PickupLocation",
                         "DCB",
                         ctx.getPatronRequest().getPickupLocationCode(),
                         "AGENCY",
                         "DCB"))
+                        .switchIfEmpty(Mono.error(new RuntimeException("No mapping found for pickup location \""+ctx.getPatronRequest().getPickupLocationCode()+"\""))) 
                         .flatMap(rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } )
                         .flatMap(pickupAgency -> { return Mono.just(ctx.setPickupAgency(pickupAgency)); } )
                         .flatMap(ctx2 -> { return Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())); } )

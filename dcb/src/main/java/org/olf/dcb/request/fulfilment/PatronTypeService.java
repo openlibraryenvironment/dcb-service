@@ -41,7 +41,7 @@ public class PatronTypeService {
 	private Mono<ReferenceValueMapping> findMapping(String targetContext, String sourceContext, String sourceValue) {
                 log.debug("findMapping targetCtx={} sourceCtx={} value={}",targetContext,sourceContext,sourceValue);
 		return Mono.from(
-			referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToContext(
+			referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToContext(
 				"patronType", sourceContext, sourceValue, targetContext));
 	}
 }

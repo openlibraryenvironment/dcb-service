@@ -156,7 +156,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
                 log.debug("findMapping src ctx={} cat={} val={} target ctx={} cat={}",
                         sourceContext,sourceCategory,sourceValue,targetContext,targetCategory);
                 return Mono.from(
-                        referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+                        referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
                                 sourceCategory, sourceContext, sourceValue, targetCategory, targetContext));
         }
 
