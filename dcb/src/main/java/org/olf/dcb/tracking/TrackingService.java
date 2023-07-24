@@ -111,7 +111,7 @@ public class TrackingService implements Runnable {
                                                             .build();
                                 // SupplierRequestHold.StatusChange id fromstate tostate
                                 log.debug("Publishing state change event {}",sc);
-                                eventPublisher.publishEventAsync(sc);
+                                eventPublisher.publishEvent(sc);
                                 sr.setLocalStatus(hold.getStatus());
 				return sr;
 			})
