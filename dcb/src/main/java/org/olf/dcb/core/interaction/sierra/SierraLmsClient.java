@@ -403,7 +403,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("createBib(bib: {})", bib);
 		
 		// Setting fixedField 031 to n which indicates that the record should be suppressed from discovery.
-		final var fixedFields = Map.of(31, FixedField.builder().value("n").build());
+		final var fixedFields = Map.of(31, FixedField.builder().label("suppress").value("n").build());
 		final var authors = (bib.getAuthor() != null) ? List.of(bib.getAuthor()) : null;
 		final var titles = (bib.getTitle() != null) ? List.of(bib.getTitle()) : null;
 
