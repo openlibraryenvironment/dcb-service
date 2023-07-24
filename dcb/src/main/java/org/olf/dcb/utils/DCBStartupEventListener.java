@@ -21,7 +21,6 @@ import org.olf.dcb.storage.StatusCodeRepository;
 import org.reactivestreams.Publisher;
 import services.k_int.utils.UUIDUtils;
 
-
 @Singleton
 public class DCBStartupEventListener implements ApplicationEventListener<StartupEvent> {
 

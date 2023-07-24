@@ -19,11 +19,9 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.micronaut.scheduling.processor.AppTask;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-
 import io.micronaut.context.event.ApplicationEventPublisher;
 
 @Refreshable
