@@ -4,7 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.List;
+import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -15,6 +18,8 @@ import org.olf.dcb.test.HostLmsFixture;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
 import jakarta.inject.Inject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
@@ -24,6 +29,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SierraApiBibTests {
 	private static final String HOST_LMS_CODE = "sierra-bib-api-tests";
+
+	private final Logger log = LoggerFactory.getLogger(SierraApiBibTests.class);
 
 	@Inject
 	private HttpClient client;
@@ -75,10 +82,21 @@ class SierraApiBibTests {
 	@Test
 	void testBibsPOST() {
 		// Arrange
+		final var fixedFields = Map.of(31, FixedField.builder().label("suppress").value("n").build());
 		final var bibPatch = BibPatch.builder()
+			.fixedFields(fixedFields)
 			.authors(List.of("John Smith"))
 			.titles(List.of("The Book of John"))
 			.build();
+
+		ObjectMapper objectMapper = new ObjectMapper();
+		String bibPatchJson;
+		try {
+			bibPatchJson = objectMapper.writeValueAsString(bibPatch);
+			log.debug("testBibsPOST: {}", bibPatchJson);
+		} catch (JsonProcessingException e) {
+			log.error("Error converting BibPatch to JSON: {}", e.getMessage());
+		}
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916922);
 
