@@ -100,7 +100,7 @@ public class TrackingService implements Runnable {
 			.onErrorContinue((e, o) -> {
 				log.error("Error occurred: " + e.getMessage(),e);
 			})
-                        .filter ( hold -> hold.getStatus() != sr.getLocalStatus() )
+                        .filter ( hold -> !hold.getStatus().equals(sr.getLocalStatus()) )
 			.map( hold -> { 
 				log.debug("current request status: {}",hold);
                                 StateChange sc = StateChange.builder()
