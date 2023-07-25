@@ -92,12 +92,16 @@ public class TrackingService implements Runnable {
 
 	private Mono<SupplierRequest> checkSupplierRequest(SupplierRequest sr) {
 		log.debug("Check supplier request {}",sr);
-                // Check supplier request SupplierRequest(id=3b5db82c-8568-4b1b-8d86-5369e2855f2c, 
-                // patronRequest=PatronRequest(id=7a7519a4-3702-478d-ae4c-65436015fa7b, dateCreated=null, 
-                // dateUpdated=null, patron=null, bibClusterId=null, pickupLocationCode=null, 
-                // statusCode=null, localRequestId=null, localRequestStatus=null), 
-                // localItemId=1017281, localItemBarcode=30800004002116, 
-                // localItemLocationCode=ab8, hostLmsCode=SANDBOX, statusCode=PLACED, localId=407607, localStatus=0)
+
+                // We fetch the state of the hold at the supplying library. If it is different to the last state
+                // we stashed in SupplierRequest.localStatus then we have detected a change. We emit an event to let
+                // observers know that the state has changed but we DO NOT directly update localStatus. the handler
+                // will arrange for localStatus to be updated once it's action has completed successfully. This menans
+                // that if a handler fails to complete, on the next iteration this event will fire again, giving us a
+                // means to try and recover from failure scenarios. For example, when we detect that a supplying system
+                // has changed to "InTransit" the handler needs to update the pickup site and the patron site, if either of
+                // these operations fail, we don't update the state - which will cause the handler to re-fire until
+                // successful completion.
 		return supplyingAgencyService.getHold(sr.getHostLmsCode(), sr.getLocalId())
 			.onErrorContinue((e, o) -> {
 				log.error("Error occurred: " + e.getMessage(),e);
@@ -114,11 +118,15 @@ public class TrackingService implements Runnable {
                                 // SupplierRequestHold.StatusChange id fromstate tostate
                                 log.debug("Publishing state change event {}",sc);
                                 // stateChangeEventPublisher.publishEvent(sc);
+
+                                // We use a synchronous event here because we don't want to launch a load of
+                                // parallel work (At least not initially)
                                 eventPublisher.publishEvent(sc);
-                                sr.setLocalStatus(hold.getStatus());
+
+                                // sr.setLocalStatus(hold.getStatus());
 				return sr;
-			})
-                        .flatMap( usr -> Mono.fromDirect(supplierRequestRepository.saveOrUpdate(usr) ));
+			});
+                        // .flatMap( usr -> Mono.fromDirect(supplierRequestRepository.saveOrUpdate(usr) ));
 	}
 }
 
