@@ -13,23 +13,23 @@ import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.storage.SupplierRequestRepository;
 
 @Singleton
-@Named("SupplierRequestInTransit")
-public class HandleSupplierInTransit implements WorkflowAction {
+@Named("SupplierRequestMissing")
+public class HandleSupplierRequestMissing implements WorkflowAction {
 
         private static final Logger log = LoggerFactory.getLogger(HandleSupplierInTransit.class);
         private SupplierRequestRepository supplierRequestRepository;
 
-        public HandleSupplierInTransit(SupplierRequestRepository supplierRequestRepository) {
+        public HandleSupplierRequestMissing(SupplierRequestRepository supplierRequestRepository) {
                 this.supplierRequestRepository = supplierRequestRepository;
         }
 
         public Mono<Map<String,Object>> execute(Map<String,Object> context) {
                 StateChange sc = (StateChange) context.get("StateChange");
-                log.debug("HandleSupplierInTransit {}",sc);
+                log.debug("HandleSupplierRequestMissing {}",sc);
 
                 SupplierRequest sr = (SupplierRequest) sc.getResource();
                 if ( sr != null ) {
-                        sr.setLocalStatus("TRANSIT");
+                        sr.setLocalStatus("MISSING");
                         return Mono.from(supplierRequestRepository.saveOrUpdate(sr))
                                 .thenReturn(context);
                 }

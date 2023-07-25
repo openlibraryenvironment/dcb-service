@@ -111,9 +111,10 @@ public class TrackingService implements Runnable {
 				log.debug("current request status: {}",hold);
                                 StateChange sc = StateChange.builder()
                                                             .resourceType("SupplierRequest")
-                                                            .resourceId(sr.getLocalId())
+                                                            .resourceId(sr.getId().toString())
                                                             .fromState(sr.getLocalStatus())
                                                             .toState(hold.getStatus())
+                                                            .resource(sr)
                                                             .build();
                                 // SupplierRequestHold.StatusChange id fromstate tostate
                                 log.debug("Publishing state change event {}",sc);
