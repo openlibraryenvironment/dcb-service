@@ -37,18 +37,17 @@ public class TrackingService implements Runnable {
 	private SupplierRequestRepository supplierRequestRepository;
 	private SupplyingAgencyService supplyingAgencyService;
         private final ApplicationEventPublisher<TrackingRecord> eventPublisher;
-        private final ApplicationEventPublisher<StateChange> stateChangeEventPublisher;
+        // private final ApplicationEventPublisher<StateChange> stateChangeEventPublisher;
 
 	TrackingService( PatronRequestRepository patronRequestRepository,
 			 SupplierRequestRepository supplierRequestRepository,
                          SupplyingAgencyService supplyingAgencyService,
-                         ApplicationEventPublisher<TrackingRecord> eventPublisher,
-                         ApplicationEventPublisher<StateChange> stateChangeEventPublisher) {
+                         ApplicationEventPublisher<TrackingRecord> eventPublisher
+                        ) {
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplyingAgencyService = supplyingAgencyService;
 		this.eventPublisher = eventPublisher;
-		this.stateChangeEventPublisher = stateChangeEventPublisher;
 	}
 
 	@javax.annotation.PostConstruct
@@ -114,7 +113,8 @@ public class TrackingService implements Runnable {
                                                             .build();
                                 // SupplierRequestHold.StatusChange id fromstate tostate
                                 log.debug("Publishing state change event {}",sc);
-                                stateChangeEventPublisher.publishEvent(sc);
+                                // stateChangeEventPublisher.publishEvent(sc);
+                                eventPublisher.publishEvent(sc);
                                 sr.setLocalStatus(hold.getStatus());
 				return sr;
 			})
