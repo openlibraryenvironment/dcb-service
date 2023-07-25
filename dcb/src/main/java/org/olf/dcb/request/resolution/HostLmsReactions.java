@@ -47,7 +47,15 @@ public class HostLmsReactions {
                 if ( trackingRecord.getTrackigRecordType().equals(StateChange.STATE_CHANGE_RECORD) ) {
                         StateChange sc = (StateChange) trackingRecord;
                         context.put("StateChange",sc);
-                        handler="SupplierRequestInTransit";
+                        if ( sc.getToState().equals("TRANSIT") ) {
+                          handler="SupplierRequestInTransit";
+                        }
+                        else if ( sc.getToState().equals("MISSING") ) {
+                          handler="SupplierRequestMissing";
+                        }
+                        else {
+                                log.warn("Unhandled ToState:{}",sc.getToState());
+                        }
                 }
 
                 if ( handler != null ) {
