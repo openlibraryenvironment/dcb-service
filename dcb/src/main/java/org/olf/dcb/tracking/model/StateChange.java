@@ -22,6 +22,8 @@ public class StateChange  extends TrackingRecord {
         private String fromState;
         private String toState;
 
+        private Object resource;
+
 	@Override
 	public String getTrackigRecordType() {
 		return STATE_CHANGE_RECORD;
