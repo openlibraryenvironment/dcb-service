@@ -7,9 +7,15 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import io.micronaut.context.event.ApplicationEventListener;
 import jakarta.inject.Singleton;
+import org.olf.dcb.tracking.model.TrackingRecord;
 import org.olf.dcb.tracking.model.StateChange;
 import io.micronaut.context.annotation.Context;
 import io.micronaut.runtime.event.annotation.EventListener;
+import io.micronaut.inject.qualifiers.Qualifiers;
+import org.olf.dcb.request.workflow.WorkflowAction;
+import io.micronaut.context.ApplicationContext;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * This class gathers together the code which detects that an object in a remote system has
@@ -21,9 +27,10 @@ import io.micronaut.runtime.event.annotation.EventListener;
 public class HostLmsReactions {
 
         private static final Logger log = LoggerFactory.getLogger(HostLmsReactions.class);
+        private final ApplicationContext appContext;
 
-        public HostLmsReactions() {
-                log.debug("HostLmsReactions::HostLmsReactions");
+        public HostLmsReactions(ApplicationContext appContext) {
+                this.appContext = appContext;
         }
 
         @javax.annotation.PostConstruct
@@ -32,8 +39,28 @@ public class HostLmsReactions {
         }
 
         @EventListener
-        public void onApplicationEvent(StateChange stateChangeEvent) {
-                log.debug("onApplicationEvent {}",stateChangeEvent);
+        public void onTrackingEvent(TrackingRecord trackingRecord) {
+                log.debug("onTrackingEvent {}",trackingRecord);
+                String handler = null;
+                Map<String,Object> context = new HashMap();
+
+                if ( trackingRecord.getTrackigRecordType().equals(StateChange.STATE_CHANGE_RECORD) ) {
+                        StateChange sc = (StateChange) trackingRecord;
+                        context.put("StateChange",sc);
+                        handler="SupplierRequestInTransit";
+                }
+
+                if ( handler != null ) {
+                        log.debug("Invoke action {}",handler);
+                        WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
+                        if ( action != null ) {
+                                Mono.just(action.execute(context))
+                                        .subscribe();
+                        }
+                        else {
+                                throw new RuntimeException("Missing qualified WorkflowAction for handler "+handler);
+                        }
+                }
         }
         
 }
