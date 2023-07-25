@@ -29,11 +29,13 @@ public class HandleSupplierRequestMissing implements WorkflowAction {
 
                 SupplierRequest sr = (SupplierRequest) sc.getResource();
                 if ( sr != null ) {
+                        log.debug("Set local status to missing and save");
                         sr.setLocalStatus("MISSING");
                         return Mono.from(supplierRequestRepository.saveOrUpdate(sr))
                                 .thenReturn(context);
                 }
                 else {
+                        log.debug("Unable to locate supplier request");
                         return Mono.just(context);
                 }
         }
