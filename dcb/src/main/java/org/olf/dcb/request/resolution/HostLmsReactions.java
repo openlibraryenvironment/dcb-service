@@ -63,7 +63,7 @@ public class HostLmsReactions {
                         WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
                         if ( action != null ) {
                                 Mono.just(action.execute(context))
-                                        .subscribe();
+                                        .block();
                         }
                         else {
                                 throw new RuntimeException("Missing qualified WorkflowAction for handler "+handler);

@@ -104,19 +104,19 @@ public class BorrowingAgencyService {
 		SupplierRequest supplierRequest, String localBibId) {
 
 		log.debug("createVirtualItem for localBibId {}/{}", localBibId,supplierRequest.getLocalItemLocationCode());
-                log.debug("slToAgency:{} {} {} {} {}","ShelvingLocation",hostLmsClient.getHostLms().getCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB");
+                log.debug("slToAgency:{} {} {} {} {}","ShelvingLocation",supplierRequest.getHostLmsCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB");
 
                 return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-                    "ShelvingLocation",hostLmsClient.getHostLms().getCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB"))
-.doOnSuccess(mapping -> log.debug("Result from getting agency for shelving location: {}", mapping))
-.flatMap(mapping -> {
-String agencyCode = mapping.getToValue();
-return hostLmsClient.createItem(localBibId, agencyCode, supplierRequest.getLocalItemBarcode());
-})
-.map(HostLmsItem::getLocalId)
-.doOnNext(patronRequest::setLocalItemId)
-.map(localItemId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId))
-.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));
+                    "ShelvingLocation",supplierRequest.getHostLmsCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB"))
+                        .doOnSuccess(mapping -> log.debug("Result from getting agency for shelving location: {}", mapping))
+                        .flatMap(mapping -> {
+                                String agencyCode = mapping.getToValue();
+                                return hostLmsClient.createItem(localBibId, agencyCode, supplierRequest.getLocalItemBarcode());
+                        })
+                        .map(HostLmsItem::getLocalId)
+                        .doOnNext(patronRequest::setLocalItemId)
+                        .map(localItemId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId))
+                        .switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));
 	}
 
 	private Mono<Tuple2<String,String>> placeHoldRequest(PatronRequest patronRequest,
