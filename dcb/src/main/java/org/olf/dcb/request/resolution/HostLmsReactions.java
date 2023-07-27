@@ -47,6 +47,8 @@ public class HostLmsReactions {
                 if ( trackingRecord.getTrackigRecordType().equals(StateChange.STATE_CHANGE_RECORD) ) {
                         StateChange sc = (StateChange) trackingRecord;
                         context.put("StateChange",sc);
+
+                        // This will be replaced by a table in the near future
                         if ( sc.getToState().equals("TRANSIT") ) {
                           handler="SupplierRequestInTransit";
                         }
@@ -64,6 +66,7 @@ public class HostLmsReactions {
                         if ( action != null ) {
                                 Mono.just(action.execute(context))
                                         .block();
+                                log.debug("Action completed");
                         }
                         else {
                                 throw new RuntimeException("Missing qualified WorkflowAction for handler "+handler);
