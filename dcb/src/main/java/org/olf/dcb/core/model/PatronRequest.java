@@ -19,6 +19,9 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -32,16 +35,11 @@ import java.util.UUID;
 @ExcludeFromGeneratedCoverageReport
 @Accessors(chain = true)
 public class PatronRequest {
-	
+
 	@Serdeable
 	public static enum Status {
-		SUBMITTED_TO_DCB,
-		PATRON_VERIFIED,
-		RESOLVED,
-		NO_ITEMS_AVAILABLE_AT_ANY_AGENCY,
-		REQUEST_PLACED_AT_SUPPLYING_AGENCY,
-		REQUEST_PLACED_AT_BORROWING_AGENCY,
-		ERROR
+		SUBMITTED_TO_DCB, PATRON_VERIFIED, RESOLVED, NO_ITEMS_AVAILABLE_AT_ANY_AGENCY, REQUEST_PLACED_AT_SUPPLYING_AGENCY,
+		REQUEST_PLACED_AT_BORROWING_AGENCY, CANCELLED, ERROR
 	}
 
 	@NotNull
@@ -50,12 +48,12 @@ public class PatronRequest {
 	@TypeDef(type = DataType.UUID)
 	private UUID id;
 
-        @ToString.Exclude
+	@ToString.Exclude
 	@Nullable
 	@DateCreated
 	private Instant dateCreated;
 
-        @ToString.Exclude
+	@ToString.Exclude
 	@Nullable
 	@DateUpdated
 	private Instant dateUpdated;
@@ -64,12 +62,12 @@ public class PatronRequest {
 	@Size(max = 200)
 	private String patronHostlmsCode;
 
-        @ToString.Exclude
+	@ToString.Exclude
 	@Nullable
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private Patron patron;
 
-        @ToString.Exclude
+	@ToString.Exclude
 	@Nullable
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private PatronIdentity requestingIdentity;
@@ -109,6 +107,10 @@ public class PatronRequest {
 	@Size(max = 200)
 	private String pickupRequestStatus;
 
+	// Ignore at this property level. We provide explicit ignore/serializing
+	// instructions at a getter and setter level to prevent any JSON binding to this
+	// field but allow deserilization for output.
+	@JsonIgnore
 	@Nullable
 	@Column(name = "status_code") // Preserve the data mapping value from the old string type.
 	private Status status;
@@ -132,8 +134,19 @@ public class PatronRequest {
 
 	@Nullable
 	private String errorMessage;
+	
+	@JsonProperty("status")
+	public Status getStatus() {
+		return this.status;
+	}
+	
+	@JsonIgnore
+	public PatronRequest setStatus( Status status ) {
+		this.status = status;
+		return this;
+	}
 
-        @ToString.Exclude
+	@ToString.Exclude
 	@OneToMany(mappedBy = "patronRequestAuditId")
 	private List<PatronRequestAudit> patronRequestAudits;
 
@@ -146,9 +159,8 @@ public class PatronRequest {
 	}
 
 	public PatronRequest placedAtBorrowingAgency(String localId, String localStatus) {
-		return setLocalRequestId(localId)
-			.setLocalRequestStatus(localStatus)
-			.setStatus(Status.REQUEST_PLACED_AT_BORROWING_AGENCY);
+		return setLocalRequestId(localId).setLocalRequestStatus(localStatus)
+				.setStatus(Status.REQUEST_PLACED_AT_BORROWING_AGENCY);
 	}
 
 	public PatronRequest placedAtSupplyingAgency() {
