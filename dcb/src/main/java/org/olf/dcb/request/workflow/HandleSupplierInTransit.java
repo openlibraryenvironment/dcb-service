@@ -11,6 +11,7 @@ import jakarta.inject.Named;
 import org.olf.dcb.tracking.model.StateChange;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.storage.SupplierRequestRepository;
+import javax.transaction.Transactional;
 
 @Singleton
 @Named("SupplierRequestInTransit")
@@ -22,7 +23,8 @@ public class HandleSupplierInTransit implements WorkflowAction {
         public HandleSupplierInTransit(SupplierRequestRepository supplierRequestRepository) {
                 this.supplierRequestRepository = supplierRequestRepository;
         }
-
+        
+        @Transactional
         public Mono<Map<String,Object>> execute(Map<String,Object> context) {
                 StateChange sc = (StateChange) context.get("StateChange");
                 log.debug("HandleSupplierInTransit {}",sc);
@@ -32,6 +34,7 @@ public class HandleSupplierInTransit implements WorkflowAction {
                         log.debug("Setting local status to TRANSIT and saving...");
                         sr.setLocalStatus("TRANSIT");
                         return Mono.from(supplierRequestRepository.saveOrUpdate(sr))
+                                .doOnNext(ssr -> log.debug("Saved {}",ssr))
                                 .thenReturn(context);
                 }
                 else {
