@@ -16,7 +16,7 @@ import org.olf.dcb.storage.SupplierRequestRepository;
 @Named("SupplierRequestMissing")
 public class HandleSupplierRequestMissing implements WorkflowAction {
 
-        private static final Logger log = LoggerFactory.getLogger(HandleSupplierInTransit.class);
+        private static final Logger log = LoggerFactory.getLogger(HandleSupplierRequestMissing.class);
         private SupplierRequestRepository supplierRequestRepository;
 
         public HandleSupplierRequestMissing(SupplierRequestRepository supplierRequestRepository) {

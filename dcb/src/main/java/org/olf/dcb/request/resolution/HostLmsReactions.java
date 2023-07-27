@@ -70,6 +70,7 @@ public class HostLmsReactions {
                         log.debug("Invoke action {}",handler);
                         WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
                         if ( action != null ) {
+				log.debug("Invoke {}",action.getClass().getName());
                                 Mono.from( r2dbcOperations.withTransaction(status -> 
 					Mono.just(action.execute(context))
                                         .doOnNext(ctx -> log.debug("Action completed:"+ctx))
