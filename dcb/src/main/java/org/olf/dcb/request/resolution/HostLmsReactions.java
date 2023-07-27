@@ -17,6 +17,7 @@ import io.micronaut.context.ApplicationContext;
 import java.util.Map;
 import java.util.HashMap;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import javax.transaction.Transactional;
 
 /**
  * This class gathers together the code which detects that an object in a remote system has
@@ -43,6 +44,7 @@ public class HostLmsReactions {
                 log.info("HostLmsReactions::init");
         }
 
+	@Transactional
         @EventListener
         public void onTrackingEvent(TrackingRecord trackingRecord) {
                 log.debug("onTrackingEvent {}",trackingRecord);
@@ -72,11 +74,8 @@ public class HostLmsReactions {
                         WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
                         if ( action != null ) {
 				log.debug("Invoke {}",action.getClass().getName());
-                                Mono.from( r2dbcOperations.withTransaction(status -> 
-					Mono.just(action.execute(context))
+				Mono.just(action.execute(context))
                                         .doOnNext(ctx -> log.debug("Action completed:"+ctx))
-					.then()
-					))
                                         .block();
                         }
                         else {
