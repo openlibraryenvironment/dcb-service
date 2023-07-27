@@ -16,6 +16,7 @@ import org.olf.dcb.request.workflow.WorkflowAction;
 import io.micronaut.context.ApplicationContext;
 import java.util.Map;
 import java.util.HashMap;
+import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 
 /**
  * This class gathers together the code which detects that an object in a remote system has
@@ -28,9 +29,12 @@ public class HostLmsReactions {
 
         private static final Logger log = LoggerFactory.getLogger(HostLmsReactions.class);
         private final ApplicationContext appContext;
+        private final R2dbcOperations r2dbcOperations;
 
-        public HostLmsReactions(ApplicationContext appContext) {
+        public HostLmsReactions(ApplicationContext appContext,
+                                R2dbcOperations r2dbcOperations) {
                 this.appContext = appContext;
+                this.r2dbcOperations = r2dbcOperations;
         }
 
         @javax.annotation.PostConstruct
@@ -60,11 +64,13 @@ public class HostLmsReactions {
                         }
                 }
 
+
+                // https://stackoverflow.com/questions/74183112/how-to-select-the-correct-transactionmanager-when-using-r2dbc-together-with-flyw
                 if ( handler != null ) {
                         log.debug("Invoke action {}",handler);
                         WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
                         if ( action != null ) {
-                                Mono.just(action.execute(context))
+                                Mono.from( r2dbcOperations.withTransaction(status -> Mono.just(action.execute(context))))
                                         .doOnNext(ctx -> log.debug("Action completed:"+ctx))
                                         .subscribe();
                         }
