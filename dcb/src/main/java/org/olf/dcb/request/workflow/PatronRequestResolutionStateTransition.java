@@ -63,7 +63,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		
 		if (patronRequest.getStatus() == Status.ERROR) return Mono.just(patronRequest);
 		
-		return patronRequestAuditService.addAuditEntry(patronRequest, PATRON_VERIFIED, RESOLVED).thenReturn(patronRequest);
+		return patronRequestAuditService.addAuditEntry(patronRequest, PATRON_VERIFIED, getTargetStatus().get()).thenReturn(patronRequest);
 	}
 	
 	private Mono<Resolution> updatePatronRequest(Resolution resolution) {
@@ -101,5 +101,10 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	public boolean isApplicableFor(PatronRequest pr) {
 
 		return pr.getStatus() == PATRON_VERIFIED;
+	}
+
+	@Override
+	public Optional<Status> getTargetStatus() {
+		return Optional.of(RESOLVED);
 	}
 }

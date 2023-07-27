@@ -4,6 +4,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -12,6 +13,8 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
+import org.olf.dcb.request.workflow.PatronRequestStateTransition;
+import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +37,10 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
+import reactor.util.function.Tuple2;
 
 @Validated
 @Secured(SecurityRule.IS_ANONYMOUS)
@@ -45,31 +51,44 @@ public class PatronRequestController {
 
 	private final PatronRequestService patronRequestService;
 	private final PatronRequestRepository patronRequestRepository;
+	private final PatronRequestWorkflowService workflowService;
 
 	public PatronRequestController(PatronRequestService patronRequestService,
-			PatronRequestRepository patronRequestRepository) {
+			PatronRequestRepository patronRequestRepository, PatronRequestWorkflowService workflowService) {
 		this.patronRequestService = patronRequestService;
 		this.patronRequestRepository = patronRequestRepository;
+		this.workflowService = workflowService;
+	}
+	
+	public PatronRequest ensureValidStateForTransition( final PatronRequest patronRequest ) {
+		return switch (patronRequest.getStatus()) {
+			case ERROR -> throw new IllegalStateException("Cannot transition errored requests");
+			case CANCELLED -> throw new IllegalStateException("Cannot transition cancelled requests");
+			
+			default -> patronRequest;
+		};
+	}
+	
+	private Mono<PatronRequestStateTransition> resolvePatronRequestTransition( PatronRequest patronRequest, Predicate<PatronRequestStateTransition> predicate ) {
+		
+		return Flux.fromStream( workflowService.getPossibleStateTransitionsFor(patronRequest) )
+				.filter( predicate )
+				.next();
 	}
 	
 	@SingleResult
-	@Post(value = "/{patronRequestId}/transtion", consumes = APPLICATION_JSON)
-	public Mono<PatronRequest> transitionPatronRequest(@NotNull final UUID patronRequestId, @NotNull String status) {
-		PatronRequest pr = null;
-		patronRequestService
-			.findById(patronRequestId)
-			.filter( request -> request.getStatus() != Status.ERROR )
-			.map( request -> {
+	@Post(value = "/{patronRequestId}/transtion/{status}", consumes = APPLICATION_JSON)
+	public Mono<PatronRequest> transitionPatronRequest(@NotNull final UUID patronRequestId, @NotNull Status status) {
 				
-				// Found.
-				
-				return request;
-			});
-		
-		
-//		pr.placedAtBorrowingAgency(status, status);
-		
-		return Mono.just(pr);
+		return patronRequestService
+			.findById( patronRequestId )
+			.map( this::ensureValidStateForTransition )
+			.zipWhen( (req) -> resolvePatronRequestTransition(req,
+					transition -> transition.getTargetStatus()
+						.orElse(status) == status ))
+			
+			.flatMapMany( TupleUtils.function(workflowService::progressUsing ))
+			.last();
 //		return patronRequestService.placePatronRequest(command).map(PatronRequestView::from).map(HttpResponse::ok);
 	}
 

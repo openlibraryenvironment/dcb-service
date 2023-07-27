@@ -1,19 +1,16 @@
 package org.olf.dcb.request.workflow;
 
-import static java.util.UUID.randomUUID;
-
-import java.time.Instant;
+import java.util.Optional;
 
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 
@@ -42,7 +39,8 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 	@Override
 	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
 
-		// Some of the tests seem to set up odd states and then explicitly invoke the attempt method. Transitions should
+		// Some of the tests seem to set up odd states and then explicitly invoke the
+		// attempt method. Transitions should
 		// assert the correct state.
 		assert isApplicableFor(patronRequest);
 
@@ -53,17 +51,22 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 						error -> log.error("Error occurred during placing a patron request to supplier: {}", error.getMessage()))
 				.flatMap(this::createAuditEntry);
 	}
-	
+
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
 
-		if (patronRequest.getStatus() == Status.ERROR) return Mono.just(patronRequest);
-		return patronRequestAuditService
-				.addAuditEntry(patronRequest, Status.RESOLVED, Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+		if (patronRequest.getStatus() == Status.ERROR)
+			return Mono.just(patronRequest);
+		return patronRequestAuditService.addAuditEntry(patronRequest, Status.RESOLVED, getTargetStatus().get())
 				.map(PatronRequestAudit::getPatronRequest);
 	}
 
 	@Override
 	public boolean isApplicableFor(PatronRequest pr) {
 		return pr.getStatus() == Status.RESOLVED;
+	}
+
+	@Override
+	public Optional<Status> getTargetStatus() {
+		return Optional.of(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY);
 	}
 }
