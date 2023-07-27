@@ -24,7 +24,8 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
  * scenario.
  */
 // public class HostLmsReactions implements ApplicationEventListener<StateChange> {
-@Context
+// @Context
+@Singleton
 public class HostLmsReactions {
 
         private static final Logger log = LoggerFactory.getLogger(HostLmsReactions.class);
