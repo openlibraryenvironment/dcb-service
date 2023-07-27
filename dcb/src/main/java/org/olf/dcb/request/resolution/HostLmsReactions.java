@@ -16,6 +16,7 @@ import org.olf.dcb.request.workflow.WorkflowAction;
 import io.micronaut.context.ApplicationContext;
 import java.util.Map;
 import java.util.HashMap;
+import javax.transaction.Transactional;
 
 /**
  * This class gathers together the code which detects that an object in a remote system has
@@ -38,6 +39,7 @@ public class HostLmsReactions {
                 log.info("HostLmsReactions::init");
         }
 
+        @Transactional
         @EventListener
         public void onTrackingEvent(TrackingRecord trackingRecord) {
                 log.debug("onTrackingEvent {}",trackingRecord);
@@ -65,8 +67,8 @@ public class HostLmsReactions {
                         WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
                         if ( action != null ) {
                                 Mono.just(action.execute(context))
-                                        .block();
-                                log.debug("Action completed");
+                                        .doOnNext(ctx -> log.debug("Action completed:"+ctx))
+                                        .subscribe();
                         }
                         else {
                                 throw new RuntimeException("Missing qualified WorkflowAction for handler "+handler);
