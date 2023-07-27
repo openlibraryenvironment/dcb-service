@@ -72,7 +72,7 @@ public class HostLmsReactions {
                         if ( action != null ) {
                                 Mono.from( r2dbcOperations.withTransaction(status -> Mono.just(action.execute(context))))
                                         .doOnNext(ctx -> log.debug("Action completed:"+ctx))
-                                        .subscribe();
+                                        .block();
                         }
                         else {
                                 throw new RuntimeException("Missing qualified WorkflowAction for handler "+handler);
