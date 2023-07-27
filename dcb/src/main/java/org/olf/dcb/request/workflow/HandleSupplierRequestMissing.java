@@ -35,7 +35,7 @@ public class HandleSupplierRequestMissing implements WorkflowAction {
                                 .thenReturn(context);
                 }
                 else {
-                        log.debug("Unable to locate supplier request");
+                        log.warn("Unable to locate supplier request to mark as missing");
                         return Mono.just(context);
                 }
         }
