@@ -11,6 +11,8 @@ import org.olf.dcb.tracking.model.TrackingRecord;
 import org.olf.dcb.tracking.model.StateChange;
 import io.micronaut.context.annotation.Context;
 import io.micronaut.runtime.event.annotation.EventListener;
+// See https://micronaut-projects.github.io/micronaut-data/snapshot/guide/
+import io.micronaut.transaction.annotation.TransactionalEventListener;
 import io.micronaut.inject.qualifiers.Qualifiers;
 import org.olf.dcb.request.workflow.WorkflowAction;
 import io.micronaut.context.ApplicationContext;
@@ -44,8 +46,8 @@ public class HostLmsReactions {
                 log.info("HostLmsReactions::init");
         }
 
-	@Transactional
-        @EventListener
+	
+    	@TransactionalEventListener(TransactionalEventListener.TransactionPhase.BEFORE_COMMIT)
         public void onTrackingEvent(TrackingRecord trackingRecord) {
                 log.debug("onTrackingEvent {}",trackingRecord);
                 String handler = null;
