@@ -46,4 +46,8 @@ public interface SupplierRequestRepository {
                         .flatMap( update -> Mono.from(update ? this.update(sr) : this.save(sr)) )
                         ;
         }
+
+        @SingleResult
+        @NonNull
+        Publisher<PatronRequest> findPatronRequestById(UUID supplierRequestId);
 }

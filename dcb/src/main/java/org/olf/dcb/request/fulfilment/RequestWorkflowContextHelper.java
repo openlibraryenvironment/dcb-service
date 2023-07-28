@@ -9,10 +9,13 @@ import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
+import org.olf.dcb.storage.PatronRequestRepository;
+import org.olf.dcb.storage.SupplierRequestRepository;
 import io.micronaut.context.BeanProvider;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.UUID;
 
 @Singleton
 public class RequestWorkflowContextHelper {
@@ -21,6 +24,8 @@ public class RequestWorkflowContextHelper {
 
         private final SupplierRequestService supplierRequestService;
         private final ReferenceValueMappingRepository referenceValueMappingRepository;
+        private final SupplierRequestRepository supplierRequestRepository;
+        private final PatronRequestRepository patronRequestRepository;
         private final AgencyRepository agencyRepository;
         private final HostLmsRepository hostLmsRepository;
 
@@ -28,11 +33,20 @@ public class RequestWorkflowContextHelper {
                 ReferenceValueMappingRepository referenceValueMappingRepository,
                 SupplierRequestService supplierRequestService,
                 HostLmsRepository hostLmsRepository,
+                SupplierRequestRepository supplierRequestRepository,
+                PatronRequestRepository patronRequestRepository,
                 AgencyRepository agencyRepository) {
                 this.supplierRequestService = supplierRequestService;
                 this.referenceValueMappingRepository = referenceValueMappingRepository;
                 this.hostLmsRepository = hostLmsRepository;
+                this.supplierRequestRepository = supplierRequestRepository;
+                this.patronRequestRepository = patronRequestRepository;
                 this.agencyRepository = agencyRepository;
+        }
+
+        public Mono<RequestWorkflowContext> fromPatronRequestId(UUID patronRequestId) {
+                return Mono.from(patronRequestRepository.findById(patronRequestId))
+                        .flatMap( pr -> Mono.just(new RequestWorkflowContext().setPatronRequest(pr) ) );
         }
 
         public Mono<RequestWorkflowContext> collect(RequestWorkflowContext context) {
@@ -41,6 +55,17 @@ public class RequestWorkflowContextHelper {
                         .flatMap(this::resolvePickupLocationAgency)
                         ;
         }
+
+        public Mono<RequestWorkflowContext> fromSupplierRequest(SupplierRequest sr) {
+                RequestWorkflowContext rwc = new RequestWorkflowContext();
+
+                return Mono.just( rwc.setSupplierRequest(sr) )
+                        .flatMap( rwcp -> Mono.from(supplierRequestRepository.findPatronRequestById(rwc.getSupplierRequest().getId())) )
+                        .flatMap( pr -> Mono.just(rwc.setPatronRequest(pr)) )
+                        .flatMap( rwcp -> resolvePickupLocationAgency(rwcp) )
+                        ;
+        }
+
 
         // Remember that @Accessors means that setSupplierRequest returns this
         //

@@ -47,6 +47,9 @@ public class HostLmsReactions {
         @javax.annotation.PostConstruct
         private void init() {
                 log.info("HostLmsReactions::init");
+                for ( WorkflowAction w: allWorkflowActions ) {
+                        log.info("Workflow action: {}",w);
+                }
         }
 
     	@Transactional
