@@ -2,12 +2,16 @@ package org.olf.dcb.api;
 
 import static io.micronaut.http.HttpStatus.OK;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -108,22 +112,17 @@ class ClusterRecordTests {
 		assertThat(subject, is(notNullValue()));
 		assertThat(subject.label(), is("Electric circuits."));
 
-		final var identifiers = metadata.identifiers();
+		assertThat(metadata.identifiers(), containsInAnyOrder(
+			hasIdentifier("ISBN", "9781234567890"),
+			hasIdentifier("ISSN", "1234-5678"),
+			hasIdentifier("LCCN", "68009551"),
+			hasIdentifier("GOLDRUSH", "basiccircuittheory                                               1969876    mca                              "),
+			hasIdentifier("BLOCKING_TITLE", "basic circuit theory charles desoer ernest kuh")));
+	}
 
-		final var isbnIdentifier = identifiers.stream()
-			.filter(identifier -> "ISBN".equals(identifier.namespace()))
-			.findFirst()
-			.orElse(null);
-
-		assertThat(isbnIdentifier, is(notNullValue()));
-		assertThat(isbnIdentifier.value(), is("9781234567890"));
-
-		final var issnIdentifier = identifiers.stream()
-			.filter(identifier -> "ISSN".equals(identifier.namespace()))
-			.findFirst()
-			.orElse(null);
-
-		assertThat(issnIdentifier, is(notNullValue()));
-		assertThat(issnIdentifier.value(), is("1234-5678"));
+	private static Matcher<ClusterRecord.Identifier> hasIdentifier(String namespace, String value) {
+		return allOf(
+			hasProperty("namespace", is(namespace)),
+			hasProperty("value", is(value)));
 	}
 }

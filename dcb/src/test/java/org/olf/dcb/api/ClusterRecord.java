@@ -1,11 +1,11 @@
 package org.olf.dcb.api;
 
-import io.micronaut.serde.annotation.Serdeable;
-import io.micronaut.core.annotation.Nullable;
-import org.olf.dcb.ingest.model.Identifier;
-
 import java.time.LocalDateTime;
 import java.util.List;
+
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Getter;
 
 @Serdeable
 public record ClusterRecord(
@@ -64,7 +64,9 @@ public record ClusterRecord(
 
 	@Serdeable
 	public record Identifier(
+		@Getter
 		@Nullable String value,
+		@Getter
 		@Nullable String namespace
 	) {
 	}
