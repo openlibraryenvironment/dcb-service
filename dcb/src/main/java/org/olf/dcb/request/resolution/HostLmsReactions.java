@@ -63,6 +63,9 @@ public class HostLmsReactions {
                                 log.warn("Unhandled ToState:{}",sc.getToState());
                         }
                 }
+                else {
+                        log.warn("Unhandled tracking record type {}",trackingRecord.getTrackigRecordType());
+                }
 
 
                 // https://stackoverflow.com/questions/74183112/how-to-select-the-correct-transactionmanager-when-using-r2dbc-together-with-flyw

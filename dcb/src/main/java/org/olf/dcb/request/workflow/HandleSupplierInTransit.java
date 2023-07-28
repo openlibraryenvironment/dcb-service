@@ -31,8 +31,8 @@ public class HandleSupplierInTransit implements WorkflowAction {
 
                 SupplierRequest sr = (SupplierRequest) sc.getResource();
                 if ( sr != null ) {
-                        log.debug("Setting local status to TRANSIT and saving...");
                         sr.setLocalStatus("TRANSIT");
+                        log.debug("Setting local status to TRANSIT and saving...{}",sr);
                         return Mono.from(supplierRequestRepository.saveOrUpdate(sr))
                                 .doOnNext(ssr -> log.debug("Saved {}",ssr))
                                 .thenReturn(context);
