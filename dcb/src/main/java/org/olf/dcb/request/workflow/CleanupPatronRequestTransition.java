@@ -28,7 +28,7 @@ public class CleanupPatronRequestTransition implements PatronRequestStateTransit
 		
 		// Remove the hold at the Lender (LenderRequest)
 		// - Remove virtual Patron if not associated with another request
-		// --- And Remove DCB Patron Identity if the above was actioned. 
+		// -- And Remove DCB Patron Identity if the above was actioned. 
 		// Remove the virtual item at the Borrower
 		// Remove the virtual Bib at the Borrower
 		// Remove the virtual 

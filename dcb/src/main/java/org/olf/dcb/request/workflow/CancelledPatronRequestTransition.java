@@ -39,5 +39,11 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(Status.CANCELLED);
 	}
+	
+	@Override
+	public boolean attemptAutomatically() {
+		return false;
+	}
 
 }
+

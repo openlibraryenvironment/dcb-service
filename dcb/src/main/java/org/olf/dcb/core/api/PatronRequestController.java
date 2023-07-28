@@ -13,6 +13,7 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
+import org.olf.dcb.request.workflow.CleanupPatronRequestTransition;
 import org.olf.dcb.request.workflow.PatronRequestStateTransition;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
@@ -40,7 +41,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
-import reactor.util.function.Tuple2;
 
 @Validated
 @Secured(SecurityRule.IS_ANONYMOUS)
@@ -89,6 +89,25 @@ public class PatronRequestController {
 			
 			.flatMapMany( TupleUtils.function(workflowService::progressUsing ))
 			.last();
+//		return patronRequestService.placePatronRequest(command).map(PatronRequestView::from).map(HttpResponse::ok);
+	}
+	
+	/**
+	 * Special state transitions that don't have a target state i.e. they leave the state untouched, but
+	 * with a workflow associated should be listed explicitly as url entry points
+	 * 
+	 * TODO: We prolly want to change this, to not be so explicit. But I think that's part of a necessary
+	 * overhaul to the whole system.
+	 */
+	@SingleResult
+	@Post(value = "/{patronRequestId}/transtion/cleanup", consumes = APPLICATION_JSON)
+	public Mono<PatronRequest> cleanupPatronRequest(@NotNull final UUID patronRequestId) {
+		return patronRequestService
+			.findById( patronRequestId )
+			.map( this::ensureValidStateForTransition )
+			.zipWhen( (req) -> Mono.just(new CleanupPatronRequestTransition()))
+			.flatMapMany( TupleUtils.function(workflowService::progressUsing ))
+		.last();
 //		return patronRequestService.placePatronRequest(command).map(PatronRequestView::from).map(HttpResponse::ok);
 	}
 
