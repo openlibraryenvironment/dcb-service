@@ -93,7 +93,7 @@ public class TrackingService implements Runnable {
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	public Mono<SupplierRequest> checkSupplierRequest(SupplierRequest sr) {
-		log.debug("Check supplier request {}",sr);
+		log.debug("Check supplier request {}",sr.getId(),sr.getLocalStatus());
 
                 // We fetch the state of the hold at the supplying library. If it is different to the last state
                 // we stashed in SupplierRequest.localStatus then we have detected a change. We emit an event to let
