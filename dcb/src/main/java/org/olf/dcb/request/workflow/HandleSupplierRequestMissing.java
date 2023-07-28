@@ -16,7 +16,7 @@ import org.olf.dcb.storage.SupplierRequestRepository;
 @Named("SupplierRequestMissing")
 public class HandleSupplierRequestMissing implements WorkflowAction {
 
-        private static final Logger log = LoggerFactory.getLogger(HandleSupplierInTransit.class);
+        private static final Logger log = LoggerFactory.getLogger(HandleSupplierRequestMissing.class);
         private SupplierRequestRepository supplierRequestRepository;
 
         public HandleSupplierRequestMissing(SupplierRequestRepository supplierRequestRepository) {
@@ -35,7 +35,7 @@ public class HandleSupplierRequestMissing implements WorkflowAction {
                                 .thenReturn(context);
                 }
                 else {
-                        log.debug("Unable to locate supplier request");
+                        log.warn("Unable to locate supplier request to mark as missing");
                         return Mono.just(context);
                 }
         }

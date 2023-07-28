@@ -38,6 +38,7 @@ public class HandleSupplierInTransit implements WorkflowAction {
                                 .thenReturn(context);
                 }
                 else {
+			log.warn("Supplier request in context was null. Cannot save");
                         return Mono.just(context);
                 }
         }

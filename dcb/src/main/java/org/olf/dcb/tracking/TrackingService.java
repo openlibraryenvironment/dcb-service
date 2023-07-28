@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import io.micronaut.context.event.ApplicationEventPublisher;
+import javax.transaction.Transactional;
 
 @Refreshable
 @Singleton
@@ -90,7 +91,8 @@ public class TrackingService implements Runnable {
 		return Mono.just(pr);
 	}
 
-	private Mono<SupplierRequest> checkSupplierRequest(SupplierRequest sr) {
+	@Transactional(Transactional.TxType.REQUIRES_NEW)
+	public Mono<SupplierRequest> checkSupplierRequest(SupplierRequest sr) {
 		log.debug("Check supplier request {}",sr);
 
                 // We fetch the state of the hold at the supplying library. If it is different to the last state

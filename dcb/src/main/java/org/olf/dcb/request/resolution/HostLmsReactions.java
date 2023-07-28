@@ -11,12 +11,15 @@ import org.olf.dcb.tracking.model.TrackingRecord;
 import org.olf.dcb.tracking.model.StateChange;
 import io.micronaut.context.annotation.Context;
 import io.micronaut.runtime.event.annotation.EventListener;
+// See https://micronaut-projects.github.io/micronaut-data/snapshot/guide/
+import io.micronaut.transaction.annotation.TransactionalEventListener;
 import io.micronaut.inject.qualifiers.Qualifiers;
 import org.olf.dcb.request.workflow.WorkflowAction;
 import io.micronaut.context.ApplicationContext;
 import java.util.Map;
 import java.util.HashMap;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import javax.transaction.Transactional;
 
 /**
  * This class gathers together the code which detects that an object in a remote system has
@@ -25,11 +28,8 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
  */
 // public class HostLmsReactions implements ApplicationEventListener<StateChange> {
 // @Context
-// ublic class HostLmsReactions {
-
 @Singleton
-public class HostLmsReactions implements ApplicationEventListener<TrackingRecord> {
-
+public class HostLmsReactions {
 
         private static final Logger log = LoggerFactory.getLogger(HostLmsReactions.class);
         private final ApplicationContext appContext;
@@ -46,13 +46,8 @@ public class HostLmsReactions implements ApplicationEventListener<TrackingRecord
                 log.info("HostLmsReactions::init");
         }
 
-
-        // @EventListener
-        // public void onTrackingEvent(TrackingRecord trackingRecord) {
-
-
-        @Override
-        public void onApplicationEvent(TrackingRecord trackingRecord) {
+    	@TransactionalEventListener(TransactionalEventListener.TransactionPhase.BEFORE_COMMIT)
+        public void onTrackingEvent(TrackingRecord trackingRecord) {
                 log.debug("onTrackingEvent {}",trackingRecord);
                 String handler = null;
                 Map<String,Object> context = new HashMap();
@@ -79,7 +74,8 @@ public class HostLmsReactions implements ApplicationEventListener<TrackingRecord
                         log.debug("Invoke action {}",handler);
                         WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
                         if ( action != null ) {
-                                Mono.from( r2dbcOperations.withTransaction(status -> Mono.just(action.execute(context))))
+				log.debug("Invoke {}",action.getClass().getName());
+				Mono.just(action.execute(context))
                                         .doOnNext(ctx -> log.debug("Action completed:"+ctx))
                                         .block();
                         }
