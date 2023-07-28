@@ -107,7 +107,7 @@ public class TrackingService implements Runnable {
 				log.error("Error occurred: " + e.getMessage(),e);
 			})
                         .filter ( hold -> !hold.getStatus().equals(sr.getLocalStatus()) )
-			.map( hold -> { 
+			.flatMap( hold -> { 
 				log.debug("current request status: {}",hold);
                                 StateChange sc = StateChange.builder()
                                                             .resourceType("SupplierRequest")
@@ -125,7 +125,7 @@ public class TrackingService implements Runnable {
                                 eventPublisher.publishEvent(sc);
 
                                 // sr.setLocalStatus(hold.getStatus());
-				return sr;
+				return Mono.just(sr);
 			});
                         // .flatMap( usr -> Mono.fromDirect(supplierRequestRepository.saveOrUpdate(usr) ));
 	}

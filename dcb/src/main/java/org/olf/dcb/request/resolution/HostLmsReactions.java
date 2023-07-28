@@ -24,8 +24,12 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
  * scenario.
  */
 // public class HostLmsReactions implements ApplicationEventListener<StateChange> {
-@Context
-public class HostLmsReactions {
+// @Context
+// ublic class HostLmsReactions {
+
+@Singleton
+public class HostLmsReactions implements ApplicationEventListener<TrackingRecord> {
+
 
         private static final Logger log = LoggerFactory.getLogger(HostLmsReactions.class);
         private final ApplicationContext appContext;
@@ -42,8 +46,13 @@ public class HostLmsReactions {
                 log.info("HostLmsReactions::init");
         }
 
-        @EventListener
-        public void onTrackingEvent(TrackingRecord trackingRecord) {
+
+        // @EventListener
+        // public void onTrackingEvent(TrackingRecord trackingRecord) {
+
+
+        @Override
+        public void onApplicationEvent(TrackingRecord trackingRecord) {
                 log.debug("onTrackingEvent {}",trackingRecord);
                 String handler = null;
                 Map<String,Object> context = new HashMap();
