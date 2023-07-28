@@ -11,8 +11,6 @@ import org.olf.dcb.tracking.model.TrackingRecord;
 import org.olf.dcb.tracking.model.StateChange;
 import io.micronaut.context.annotation.Context;
 import io.micronaut.runtime.event.annotation.EventListener;
-// See https://micronaut-projects.github.io/micronaut-data/snapshot/guide/
-import io.micronaut.transaction.annotation.TransactionalEventListener;
 import io.micronaut.inject.qualifiers.Qualifiers;
 import org.olf.dcb.request.workflow.WorkflowAction;
 import io.micronaut.context.ApplicationContext;
@@ -26,8 +24,6 @@ import javax.transaction.Transactional;
  * changed state, and attempts to trigger the appropriate local workflow for dealing with that
  * scenario.
  */
-// public class HostLmsReactions implements ApplicationEventListener<StateChange> {
-// @Context
 @Singleton
 public class HostLmsReactions {
 
@@ -46,8 +42,8 @@ public class HostLmsReactions {
                 log.info("HostLmsReactions::init");
         }
 
-    	@TransactionalEventListener(TransactionalEventListener.TransactionPhase.BEFORE_COMMIT)
-        public void onTrackingEvent(TrackingRecord trackingRecord) {
+    	@Transactional
+        public Mono<Map<String,Object>> onTrackingEvent(TrackingRecord trackingRecord) {
                 log.debug("onTrackingEvent {}",trackingRecord);
                 String handler = null;
                 Map<String,Object> context = new HashMap();
@@ -75,14 +71,16 @@ public class HostLmsReactions {
                         WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
                         if ( action != null ) {
 				log.debug("Invoke {}",action.getClass().getName());
-				Mono.just(action.execute(context))
+			        return Mono.just(action.execute(context))
                                         .doOnNext(ctx -> log.debug("Action completed:"+ctx))
-                                        .block();
+                                        .thenReturn(context);
                         }
                         else {
                                 throw new RuntimeException("Missing qualified WorkflowAction for handler "+handler);
                         }
                 }
+
+                return Mono.just(context);
         }
         
 }

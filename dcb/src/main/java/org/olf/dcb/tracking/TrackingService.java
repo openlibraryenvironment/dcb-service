@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.util.List;
 import io.micronaut.context.event.ApplicationEventPublisher;
 import javax.transaction.Transactional;
+import org.olf.dcb.request.resolution.HostLmsReactions;
 
 @Refreshable
 @Singleton
@@ -37,18 +38,17 @@ public class TrackingService implements Runnable {
 	private PatronRequestRepository patronRequestRepository;
 	private SupplierRequestRepository supplierRequestRepository;
 	private SupplyingAgencyService supplyingAgencyService;
-        private final ApplicationEventPublisher<TrackingRecord> eventPublisher;
-        // private final ApplicationEventPublisher<StateChange> stateChangeEventPublisher;
+	private HostLmsReactions hostLmsReactions;
 
 	TrackingService( PatronRequestRepository patronRequestRepository,
 			 SupplierRequestRepository supplierRequestRepository,
                          SupplyingAgencyService supplyingAgencyService,
-                         ApplicationEventPublisher<TrackingRecord> eventPublisher
+                         HostLmsReactions hostLmsReactions
                         ) {
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplyingAgencyService = supplyingAgencyService;
-		this.eventPublisher = eventPublisher;
+		this.hostLmsReactions = hostLmsReactions;
 	}
 
 	@javax.annotation.PostConstruct
@@ -118,18 +118,10 @@ public class TrackingService implements Runnable {
                                                             .toState(hold.getStatus())
                                                             .resource(sr)
                                                             .build();
-                                // SupplierRequestHold.StatusChange id fromstate tostate
                                 log.debug("Publishing state change event {}",sc);
-                                // stateChangeEventPublisher.publishEvent(sc);
-
-                                // We use a synchronous event here because we don't want to launch a load of
-                                // parallel work (At least not initially)
-                                eventPublisher.publishEvent(sc);
-
-                                // sr.setLocalStatus(hold.getStatus());
-				return Mono.just(sr);
+				return hostLmsReactions.onTrackingEvent(sc)
+                                        .thenReturn(sr);
 			});
-                        // .flatMap( usr -> Mono.fromDirect(supplierRequestRepository.saveOrUpdate(usr) ));
 	}
 }
 
