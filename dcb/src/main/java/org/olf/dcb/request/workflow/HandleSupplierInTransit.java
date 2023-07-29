@@ -66,8 +66,11 @@ public class HandleSupplierInTransit implements WorkflowAction {
         public Mono updateUpstreamSystems(RequestWorkflowContext rwc) {
                 log.debug("updateUpstreamSystems rwc={},{}",rwc.getPatronSystemCode(),rwc.getPatronRequest().getPickupRequestId());
 		return hostLmsService.getClientFor(rwc.getPatronSystemCode())
-		 	.flatMap(hostLmsClient -> hostLmsClient.updateRequestStatus(rwc.getPatronRequest().getPickupRequestId(), HostLmsClient.CanonicalRequestState.TRANSIT))
+		 	.flatMap(hostLmsClient -> hostLmsClient.updateRequestStatus(rwc.getPatronRequest().getLocalRequestId(), HostLmsClient.CanonicalRequestState.TRANSIT))
 			.thenReturn(Mono.just(rwc));
+
+		// rwc.getPatronRequest().getLocalRequestId() == The request placed at the patron home system to represent this loan
+		// rwc.getPatronRequest().getPickupRequestId() == The request placed at a third party pickup location
         }
 
 }
