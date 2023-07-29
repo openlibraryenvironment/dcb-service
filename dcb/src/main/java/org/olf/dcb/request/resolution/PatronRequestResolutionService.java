@@ -11,6 +11,9 @@ import java.util.UUID;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
 import org.slf4j.Logger;
@@ -25,11 +28,17 @@ public class PatronRequestResolutionService {
 
 	private final SharedIndexService sharedIndexService;
 	private final LiveAvailabilityService liveAvailabilityService;
+	private final ReferenceValueMappingRepository referenceValueMappingRepository;
+	private final AgencyRepository agencyRepository;
 
 	public PatronRequestResolutionService(SharedIndexService sharedIndexService,
+		ReferenceValueMappingRepository referenceValueMappingRepository,
+		AgencyRepository agencyRepository,
 		LiveAvailabilityService liveAvailabilityService) {
 
 		this.sharedIndexService = sharedIndexService;
+		this.referenceValueMappingRepository = referenceValueMappingRepository;
+		this.agencyRepository = agencyRepository;
 		this.liveAvailabilityService = liveAvailabilityService;
 	}
 
@@ -44,7 +53,8 @@ public class PatronRequestResolutionService {
 			.map(this::validateClusteredBib)
 			.flatMap(this::getItems)
 			.map(items -> resolutionStrategy.chooseItem(items, clusterRecordId))
-			.map(item -> mapToSupplierRequest(item, patronRequest))
+			.doOnNext(item -> log.debug("Selected item {}",item))
+			.flatMap(item -> createSupplierRequest(item, patronRequest))
 			.map(PatronRequestResolutionService::mapToResolution)
 			.onErrorReturn(NoItemsRequestableAtAnyAgency.class,
 				resolveToNoItemsAvailable(patronRequest));
@@ -74,17 +84,32 @@ public class PatronRequestResolutionService {
 			.map(AvailabilityReport::getItems);
 	}
 
+	private Mono<SupplierRequest> createSupplierRequest(Item item, PatronRequest patronRequest) {
+		return resolveSupplyingAgency(item)
+			.map(agency -> mapToSupplierRequest(item, patronRequest, agency))
+			// This is fugly - it happens because some of the tests don't care about the agency being real
+			.defaultIfEmpty( mapToSupplierRequest(item, patronRequest, null));
+	}
+
+	private Mono<DataAgency> resolveSupplyingAgency(Item item) {
+                return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+                                                "ShelvingLocation", item.getHostLmsCode(), item.getLocation().getCode(), "AGENCY", "DCB"))
+                                .map(mapping -> mapping.getToValue() )
+                                .doOnSuccess(mapping -> log.debug("Result from getting agency for shelving location: {}", mapping))
+				.flatMap(agencyCode -> Mono.from(agencyRepository.findOneByCode(agencyCode)) );
+	}
+
 
 	// Right now we assume that this is always the first supplier we are talking to.. In the future we need to
 	// be able to handle a supplier failing to deliver and creating a new request for a different supplier.
 	// isActive is intended to identify the "Current" supplier as we try different agencies.
-	private static SupplierRequest mapToSupplierRequest(Item item, PatronRequest patronRequest) {
+	private static SupplierRequest mapToSupplierRequest(Item item, PatronRequest patronRequest, DataAgency agency) {
 
 		log.debug("mapToSupplierRequest({}}, {})", item, patronRequest);
 
 		final var supplierRequestId = UUID.randomUUID();
 
-		log.debug("create SR: {}, {}, {}", supplierRequestId, item, item.getHostLmsCode());
+		log.debug("create SupplierRequest: {}, {}, {}", supplierRequestId, item, item.getHostLmsCode());
 
 		final var updatedPatronRequest = patronRequest.resolve();
 
@@ -98,6 +123,7 @@ public class PatronRequestResolutionService {
 			.hostLmsCode(item.getHostLmsCode())
 			.statusCode(PENDING)
 			.isActive(Boolean.TRUE)
+			.resolvedAgency(agency)
 			.build();
 	}
 

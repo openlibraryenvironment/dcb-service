@@ -97,8 +97,11 @@ public class BorrowingAgencyService {
 	}
 
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, String>> createVirtualItem(
-			PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
+			PatronRequest patronRequest, 
+			PatronIdentity patronIdentity, 
+			HostLmsClient hostLmsClient,
 			SupplierRequest supplierRequest) {
+
 		final String localBibId = patronRequest.getLocalBibId();
 		Objects.requireNonNull(localBibId, "Local bib ID not set on Patron Request");
 
@@ -113,9 +116,15 @@ public class BorrowingAgencyService {
 				.doOnSuccess(mapping -> log.debug("Result from getting agency for shelving location: {}", mapping))
 				.flatMap(mapping -> {
 					String agencyCode = mapping.getToValue();
+					supplierRequest.setLocalAgency(agencyCode);
 					return hostLmsClient.createItem(localBibId, agencyCode, supplierRequest.getLocalItemBarcode());
-				}).map(HostLmsItem::getLocalId).doOnNext(patronRequest::setLocalItemId)
-				.map(localItemId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId))
+				})
+				.map(HostLmsItem::getLocalId)
+				// .doOnNext(patronRequest::setLocalItemId) - replace with map
+				.map(localItemId -> { 
+					patronRequest.setLocalItemId(localItemId);
+					return Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId);
+				})
 				.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));
 	}
 
