@@ -36,7 +36,10 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Serdeable
 @MappedEntity
 @ExcludeFromGeneratedCoverageReport
+@ToString(onlyExplicitlyIncluded = true)
 public class PatronIdentity {
+
+	@ToString.Include
 	@NotNull
 	@NonNull
 	@Id
@@ -51,7 +54,6 @@ public class PatronIdentity {
 	@DateUpdated
 	private Instant dateUpdated;
 
-	@ToString.Exclude
 	@Nullable
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private Patron patron;
@@ -60,10 +62,12 @@ public class PatronIdentity {
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private DataHostLms hostLms;
 
+	@ToString.Include
 	@NotNull
 	@NonNull
 	private String localId;
 
+	@ToString.Include
 	@NotNull
 	@NonNull
 	private Boolean homeIdentity;
@@ -76,6 +80,7 @@ public class PatronIdentity {
 	@Nullable
 	private String localNames;
 
+	@ToString.Include
 	@Nullable
 	private String localPtype;
 

@@ -26,13 +26,16 @@ import lombok.ToString;
 @NoArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
 @Builder
+@ToString(onlyExplicitlyIncluded = true)
 public class DataAgency implements Agency {
 
+	@ToString.Include
 	@NonNull
 	@Id
 	@TypeDef( type = DataType.UUID)
 	private UUID id;
 
+	@ToString.Include
 	@NonNull
 	@Size(max = 32)
 	private String code;

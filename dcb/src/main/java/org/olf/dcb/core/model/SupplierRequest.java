@@ -24,6 +24,7 @@ import jakarta.persistence.Enumerated;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import lombok.RequiredArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
@@ -34,7 +35,10 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @RequiredArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
 @Builder
+@ToString(onlyExplicitlyIncluded = true)
 public class SupplierRequest {
+
+	@ToString.Include
 	@NotNull
 	@NonNull
 	@Id
@@ -67,6 +71,7 @@ public class SupplierRequest {
 	@Size(max = 200)
 	private String hostLmsCode;
 
+	@ToString.Include
 	@Nullable
 	@Size(max = 200)
 	@Enumerated(EnumType.STRING)
