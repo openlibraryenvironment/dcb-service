@@ -26,6 +26,8 @@ public class SupplierRequestService {
 			.collectList();
 	}
 
+	// ToDo: This is not safe.. later on we will have multiple supplier requests for a patron request this method
+	// is probably looking for the active supplier request
 	public Mono<SupplierRequest> findSupplierRequestFor(PatronRequest patronRequest) {
 		return findAllSupplierRequestsFor(patronRequest)
 			.map(supplierRequests -> supplierRequests.get(0))

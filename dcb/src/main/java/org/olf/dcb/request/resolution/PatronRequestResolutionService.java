@@ -74,8 +74,11 @@ public class PatronRequestResolutionService {
 			.map(AvailabilityReport::getItems);
 	}
 
-	private static SupplierRequest mapToSupplierRequest(Item item,
-		PatronRequest patronRequest) {
+
+	// Right now we assume that this is always the first supplier we are talking to.. In the future we need to
+	// be able to handle a supplier failing to deliver and creating a new request for a different supplier.
+	// isActive is intended to identify the "Current" supplier as we try different agencies.
+	private static SupplierRequest mapToSupplierRequest(Item item, PatronRequest patronRequest) {
 
 		log.debug("mapToSupplierRequest({}}, {})", item, patronRequest);
 
@@ -94,6 +97,7 @@ public class PatronRequestResolutionService {
 			.localItemLocationCode(item.getLocation().getCode())
 			.hostLmsCode(item.getHostLmsCode())
 			.statusCode(PENDING)
+			.isActive(Boolean.TRUE)
 			.build();
 	}
 
