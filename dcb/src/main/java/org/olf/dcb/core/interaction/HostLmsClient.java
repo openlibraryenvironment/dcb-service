@@ -12,6 +12,13 @@ import org.olf.dcb.core.model.Item;
 
 public interface HostLmsClient {
 
+	// All implementations must understand these states and be able to translate them to
+	// local values when encountered via updateRequestStatus
+	enum CanonicalRequestState {
+		PLACED,
+		TRANSIT
+	}
+
 	HostLms getHostLms();
 
 	Flux<Map<String, ?>> getAllBibData();
@@ -42,4 +49,6 @@ public interface HostLmsClient {
 	Mono<HostLmsItem> createItem(String bibId, String locationCode, String barcode);
 
 	Mono<HostLmsHold> getHold(String holdId);
+
+	Mono<String> updateRequestStatus(String requestId, CanonicalRequestState crs);
 }

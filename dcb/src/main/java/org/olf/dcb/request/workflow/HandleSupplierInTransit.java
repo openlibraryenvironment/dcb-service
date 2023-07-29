@@ -18,6 +18,8 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import java.util.UUID;
 import org.olf.dcb.core.HostLmsService;
 
+import org.olf.dcb.core.interaction.HostLmsClient;
+
 
 @Singleton
 @Named("SupplierRequestInTransit")
@@ -64,7 +66,7 @@ public class HandleSupplierInTransit implements WorkflowAction {
         public Mono updateUpstreamSystems(RequestWorkflowContext rwc) {
                 log.debug("updateUpstreamSystems rwc={},{}",rwc.getPatronSystemCode(),rwc.getPatronRequest().getPickupRequestId());
 		return hostLmsService.getClientFor(rwc.getPatronSystemCode())
-		// 	.setRequestStatus(rwc.getPatronRequest().pickupRequestId(), CanonicalRequestStates.TRANSIT)
+		 	.flatMap(hostLmsClient -> hostLmsClient.updateRequestStatus(rwc.getPatronRequest().getPickupRequestId(), HostLmsClient.CanonicalRequestState.TRANSIT))
 			.thenReturn(Mono.just(rwc));
         }
 

@@ -760,4 +760,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.from(client.getHold(Long.valueOf(holdId))).flatMap(sh -> Mono.just(sierraPatronHoldToHostLmsHold(sh)))
 				.defaultIfEmpty(new HostLmsHold(holdId, "MISSING"));
 	}
+
+	public Mono<String> updateRequestStatus(String requestId, CanonicalRequestState crs) {
+		log.debug("updateRequestStatus({},{})",requestId,crs);
+		return Mono.just("OK");
+	}
+
 }
