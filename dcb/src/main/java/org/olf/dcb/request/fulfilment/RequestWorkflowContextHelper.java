@@ -10,6 +10,7 @@ import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
+import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import io.micronaut.context.BeanProvider;
 import jakarta.inject.Singleton;
@@ -26,6 +27,7 @@ public class RequestWorkflowContextHelper {
         private final ReferenceValueMappingRepository referenceValueMappingRepository;
         private final SupplierRequestRepository supplierRequestRepository;
         private final PatronRequestRepository patronRequestRepository;
+        private final PatronIdentityRepository patronIdentityRepository;
         private final AgencyRepository agencyRepository;
         private final HostLmsRepository hostLmsRepository;
 
@@ -35,12 +37,14 @@ public class RequestWorkflowContextHelper {
                 HostLmsRepository hostLmsRepository,
                 SupplierRequestRepository supplierRequestRepository,
                 PatronRequestRepository patronRequestRepository,
+                PatronIdentityRepository patronIdentityRepository,
                 AgencyRepository agencyRepository) {
                 this.supplierRequestService = supplierRequestService;
                 this.referenceValueMappingRepository = referenceValueMappingRepository;
                 this.hostLmsRepository = hostLmsRepository;
                 this.supplierRequestRepository = supplierRequestRepository;
                 this.patronRequestRepository = patronRequestRepository;
+                this.patronIdentityRepository = patronIdentityRepository;
                 this.agencyRepository = agencyRepository;
         }
 
@@ -64,24 +68,48 @@ public class RequestWorkflowContextHelper {
                 RequestWorkflowContext rwc = new RequestWorkflowContext();
 
                 return Mono.just( rwc.setSupplierRequest(sr) )
+			.doOnNext(rwcp -> log.debug("decorate {}",rwcp))
                         .flatMap( rwcp -> Mono.from(supplierRequestRepository.findPatronRequestById(rwc.getSupplierRequest().getId())) )
+			.doOnNext(pr -> log.debug("got pr {}",pr))
                         .flatMap( pr -> Mono.just(rwc.setPatronRequest(pr)) )
+			.doOnNext(rwcp -> log.debug("decorate {}",rwcp))
 			.flatMap( this::decorateContextWithPatronDetails )
+			.doOnNext(rwcp -> log.debug("decorate {}",rwcp))
                         .flatMap( this::resolvePickupLocationAgency )
+			.doOnNext(rwcp -> log.debug("decorate {}",rwcp))
                         ;
         }
 
 
 	// The patron request should have an attached patronIdentity, the supplier request should have a virtual identity. 
 	// Find and attach those records here.
+	// We also need   patronAgencyCode, patronSystemCode and patronAgency
 	private Mono<RequestWorkflowContext> decorateContextWithPatronDetails(RequestWorkflowContext ctx) {
 
-		if ( ( ctx.getPatronRequest() == null ) || ( ctx.getPatronRequest().getId() == null ) )
+		log.debug("decorateContextWithPatronDetails {}",ctx);
+
+		if ( ( ctx.getPatronRequest() == null ) || ( ctx.getPatronRequest().getId() == null ) ) {
+			log.error("Context does not have a patron request");
 			throw new RuntimeException("Unable to locate patron request in workflow context");
+		}
 
 		return getRequestingIdentity(ctx)
+			.flatMap(this::decorateContextWithPatronAgency)
 			;
 	}
+
+	private Mono<RequestWorkflowContext> decorateContextWithPatronAgency(RequestWorkflowContext ctx) {
+
+		log.debug("decorateContextWithPatronAgency {}",ctx);
+
+		return Mono.from(patronIdentityRepository.findResolvedAgencyById(ctx.getPatronHomeIdentity().getId()))
+			.flatMap( agency -> {
+				ctx.setPatronAgency(agency);
+				ctx.setPatronAgencyCode(agency.getCode());
+				return Mono.just(ctx);
+			});
+	}
+
 
 	// We find the patrons requesting identity via the patron request requestingIdentity property. this should NEVER be null
 	private Mono<RequestWorkflowContext> getRequestingIdentity(RequestWorkflowContext ctx) {
@@ -131,7 +159,6 @@ public class RequestWorkflowContextHelper {
                                 return Mono.from(agencyRepository.findHostLmsIdById(agency.getId()))
                                         .flatMap( hostLmsId -> { return Mono.from(hostLmsRepository.findById(hostLmsId)); } )
                                         .flatMap( hostLms -> {
-                                                log.warn("setting agency host lms to {}",hostLms);
                                                 agency.setHostLms(hostLms);
                                                 return Mono.just(agency);
                                         });

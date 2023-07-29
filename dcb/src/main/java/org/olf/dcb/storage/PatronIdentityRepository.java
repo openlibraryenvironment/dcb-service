@@ -70,7 +70,7 @@ public interface PatronIdentityRepository {
 			.flatMap( update -> Mono.from(update ? this.update(pi) : this.save(pi)) );
 	}
 
+	@NonNull
         @SingleResult
         Publisher<DataAgency> findResolvedAgencyById( @NonNull UUID id );
-
 }

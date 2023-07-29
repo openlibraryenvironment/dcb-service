@@ -42,7 +42,7 @@ public class HandleSupplierInTransit implements WorkflowAction {
                         sr.setLocalStatus("TRANSIT");
                         log.debug("Setting local status to TRANSIT and saving...{}",sr);
                         return requestWorkflowContextHelper.fromSupplierRequest(sr)
-                                .flatMap( rwc -> updateUpstreamSystems(rwc) )
+                                .flatMap( this::updateUpstreamSystems )
                                 // If we managed to update other systems, then update the supplier request
                                 .flatMap(rwc -> Mono.from(supplierRequestRepository.saveOrUpdate(sr)))
                                 .doOnNext(ssr -> log.debug("Saved {}",ssr))
@@ -57,7 +57,7 @@ public class HandleSupplierInTransit implements WorkflowAction {
         // If there is a separate pickup location, the pickup location needs to be updated
         // If there is a separate patron request (There always will be EXCEPT for the "Local" case) update it
         public Mono updateUpstreamSystems(RequestWorkflowContext rwc) {
-                log.debug("updateUpstreamSystems",rwc);
+                log.debug("updateUpstreamSystems rwc=",rwc);
                 return Mono.just(rwc);
         }
 
