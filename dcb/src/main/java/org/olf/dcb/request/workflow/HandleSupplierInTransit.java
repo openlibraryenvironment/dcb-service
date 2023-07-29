@@ -16,6 +16,8 @@ import javax.transaction.Transactional;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import java.util.UUID;
+import org.olf.dcb.core.HostLmsService;
+
 
 @Singleton
 @Named("SupplierRequestInTransit")
@@ -24,12 +26,15 @@ public class HandleSupplierInTransit implements WorkflowAction {
         private static final Logger log = LoggerFactory.getLogger(HandleSupplierInTransit.class);
         private SupplierRequestRepository supplierRequestRepository;
         private RequestWorkflowContextHelper requestWorkflowContextHelper;
+	private HostLmsService hostLmsService;
 
         public HandleSupplierInTransit(
                 SupplierRequestRepository supplierRequestRepository,
+		HostLmsService hostLmsService,
                 RequestWorkflowContextHelper requestWorkflowContextHelper) {
                 this.supplierRequestRepository = supplierRequestRepository;
                 this.requestWorkflowContextHelper = requestWorkflowContextHelper;
+                this.hostLmsService = hostLmsService;
         }
         
         @Transactional
@@ -57,8 +62,10 @@ public class HandleSupplierInTransit implements WorkflowAction {
         // If there is a separate pickup location, the pickup location needs to be updated
         // If there is a separate patron request (There always will be EXCEPT for the "Local" case) update it
         public Mono updateUpstreamSystems(RequestWorkflowContext rwc) {
-                log.debug("updateUpstreamSystems rwc={}",rwc);
-                return Mono.just(rwc);
+                log.debug("updateUpstreamSystems rwc={},{}",rwc.getPatronSystemCode(),rwc.getPatronRequest().getPickupRequestId());
+		return hostLmsService.getClientFor(rwc.getPatronSystemCode())
+		// 	.setRequestStatus(rwc.getPatronRequest().pickupRequestId(), CanonicalRequestStates.TRANSIT)
+			.thenReturn(Mono.just(rwc));
         }
 
 }
