@@ -57,9 +57,10 @@ public class RequestWorkflowContextHelper {
         public Mono<RequestWorkflowContext> fromPatronRequest(PatronRequest pr) {
 		RequestWorkflowContext rwc = new RequestWorkflowContext();
                 return  Mono.just(rwc.setPatronRequest(pr))
-			.flatMap(this::findSupplierRequest )
-			.flatMap(this::decorateContextWithPatronDetails )
-                        .flatMap(this::resolvePickupLocationAgency)
+			.flatMap( this::findSupplierRequest )
+			.flatMap( this::decorateContextWithPatronDetails )
+                        .flatMap( this::decorateContextWithLenderDetails )
+                        .flatMap( this::resolvePickupLocationAgency)
                         ;
         }
 
@@ -68,25 +69,23 @@ public class RequestWorkflowContextHelper {
                 RequestWorkflowContext rwc = new RequestWorkflowContext();
 
                 return Mono.just( rwc.setSupplierRequest(sr) )
-			.doOnNext(rwcp -> log.debug("decorate {}",rwcp))
                         .flatMap( rwcp -> Mono.from(supplierRequestRepository.findPatronRequestById(rwc.getSupplierRequest().getId())) )
-			.doOnNext(pr -> log.debug("got pr {}",pr))
                         .flatMap( pr -> Mono.just(rwc.setPatronRequest(pr)) )
-			.doOnNext(rwcp -> log.debug("decorate {}",rwcp))
 			.flatMap( this::decorateContextWithPatronDetails )
-			.doOnNext(rwcp -> log.debug("decorate {}",rwcp))
+                        .flatMap( this::decorateContextWithLenderDetails )
                         .flatMap( this::resolvePickupLocationAgency )
-			.doOnNext(rwcp -> log.debug("decorate {}",rwcp))
                         ;
         }
 
+	private Mono<RequestWorkflowContext> decorateContextWithLenderDetails(RequestWorkflowContext ctx) {
+		log.debug("TODO: decorateContextWithLenderDetails");
+		return Mono.just(ctx);
+	}
 
 	// The patron request should have an attached patronIdentity, the supplier request should have a virtual identity. 
 	// Find and attach those records here.
 	// We also need   patronAgencyCode, patronSystemCode and patronAgency
 	private Mono<RequestWorkflowContext> decorateContextWithPatronDetails(RequestWorkflowContext ctx) {
-
-		log.debug("decorateContextWithPatronDetails {}",ctx);
 
 		if ( ( ctx.getPatronRequest() == null ) || ( ctx.getPatronRequest().getId() == null ) ) {
 			log.error("Context does not have a patron request");
@@ -95,24 +94,38 @@ public class RequestWorkflowContextHelper {
 
 		return getRequestingIdentity(ctx)
 			.flatMap(this::decorateContextWithPatronAgency)
+			.flatMap(this::decorateContextWithPatronSystem)
 			;
 	}
 
 	private Mono<RequestWorkflowContext> decorateContextWithPatronAgency(RequestWorkflowContext ctx) {
 
-		log.debug("decorateContextWithPatronAgency {}",ctx);
-
 		return Mono.from(patronIdentityRepository.findResolvedAgencyById(ctx.getPatronHomeIdentity().getId()))
 			.flatMap( agency -> {
+				log.debug("Found patron agency {}",agency);
 				ctx.setPatronAgency(agency);
 				ctx.setPatronAgencyCode(agency.getCode());
 				return Mono.just(ctx);
 			});
 	}
 
+	private Mono<RequestWorkflowContext> decorateContextWithPatronSystem(RequestWorkflowContext ctx) {
+
+		// There is a problem here - as per getDataAgencyWithHostLms agencyRepository.findHostLmsById doesn't work directly
+                return Mono.from(agencyRepository.findHostLmsIdById(ctx.getPatronAgency().getId()))
+                	.flatMap( hostLmsId -> { return Mono.from(hostLmsRepository.findById(hostLmsId)); } )
+			.flatMap( patronHostLms -> {
+				ctx.setPatronSystem(patronHostLms);
+				ctx.setPatronSystemCode(patronHostLms.getCode());
+				return Mono.just( ctx );
+			});
+	}
 
 	// We find the patrons requesting identity via the patron request requestingIdentity property. this should NEVER be null
 	private Mono<RequestWorkflowContext> getRequestingIdentity(RequestWorkflowContext ctx) {
+
+		log.debug("getRequestingIdentity for request {}",ctx.getPatronRequest());
+
 		return Mono.from(patronRequestRepository.findRequestingIdentityById(ctx.getPatronRequest().getId()))
                         .flatMap( pid -> Mono.just(ctx.setPatronHomeIdentity(pid)) );
 	}
@@ -122,7 +135,6 @@ public class RequestWorkflowContextHelper {
         // If there is a -live- supplier request availabe for this patron request attach it to the context
         //
         private Mono<RequestWorkflowContext> findSupplierRequest(RequestWorkflowContext ctx) {
-                log.debug("findSupplierRequst....");
                 return supplierRequestService.findSupplierRequestFor(ctx.getPatronRequest())
                         .map(supplierRequest -> ctx.setSupplierRequest(supplierRequest))
                         .defaultIfEmpty(ctx);
@@ -133,7 +145,6 @@ public class RequestWorkflowContextHelper {
 	// it is tempting to thing that resolving patron and lending systems could be coalesced into a single function, but
 	// this is problematic due to the semantic difference. Please think carefully before attempting this (Desireable) consolidation
         private Mono<RequestWorkflowContext> resolvePickupLocationAgency(RequestWorkflowContext ctx) {
-                log.debug("resolve pickup location....{}",ctx.getPatronRequest().getPickupLocationCode());
                 return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
                         "PickupLocation",
                         "DCB",
