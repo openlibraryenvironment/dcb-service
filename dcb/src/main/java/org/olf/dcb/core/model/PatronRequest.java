@@ -124,6 +124,9 @@ public class PatronRequest {
 	private String localItemId;
 
 	@Nullable
+	private String localItemStatus;
+
+	@Nullable
 	private String localBibId;
 
 	@ToString.Include

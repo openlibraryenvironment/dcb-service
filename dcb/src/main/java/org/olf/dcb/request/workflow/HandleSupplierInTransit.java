@@ -78,7 +78,7 @@ public class HandleSupplierInTransit implements WorkflowAction {
 		if ( rwc.getPatronRequest().getLocalItemId() != null ) {
 			log.debug("Update patron system item: {}",rwc.getPatronRequest().getLocalItemId());
 			return hostLmsService.getClientFor(rwc.getPatronSystemCode())
-		 		.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(rwc.getPatronRequest().getLocalRequestId(), HostLmsClient.CanonicalItemState.TRANSIT))
+		 		.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(rwc.getPatronRequest().getLocalItemId(), HostLmsClient.CanonicalItemState.TRANSIT))
 				.thenReturn(rwc);
 		}
 		else {
