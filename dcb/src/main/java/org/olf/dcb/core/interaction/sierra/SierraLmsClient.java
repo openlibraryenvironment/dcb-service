@@ -757,13 +757,37 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	public Mono<HostLmsHold> getHold(String holdId) {
 		log.debug("getHold({})", holdId);
-		return Mono.from(client.getHold(Long.valueOf(holdId))).flatMap(sh -> Mono.just(sierraPatronHoldToHostLmsHold(sh)))
+		return Mono.from(client.getHold(Long.valueOf(holdId)))
+				.flatMap(sh -> Mono.just(sierraPatronHoldToHostLmsHold(sh)))
 				.defaultIfEmpty(new HostLmsHold(holdId, "MISSING"));
 	}
 
-	public Mono<String> updateRequestStatus(String requestId, CanonicalRequestState crs) {
-		log.debug("updateRequestStatus({},{})",requestId,crs);
-		return Mono.just("OK");
+	//
+	// II: We need to talk about this in a review session
+	//
+	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
+		log.debug("updateItemStatus({},{})",itemId,crs);
+		// See https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html#Standard
+		// In Sierra "-" == AVAILABLE, !=ON_HOLDSHELF, $=BILLED PAID, m=MISSING, n=BILLED NOT PAID, z=CL RETURNED, o=Lib Use Only, t=In Transit
+		String status = null;
+
+		switch ( crs ) {
+			case TRANSIT:
+				status= "t";
+				break;
+		}
+
+		if ( status != null ) {
+			ItemPatch ip = ItemPatch.builder()
+				.status(status)
+				.build();
+			return Mono.from(client.updateItem(itemId, ip))
+				.thenReturn("OK");
+
+		}
+		else {
+			return Mono.just("OK");
+		}
 	}
 
 }

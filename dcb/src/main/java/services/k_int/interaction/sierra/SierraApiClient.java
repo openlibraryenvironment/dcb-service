@@ -116,10 +116,17 @@ public interface SierraApiClient {
 	Publisher<LinkResult> createItem(final ItemPatch itemPatch);
 
 	@SingleResult
+	Publisher<Void> updateItem(final String itemId, final ItemPatch itemPatch);
+
+
+	@SingleResult
 	Publisher<LinkResult> patrons(final PatronPatch patronPatch);
 
 	@SingleResult
 	Publisher<LinkResult> bibs(final BibPatch bibPatch);
+
+	@SingleResult
+	Publisher<Void> updateBib(String bibId, BibPatch body);
 
 	@SingleResult
 	Publisher<SierraPatronRecord> patronFind(

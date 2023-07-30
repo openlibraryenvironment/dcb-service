@@ -19,6 +19,12 @@ public interface HostLmsClient {
 		TRANSIT
 	}
 
+	enum CanonicalItemState {
+                AVAILABLE,
+                TRANSIT
+        }
+
+
 	HostLms getHostLms();
 
 	Flux<Map<String, ?>> getAllBibData();
@@ -50,5 +56,5 @@ public interface HostLmsClient {
 
 	Mono<HostLmsHold> getHold(String holdId);
 
-	Mono<String> updateRequestStatus(String requestId, CanonicalRequestState crs);
+	Mono<String> updateItemStatus(String itemId, CanonicalItemState crs);
 }
