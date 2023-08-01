@@ -68,18 +68,22 @@ public class TrackingService implements Runnable {
 
 		log.info("Scheduled Tracking Ingest");
 		final long start = System.currentTimeMillis();
-		trackActivePatronRequestHolds()
-			.flatMap( this::checkPatronRequest)
-			.subscribe();
-		trackActiveSupplierHolds()
-			.flatMap( this::checkSupplierRequest)
-			.subscribe();
+		trackActivePatronRequestHolds().flatMap( this::checkPatronRequest).subscribe();
+		trackActiveSupplierHolds().flatMap( this::checkSupplierRequest).subscribe();
+		trackVirtualItems().flatMap( this::checkVirtualItem).subscribe();
 	}
 
 	public Flux<PatronRequest> trackActivePatronRequestHolds() {
 		log.debug("trackActivePatronRequestHolds()");
 		return Flux.from(patronRequestRepository.findTrackedPatronHolds());
 	}
+
+        // Track the state of items created in borrowing and pickup locations to track loaned (Or in transit) items
+        public Flux<PatronRequest> trackVirtualItems() {
+                log.debug("trackActivePatronRequestHolds()");
+                return Flux.from(patronRequestRepository.findTrackedVirtualItems());
+        }
+
 
 	public Flux<SupplierRequest> trackActiveSupplierHolds() {
 		log.debug("trackActiveSupplierHolds()");
@@ -90,6 +94,11 @@ public class TrackingService implements Runnable {
 		log.debug("Check patron request {}",pr);
 		return Mono.just(pr);
 	}
+
+	public Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
+		log.debug("Check (local) virtualItem from patron request {} {}",pr.getLocalItemId(),pr.getLocalItemStatus());
+		return Mono.just(pr);
+        }
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	public Mono<SupplierRequest> checkSupplierRequest(SupplierRequest sr) {
