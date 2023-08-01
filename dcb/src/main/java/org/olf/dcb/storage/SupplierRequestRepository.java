@@ -32,7 +32,7 @@ public interface SupplierRequestRepository {
 
 	Publisher<Void> delete(UUID id);
 
-	@Query(value = "SELECT sr.* from supplier_request sr where sr.status_code in ( select code from status_code where model = 'SupplierRequest' and tracked = true )", nativeQuery = true)
+	@Query(value = "SELECT sr.* from supplier_request sr where sr.status_code in ( select code from status_code where model = 'SupplierRequest' and tracked = true ) and ( sr.local_id is not null ) and ( sr.local_status <> 'MISSING') ", nativeQuery = true)
 	Publisher<SupplierRequest>  findTrackedSupplierHolds();
 
         @NonNull

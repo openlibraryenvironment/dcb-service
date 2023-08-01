@@ -101,9 +101,9 @@ public class TrackingService implements Runnable {
 
 	public Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
 		log.debug("Check (local) virtualItem from patron request {} {}",pr.getLocalItemId(),pr.getLocalItemStatus());
-                // return hostLmsService.getClientFor(hostLmsCode).flatMap( client -> client.getHold(holdId) );
-
-		return Mono.just(pr);
+                return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
+                        .flatMap( client -> client.getHold(pr.getLocalItemId()) )
+                        .thenReturn(pr);
         }
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
