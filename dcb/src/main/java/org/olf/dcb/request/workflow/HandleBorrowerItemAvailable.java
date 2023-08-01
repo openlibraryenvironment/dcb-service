@@ -43,6 +43,10 @@ public class HandleBorrowerItemAvailable implements WorkflowAction {
                 PatronRequest pr = (PatronRequest) sc.getResource();
                 if ( pr != null ) {
                         pr.setLocalItemStatus("AVAILABLE");
+
+                        // If we are in RET-STD workflow, an item becomming available at the borrowing agency is an indication that it is
+                        // Checked in, and we should update the status of the item at the lending institution.
+
                         log.debug("Set local status to AVAILABLE and save {}",pr);
                         return Mono.from(patronRequestRepository.saveOrUpdate(pr))
                                 .doOnNext(spr -> log.debug("Saved {}",spr))

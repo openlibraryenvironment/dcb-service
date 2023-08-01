@@ -81,6 +81,7 @@ public class SupplyingAgencyService {
                 return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
                         .flatMap(this::checkAndCreatePatronAtSupplier)
                         .flatMap(this::placeRequestAtSupplier)
+                        .flatMap(this::setPatronRequestWorkflow)
                         .flatMap(this::updateSupplierRequest)
                         .map(PatronRequest::placedAtSupplyingAgency)
 			.flatMap(this::createAuditEntry)
@@ -180,6 +181,27 @@ public class SupplyingAgencyService {
 		return supplierRequestService.updateSupplierRequest(supplierRequest)
 			.thenReturn(patronRequest);
 	}
+
+
+        // Depending upon the particular setup (1, 2 or three parties) we need to take different actions in different scenarios.
+        // Here we work out which particular workflow is in force and set a value on the patron request for easy reference.
+        // This can change as we select different suppliers, so we recalculate for each new supplier.
+	private Mono<RequestWorkflowContext> setPatronRequestWorkflow(RequestWorkflowContext psrc) {
+                log.debug("setPatronRequestWorkflow for {}",psrc);
+                if ( ( psrc.getPatronAgencyCode() == psrc.lenderAgencyCode ) && ( psrc.patronAgencyCode == psrc.pickupAgencyCode ) ) {
+                        // Case 1 : Purely local request
+                        psrc.getPatronRequest().setActiveWorkflow("RET-LOCAL");
+                }
+                else if ( psrc.patronAgencyCode == psrc.pickupAgencyCode ) {
+                        // Case 2 : Remote lender, patron picking up from a a library in their home system
+                        psrc.getPatronRequest().setActiveWorkflow("RET-STD");
+                }
+                else {
+                        psrc.getPatronRequest().setActiveWorkflow("RET-PUA");
+                }
+
+                return Mono.just(psrc);
+        }
 
 	private Mono<PatronIdentity> upsertPatronIdentityAtSupplier(RequestWorkflowContext psrc) {
 
