@@ -802,5 +802,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("getItem({})",itemId);
                 return Mono.from(client.getItem(itemId))
                         .flatMap( sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)));
+			.defaultIfEmpty(HostLmsItem.builder().localId(itemId).status("MISSING").build());
         }
 }
