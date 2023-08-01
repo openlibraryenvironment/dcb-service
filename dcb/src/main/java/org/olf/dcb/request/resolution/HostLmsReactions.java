@@ -71,15 +71,18 @@ public class HostLmsReactions {
                                         handler="SupplierRequestMissing";
                                 }
                                 else {
-                                        log.warn("Unhandled SupplierRequest ToState:{}",sc.getToState());
+                                        log.error("Unhandled SupplierRequest ToState:{}",sc.getToState());
                                 }
                         }
                         else if ( sc.getResourceType().equals("BorrowerVirtualItem") ) {
                                 if ( sc.getToState().equals("TRANSIT") ) {
-                                        handler="BorrowerRequestInTransit";
+                                        handler="BorrowerRequestItemInTransit";
+                                }
+                                if ( sc.getToState().equals("AVAILABLE") ) {
+                                        handler="BorrowerRequestItemAvailable";
                                 }
                                 else {
-                                        log.warn("Unhandled BorrowerVirtualItem ToState:{}",sc.getToState());
+                                        log.error("Unhandled BorrowerVirtualItem ToState:{}",sc.getToState());
                                 }
                         }
                         else {

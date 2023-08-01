@@ -22,14 +22,14 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 
 
 @Singleton
-@Named("BorrowerRequestItemInTransit")
-public class HandleBorrowerItemInTransit implements WorkflowAction {
+@Named("BorrowerRequestItemAvailable")
+public class HandleBorrowerItemAvailable implements WorkflowAction {
 
         private static final Logger log = LoggerFactory.getLogger(HandleSupplierInTransit.class);
         private RequestWorkflowContextHelper requestWorkflowContextHelper;
         private PatronRequestRepository patronRequestRepository;
 
-        public HandleBorrowerItemInTransit(
+        public HandleBorrowerItemAvailable(
                 PatronRequestRepository patronRequestRepository,
                 RequestWorkflowContextHelper requestWorkflowContextHelper) {
                 this.patronRequestRepository = patronRequestRepository;
@@ -39,17 +39,17 @@ public class HandleBorrowerItemInTransit implements WorkflowAction {
         @Transactional
         public Mono<Map<String,Object>> execute(Map<String,Object> context) {
                 StateChange sc = (StateChange) context.get("StateChange");
-                log.debug("HandleBorrowerItemInTransit {}",sc);
+                log.debug("HandleBorrowerItemAvailable {}",sc);
                 PatronRequest pr = (PatronRequest) sc.getResource();
                 if ( pr != null ) {
-                        pr.setLocalItemStatus("TRANSIT");
-                        log.debug("Set local status to TRANSIT and save {}",pr);
+                        pr.setLocalItemStatus("AVAILABLE");
+                        log.debug("Set local status to AVAILABLE and save {}",pr);
                         return Mono.from(patronRequestRepository.saveOrUpdate(pr))
                                 .doOnNext(spr -> log.debug("Saved {}",spr))
                                 .thenReturn(context);
                 }
                 else {
-                        log.warn("Unable to locate patron request to mark as missing");
+                        log.warn("Unable to locate patron request to mark as available");
                         return Mono.just(context);
                 }
         }
