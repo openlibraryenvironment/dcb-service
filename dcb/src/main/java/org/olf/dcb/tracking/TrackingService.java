@@ -100,11 +100,13 @@ public class TrackingService implements Runnable {
 	}
 
 	public Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
-		log.debug("Check (local) virtualItem from patron request {} {}",pr.getLocalItemId(),pr.getLocalItemStatus());
+		log.debug("Check (local) virtualItem from patron request {} {} {}",pr.getLocalItemId(),pr.getLocalItemStatus(),pr.getPatronHostlmsCode());
                 if ( ( pr.getPatronHostlmsCode() != null ) && ( pr.getLocalItemId() != null ) ) {
                         return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
-                                .flatMap( client -> client.getHold(pr.getLocalItemId()) )
-                                .thenReturn(pr);
+                                .flatMap( client -> Mono.from(client.getItem(pr.getLocalItemId())) )
+                                .doOnNext( hostitem -> log.debug("host item {}",hostitem) )
+                                .thenReturn(pr)
+                                .defaultIfEmpty(pr);
                 }
                 else {
                         log.warn("Trackable local item - NULL");

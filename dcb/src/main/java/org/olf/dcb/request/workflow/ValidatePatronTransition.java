@@ -127,7 +127,12 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
                 return Flux.fromIterable(patronRequest.getPatron().getPatronIdentities())
                         .filter(PatronIdentity::getHomeIdentity)
 			.flatMap(this::validatePatronIdentity)
-			.map(patronRequest::setRequestingIdentity)
+			.map( resolvedPatronIdentity -> {
+                           patronRequest.setRequestingIdentity(resolvedPatronIdentity);
+                           if ( ( resolvedPatronIdentity != null ) && ( resolvedPatronIdentity.getHostLms() != null ) )
+                                patronRequest.setPatronHostlmsCode(resolvedPatronIdentity.getHostLms().getCode());
+                           return patronRequest;
+                        })
                         .then(validateLocations(patronRequest))
 			.doOnSuccess( pr -> log.debug("Validated patron request: {}", pr))
                         .doOnError( error -> log.error( "Error occurred validating a patron request: {}", error.getMessage()))
