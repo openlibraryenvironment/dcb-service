@@ -63,14 +63,27 @@ public class HostLmsReactions {
                         context.put("StateChange",sc);
 
                         // This will be replaced by a table in the near future
-                        if ( sc.getToState().equals("TRANSIT") ) {
-                          handler="SupplierRequestInTransit";
+                        if ( sc.getResourceType().equals("SupplierRequest") ) {
+                                if ( sc.getToState().equals("TRANSIT") ) {
+                                        handler="SupplierRequestInTransit";
+                                }
+                                else if ( sc.getToState().equals("MISSING") ) {
+                                        handler="SupplierRequestMissing";
+                                }
+                                else {
+                                        log.warn("Unhandled SupplierRequest ToState:{}",sc.getToState());
+                                }
                         }
-                        else if ( sc.getToState().equals("MISSING") ) {
-                          handler="SupplierRequestMissing";
+                        else if ( sc.getResourceType().equals("BorrowerVirtualItem") ) {
+                                if ( sc.getToState().equals("TRANSIT") ) {
+                                        handler="BorrowerRequestInTransit";
+                                }
+                                else {
+                                        log.warn("Unhandled BorrowerVirtualItem ToState:{}",sc.getToState());
+                                }
                         }
                         else {
-                                log.warn("Unhandled ToState:{}",sc.getToState());
+                                log.error("Unhandled resource type for status change record {}",sc);
                         }
                 }
                 else {

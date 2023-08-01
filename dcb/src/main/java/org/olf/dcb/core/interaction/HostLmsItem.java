@@ -16,6 +16,17 @@ import io.micronaut.core.annotation.Nullable;
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
 public class HostLmsItem {
+
+        // Likely that the hold has been deleted from the host system
+        public static final String ITEM_MISSING="MISSING";
+
+        // The Hold has been placed, but is not yet available
+        public static final String ITEM_AVAILABLE="AVAILABLE";
+
+        // The hold is in transit
+        public static final String ITEM_TRANSIT="TRANSIT";
+
 	String localId;
 	String status;
+	String barcode;
 }

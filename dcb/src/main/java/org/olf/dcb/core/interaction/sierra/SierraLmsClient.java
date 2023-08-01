@@ -499,6 +499,20 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return result;
 	}
+
+        // Informed by https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
+        private String mapSierraItemStatusToDCBHoldStatus(String code) {
+                String result;
+
+                switch (code) {
+                        case "-" -> result = HostLmsItem.ITEM_AVAILABLE;
+                        case "t" -> result = HostLmsItem.ITEM_TRANSIT; // IN Transit
+                        default -> result = code;
+                }
+
+                return result;
+        }
+
 	private Tuple2<String, String> chooseHold(String note, List<SierraPatronHold> filteredHolds) {
 		log.debug("chooseHold({},{})", note, filteredHolds);
 
@@ -795,6 +809,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                 log.debug("convert {} to HostLmsItem",si);
                 return HostLmsItem.builder()
                         .localId(si.getId())
+                        .barcode(si.getBarcode())
+                        .status( si.getStatus() != null  ? mapSierraItemStatusToDCBHoldStatus(si.getStatus().getCode()) : null )
                         .build();
         }
 
