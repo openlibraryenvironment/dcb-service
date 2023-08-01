@@ -4,6 +4,7 @@ import io.micronaut.runtime.context.scope.Refreshable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
@@ -38,16 +39,19 @@ public class TrackingService implements Runnable {
 	private PatronRequestRepository patronRequestRepository;
 	private SupplierRequestRepository supplierRequestRepository;
 	private SupplyingAgencyService supplyingAgencyService;
+        private final HostLmsService hostLmsService;
 	private HostLmsReactions hostLmsReactions;
 
 	TrackingService( PatronRequestRepository patronRequestRepository,
 			 SupplierRequestRepository supplierRequestRepository,
                          SupplyingAgencyService supplyingAgencyService,
+                         HostLmsService hostLmsService,
                          HostLmsReactions hostLmsReactions
                         ) {
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplyingAgencyService = supplyingAgencyService;
+		this.hostLmsService = hostLmsService;
 		this.hostLmsReactions = hostLmsReactions;
 	}
 
@@ -80,7 +84,7 @@ public class TrackingService implements Runnable {
 
         // Track the state of items created in borrowing and pickup locations to track loaned (Or in transit) items
         public Flux<PatronRequest> trackVirtualItems() {
-                log.debug("trackActivePatronRequestHolds()");
+                log.debug("trackVirtualItems()");
                 return Flux.from(patronRequestRepository.findTrackedVirtualItems());
         }
 
@@ -97,6 +101,8 @@ public class TrackingService implements Runnable {
 
 	public Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
 		log.debug("Check (local) virtualItem from patron request {} {}",pr.getLocalItemId(),pr.getLocalItemStatus());
+                // return hostLmsService.getClientFor(hostLmsCode).flatMap( client -> client.getHold(holdId) );
+
 		return Mono.just(pr);
         }
 

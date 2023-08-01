@@ -29,6 +29,7 @@ public interface HostLmsClient {
 
 	Flux<Map<String, ?>> getAllBibData();
 
+
 	Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode);
 
 	Mono<String> createPatron(Patron patron);
@@ -55,6 +56,8 @@ public interface HostLmsClient {
 	Mono<HostLmsItem> createItem(String bibId, String locationCode, String barcode);
 
 	Mono<HostLmsHold> getHold(String holdId);
+
+	Mono<HostLmsItem> getItem(String bibId);
 
 	Mono<String> updateItemStatus(String itemId, CanonicalItemState crs);
 }

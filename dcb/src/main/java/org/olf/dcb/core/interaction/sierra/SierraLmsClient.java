@@ -68,6 +68,7 @@ import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
@@ -790,4 +791,16 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		}
 	}
 
+        public HostLmsItem sierraItemToHostLmsItem(SierraItem si){
+                log.debug("convert {} to HostLmsItem",si);
+                return HostLmsItem.builder()
+                        .localId(si.getId())
+                        .build();
+        }
+
+        public Mono<HostLmsItem> getItem(String itemId) {
+		log.debug("getItem({})",itemId);
+                return Mono.from(client.getItem(itemId))
+                        .flatMap( sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)));
+        }
 }

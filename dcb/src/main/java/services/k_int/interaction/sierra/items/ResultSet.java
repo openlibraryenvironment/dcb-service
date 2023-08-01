@@ -14,5 +14,5 @@ import lombok.Data;
 public class ResultSet {
 	int total;
 	int start;
-	@NotNull List<Result> entries;
+	@NotNull List<SierraItem> entries;
 }

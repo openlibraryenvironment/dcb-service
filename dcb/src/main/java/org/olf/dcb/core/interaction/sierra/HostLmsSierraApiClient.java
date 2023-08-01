@@ -52,6 +52,7 @@ import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
@@ -192,6 +193,13 @@ public class HostLmsSierraApiClient implements SierraApiClient {
                         .flatMap(req -> doExchange(req, Object.class))
                         .then();
 	}
+
+        @Override
+        @SingleResult
+        @Retryable
+        public Publisher<SierraItem> getItem(final String itemId) {
+                return get("items/"+itemId, Argument.of(SierraItem.class), uri -> {});
+        }
 
 	@SingleResult
 	public Publisher<LinkResult> patrons(PatronPatch body) {
