@@ -46,6 +46,18 @@ public class HandleBorrowerItemAvailable implements WorkflowAction {
 
                         // If we are in RET-STD workflow, an item becomming available at the borrowing agency is an indication that it is
                         // Checked in, and we should update the status of the item at the lending institution.
+                        if ( pr.getActiveWorkflow() != null ) {
+                                if ( pr.getActiveWorkflow().equals("RET-STD") ) {
+                                        // Standard workflow - remote brrower, patron picking up from a library in the home system
+                                        log.info("We should tell the lender system that the item has arrived");
+                                }
+                                else {
+                                        log.warn("Unhandled workflow {}",pr.getActiveWorkflow());
+                                }
+                        }
+                        else {
+                                log.warn("Request has no active workflow, just store state");
+                        }
 
                         log.debug("Set local status to AVAILABLE and save {}",pr);
                         return Mono.from(patronRequestRepository.saveOrUpdate(pr))
