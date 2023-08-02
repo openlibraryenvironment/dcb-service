@@ -2,6 +2,8 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.HttpMethod.PUT;
+import static io.micronaut.http.HttpMethod.DELETE;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
 import static reactor.core.publisher.Mono.empty;
@@ -50,6 +52,7 @@ import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
@@ -181,6 +184,23 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.flatMap(request -> doRetrieve(request, Argument.of(LinkResult.class)));
 	}
 
+	@Override
+	@SingleResult
+        public Mono<Void> updateItem(final String itemId, final ItemPatch body) {
+                return putRequest("items/"+itemId)
+                        .map(req -> req.body(body))
+                        .flatMap(this::ensureToken)
+                        .flatMap(req -> doExchange(req, Object.class))
+                        .then();
+	}
+
+        @Override
+        @SingleResult
+        @Retryable
+        public Publisher<SierraItem> getItem(final String itemId) {
+                return get("items/"+itemId, Argument.of(SierraItem.class), uri -> {});
+        }
+
 	@SingleResult
 	public Publisher<LinkResult> patrons(PatronPatch body) {
 		// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Create_a_patron_record_post_0
@@ -198,6 +218,17 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.flatMap(this::ensureToken)
 			.flatMap(req -> doRetrieve(req, Argument.of(LinkResult.class)));
 	}
+
+	@SingleResult
+        public Mono<Void> updateBib(final String bibId, final BibPatch body) {
+                // https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/bibs/Create_a_Bib_record_post_0
+                return putRequest("bibs/"+bibId)
+                        .map(req -> req.body(body))
+                        .flatMap(this::ensureToken)
+			.flatMap(req -> doExchange(req, Object.class))
+                        .then();
+        }
+
 
 	@SingleResult
 	public Publisher<SierraPatronRecord> patronFind(String varFieldTag, String varFieldContent) {
@@ -330,6 +361,10 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 	private <T> Mono<MutableHttpRequest<T>> postRequest(String path) {
 		return createRequest(POST, path);
+	}
+
+	private <T> Mono<MutableHttpRequest<T>> putRequest(String path) {
+		return createRequest(PUT, path);
 	}
 
 	private <T> Mono<MutableHttpRequest<T>> createRequest(HttpMethod method, String path) {

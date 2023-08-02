@@ -76,15 +76,12 @@ public class SupplyingAgencyService {
                 // 2. Pickup at lender - Patron will pick item up from lender system, but borrower system is different
                 // 3. Pickup at borrower - Patron will pick item up from one of their home libraries, borrower system is different
                 // 4. PUA - Lender, Pickup and Borrower systems are all different.
-                RequestWorkflowContext rwc = new RequestWorkflowContext();
-                rwc.setPatronRequest(patronRequest);
-
-                log.debug("Execute flow... {}",rwc);
 
                 // For now, the collect method just attaches the suppier request, but more coming
-                return requestWorkflowContextHelper.collect(rwc)
+                return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
                         .flatMap(this::checkAndCreatePatronAtSupplier)
                         .flatMap(this::placeRequestAtSupplier)
+                        .flatMap(this::setPatronRequestWorkflow)
                         .flatMap(this::updateSupplierRequest)
                         .map(PatronRequest::placedAtSupplyingAgency)
 			.flatMap(this::createAuditEntry)
@@ -184,6 +181,27 @@ public class SupplyingAgencyService {
 		return supplierRequestService.updateSupplierRequest(supplierRequest)
 			.thenReturn(patronRequest);
 	}
+
+
+        // Depending upon the particular setup (1, 2 or three parties) we need to take different actions in different scenarios.
+        // Here we work out which particular workflow is in force and set a value on the patron request for easy reference.
+        // This can change as we select different suppliers, so we recalculate for each new supplier.
+	private Mono<RequestWorkflowContext> setPatronRequestWorkflow(RequestWorkflowContext psrc) {
+                log.debug("setPatronRequestWorkflow for {}",psrc);
+                if ( ( psrc.getPatronAgencyCode() == psrc.lenderAgencyCode ) && ( psrc.patronAgencyCode == psrc.pickupAgencyCode ) ) {
+                        // Case 1 : Purely local request
+                        psrc.getPatronRequest().setActiveWorkflow("RET-LOCAL");
+                }
+                else if ( psrc.patronAgencyCode == psrc.pickupAgencyCode ) {
+                        // Case 2 : Remote lender, patron picking up from a a library in their home system
+                        psrc.getPatronRequest().setActiveWorkflow("RET-STD");
+                }
+                else {
+                        psrc.getPatronRequest().setActiveWorkflow("RET-PUA");
+                }
+
+                return Mono.just(psrc);
+        }
 
 	private Mono<PatronIdentity> upsertPatronIdentityAtSupplier(RequestWorkflowContext psrc) {
 

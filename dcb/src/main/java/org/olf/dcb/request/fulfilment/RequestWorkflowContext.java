@@ -4,6 +4,7 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.model.Agency;
+import org.olf.dcb.core.model.DataHostLms;
 import lombok.experimental.Accessors;
 import lombok.Data;
 
@@ -24,6 +25,7 @@ public class RequestWorkflowContext {
         String patronAgencyCode;
         String patronSystemCode;
         Agency patronAgency;
+	DataHostLms patronSystem;
 
         String pickupAgencyCode;
         String pickupSystemCode;

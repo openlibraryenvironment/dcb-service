@@ -4,6 +4,7 @@ import io.micronaut.runtime.context.scope.Refreshable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
@@ -23,6 +24,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import io.micronaut.context.event.ApplicationEventPublisher;
+import javax.transaction.Transactional;
+import org.olf.dcb.request.resolution.HostLmsReactions;
 
 @Refreshable
 @Singleton
@@ -36,18 +39,20 @@ public class TrackingService implements Runnable {
 	private PatronRequestRepository patronRequestRepository;
 	private SupplierRequestRepository supplierRequestRepository;
 	private SupplyingAgencyService supplyingAgencyService;
-        private final ApplicationEventPublisher<TrackingRecord> eventPublisher;
-        // private final ApplicationEventPublisher<StateChange> stateChangeEventPublisher;
+        private final HostLmsService hostLmsService;
+	private HostLmsReactions hostLmsReactions;
 
 	TrackingService( PatronRequestRepository patronRequestRepository,
 			 SupplierRequestRepository supplierRequestRepository,
                          SupplyingAgencyService supplyingAgencyService,
-                         ApplicationEventPublisher<TrackingRecord> eventPublisher
+                         HostLmsService hostLmsService,
+                         HostLmsReactions hostLmsReactions
                         ) {
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplyingAgencyService = supplyingAgencyService;
-		this.eventPublisher = eventPublisher;
+		this.hostLmsService = hostLmsService;
+		this.hostLmsReactions = hostLmsReactions;
 	}
 
 	@javax.annotation.PostConstruct
@@ -67,18 +72,22 @@ public class TrackingService implements Runnable {
 
 		log.info("Scheduled Tracking Ingest");
 		final long start = System.currentTimeMillis();
-		trackActivePatronRequestHolds()
-			.flatMap( this::checkPatronRequest)
-			.subscribe();
-		trackActiveSupplierHolds()
-			.flatMap( this::checkSupplierRequest)
-			.subscribe();
+		trackActivePatronRequestHolds().flatMap( this::checkPatronRequest).subscribe();
+		trackActiveSupplierHolds().flatMap( this::checkSupplierRequest).subscribe();
+		trackVirtualItems().flatMap( this::checkVirtualItem).subscribe();
 	}
 
 	public Flux<PatronRequest> trackActivePatronRequestHolds() {
 		log.debug("trackActivePatronRequestHolds()");
 		return Flux.from(patronRequestRepository.findTrackedPatronHolds());
 	}
+
+        // Track the state of items created in borrowing and pickup locations to track loaned (Or in transit) items
+        public Flux<PatronRequest> trackVirtualItems() {
+                log.debug("trackVirtualItems()");
+                return Flux.from(patronRequestRepository.findTrackedVirtualItems());
+        }
+
 
 	public Flux<SupplierRequest> trackActiveSupplierHolds() {
 		log.debug("trackActiveSupplierHolds()");
@@ -90,8 +99,35 @@ public class TrackingService implements Runnable {
 		return Mono.just(pr);
 	}
 
-	private Mono<SupplierRequest> checkSupplierRequest(SupplierRequest sr) {
-		log.debug("Check supplier request {}",sr);
+	public Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
+		log.debug("Check (local) virtualItem from patron request {} {} {}",pr.getLocalItemId(),pr.getLocalItemStatus(),pr.getPatronHostlmsCode());
+                if ( ( pr.getPatronHostlmsCode() != null ) && ( pr.getLocalItemId() != null ) ) {
+                        return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
+                                .flatMap( client -> Mono.from(client.getItem(pr.getLocalItemId())) )
+                                .filter ( item -> !item.getStatus().equals(pr.getLocalItemStatus()) )
+                                .flatMap ( item -> {
+                                        log.debug("Detected borrowing system - virtual item status change {} to {}",pr.getLocalItemStatus(),item.getStatus());
+                                        StateChange sc = StateChange.builder()
+                                                            .resourceType("BorrowerVirtualItem")
+                                                            .resourceId(pr.getId().toString())
+                                                            .fromState(pr.getLocalItemStatus())
+                                                            .toState(item.getStatus())
+                                                            .resource(pr)
+                                                            .build();
+                                        log.debug("Publishing state change event {}",sc);
+				        return hostLmsReactions.onTrackingEvent(sc)
+                                                .thenReturn(pr);
+                                });
+                }
+                else {
+                        log.warn("Trackable local item - NULL");
+                        return Mono.just(pr);
+                }
+        }
+
+	@Transactional(Transactional.TxType.REQUIRES_NEW)
+	public Mono<SupplierRequest> checkSupplierRequest(SupplierRequest sr) {
+		log.debug("Check supplier request {}",sr.getId(),sr.getLocalStatus());
 
                 // We fetch the state of the hold at the supplying library. If it is different to the last state
                 // we stashed in SupplierRequest.localStatus then we have detected a change. We emit an event to let
@@ -107,7 +143,7 @@ public class TrackingService implements Runnable {
 				log.error("Error occurred: " + e.getMessage(),e);
 			})
                         .filter ( hold -> !hold.getStatus().equals(sr.getLocalStatus()) )
-			.map( hold -> { 
+			.flatMap( hold -> { 
 				log.debug("current request status: {}",hold);
                                 StateChange sc = StateChange.builder()
                                                             .resourceType("SupplierRequest")
@@ -116,18 +152,10 @@ public class TrackingService implements Runnable {
                                                             .toState(hold.getStatus())
                                                             .resource(sr)
                                                             .build();
-                                // SupplierRequestHold.StatusChange id fromstate tostate
                                 log.debug("Publishing state change event {}",sc);
-                                // stateChangeEventPublisher.publishEvent(sc);
-
-                                // We use a synchronous event here because we don't want to launch a load of
-                                // parallel work (At least not initially)
-                                eventPublisher.publishEvent(sc);
-
-                                // sr.setLocalStatus(hold.getStatus());
-				return sr;
+				return hostLmsReactions.onTrackingEvent(sc)
+                                        .thenReturn(sr);
 			});
-                        // .flatMap( usr -> Mono.fromDirect(supplierRequestRepository.saveOrUpdate(usr) ));
 	}
 }
 

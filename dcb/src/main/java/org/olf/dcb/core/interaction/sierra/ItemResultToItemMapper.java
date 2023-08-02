@@ -4,7 +4,7 @@ import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
-import services.k_int.interaction.sierra.items.Result;
+import services.k_int.interaction.sierra.items.SierraItem;
 
 import java.time.ZonedDateTime;
 
@@ -20,7 +20,7 @@ class ItemResultToItemMapper {
 		this.itemStatusMapper = itemStatusMapper;
 	}
 
-	Mono<org.olf.dcb.core.model.Item> mapResultToItem(Result result, String hostLmsCode, String bibId) {
+	Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem result, String hostLmsCode, String bibId) {
 		// log.debug("mapResultToItem({}, {})", result, hostLmsCode);
 
 			final var dueDate = result.getStatus().getDuedate();

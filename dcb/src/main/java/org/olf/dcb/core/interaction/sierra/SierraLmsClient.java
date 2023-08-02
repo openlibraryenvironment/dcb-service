@@ -68,6 +68,7 @@ import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
@@ -498,6 +499,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return result;
 	}
+
+        // Informed by https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
+        private String mapSierraItemStatusToDCBHoldStatus(String code) {
+                String result;
+
+                switch (code) {
+                        case "-" -> result = HostLmsItem.ITEM_AVAILABLE;
+                        case "t" -> result = HostLmsItem.ITEM_TRANSIT; // IN Transit
+                        case "@" -> result = HostLmsItem.ITEM_OFFSITE; // IN Transit
+                        default -> result = code;
+                }
+
+                return result;
+        }
+
 	private Tuple2<String, String> chooseHold(String note, List<SierraPatronHold> filteredHolds) {
 		log.debug("chooseHold({},{})", note, filteredHolds);
 
@@ -757,7 +773,55 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	public Mono<HostLmsHold> getHold(String holdId) {
 		log.debug("getHold({})", holdId);
-		return Mono.from(client.getHold(Long.valueOf(holdId))).flatMap(sh -> Mono.just(sierraPatronHoldToHostLmsHold(sh)))
+		return Mono.from(client.getHold(Long.valueOf(holdId)))
+				.flatMap(sh -> Mono.just(sierraPatronHoldToHostLmsHold(sh)))
 				.defaultIfEmpty(new HostLmsHold(holdId, "MISSING"));
 	}
+
+	//
+	// II: We need to talk about this in a review session
+	//
+	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
+		log.debug("updateItemStatus({},{})",itemId,crs);
+		// See https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html#Standard
+		// In Sierra "-" == AVAILABLE, !=ON_HOLDSHELF, $=BILLED PAID, m=MISSING, n=BILLED NOT PAID, z=CL RETURNED, o=Lib Use Only, t=In Transit
+		String status = null;
+
+		switch ( crs ) {
+			case TRANSIT:
+				status= "t";
+				break;
+			case OFFSITE:
+				status= "@";
+				break;
+		}
+
+		if ( status != null ) {
+			ItemPatch ip = ItemPatch.builder()
+				.status(status)
+				.build();
+			return Mono.from(client.updateItem(itemId, ip))
+				.thenReturn("OK");
+
+		}
+		else {
+			return Mono.just("OK");
+		}
+	}
+
+        public HostLmsItem sierraItemToHostLmsItem(SierraItem si){
+                log.debug("convert {} to HostLmsItem",si);
+                return HostLmsItem.builder()
+                        .localId(si.getId())
+                        .barcode(si.getBarcode())
+                        .status( si.getStatus() != null  ? mapSierraItemStatusToDCBHoldStatus(si.getStatus().getCode()) : null )
+                        .build();
+        }
+
+        public Mono<HostLmsItem> getItem(String itemId) {
+		log.debug("getItem({})",itemId);
+                return Mono.from(client.getItem(itemId))
+                        .flatMap( sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)))
+			.defaultIfEmpty(HostLmsItem.builder().localId(itemId).status("MISSING").build());
+        }
 }

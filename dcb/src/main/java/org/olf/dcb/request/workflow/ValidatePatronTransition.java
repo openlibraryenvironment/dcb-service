@@ -120,23 +120,21 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 		patronRequest.setStatus(Status.PATRON_VERIFIED);
 
-		// pull out patronRequest.patron and get the home patron then use the web
-		// service to look up the patron
-		// patronRequest.patron
-		// This was the original design - where we use the DB to return the patron home
-		// identity
-		// return
-		// Mono.from(patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(),
-		// TRUE))
-
-		// This version searches through the patron identities attached to the patron
-		// request and selects the home identity
-		return Flux.fromIterable(patronRequest.getPatron().getPatronIdentities()).filter(PatronIdentity::getHomeIdentity)
-				.flatMap(this::validatePatronIdentity).map(patronRequest::setRequestingIdentity)
-				.then(validateLocations(patronRequest)).doOnSuccess(pr -> log.debug("Validated patron request: {}", pr))
-				.doOnError(error -> log.error("Error occurred validating a patron request: {}", error.getMessage()))
-				.flatMap(this::createAuditEntry)
-				.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
+                // This version searches through the patron identities attached to the patron request and selects the home identity
+                return Flux.fromIterable(patronRequest.getPatron().getPatronIdentities())
+                        .filter(PatronIdentity::getHomeIdentity)
+			.flatMap(this::validatePatronIdentity)
+			.map( resolvedPatronIdentity -> {
+                           patronRequest.setRequestingIdentity(resolvedPatronIdentity);
+                           if ( ( resolvedPatronIdentity != null ) && ( resolvedPatronIdentity.getHostLms() != null ) )
+                                patronRequest.setPatronHostlmsCode(resolvedPatronIdentity.getHostLms().getCode());
+                           return patronRequest;
+                        })
+                        .then(validateLocations(patronRequest))
+			.doOnSuccess( pr -> log.debug("Validated patron request: {}", pr))
+                        .doOnError( error -> log.error( "Error occurred validating a patron request: {}", error.getMessage()))
+			.flatMap(this::createAuditEntry)
+		        .transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
 
 	private Mono<PatronRequest> validateLocations(PatronRequest patronRequest) {

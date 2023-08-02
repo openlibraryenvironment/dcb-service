@@ -11,31 +11,34 @@ import jakarta.inject.Named;
 import org.olf.dcb.tracking.model.StateChange;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.storage.SupplierRequestRepository;
+import javax.transaction.Transactional;
 
 @Singleton
 @Named("SupplierRequestMissing")
 public class HandleSupplierRequestMissing implements WorkflowAction {
 
-        private static final Logger log = LoggerFactory.getLogger(HandleSupplierInTransit.class);
+        private static final Logger log = LoggerFactory.getLogger(HandleSupplierRequestMissing.class);
         private SupplierRequestRepository supplierRequestRepository;
 
         public HandleSupplierRequestMissing(SupplierRequestRepository supplierRequestRepository) {
                 this.supplierRequestRepository = supplierRequestRepository;
         }
 
+        @Transactional
         public Mono<Map<String,Object>> execute(Map<String,Object> context) {
                 StateChange sc = (StateChange) context.get("StateChange");
                 log.debug("HandleSupplierRequestMissing {}",sc);
 
                 SupplierRequest sr = (SupplierRequest) sc.getResource();
                 if ( sr != null ) {
-                        log.debug("Set local status to missing and save");
                         sr.setLocalStatus("MISSING");
+                        log.debug("Set local status to missing and save {}",sr);
                         return Mono.from(supplierRequestRepository.saveOrUpdate(sr))
+                                .doOnNext(ssr -> log.debug("Saved {}",ssr))
                                 .thenReturn(context);
                 }
                 else {
-                        log.debug("Unable to locate supplier request");
+                        log.warn("Unable to locate supplier request to mark as missing");
                         return Mono.just(context);
                 }
         }

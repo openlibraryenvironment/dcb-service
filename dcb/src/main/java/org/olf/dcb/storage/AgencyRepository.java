@@ -51,4 +51,8 @@ public interface AgencyRepository {
 
         // Find the ID Of the HostLms for this repository. Wanted findHostLmsById but that seems to cause problems.
         Publisher<UUID> findHostLmsIdById(@NonNull UUID id);
+
+	@NonNull
+	@SingleResult
+	Publisher<DataHostLms> findHostLmsById(@NonNull UUID id);
 }

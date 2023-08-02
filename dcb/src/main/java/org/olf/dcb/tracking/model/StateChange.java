@@ -7,12 +7,14 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Builder
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Serdeable
+@ToString
 public class StateChange  extends TrackingRecord {
 
 	public static final String STATE_CHANGE_RECORD = "STATE_CHANGE";
@@ -22,6 +24,7 @@ public class StateChange  extends TrackingRecord {
         private String fromState;
         private String toState;
 
+	@ToString.Exclude
         private Object resource;
 
 	@Override

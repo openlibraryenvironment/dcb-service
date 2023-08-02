@@ -34,6 +34,7 @@ import java.util.UUID;
 @MappedEntity
 @ExcludeFromGeneratedCoverageReport
 @Accessors(chain = true)
+@ToString(onlyExplicitlyIncluded = true)
 public class PatronRequest {
 
 	@Serdeable
@@ -42,18 +43,17 @@ public class PatronRequest {
 		REQUEST_PLACED_AT_BORROWING_AGENCY, CANCELLED, ERROR
 	}
 
+	@ToString.Include
 	@NotNull
 	@NonNull
 	@Id
 	@TypeDef(type = DataType.UUID)
 	private UUID id;
 
-	@ToString.Exclude
 	@Nullable
 	@DateCreated
 	private Instant dateCreated;
 
-	@ToString.Exclude
 	@Nullable
 	@DateUpdated
 	private Instant dateUpdated;
@@ -62,12 +62,10 @@ public class PatronRequest {
 	@Size(max = 200)
 	private String patronHostlmsCode;
 
-	@ToString.Exclude
 	@Nullable
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private Patron patron;
 
-	@ToString.Exclude
 	@Nullable
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private PatronIdentity requestingIdentity;
@@ -111,6 +109,7 @@ public class PatronRequest {
 	// instructions at a getter and setter level to prevent any JSON binding to this
 	// field but allow deserilization for output.
 	@JsonIgnore
+	@ToString.Include
 	@Nullable
 	@Column(name = "status_code") // Preserve the data mapping value from the old string type.
 	private Status status;
@@ -127,8 +126,12 @@ public class PatronRequest {
 	private String localItemId;
 
 	@Nullable
+	private String localItemStatus;
+
+	@Nullable
 	private String localBibId;
 
+	@ToString.Include
 	@Nullable
 	private String description;
 
@@ -146,7 +149,16 @@ public class PatronRequest {
 		return this;
 	}
 
-	@ToString.Exclude
+        /**
+         * It is useful to have a shorthand note of the specific workflow which is in force for the patron request - initially
+         * RET- RETURNABLE ITEMS
+         * RET-LOCAL - We're placing a request in a single system - the patron, pickup and lending roles are all within a single system (1 Party)
+         * RET-STD - We're placing a request at a remote system, but the patron will pick the item up from their local library (2 parties)
+         * RET-PUA - The Borrower, Patron and Pickup systems are all different (3 parties)
+         */
+	@Nullable
+	private String activeWorkflow;
+
 	@OneToMany(mappedBy = "patronRequestAuditId")
 	private List<PatronRequestAudit> patronRequestAudits;
 
