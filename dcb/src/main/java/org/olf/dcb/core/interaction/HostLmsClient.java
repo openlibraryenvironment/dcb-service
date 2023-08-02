@@ -21,7 +21,8 @@ public interface HostLmsClient {
 
 	enum CanonicalItemState {
                 AVAILABLE,
-                TRANSIT
+                TRANSIT,
+                OFFSITE
         }
 
 

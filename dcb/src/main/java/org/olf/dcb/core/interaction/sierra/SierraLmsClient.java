@@ -507,6 +507,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                 switch (code) {
                         case "-" -> result = HostLmsItem.ITEM_AVAILABLE;
                         case "t" -> result = HostLmsItem.ITEM_TRANSIT; // IN Transit
+                        case "@" -> result = HostLmsItem.ITEM_OFFSITE; // IN Transit
                         default -> result = code;
                 }
 
@@ -789,6 +790,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		switch ( crs ) {
 			case TRANSIT:
 				status= "t";
+				break;
+			case OFFSITE:
+				status= "@";
 				break;
 		}
 

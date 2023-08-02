@@ -26,6 +26,9 @@ public class HostLmsItem {
         // The hold is in transit
         public static final String ITEM_TRANSIT="TRANSIT";
 
+        // Item is off-site
+        public static final String ITEM_OFFSITE="OFFSITE";
+
 	String localId;
 	String status;
 	String barcode;
