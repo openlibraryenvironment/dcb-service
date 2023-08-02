@@ -5,6 +5,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.reactivestreams.Publisher;
 import io.micronaut.core.annotation.NonNull;
@@ -50,4 +51,7 @@ public interface SupplierRequestRepository {
         @SingleResult
         @NonNull
         Publisher<PatronRequest> findPatronRequestById(UUID supplierRequestId);
+
+	Publisher<PatronIdentity> findVirtualIdentityById(UUID supplierRequestId);
 }
+

@@ -138,8 +138,22 @@ public class RequestWorkflowContextHelper {
         private Mono<RequestWorkflowContext> findSupplierRequest(RequestWorkflowContext ctx) {
                 return supplierRequestService.findSupplierRequestFor(ctx.getPatronRequest())
                         .map(supplierRequest -> ctx.setSupplierRequest(supplierRequest))
+			.then(decorateWithPatronVirtualIdentity(ctx))
                         .defaultIfEmpty(ctx);
         }               
+
+	private Mono<RequestWorkflowContext> decorateWithPatronVirtualIdentity(RequestWorkflowContext ctx) {
+		SupplierRequest sr = ctx.getSupplierRequest();
+
+		if ( sr != null ) {
+			// Look up the virtual patron identity and attach to the context
+			return Mono.from(supplierRequestRepository.findVirtualIdentityById(sr.getId()))
+				.flatMap(vi -> Mono.just(ctx.setPatronVirtualIdentity(vi)))
+				.defaultIfEmpty(ctx);
+		}
+
+		return Mono.just(ctx);
+	}
 
         // A Patron request can specify a pickup location - resolve the agency and system for that location given
 	// The procedure for turning a pickup location code into an agency code is different to the other kinds of identifiers
