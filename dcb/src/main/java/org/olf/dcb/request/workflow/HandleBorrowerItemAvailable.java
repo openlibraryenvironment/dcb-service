@@ -83,14 +83,15 @@ public class HandleBorrowerItemAvailable implements WorkflowAction {
 
         public Mono<RequestWorkflowContext> setHomeItemOffCampus(RequestWorkflowContext rwc) {
                 if ( ( rwc.getSupplierRequest() != null ) && 
-                     ( rwc.getSupplierRequest().getLocalItemId() != null ) ) {
+                     ( rwc.getSupplierRequest().getLocalItemId() != null ) &&
+                     ( rwc.getLenderSystemCode() != null ) ) {
                         log.debug("Update supplying system item: {}",rwc.getSupplierRequest().getLocalItemId());
                         return hostLmsService.getClientFor(rwc.getLenderSystemCode())
                                 .flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(rwc.getSupplierRequest().getLocalItemId(), HostLmsClient.CanonicalItemState.OFFSITE))
                                 .thenReturn(rwc);
                 }
                 else { 
-                        log.error("No patron system to update -- this is unlikely");
+                        log.error("Missing data attempting to set home item off campus {}",rwc);
                         return Mono.just(rwc);
                 }       
         }
