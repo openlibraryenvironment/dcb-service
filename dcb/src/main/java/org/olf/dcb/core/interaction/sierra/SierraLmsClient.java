@@ -69,6 +69,7 @@ import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
+import services.k_int.interaction.sierra.items.Status;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
@@ -501,14 +502,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
         // Informed by https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
-        private String mapSierraItemStatusToDCBHoldStatus(String code) {
+        // private String mapSierraItemStatusToDCBHoldStatus(String code) {
+        private String mapSierraItemStatusToDCBHoldStatus(Status status) {
                 String result;
 
-                switch (code) {
-                        case "-" -> result = HostLmsItem.ITEM_AVAILABLE;
-                        case "t" -> result = HostLmsItem.ITEM_TRANSIT; // IN Transit
-                        case "@" -> result = HostLmsItem.ITEM_OFFSITE; // IN Transit
-                        default -> result = code;
+                if ( ( status.getDuedate() != null ) && ( status.getCode().trim().length() > 0 ) )   {
+                        log.info("Item has a due date, setting item status to LOANED");
+                        result = HostLmsItem.ITEM_LOANED;
+                }
+                else {
+                        switch (status.getCode()) {
+                                case "-" -> result = HostLmsItem.ITEM_AVAILABLE;
+                                case "t" -> result = HostLmsItem.ITEM_TRANSIT; // IN Transit
+                                case "@" -> result = HostLmsItem.ITEM_OFFSITE; // IN Transit
+                                default -> result = status.getCode();
+                        }
                 }
 
                 return result;
@@ -814,7 +822,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                 return HostLmsItem.builder()
                         .localId(si.getId())
                         .barcode(si.getBarcode())
-                        .status( si.getStatus() != null  ? mapSierraItemStatusToDCBHoldStatus(si.getStatus().getCode()) : null )
+                        .status( si.getStatus() != null  ? mapSierraItemStatusToDCBHoldStatus(si.getStatus()) : null )
                         .build();
         }
 

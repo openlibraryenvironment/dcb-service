@@ -29,6 +29,9 @@ public class HostLmsItem {
         // Item is off-site
         public static final String ITEM_OFFSITE="OFFSITE";
 
+        // Item is off-site
+        public static final String ITEM_LOANED="LOANED";
+
 	String localId;
 	String status;
 	String barcode;

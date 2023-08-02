@@ -49,7 +49,9 @@ public class HandleBorrowerItemAvailable implements WorkflowAction {
                         pr.setLocalItemStatus("AVAILABLE");
 
                         return requestWorkflowContextHelper.fromPatronRequest(pr)
-                                .flatMap( this::updateSupplyingSystems )
+                                // For now we have decided we don't want to set ItemStatus to OFF CAMPUS preferring
+                                // to wait for checkout to patron
+                                // .flatMap( this::updateSupplyingSystems )
                                 .flatMap(rwc -> Mono.from(patronRequestRepository.saveOrUpdate(pr)))
                                 .doOnNext(spr -> log.debug("Saved {}",spr))
                                 .thenReturn(context);
