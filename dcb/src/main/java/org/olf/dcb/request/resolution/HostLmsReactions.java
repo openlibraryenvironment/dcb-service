@@ -81,6 +81,9 @@ public class HostLmsReactions {
                                 if ( sc.getToState().equals("AVAILABLE") ) {
                                         handler="BorrowerRequestItemAvailable";
                                 }
+                                if ( sc.getToState().equals("LOANED") ) {
+                                        handler="BorrowerRequestLoaned";
+                                }
                                 else {
                                         log.error("Unhandled BorrowerVirtualItem ToState:{}",sc.getToState());
                                 }
