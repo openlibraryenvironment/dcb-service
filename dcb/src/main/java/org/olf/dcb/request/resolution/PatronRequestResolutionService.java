@@ -92,8 +92,9 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<DataAgency> resolveSupplyingAgency(Item item) {
+                log.debug("Attempting to resolveSupplyingAgency({})",item);
                 return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-                                                "ShelvingLocation", item.getHostLmsCode(), item.getLocation().getCode(), "AGENCY", "DCB"))
+                                                "ShelvingLocation", item.getHostLmsCode().trim(), item.getLocation().getCode().trim(), "AGENCY", "DCB"))
                                 .map(mapping -> mapping.getToValue() )
                                 .doOnSuccess(mapping -> log.debug("Result from getting agency for shelving location: {}", mapping))
 				.flatMap(agencyCode -> Mono.from(agencyRepository.findOneByCode(agencyCode)) );
@@ -106,6 +107,8 @@ public class PatronRequestResolutionService {
 	private static SupplierRequest mapToSupplierRequest(Item item, PatronRequest patronRequest, DataAgency agency) {
 
 		log.debug("mapToSupplierRequest({}}, {})", item, patronRequest);
+                if ( agency == null )
+                        log.error("NO AGENCY ATTEMPTING TO MAP SUPPLIER REQUEST");
 
 		final var supplierRequestId = UUID.randomUUID();
 
@@ -121,6 +124,7 @@ public class PatronRequestResolutionService {
 			.localItemBarcode(item.getBarcode())
 			.localItemLocationCode(item.getLocation().getCode())
 			.hostLmsCode(item.getHostLmsCode())
+                        .localAgency( agency != null ? agency.getCode() : null )
 			.statusCode(PENDING)
 			.isActive(Boolean.TRUE)
 			.resolvedAgency(agency)

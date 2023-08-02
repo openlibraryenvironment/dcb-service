@@ -35,7 +35,7 @@ class ItemResultToItemMapper {
 					.status(itemStatus)
 					.dueDate(parsedDueDate)
 					.location(org.olf.dcb.core.model.Location.builder()
-						.code(result.getLocation().getCode())
+						.code(result.getLocation().getCode().trim())
 						.name(result.getLocation().getName())
 						.build())
 					.barcode(result.getBarcode())

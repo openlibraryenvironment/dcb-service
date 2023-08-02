@@ -77,7 +77,6 @@ public class SupplyingAgencyService {
                 // 3. Pickup at borrower - Patron will pick item up from one of their home libraries, borrower system is different
                 // 4. PUA - Lender, Pickup and Borrower systems are all different.
 
-                // For now, the collect method just attaches the suppier request, but more coming
                 return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
                         .flatMap(this::checkAndCreatePatronAtSupplier)
                         .flatMap(this::placeRequestAtSupplier)

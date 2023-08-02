@@ -78,7 +78,8 @@ public class RequestWorkflowContextHelper {
         }
 
 	private Mono<RequestWorkflowContext> decorateContextWithLenderDetails(RequestWorkflowContext ctx) {
-		log.debug("TODO: decorateContextWithLenderDetails");
+                ctx.setLenderAgencyCode(ctx.getSupplierRequest().getLocalAgency());
+                ctx.setLenderSystemCode(ctx.getSupplierRequest().getHostLmsCode());
 		return Mono.just(ctx);
 	}
 
