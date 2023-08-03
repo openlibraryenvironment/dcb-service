@@ -56,6 +56,7 @@ public class RequestWorkflowContextHelper {
 	// Given a patron request, construct the patron request context containing all related objects for a workflow
         public Mono<RequestWorkflowContext> fromPatronRequest(PatronRequest pr) {
 		RequestWorkflowContext rwc = new RequestWorkflowContext();
+                log.info("fromPatronRequest {}",pr.getId());
                 return  Mono.just(rwc.setPatronRequest(pr))
 			.flatMap( this::findSupplierRequest )
 			.flatMap( this::decorateWithPatronVirtualIdentity )
@@ -68,6 +69,7 @@ public class RequestWorkflowContextHelper {
 	// Given a supplier request, construct the patron request context containing all related objects for a workflow
         public Mono<RequestWorkflowContext> fromSupplierRequest(SupplierRequest sr) {
                 RequestWorkflowContext rwc = new RequestWorkflowContext();
+                log.info("fromSupplierRequest {}",sr.getId());
 
                 return Mono.just( rwc.setSupplierRequest(sr) )
                         .flatMap( rwcp -> Mono.from(supplierRequestRepository.findPatronRequestById(rwc.getSupplierRequest().getId())) )
@@ -127,7 +129,7 @@ public class RequestWorkflowContextHelper {
 	// We find the patrons requesting identity via the patron request requestingIdentity property. this should NEVER be null
 	private Mono<RequestWorkflowContext> getRequestingIdentity(RequestWorkflowContext ctx) {
 
-		log.debug("getRequestingIdentity for request {}",ctx.getPatronRequest());
+		// log.debug("getRequestingIdentity for request {}",ctx.getPatronRequest());
 
 		return Mono.from(patronRequestRepository.findRequestingIdentityById(ctx.getPatronRequest().getId()))
                         .flatMap( pid -> Mono.just(ctx.setPatronHomeIdentity(pid)) );
@@ -145,13 +147,13 @@ public class RequestWorkflowContextHelper {
 
 	private Mono<RequestWorkflowContext> decorateWithPatronVirtualIdentity(RequestWorkflowContext ctx) {
 		SupplierRequest sr = ctx.getSupplierRequest();
-                log.debug("decorateWithPatronVirtualIdentity {}",sr);
+                // log.debug("decorateWithPatronVirtualIdentity {}",sr);
 
 		if ( sr != null ) {
 			// Look up the virtual patron identity and attach to the context
 			return Mono.from(supplierRequestRepository.findVirtualIdentityById(sr.getId()))
 				.flatMap(vi -> {
-                                        log.debug("found virtual identity {}",vi);
+                                        // log.debug("found virtual identity {}",vi);
                                         return Mono.just(ctx.setPatronVirtualIdentity(vi));
                                 })
 				.defaultIfEmpty(ctx);
@@ -186,7 +188,7 @@ public class RequestWorkflowContextHelper {
         private Mono<DataAgency> getDataAgencyWithHostLms(String code) {
                 return Mono.from(agencyRepository.findOneByCode(code))
                         .flatMap(agency -> {
-                                log.debug("getDataAgencyWithHostLms({}) {}",code,agency);
+                                // log.debug("getDataAgencyWithHostLms({}) {}",code,agency);
                                 return Mono.from(agencyRepository.findHostLmsIdById(agency.getId()))
                                         .flatMap( hostLmsId -> { return Mono.from(hostLmsRepository.findById(hostLmsId)); } )
                                         .flatMap( hostLms -> {

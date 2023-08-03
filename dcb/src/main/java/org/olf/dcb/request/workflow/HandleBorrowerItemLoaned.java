@@ -49,7 +49,7 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
                         pr.setLocalItemStatus("LOANED");
 
                         return requestWorkflowContextHelper.fromPatronRequest(pr)
-                                .flatMap( this::checkHomeItemOutToVirtualPatron )
+                                // .flatMap( this::checkHomeItemOutToVirtualPatron )
                                 .flatMap(rwc -> Mono.from(patronRequestRepository.saveOrUpdate(pr)))
                                 .doOnNext(spr -> log.debug("Saved {}",spr))
                                 .thenReturn(context);
@@ -66,11 +66,14 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
                      ( rwc.getSupplierRequest().getLocalItemId() != null ) &&
                      ( rwc.getLenderSystemCode() != null ) &&
                      ( rwc.getPatronVirtualIdentity() != null ) ) {
-                        log.debug("Update check home item out : {} to {}",rwc.getSupplierRequest().getLocalItemId(), rwc.getPatronVirtualIdentity());
-                        // return hostLmsService.getClientFor(rwc.getLenderSystemCode())
-                        //         .flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(rwc.getSupplierRequest().getLocalItemId(), HostLmsClient.CanonicalItemState.OFFSITE))
-                        //         .thenReturn(rwc);
-                        return Mono.just(rwc);
+
+                        log.debug("Update check home item out : {} to {} at {}",rwc.getSupplierRequest().getLocalItemId(), rwc.getPatronVirtualIdentity(),rwc.getLenderSystemCode());
+
+                        return hostLmsService.getClientFor(rwc.getLenderSystemCode())
+                                 .flatMap(hostLmsClient -> hostLmsClient.checkOutItemToPatron(
+                                        rwc.getSupplierRequest().getLocalItemBarcode(),
+                                        rwc.getPatronVirtualIdentity().getLocalId()))
+                                 .thenReturn(rwc);
                 }
                 else { 
                         log.error("Missing data attempting to set home item off campus {} {} {}",rwc,rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity());

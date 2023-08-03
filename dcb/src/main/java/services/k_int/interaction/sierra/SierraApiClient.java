@@ -183,4 +183,7 @@ public interface SierraApiClient {
 
 	@SingleResult
 	Publisher<SierraPatronHold> getHold(@Nullable final Long holdId);
+
+	@SingleResult
+        Publisher<LinkResult> checkOutItemToPatron(String itemBarcode,String patronBarcode);
 }

@@ -53,6 +53,7 @@ import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
+import services.k_int.interaction.sierra.patrons.CheckoutPatch;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
@@ -423,4 +424,19 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				return newToken;
 			});
 	}
+
+        @SingleResult
+        public Publisher<LinkResult> checkOutItemToPatron(String itemBarcode,String patronBarcode) {
+
+                CheckoutPatch checkoutPatch = CheckoutPatch.builder()
+                        .itemBarcode(itemBarcode)
+                        .patronBarcode(patronBarcode)
+                        .build();
+
+                return postRequest("patrons/checkout")
+                        .map(request -> request.body(checkoutPatch))
+                        .flatMap(this::ensureToken)
+                        .flatMap(request -> doRetrieve(request, Argument.of(LinkResult.class)));
+        }
+
 }

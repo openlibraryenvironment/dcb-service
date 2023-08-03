@@ -832,4 +832,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
                         .flatMap( sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)))
 			.defaultIfEmpty(HostLmsItem.builder().localId(itemId).status("MISSING").build());
         }
+
+        // WARNING We might need to make this accept a patronIdentity - as different systems might take different ways to identify the patron
+        public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
+                return Mono.from(client.checkOutItemToPatron(itemId,patronBarcode))
+                        .thenReturn("OK")
+                        .defaultIfEmpty("ERROR");
+        }
+
 }
