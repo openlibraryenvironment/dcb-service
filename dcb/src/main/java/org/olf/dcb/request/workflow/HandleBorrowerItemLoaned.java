@@ -67,13 +67,25 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
                      ( rwc.getLenderSystemCode() != null ) &&
                      ( rwc.getPatronVirtualIdentity() != null ) ) {
 
-                        log.debug("Update check home item out : {} to {} at {}",rwc.getSupplierRequest().getLocalItemId(), rwc.getPatronVirtualIdentity(),rwc.getLenderSystemCode());
+                        final String[] patron_barcodes = ( rwc.getPatronVirtualIdentity().getLocalBarcode() != null ) ?
+                                rwc.getPatronVirtualIdentity().getLocalBarcode()
+                                        .substring(1, rwc.getPatronVirtualIdentity().getLocalBarcode().length() - 1).split(", ") : null;
 
-                        return hostLmsService.getClientFor(rwc.getLenderSystemCode())
-                                 .flatMap(hostLmsClient -> hostLmsClient.checkOutItemToPatron(
-                                        rwc.getSupplierRequest().getLocalItemBarcode(),
-                                        rwc.getPatronVirtualIdentity().getLocalId()))
-                                 .thenReturn(rwc);
+                        if ( ( patron_barcodes != null ) && ( patron_barcodes.length > 0 ) ) {
+
+                                log.debug("Update check home item out : {} to {} at {}",
+                                        rwc.getSupplierRequest().getLocalItemBarcode(), patron_barcodes[0],rwc.getLenderSystemCode());
+
+                                return hostLmsService.getClientFor(rwc.getLenderSystemCode())
+                                         .flatMap(hostLmsClient -> hostLmsClient.checkOutItemToPatron(
+                                                rwc.getSupplierRequest().getLocalItemBarcode(),
+                                                rwc.getPatronVirtualIdentity().getLocalId()))
+                                      .thenReturn(rwc);
+                        }
+                        else {
+                                log.warn("NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT");
+                                return Mono.just(rwc);
+                        }
                 }
                 else { 
                         log.error("Missing data attempting to set home item off campus {} {} {}",rwc,rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity());
