@@ -4,6 +4,7 @@ import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Arrays;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -286,11 +287,17 @@ public class SupplyingAgencyService {
 
 		log.debug("createPatronAtSupplier2");
 
+                // Patrons can have multiple barcodes. To keep the domain model sane(ish) we store [b1, b2, b3] (As the result of Objects.toString()
+                // in the field. Here we unpack that structure back into an array of barcodes that the HostLMS can do with as it pleases
+                final List<String> patron_barcodes = ( requestingPatronIdentity.getLocalBarcode() != null ) ?
+                        Arrays.asList(requestingPatronIdentity.getLocalBarcode()
+                                .substring(1, requestingPatronIdentity.getLocalBarcode().length() - 1).split(", ")) : null;
+
 		return determinePatronType(supplierHostLmsCode, requestingPatronIdentity)
 			.flatMap(patronType -> client.createPatron(
 				Patron.builder()
 					.uniqueIds( stringToList(patronService.getUniqueIdStringFor(patronRequest.getPatron()) ))
-					.localBarcodes( stringToList(requestingPatronIdentity.getLocalBarcode()))
+					.localBarcodes( patron_barcodes )
 					.localPatronType( patronType )
 					.build())
 				.map(createdPatron -> Tuples.of(createdPatron, patronType)));

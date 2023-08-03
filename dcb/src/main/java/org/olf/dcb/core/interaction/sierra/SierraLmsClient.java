@@ -333,17 +333,28 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	public Mono<HostLmsItem> createItem(String bibId, String locationCode, String barcode) {
 
-		return Mono.from(client.createItem(ItemPatch.builder()
-				.bibIds(List.of(Integer.parseInt(bibId)))
-				.location(locationCode)
-				.barcodes(List.of(barcode))
-				.build()))
+                return getMappedItemType(locationCode, "TODO")
+		        .flatMap( itemType -> {
+                                log.debug("createItem in SierraLmsClient - needs itemType mapper implementation {}",itemType);
+                                return Mono.from(client.createItem(ItemPatch.builder()
+        				.bibIds(List.of(Integer.parseInt(bibId)))
+	        			.location(locationCode)
+		        		.barcodes(List.of(barcode))
+			        	.build()));
+                        })
 			.doOnSuccess(result -> log.debug("the result of createItem({})", result))
 			.map(result -> deRestify(result.getLink()))
 			.map(localId -> HostLmsItem.builder()
 				.localId(localId)
 				.build());
 	}
+
+        // The item type passed with the item is our canonical system item type, we need to look that up
+        // into a local item type using a system mapping
+        private Mono<String> getMappedItemType(String locationCode, String itemTypeCode) {
+                log.debug("getMappedItemType({},{})",locationCode,locationCode);
+                return Mono.just("TODO");
+        }
 
 	@Override
 	public Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode) {
@@ -835,9 +846,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
         // WARNING We might need to make this accept a patronIdentity - as different systems might take different ways to identify the patron
         public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
-                return Mono.from(client.checkOutItemToPatron(itemId,patronBarcode))
-                        .thenReturn("OK")
-                        .defaultIfEmpty("ERROR");
+                log.debug("checkOutItemToPatron({},{})",itemId,patronBarcode);
+                // return Mono.from(client.checkOutItemToPatron(itemId,patronBarcode))
+                //         .thenReturn("OK")
+                //         .defaultIfEmpty("ERROR");
+                return Mono.just("OK");
         }
 
 }

@@ -49,7 +49,7 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
                         pr.setLocalItemStatus("LOANED");
 
                         return requestWorkflowContextHelper.fromPatronRequest(pr)
-                                // .flatMap( this::checkHomeItemOutToVirtualPatron )
+                                .flatMap( this::checkHomeItemOutToVirtualPatron )
                                 .flatMap(rwc -> Mono.from(patronRequestRepository.saveOrUpdate(pr)))
                                 .doOnNext(spr -> log.debug("Saved {}",spr))
                                 .thenReturn(context);

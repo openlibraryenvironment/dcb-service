@@ -116,9 +116,12 @@ public class PatronService {
 			String localPtype, Boolean homeIdentity) {
 
 		log.debug("createPatronIdentity({}, {}, {}, {})", patron, dataHostLms, localPatronIdentifier, homeIdentity);
+                String local_barcode = null;
 
 		final var result = PatronIdentity.builder().id(randomUUID()).patron(patron).hostLms(dataHostLms)
-				.localId(localPatronIdentifier).localPtype(localPtype).homeIdentity(homeIdentity).build();
+				.localId(localPatronIdentifier).localPtype(localPtype).homeIdentity(homeIdentity)
+                                .localBarcode(local_barcode)
+                                .build();
 
 		log.debug("result of create new patronIdentity: {}", result);
 		return result;
