@@ -58,6 +58,7 @@ public class RequestWorkflowContextHelper {
 		RequestWorkflowContext rwc = new RequestWorkflowContext();
                 return  Mono.just(rwc.setPatronRequest(pr))
 			.flatMap( this::findSupplierRequest )
+			.flatMap( this::decorateWithPatronVirtualIdentity )
 			.flatMap( this::decorateContextWithPatronDetails )
                         .flatMap( this::decorateContextWithLenderDetails )
                         .flatMap( this::resolvePickupLocationAgency)
@@ -71,6 +72,7 @@ public class RequestWorkflowContextHelper {
                 return Mono.just( rwc.setSupplierRequest(sr) )
                         .flatMap( rwcp -> Mono.from(supplierRequestRepository.findPatronRequestById(rwc.getSupplierRequest().getId())) )
                         .flatMap( pr -> Mono.just(rwc.setPatronRequest(pr)) )
+			.flatMap( this::decorateWithPatronVirtualIdentity )
 			.flatMap( this::decorateContextWithPatronDetails )
                         .flatMap( this::decorateContextWithLenderDetails )
                         .flatMap( this::resolvePickupLocationAgency )
@@ -137,18 +139,21 @@ public class RequestWorkflowContextHelper {
         //
         private Mono<RequestWorkflowContext> findSupplierRequest(RequestWorkflowContext ctx) {
                 return supplierRequestService.findSupplierRequestFor(ctx.getPatronRequest())
-                        .map(supplierRequest -> ctx.setSupplierRequest(supplierRequest))
-			.then(decorateWithPatronVirtualIdentity(ctx))
+                        .flatMap(supplierRequest -> Mono.just(ctx.setSupplierRequest(supplierRequest)))
                         .defaultIfEmpty(ctx);
         }               
 
 	private Mono<RequestWorkflowContext> decorateWithPatronVirtualIdentity(RequestWorkflowContext ctx) {
 		SupplierRequest sr = ctx.getSupplierRequest();
+                log.debug("decorateWithPatronVirtualIdentity {}",sr);
 
 		if ( sr != null ) {
 			// Look up the virtual patron identity and attach to the context
 			return Mono.from(supplierRequestRepository.findVirtualIdentityById(sr.getId()))
-				.flatMap(vi -> Mono.just(ctx.setPatronVirtualIdentity(vi)))
+				.flatMap(vi -> {
+                                        log.debug("found virtual identity {}",vi);
+                                        return Mono.just(ctx.setPatronVirtualIdentity(vi));
+                                })
 				.defaultIfEmpty(ctx);
 		}
 

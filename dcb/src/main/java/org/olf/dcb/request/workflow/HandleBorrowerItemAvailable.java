@@ -24,7 +24,7 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 @Named("BorrowerRequestItemAvailable")
 public class HandleBorrowerItemAvailable implements WorkflowAction {
 
-        private static final Logger log = LoggerFactory.getLogger(HandleSupplierInTransit.class);
+        private static final Logger log = LoggerFactory.getLogger(HandleBorrowerItemAvailable.class);
         private RequestWorkflowContextHelper requestWorkflowContextHelper;
         private PatronRequestRepository patronRequestRepository;
         private HostLmsService hostLmsService;

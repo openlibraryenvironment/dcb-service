@@ -24,7 +24,7 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 @Named("BorrowerRequestLoaned")
 public class HandleBorrowerItemLoaned implements WorkflowAction {
 
-        private static final Logger log = LoggerFactory.getLogger(HandleSupplierInTransit.class);
+        private static final Logger log = LoggerFactory.getLogger(HandleBorrowerItemLoaned.class);
         private RequestWorkflowContextHelper requestWorkflowContextHelper;
         private PatronRequestRepository patronRequestRepository;
         private HostLmsService hostLmsService;
@@ -64,7 +64,8 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
         public Mono<RequestWorkflowContext> checkHomeItemOutToVirtualPatron(RequestWorkflowContext rwc) {
                 if ( ( rwc.getSupplierRequest() != null ) && 
                      ( rwc.getSupplierRequest().getLocalItemId() != null ) &&
-                     ( rwc.getLenderSystemCode() != null ) ) {
+                     ( rwc.getLenderSystemCode() != null ) &&
+                     ( rwc.getPatronVirtualIdentity() != null ) ) {
                         log.debug("Update check home item out : {} to {}",rwc.getSupplierRequest().getLocalItemId(), rwc.getPatronVirtualIdentity());
                         // return hostLmsService.getClientFor(rwc.getLenderSystemCode())
                         //         .flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(rwc.getSupplierRequest().getLocalItemId(), HostLmsClient.CanonicalItemState.OFFSITE))
@@ -72,7 +73,7 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
                         return Mono.just(rwc);
                 }
                 else { 
-                        log.error("Missing data attempting to set home item off campus {}",rwc);
+                        log.error("Missing data attempting to set home item off campus {} {} {}",rwc,rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity());
                         return Mono.just(rwc);
                 }       
         }
