@@ -83,7 +83,7 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
                                       .thenReturn(rwc);
                         }
                         else {
-                                log.warn("NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT");
+                                log.warn("NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT {}",rwc.getPatronVirtualIdentity().getLocalBarcode());
                                 return Mono.just(rwc);
                         }
                 }
