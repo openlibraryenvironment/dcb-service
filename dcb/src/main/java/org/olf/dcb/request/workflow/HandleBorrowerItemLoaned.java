@@ -79,7 +79,7 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
                                 return hostLmsService.getClientFor(rwc.getLenderSystemCode())
                                          .flatMap(hostLmsClient -> hostLmsClient.checkOutItemToPatron(
                                                 rwc.getSupplierRequest().getLocalItemBarcode(),
-                                                rwc.getPatronVirtualIdentity().getLocalId()))
+                                                patron_barcodes[0]))
                                       .thenReturn(rwc);
                         }
                         else {
