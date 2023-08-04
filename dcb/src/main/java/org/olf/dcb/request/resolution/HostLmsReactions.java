@@ -75,6 +75,9 @@ public class HostLmsReactions {
                                 }
                         }
                         else if ( sc.getResourceType().equals("BorrowerVirtualItem") ) {
+                                if ( sc.getFromState().equals("LOANED") && sc.getToState().equals("TRANSIT") ) {
+                                        handler="BorrowerRequestReturnTransit";
+                                }
                                 if ( sc.getToState().equals("TRANSIT") ) {
                                         handler="BorrowerRequestItemInTransit";
                                 }
