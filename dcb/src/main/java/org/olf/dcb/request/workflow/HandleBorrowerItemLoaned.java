@@ -46,6 +46,7 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
                 log.debug("HandleBorrowerLoaned {}",sc);
                 PatronRequest pr = (PatronRequest) sc.getResource();
                 if ( pr != null ) {
+                        pr.setStatus(PatronRequest.Status.LOANED);
                         pr.setLocalItemStatus("LOANED");
 
                         return requestWorkflowContextHelper.fromPatronRequest(pr)

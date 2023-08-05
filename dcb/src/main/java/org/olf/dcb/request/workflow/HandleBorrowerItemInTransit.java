@@ -21,11 +21,13 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 
 
+// We have detected that the borrower system state has indeed been updated to TRANSIT.. this is a reaction
+// to the call made by updatePatronItem in HandleSupplierInTransit and allows us to close the loop
 @Singleton
 @Named("BorrowerRequestItemInTransit")
 public class HandleBorrowerItemInTransit implements WorkflowAction {
 
-        private static final Logger log = LoggerFactory.getLogger(HandleSupplierInTransit.class);
+        private static final Logger log = LoggerFactory.getLogger(HandleBorrowerItemInTransit.class);
         private RequestWorkflowContextHelper requestWorkflowContextHelper;
         private PatronRequestRepository patronRequestRepository;
 
@@ -43,6 +45,7 @@ public class HandleBorrowerItemInTransit implements WorkflowAction {
                 PatronRequest pr = (PatronRequest) sc.getResource();
                 if ( pr != null ) {
                         pr.setLocalItemStatus("TRANSIT");
+                        pr.setStatus(PatronRequest.Status.PICKUP_TRANSIT);
                         log.debug("Set local status to TRANSIT and save {}",pr);
                         return Mono.from(patronRequestRepository.saveOrUpdate(pr))
                                 .doOnNext(spr -> log.debug("Saved {}",spr))

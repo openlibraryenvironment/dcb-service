@@ -43,6 +43,7 @@ public class HandleBorrowerRequestReturnTransit implements WorkflowAction {
                 PatronRequest pr = (PatronRequest) sc.getResource();
                 if ( pr != null ) {
                         pr.setLocalItemStatus("RET-TRANSIT");
+                        pr.setStatus(PatronRequest.Status.RETURN_TRANSIT);
                         log.debug("Set local status to RET-TRANSIT and save {}",pr);
                         return Mono.from(patronRequestRepository.saveOrUpdate(pr))
                                 .thenReturn(context);

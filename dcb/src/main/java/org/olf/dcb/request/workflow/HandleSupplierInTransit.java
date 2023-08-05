@@ -9,8 +9,10 @@ import java.util.Map;
 import jakarta.inject.Singleton;
 import jakarta.inject.Named;
 import org.olf.dcb.tracking.model.StateChange;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.storage.SupplierRequestRepository;
+import org.olf.dcb.storage.PatronRequestRepository;
 import javax.transaction.Transactional;
 
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -27,14 +29,17 @@ public class HandleSupplierInTransit implements WorkflowAction {
 
         private static final Logger log = LoggerFactory.getLogger(HandleSupplierInTransit.class);
         private SupplierRequestRepository supplierRequestRepository;
+        private PatronRequestRepository patronRequestRepository;
         private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private HostLmsService hostLmsService;
 
         public HandleSupplierInTransit(
                 SupplierRequestRepository supplierRequestRepository,
+                PatronRequestRepository patronRequestRepository,
 		HostLmsService hostLmsService,
                 RequestWorkflowContextHelper requestWorkflowContextHelper) {
                 this.supplierRequestRepository = supplierRequestRepository;
+                this.patronRequestRepository = patronRequestRepository;
                 this.requestWorkflowContextHelper = requestWorkflowContextHelper;
                 this.hostLmsService = hostLmsService;
         }
@@ -52,8 +57,8 @@ public class HandleSupplierInTransit implements WorkflowAction {
                                 .flatMap( this::updateUpstreamSystems )
                                 // If we managed to update other systems, then update the supplier request
 				// This will cause st.setLocalStatus("TRANSIT") above to be saved and mean our local state is aligned with the supplier req
-                                .flatMap(rwc -> Mono.from(supplierRequestRepository.saveOrUpdate(sr)))
-                                .doOnNext(ssr -> log.debug("Saved {}",ssr))
+                                .flatMap( this::saveSupplierRequest )
+                                .flatMap( this::updatePatronRequest )
                                 .thenReturn(context);
                 }
                 else {
@@ -61,6 +66,19 @@ public class HandleSupplierInTransit implements WorkflowAction {
                         return Mono.just(context);
                 }
         }
+
+        public Mono<RequestWorkflowContext> saveSupplierRequest(RequestWorkflowContext rwc) {
+		return Mono.from(supplierRequestRepository.saveOrUpdate(rwc.getSupplierRequest()))
+			.thenReturn(rwc);
+	}
+
+        public Mono<RequestWorkflowContext> updatePatronRequest(RequestWorkflowContext rwc) {
+		PatronRequest pr = rwc.getPatronRequest();
+		pr.setStatus(PatronRequest.Status.PICKUP_TRANSIT);
+		return Mono.from(patronRequestRepository.saveOrUpdate(pr))
+			.thenReturn(rwc);
+	}
+
 
         // If there is a separate pickup location, the pickup location needs to be updated
         // If there is a separate patron request (There always will be EXCEPT for the "Local" case) update it
