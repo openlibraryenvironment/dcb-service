@@ -78,13 +78,13 @@ public class HostLmsReactions {
                                 if ( sc.getFromState().equals("LOANED") && sc.getToState().equals("TRANSIT") ) {
                                         handler="BorrowerRequestReturnTransit";
                                 }
-                                if ( sc.getToState().equals("TRANSIT") ) {
+				else if ( sc.getToState().equals("TRANSIT") ) {
                                         handler="BorrowerRequestItemInTransit";
                                 }
-                                if ( sc.getToState().equals("AVAILABLE") ) {
+				else if ( sc.getToState().equals("AVAILABLE") ) {
                                         handler="BorrowerRequestItemAvailable";
                                 }
-                                if ( sc.getToState().equals("LOANED") ) {
+				else if ( sc.getToState().equals("LOANED") ) {
                                         handler="BorrowerRequestLoaned";
                                 }
                                 else {
