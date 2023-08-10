@@ -49,7 +49,8 @@ public class PatronRequest {
 		LOANED,
 		PICKUP_TRANSIT,
 		RETURN_TRANSIT,
-		CANCELLED, 
+		CANCELLED,
+		FINALISED,
 		ERROR
 	}
 
