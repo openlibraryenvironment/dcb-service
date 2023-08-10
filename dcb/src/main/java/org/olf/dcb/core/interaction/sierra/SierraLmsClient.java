@@ -833,7 +833,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return HostLmsItem.builder()
 			.localId(si.getId())
 			.barcode(si.getBarcode())
-			.status( si.getStatus() != null  ? mapSierraItemStatusToDCBHoldStatus(si.getStatus()) : null )
+			.status( si.getStatus() != null  ? mapSierraItemStatusToDCBHoldStatus(si.getStatus()) : "UNKNOWN" )
 			.build();
 	}
 
