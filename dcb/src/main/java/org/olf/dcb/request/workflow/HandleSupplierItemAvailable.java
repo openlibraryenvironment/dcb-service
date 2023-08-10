@@ -44,8 +44,18 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 				if (sr != null && pr != null) {
 					sr.setLocalItemStatus("AVAILABLE");
 
-					// An item becoming available means the request process has 'completed'
-					pr.setStatus(PatronRequest.Status.FINALISED);
+                                        // If we've been through the lifecycle of a request and the item is available again at the
+                                        // supplying library then it's returned. But if this is a new request, the item is likely
+                                        // available because it's on the shelf. If we have detected some state other than AVAILABLE
+                                        // that means that the process is now in flow.
+                                        if ( sr.getLocalItemStatus() == null ) {
+                                                // Our first time seeing this item set it's state to AVAILABLE
+                                                log.debug("Initialising supplying library item status");
+                                        }
+                                        else {
+					        // An item becoming available means the request process has 'completed'
+					        pr.setStatus(PatronRequest.Status.FINALISED);
+                                        }
 
 					log.debug("Set local status to AVAILABLE and save {}", sr);
 					return Mono.from(supplierRequestRepository.saveOrUpdate(sr))
