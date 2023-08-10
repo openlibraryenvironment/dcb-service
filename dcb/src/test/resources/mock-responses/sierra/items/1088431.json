@@ -1,0 +1,20 @@
+{
+	"id": "1088431",
+	"updatedDate": "2013-07-03T22:04:33Z",
+	"createdDate": "2003-05-08T23:30:00Z",
+	"deleted": false,
+	"bibIds": [
+		"1046109"
+	],
+	"location": {
+		"code": "ajj",
+		"name": "King Juvenile Lower Level"
+	},
+	"status": {
+		"code": "-",
+		"display": "AVAILABLE"
+	},
+	"volumes": [],
+	"barcode": "30800010345269",
+	"callNumber": "juv P969y"
+}

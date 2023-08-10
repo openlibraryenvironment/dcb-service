@@ -58,7 +58,7 @@ public interface HostLmsClient {
 
 	Mono<HostLmsHold> getHold(String holdId);
 
-	Mono<HostLmsItem> getItem(String bibId);
+	Mono<HostLmsItem> getItem(String itemId);
 
 	Mono<String> updateItemStatus(String itemId, CanonicalItemState crs);
 

@@ -52,6 +52,9 @@ public interface SupplierRequestRepository {
         @NonNull
         Publisher<PatronRequest> findPatronRequestById(UUID supplierRequestId);
 
+
+	@Query(value = "SELECT s.* from supplier_request s  where s.local_item_id is not null and ( s.local_item_status is null or s.local_item_status in ( select code from status_code where model = 'SupplierItem' and tracked = true ) )", nativeQuery = true)
+	Publisher<SupplierRequest> findTrackedSupplierItems();
 	Publisher<PatronIdentity> findVirtualIdentityById(UUID supplierRequestId);
 }
 

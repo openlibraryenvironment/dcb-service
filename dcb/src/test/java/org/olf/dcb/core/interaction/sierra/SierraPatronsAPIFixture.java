@@ -30,6 +30,19 @@ public class SierraPatronsAPIFixture {
 			"classpath:mock-responses/sierra/", loader);
 	}
 
+	public void getHoldById404(String holdId) {
+		mockServer
+			.when(sierraMockServerRequests.get("/holds/"+holdId))
+			.respond(sierraMockServerResponses.noRecordsFound());
+	}
+
+	public void getHoldById(String holdId) {
+		mockServer.clear(sierraMockServerRequests.get("/holds/"+holdId));
+		mockServer
+			.when(sierraMockServerRequests.get("/holds/"+holdId))
+			.respond(sierraMockServerResponses.jsonSuccess("holds/11987.json"));
+	}
+
 	public void postPatronResponse(String uniqueId, int returnId) {
 		mockServer
 			.when(postPatronRequest(uniqueId))

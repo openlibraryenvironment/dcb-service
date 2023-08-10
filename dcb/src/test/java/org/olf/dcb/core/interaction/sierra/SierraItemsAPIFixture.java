@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.JsonBody.json;
 
 import java.util.List;
@@ -25,6 +26,12 @@ public class SierraItemsAPIFixture {
 
 		this.sierraMockServerResponses = new SierraMockServerResponses(
 			"classpath:mock-responses/sierra/", loader);
+	}
+
+	public void getItemById(String itemId) {
+		mockServer
+			.when(sierraMockServerRequests.get("/"+itemId))
+			.respond(sierraMockServerResponses.jsonSuccess("items/1088431.json"));
 	}
 
 	public void threeItemsResponseForBibId(String bibId) {

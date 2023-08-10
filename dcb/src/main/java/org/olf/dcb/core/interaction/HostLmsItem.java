@@ -28,7 +28,8 @@ public class HostLmsItem {
 
         // Item is off-site
         public static final String ITEM_OFFSITE="OFFSITE";
-
+				// Item on hold shelf
+				public static final String ITEM_ON_HOLDSHELF="HOLDSHELF";
         // Item is off-site
         public static final String ITEM_LOANED="LOANED";
 
