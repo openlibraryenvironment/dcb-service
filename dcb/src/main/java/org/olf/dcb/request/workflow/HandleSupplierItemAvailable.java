@@ -42,7 +42,6 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 		return Mono.from(patronRequestRepository.findById(sr.getPatronRequest().getId()))
 			.flatMap(pr -> {
 				if (sr != null && pr != null) {
-					sr.setLocalItemStatus("AVAILABLE");
 
                                         // If we've been through the lifecycle of a request and the item is available again at the
                                         // supplying library then it's returned. But if this is a new request, the item is likely
@@ -51,9 +50,12 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
                                         if ( sr.getLocalItemStatus() == null ) {
                                                 // Our first time seeing this item set it's state to AVAILABLE
                                                 log.debug("Initialising supplying library item status");
+					        sr.setLocalItemStatus("AVAILABLE");
                                         }
                                         else {
 					        // An item becoming available means the request process has 'completed'
+                                                log.debug("Finalising supplier request - item is available at lender again");
+					        sr.setLocalItemStatus("AVAILABLE");
 					        pr.setStatus(PatronRequest.Status.FINALISED);
                                         }
 

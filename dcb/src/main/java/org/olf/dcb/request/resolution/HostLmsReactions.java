@@ -80,10 +80,8 @@ public class HostLmsReactions {
 				}
 			}
 			else if ( sc.getResourceType().equals("BorrowerVirtualItem") ) {
-				if ( sc.getFromState() != null && 
-                                     sc.getFromState().equals("LOANED") && 
-                                     sc.getToState() != null && 
-                                     sc.getToState().equals("TRANSIT") ) {
+				if ( sc.getFromState() != null && sc.getFromState().equals("LOANED") && 
+                                     sc.getToState() != null && sc.getToState().equals("TRANSIT") ) {
 					handler="BorrowerRequestReturnTransit";
 				}
 				else if ( sc.getToState().equals("TRANSIT") ) {
@@ -106,7 +104,8 @@ public class HostLmsReactions {
 				if (sc.getToState().equals("AVAILABLE")) {
 					handler = "SupplierRequestItemAvailable";
 				} else {
-					log.error("Unhandled SupplierItem ToState:{}", sc.getToState());
+                                        // A noop handler that just updates the tracked state so we know what it has changed to.
+                                        handler = "SupplierRequestItemStateChange";
 				}
 			}
 			else {
