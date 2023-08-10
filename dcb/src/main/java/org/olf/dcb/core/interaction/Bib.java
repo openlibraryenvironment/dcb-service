@@ -1,7 +1,4 @@
-package org.olf.dcb.configuration;
-
-
-import java.util.UUID;
+package org.olf.dcb.core.interaction;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.serde.annotation.Serdeable;
@@ -17,18 +14,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @AllArgsConstructor
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
-public class ShelvingLocationRecord implements ConfigurationRecord {
-
-    public static final String RECORD_TYPE = "SHELVING_LOCATION";
-
-    private UUID id;
-
-    private String code;
-
-    private String name;
-
-    public String getRecordType() {
-        return RECORD_TYPE;
-    }
-
+public class Bib {
+	private String title;
+	private String author;
 }

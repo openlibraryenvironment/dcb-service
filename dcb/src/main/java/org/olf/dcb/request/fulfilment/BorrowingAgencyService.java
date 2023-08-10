@@ -2,11 +2,11 @@ package org.olf.dcb.request.fulfilment;
 
 import static reactor.function.TupleUtils.function;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.BibRecord;
@@ -29,7 +29,6 @@ import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple4;
-import reactor.util.function.Tuple5;
 import reactor.util.function.Tuples;
 
 @Prototype
@@ -41,15 +40,17 @@ public class BorrowingAgencyService {
 	private final SupplierRequestService supplierRequestService;
 	private final BibRepository bibRepository;
 	private final ClusterRecordRepository clusterRecordRepository;
-	
-	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
+
+	// Provider to prevent circular reference exception by allowing lazy access to
+	// this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
-  private final ReferenceValueMappingRepository referenceValueMappingRepository;
+	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	public BorrowingAgencyService(HostLmsService hostLmsService, PatronIdentityRepository patronIdentityRepository,
 			SupplierRequestService supplierRequestService, BibRepository bibRepository,
 			ClusterRecordRepository clusterRecordRepository, ShelvingLocationRepository shelvingLocationRepository,
-			PatronRequestRepository patronRequestRepository, ReferenceValueMappingRepository referenceValueMappingRepository, BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
+			PatronRequestRepository patronRequestRepository, ReferenceValueMappingRepository referenceValueMappingRepository,
+			BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
 
 		this.hostLmsService = hostLmsService;
 		this.patronIdentityRepository = patronIdentityRepository;
@@ -63,85 +64,92 @@ public class BorrowingAgencyService {
 	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(PatronRequest patronRequest) {
 		log.debug("placePatronRequestAtBorrowingAgency {}", patronRequest.getId());
 
-		return getHoldRequestData(patronRequest).flatMap(function(this::createVirtualBib))
-				.flatMap(function(this::createVirtualItem)).flatMap(function(this::placeHoldRequest))
-				.map(function(patronRequest::placedAtBorrowingAgency)).transform(
-						patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
+		return getHoldRequestData(patronRequest)
+				.flatMap(function(this::createVirtualBib))
+				.flatMap(function(this::createVirtualItem))
+				.flatMap(function(this::placeHoldRequest))
+				.map(function(patronRequest::placedAtBorrowingAgency))
+				.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
 
-	private Mono<Tuple5<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest, String>> createVirtualBib(
+	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest>> createVirtualBib(
 			PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 			SupplierRequest supplierRequest) {
 		final UUID bibClusterId = patronRequest.getBibClusterId();
 		log.debug("createVirtualBib for cluster {}", bibClusterId);
 		return Mono.from(clusterRecordRepository.findById(bibClusterId))
 				.flatMap(clusterRecord -> Mono.from(bibRepository.findById(clusterRecord.getSelectedBib())))
-				.map(this::extractBibData).flatMap(hostLmsClient::createBibFromDescription)
-				.doOnNext(patronRequest::setLocalBibId)
+				.map(this::extractBibData).flatMap(hostLmsClient::createBib).map(patronRequest::setLocalBibId)
 				.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual bib.")))
-				.map(localBibId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, supplierRequest, localBibId));
+				.map(pr -> Tuples.of(pr, patronIdentity, hostLmsClient, supplierRequest));
 	}
 
-	// private Tuple2<String, String> extractBibData(BibRecord bibRecord) {
-	private Map<String, String> extractBibData(BibRecord bibRecord) {
+	private Bib extractBibData(BibRecord bibRecord) {
 		log.debug("extractBibData(bibRecord: {})", bibRecord);
-		Map<String, String> result = new HashMap<>();
 
-		// guard clause
+		// Guard clause
 		if (bibRecord.getTitle() == null) {
 			throw new IllegalArgumentException("Missing title information.");
 		}
 
-		result.put("title", bibRecord.getTitle());
-		if ( bibRecord.getAuthor() != null )
-			result.put("author", bibRecord.getAuthor().getName());
-
-
-		// Tuples.of fails if either is null - this modelling won't work - so we use a Map instead
-		return result;
+		return Bib.builder().title(bibRecord.getTitle())
+				.author(bibRecord.getAuthor() != null ? bibRecord.getAuthor().getName() : null).build();
 	}
 
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, String>> createVirtualItem(
-		PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
-		SupplierRequest supplierRequest, String localBibId) {
+			PatronRequest patronRequest, 
+			PatronIdentity patronIdentity, 
+			HostLmsClient hostLmsClient,
+			SupplierRequest supplierRequest) {
 
-		log.debug("createVirtualItem for localBibId {}/{}", localBibId,supplierRequest.getLocalItemLocationCode());
-                log.debug("slToAgency:{} {} {} {} {}","ShelvingLocation",hostLmsClient.getHostLms().getCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB");
+		final String localBibId = patronRequest.getLocalBibId();
+		Objects.requireNonNull(localBibId, "Local bib ID not set on Patron Request");
 
-                return Mono.from(referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-                    "ShelvingLocation",hostLmsClient.getHostLms().getCode(),supplierRequest.getLocalItemLocationCode(),"AGENCY","DCB"))
-.doOnSuccess(mapping -> log.debug("Result from getting agency for shelving location: {}", mapping))
-.flatMap(mapping -> {
-String agencyCode = mapping.getToValue();
-return hostLmsClient.createItem(localBibId, agencyCode, supplierRequest.getLocalItemBarcode());
-})
-.map(HostLmsItem::getLocalId)
-.doOnNext(patronRequest::setLocalItemId)
-.map(localItemId -> Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId))
-.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));
+		log.debug("createVirtualItem for localBibId {}/{}", localBibId, supplierRequest.getLocalItemLocationCode());
+		log.debug("slToAgency:{} {} {} {} {}", "ShelvingLocation", supplierRequest.getHostLmsCode(),
+				supplierRequest.getLocalItemLocationCode(), "AGENCY", "DCB");
+
+		return Mono
+				.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+						"ShelvingLocation", supplierRequest.getHostLmsCode(), supplierRequest.getLocalItemLocationCode(), "AGENCY",
+						"DCB"))
+				.doOnSuccess(mapping -> log.debug("Result from getting agency for shelving location: {}", mapping))
+				.flatMap(mapping -> {
+					String agencyCode = mapping.getToValue();
+					supplierRequest.setLocalAgency(agencyCode);
+					return hostLmsClient.createItem(localBibId, agencyCode, supplierRequest.getLocalItemBarcode());
+				})
+				.map(HostLmsItem::getLocalId)
+				// .doOnNext(patronRequest::setLocalItemId) - replace with map
+				.map(localItemId -> { 
+					patronRequest.setLocalItemId(localItemId);
+					return Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId);
+				})
+				.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));
 	}
 
-	private Mono<Tuple2<String,String>> placeHoldRequest(PatronRequest patronRequest,
-			PatronIdentity patronIdentity, HostLmsClient hostLmsClient, String localItemId) {
+	private Mono<Tuple2<String, String>> placeHoldRequest(PatronRequest patronRequest, PatronIdentity patronIdentity,
+			HostLmsClient hostLmsClient, String localItemId) {
 
-			log.debug("placeHoldRequest for localItemId {} {}",localItemId,patronIdentity);
+		log.debug("placeHoldRequest for localItemId {} {}", localItemId, patronIdentity);
 
-			String note="Consortial Hold. tno="+patronRequest.getId();
-			return hostLmsClient.placeHoldRequest(patronIdentity.getLocalId(), "i", localItemId, patronRequest.getPickupLocationCode(), 
-	                                                      note, patronRequest.getId().toString())
+		String note = "Consortial Hold. tno=" + patronRequest.getId();
+		return hostLmsClient
+				.placeHoldRequest(patronIdentity.getLocalId(), "i", localItemId, patronRequest.getPickupLocationCode(), note,
+						patronRequest.getId().toString())
 				.map(response -> Tuples.of(response.getT1(), response.getT2()))
 				.switchIfEmpty(Mono.error(new RuntimeException("Failed to place hold request.")));
 	}
 
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest>> getHoldRequestData(
 			PatronRequest patronRequest) {
-		return Mono.from(patronIdentityRepository
-				.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), Boolean.TRUE))
-			.flatMap(pi -> hostLmsService.getClientFor(pi.getHostLms().code)
-				.map(client -> Tuples.of(pi, client))
-				.switchIfEmpty(Mono.error(new RuntimeException("Failed to get HostLmsClient."))))
-			.flatMap(tuple -> supplierRequestService.findSupplierRequestFor(patronRequest)
-				.map(supplierRequest -> Tuples.of(patronRequest, tuple.getT1(), tuple.getT2(), supplierRequest))
-				.switchIfEmpty(Mono.error(new RuntimeException("Failed to find SupplierRequest."))));
+		return Mono
+				.from(
+						patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), Boolean.TRUE))
+				.flatMap(pi -> hostLmsService.getClientFor(pi.getHostLms().code).map(client -> Tuples.of(pi, client))
+						.switchIfEmpty(Mono.error(new RuntimeException("Failed to get HostLmsClient."))))
+				.flatMap(tuple -> supplierRequestService.findSupplierRequestFor(patronRequest)
+						.map(supplierRequest -> Tuples.of(patronRequest, tuple.getT1(), tuple.getT2(), supplierRequest))
+						.switchIfEmpty(Mono.error(new RuntimeException("Failed to find SupplierRequest."))));
 	}
 }

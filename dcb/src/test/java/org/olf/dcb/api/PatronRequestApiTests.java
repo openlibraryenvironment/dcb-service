@@ -19,6 +19,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORR
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.hamcrest.Matcher;
@@ -37,8 +38,8 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.ShelvingLocation;
 import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -63,7 +64,6 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PatronRequestApiTests {
-
 	private final Logger log = LoggerFactory.getLogger(PatronRequestApiTests.class);
 
 	private static final String HOST_LMS_CODE = "patron-request-api-tests";
@@ -91,9 +91,10 @@ class PatronRequestApiTests {
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
-	private ReferenceValueMappingRepository referenceValueMappingRepository;
+	private AgencyFixture agencyFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+
 	@Inject
 	@Client("/")
 	private HttpClient client;
@@ -109,7 +110,8 @@ class PatronRequestApiTests {
 
 		hostLmsFixture.deleteAllHostLMS();
 
-		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+		DataHostLms h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+                log.debug("Created dataHostLms {}",h1);
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 		// Moved to class level var so we can install fixtures elsewhere
@@ -122,30 +124,40 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");
 
 		// patron service
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@home-library");
+//		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@home-library");
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@ab6");
 
-		sierraPatronsAPIFixture.postPatronResponse("872321@home-library", 2745326);
+//		sierraPatronsAPIFixture.postPatronResponse("872321@home-library", 2745326);
+		 sierraPatronsAPIFixture.postPatronResponse("872321@ab6", 2745326);
 
 		// supplying agency service
 		sierraPatronsAPIFixture.patronHoldRequestResponse("2745326");
-		// sierraPatronsAPIFixture.patronHoldResponse("2745326");
 
 		// borrowing agency service
-		final var bibPatch = BibPatch.builder().authors(new String[] { "Stafford Beer" })
-				.titles(new String[] { "Brain of the Firm" })
-				// .bibCode3("n")
-				.build();
+		final var bibPatch = BibPatch.builder()
+			.authors(List.of("Stafford Beer"))
+			.titles(List.of("Brain of the Firm"))
+			.build();
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916920, "ab6", "6565750674");
 		sierraPatronsAPIFixture.patronHoldRequestResponse("872321");
-		// sierraPatronsAPIFixture.patronHoldResponse("872321");
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
 
-		sierraPatronsAPIFixture.addPatronGetExpectation(43546L);
-		sierraPatronsAPIFixture.addPatronGetExpectation(872321L);
+		agencyFixture.deleteAllAgencies();
+		DataAgency da = agencyFixture.saveAgency(DataAgency.builder()
+			.id(UUID.randomUUID())
+			.code("AGENCY1")
+			.name("Test AGENCY1")
+			.hostLms(h1)
+			.build());
+
+                log.debug("Create dataAgency {}",da);
+
+		sierraPatronsAPIFixture.addPatronGetExpectation("43546");
+		sierraPatronsAPIFixture.addPatronGetExpectation("872321");
 	}
 
 	@BeforeEach
@@ -161,9 +173,10 @@ class PatronRequestApiTests {
 
 		// add shelving location
 		UUID id1 = randomUUID();
-		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms(id1, "code");
+		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms(id1, "codeAA");
+
 		UUID id = randomUUID();
-		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
+		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "codeBB");
 
 		DataAgency dataAgency = Mono.from(agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2)))
 				.block();
@@ -173,11 +186,23 @@ class PatronRequestApiTests {
 
 		Mono.from(shelvingLocationRepository.save(shelvingLocation)).block();
 
+		ReferenceValueMapping pul = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("PickupLocation")
+				.fromContext("DCB").fromValue("ABC123").toCategory("AGENCY").toContext("DCB").toValue("AGENCY1")
+				.build();
+		referenceValueMappingFixture.saveReferenceValueMapping(pul);
+        
 		ReferenceValueMapping rvm = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("ShelvingLocation")
 				.fromContext("patron-request-api-tests").fromValue("ab6").toCategory("AGENCY").toContext("DCB").toValue("ab6")
 				.build();
 
 		referenceValueMappingFixture.saveReferenceValueMapping(rvm);
+
+                ReferenceValueMapping rvm2= ReferenceValueMapping.builder().id(randomUUID()).fromCategory("Location")
+                                .fromContext("patron-request-api-tests").fromValue("tstce").toCategory("AGENCY").toContext("DCB").toValue("ab6")
+                                .build();
+
+                referenceValueMappingFixture.saveReferenceValueMapping(rvm2);
+
 		// Mono.from(referenceValueMappingRepository.save(rvm))
 		// .block();
 
@@ -267,17 +292,20 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.requestor().identities(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(2));
 
-		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(0);
+                // The order can change depending upon access, so force the order so that the get(n) below work as expected
+                // Collections.sort(fetchedPatronRequest.requestor().identities(), (i1, i2) -> { return i1.localId().compareTo(i2.localId()); });
 
+		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(1);
+
+		assertThat(homeIdentity.localId(), is("872321"));
 		assertThat(homeIdentity.homeIdentity(), is(true));
 		assertThat(homeIdentity.hostLmsCode(), is(HOST_LMS_CODE));
-		assertThat(homeIdentity.localId(), is("872321"));
 
-		final var supplierIdentity = fetchedPatronRequest.requestor().identities().get(1);
+		final var supplierIdentity = fetchedPatronRequest.requestor().identities().get(0);
 
+		assertThat(supplierIdentity.localId(), is("2745326"));
 		assertThat(supplierIdentity.homeIdentity(), is(false));
 		assertThat(supplierIdentity.hostLmsCode(), is(HOST_LMS_CODE));
-		assertThat(supplierIdentity.localId(), is("2745326"));
 
 		final var supplierRequest = fetchedPatronRequest.supplierRequests().get(0);
 

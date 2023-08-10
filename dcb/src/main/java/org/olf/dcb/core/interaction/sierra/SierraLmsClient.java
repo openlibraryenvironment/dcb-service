@@ -26,12 +26,9 @@ import org.olf.dcb.configuration.BranchRecord;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
-import org.olf.dcb.configuration.ShelvingLocationRecord;
+import org.olf.dcb.configuration.LocationRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsHold;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.ingest.marc.MarcIngestSource;
@@ -61,6 +58,7 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
+import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResult;
@@ -70,6 +68,8 @@ import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.items.SierraItem;
+import services.k_int.interaction.sierra.items.Status;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
@@ -83,11 +83,11 @@ import services.k_int.utils.UUIDUtils;
  */
 @Prototype
 public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
-
 	private static final Logger log = LoggerFactory.getLogger(SierraLmsClient.class);
 
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
-        private static final Integer FIXED_FIELD_158 = Integer.valueOf(158);
+	private static final Integer FIXED_FIELD_158 = Integer.valueOf(158);
+
 	private final ConversionService<?> conversionService = ConversionService.SHARED;
 	private final HostLms lms;
 	private final SierraApiClient client;
@@ -114,7 +114,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private Mono<BibResultSet> fetchPage(Instant since, int offset, int limit) {
-//		log.info("Fetching batch from Sierra API with since={} offset={} limit={}", since, offset, limit);
 		log.info("Creating subscribeable batch;  since={} offset={} limit={}", since, offset, limit);
 		return Mono.from(client.bibs(params -> {
 				params.deleted(false).offset(offset).limit(limit)
@@ -122,15 +121,17 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 				if (since != null) {
 					params.updatedDate(dtr -> {
-                                                LocalDateTime from_as_local_date_time = since.atZone(java.time.ZoneId.of("UTC")).toLocalDateTime();
-                                                log.info("Setting from date for {} to {}",lms.getName(),from_as_local_date_time);
-						// dtr.to(LocalDateTime.now()).fromDate(LocalDateTime.from(since));
-						dtr.to(LocalDateTime.now())
-                                                   .fromDate(from_as_local_date_time);
+						LocalDateTime from_as_local_date_time = since.atZone(java.time.ZoneId.of("UTC")).toLocalDateTime();
+						log.info("Setting from date for {} to {}", lms.getName(), from_as_local_date_time);
+
+						dtr
+							.to(LocalDateTime.now())
+							.fromDate(from_as_local_date_time);
 					});
 				}
 			}))
-			.doOnSubscribe(_s -> log.info("Fetching batch from Sierra {} with since={} offset={} limit={}", lms.getName(), since, offset, limit));
+			.doOnSubscribe(_s -> log.info("Fetching batch from Sierra {} with since={} offset={} limit={}",
+				lms.getName(), since, offset, limit));
 	}
 
 	/**
@@ -141,9 +142,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	 */
 	private Mono<PublisherState> getInitialState(UUID context, String process) {
 		return processStateService.getStateMap(context, process)
-			.defaultIfEmpty(new HashMap<String, Object>())
+			.defaultIfEmpty(new HashMap<>())
 			.map(current_state -> {
-
 				PublisherState generator_state = new PublisherState(current_state);
 				log.info("backpressureAwareBibResultGenerator - state=" + current_state + " lmsid=" + lms.getId() + " thread="
 					+ Thread.currentThread().getName());
@@ -177,14 +177,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 				// Make a note of the time before we start
 				generator_state.request_start_time = System.currentTimeMillis();
-				log.debug("Create generator: name={} offset={} since={}", lms.getName(), generator_state.offset, generator_state.since);
+				log.debug("Create generator: name={} offset={} since={}", lms.getName(),
+					generator_state.offset, generator_state.since);
 
 				return generator_state;
 			});
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	protected Mono<PublisherState> saveState( PublisherState state ) {
+	protected Mono<PublisherState> saveState(PublisherState state) {
 		log.debug("Update state {} - {}", state,lms.getName());
 
 		return Mono.from(processStateService.updateState(lms.getId(), "ingest", state.storred_state))
@@ -237,7 +238,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			}))
 			.concatMap( TupleUtils.function((state, page) -> {
 				return Flux.fromIterable(page.entries())
-					// Concatenate with the state so we can propogate signals from the save operation.
+					// Concatenate with the state so we can propagate signals from the save operation.
 					.concatWith(Mono.defer(() ->
 							saveState(state))
 						.flatMap(_s -> {
@@ -332,16 +333,27 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	public Mono<HostLmsItem> createItem(String bibId, String locationCode, String barcode) {
 
-		return Mono.from(client.createItem(ItemPatch.builder()
-				.bibIds(List.of(Integer.parseInt(bibId)))
-				.location(locationCode)
-				.barcodes(List.of(barcode))
-				.build()))
+		return getMappedItemType(locationCode, "TODO")
+			.flatMap( itemType -> {
+				log.debug("createItem in SierraLmsClient - needs itemType mapper implementation {}",itemType);
+				return Mono.from(client.createItem(ItemPatch.builder()
+					.bibIds(List.of(Integer.parseInt(bibId)))
+					.location(locationCode)
+					.barcodes(List.of(barcode))
+					.build()));
+			})
 			.doOnSuccess(result -> log.debug("the result of createItem({})", result))
 			.map(result -> deRestify(result.getLink()))
 			.map(localId -> HostLmsItem.builder()
 				.localId(localId)
 				.build());
+	}
+
+	// The item type passed with the item is our canonical system item type, we need to look that up
+	// into a local item type using a system mapping
+	private Mono<String> getMappedItemType(String locationCode, String itemTypeCode) {
+		log.debug("getMappedItemType({},{})",locationCode,locationCode);
+		return Mono.just("TODO");
 	}
 
 	@Override
@@ -375,7 +387,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	public Tuple2<String, String> returnPatronValues(SierraPatronRecord record) {
-		return Tuples.of(valueOf( record.getId() ), valueOf( record.getPatronType() ));
+		return Tuples.of(valueOf(record.getId()), valueOf(record.getPatronType()));
 	}
 
 	@Override
@@ -383,15 +395,16 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("postPatron({})", patron);
 
 		final var patronPatch = PatronPatch.builder()
-			.patronType( parseInt(patron.getLocalPatronType()) )
-			.uniqueIds( Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList).toArray(String[]::new) )
-			.names( Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList).toArray(String[]::new) )
-			.barcodes( Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList).toArray(String[]::new) )
+			.patronType(parseInt(patron.getLocalPatronType()))
+			.uniqueIds(Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList))
+			// Unique IDs are used for names to avoid transmission of personally identifiable information
+			.names(Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList))
+			.barcodes(Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList))
 			.build();
 
 		return Mono.from(client.patrons(patronPatch))
 			.doOnSuccess(result -> log.debug("the result of createPatron({})", result))
-			.map(patronResult -> deRestify( patronResult.getLink() ))
+			.map(patronResult -> deRestify(patronResult.getLink()))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Patron: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Patron"));
@@ -399,61 +412,23 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<String> createBibFromDescription(Map<String,String> bibDescription) {
-		// See
-		// https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_biblio.html
-		// for info on FixedFields
-		// bibPatch contains a map of Integer to FixedField type info. Setting
-		// fixedField 031 to n which indicates that the record should be
-		// Suppressed from discovery
-		log.debug("createBib({})", bibDescription);
+	public Mono<String> createBib(Bib bib) {
+		log.debug("createBib(bib: {})", bib);
 
-		String[] authors = null;
-		if (bibDescription.get("author") != null) {
-			authors = new String[] { bibDescription.get("author") };
-		}
+		// Setting fixedField 031 to n which indicates that the record should be suppressed from discovery.
+		final var fixedFields = Map.of(31, FixedField.builder().label("suppress").value("n").build());
+		final var authors = (bib.getAuthor() != null) ? List.of(bib.getAuthor()) : null;
+		final var titles = (bib.getTitle() != null) ? List.of(bib.getTitle()) : null;
 
-		String[] titles = null;
-		if (bibDescription.get("title") != null) {
-			titles = new String[] { bibDescription.get("title") };
-		}
-
-		BibPatch bibPatch = BibPatch.builder()
-        .authors(authors)
-        .titles(titles)
-        // .bibCode3("n")  // -- COOLCAT seems to choke on this value
-        // .fixedFields(fixedFields)
-        .build();
-
-		return Mono.from(client.bibs(bibPatch)).doOnSuccess(result -> log.debug("the result of createBib({})", result))
-				.map(bibResult -> deRestify(bibResult.getLink())).onErrorResume(NullPointerException.class, error -> {
-					log.debug("NullPointerException occurred when creating Bib: {}", error.getMessage());
-					return Mono.error(new RuntimeException("Error occurred when creating Bib"));
-				});
-	}
-
-	@Override
-	public Mono<String> createBib(String author, String title) {
-		// See https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_biblio.html for info on FixedFields
-		// bibPatch contains a map of Integer to FixedField type info. Setting fixedField 031 to n which indicates that the record should be
-		// Suppressed from discovery
-		log.debug("createBib(author: {}, title: {})", author, title);
-
-		String[] authors = null;
-		if ( author != null ) { authors = new String[]{author}; }
-
-		String[] titles = null;
-		if ( title != null ) { titles = new String[]{title}; }
-
-		BibPatch bibPatch = BibPatch.builder()
+		final var bibPatch = BibPatch.builder()
 			.authors(authors)
 			.titles(titles)
-			.bibCode3("n")
+			.fixedFields(fixedFields)
 			.build();
 
 		return Mono.from(client.bibs(bibPatch))
 			.doOnSuccess(result -> log.debug("the result of createBib({})", result))
-			.map(bibResult -> deRestify( bibResult.getLink() ))
+			.map(bibResult -> deRestify( bibResult.getLink()))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Bib: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Bib"));
@@ -462,13 +437,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public Mono<Tuple2<String, String>> placeHoldRequest(
-		String id, 
+		String id,
 		String recordType,
-		String recordNumber, 
+		String recordNumber,
 		String pickupLocation,
 		String note,
 		String patronRequestId
-		) {
+	) {
 
 		PatronHoldPost patronHoldPost = new PatronHoldPost();
 		patronHoldPost.setRecordType(recordType);
@@ -482,7 +457,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.from(client.placeHoldRequest(id, patronHoldPost))
 			.then(
 				Mono.defer(() -> getPatronHoldRequestId(id, recordNumber, note, patronRequestId))
-				.retry(25)
+					.retry(25)
 			)
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
@@ -523,20 +498,43 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	// Informed by https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
 	private String mapSierraHoldStatusToDCBHoldStatus(String code) {
-                String result = null;
-                switch (code) {
-                        case "0" -> result = HostLmsHold.HOLD_PLACED;
-                        case "b" -> result = HostLmsHold.HOLD_READY; // Bib ready for pickup
-                        case "j" -> result = HostLmsHold.HOLD_READY; // volume ready for pickup
-                        case "i" -> result = HostLmsHold.HOLD_READY; // Item ready for pickup
-                        case "t" -> result = HostLmsHold.HOLD_TRANSIT; // IN Transit
-                        default -> result = code;
-                }
-                return result;
-        }
-	private Tuple2<String, String> chooseHold(String note, List<SierraPatronHold> filteredHolds) {
+		String result;
 
-		log.debug("chooseHold({},{})",note,filteredHolds);
+		switch (code) {
+			case "0" -> result = HostLmsHold.HOLD_PLACED;
+			case "b" -> result = HostLmsHold.HOLD_READY; // Bib ready for pickup
+			case "j" -> result = HostLmsHold.HOLD_READY; // volume ready for pickup
+			case "i" -> result = HostLmsHold.HOLD_READY; // Item ready for pickup
+			case "t" -> result = HostLmsHold.HOLD_TRANSIT; // IN Transit
+			default -> result = code;
+		}
+
+		return result;
+	}
+
+	// Informed by https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
+	// private String mapSierraItemStatusToDCBHoldStatus(String code) {
+	private String mapSierraItemStatusToDCBHoldStatus(Status status) {
+		String result;
+
+		if ( ( status.getDuedate() != null ) && ( status.getCode().trim().length() > 0 ) )   {
+			log.info("Item has a due date, setting item status to LOANED");
+			result = HostLmsItem.ITEM_LOANED;
+		}
+		else {
+			switch (status.getCode()) {
+				case "-" -> result = HostLmsItem.ITEM_AVAILABLE;
+				case "t" -> result = HostLmsItem.ITEM_TRANSIT; // IN Transit
+				case "@" -> result = HostLmsItem.ITEM_OFFSITE; // IN Transit
+				default -> result = status.getCode();
+			}
+		}
+
+		return result;
+	}
+
+	private Tuple2<String, String> chooseHold(String note, List<SierraPatronHold> filteredHolds) {
+		log.debug("chooseHold({},{})", note, filteredHolds);
 
 		if (filteredHolds.size() == 1) {
 			final String extractedId = deRestify(filteredHolds.get(0).id());
@@ -574,9 +572,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
-	public UUID uuid5ForShelvingLocation(@NotNull final String hostLmsCode, @NotNull final String localBranchId,
+	public UUID uuid5ForLocation(@NotNull final String hostLmsCode, @NotNull final String localBranchId,
 		@NotNull final String locationCode) {
-		final String concat = UUID5_PREFIX + ":SL:" + hostLmsCode + ":" + localBranchId + ":" + locationCode;
+		final String concat = UUID5_PREFIX + ":LOC:" + hostLmsCode + ":" + localBranchId + ":" + locationCode;
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
@@ -591,25 +589,25 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private ConfigurationRecord mapSierraBranchToBranchConfigurationRecord(BranchInfo bi) {
-		List<ShelvingLocationRecord> locations = new ArrayList<>();
+		List<LocationRecord> locations = new ArrayList<>();
 		if (bi.locations() != null) {
-			for (Map<String, String> shelving_location : bi.locations()) {
+			for (Map<String, String> sub_location : bi.locations()) {
 				// It appears these are not only shelving locations but more general location records attached to the location
-				locations.add(new ShelvingLocationRecord(
-					uuid5ForShelvingLocation(lms.getCode(), bi.id(), shelving_location.get("code")),
-					shelving_location.get("code"), shelving_location.get("name")));
+				locations.add(new LocationRecord(
+					uuid5ForLocation(lms.getCode(), bi.id(), sub_location.get("code").trim()),
+					sub_location.get("code").trim(), sub_location.get("name")));
 			}
 		}
 
 		return BranchRecord.builder().id(uuid5ForBranch(lms.getCode(), bi.id()))
 			.lms(lms).localBranchId(bi.id()).branchName(bi.name())
 			.lat(bi.latitude() != null ? Float.valueOf(bi.latitude()) : null)
-			.lon(bi.longitude() != null ? Float.valueOf(bi.longitude()) : null).shelvingLocations(locations).build();
+			.lon(bi.longitude() != null ? Float.valueOf(bi.longitude()) : null).subLocations(locations).build();
 	}
 
 	private ConfigurationRecord mapSierraPickupLocationToPickupLocationRecord(PickupLocationInfo pli) {
-		return PickupLocationRecord.builder().id(uuid5ForPickupLocation(lms.getCode(), pli.code())).lms(lms)
-			.code(pli.code()).name(pli.name()).build();
+		return PickupLocationRecord.builder().id(uuid5ForPickupLocation(lms.getCode(), pli.code().trim())).lms(lms)
+			.code(pli.code().trim()).name(pli.name()).build();
 	}
 
 	private Publisher<ConfigurationRecord> getBranches() {
@@ -636,9 +634,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return RefdataRecord.builder()
 			.category(field)
 			.context(lms.getCode())
-			.id(uuid5ForConfigRecord(field, rdv.get("code").toString()))
+			.id(uuid5ForConfigRecord(field, rdv.get("code").toString().trim()))
 			.lms(lms)
-			.value(rdv.get("code").toString())
+			.value(rdv.get("code").toString().trim())
 			.label(rdv.get("desc").toString())
 			.build();
 	}
@@ -744,30 +742,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		// If we were supplied fixed fields, and we can find an entry for fixed field 158, grab the patron agency
 		if ( ( spr.getFixedFields() != null ) &&
-				 ( spr.getFixedFields().get(FIXED_FIELD_158) != null ) ) {
-						patronLocalAgency = spr.getFixedFields().get(FIXED_FIELD_158).getValue().toString();
+			( spr.getFixedFields().get(FIXED_FIELD_158) != null ) ) {
+			patronLocalAgency = spr.getFixedFields().get(FIXED_FIELD_158).getValue().toString();
 		}
 
 		return Patron.builder()
-			.localId( singletonList( valueOf(spr.getId()) ) )
-			.localPatronType( valueOf(spr.getPatronType())  )
-			.localBarcodes( listOfNotNull(spr.getBarcodes()) )
-			.localNames( listOfNotNull(spr.getNames()) )
-			.localPatronAgency( spr.getHomeLibraryCode() ) // .localPatronAgency( patronLocalAgency )
+			.localId(singletonList(valueOf(spr.getId())))
+			.localPatronType(valueOf(spr.getPatronType()))
+			.localBarcodes(spr.getBarcodes())
+			.localNames(spr.getNames())
+			.localHomeLibraryCode(spr.getHomeLibraryCode())
 			.build();
 	}
 
-	private List<String> listOfNotNull(String[] stringArray) {
-		return stringArray != null ? List.of(stringArray) : null;
-	}
-
-//	public <T> List<T> getListIfNotNull(SierraPatronRecord sierraPatronRecord, Function<SierraPatronRecord, T[]> getter) {
-//		T[] result = getter.apply(sierraPatronRecord);
-//		return result != null ? List.of(result) : null;
-//	}
-
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
-		log.debug("getPatronByLocalId({})",localPatronId);
+		log.debug("getPatronByLocalId({})", localPatronId);
 
 		return Mono.from(client.getPatron(Long.valueOf(localPatronId)))
 			.map(this::sierraPatronToHostLmsPatron)
@@ -776,15 +765,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public Mono<Patron> updatePatron(String localPatronId, String patronType) {
-		log.debug("updatePatronByLocalId({})",localPatronId);
+		log.debug("updatePatron({})", localPatronId);
 
 		final var patronPatch = PatronPatch.builder()
-			.patronType( parseInt(patronType) )
+			.patronType(parseInt(patronType))
 			.build();
 
 		return Mono.from( client.updatePatron(Long.valueOf(localPatronId), patronPatch))
-			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")))
-			.flatMap(spr -> Mono.just(sierraPatronToHostLmsPatron(spr)));
+			.map(this::sierraPatronToHostLmsPatron)
+			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")));
 	}
 
 	public HostLmsHold sierraPatronHoldToHostLmsHold(SierraPatronHold sierraHold) {
@@ -795,7 +784,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 			// Map the hold status into a canonical value
 			return new HostLmsHold(holdid,
-					sierraHold.status() != null ? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code()) : "");
+				sierraHold.status() != null ? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code()) : "");
 		} else {
 			return new HostLmsHold();
 		}
@@ -803,8 +792,64 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	public Mono<HostLmsHold> getHold(String holdId) {
 		log.debug("getHold({})", holdId);
-		return Mono.from(client.getHold(Long.valueOf(holdId))).flatMap(sh -> Mono.just(sierraPatronHoldToHostLmsHold(sh)))
-				.defaultIfEmpty(new HostLmsHold(holdId, "MISSING"));
+		return Mono.from(client.getHold(Long.valueOf(holdId)))
+			.flatMap(sh -> Mono.just(sierraPatronHoldToHostLmsHold(sh)))
+			.defaultIfEmpty(new HostLmsHold(holdId, "MISSING"));
+	}
+
+	//
+	// II: We need to talk about this in a review session
+	//
+	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
+		log.debug("updateItemStatus({},{})",itemId,crs);
+		// See https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html#Standard
+		// In Sierra "-" == AVAILABLE, !=ON_HOLDSHELF, $=BILLED PAID, m=MISSING, n=BILLED NOT PAID, z=CL RETURNED, o=Lib Use Only, t=In Transit
+		String status = null;
+
+		switch ( crs ) {
+			case TRANSIT:
+				status= "t";
+				break;
+			case OFFSITE:
+				status= "@";
+				break;
+		}
+
+		if ( status != null ) {
+			ItemPatch ip = ItemPatch.builder()
+				.status(status)
+				.build();
+			return Mono.from(client.updateItem(itemId, ip))
+				.thenReturn("OK");
+
+		}
+		else {
+			return Mono.just("OK");
+		}
+	}
+
+	public HostLmsItem sierraItemToHostLmsItem(SierraItem si){
+		log.debug("convert {} to HostLmsItem",si);
+		return HostLmsItem.builder()
+			.localId(si.getId())
+			.barcode(si.getBarcode())
+			.status( si.getStatus() != null  ? mapSierraItemStatusToDCBHoldStatus(si.getStatus()) : null )
+			.build();
+	}
+
+	public Mono<HostLmsItem> getItem(String itemId) {
+		log.debug("getItem({})",itemId);
+		return Mono.from(client.getItem(itemId))
+			.flatMap( sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)))
+			.defaultIfEmpty(HostLmsItem.builder().localId(itemId).status("MISSING").build());
+	}
+
+	// WARNING We might need to make this accept a patronIdentity - as different systems might take different ways to identify the patron
+	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
+		log.debug("checkOutItemToPatron({},{})",itemId,patronBarcode);
+		return Mono.from(client.checkOutItemToPatron(itemId,patronBarcode))
+			.thenReturn("OK")
+			.defaultIfEmpty("ERROR");
 	}
 
 }

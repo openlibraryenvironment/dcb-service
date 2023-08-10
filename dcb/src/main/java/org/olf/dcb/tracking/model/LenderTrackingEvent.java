@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Serdeable
-public class LenderTrackingEvent  extends TrackingRecord {
+public class LenderTrackingEvent extends TrackingRecord {
 
 	public static final String LENDER_TRACKING_RECORD = "LENDER";
 

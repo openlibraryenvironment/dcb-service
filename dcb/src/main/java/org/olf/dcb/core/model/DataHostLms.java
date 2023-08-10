@@ -20,6 +20,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
@@ -38,21 +39,24 @@ public class DataHostLms implements HostLms {
 	@TypeDef( type = DataType.UUID)
 	public UUID id;
 
-	@NonNull
+        // If we specify NonNull then MN-data can't create an ID-only instance for associations
+	// @NonNull
 	@Size(max = 32)
 	public String code;
 
-	@NonNull
+	// @NonNull
 	@Nullable
 	@Size(max = 200)
 	public String name;
 
-	@NonNull
+        @ToString.Exclude
+	// @NonNull
 	@Nullable
 	@MappedProperty(value = "lms_client_class")
 	public String lmsClientClass;
 
-	@NonNull
+        @ToString.Exclude
+	// @NonNull
 	@Singular("clientConfig")
 	@TypeDef(type = DataType.JSON)
 	Map<String, Object> clientConfig;

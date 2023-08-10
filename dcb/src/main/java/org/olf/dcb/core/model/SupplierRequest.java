@@ -9,13 +9,6 @@ import javax.validation.constraints.Size;
 
 import org.olf.dcb.request.fulfilment.SupplierRequestStatusCode;
 
-import io.micronaut.core.annotation.Creator;
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.annotation.Nullable;
-import io.micronaut.data.annotation.Id;
-import io.micronaut.data.annotation.MappedEntity;
-import io.micronaut.data.annotation.Relation;
-import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Column;
@@ -24,8 +17,14 @@ import jakarta.persistence.Enumerated;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import lombok.RequiredArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+import io.micronaut.core.annotation.Creator;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.data.annotation.*;
+import java.time.Instant;
 
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
@@ -34,12 +33,23 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @RequiredArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
 @Builder
+@ToString(onlyExplicitlyIncluded = true)
 public class SupplierRequest {
+
+	@ToString.Include
 	@NotNull
 	@NonNull
 	@Id
 	@TypeDef(type = DataType.UUID)
 	private UUID id;
+
+	@Nullable
+        @DateCreated
+        private Instant dateCreated;
+
+        @Nullable
+        @DateUpdated
+        private Instant dateUpdated;
 
 	@Nullable
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
@@ -62,11 +72,16 @@ public class SupplierRequest {
 	@Size(max = 200)
 	private String localItemLocationCode;
 
+	@Nullable
+	@Size(max = 200)
+	private String localItemStatus;
+
 	@NotNull
 	@NonNull
 	@Size(max = 200)
 	private String hostLmsCode;
 
+	@ToString.Include
 	@Nullable
 	@Size(max = 200)
 	@Enumerated(EnumType.STRING)
@@ -92,6 +107,9 @@ public class SupplierRequest {
         @Nullable
         @Relation(value = Relation.Kind.MANY_TO_ONE)
         private DataAgency resolvedAgency;
+
+	@Nullable
+	private Boolean isActive;
 
 	public SupplierRequest placed(String localId, String localStatus) {
 		setLocalId(localId);

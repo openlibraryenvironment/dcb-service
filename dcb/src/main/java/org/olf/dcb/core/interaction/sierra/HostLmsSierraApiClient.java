@@ -2,6 +2,8 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.HttpMethod.PUT;
+import static io.micronaut.http.HttpMethod.DELETE;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
 import static reactor.core.publisher.Mono.empty;
@@ -33,9 +35,6 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpRequest;
-import io.micronaut.http.annotation.Body;
-import io.micronaut.http.annotation.PathVariable;
-import io.micronaut.http.annotation.Put;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
@@ -53,6 +52,8 @@ import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.items.SierraItem;
+import services.k_int.interaction.sierra.patrons.CheckoutPatch;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
@@ -184,6 +185,23 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.flatMap(request -> doRetrieve(request, Argument.of(LinkResult.class)));
 	}
 
+	@Override
+	@SingleResult
+        public Mono<Void> updateItem(final String itemId, final ItemPatch body) {
+                return putRequest("items/"+itemId)
+                        .map(req -> req.body(body))
+                        .flatMap(this::ensureToken)
+                        .flatMap(req -> doExchange(req, Object.class))
+                        .then();
+	}
+
+        @Override
+        @SingleResult
+        @Retryable
+        public Publisher<SierraItem> getItem(final String itemId) {
+                return get("items/"+itemId, Argument.of(SierraItem.class), uri -> {});
+        }
+
 	@SingleResult
 	public Publisher<LinkResult> patrons(PatronPatch body) {
 		// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Create_a_patron_record_post_0
@@ -195,12 +213,23 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 	@SingleResult
 	public Publisher<LinkResult> bibs(BibPatch body) {
-		// See https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/bibs/Create_a_Bib_record_post_0
+		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/bibs/Create_a_Bib_record_post_0
 		return postRequest("bibs")
 			.map(req -> req.body(body))
 			.flatMap(this::ensureToken)
 			.flatMap(req -> doRetrieve(req, Argument.of(LinkResult.class)));
 	}
+
+	@SingleResult
+        public Mono<Void> updateBib(final String bibId, final BibPatch body) {
+                // https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/bibs/Create_a_Bib_record_post_0
+                return putRequest("bibs/"+bibId)
+                        .map(req -> req.body(body))
+                        .flatMap(this::ensureToken)
+			.flatMap(req -> doExchange(req, Object.class))
+                        .then();
+        }
+
 
 	@SingleResult
 	public Publisher<SierraPatronRecord> patronFind(String varFieldTag, String varFieldContent) {
@@ -264,9 +293,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	}
 
 	@SingleResult
-	@Put("/patrons/{id}")
-	public Publisher<SierraPatronRecord> updatePatron(@Nullable @PathVariable("id") final Long patronId,
-		@Body PatronPatch patronPatch) {
+	public Publisher<SierraPatronRecord> updatePatron(@Nullable final Long patronId,
+		PatronPatch patronPatch) {
 
 		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Update_the_Patron_record_put_19
 		return createRequest(HttpMethod.PUT, "patrons/" + patronId)
@@ -336,6 +364,10 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		return createRequest(POST, path);
 	}
 
+	private <T> Mono<MutableHttpRequest<T>> putRequest(String path) {
+		return createRequest(PUT, path);
+	}
+
 	private <T> Mono<MutableHttpRequest<T>> createRequest(HttpMethod method, String path) {
 		return Mono.just(UriBuilder.of(path).build())
 			.map(this::resolve)
@@ -387,9 +419,24 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		final String secret = (String) conf.get(CLIENT_SECRET);
 
 		return Mono.from(login(key, secret))
-			.map( newToken -> {
+			.map(newToken -> {
 				currentToken = newToken;
 				return newToken;
 			});
 	}
+
+        @SingleResult
+        public Publisher<LinkResult> checkOutItemToPatron(String itemBarcode,String patronBarcode) {
+
+                CheckoutPatch checkoutPatch = CheckoutPatch.builder()
+                        .itemBarcode(itemBarcode)
+                        .patronBarcode(patronBarcode)
+                        .build();
+
+                return postRequest("patrons/checkout")
+                        .map(request -> request.body(checkoutPatch))
+                        .flatMap(this::ensureToken)
+                        .flatMap(request -> doRetrieve(request, Argument.of(LinkResult.class)));
+        }
+
 }

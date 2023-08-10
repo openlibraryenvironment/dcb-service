@@ -1,6 +1,5 @@
 package services.k_int.interaction.sierra;
 
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -8,6 +7,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.SierraErrorMatchers.isBadJsonError;
 
 import java.util.List;
 
@@ -17,6 +17,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.matchers.SierraErrorMatchers;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
@@ -99,29 +100,9 @@ class SierraApiItemTests {
 			() -> singleValueFrom(sierraApiClient.createItem(itemPatch)));
 
 		// Assert
-		final var response = exception.getResponse();
+		final var body = SierraErrorMatchers.getResponseBody(exception);
 
-		assertThat("Should return a bad request status",
-			response.getStatus(), is(BAD_REQUEST));
-
-		final var optionalBody = response.getBody(SierraError.class);
-
-		assertThat("Response should have a body",
-			optionalBody.isPresent(), is(true));
-
-		final var body = optionalBody.get();
-
-		assertThat("Error should have a name",
-			body.getName(), is("Bad JSON/XML Syntax"));
-
-		assertThat("Error should have a description",
-			body.getDescription(), is("Please check that the JSON fields/values are of the expected JSON data types"));
-
-		assertThat("Error should have a code",
-			body.getCode(), is(130));
-
-		assertThat("Error should have a specific code",
-			body.getSpecificCode(), is(0));
+		assertThat(body, isBadJsonError());
 	}
 
 	@Test

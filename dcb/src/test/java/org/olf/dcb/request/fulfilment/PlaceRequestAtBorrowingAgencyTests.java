@@ -6,8 +6,10 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterAll;
@@ -96,9 +98,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
 
 		final var bibPatch = BibPatch.builder()
-			.authors(new String[]{"Stafford Beer"})
-			.titles(new String[]{"Brain of the Firm"})
-			// .bibCode3("n")
+			.authors(List.of("Stafford Beer"))
+			.titles(List.of("Brain of the Firm"))
 			.build();
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
@@ -107,7 +108,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
 
-		sierraPatronsAPIFixture.addPatronGetExpectation(872321L);
+		sierraPatronsAPIFixture.addPatronGetExpectation("872321");
 	}
 
 	@BeforeEach
@@ -173,7 +174,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		final var patron = patronFixture.savePatron("872321");
 
-		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-");
+		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-", "872321", null);
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()
@@ -221,7 +222,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		final var patron = patronFixture.savePatron("972321");
 
-		patronFixture.saveIdentity(patron, hostLms, "972321", true, "-");
+		patronFixture.saveIdentity(patron, hostLms, "972321", true, "-", "972321", null);
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()
@@ -244,14 +245,16 @@ class PlaceRequestAtBorrowingAgencyTests {
 			() -> placeRequestAtBorrowingAgency(patronRequest));
 
 		// Assert
-		assertThat(exception.getMessage(), is("Internal Server Error"));
+		final var expectedMessage = "Internal server error: Invalid configuration - [109 / 0]";
+
+		assertThat(exception.getMessage(), is(expectedMessage));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(Status.ERROR));
+			fetchedPatronRequest.getStatus(), is(ERROR));
 
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, "Internal Server Error");
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedMessage);
 	}
 
 	@Test
@@ -267,7 +270,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		final var patron = patronFixture.savePatron("972321");
 
-		patronFixture.saveIdentity(patron, hostLms, "785843", true, "-");
+		patronFixture.saveIdentity(patron, hostLms, "785843", true, "-", "972321", null);
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()
@@ -298,7 +301,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(Status.ERROR));
+			fetchedPatronRequest.getStatus(), is(ERROR));
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(),
@@ -333,7 +336,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			fetchedAudit.getFromStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(Status.ERROR));
+			fetchedAudit.getToStatus(), is(ERROR));
 	}
 
 	private PatronRequest placeRequestAtBorrowingAgency(PatronRequest patronRequest) {

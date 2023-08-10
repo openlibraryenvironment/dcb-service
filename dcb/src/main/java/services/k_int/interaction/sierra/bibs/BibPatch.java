@@ -1,8 +1,10 @@
 package services.k_int.interaction.sierra.bibs;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
@@ -11,27 +13,28 @@ import services.k_int.interaction.sierra.FixedField;
 @Data
 @Serdeable
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class BibPatch {
-	String[] authors;
-	String[] callNumbers;
-	String[] titles;
-	String[] editions;
-	String[] descriptions;
-	String[] series;
-	String[] notes;
-	String[] subjects;
-	String[] pubInfo;
-	String[] addedAuthors;
-	String[] addedTitles;
-	String[] continues;
-	String[] relatedTo;
-	String[] bibUtilNums;
-	String[] standardNums;
-	String[] lccn;
-	String[] govDocs;
-	String[] holdings;
-	String[] tocData;
-	String[] misc;
+	List<String> authors;
+	List<String> callNumbers;
+	List<String> titles;
+	List<String> editions;
+	List<String> descriptions;
+	List<String> series;
+	List<String> notes;
+	List<String> subjects;
+	List<String> pubInfo;
+	List<String> addedAuthors;
+	List<String> addedTitles;
+	List<String> continues;
+	List<String> relatedTo;
+	List<String> bibUtilNums;
+	List<String> standardNums;
+	List<String> lccn;
+	List<String> govDocs;
+	List<String> holdings;
+	List<String> tocData;
+	List<String> misc;
 	String lang;
 	Integer skip;
 	String location;

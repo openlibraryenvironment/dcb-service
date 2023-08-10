@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -75,6 +77,10 @@ public class PatronRequestWorkflowService {
 		return progressUsing(patronRequest, getApplicableTransitionFor(patronRequest));
 	}
 
+	public Flux<PatronRequest> progressUsing(PatronRequest patronRequest, PatronRequestStateTransition action) {
+		return this.progressUsing(patronRequest, Optional.ofNullable(action));
+	}
+	
 	public Flux<PatronRequest> progressUsing(PatronRequest patronRequest, Optional<PatronRequestStateTransition> action) {
 
 		if (action.isEmpty()) {
@@ -104,6 +110,16 @@ public class PatronRequestWorkflowService {
 //		}
 //		return complete;
 	}
+	
+	public Stream<PatronRequestStateTransition> getPossibleStateTransitionsFor(PatronRequest patronRequest) {
+		return allTransitions.stream()
+				.filter(transition -> transition.isApplicableFor(patronRequest));
+	}
+	
+	private Stream<PatronRequestStateTransition> getAutomaticStateTransitionsFor(PatronRequest patronRequest) {
+		return getPossibleStateTransitionsFor(patronRequest)
+				.filter(PatronRequestStateTransition::attemptAutomatically);
+	}
 
 	/**
 	 * Hide the details of matching an object against the workflow here...
@@ -113,9 +129,7 @@ public class PatronRequestWorkflowService {
 	private Optional<PatronRequestStateTransition> getApplicableTransitionFor(PatronRequest patronRequest) {
 
 		log.debug("getApplicableTransitionFor({})", patronRequest);
-		
-		return allTransitions.stream()
-			.filter(transition -> transition.isApplicableFor(patronRequest))
+		return getAutomaticStateTransitionsFor(patronRequest)
 			.findFirst();
 		
 
@@ -173,11 +187,10 @@ public class PatronRequestWorkflowService {
 					// When we encounter an error we should set the status in the DB only to avoid,
 					// partial state saves.
 
-					log.debug("update to error state");
+					log.debug("update patron request {} to error state ({})",prId,throwable.toString());
 					
 					return Mono.from(patronRequestRepository.updateStatusWithError(prId, throwable))
 						.then(patronRequestAuditService.addErrorAuditEntry(patronRequest, fromState, throwable))
-						.doOnNext(pra -> log.debug("two"))
 						.onErrorResume(saveError -> {
 							log.error("Could not update PatronRequest with error state", saveError);
 							return Mono.empty();

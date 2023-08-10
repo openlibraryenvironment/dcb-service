@@ -6,7 +6,7 @@ import lombok.Data;
 
 @Data
 @Serdeable
-public class Result {
+public class SierraItem {
 	@Nullable
 	String id;
 	@Nullable

@@ -5,6 +5,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.reactivestreams.Publisher;
 import io.micronaut.core.annotation.NonNull;
@@ -32,7 +33,7 @@ public interface SupplierRequestRepository {
 
 	Publisher<Void> delete(UUID id);
 
-	@Query(value = "SELECT sr.* from supplier_request sr where sr.status_code in ( select code from status_code where model = 'SupplierRequest' and tracked = true )", nativeQuery = true)
+	@Query(value = "SELECT sr.* from supplier_request sr where sr.status_code in ( select code from status_code where model = 'SupplierRequest' and tracked = true ) and ( sr.local_id is not null ) and ( sr.local_status <> 'MISSING') ", nativeQuery = true)
 	Publisher<SupplierRequest>  findTrackedSupplierHolds();
 
         @NonNull
@@ -47,4 +48,13 @@ public interface SupplierRequestRepository {
                         ;
         }
 
+        @SingleResult
+        @NonNull
+        Publisher<PatronRequest> findPatronRequestById(UUID supplierRequestId);
+
+
+	@Query(value = "SELECT s.* from supplier_request s  where s.local_item_id is not null and ( s.local_item_status is null or s.local_item_status in ( select code from status_code where model = 'SupplierItem' and tracked = true ) )", nativeQuery = true)
+	Publisher<SupplierRequest> findTrackedSupplierItems();
+	Publisher<PatronIdentity> findVirtualIdentityById(UUID supplierRequestId);
 }
+

@@ -3,9 +3,9 @@ package org.olf.dcb.core.interaction.sierra;
 import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.HttpStatusCode.BAD_REQUEST_400;
+import static org.mockserver.model.HttpStatusCode.INTERNAL_SERVER_ERROR_500;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
-import static org.mockserver.model.MediaType.TEXT_PLAIN;
 
 import java.io.InputStream;
 
@@ -57,7 +57,7 @@ public class SierraMockServerResponses {
 				.build()));
 	}
 
-	HttpResponse jsonError() {
+	HttpResponse badRequestError() {
 		return jsonResponse(response().withStatusCode(BAD_REQUEST_400.code()),
 			json(Error.builder()
 				.code(130)
@@ -68,11 +68,15 @@ public class SierraMockServerResponses {
 				.build()));
 	}
 
-	HttpResponse textError() {
-		return response()
-			.withStatusCode(500)
-			.withContentType(TEXT_PLAIN)
-			.withBody("Broken");
+	public HttpResponse serverError() {
+		return jsonResponse(response().withStatusCode(INTERNAL_SERVER_ERROR_500.code()),
+			json(Error.builder()
+				.code(109)
+				.specificCode(0)
+				.httpStatus(500)
+				.name("Internal server error")
+				.description("Invalid configuration")
+				.build()));
 	}
 
 	public HttpResponse unauthorised() {

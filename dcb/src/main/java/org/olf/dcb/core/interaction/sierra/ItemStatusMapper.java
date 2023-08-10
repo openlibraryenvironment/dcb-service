@@ -48,7 +48,7 @@ class ItemStatusMapper {
 	}
 
 	private Mono<ReferenceValueMapping> fetchReferenceValueMap(String statusCode, String hostLmsCode) {
-		return Mono.from(referenceValueMappingRepository.findByFromCategoryAndFromContextAndFromValueAndToContext(
+		return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToContext(
 				"itemStatus", hostLmsCode, statusCode, "DCB"));
 	}
 

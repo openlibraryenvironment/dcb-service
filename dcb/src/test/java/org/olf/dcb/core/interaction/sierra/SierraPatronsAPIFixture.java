@@ -1,7 +1,6 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static org.mockserver.model.HttpRequest.request;
-import static org.mockserver.model.MediaType.APPLICATION_JSON;
+import static org.mockserver.model.JsonBody.json;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,6 +9,7 @@ import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.mockserver.model.JsonBody;
+import org.mockserver.model.RequestDefinition;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.serde.annotation.Serdeable;
@@ -30,6 +30,19 @@ public class SierraPatronsAPIFixture {
 			"classpath:mock-responses/sierra/", loader);
 	}
 
+	public void getHoldById404(String holdId) {
+		mockServer
+			.when(sierraMockServerRequests.get("/holds/"+holdId))
+			.respond(sierraMockServerResponses.noRecordsFound());
+	}
+
+	public void getHoldById(String holdId) {
+		mockServer.clear(sierraMockServerRequests.get("/holds/"+holdId));
+		mockServer
+			.when(sierraMockServerRequests.get("/holds/"+holdId))
+			.respond(sierraMockServerResponses.jsonSuccess("holds/11987.json"));
+	}
+
 	public void postPatronResponse(String uniqueId, int returnId) {
 		mockServer
 			.when(postPatronRequest(uniqueId))
@@ -39,74 +52,66 @@ public class SierraPatronsAPIFixture {
 	public void postPatronErrorResponse(String uniqueId) {
 		mockServer
 			.when(postPatronRequest(uniqueId))
-			.respond(patronErrorResponse());
+			.respond(sierraMockServerResponses.badRequestError());
 	}
 
-	public void getPatronByLocalId(String id) {
+	public void getPatronByLocalIdSuccessResponse(String id) {
 		mockServer
-			.when(request()
-				.withMethod("GET")
-				.withPath("/iii/sierra-api/v6/patrons/" + id))
-			.respond(patronUpdatedResponse());
+			.when(getPatron(id))
+			.respond(successfulPatron());
 	}
 
 	public void noRecordsFoundWhenGettingPatronByLocalId(String patronId) {
 		mockServer
-			.when(request()
-				.withMethod("GET")
-				.withPath("/iii/sierra-api/v6/patrons/" + patronId))
+			.when(getPatron(patronId))
 			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
-	public void serverErrorWhenGettingPatronByLocalId(String patronId) {
+	public void badRequestWhenGettingPatronByLocalId(String patronId) {
 		mockServer
-			.when(request()
-				.withMethod("GET")
-				.withPath("/iii/sierra-api/v6/patrons/" + patronId))
-			.respond(patronErrorResponse());
+			.when(getPatron(patronId))
+			.respond(sierraMockServerResponses.badRequestError());
 	}
 
-	public void updatePatron(String id) {
+	public void updatePatron(String patronId) {
 		mockServer
-			.when(request()
-				.withMethod("PUT")
-				.withPath("/iii/sierra-api/v6/patrons/" + id))
-			.respond(patronUpdatedResponse());
+			.when(putPatron(patronId))
+			.respond(successfulPatron());
 	}
 
 	public void patronResponseForUniqueId(String uniqueId) {
 		mockServer
-			.when(getPatronFindRequest(uniqueId))
+			.when(findPatron(uniqueId))
 			.respond(patronFoundResponse());
 	}
 
 	public void patronResponseForUniqueIdExpectedPtype(String uniqueId) {
 		mockServer
-			.when(getPatronFindRequest(uniqueId))
-			.respond(patronUpdatedResponse());
+			.when(findPatron(uniqueId))
+			.respond(successfulPatron());
 	}
 
 	public void patronNotFoundResponseForUniqueId(String uniqueId) {
 		mockServer
-			.when(getPatronFindRequest(uniqueId))
+			.when(findPatron(uniqueId))
 			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
 	public void patronHoldRequestResponse(String patronId) {
 		mockServer
-			.when(createPatronHoldRequest(patronId))
+			.when(postPatronHoldRequest(patronId))
 			.respond(sierraMockServerResponses.noContent());
 	}
 
 	public void patronHoldRequestErrorResponse(String patronId) {
 		mockServer
-			.when(createPatronHoldRequest(patronId))
-			.respond(patronErrorResponse());
+			.when(postPatronHoldRequest(patronId))
+			.respond(sierraMockServerResponses.serverError());
 	}
 
 	public void patronHoldResponse(String id) {
 		mockServer
-			.when(sierraMockServerRequests.get("/" + id + "/holds"))
+			.when(getPatronHolds(id))
 			.respond(patronHoldFoundResponse());
 	}
 
@@ -131,59 +136,47 @@ public class SierraPatronsAPIFixture {
 			.entries(phre)
 			.build();
 
-		mockServer.clear(
-			request()
-				.withMethod("GET")
-				.withPath("/iii/sierra-api/v6/patrons/" + patronId + "/holds")
-		);
+		mockServer.clear(getPatronHolds(patronId));
 
 		mockServer
-			.when(request()
-				.withMethod("GET")
-				.withPath("/iii/sierra-api/v6/patrons/" + patronId + "/holds"))
-			.respond(HttpResponse.response().withContentType(APPLICATION_JSON).withBody(JsonBody.json(phr)));
+			.when(getPatronHolds(patronId))
+			.respond(sierraMockServerResponses.jsonSuccess(json(phr)));
 	}
 
 	public void notFoundWhenGettingPatronRequests(String patronId) {
 		mockServer
-			.when(request()
-				.withMethod("GET")
-				.withPath("/iii/sierra-api/v6/patrons/" + patronId + "/holds"))
+			.when(getPatronHolds(patronId))
 			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
 	public void patronHoldNotFoundErrorResponse(String id) {
 		mockServer
-			.when(sierraMockServerRequests.get("/" + id + "/holds"))
+			.when(getPatronHolds(id))
 			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
 	public void patronHoldErrorResponse(String id) {
 		mockServer
-			.when(sierraMockServerRequests.get("/" + id + "/holds"))
-			.respond(patronErrorResponse());
+			.when(getPatronHolds(id))
+			.respond(sierraMockServerResponses.badRequestError());
 	}
 
-	public void addPatronGetExpectation(Long localId) {
-		mockServer.when(getPatronRequest(localId))
-			.respond(sierraPatronRecord(localId));
+	public void addPatronGetExpectation(String patronId) {
+		mockServer.when(getPatron(patronId))
+			.respond(sierraPatronRecord(patronId));
 	}
 
 	private HttpResponse patronFoundResponse() {
 		return sierraMockServerResponses.jsonSuccess("patrons/sierra-api-patron-found.json");
 	}
 
-	private HttpResponse patronUpdatedResponse() {
-		return sierraMockServerResponses.jsonSuccess("patrons/sierra-api-patron-updated.json");
+	private HttpResponse successfulPatron() {
+		return sierraMockServerResponses.jsonSuccess(examplePatron());
 	}
 
-	private HttpResponse patronErrorResponse() {
-		return sierraMockServerResponses.textError();
-	}
-
-	private HttpResponse patronPlacedResponse(int returnId) {
+	private HttpResponse patronPlacedResponse(int patronId) {
 		return sierraMockServerResponses
-			.jsonLink("https://sandbox.iii.com/iii/sierra-api/v6/patrons/" + returnId);
+			.jsonLink("https://sandbox.iii.com/iii/sierra-api/v6/patrons/" + patronId);
 	}
 
 	private HttpResponse patronHoldFoundResponse() {
@@ -198,52 +191,82 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerRequests.post(patronPatch);
 	}
 
-	private HttpRequest getPatronFindRequest(String uniqueId) {
+	private HttpRequest findPatron(String uniqueId) {
 		return sierraMockServerRequests.get("/find")
 			.withQueryStringParameter("varFieldTag", "u")
 			.withQueryStringParameter("varFieldContent", uniqueId);
 	}
 
-	private HttpRequest createPatronHoldRequest(String patronId) {
+	private HttpRequest postPatronHoldRequest(String patronId) {
 		return sierraMockServerRequests.post("/" + patronId + "/holds/requests");
 	}
 
-	private HttpRequest getPatronRequest(Long id) {
-		return sierraMockServerRequests.get("/" + id);
+	private HttpRequest getPatronHolds(String patronId) {
+		return sierraMockServerRequests.get("/" + patronId + "/holds");
 	}
 
-	private HttpResponse sierraPatronRecord(Long id) {
-		return sierraMockServerResponses.jsonSuccess("patrons/patron/"+ id +".json");
+	private HttpRequest getPatron(String patronId) {
+		return sierraMockServerRequests.get("/" + patronId);
 	}
+
+	private RequestDefinition putPatron(String patronId) {
+		return sierraMockServerRequests.put("/" + patronId);
+	}
+
+	private HttpResponse sierraPatronRecord(String patronId) {
+		return sierraMockServerResponses.jsonSuccess("patrons/patron/"+ patronId +".json");
+	}
+
+	private static JsonBody examplePatron() {
+		return json(
+			Patron.builder()
+				.id(1000002)
+				.patronType(15)
+				.homeLibraryCode("testccc")
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build());
+	}
+
+	@Data
+	@Serdeable
+	@Builder
+	public static class Patron {
+		Integer id;
+		Integer patronType;
+		String homeLibraryCode;
+		List<String> barcodes;
+		List<String> names;
+	}
+	
 	@Data
 	@Serdeable
 	@Builder
 	public static class PatronPatch {
-
 		List<String> uniqueIds;
 	}
+
 	@Data
 	@Serdeable
 	@Builder
 	public static class PatronHoldPost {
-
 		String recordType;
 		Integer recordNumber;
 		String pickupLocation;
 	}
+
 	@Data
 	@Serdeable
 	@Builder
 	public static class SierraCodeNameTuple {
-
 		String code;
 		String name;
 	}
+
 	@Data
 	@Serdeable
 	@Builder
 	public static class PatronHoldResponse {
-
 		String id;
 		String record;
 		String patron;

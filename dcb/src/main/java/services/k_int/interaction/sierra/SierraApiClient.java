@@ -28,6 +28,7 @@ import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.Params;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
@@ -116,10 +117,19 @@ public interface SierraApiClient {
 	Publisher<LinkResult> createItem(final ItemPatch itemPatch);
 
 	@SingleResult
+	Publisher<Void> updateItem(final String itemId, final ItemPatch itemPatch);
+
+	@SingleResult
+	Publisher<SierraItem> getItem(final String itemId);
+
+	@SingleResult
 	Publisher<LinkResult> patrons(final PatronPatch patronPatch);
 
 	@SingleResult
 	Publisher<LinkResult> bibs(final BibPatch bibPatch);
+
+	@SingleResult
+	Publisher<Void> updateBib(String bibId, BibPatch body);
 
 	@SingleResult
 	Publisher<SierraPatronRecord> patronFind(
@@ -173,4 +183,7 @@ public interface SierraApiClient {
 
 	@SingleResult
 	Publisher<SierraPatronHold> getHold(@Nullable final Long holdId);
+
+	@SingleResult
+        Publisher<LinkResult> checkOutItemToPatron(String itemBarcode,String patronBarcode);
 }

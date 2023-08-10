@@ -17,6 +17,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+import lombok.ToString;
 
 @Data
 @Serdeable
@@ -25,13 +26,16 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @NoArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
 @Builder
+@ToString(onlyExplicitlyIncluded = true)
 public class DataAgency implements Agency {
 
+	@ToString.Include
 	@NonNull
 	@Id
 	@TypeDef( type = DataType.UUID)
 	private UUID id;
 
+	@ToString.Include
 	@NonNull
 	@Size(max = 32)
 	private String code;

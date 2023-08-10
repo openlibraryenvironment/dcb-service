@@ -11,12 +11,16 @@ import jakarta.persistence.OneToMany;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import lombok.experimental.Accessors;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.Instant;
 import java.util.List;
@@ -30,19 +34,27 @@ import java.util.UUID;
 @MappedEntity
 @ExcludeFromGeneratedCoverageReport
 @Accessors(chain = true)
+@ToString(onlyExplicitlyIncluded = true)
 public class PatronRequest {
-	
+
 	@Serdeable
 	public static enum Status {
-		SUBMITTED_TO_DCB,
-		PATRON_VERIFIED,
-		RESOLVED,
-		NO_ITEMS_AVAILABLE_AT_ANY_AGENCY,
+		SUBMITTED_TO_DCB, 
+		PATRON_VERIFIED, 
+		RESOLVED, 
+		NO_ITEMS_AVAILABLE_AT_ANY_AGENCY, 
 		REQUEST_PLACED_AT_SUPPLYING_AGENCY,
-		REQUEST_PLACED_AT_BORROWING_AGENCY,
+		REQUEST_PLACED_AT_BORROWING_AGENCY, 
+		READY_FOR_PICKUP,
+		LOANED,
+		PICKUP_TRANSIT,
+		RETURN_TRANSIT,
+		CANCELLED,
+		FINALISED,
 		ERROR
 	}
 
+	@ToString.Include
 	@NotNull
 	@NonNull
 	@Id
@@ -104,6 +116,11 @@ public class PatronRequest {
 	@Size(max = 200)
 	private String pickupRequestStatus;
 
+	// Ignore at this property level. We provide explicit ignore/serializing
+	// instructions at a getter and setter level to prevent any JSON binding to this
+	// field but allow deserilization for output.
+	@JsonIgnore
+	@ToString.Include
 	@Nullable
 	@Column(name = "status_code") // Preserve the data mapping value from the old string type.
 	private Status status;
@@ -120,13 +137,38 @@ public class PatronRequest {
 	private String localItemId;
 
 	@Nullable
+	private String localItemStatus;
+
+	@Nullable
 	private String localBibId;
 
+	@ToString.Include
 	@Nullable
 	private String description;
 
 	@Nullable
 	private String errorMessage;
+	
+	@JsonProperty("status")
+	public Status getStatus() {
+		return this.status;
+	}
+	
+	@JsonIgnore
+	public PatronRequest setStatus( Status status ) {
+		this.status = status;
+		return this;
+	}
+
+        /**
+         * It is useful to have a shorthand note of the specific workflow which is in force for the patron request - initially
+         * RET- RETURNABLE ITEMS
+         * RET-LOCAL - We're placing a request in a single system - the patron, pickup and lending roles are all within a single system (1 Party)
+         * RET-STD - We're placing a request at a remote system, but the patron will pick the item up from their local library (2 parties)
+         * RET-PUA - The Borrower, Patron and Pickup systems are all different (3 parties)
+         */
+	@Nullable
+	private String activeWorkflow;
 
 	@OneToMany(mappedBy = "patronRequestAuditId")
 	private List<PatronRequestAudit> patronRequestAudits;
@@ -140,9 +182,8 @@ public class PatronRequest {
 	}
 
 	public PatronRequest placedAtBorrowingAgency(String localId, String localStatus) {
-		return setLocalRequestId(localId)
-			.setLocalRequestStatus(localStatus)
-			.setStatus(Status.REQUEST_PLACED_AT_BORROWING_AGENCY);
+		return setLocalRequestId(localId).setLocalRequestStatus(localStatus)
+				.setStatus(Status.REQUEST_PLACED_AT_BORROWING_AGENCY);
 	}
 
 	public PatronRequest placedAtSupplyingAgency() {

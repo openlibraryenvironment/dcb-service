@@ -13,5 +13,6 @@ public class ItemPatch {
 	List<Integer> bibIds;
 	Integer itemType;
 	String location;
+	String status;
 	List<String> barcodes;
 }
