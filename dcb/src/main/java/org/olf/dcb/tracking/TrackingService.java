@@ -94,8 +94,10 @@ public class TrackingService implements Runnable {
 		return Flux.from(supplierRequestRepository.findTrackedSupplierHolds());
 	}
 
-private Mono<PatronRequest> checkPatronRequest(PatronRequest pr) {
+        private Mono<PatronRequest> checkPatronRequest(PatronRequest pr) {
+
 		log.debug("Check patron request {}", pr);
+
 		return hostLmsService.getClientFor( pr.getPatronHostlmsCode() )
 			.flatMap(client -> client.getHold( pr.getLocalRequestId() ))
 			.onErrorContinue((e, o) -> log.error("Error occurred: " + e.getMessage(),e))

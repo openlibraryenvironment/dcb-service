@@ -97,7 +97,7 @@ public class HostLmsReactions {
 					handler="BorrowerRequestItemOnHoldShelf";
 				}
 				else {
-					log.error("Unhandled BorrowerVirtualItem ToState:{}",sc.getToState());
+					log.warn("Unhandled BorrowerVirtualItem ToState:{}",sc.getToState());
 				}
 			}
 			else if ( sc.getResourceType().equals("SupplierItem") ) {
@@ -118,8 +118,9 @@ public class HostLmsReactions {
 
 
 		// https://stackoverflow.com/questions/74183112/how-to-select-the-correct-transactionmanager-when-using-r2dbc-together-with-flyw
+                log.debug("Detected handler: {}",handler);
 		if ( handler != null ) {
-			log.debug("Invoke action {}",handler);
+                        log.debug("Attempt to resolve bean");
 			WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
 			if ( action != null ) {
 				log.debug("Invoke {}",action.getClass().getName());
@@ -131,7 +132,11 @@ public class HostLmsReactions {
 				throw new RuntimeException("Missing qualified WorkflowAction for handler "+handler);
 			}
 		}
+                else {
+                        log.debug("No handler");
+                }
 
+                log.debug("onTrackingEvent {} complete",trackingRecord);
 		return Mono.just(context);
 	}
 
