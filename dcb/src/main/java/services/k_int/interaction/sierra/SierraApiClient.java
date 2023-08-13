@@ -1,10 +1,7 @@
 package services.k_int.interaction.sierra;
 
-import static io.micronaut.http.HttpHeaders.ACCEPT;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
-
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -14,70 +11,71 @@ import org.slf4j.LoggerFactory;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
-import io.micronaut.core.convert.format.Format;
 import io.micronaut.http.BasicAuth;
 import io.micronaut.http.annotation.Body;
-import io.micronaut.http.annotation.Get;
-import io.micronaut.http.annotation.Header;
-import io.micronaut.http.annotation.Post;
-import io.micronaut.http.annotation.Produces;
-import io.micronaut.http.annotation.QueryValue;
-import io.micronaut.http.client.annotation.Client;
+import io.micronaut.http.annotation.PathVariable;
+import io.micronaut.http.annotation.Put;
 import io.micronaut.http.client.multipart.MultipartBody;
-import io.micronaut.retry.annotation.Retryable;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.bibs.BibParams;
 import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
+import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
+import services.k_int.interaction.sierra.configuration.BranchResultSet;
+import services.k_int.interaction.sierra.configuration.PatronMetadata;
+import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
+import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.Params;
 import services.k_int.interaction.sierra.items.ResultSet;
+import services.k_int.interaction.sierra.items.SierraItem;
+import services.k_int.interaction.sierra.patrons.ItemPatch;
+import services.k_int.interaction.sierra.patrons.PatronHoldPost;
+import services.k_int.interaction.sierra.patrons.PatronPatch;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 
-@Client(value = "${" + SierraApiClient.CONFIG_ROOT + ".api.url:/iii/sierra-api/v6}", errorType = SierraError.class)
-@Header(name = ACCEPT, value = APPLICATION_JSON)
 public interface SierraApiClient {
 	String CONFIG_ROOT = "sierra.client";
 	Logger log = LoggerFactory.getLogger(SierraApiClient.class);
-	
+
 	private static <T> Collection<T> nullIfEmpty (Collection<T> collection) {
 		if (collection == null || collection.size() < 1) return null;
 		return collection;
 	}
-	
+
 	@SingleResult
 	default Publisher<BibResultSet> bibs (BibParams params) {
 		return bibs (
-				params.getLimit(),
-				params.getOffset(),
-				Objects.toString(params.getCreatedDate(), null),
-				Objects.toString(params.getUpdatedDate(), null),
-				nullIfEmpty(params.getFields()),
-				params.getDeleted(),
-				Objects.toString(params.getDeletedDate(), null),
-				params.getSuppressed(),
-				nullIfEmpty(params.getLocations()));
+			params.getLimit(),
+			params.getOffset(),
+			Objects.toString(params.getCreatedDate(), null),
+			Objects.toString(params.getUpdatedDate(), null),
+			nullIfEmpty(params.getFields()),
+			params.getDeleted(),
+			Objects.toString(params.getDeletedDate(), null),
+			params.getSuppressed(),
+			nullIfEmpty(params.getLocations()));
 	}
-	
-	@SingleResult
-	default Publisher<BibResultSet> bibs (Consumer<BibParamsBuilder> consumer) {
-		return bibs(BibParams.build(consumer));
-	}
-	
-	@SingleResult
-	@Get("/bibs/")
-	@Retryable
-	Publisher<BibResultSet> bibs (
-			@Nullable @QueryValue("limit") final Integer limit, 
-			@Nullable @QueryValue("offset") final Integer offset,
-			@Nullable @QueryValue("createdDate") final String createdDate,
-			@Nullable @QueryValue("updatedDate") final String updatedDate,
-			@Nullable @QueryValue("fields") @Format("CSV") final Iterable<String> fields,
-			@Nullable @QueryValue("deleted") final Boolean deleted,
-			@Nullable @QueryValue("deletedDate") final String deletedDate,
-			@Nullable @QueryValue("suppressed") final Boolean suppressed,
-			@Nullable @QueryValue("locations") @Format("CSV") final Iterable<String> locations);
 
 	@SingleResult
-	default Publisher<ResultSet> items (Params params) {
+	default Publisher<BibResultSet> bibs(Consumer<BibParamsBuilder> consumer) {
+		return bibs(BibParams.build(consumer));
+	}
+
+	@SingleResult
+	Publisher<BibResultSet> bibs(
+		@Nullable final Integer limit,
+		@Nullable final Integer offset,
+		@Nullable final String createdDate,
+		@Nullable final String updatedDate,
+		@Nullable final Iterable<String> fields,
+		@Nullable final Boolean deleted,
+		@Nullable final String deletedDate,
+		@Nullable final Boolean suppressed,
+		@Nullable final Iterable<String> locations);
+
+	@SingleResult
+	default Publisher<ResultSet> items(Params params) {
 		return items(
 			params.getLimit(),
 			params.getOffset(),
@@ -95,43 +93,97 @@ public interface SierraApiClient {
 	}
 
 	@SingleResult
-	default Publisher<ResultSet> items (Consumer<Params.ParamsBuilder> consumer) {
+	default Publisher<ResultSet> items(Consumer<Params.ParamsBuilder> consumer) {
 		return items(Params.build(consumer));
 	}
 
 	@SingleResult
-	@Get("/items/")
-	@Retryable
 	Publisher<ResultSet> items(
-		@Nullable @QueryValue("limit") final Integer limit,
-		@Nullable @QueryValue("offset") final Integer offset,
-		@Nullable @QueryValue("id") final Iterable<String> id,
-		@Nullable @QueryValue("fields") @Format("CSV") final Iterable<String> fields,
-		@Nullable @QueryValue("createdDate") final String createdDate,
-		@Nullable @QueryValue("updatedDate") final String updatedDate,
-		@Nullable @QueryValue("deletedDate") final String deletedDate,
-		@Nullable @QueryValue("deleted") final Boolean deleted,
-		@Nullable @QueryValue("bibIds") final Iterable<String> bibIds,
-		@Nullable @QueryValue("status") final String status,
-		@Nullable @QueryValue("duedate") final String duedate,
-		@Nullable @QueryValue("suppressed") final Boolean suppressed,
-		@Nullable @QueryValue("locations") @Format("CSV") final Iterable<String> locations);
+		@Nullable final Integer limit,
+		@Nullable final Integer offset,
+		@Nullable final Iterable<String> id,
+		@Nullable final Iterable<String> fields,
+		@Nullable final String createdDate,
+		@Nullable final String updatedDate,
+		@Nullable final String deletedDate,
+		@Nullable final Boolean deleted,
+		@Nullable final Iterable<String> bibIds,
+		@Nullable final String status,
+		@Nullable final String duedate,
+		@Nullable final Boolean suppressed,
+		@Nullable final Iterable<String> locations);
 
 	@SingleResult
-	default Publisher<AuthToken> login( BasicAuth creds ) {
-		return login( creds, MultipartBody.builder()
-        .addPart("grant_type", "client_credentials")
-        .build());
+	Publisher<LinkResult> createItem(final ItemPatch itemPatch);
+
+	@SingleResult
+	Publisher<Void> updateItem(final String itemId, final ItemPatch itemPatch);
+
+	@SingleResult
+	Publisher<SierraItem> getItem(final String itemId);
+
+	@SingleResult
+	Publisher<LinkResult> patrons(final PatronPatch patronPatch);
+
+	@SingleResult
+	Publisher<LinkResult> bibs(final BibPatch bibPatch);
+
+	@SingleResult
+	Publisher<Void> updateBib(String bibId, BibPatch body);
+
+	@SingleResult
+	Publisher<SierraPatronRecord> patronFind(
+		@Nullable final String varFieldTag,
+		@Nullable final String varFieldContent);
+
+	@SingleResult
+	default Publisher<AuthToken> login(BasicAuth creds) {
+		return login(creds, MultipartBody.builder()
+			.addPart("grant_type", "client_credentials")
+			.build());
 	}
-	
+
 	// Basic auth is auto bound to the request.
 	@SingleResult
-	@Post("/token")
-	@Produces(value = MULTIPART_FORM_DATA)
-	Publisher<AuthToken> login( BasicAuth creds, @Body MultipartBody body);
-	
+	Publisher<AuthToken> login(BasicAuth creds, MultipartBody body);
+
 	@SingleResult
-	default Publisher<AuthToken> login( final String key, final String secret ) {
+	default Publisher<AuthToken> login(final String key, final String secret) {
 		return login(new BasicAuth(key, secret));
 	}
+
+	@SingleResult
+	Publisher<BranchResultSet> branches(@Nullable Integer limit,
+		@Nullable final Integer offset, @Nullable final Iterable<String> fields);
+
+	@SingleResult
+	Publisher<List<PickupLocationInfo>> pickupLocations();
+
+	@SingleResult
+	Publisher<List<PatronMetadata>> patronMetadata();
+
+	@SingleResult
+	Publisher<Void> placeHoldRequest(@Nullable final String id,
+		final PatronHoldPost patronHoldPost);
+
+	@SingleResult
+	Publisher<SierraPatronHoldResultSet> patronHolds(@Nullable final String id);
+
+	@SingleResult
+	Publisher<SierraPatronHoldResultSet> getAllPatronHolds(
+		@Nullable final Integer limit, @Nullable final Integer offset);
+
+	@SingleResult
+	Publisher<SierraPatronRecord> getPatron(@Nullable final Long patronId);
+
+	@SingleResult
+	@Put("/patrons/{id}")
+	Publisher<SierraPatronRecord> updatePatron(@Nullable @PathVariable("id") final Long patronId,
+		@Body final PatronPatch patronPatch);
+
+	@SingleResult
+	Publisher<SierraPatronHold> getHold(@Nullable final Long holdId);
+
+	@SingleResult
+        Publisher<LinkResult> checkOutItemToPatron(String itemBarcode,String patronBarcode);
 }

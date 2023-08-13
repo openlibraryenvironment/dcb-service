@@ -17,6 +17,10 @@ public class UUIDUtils {
 	public static final UUID NAMESPACE_OID = UUID.fromString("6ba7b812-9dad-11d1-80b4-00c04fd430c8");
 	public static final UUID NAMESPACE_X500 = UUID.fromString("6ba7b814-9dad-11d1-80b4-00c04fd430c8");
 
+	public static UUID dnsUUID(@NotNull String name) {
+                return nameUUIDFromNamespaceAndString(NAMESPACE_DNS, name);
+        }
+
 	/**
 	 * Create a UUID V5 from the supplied namespace UUID and a string
 	 *

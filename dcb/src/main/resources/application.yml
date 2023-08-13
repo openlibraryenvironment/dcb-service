@@ -52,6 +52,15 @@ micronaut:
 endpoints:
   prometheus:
     sensitive: false
+  health:
+    enabled: true
+    sensitive: false # non-secured endpoint
+    details-visible: ANONYMOUS # show details for everyone
+    ingest:
+      enabled: true
+  info:
+    enabled: true
+    sensitive: false
 
 flyway:
   enabled: true
@@ -78,6 +87,7 @@ datasources:
     dialect: postgres
     minimumIdle: 0
     maximumPoolSize: 1
+    reconnect: true
     #username: "${db.username:}"
     #password: "${db.password:}"
 
@@ -88,6 +98,7 @@ r2dbc:
       # https://micronaut-projects.github.io/micronaut-test-resources/latest/guide/
       # Specify db-type so test resources knows what to provision
       db-type: postgresql
+      reconnect: true
       # url: ${DB_URL:`r2dbc:postgresql://localhost:5432/postgres`}
       # username: ${DB_USER:`postgres`}
       # password: ${DB_PASSWORD:`pass`}
@@ -122,12 +133,7 @@ netty:
 jackson:
   date-format: "yyyy-MM-dd'T'HH:mm:ssZ"
 
-
-
-
 graphql:
   enabled: true
   graphiql: # enables the /graphiql endpoint to test calls against your graph.
     enabled: true
-
-

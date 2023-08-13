@@ -27,12 +27,15 @@ import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.mockserver.model.HttpStatusCode;
 import org.mockserver.model.MediaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.http.HttpHeaderValues;
 
 public interface SierraTestUtils {
-	
+	Logger log = LoggerFactory.getLogger(SierraTestUtils.class);
+
 	static final int WEIGHT_PRIORITY_LOW = -50;
 	static final int WEIGHT_PRIORITY_HIGH = 50;
 	
@@ -50,7 +53,7 @@ public interface SierraTestUtils {
 	
 	public static class MockSierraV6Host {
 		
-		static final Timer revokers = new Timer("test-token-revoker", true);
+		final Timer revokers = new Timer("test-token-revoker", true);
 		
 		final MockServerClient mock;
 		final String hostname;
@@ -141,10 +144,16 @@ public interface SierraTestUtils {
 		private TimerTask revoker;
 		
 		public MockSierraV6Host setValidCredentials( final String basicAuthHash, final String returnToken, final long validitySeconds ) {
-			
 			if (revoker != null) {
-				revoker.cancel();
-				revoker = null;
+				try {
+					revoker.cancel();
+				}
+				catch (IllegalStateException ex) {
+					log.debug("Cancelling revocation timer failed", ex);
+				}
+				finally {
+					revoker = null;
+				}
 			}
 			
 			final String tokenBearerHeader = "Bearer " + returnToken;

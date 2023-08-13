@@ -10,8 +10,10 @@ plugins {
 	id("io.micronaut.application") version "3.7.7"
 	id("io.micronaut.test-resources") version "3.7.7"
 	id('jacoco')
-	id 'org.olf.reshare.dcb-bom'
+	id 'org.olf.dcb-bom'
 	id 'service.k_int.micronaut-multi'
+        // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
+        id "com.gorylenko.gradle-git-properties" version "2.4.1"
 }
 
 //configurations.all {
@@ -22,7 +24,7 @@ plugins {
 //}
 
 //version = "0.1"
-group = "org.olf.reshare.dcb"
+group = "org.olf.dcb"
 
 repositories {
 	mavenCentral()
@@ -95,6 +97,13 @@ dependencies {
 	
 	// Also required to enable endpoint
 	implementation "io.micronaut:micronaut-management"
+	
+	implementation 'info.debatty:java-string-similarity'
+
+
+        implementation 'com.opencsv:opencsv:5.8'
+
+	// implementation 'com.hazelcast:hazelcast:5.3.0'
 
 	// Tests
 	testCompileOnly 'org.projectlombok:lombok'
@@ -104,6 +113,7 @@ dependencies {
 	testImplementation('org.mock-server:mockserver-junit-jupiter')
 	testImplementation('org.junit.jupiter:junit-jupiter-params')
 	testImplementation('org.mockito:mockito-core')
+	testImplementation('org.mockito:mockito-junit-jupiter')
 	testImplementation('org.hamcrest:hamcrest')
 	testImplementation('org.awaitility:awaitility')
 	testImplementation('io.projectreactor:reactor-test')
@@ -124,7 +134,7 @@ dependencies {
 //}
 
 application {
-	mainClass.set("org.olf.reshare.dcb.Application")
+	mainClass.set("org.olf.dcb.Application")
 }
 
 run {
@@ -144,7 +154,7 @@ micronaut {
 	testRuntime("junit5")
 	processing {
 		incremental(true)
-		annotations("org.olf.reshare.dcb.*")
+		annotations("org.olf.dcb.*")
 	}
 }
 
@@ -154,8 +164,8 @@ final Set<String> jacocoExcludes = [
 	'**/model/**/*',  
 	
 	// Ingest happens at a different client level, so safely exclude from report.
-	'org/olf/reshare/dcb/ingest/sierra/**/*',  
-	'org/olf/reshare/dcb/ingest/gokb/**/*']
+	'org/olf/dcb/ingest/sierra/**/*',  
+	'org/olf/dcb/ingest/gokb/**/*']
 
 tasks {
 	final Map<String, String> labels = [
@@ -163,11 +173,12 @@ tasks {
 		'version'   : project.hasProperty('versionWithMeta') ? project.getProperty('versionWithMeta') : project.getProperty('version')
 	]
 
+	// N.B. short term fix - don't check for cert revocation
 	dockerfile {
 		baseImage 'eclipse-temurin:17-alpine'
 		label(labels)
 		environmentVariable 'JAVA_OPTIONS',
-			'-XX:+UseContainerSupport -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=80.0 -XX:InitialRAMPercentage=50.0 -XX:+PrintFlagsFinal'
+			'-XX:+UseContainerSupport -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=80.0 -XX:InitialRAMPercentage=50.0 -XX:+PrintFlagsFinal -Dcom.sun.net.ssl.checkRevocation=false'
 		environmentVariable 'JAVA_TOOL_OPTIONS', '$JAVA_OPTIONS $JAVA_TOOL_OPTIONS'
 		entryPoint('java', '-server', '-jar', '/home/app/application.jar')
 	}

@@ -1,0 +1,8 @@
+
+select distinct(category) from refdata_value where context = 'COOLCAT' limit 10;
+
+select * from location l 
+join host_lms h on l.host_system_id = h.id 
+where h.code='COOLCAT' 
+and type='PICKUP'
+limit 100;

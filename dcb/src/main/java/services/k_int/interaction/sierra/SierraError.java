@@ -24,6 +24,7 @@ public class SierraError extends JsonError {
 	@Getter
 	private String name;
 
+	@Getter
 	private String description;
 
 	/**
