@@ -37,6 +37,7 @@ public interface HostLmsClient {
 
 	Mono<String> createBib(Bib bib);
 
+	// ToDo: This needs to go away in favour of getPatronByLocalId usage
 	// (localId, localPtype)
 	Mono<Tuple2<String, String>> patronFind(String uniqueId);
 

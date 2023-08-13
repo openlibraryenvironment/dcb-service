@@ -1,8 +1,8 @@
-package org.olf.reshare.dcb.core.interaction.folio;
+package org.olf.dcb.core.interaction.folio;
 
 import static java.lang.Integer.parseInt;
-import static org.olf.reshare.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.reshare.dcb.utils.DCBStringUtilities.deRestify;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -17,28 +17,30 @@ import javax.transaction.Transactional.TxType;
 import javax.validation.constraints.NotNull;
 
 import org.marc4j.marc.Record;
-import org.olf.reshare.dcb.configuration.BranchRecord;
-import org.olf.reshare.dcb.configuration.ConfigurationRecord;
-import org.olf.reshare.dcb.configuration.PickupLocationRecord;
-import org.olf.reshare.dcb.configuration.RefdataRecord;
-import org.olf.reshare.dcb.configuration.ShelvingLocationRecord;
-import org.olf.reshare.dcb.core.ProcessStateService;
-import org.olf.reshare.dcb.core.interaction.HostLmsClient;
-import org.olf.reshare.dcb.core.interaction.HostLmsPatronDTO;
-import org.olf.reshare.dcb.core.model.HostLms;
-import org.olf.reshare.dcb.core.model.Item;
-import org.olf.reshare.dcb.ingest.marc.MarcIngestSource;
-import org.olf.reshare.dcb.ingest.model.IngestRecord;
-import org.olf.reshare.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
-import org.olf.reshare.dcb.ingest.model.RawSource;
-import org.olf.reshare.dcb.storage.RawSourceRepository;
-import org.olf.reshare.dcb.tracking.model.LenderTrackingEvent;
-import org.olf.reshare.dcb.tracking.model.PatronTrackingEvent;
-import org.olf.reshare.dcb.tracking.model.PickupTrackingEvent;
-import org.olf.reshare.dcb.tracking.model.TrackingRecord;
+import org.olf.dcb.configuration.BranchRecord;
+import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.configuration.PickupLocationRecord;
+import org.olf.dcb.configuration.RefdataRecord;
+import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.ingest.marc.MarcIngestSource;
+import org.olf.dcb.ingest.model.IngestRecord;
+import org.olf.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
+import org.olf.dcb.ingest.model.RawSource;
+import org.olf.dcb.storage.RawSourceRepository;
+import org.olf.dcb.tracking.model.LenderTrackingEvent;
+import org.olf.dcb.tracking.model.PatronTrackingEvent;
+import org.olf.dcb.tracking.model.PickupTrackingEvent;
+import org.olf.dcb.tracking.model.TrackingRecord;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsHold;
+import org.olf.dcb.core.interaction.Bib;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -106,15 +108,23 @@ public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 		return Mono.empty();
 	}
 
-        public Mono<String> patronFind(String uniqueId) {
+        public Mono<Tuple2<String, String>> patronFind(String uniqueId) {
 		return Mono.empty();
 	}
 
-        public Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType, String recordNumber, String pickupLocation) {
+        // (localHoldId, localHoldStatus)
+        public Mono<Tuple2<String, String>> placeHoldRequest(
+                String id,
+                String recordType,
+                String recordNumber,
+                String pickupLocation,
+                String note,
+                String patronRequestId) {
 		return Mono.empty();
 	}
 
-        public Mono<HostLmsPatronDTO> getPatronByLocalId(String localPatronId) {
+
+        public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		return Mono.empty();
 	}
 
@@ -190,5 +200,38 @@ public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
                 return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
         }
 
+        public Mono<String> createPatron(Patron patron) {
+		return Mono.empty();
+	}
+
+        public Mono<String> createBib(Bib bib) {
+		return Mono.empty();
+	}
+
+        public Mono<Patron> updatePatron(String localId, String patronType) {
+		return Mono.empty();
+	}
+
+
+	public Mono<HostLmsItem> createItem(String bibId, String locationCode, String barcode) {
+		return Mono.empty();
+	}
+
+	public Mono<HostLmsHold> getHold(String holdId) {
+		return Mono.empty();
+	}
+
+	public Mono<HostLmsItem> getItem(String itemId) {
+		return Mono.empty();
+	}
+
+	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
+		return Mono.just("Dummy");
+	}
+
+        // WARNING We might need to make this accept a patronIdentity - as different systems might take different ways to identify the patron
+        public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
+		return Mono.just("DUMMY");
+	}
 
 }
