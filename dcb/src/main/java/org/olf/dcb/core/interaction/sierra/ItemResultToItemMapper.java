@@ -14,10 +14,13 @@ import static io.micronaut.core.util.StringUtils.isNotEmpty;
 class ItemResultToItemMapper {
 	private static final Logger log = LoggerFactory.getLogger(ItemResultToItemMapper.class);
 
-	private final ItemStatusMapper itemStatusMapper;
+	private final SierraItemStatusMapper sierraItemStatusMapper;
+	private final SierraItemTypeMapper sierraItemTypeMapper;
 
-	ItemResultToItemMapper(ItemStatusMapper itemStatusMapper) {
-		this.itemStatusMapper = itemStatusMapper;
+	ItemResultToItemMapper(SierraItemStatusMapper sierraItemStatusMapper,
+                               SierraItemTypeMapper sierraItemTypeMapper) {
+		this.sierraItemStatusMapper = sierraItemStatusMapper;
+		this.sierraItemTypeMapper = sierraItemTypeMapper;
 	}
 
 	Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem result, String hostLmsCode, String bibId) {
@@ -29,7 +32,7 @@ class ItemResultToItemMapper {
 				? ZonedDateTime.parse(dueDate)
 				: null;
 
-			return itemStatusMapper.mapStatus(result.getStatus(), hostLmsCode)
+			return sierraItemStatusMapper.mapStatus(result.getStatus(), hostLmsCode)
 				.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
 					.id(result.getId())
 					.status(itemStatus)
@@ -43,6 +46,17 @@ class ItemResultToItemMapper {
 					.hostLmsCode(hostLmsCode)
 					.holdCount(result.getHoldCount())
 					.bibId(bibId)
-					.build());
+                                        .localItemType(result.getItemType())
+                                        .deleted(result.getDeleted())
+                                        .suppressed(result.getSuppressed())
+					.build())
+                                .flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode))
+                                ;
 	}
+
+        Mono<org.olf.dcb.core.model.Item> enrichItemWithMappedItemType(org.olf.dcb.core.model.Item item, String hostSystem) {
+                return sierraItemTypeMapper.getCanonicalItemType(hostSystem, item.getLocalItemType())
+                        .defaultIfEmpty("UNKNOWN")
+                        .map( mappedType -> item.setCanonicalItemType(mappedType) );
+        }
 }

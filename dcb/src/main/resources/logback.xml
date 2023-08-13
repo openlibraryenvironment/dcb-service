@@ -32,6 +32,7 @@
 	<logger name="io.r2dbc" level="INFO" />
 	<logger name="io.r2dbc.postgresql.PARAM" level="WARN" />
 	<logger name="io.r2dbc.postgresql.client.ReactorNettyClient" level="WARN" />
+	<logger name="io.micronaut.security" level="INFO" />
 
 	<root level="info">
 		<appender-ref ref="STDOUT"/>

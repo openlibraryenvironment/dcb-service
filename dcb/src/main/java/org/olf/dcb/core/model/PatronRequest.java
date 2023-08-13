@@ -100,6 +100,10 @@ public class PatronRequest {
 	@Size(max = 200)
 	private String pickupItemId;
 
+	@Nullable
+	@Size(max = 32)
+	private String pickupItemType;
+
 	// track the status of an item created for the pickup hold
 	@Nullable
 	@Size(max = 200)
@@ -138,6 +142,11 @@ public class PatronRequest {
 
 	@Nullable
 	private String localItemStatus;
+
+	@Nullable
+	@Size(max = 32)
+	private String localItemType;
+
 
 	@Nullable
 	private String localBibId;

@@ -1,0 +1,4 @@
+context	domain	lowerBound	upperBound	targetValue	targetContext
+request-api-tests	ItemType	998	1001	BKM	DCB
+6arch	ItemType	0	0	209	dcb
+6arch	ItemType	1	56	210	dcb

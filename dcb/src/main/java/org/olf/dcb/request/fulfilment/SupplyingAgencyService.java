@@ -188,11 +188,12 @@ public class SupplyingAgencyService {
         // This can change as we select different suppliers, so we recalculate for each new supplier.
 	private Mono<RequestWorkflowContext> setPatronRequestWorkflow(RequestWorkflowContext psrc) {
                 log.debug("setPatronRequestWorkflow for {}",psrc);
-                if ( ( psrc.getPatronAgencyCode() == psrc.lenderAgencyCode ) && ( psrc.patronAgencyCode == psrc.pickupAgencyCode ) ) {
+                if ( ( psrc.getPatronAgencyCode().equals(psrc.getLenderAgencyCode()) ) && 
+                     ( psrc.getPatronAgencyCode().equals(psrc.getPickupAgencyCode()) ) ) {
                         // Case 1 : Purely local request
                         psrc.getPatronRequest().setActiveWorkflow("RET-LOCAL");
                 }
-                else if ( psrc.patronAgencyCode == psrc.pickupAgencyCode ) {
+                else if ( psrc.getPatronAgencyCode().equals(psrc.getPickupAgencyCode())) {
                         // Case 2 : Remote lender, patron picking up from a a library in their home system
                         psrc.getPatronRequest().setActiveWorkflow("RET-STD");
                 }

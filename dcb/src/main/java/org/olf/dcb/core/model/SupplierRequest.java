@@ -26,6 +26,12 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.data.annotation.*;
 import java.time.Instant;
 
+
+/**
+ * Important reminder: This class needs to be representative of many different target systems.
+ * Strings are chosen in many places to give us some flexibility to adapt to different targets - when adding properties here
+ * remember to bear in mind that the datatype of the system you have in mind might not map to other systems.
+ */
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
 @Data
@@ -73,8 +79,18 @@ public class SupplierRequest {
 	private String localItemLocationCode;
 
 	@Nullable
-	@Size(max = 200)
+	@Size(max = 32)
 	private String localItemStatus;
+
+	@Nullable
+	@Size(max = 32)
+	private String localItemType;
+
+        // Canonical item type is how we have understood this itemType from this system in a way that
+        // is understandable across the system
+	@Nullable
+	@Size(max = 32)
+	private String canonicalItemType;
 
 	@NotNull
 	@NonNull

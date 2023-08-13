@@ -80,7 +80,8 @@ public class HostLmsReactions {
 				}
 			}
 			else if ( sc.getResourceType().equals("BorrowerVirtualItem") ) {
-				if ( sc.getFromState().equals("LOANED") && sc.getToState().equals("TRANSIT") ) {
+				if ( sc.getFromState() != null && sc.getFromState().equals("LOANED") && 
+                                     sc.getToState() != null && sc.getToState().equals("TRANSIT") ) {
 					handler="BorrowerRequestReturnTransit";
 				}
 				else if ( sc.getToState().equals("TRANSIT") ) {
@@ -96,14 +97,15 @@ public class HostLmsReactions {
 					handler="BorrowerRequestItemOnHoldShelf";
 				}
 				else {
-					log.error("Unhandled BorrowerVirtualItem ToState:{}",sc.getToState());
+					log.warn("Unhandled BorrowerVirtualItem ToState:{}",sc.getToState());
 				}
 			}
 			else if ( sc.getResourceType().equals("SupplierItem") ) {
 				if (sc.getToState().equals("AVAILABLE")) {
 					handler = "SupplierRequestItemAvailable";
 				} else {
-					log.error("Unhandled SupplierItem ToState:{}", sc.getToState());
+                                        // A noop handler that just updates the tracked state so we know what it has changed to.
+                                        handler = "SupplierRequestItemStateChange";
 				}
 			}
 			else {
@@ -116,8 +118,9 @@ public class HostLmsReactions {
 
 
 		// https://stackoverflow.com/questions/74183112/how-to-select-the-correct-transactionmanager-when-using-r2dbc-together-with-flyw
+                log.debug("Detected handler: {}",handler);
 		if ( handler != null ) {
-			log.debug("Invoke action {}",handler);
+                        log.debug("Attempt to resolve bean");
 			WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
 			if ( action != null ) {
 				log.debug("Invoke {}",action.getClass().getName());
@@ -129,7 +132,11 @@ public class HostLmsReactions {
 				throw new RuntimeException("Missing qualified WorkflowAction for handler "+handler);
 			}
 		}
+                else {
+                        log.debug("No handler");
+                }
 
+                log.debug("onTrackingEvent {} complete",trackingRecord);
 		return Mono.just(context);
 	}
 

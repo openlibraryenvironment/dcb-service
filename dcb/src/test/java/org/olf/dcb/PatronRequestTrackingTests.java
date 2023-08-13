@@ -126,10 +126,18 @@ public class PatronRequestTrackingTests {
 		// the supplier item id has to match with the mock for state change to AVAILABLE
 		Mono.from(supplierRequestRepository.save(SupplierRequest.builder()
 				.id(randomUUID()).localId("11987").localItemId("1088431").patronRequest(patronRequest)
-				.hostLmsCode(HOST_LMS_CODE).build())).block();
+				.hostLmsCode(HOST_LMS_CODE)
+                                .localItemStatus("TRANSIT")
+                                .build())).block();
+
 		Mono.from(statusCodeRepository.saveOrUpdate(StatusCode.builder()
 			.id(nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "StatusCode:"+"PatronRequest"+":"+"CANCELLED"))
 			.model("PatronRequest").code("CANCELLED").tracked(Boolean.TRUE).build())).block();
+
+		Mono.from(statusCodeRepository.saveOrUpdate(StatusCode.builder()
+			.id(nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "StatusCode:"+"VirtualItem"+":"+"TRANSIT"))
+			.model("SupplierItem").code("TRANSIT").tracked(Boolean.TRUE).build())).block();
+
 		Mono.from(statusCodeRepository.saveOrUpdate(StatusCode.builder()
 			.id(nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "StatusCode:"+"VirtualItem"+":"+"AVAILABLE"))
 			.model("VirtualItem").code("AVAILABLE").tracked(Boolean.FALSE).build())).block();
