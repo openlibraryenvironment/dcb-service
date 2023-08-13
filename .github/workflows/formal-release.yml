@@ -9,7 +9,7 @@ on:
 
 # Cancel any in progress build of this same ref and run this one.
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -20,7 +20,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # Need to checkout everything to ensure we have the tag info we need.
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - uses: actions/cache@v2
         with:
@@ -50,7 +53,7 @@ jobs:
           DOCKER_REGISTRY_URL: ${{ secrets.DOCKER_KINT_REGISTRY_URL }}
           TESTCONTAINERS_RYUK_DISABLED: true
         run: |
-          export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/reshare-dcb" | sed -e 's#//#/#' -e 's#^/##'`
+          export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/dcb" | sed -e 's#//#/#' -e 's#^/##'`
           ./gradlew check jacocoTestReport dockerPushNative --no-daemon
 
       - name: Publish Test Results

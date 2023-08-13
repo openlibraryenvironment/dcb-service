@@ -11,8 +11,8 @@
 				"7be44a01-fd03-445c-b543-6b3aa9b864df "
 			],
 			"location": {
-				"code": "ab6",
-				"name": "King 6th Floor"
+				"code": "ab5",
+				"name": "King 5th Floor"
 			},
 			"status": {
 				"code": "-",
@@ -21,7 +21,8 @@
 			},
 			"volumes": [],
 			"barcode": "9849123490",
-			"callNumber": "BL221 .C48"
+			"callNumber": "BL221 .C48",
+                        "itemType": 999
 		},
 		{
 			"id": "c5bc9cd0-fc23-48be-9d52-647cea8c63ca",
@@ -41,7 +42,8 @@
 			},
 			"volumes": [],
 			"barcode": "30800005315459",
-			"callNumber": "HX157 .H8"
+			"callNumber": "HX157 .H8",
+                        "itemType": 999
 		},
 		{
 			"id": "69415d0a-ace5-49e4-96fd-f63855235bf0",
@@ -52,8 +54,8 @@
 				"7be44a01-fd03-445c-b543-6b3aa9b864df "
 			],
 			"location": {
-				"code": "ab6",
-				"name": "King 6th Floor"
+				"code": "ab7",
+				"name": "King 7th Floor"
 			},
 			"status": {
 				"code": "-",
@@ -61,7 +63,8 @@
 			},
 			"volumes": [],
 			"barcode": "30800005208449",
-			"callNumber": "HC336.2 .S74 1969"
+			"callNumber": "HC336.2 .S74 1969",
+                        "itemType": 999
 		}
 	]
 }

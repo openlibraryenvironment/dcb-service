@@ -52,6 +52,9 @@ endpoints:
     details-visible: ANONYMOUS # show details for everyone
     ingest:
       enabled: true
+  info:
+    enabled: true
+    sensitive: false
 
 flyway:
   enabled: true

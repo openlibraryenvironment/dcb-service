@@ -1,0 +1,27 @@
+{
+	"id": 1000002,
+	"expirationDate": "2020-12-31",
+	"birthDate": "1990-01-23",
+	"patronType": 15,
+	"patronCodes": {
+		"pcode1": "u",
+		"pcode2": "-",
+		"pcode3": 68,
+		"pcode4": 0
+	},
+	"homeLibraryCode": "testccc",
+	"homeLibrary": {
+		"code": "testccc",
+		"name": "TestCCC"
+	},
+	"message": {
+		"code": "p",
+		"accountMessages": [
+			"Phone updated - 09/20/2019"
+		]
+	},
+	"blockInfo": {
+		"code": "-"
+	},
+	"moneyOwed": 101.89
+}

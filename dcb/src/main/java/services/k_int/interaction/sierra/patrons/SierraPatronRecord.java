@@ -1,8 +1,12 @@
 package services.k_int.interaction.sierra.patrons;
 
+import java.util.List;
+import java.util.Map;
+
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Data;
+import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.items.Location;
 
 @Data
@@ -21,15 +25,15 @@ public class SierraPatronRecord {
 	@Nullable
 	Boolean suppressed;
 	@Nullable
-	String[] names;
+	List<String> names;
 	@Nullable
-	String[] barcodes;
+	List<String> barcodes;
 	@Nullable
 	String expirationDate;
 	@Nullable
 	String birthDate;
 	@Nullable
-	String[] emails;
+	List<String> emails;
 	@Nullable
 	Integer patronType;
 	@Nullable
@@ -45,15 +49,17 @@ public class SierraPatronRecord {
 	@Nullable
 	Block autoBlockInfo;
 	@Nullable
-	Address[] addresses;
+	List<Address> addresses;
 	@Nullable
-	Phone[] phones;
+	List<Phone> phones;
 	@Nullable
-	String[] uniqueIds;
+	List<String> uniqueIds;
 	@Nullable
 	Integer moneyOwed;
 	@Nullable
 	String pMessage;
 	@Nullable
 	String langPref;
+	@Nullable
+	Map<Integer, FixedField> fixedFields;
 }

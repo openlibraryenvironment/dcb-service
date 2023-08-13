@@ -1,15 +1,15 @@
-[![Release](https://github.com/openlibraryenvironment/reshare-dcb-service/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/openlibraryenvironment/reshare-dcb-service/actions/workflows/release.yml)
+[![Release](https://github.com/openlibraryenvironment/dcb-service/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/openlibraryenvironment/dcb-service/actions/workflows/release.yml)
 
-# reshare-dcb-service
+# DCB Service
 
-A Direct Consortial Borrowing Service for ReShare Libraries
+A Direct Consortial Borrowing Service
 
 # Source code and Docker container
 
-This module is distributed in source and precompiled docker container form:
+This module is distributed in source and pre-compiled docker container form:
 
-* https://github.com/openlibraryenvironment/reshare-dcb-service
-* https://nexus.libsdev.k-int.com/#browse/browse:libsdev-docker:v2%2Fknowledgeintegration%2Freshare-dcb
+* https://github.com/openlibraryenvironment/dcb-service
+* https://nexus.libsdev.k-int.com/#browse/browse:libsdev-docker:v2%2Fknowledgeintegration%2Fdcb
 
 # Deployment
 
@@ -49,8 +49,15 @@ Additional optional configuration values. These may be set in configuration file
 # API Documentation
 
 Module documentation is auto generated and is accessed from the following URL once the container has
-started: https://openlibraryenvironment.github.io/reshare-dcb-service/openapi/
+started: https://openlibraryenvironment.github.io/dcb-service/openapi/
 
 # General Documentation
 
-Module documentation can be found here: https://openlibraryenvironment.github.io/reshare-dcb-service/
+Module documentation can be found here: https://openlibraryenvironment.github.io/dcb-service/
+
+
+# Release Procedures
+
+## Tag a prerelease
+
+

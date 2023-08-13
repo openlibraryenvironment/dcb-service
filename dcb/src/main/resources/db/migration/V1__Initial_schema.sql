@@ -3,7 +3,8 @@ CREATE TABLE cluster_record (
 	date_created timestamp,
 	date_updated timestamp,
 	title text,
-	selected_bib uuid
+	selected_bib uuid,
+        is_deleted boolean
 );
 
 CREATE INDEX idx_cluster_date_updated on cluster_record(date_updated);
@@ -55,7 +56,8 @@ CREATE TABLE location (
 	type varchar(32),
 	agency_fk uuid,
 	host_system_id uuid,
-	is_pickup boolean
+	is_pickup boolean,
+        parent_location_fk uuid
 );
 
 CREATE TABLE patron (
@@ -75,7 +77,10 @@ CREATE TABLE patron_identity (
 	home_identity boolean,
         local_barcode varchar(200),
         local_ptype varchar(200),
-        last_validated timestamp
+        last_validated timestamp,
+        local_names varchar(256),
+        local_home_library_code varchar(256),
+        resolved_agency_id uuid
 );
 
 CREATE INDEX idx_pi_patron ON patron_identity(patron_id, host_lms_id);
@@ -85,13 +90,31 @@ CREATE TABLE patron_request (
 	id uuid PRIMARY KEY,
 	date_created timestamp,
 	date_updated timestamp,
+	patron_hostlms_code varchar(200),
 	patron_id uuid REFERENCES patron (id),
 	bib_cluster_id uuid,
 	pickup_location_code varchar(200),
+        pickup_hostlms_code varchar(200),
+        pickup_patron_id varchar(200),
+        pickup_item_id varchar(200),
+        pickup_item_status varchar(200),
+        pickup_item_type varchar(32),
+        pickup_request_id varchar(200),
+        pickup_request_status varchar(200),
 	status_code varchar(200),
 	local_request_id varchar(200),
-	local_request_status varchar(32)
+	local_request_status varchar(32),
+	local_item_id varchar(200),
+        local_item_status varchar(32),
+        local_item_type varchar(32),
+	local_bib_id varchar(200),
+        requesting_identity_id uuid REFERENCES patron_identity (id),
+        description varchar(256),
+        error_message varchar(256),
+        active_workflow varchar(32)
 );
+
+
 
 CREATE INDEX idx_pr_patron ON patron_request(patron_id);
 
@@ -101,10 +124,21 @@ CREATE TABLE supplier_request (
 	local_item_id varchar(200),
 	local_item_barcode varchar(200),
 	local_item_location_code varchar(200),
+        local_item_status varchar(32),
+        local_item_type varchar(32),
+        canonical_item_type varchar(32),
 	host_lms_code varchar(200),
 	status_code varchar(200),
 	local_id varchar(200),
-	local_status varchar(32)
+	local_status varchar(32),
+        virtual_identity_id uuid REFERENCES patron_identity (id),
+        local_bib_id varchar(256),
+        local_agency varchar(256),
+        resolved_agency_id uuid,
+        date_created timestamp,
+        date_updated timestamp,
+        is_active boolean
+
 );
 
 CREATE INDEX idx_lender_hold on supplier_request(host_lms_code, local_id);
@@ -210,11 +244,10 @@ CREATE TABLE patron_request_audit (
 	id uuid PRIMARY KEY,
 	patron_request_id uuid,
 	audit_date timestamp,
-	briefDescription varchar(256),
+	brief_description varchar(256),
 	audit_data JSONB,
-        CONSTRAINT fk_patron_request FOREIGN KEY (patron_request_id) REFERENCES patron_request(id)
+        from_status varchar(200),
+        to_status varchar(200)
 );
 
 CREATE INDEX pra_pr_fk ON patron_request_audit (patron_request_id);
-
-

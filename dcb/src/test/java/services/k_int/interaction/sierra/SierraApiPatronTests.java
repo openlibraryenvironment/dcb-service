@@ -1,98 +1,100 @@
 package services.k_int.interaction.sierra;
 
-import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.SierraErrorMatchers.getResponseBody;
+import static org.olf.dcb.test.matchers.SierraErrorMatchers.isBadJsonError;
+import static org.olf.dcb.test.matchers.SierraErrorMatchers.isServerError;
+
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.olf.reshare.dcb.core.HostLmsService;
-import org.olf.reshare.dcb.core.interaction.sierra.HostLmsSierraApiClient;
-import org.olf.reshare.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.test.HostLmsFixture;
 
-import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@MicronautTest(transactional = false, propertySources = { "classpath:configs/SierraLmsClientTests.yml" }, rebuildContext = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class SierraApiPatronTests {
-	private static final String SIERRA_TOKEN = "test-token-for-user";
+class SierraApiPatronTests {
+	private static final String HOST_LMS_CODE = "sierra-patron-api-tests";
 
-	// Properties should line up with included property source for the spec.
-	@Property(name = "hosts.test1.client.base-url")
-	private String sierraHost;
-
-	@Property(name = "hosts.test1.client.key")
-	private String sierraUser;
-
-	@Property(name = "hosts.test1.client.secret")
-	private String sierraPass;
 	@Inject
 	private HttpClient client;
 	@Inject
-	ResourceLoader loader;
+	private ResourceLoader loader;
 	@Inject
-	private HostLmsService hostLmsService;
+	private HostLmsFixture hostLmsFixture;
 
-	SierraPatronsAPIFixture sierraPatronsAPIFixture;
+	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
-		SierraTestUtils.mockFor(mock, sierraHost)
-			.setValidCredentials(sierraUser, sierraPass, SIERRA_TOKEN, 60);
+		final String TOKEN = "test-token";
+		final String BASE_URL = "https://patron-api-tests.com";
+		final String KEY = "patron-key";
+		final String SECRET = "patron-secret";
+
+		SierraTestUtils.mockFor(mock, BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+
+		hostLmsFixture.deleteAllHostLMS();
+
+		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 	}
 
 	@Test
-	void shouldReportErrorWhenPlacingAPatronRespondsWithInternalServerError() {
+	void shouldReportErrorWhenCreatingAPatronRespondsWithBadRequest() {
 		// Arrange
-		final var patronPatch = new PatronPatch();
-		patronPatch.setUniqueIds(new String[]{"0987654321"});
+		final var patronPatch = PatronPatch.builder()
+			.uniqueIds(List.of("0987654321"))
+			.build();
+
 		sierraPatronsAPIFixture.postPatronErrorResponse("0987654321");
-		final var sierraApiClient = createClient();
+
+		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> Mono.from(sierraApiClient.patrons(patronPatch)).block());
+			() -> singleValueFrom(sierraApiClient.patrons(patronPatch)));
 
 		// Assert
 		final var response = exception.getResponse();
 
-		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
-		assertThat(response.code(), is(500));
+		assertThat(response.getStatus(), is(BAD_REQUEST));
 
-		final var optionalBody = response.getBody(String.class);
+		final var body = getResponseBody(exception);
 
-		assertThat(optionalBody.isPresent(), is(true));
-
-		final var body = optionalBody.get();
-
-		assertThat(body, is("Broken"));
+		assertThat(body, is(isBadJsonError()));
 	}
 
 	@Test
 	void testPostPatron() {
 		// Arrange
-		final var patronPatch = new PatronPatch();
-		patronPatch.setUniqueIds(new String[]{"1234567890"});
+		final var patronPatch = PatronPatch.builder()
+			.uniqueIds(List.of("1234567890"))
+			.build();
+
 		sierraPatronsAPIFixture.postPatronResponse("1234567890", 2745326);
-		final var sierraApiClient = createClient();
+		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
 
 		// Act
 		var response = Mono.from(sierraApiClient.patrons(patronPatch)).block();
@@ -103,19 +105,45 @@ public class SierraApiPatronTests {
 	}
 
 	@Test
-	public void testPatronFind() {
+	public void shouldFindPatronByUniqueId() {
 		// Arrange
 		var uniqueId = "1234567890";
+
 		sierraPatronsAPIFixture.patronResponseForUniqueId(uniqueId);
-		final var sierraApiClient = createClient();
+
+		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
 
 		// Act
-		var response = Mono.from(sierraApiClient.patronFind("u", uniqueId)).block();
+		var response = singleValueFrom(sierraApiClient.patronFind("u", uniqueId));
 
 		// Assert
-		assertThat(response, is(notNullValue()));
-		assertThat(response.getClass(), is(SierraPatronRecord.class));
-		assertThat(response.getId(), is(1000002));
+		assertThat("Response should not be null", response, is(notNullValue()));
+		assertThat("Should have expected ID", response.getId(), is(1000002));
+		assertThat("Should have expected patron type", response.getPatronType(), is(22));
+		assertThat("Should have expected home library code", response.getHomeLibraryCode(), is("testbbb"));
+		assertThat("Should have no barcodes", response.getBarcodes(), is(nullValue()));
+		assertThat("Should have no names", response.getNames(), is(nullValue()));
+	}
+
+	@Test
+	public void shouldFindPatronByLocalId() {
+		// Arrange
+		var uniqueId = "6748687";
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(uniqueId);
+
+		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+
+		// Act
+		var response = singleValueFrom(sierraApiClient.getPatron(Long.valueOf(uniqueId)));
+
+		// Assert
+		assertThat("Response should not be null", response, is(notNullValue()));
+		assertThat("Should have expected ID", response.getId(), is(1000002));
+		assertThat("Should have expected patron type", response.getPatronType(), is(15));
+		assertThat("Should have expected home library code", response.getHomeLibraryCode(), is("testccc"));
+		assertThat("Should have a barcode", response.getBarcodes(), contains("647647746"));
+		assertThat("Should have a name", response.getNames(), contains("Bob"));
 	}
 
 	@Test
@@ -123,15 +151,13 @@ public class SierraApiPatronTests {
 		// Arrange
 		final var uniqueId = "018563984";
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId(uniqueId);
-		final var sierraApiClient = createClient();
+		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
 
 		// Act
-		final var response = Mono.from( sierraApiClient.patronFind("u", uniqueId) ).block();
+		final var response = singleValueFrom(sierraApiClient.patronFind("u", uniqueId));
 
 		// Assert
-		assertThat(response, is(notNullValue()));
-		assertThat(response.getClass(), is(SierraPatronRecord.class));
-		assertThat(response.getId(), is(nullValue()));
+		assertThat("Response should be empty", response, is(nullValue()));
 	}
 
 	@Test
@@ -139,7 +165,7 @@ public class SierraApiPatronTests {
 		// Arrange
 		final var patronLocalId = "018563984";
 		sierraPatronsAPIFixture.patronHoldResponse(patronLocalId);
-		final var sierraApiClient = createClient();
+		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
 
 		// Act
 		var response = Mono.from(sierraApiClient.patronHolds(patronLocalId)).block();
@@ -152,43 +178,50 @@ public class SierraApiPatronTests {
 	}
 
 	@Test
+	void shouldReturnEmptyPublisherWhenReceiveNotFoundError() {
+		// Arrange
+		final var patronLocalId = "78585745";
+
+		sierraPatronsAPIFixture.patronHoldNotFoundErrorResponse(patronLocalId);
+
+		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+
+		// Act
+		final var response = singleValueFrom(sierraApiClient.patronHolds(patronLocalId));
+
+		// Assert
+		assertThat("Response should be empty", response, is(nullValue()));
+	}
+
+	@Test
 	void testPatronHoldRequestErrorResponse() {
 		// Arrange
 		final var patronLocalId = "489365810";
 		sierraPatronsAPIFixture.patronHoldErrorResponse(patronLocalId);
-		final var sierraApiClient = createClient();
+		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> Mono.from(sierraApiClient.patronHolds(patronLocalId)).block());
 
 		// Assert
-		final var response = exception.getResponse();
+		final var body = getResponseBody(exception);
 
-		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
-		assertThat(response.code(), is(500));
-
-		final var optionalBody = response.getBody(String.class);
-
-		assertThat(optionalBody.isPresent(), is(true));
-
-		final var body = optionalBody.get();
-
-		assertThat(body, is("Broken"));
+		assertThat(body, isBadJsonError());
 	}
 
 	@Test
 	void testPlacePatronHoldRequest() {
 		// Arrange
 		final var patronLocalId = "1341234";
-		sierraPatronsAPIFixture.patronHoldRequestResponse(patronLocalId, 32897458, "pickupLocation");
+		sierraPatronsAPIFixture.patronHoldRequestResponse(patronLocalId);
 
 		PatronHoldPost patronHoldPost = new PatronHoldPost();
 		patronHoldPost.setRecordNumber(32897458);
 		patronHoldPost.setRecordType("i");
 		patronHoldPost.setPickupLocation("pickupLocation");
 
-		final var sierraApiClient = createClient();
+		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
 
 		// Act
 		var response = Mono.from(sierraApiClient.placeHoldRequest(patronLocalId, patronHoldPost)).block();
@@ -201,39 +234,22 @@ public class SierraApiPatronTests {
 	void testPlacePatronHoldRequestErrorResponse() {
 		// Arrange
 		final var patronLocalId = "4325435";
-		sierraPatronsAPIFixture.patronHoldRequestErrorResponse(patronLocalId, 423543254, "pickupLocation");
+		sierraPatronsAPIFixture.patronHoldRequestErrorResponse(patronLocalId);
 
 		PatronHoldPost patronHoldPost = new PatronHoldPost();
 		patronHoldPost.setRecordNumber(423543254);
 		patronHoldPost.setRecordType("i");
 		patronHoldPost.setPickupLocation("pickupLocation");
 
-		final var sierraApiClient = createClient();
+		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> Mono.from(sierraApiClient.placeHoldRequest(patronLocalId, patronHoldPost)).block());
 
 		// Assert
-		final var response = exception.getResponse();
+		final var body = getResponseBody(exception);
 
-		assertThat(response.getStatus(), is(INTERNAL_SERVER_ERROR));
-		assertThat(response.code(), is(500));
-
-		final var optionalBody = response.getBody(String.class);
-
-		assertThat(optionalBody.isPresent(), is(true));
-
-		final var body = optionalBody.get();
-
-		assertThat(body, is("Broken"));
-	}
-
-	private HostLmsSierraApiClient createClient() {
-		final var testHostLms = hostLmsService.findByCode("test1").block();
-
-		// Need to create a client directly
-		// because injecting gives incorrectly configured client
-		return new HostLmsSierraApiClient(testHostLms, client);
+		assertThat(body, isServerError());
 	}
 }

@@ -46,3 +46,6 @@ netty:
 dcb:
   scheduled-tasks:
     enabled: false
+  requestability:
+    location:
+      filtering: false

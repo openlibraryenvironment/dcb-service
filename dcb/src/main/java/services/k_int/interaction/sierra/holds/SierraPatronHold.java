@@ -6,9 +6,12 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Data;
 import services.k_int.interaction.sierra.SierraCodeTuple;
+import lombok.Builder;
 
+@Builder
 @Serdeable
 public record SierraPatronHold (
+	
         @NotEmpty String id,
         @Nullable String record,
         @Nullable String patron,
@@ -17,5 +20,6 @@ public record SierraPatronHold (
         @Nullable String notWantedBeforeDate,
         @Nullable SierraCodeTuple pickupLocation,
         @Nullable SierraCodeTuple status,
-        @Nullable String recordType
+        @Nullable String recordType,
+        @Nullable String note
         ) {}
