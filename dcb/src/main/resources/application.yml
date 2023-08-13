@@ -35,7 +35,7 @@ micronaut:
           - isAnonymous()
       - pattern: "/graphql/**"
         access:
-          - isAnonymous()
+          - isAuthenticated()
   http:
     client:
       read-timeout: PT1M
@@ -129,6 +129,8 @@ netty:
   default:
     allocator:
       max-order: 3
+  # https://github.com/micronaut-projects/micronaut-core/discussions/5318
+  max-initial-line-length: 4096
 
 jackson:
   date-format: "yyyy-MM-dd'T'HH:mm:ssZ"

@@ -18,7 +18,6 @@ import io.micronaut.configuration.graphql.GraphQLResponseBody;
 
 
 // /home/ianibbo/dev/resource_sharing/backend/reshare-dcb-service-olf
-
 @SerdeImport(GraphQLWsResponse.class)
 @SerdeImport(GraphQLRequestBody.class)
 @SerdeImport(GraphQLResponseBody.class)
