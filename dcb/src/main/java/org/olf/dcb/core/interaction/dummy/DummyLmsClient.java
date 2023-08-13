@@ -1,4 +1,4 @@
-package org.olf.dcb.core.interaction.folio;
+package org.olf.dcb.core.interaction.dummy;
 
 import static java.lang.Integer.parseInt;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
@@ -57,7 +57,6 @@ import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
-// import services.k_int.interaction.folio.FolioApiClient;
 
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
@@ -67,20 +66,23 @@ import java.time.Duration;
 import services.k_int.interaction.oai.records.OaiListRecordsMarcXML;
 
 /**
+ * IMPORTANT. This class exists to ensure that there is always an empty implementation of the
+ * required methods for devs to use as a template when integrating with new HostLMS systems.
+ * please keep it up to date when changing any of the system wide interfaces but don't turn it
+ * into a concrete implementation. Please copy to a new concrete implementation as needed
  */
 @Prototype
-public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRecordsMarcXML> {
+public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRecordsMarcXML> {
 
-	private static final Logger log = LoggerFactory.getLogger(FolioLmsClient.class);
+	private static final Logger log = LoggerFactory.getLogger(DummyLmsClient.class);
 
-	private static final String UUID5_PREFIX = "ingest-source:folio-lms";
+	private static final String UUID5_PREFIX = "ingest-source:dummy-lms";
 	private final ConversionService<?> conversionService = ConversionService.SHARED;
 	private final HostLms lms;
-	// private final FolioApiClient client;
 	private final ProcessStateService processStateService;
 	private final RawSourceRepository rawSourceRepository;
 
-	public FolioLmsClient(@Parameter HostLms lms, 
+	public DummyLmsClient(@Parameter HostLms lms, 
 		RawSourceRepository rawSourceRepository, 
                 ProcessStateService processStateService) {
 		this.lms = lms;
