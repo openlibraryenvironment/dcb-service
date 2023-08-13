@@ -61,6 +61,8 @@ class LiveAvailabilityApiTests {
 		hostLmsFixture.deleteAllHostLMS();
 
 		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+
+                // Create Numeric Mapping for live-availability-api-tests - ItemType - 999
 	}
 
 	@BeforeEach
@@ -106,6 +108,8 @@ class LiveAvailabilityApiTests {
 		assertThat(firstItem.getDueDate(), is(nullValue()));
 		assertThat(firstItem.getIsRequestable(), is(true));
 		assertThat(firstItem.getHoldCount(), is(0));
+		assertThat(firstItem.getLocalItemType(), is("999"));
+		assertThat(firstItem.getCanonicalItemType(), is("BKM"));
 
 		final var firstItemStatus = firstItem.getStatus();
 
@@ -127,6 +131,8 @@ class LiveAvailabilityApiTests {
 		assertThat(secondItem.getDueDate(), is("2021-02-25T12:00:00Z"));
 		assertThat(secondItem.getIsRequestable(), is(false));
 		assertThat(secondItem.getHoldCount(), is(0));
+		assertThat(secondItem.getLocalItemType(), is("999"));
+		assertThat(secondItem.getCanonicalItemType(), is("BKM"));
 
 		final var secondItemStatus = secondItem.getStatus();
 

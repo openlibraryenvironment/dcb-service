@@ -127,21 +127,9 @@ public class PatronRequestWorkflowService {
 	 * here, but for now simple string comparisons are more than sufficient.
 	 */
 	private Optional<PatronRequestStateTransition> getApplicableTransitionFor(PatronRequest patronRequest) {
-
 		log.debug("getApplicableTransitionFor({})", patronRequest);
 		return getAutomaticStateTransitionsFor(patronRequest)
 			.findFirst();
-		
-
-//		PatronRequestStateTransition result = null;
-//		Iterator<PatronRequestStateTransition> i = allTransitions.iterator();
-//		while ((result == null) && (i.hasNext())) {
-//			PatronRequestStateTransition candidate = i.next();
-//			// log.debug("testing({},{})",candidate.getGuardCondition(),guardCondition);
-//			if (candidate.getGuardCondition().equals(guardCondition))
-//				result = candidate;
-//		}
-//		return result;
 	}
 
 	private Flux<PatronRequest> applyTransition(PatronRequestStateTransition action, PatronRequest patronRequest) {
@@ -151,27 +139,11 @@ public class PatronRequestWorkflowService {
 			.flux()
 			.flatMap(patronRequestRepository::saveOrUpdate)
 			.concatMap( request -> {
-				
 				// Recall if there are more...
 				return Mono.justOrEmpty(getApplicableTransitionFor( request ))
 					.delayElement(stateTransitionDelay)
 					.flatMapMany( transition -> applyTransition(transition, request));
-				
-//				PatronRequestStateTransition next_action = getApplicableTransitionFor(request);
-//				if (next_action != null)
-//					progress(request, next_action);
 			});
-		
-			
-		
-				// If the transition was successful, see if there is a next step we can try to
-				// take, and if so, try to progress it, otherwise exit
-//				.doOnSuccess(result -> {
-//					PatronRequestStateTransition next_action = getTransitionFor("state==" + result.getStatusCode());
-//					if (next_action != null)
-//						progress(result, next_action);
-//				}).flatMap(result -> Mono.delay(stateTransitionDelay, Schedulers.boundedElastic()).thenReturn(result))
-//				.subscribeOn(Schedulers.boundedElastic()).subscribe();
 	}
 	
 	public Function<Publisher<PatronRequest>,Flux<PatronRequest>> getErrorTransformerFor( PatronRequest patronRequest ) {

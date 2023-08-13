@@ -123,6 +123,8 @@ public class PatronRequestResolutionService {
 			.localBibId(item.getBibId())
 			.localItemBarcode(item.getBarcode())
 			.localItemLocationCode(item.getLocation().getCode())
+			.localItemType(item.getLocalItemType())
+			.canonicalItemType(item.getCanonicalItemType())
 			.hostLmsCode(item.getHostLmsCode())
                         .localAgency( agency != null ? agency.getCode() : null )
 			.statusCode(PENDING)

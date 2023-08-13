@@ -14,10 +14,14 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
+import lombok.experimental.Accessors;
+
+
 @Data
 @Serdeable
 @Builder
 @AllArgsConstructor()
+@Accessors(chain=true)
 public class Item implements Comparable<Item> {
 	private String id;
 	private ItemStatus status;
@@ -30,6 +34,10 @@ public class Item implements Comparable<Item> {
 	private Boolean isRequestable;
 	private Integer holdCount;
 	private String bibId;
+        private String localItemType;
+        private String canonicalItemType;
+        private Boolean deleted;
+        private Boolean suppressed;
 
 	public boolean isAvailable() {
 		return getStatus().getCode() == AVAILABLE;

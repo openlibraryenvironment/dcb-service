@@ -1,6 +1,6 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
@@ -23,12 +23,12 @@ Status is interpreted based upon
  <a href="https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html#item%20STATUS">
  this documentation</a>
  */
-@Prototype
-class ItemStatusMapper {
+@Singleton
+class SierraItemStatusMapper {
 	private static final Logger log = LoggerFactory.getLogger(ItemResultToItemMapper.class);
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
-	ItemStatusMapper(ReferenceValueMappingRepository referenceValueMappingRepository) {
+	SierraItemStatusMapper(ReferenceValueMappingRepository referenceValueMappingRepository) {
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 	}
 
