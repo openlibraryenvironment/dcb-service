@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb.graphql;
+package org.olf.dcb.graphql;
 
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
@@ -6,8 +6,8 @@ import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.olf.reshare.dcb.storage.AgencyRepository;
-import org.olf.reshare.dcb.core.model.DataAgency;
+import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.core.model.DataAgency;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 

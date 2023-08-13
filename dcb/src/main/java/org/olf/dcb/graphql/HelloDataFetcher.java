@@ -1,4 +1,4 @@
-package org.olf.reshare.dcb.graphql;
+package org.olf.dcb.graphql;
 
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
