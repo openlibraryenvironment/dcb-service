@@ -16,6 +16,7 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.model.query.builder.sql.Dialect;
 import io.micronaut.data.r2dbc.annotation.R2dbcRepository;
+import io.micronaut.data.repository.jpa.reactive.ReactiveStreamsJpaSpecificationExecutor;
 import io.micronaut.data.repository.reactive.ReactiveStreamsPageableRepository;
 import jakarta.inject.Singleton;
 
@@ -24,7 +25,7 @@ import jakarta.inject.Singleton;
 @Singleton
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 @Transactional
-public interface PostgresClusterRecordRepository extends ReactiveStreamsPageableRepository<ClusterRecord, UUID>, ClusterRecordRepository {
+public interface PostgresClusterRecordRepository extends ReactiveStreamsPageableRepository<ClusterRecord, UUID>, ReactiveStreamsJpaSpecificationExecutor<ClusterRecord>, ClusterRecordRepository {
 
 	/* @Join("bibs") we don't need the bibs, just the record from the primary bib */
 	Publisher<Page<ClusterRecord>> findAll(@Valid Pageable pageable);
