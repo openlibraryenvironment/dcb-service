@@ -5,3 +5,7 @@ This creates a subsequence in the migrations where a developer can add modificat
 
 
 
+example update file
+
+
+dcb/src/main/resources/db/migration/V1_0_1_000__updates.sql

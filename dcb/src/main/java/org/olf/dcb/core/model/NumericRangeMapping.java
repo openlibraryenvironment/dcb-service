@@ -20,7 +20,7 @@ import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 /**
- * The ID UUID should be created as the UUID5 Hash of the context and the category to give stable identifiers
+ *  ID - Hash of context+domain+lowerBound
  */
 @Data
 @Builder
@@ -31,28 +31,38 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @MappedEntity
 public class NumericRangeMapping {
 
-    // E.G. "GDCL"
-    @NotNull
-    @NonNull
-    @Size(max=64)
-    private String context;
+        @NotNull
+        @NonNull
+        @Id
+        @TypeDef(type = DataType.UUID)
+        private UUID id;
 
 
-    // E.G. SierraIType
-    @NotNull
-    @NonNull
-    @Size(max=64)
-    private String domain;
+        // E.G. "GDCL"
+        @NotNull
+        @NonNull
+        @Size(max=64)
+        private String context;
 
-    @NotNull
-    @NonNull
-    private Long lowerBound;
+        // E.G. SierraIType
+        @NotNull
+        @NonNull
+        @Size(max=64)
+        private String domain;
 
-    @NotNull
-    @NonNull
-    private Long upperBound;
+        @NotNull
+        @NonNull
+        private Long lowerBound;
 
-    @NotNull
-    @NonNull
-    private String mappedValue;
+        @NotNull
+        @NonNull
+        private Long upperBound;
+
+        @NotNull
+        @NonNull
+        private String targetContext;
+
+        @NotNull
+        @NonNull
+        private String mappedValue;
 }

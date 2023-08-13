@@ -36,6 +36,10 @@ public class AvailabilityResponse {
 		private final Boolean isRequestable;
 		@Nullable
 		private final Integer holdCount;
+		@Nullable
+		private final String localItemType;
+		@Nullable
+		private final String canonicalItemType;
 	}
 
 	@Data

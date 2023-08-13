@@ -27,11 +27,16 @@ import org.slf4j.LoggerFactory;
 import javax.validation.Valid;
 
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Produces;
+import io.micronaut.http.annotation.Consumes;
+import io.micronaut.http.annotation.QueryValue;
+import io.micronaut.http.annotation.Body;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -44,9 +49,24 @@ import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
 import reactor.util.function.Tuples;
 
-@Secured(SecurityRule.IS_ANONYMOUS)
+import org.olf.dcb.utils.DCBConfigurationService;
+import org.olf.dcb.utils.DCBConfigurationService.ConfigImportResult;
+
+import java.security.Principal;
+import io.micronaut.core.annotation.Introspected;
+
+
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Data;
+
+
+
+
 @Produces(APPLICATION_JSON)
-@Controller
+@Controller("/admin")
+@Secured(SecurityRule.IS_ANONYMOUS)
+// @Secured({ "ADMIN" })
 @Tag(name = "Admin API")
 public class AdminController {
 	private static final Logger log = LoggerFactory.getLogger(AdminController.class);
@@ -56,22 +76,26 @@ public class AdminController {
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestAuditRepository patronRequestAuditRepository;
 	private final StatsService statsService;
+	private final DCBConfigurationService configurationService;
 
 	public AdminController(PatronRequestService patronRequestService,
 		SupplierRequestService supplierRequestService,
 		StatsService statsService,
 		PatronRequestRepository patronRequestRepository,
-		PatronRequestAuditRepository patronRequestAuditRepository) {
+		PatronRequestAuditRepository patronRequestAuditRepository,
+		DCBConfigurationService configurationService) {
 
 		this.patronRequestService = patronRequestService;
 		this.supplierRequestService = supplierRequestService;
 		this.statsService = statsService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.patronRequestAuditRepository = patronRequestAuditRepository;
+		this.configurationService = configurationService;
 	}
 
+	// ToDo: The tests seem to want to be able to call this without any auth - that needs fixing
 	@SingleResult
-	@Get(value = "/admin/patrons/requests/{id}", produces = APPLICATION_JSON)
+	@Get(uri="/patrons/requests/{id}", produces = APPLICATION_JSON)
 	public Mono<HttpResponse<PatronRequestAdminView>> getPatronRequest(@PathVariable("id") final UUID id) {
 
 		log.debug("REST, get patron request by id: {}", id);
@@ -83,7 +107,7 @@ public class AdminController {
 			.map(HttpResponse::ok);
 	}
 
-        @Secured(SecurityRule.IS_AUTHENTICATED)
+	@Secured({ "ADMIN" })
         @Operation(
                 summary = "Browse Requests",
                 description = "Paginate through the list of Patron Requests",
@@ -91,7 +115,7 @@ public class AdminController {
                         @Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
                         @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
         )
-        @Get("/admin/patrons/requests{?pageable*}")
+        @Get("/patrons/requests{?pageable*}")
         public Mono<Page<PatronRequest>> list(@Parameter(hidden = true) @Valid Pageable pageable,
                                               Authentication authentication) {
 
@@ -120,11 +144,31 @@ public class AdminController {
 		return PatronRequestAdminView.from(patronRequest, supplierRequests, audits);
 	}
 
+	@Secured({ "ADMIN" })
 	@SingleResult
-	@Get(value="/statistics", produces = APPLICATION_JSON)
+	@Get(uri="/statistics", produces = APPLICATION_JSON)
 	public Mono<StatsService.Report> getStatsReport() {
 		StatsService.Report report =statsService.getReport();
 		log.debug("report: {}",report);
 		return Mono.just(report);
 	}
+
+
+        // public Mono<ConfigImportResult> importCfg(@Nullable @Body ImportCommand importCommand) {
+
+	@Secured({ "ADMIN" })
+        @Post(uri="/cfg", produces = APPLICATION_JSON)
+        public Mono<ConfigImportResult> importCfg(@Body @Valid ImportCommand ic) {
+		log.debug("Import configuration {}",ic);
+		return configurationService.importConfiguration(ic.profile, ic.url);
+        }
+
+        @Data
+        @Builder
+        @Serdeable
+	public static class ImportCommand {
+		String profile;
+		String url;
+	}
+
 }

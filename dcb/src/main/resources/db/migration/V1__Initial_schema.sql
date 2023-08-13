@@ -98,16 +98,20 @@ CREATE TABLE patron_request (
         pickup_patron_id varchar(200),
         pickup_item_id varchar(200),
         pickup_item_status varchar(200),
+        pickup_item_type varchar(32),
         pickup_request_id varchar(200),
         pickup_request_status varchar(200),
 	status_code varchar(200),
 	local_request_id varchar(200),
 	local_request_status varchar(32),
 	local_item_id varchar(200),
+        local_item_status varchar(32),
+        local_item_type varchar(32),
 	local_bib_id varchar(200),
         requesting_identity_id uuid REFERENCES patron_identity (id),
         description varchar(256),
-        error_message varchar(256)
+        error_message varchar(256),
+        active_workflow varchar(32)
 );
 
 
@@ -120,6 +124,9 @@ CREATE TABLE supplier_request (
 	local_item_id varchar(200),
 	local_item_barcode varchar(200),
 	local_item_location_code varchar(200),
+        local_item_status varchar(32),
+        local_item_type varchar(32),
+        canonical_item_type varchar(32),
 	host_lms_code varchar(200),
 	status_code varchar(200),
 	local_id varchar(200),
@@ -127,7 +134,11 @@ CREATE TABLE supplier_request (
         virtual_identity_id uuid REFERENCES patron_identity (id),
         local_bib_id varchar(256),
         local_agency varchar(256),
-        resolved_agency_id uuid
+        resolved_agency_id uuid,
+        date_created timestamp,
+        date_updated timestamp,
+        is_active boolean
+
 );
 
 CREATE INDEX idx_lender_hold on supplier_request(host_lms_code, local_id);
