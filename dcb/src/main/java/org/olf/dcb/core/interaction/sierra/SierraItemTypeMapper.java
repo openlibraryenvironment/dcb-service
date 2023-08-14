@@ -33,6 +33,7 @@ class SierraItemTypeMapper {
                 this.numericRangeMappingRepository = numericRangeMappingRepository;
         }
 
+        // Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
         public Mono<String> getCanonicalItemType(String system, String localItemType) {
 
                 log.debug("map({},{})", system, localItemType);
@@ -41,16 +42,19 @@ class SierraItemTypeMapper {
                 // I have a feelig that creating a static cache of system->localItemType mappings will have solid performance
                 // benefits
                 if ( localItemType != null ) {
-                        Long l = Long.valueOf(localItemType);
-                        log.debug("Look up item type {}",l);
-                        return Mono.from(numericRangeMappingRepository.findMappedValueFor(system, "ItemType", "DCB", l))
-                                .doOnNext(nrm -> log.debug("nrm: {}",nrm))
-                                .defaultIfEmpty( "UNKNOWN");
+                        try {
+                                Long l = Long.valueOf(localItemType);
+                                log.debug("Look up item type {}",l);
+                                return Mono.from(numericRangeMappingRepository.findMappedValueFor(system, "ItemType", "DCB", l))
+                                        .doOnNext(nrm -> log.debug("nrm: {}",nrm))
+                                        .defaultIfEmpty( "UNKNOWN");
+                        }
+                        catch ( Exception e ) {
+                                log.warn("Problem trying to convert {} into  long value",localItemType);
+                        }
                 }
-                else {
-                        log.warn("No localItemType provided - returning UNKNOWN");
-                        return Mono.just("UNKNOWN");
-                }
+                log.warn("No localItemType provided - returning UNKNOWN");
+                return Mono.just("UNKNOWN");
         }
 }
 
