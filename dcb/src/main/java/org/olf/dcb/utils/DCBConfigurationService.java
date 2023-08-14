@@ -19,10 +19,10 @@ import org.slf4j.LoggerFactory;
 import jakarta.inject.Singleton;
 
 
-import com.opencsv.bean.CsvToBean;
-import com.opencsv.bean.CsvToBeanBuilder;
-import com.opencsv.bean.HeaderColumnNameMappingStrategy;
-import com.opencsv.bean.CsvBindByName;
+import com.opencsv.CSVReader;
+import com.opencsv.CSVReaderBuilder;
+import com.opencsv.CSVParser;
+import com.opencsv.CSVParserBuilder;
 
 
 import java.io.BufferedReader;
@@ -81,7 +81,7 @@ public class DCBConfigurationService {
 		return Mono.from(httpClient.exchange(request, String.class))
 				.flatMapMany( this::extractData )
 				.flatMap( nrmr -> {
-					log.debug("Process range: {}",nrmr);
+					log.debug("Process range: {}",nrmr.toString());
 					return process(nrmr);
 				})
 				.collectList()
@@ -91,35 +91,30 @@ public class DCBConfigurationService {
                                         .build());
 	}
 
-	private Publisher<NumericRangeMappingRow> extractData(HttpResponse<String> httpResponse) {
-
-        	HeaderColumnNameMappingStrategy<NumericRangeMappingRow> ms = new HeaderColumnNameMappingStrategy<NumericRangeMappingRow>();
-	        ms.setType(NumericRangeMappingRow.class);
+	private Publisher<String[]> extractData(HttpResponse<String> httpResponse) {
 
 		String s = httpResponse.body();
 		Reader reader = new StringReader(s);
-
-                CsvToBean<NumericRangeMappingRow> cb = new CsvToBeanBuilder<NumericRangeMappingRow>(reader)
-                	.withSeparator('\t')
-                        .withType(NumericRangeMappingRow.class)
-                        .withIgnoreLeadingWhiteSpace(true)
-                        .withMappingStrategy(ms)
-                        .build();
-                List<NumericRangeMappingRow> r = cb.parse();
-                try { reader.close(); } catch (Exception e) { }
-                return Flux.fromIterable(r);
+		CSVParser parser = new CSVParserBuilder().withSeparator('\t').build();
+		CSVReader csvReader = new CSVReaderBuilder(reader).withSkipLines(1).withCSVParser(parser).build();
+		List<String[]> all_Rows = null;
+                try { 
+			all_Rows = csvReader.readAll();
+			reader.close(); 
+		} catch (Exception e) { }
+                return Flux.fromIterable(all_Rows);
 	}
 
-	private Mono<NumericRangeMapping> process(NumericRangeMappingRow nrmr) {
+	private Mono<NumericRangeMapping> process(String[] nrmr) {
 
                 NumericRangeMapping nrm = NumericRangeMapping.builder()
-                        .id(UUIDUtils.dnsUUID(nrmr.getContext()+":"+":"+nrmr.getDomain()+":"+nrmr.getTargetContext()+":"+nrmr.getLowerBound()))
-                        .context(nrmr.getContext())
-                        .domain(nrmr.getDomain())
-                        .lowerBound(nrmr.getLowerBound())
-                        .upperBound(nrmr.getUpperBound())
-                        .targetContext(nrmr.getTargetContext())
-                        .mappedValue(nrmr.getTargetValue())
+                        .id(UUIDUtils.dnsUUID(nrmr[0]+":"+nrmr[1]+":"+nrmr[2]+":"+nrmr[5]))
+                        .context(nrmr[0])
+                        .domain(nrmr[1])
+                        .lowerBound(Long.valueOf(nrmr[2]))
+                        .upperBound(Long.valueOf(nrmr[3]))
+                        .targetContext(nrmr[5])
+                        .mappedValue(nrmr[4])
                         .build();
 
 		return Mono.from(numericRangeMappingRepository.saveOrUpdate(nrm));
@@ -135,26 +130,4 @@ public class DCBConfigurationService {
 		String message;
                 Long recordsImported;
         }
-
-	@Data
-        @Builder
-        @Serdeable
-	@AllArgsConstructor
-	@NoArgsConstructor
-        @Introspected
-        public static class NumericRangeMappingRow {
-	 	@CsvBindByName(column = "context")
-                String context;
-	 	@CsvBindByName(column = "domain")
-                String domain;
-	 	@CsvBindByName(column = "lowerBound")
-		Long lowerBound;
-	 	@CsvBindByName(column = "upperBound")
-		Long upperBound;
-	 	@CsvBindByName(column = "targetContext")
-		String targetContext;
-	 	@CsvBindByName(column = "targetValue")
-		String targetValue;
-        }
-
 }
