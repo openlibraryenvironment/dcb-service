@@ -45,8 +45,10 @@ import java.io.InputStream;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.storage.NumericRangeMappingRepository;
 import org.olf.dcb.core.model.NumericRangeMapping;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import services.k_int.utils.UUIDUtils;
 
 @Singleton
@@ -54,11 +56,14 @@ public class DCBConfigurationService {
 
 	private HttpClient httpClient;
         private final NumericRangeMappingRepository numericRangeMappingRepository;
+        private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	public DCBConfigurationService(
 		HttpClient httpClient,
+		ReferenceValueMappingRepository referenceValueMappingRepository,
 		NumericRangeMappingRepository numericRangeMappingRepository) {
 		this.httpClient = httpClient;
+		this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.numericRangeMappingRepository = numericRangeMappingRepository;
 	}
 
@@ -70,8 +75,25 @@ public class DCBConfigurationService {
 
 		return switch ( profile ) {
 			case "numericRangeMappingImport" -> numericRangeImport(url);
+			case "referenceValueMappingImport" -> referenceValueMappingImport(url);
 			default -> Mono.just(ConfigImportResult.builder().message("ERROR").build());
 		};
+	}
+
+	private Mono<ConfigImportResult> referenceValueMappingImport(String url) {
+                HttpRequest<?> request = HttpRequest.GET(url);
+
+                return Mono.from(httpClient.exchange(request, String.class))
+                                .flatMapMany( this::extractData )
+                                .flatMap( nrmr -> {
+                                        log.debug("Process range: {}",nrmr.toString());
+                                        return processReferenceValueMapping(nrmr);
+                                })
+                                .collectList()
+                                .map(recordList -> ConfigImportResult.builder()
+                                        .message("OK")
+                                        .recordsImported(Long.valueOf(recordList.size()))
+                                        .build());
 	}
 
 	private Mono<ConfigImportResult> numericRangeImport(String url) {
@@ -82,7 +104,7 @@ public class DCBConfigurationService {
 				.flatMapMany( this::extractData )
 				.flatMap( nrmr -> {
 					log.debug("Process range: {}",nrmr.toString());
-					return process(nrmr);
+					return processNumericRangeMapping(nrmr);
 				})
 				.collectList()
                                 .map(recordList -> ConfigImportResult.builder()
@@ -105,7 +127,20 @@ public class DCBConfigurationService {
                 return Flux.fromIterable(all_Rows);
 	}
 
-	private Mono<NumericRangeMapping> process(String[] nrmr) {
+	private Mono<ReferenceValueMapping> processReferenceValueMapping(String[] rvm) {
+		ReferenceValueMapping rvmd= ReferenceValueMapping.builder()
+			.id(UUIDUtils.dnsUUID(rvm[0]+":"+rvm[1]+":"+rvm[2]+":"+rvm[3]+":"+rvm[4]))
+			.fromCategory(rvm[0])
+			.fromContext(rvm[1])
+			.fromValue(rvm[2])
+			.toCategory(rvm[3])
+			.toContext(rvm[4])
+			.toValue(rvm[5])
+			.build();
+		return Mono.from(referenceValueMappingRepository.saveOrUpdate(rvmd));
+	}
+
+	private Mono<NumericRangeMapping> processNumericRangeMapping(String[] nrmr) {
 
                 NumericRangeMapping nrm = NumericRangeMapping.builder()
                         .id(UUIDUtils.dnsUUID(nrmr[0]+":"+nrmr[1]+":"+nrmr[2]+":"+nrmr[5]))
