@@ -39,6 +39,7 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.runtime.Micronaut;
+import io.micronaut.core.annotation.Introspected;
 
 import java.io.InputStream;
 import reactor.core.publisher.Mono;
@@ -76,6 +77,7 @@ public class DCBConfigurationService {
 	private Mono<ConfigImportResult> numericRangeImport(String url) {
 
 		HttpRequest<?> request = HttpRequest.GET(url);
+
 		return Mono.from(httpClient.exchange(request, String.class))
 				.flatMapMany( this::extractData )
 				.flatMap( nrmr -> {
@@ -83,10 +85,10 @@ public class DCBConfigurationService {
 					return process(nrmr);
 				})
 				.collectList()
-        .map(recordList -> ConfigImportResult.builder()
-                    .message("OK")
-                    .recordsImported(recordList.size())
-                    .build());
+                                .map(recordList -> ConfigImportResult.builder()
+                                        .message("OK")
+                                        .recordsImported(Long.valueOf(recordList.size()))
+                                        .build());
 	}
 
 	private Publisher<NumericRangeMappingRow> extractData(HttpResponse<String> httpResponse) {
@@ -96,6 +98,7 @@ public class DCBConfigurationService {
 
 		String s = httpResponse.body();
 		Reader reader = new StringReader(s);
+
                 CsvToBean<NumericRangeMappingRow> cb = new CsvToBeanBuilder<NumericRangeMappingRow>(reader)
                 	.withSeparator('\t')
                         .withType(NumericRangeMappingRow.class)
@@ -125,9 +128,12 @@ public class DCBConfigurationService {
         @Data
         @Builder
         @Serdeable
+	@AllArgsConstructor
+        @NoArgsConstructor
+        @Introspected
         public static class ConfigImportResult {
 		String message;
-                long recordsImported;
+                Long recordsImported;
         }
 
 	@Data
@@ -135,6 +141,7 @@ public class DCBConfigurationService {
         @Serdeable
 	@AllArgsConstructor
 	@NoArgsConstructor
+        @Introspected
         public static class NumericRangeMappingRow {
 	 	@CsvBindByName(column = "context")
                 String context;
