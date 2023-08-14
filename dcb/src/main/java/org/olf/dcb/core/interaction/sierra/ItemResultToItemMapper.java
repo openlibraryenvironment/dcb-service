@@ -16,6 +16,7 @@ class ItemResultToItemMapper {
 
 	private final SierraItemStatusMapper sierraItemStatusMapper;
 	private final SierraItemTypeMapper sierraItemTypeMapper;
+        private static final Integer FIXED_FIELD_61 = Integer.valueOf(61);
 
 	ItemResultToItemMapper(SierraItemStatusMapper sierraItemStatusMapper,
                                SierraItemTypeMapper sierraItemTypeMapper) {
@@ -32,6 +33,17 @@ class ItemResultToItemMapper {
 				? ZonedDateTime.parse(dueDate)
 				: null;
 
+                        // We shouldlook into result.fixedFields for 61 here and set itemType according to that code and not
+                        // the human readable text
+                        String localItemTypeCode = null; 
+                        if ( result.getFixedFields() != null ) {
+                                if ( result.getFixedFields().get(FIXED_FIELD_61) != null ) {
+                                        localItemTypeCode = result.getFixedFields().get(FIXED_FIELD_61).getValue().toString();
+                                }
+                        }
+
+                        final var flitc = localItemTypeCode;
+
 			return sierraItemStatusMapper.mapStatus(result.getStatus(), hostLmsCode)
 				.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
 					.id(result.getId())
@@ -47,6 +59,7 @@ class ItemResultToItemMapper {
 					.holdCount(result.getHoldCount())
 					.bibId(bibId)
                                         .localItemType(result.getItemType())
+                                        .localItemTypeCode(flitc)
                                         .deleted(result.getDeleted())
                                         .suppressed(result.getSuppressed())
 					.build())
@@ -55,6 +68,8 @@ class ItemResultToItemMapper {
 	}
 
         Mono<org.olf.dcb.core.model.Item> enrichItemWithMappedItemType(org.olf.dcb.core.model.Item item, String hostSystem) {
+                // We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human readable string at the moment
+                // Sierra items should have a fixedField 61 according to https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
                 return sierraItemTypeMapper.getCanonicalItemType(hostSystem, item.getLocalItemType())
                         .defaultIfEmpty("UNKNOWN")
                         .map( mappedType -> item.setCanonicalItemType(mappedType) );
