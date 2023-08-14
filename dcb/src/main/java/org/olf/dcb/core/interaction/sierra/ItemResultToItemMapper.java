@@ -70,7 +70,7 @@ class ItemResultToItemMapper {
         Mono<org.olf.dcb.core.model.Item> enrichItemWithMappedItemType(org.olf.dcb.core.model.Item item, String hostSystem) {
                 // We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human readable string at the moment
                 // Sierra items should have a fixedField 61 according to https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
-                return sierraItemTypeMapper.getCanonicalItemType(hostSystem, item.getLocalItemType())
+                return sierraItemTypeMapper.getCanonicalItemType(hostSystem, item.getLocalItemTypeCode())
                         .defaultIfEmpty("UNKNOWN")
                         .map( mappedType -> item.setCanonicalItemType(mappedType) );
         }

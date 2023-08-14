@@ -17,5 +17,12 @@
 	"volumes": [],
 	"barcode": "30800010345269",
 	"callNumber": "juv P969y",
-        "itemType": 999
+        "itemType": 999,
+        "fixedFields": {
+                61: {
+                        "label": "TEST",
+                        "value": "999",
+                        "display": "DISP"
+                }
+        }
 }
