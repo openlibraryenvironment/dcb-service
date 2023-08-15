@@ -130,11 +130,11 @@ public class DCBConfigurationService {
 	private Mono<ReferenceValueMapping> processReferenceValueMapping(String[] rvm) {
 		ReferenceValueMapping rvmd= ReferenceValueMapping.builder()
 			.id(UUIDUtils.dnsUUID(rvm[0]+":"+rvm[1]+":"+rvm[2]+":"+rvm[3]+":"+rvm[4]))
-			.fromCategory(rvm[0])
-			.fromContext(rvm[1])
+			.fromContext(rvm[0])
+			.fromCategory(rvm[1])
 			.fromValue(rvm[2])
-			.toCategory(rvm[3])
-			.toContext(rvm[4])
+			.toContext(rvm[3])
+			.toCategory(rvm[4])
 			.toValue(rvm[5])
 			.build();
 		return Mono.from(referenceValueMappingRepository.saveOrUpdate(rvmd));

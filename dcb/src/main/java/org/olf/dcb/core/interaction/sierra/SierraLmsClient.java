@@ -331,15 +331,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<HostLmsItem> createItem(String bibId, String locationCode, String barcode) {
-
-		return getMappedItemType(locationCode, "TODO")
+	public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
+		return getMappedItemType(cic.getLocationCode(), cic.getCanonicalItemType())
 			.flatMap( itemType -> {
 				log.debug("createItem in SierraLmsClient - needs itemType mapper implementation {}",itemType);
 				return Mono.from(client.createItem(ItemPatch.builder()
-					.bibIds(List.of(Integer.parseInt(bibId)))
-					.location(locationCode)
-					.barcodes(List.of(barcode))
+					.bibIds(List.of(Integer.parseInt(cic.getBibId())))
+					.location(cic.getLocationCode())
+					.barcodes(List.of(cic.getBarcode()))
 					.build()));
 			})
 			.doOnSuccess(result -> log.debug("the result of createItem({})", result))

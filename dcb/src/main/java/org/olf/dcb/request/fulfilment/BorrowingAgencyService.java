@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.BibRecord;
@@ -117,7 +118,11 @@ public class BorrowingAgencyService {
 				.flatMap(mapping -> {
 					String agencyCode = mapping.getToValue();
 					supplierRequest.setLocalAgency(agencyCode);
-					return hostLmsClient.createItem(localBibId, agencyCode, supplierRequest.getLocalItemBarcode());
+					return hostLmsClient.createItem(
+                                                new CreateItemCommand(localBibId, 
+                                                        agencyCode, 
+                                                        supplierRequest.getLocalItemBarcode(), 
+                                                        supplierRequest.getCanonicalItemType()));
 				})
 				.map(HostLmsItem::getLocalId)
 				// .doOnNext(patronRequest::setLocalItemId) - replace with map
