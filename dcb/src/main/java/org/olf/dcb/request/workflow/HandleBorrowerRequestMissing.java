@@ -18,6 +18,7 @@ import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_ON_HOLDSHELF;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
+import static org.olf.dcb.core.model.PatronRequest.Status.COMPLETED;
 
 @Singleton
 @Named("BorrowerRequestMissing")
