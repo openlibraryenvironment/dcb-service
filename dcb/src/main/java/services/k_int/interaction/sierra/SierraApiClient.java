@@ -15,6 +15,8 @@ import io.micronaut.http.BasicAuth;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Put;
+import io.micronaut.http.annotation.Delete;
+import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.multipart.MultipartBody;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.bibs.BibParams;
@@ -186,4 +188,11 @@ public interface SierraApiClient {
 
 	@SingleResult
         Publisher<LinkResult> checkOutItemToPatron(String itemBarcode,String patronBarcode);
+
+        @Delete("/items/{id}")
+        Publisher<HttpStatus> deleteItem(String id);
+
+        @Delete("/bibs/{id}")
+        Publisher<HttpStatus> deleteBib(String id);
+
 }
