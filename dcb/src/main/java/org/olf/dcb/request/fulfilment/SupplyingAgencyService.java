@@ -84,9 +84,15 @@ public class SupplyingAgencyService {
                         .flatMap(this::setPatronRequestWorkflow)
                         .flatMap(this::updateSupplierRequest)
                         .map(PatronRequest::placedAtSupplyingAgency)
-			.flatMap(this::createAuditEntry)
+                        // We do this work a level up at PlacePatronRequestAtSupplyingAgencyStateTransition.createAuditEntry
+                        // commenting out as of 2023-08-16. If audit log looks good will remove entirely.
+			// .flatMap(this::createAuditEntry)
 			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
+
+	public Mono<PatronRequest> cleanUp(PatronRequest patronRequest) {
+                return Mono.just(patronRequest);
+        }
 
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
 

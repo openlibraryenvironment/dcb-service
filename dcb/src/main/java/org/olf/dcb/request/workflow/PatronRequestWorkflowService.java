@@ -61,19 +61,11 @@ public class PatronRequestWorkflowService {
 
 	public void initiate(PatronRequest patronRequest) {
 		log.debug("initiate({})", patronRequest);
-//		Status status = patronRequest.getStatusCode();
-//		String guardCondition = "state==" + status;
-//		log.debug("Searching for action when {}", guardCondition);		
-		
 		progressAll(patronRequest).subscribe();
 	}
 	
 	public Flux<PatronRequest> progressAll(PatronRequest patronRequest) {
 		log.debug("progressAll({})", patronRequest);
-//		Status status = patronRequest.getStatusCode();
-//		String guardCondition = "state==" + status;
-//		log.debug("Searching for action when {}", guardCondition);		
-		
 		return progressUsing(patronRequest, getApplicableTransitionFor(patronRequest));
 	}
 
@@ -98,17 +90,6 @@ public class PatronRequestWorkflowService {
 				return pr;
 			})
 			.transform(getErrorTransformerFor(patronRequest));
-		
-//		boolean complete = false;
-//		if (action != null) {
-//			
-//		} else {
-//			// There ar eno more actions that we can take for this patron request
-//			complete = true;
-//			log.debug("Unable to progress {} any further - no transformations available from state {}", patronRequest.getId(),
-//					patronRequest.getStatusCode());
-//		}
-//		return complete;
 	}
 	
 	public Stream<PatronRequestStateTransition> getPossibleStateTransitionsFor(PatronRequest patronRequest) {

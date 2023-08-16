@@ -9,6 +9,7 @@ import org.olf.dcb.tracking.model.StateChange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
+import io.micronaut.context.BeanProvider;
 
 import javax.transaction.Transactional;
 import java.util.Map;
@@ -28,13 +29,17 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 
 	private PatronRequestRepository patronRequestRepository;
 	private SupplierRequestRepository supplierRequestRepository;
+        // Provider to prevent circular reference exception by allowing lazy access to this singleton.
+        private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 
 	public HandleBorrowerRequestMissing(
 		PatronRequestRepository patronRequestRepository,
-		SupplierRequestRepository supplierRequestRepository)
+		SupplierRequestRepository supplierRequestRepository,
+                BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider)
 	{
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
+                this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 	}
 
 	@Transactional
@@ -54,13 +59,13 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 					}
 					// item has been returned home from borrowing library
 					if (Objects.equals(sr.getLocalItemStatus(), ITEM_AVAILABLE)) {
-						log.debug("setting DCB internal status to FINALISED because item status AVAILABLE {}",pr);
-						return pr.setStatus(FINALISED);
+						log.debug("setting DCB internal status to COMPLETED because item status AVAILABLE {}",pr);
+						return pr.setStatus(COMPLETED);
 					}
 					// item has not been despatched from lending library
 					if (Objects.equals(sr.getLocalStatus(), "PLACED")) {
-						log.debug("setting DCB internal status to FINALISED because sr local status PLACED {}",pr);
-						return pr.setStatus(FINALISED);
+						log.debug("setting DCB internal status to COMPLETED because sr local status PLACED {}",pr);
+						return pr.setStatus(COMPLETED);
 					}
 					log.debug("No matched condition for changing DCB internal status {}",pr);
 					return pr;
@@ -68,7 +73,10 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 				.map(patronRequest -> patronRequest.setLocalRequestStatus("MISSING"))
 				.doOnNext(patronRequest -> log.debug("setLocalRequestStatus to MISSING {}", patronRequest))
 				.flatMap(request -> Mono.from(patronRequestRepository.saveOrUpdate(request)))
-				.doOnNext(ssr -> log.debug("Saved {}", ssr))
+				.doOnNext(spr -> log.debug("Saved {} - check if we need to do any cleanup", spr))
+                                // Call the workflow service to see if we can advance the state of the request at all - in particular
+                                // to clean up any completed requests
+                                .flatMap( spr -> Mono.from(patronRequestWorkflowServiceProvider.get().progressAll(spr)) )
 				.thenReturn(context);
 		}
 		else {

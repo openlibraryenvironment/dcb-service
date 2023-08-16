@@ -73,6 +73,10 @@ public class BorrowingAgencyService {
 				.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
 
+	public Mono<PatronRequest> cleanUp(PatronRequest patronRequest) {
+                return Mono.just(patronRequest);
+        }
+
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest>> createVirtualBib(
 			PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 			SupplierRequest supplierRequest) {
