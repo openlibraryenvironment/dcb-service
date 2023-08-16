@@ -54,7 +54,6 @@ public interface HostLmsClient {
 
 	Mono<Patron> updatePatron(String localId, String patronType);
 
-	// Mono<HostLmsItem> createItem(String bibId, String locationCode, String barcode);
 	Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand);
 
 	Mono<HostLmsHold> getHold(String holdId);
@@ -65,4 +64,8 @@ public interface HostLmsClient {
 
         // WARNING We might need to make this accept a patronIdentity - as different systems might take different ways to identify the patron
         Mono<String> checkOutItemToPatron(String itemId, String patronBarcode);
+
+        Mono<String> deleteItem(String id);
+
+        Mono<String> deleteBib(String id);
 }

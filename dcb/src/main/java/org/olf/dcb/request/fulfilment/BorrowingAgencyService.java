@@ -41,6 +41,7 @@ public class BorrowingAgencyService {
 	private final SupplierRequestService supplierRequestService;
 	private final BibRepository bibRepository;
 	private final ClusterRecordRepository clusterRecordRepository;
+        private final PatronRequestAuditService patronRequestAuditService;
 
 	// Provider to prevent circular reference exception by allowing lazy access to
 	// this singleton.
@@ -51,7 +52,8 @@ public class BorrowingAgencyService {
 			SupplierRequestService supplierRequestService, BibRepository bibRepository,
 			ClusterRecordRepository clusterRecordRepository, ShelvingLocationRepository shelvingLocationRepository,
 			PatronRequestRepository patronRequestRepository, ReferenceValueMappingRepository referenceValueMappingRepository,
-			BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
+			BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
+                        PatronRequestAuditService patronRequestAuditService) {
 
 		this.hostLmsService = hostLmsService;
 		this.patronIdentityRepository = patronIdentityRepository;
@@ -60,6 +62,7 @@ public class BorrowingAgencyService {
 		this.clusterRecordRepository = clusterRecordRepository;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(PatronRequest patronRequest) {
@@ -73,8 +76,26 @@ public class BorrowingAgencyService {
 				.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
 
-	public Mono<PatronRequest> cleanUp(PatronRequest patronRequest) {
-                return Mono.just(patronRequest);
+	public Mono<String> cleanUp(PatronRequest patronRequest) {
+                log.debug("cleanUp {}",patronRequest);
+                if ( patronRequest.getPatronHostlmsCode() != null ) {
+                        return Mono.from(hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode()))
+                                .flatMap( client -> {
+                                        if ( patronRequest.getLocalItemId() != null )
+                                                client.deleteItem(patronRequest.getLocalItemId());
+                                        else 
+                                                log.info("No local item to delete at borrower system");
+                                        if ( patronRequest.getLocalBibId() != null )
+                                                client.deleteBib(patronRequest.getLocalBibId());
+                                        else 
+                                                log.info("No local bib to delete at borrower system");
+                                        return Mono.just(patronRequest);
+                                })
+                                .thenReturn("OK")
+                                .defaultIfEmpty("ERROR");
+                }
+                
+                return Mono.just("ERROR");
         }
 
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest>> createVirtualBib(

@@ -882,4 +882,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.defaultIfEmpty("ERROR");
 	}
 
+        public Mono<String> deleteItem(String id) {
+                log.debug("deleteItem({})",id);
+                return Mono.just("OK");
+        }
+
+        public Mono<String> deleteBib(String id) {
+                log.debug("deleteBib({})",id);
+                return Mono.just("OK");
+        }
+
 }

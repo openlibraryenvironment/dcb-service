@@ -74,9 +74,7 @@ public class FinaliseCompletedRequestTransition implements PatronRequestStateTra
                 return Mono.just(patronRequest)
                         .flatMap( supplyingAgencyService::cleanUp )
                         .flatMap( borrowingAgencyService::cleanUp )
-			.doOnSuccess( pr -> log.debug("finalized patron request: {}", pr))
-                        .doOnError( error -> log.error( "Error occurred finalizing a patron request: {}", error.getMessage()))
-                        .map( pr -> { pr.setStatus(Status.FINALISED); return pr; } )
+                        .then( Mono.just(patronRequest.setStatus(Status.FINALISED) ) )
 			.flatMap(this::createAuditEntry)
 		        .transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
