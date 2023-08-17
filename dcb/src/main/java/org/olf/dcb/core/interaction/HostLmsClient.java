@@ -30,6 +30,7 @@ public interface HostLmsClient {
 
 	Flux<Map<String, ?>> getAllBibData();
 
+        List<HostLmsPropertyDefinition> getSettings();
 
 	Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode);
 

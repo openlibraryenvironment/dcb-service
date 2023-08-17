@@ -22,7 +22,7 @@ import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.ingest.marc.MarcIngestSource;
@@ -100,6 +100,12 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 	public HostLms getHostLms() {
 		return lms;
 	}
+
+        public List<HostLmsPropertyDefinition> getSettings() {
+                return List.of(
+                        new HostLmsPropertyDefinition("base-url", "Base URL Of Dummy System", Boolean.TRUE, "URL" )
+                );
+        }
 
         public Flux<Map<String, ?>> getAllBibData() {
 		return Flux.empty();
