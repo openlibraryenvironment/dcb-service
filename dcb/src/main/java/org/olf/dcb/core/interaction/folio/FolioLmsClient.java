@@ -65,6 +65,8 @@ import reactor.util.retry.Retry;
 import java.time.Duration;
 
 import services.k_int.interaction.oai.records.OaiListRecordsMarcXML;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+
 
 /**
  */
@@ -212,7 +214,8 @@ public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 	}
 
 
-	public Mono<HostLmsItem> createItem(String bibId, String locationCode, String barcode) {
+        @Override
+        public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
 		return Mono.empty();
 	}
 
@@ -232,5 +235,13 @@ public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
         public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
 		return Mono.just("DUMMY");
 	}
+
+        public Mono<String> deleteItem(String id) {
+                return Mono.just("DUMMY");
+        }
+
+        public Mono<String> deleteBib(String id) {
+                return Mono.just("DUMMY");
+        }
 
 }

@@ -65,6 +65,9 @@ import java.time.Duration;
 
 import services.k_int.interaction.oai.records.OaiListRecordsMarcXML;
 
+import org.olf.dcb.core.interaction.CreateItemCommand;
+
+
 /**
  * IMPORTANT. This class exists to ensure that there is always an empty implementation of the
  * required methods for devs to use as a template when integrating with new HostLMS systems.
@@ -214,7 +217,8 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 	}
 
 
-	public Mono<HostLmsItem> createItem(String bibId, String locationCode, String barcode) {
+        @Override
+        public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
 		return Mono.empty();
 	}
 
@@ -234,5 +238,13 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
         public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
 		return Mono.just("DUMMY");
 	}
+
+        public Mono<String> deleteItem(String id) {
+                return Mono.just("DUMMY");
+        }
+
+        public Mono<String> deleteBib(String id) {
+                return Mono.just("DUMMY");
+        }
 
 }
