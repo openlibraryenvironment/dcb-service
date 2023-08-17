@@ -345,7 +345,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.flatMap( itemType -> {
 				log.debug("createItem in SierraLmsClient - itemType will be {}",itemType);
 
-		                final var fixedFields = Map.of(61, FixedField.builder().label("DCB-"+itemType).value(itemType).build());
+                                // https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
+		                final var fixedFields = Map.of(
+                                        61, FixedField.builder().label("DCB-"+itemType).value(itemType).build(),
+                                        88, FixedField.builder().label("REQUEST").value("&").build()
+                                );
 
 				return Mono.from(client.createItem(ItemPatch.builder()
 					.bibIds(List.of(Integer.parseInt(cic.getBibId())))
