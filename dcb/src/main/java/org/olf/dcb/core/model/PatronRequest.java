@@ -50,7 +50,8 @@ public class PatronRequest {
 		PICKUP_TRANSIT,
 		RETURN_TRANSIT,
 		CANCELLED,
-		FINALISED,
+		COMPLETED,    // Everything is finished, regardless and ready to be finalised
+		FINALISED,    // We've cleaned up everything and this is the end of the line
 		ERROR
 	}
 

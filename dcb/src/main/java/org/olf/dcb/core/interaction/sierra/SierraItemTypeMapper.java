@@ -33,24 +33,28 @@ class SierraItemTypeMapper {
                 this.numericRangeMappingRepository = numericRangeMappingRepository;
         }
 
-        public Mono<String> getCanonicalItemType(String system, String localItemType) {
+        // Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
+        public Mono<String> getCanonicalItemType(String system, String localItemTypeCode) {
 
-                log.debug("map({},{})", system, localItemType);
+                log.debug("map({},{})", system, localItemTypeCode);
 
                 // Sierra item types are integers and they are usually mapped by a range
                 // I have a feelig that creating a static cache of system->localItemType mappings will have solid performance
                 // benefits
-                if ( localItemType != null ) {
-                        Long l = Long.valueOf(localItemType);
-                        log.debug("Look up item type {}",l);
-                        return Mono.from(numericRangeMappingRepository.findMappedValueFor(system, "ItemType", "DCB", l))
-                                .doOnNext(nrm -> log.debug("nrm: {}",nrm))
-                                .defaultIfEmpty( "UNKNOWN");
+                if ( localItemTypeCode != null ) {
+                        try {
+                                Long l = Long.valueOf(localItemTypeCode);
+                                log.debug("Look up item type {}",l);
+                                return Mono.from(numericRangeMappingRepository.findMappedValueFor(system, "ItemType", "DCB", l))
+                                        .doOnNext(nrm -> log.debug("nrm: {}",nrm))
+                                        .defaultIfEmpty( "UNKNOWN");
+                        }
+                        catch ( Exception e ) {
+                                log.warn("Problem trying to convert {} into  long value",localItemTypeCode);
+                        }
                 }
-                else {
-                        log.warn("No localItemType provided - returning UNKNOWN");
-                        return Mono.just("UNKNOWN");
-                }
+                log.warn("No localItemType provided - returning UNKNOWN");
+                return Mono.just("UNKNOWN");
         }
 }
 

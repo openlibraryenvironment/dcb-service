@@ -23,7 +23,14 @@
 			"barcode": "30800005238487",
 			"callNumber": "HD9787.U5 M43 1969",
 			"holdCount": 0,
-                        "itemType": 999
+                        "itemType": 999,
+                        "fixedFields": {
+                                61: {
+                                        "label": "TEST",
+                                        "value": "999",
+                                        "display": "DISP"
+                                }
+                        }
 		},
 		{
 			"id": "1000002",
@@ -45,7 +52,14 @@
 			"barcode": "6565750674",
 			"callNumber": "BL221 .C48",
 			"holdCount": 0,
-                        "itemType": 999
+                        "itemType": 999,
+                        "fixedFields": {
+                                61: {
+                                        "label": "TEST",
+                                        "value": "999",
+                                        "display": "DISP"
+                                }
+                        }
 		}
 	]
 }

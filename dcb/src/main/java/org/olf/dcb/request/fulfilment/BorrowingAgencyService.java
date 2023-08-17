@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.BibRecord;
@@ -40,6 +41,7 @@ public class BorrowingAgencyService {
 	private final SupplierRequestService supplierRequestService;
 	private final BibRepository bibRepository;
 	private final ClusterRecordRepository clusterRecordRepository;
+        private final PatronRequestAuditService patronRequestAuditService;
 
 	// Provider to prevent circular reference exception by allowing lazy access to
 	// this singleton.
@@ -50,7 +52,8 @@ public class BorrowingAgencyService {
 			SupplierRequestService supplierRequestService, BibRepository bibRepository,
 			ClusterRecordRepository clusterRecordRepository, ShelvingLocationRepository shelvingLocationRepository,
 			PatronRequestRepository patronRequestRepository, ReferenceValueMappingRepository referenceValueMappingRepository,
-			BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
+			BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
+                        PatronRequestAuditService patronRequestAuditService) {
 
 		this.hostLmsService = hostLmsService;
 		this.patronIdentityRepository = patronIdentityRepository;
@@ -59,6 +62,7 @@ public class BorrowingAgencyService {
 		this.clusterRecordRepository = clusterRecordRepository;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(PatronRequest patronRequest) {
@@ -71,6 +75,28 @@ public class BorrowingAgencyService {
 				.map(function(patronRequest::placedAtBorrowingAgency))
 				.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
+
+	public Mono<String> cleanUp(PatronRequest patronRequest) {
+                log.debug("cleanUp {}",patronRequest);
+                if ( patronRequest.getPatronHostlmsCode() != null ) {
+                        return Mono.from(hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode()))
+                                .flatMap( client -> {
+                                        if ( patronRequest.getLocalItemId() != null )
+                                                client.deleteItem(patronRequest.getLocalItemId());
+                                        else 
+                                                log.info("No local item to delete at borrower system");
+                                        if ( patronRequest.getLocalBibId() != null )
+                                                client.deleteBib(patronRequest.getLocalBibId());
+                                        else 
+                                                log.info("No local bib to delete at borrower system");
+                                        return Mono.just(patronRequest);
+                                })
+                                .thenReturn("OK")
+                                .defaultIfEmpty("ERROR");
+                }
+                
+                return Mono.just("ERROR");
+        }
 
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest>> createVirtualBib(
 			PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
@@ -117,7 +143,11 @@ public class BorrowingAgencyService {
 				.flatMap(mapping -> {
 					String agencyCode = mapping.getToValue();
 					supplierRequest.setLocalAgency(agencyCode);
-					return hostLmsClient.createItem(localBibId, agencyCode, supplierRequest.getLocalItemBarcode());
+					return hostLmsClient.createItem(
+                                                new CreateItemCommand(localBibId, 
+                                                        agencyCode, 
+                                                        supplierRequest.getLocalItemBarcode(), 
+                                                        supplierRequest.getCanonicalItemType()));
 				})
 				.map(HostLmsItem::getLocalId)
 				// .doOnNext(patronRequest::setLocalItemId) - replace with map

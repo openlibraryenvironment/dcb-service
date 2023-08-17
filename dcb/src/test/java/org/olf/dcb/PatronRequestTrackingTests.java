@@ -28,6 +28,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
+import static org.olf.dcb.core.model.PatronRequest.Status.COMPLETED;
 import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
 import static services.k_int.utils.UUIDUtils.nameUUIDFromNamespaceAndString;
 

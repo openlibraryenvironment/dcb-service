@@ -35,6 +35,7 @@ public class Item implements Comparable<Item> {
 	private Integer holdCount;
 	private String bibId;
         private String localItemType;
+        private String localItemTypeCode;
         private String canonicalItemType;
         private Boolean deleted;
         private Boolean suppressed;
