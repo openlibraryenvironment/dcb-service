@@ -30,6 +30,7 @@ public interface HostLmsClient {
 
 	Flux<Map<String, ?>> getAllBibData();
 
+        List<HostLmsPropertyDefinition> getSettings();
 
 	Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode);
 
@@ -37,6 +38,7 @@ public interface HostLmsClient {
 
 	Mono<String> createBib(Bib bib);
 
+	// ToDo: This needs to go away in favour of getPatronByLocalId usage
 	// (localId, localPtype)
 	Mono<Tuple2<String, String>> patronFind(String uniqueId);
 

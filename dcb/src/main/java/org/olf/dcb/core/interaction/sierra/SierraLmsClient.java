@@ -119,6 +119,17 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return lms;
 	}
 
+        public List<HostLmsPropertyDefinition> getSettings() {
+                return List.of(
+                        new HostLmsPropertyDefinition("base-url", "Base URL Of Sierra System", Boolean.TRUE, "URL" ),
+                        new HostLmsPropertyDefinition("key", "Key for this system", Boolean.TRUE, "String" ),
+                        new HostLmsPropertyDefinition("page-size", "How many items to retrieve in each page", Boolean.TRUE, "String" ),
+                        new HostLmsPropertyDefinition("secret", "Secret for this Sierra system", Boolean.TRUE, "String" ),
+                        new HostLmsPropertyDefinition("ingest", "Enable record harvesting for this source", Boolean.TRUE, "Boolean" )
+                );
+        }
+
+
 	private Mono<BibResultSet> fetchPage(Instant since, int offset, int limit) {
 		log.info("Creating subscribeable batch;  since={} offset={} limit={}", since, offset, limit);
 		return Mono.from(client.bibs(params -> {
