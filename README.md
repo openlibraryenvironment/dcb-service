@@ -60,3 +60,8 @@ Module documentation can be found here: https://openlibraryenvironment.github.io
 
 ## Tag a prerelease
 
+
+## Trace graalvm issues with
+
+export JDK_JAVAC_OPTIONS="--trace-class-initialization=org.codehaus.stax2.typed.Base64Variants"
+
