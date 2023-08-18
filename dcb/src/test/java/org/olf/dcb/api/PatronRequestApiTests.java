@@ -178,7 +178,8 @@ class PatronRequestApiTests {
 		UUID id = randomUUID();
 		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "codeBB");
 
-		DataAgency dataAgency = Mono.from(agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2)))
+		DataAgency dataAgency = Mono.from(agencyRepository.save(
+			DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(dataHostLms2).build()))
 				.block();
 
 		ShelvingLocation shelvingLocation = ShelvingLocation.builder().id(randomUUID()).code("ab6").name("name")

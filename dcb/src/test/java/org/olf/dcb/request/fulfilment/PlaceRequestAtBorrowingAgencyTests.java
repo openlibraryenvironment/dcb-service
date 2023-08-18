@@ -128,7 +128,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		final var dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
 
 		final var dataAgency = singleValueFrom(
-			agencyRepository.save(new DataAgency(randomUUID(), "ab6", "name", dataHostLms2)));
+			agencyRepository.save(DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(dataHostLms2).build()));
 
 		final var shelvingLocation = ShelvingLocation.builder()
 			.id(randomUUID())

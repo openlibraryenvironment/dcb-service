@@ -79,8 +79,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		SierraTestUtils.mockFor(mock, BASE_URL) .setValidCredentials(KEY, SECRET, TOKEN, 60);
 		hostLmsFixture.deleteAllHostLMS();
 		DataHostLms d1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
-                this.agency_ab6 = agencyFixture.saveAgency(new DataAgency(randomUUID(), "ab6", "name", d1));
-
+		this.agency_ab6 = agencyFixture.saveAgency(
+			DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(d1).build());
 		referenceValueMappingFixture.deleteAllReferenceValueMappings();
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 		// patron hold requests success

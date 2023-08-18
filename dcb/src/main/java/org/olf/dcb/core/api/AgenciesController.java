@@ -6,7 +6,6 @@ import javax.validation.Valid;
 
 import org.olf.dcb.core.api.types.AgencyDTO;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.slf4j.Logger;
@@ -26,6 +25,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Validated
@@ -33,38 +33,66 @@ import reactor.core.publisher.Mono;
 @Controller("/agencies")
 @Tag(name = "Agencies")
 public class AgenciesController {
-
 	private static final Logger log = LoggerFactory.getLogger(AgenciesController.class);
-
-        private AgencyRepository agencyRepository;
+	private AgencyRepository agencyRepository;
 	private HostLmsRepository hostLmsRepository;
 
-	public AgenciesController(AgencyRepository agencyRepository,
-                                  HostLmsRepository hostLmsRepository) {
-                this.agencyRepository = agencyRepository;
-                this.hostLmsRepository = hostLmsRepository;
+	public AgenciesController(
+		AgencyRepository agencyRepository,
+		HostLmsRepository hostLmsRepository)
+	{
+		this.agencyRepository = agencyRepository;
+		this.hostLmsRepository = hostLmsRepository;
 	}
 
-        @Operation(
-                summary = "Browse Agencies",
-                description = "Paginate through the list of known agencies",
-                parameters = {
-                        @Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
-                        @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
-        )
-        @Get("/{?pageable*}")
-        public Mono<Page<DataAgency>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
-                if (pageable == null) {
-                        pageable = Pageable.from(0, 100);
-                }
+	@Operation(
+		summary = "Browse Agencies",
+		description = "Paginate through the list of known agencies",
+		parameters = {
+			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
+			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
+	)
+	@Get("/{?pageable*}")
+	public Mono<Page<AgencyDTO>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
+		if (pageable == null) {
+			pageable = Pageable.from(0, 100);
+		}
+		@Valid Pageable finalPageable = pageable;
+		return Flux.from(agencyRepository.findAll())
+			// work around as fetching agency will not fetch hostLms or hostLmsId
+			.flatMap(this::addHostLms)
+			.map(AgencyDTO::mapToAgencyDTO)
+			.collectList()
+			.map(agencyDTOList -> Page.of(agencyDTOList, finalPageable, agencyDTOList.size()));
+	}
 
-                return Mono.from(agencyRepository.findAll(pageable));
-        }
+	@Get("/{id}")
+	public Mono<AgencyDTO> show(UUID id) {
+					return Mono.from(agencyRepository.findById(id)).flatMap(this::addHostLms).map(AgencyDTO::mapToAgencyDTO);
+	}
 
-        @Get("/{id}") 
-        public Mono<DataAgency> show(UUID id) {
-                return Mono.from(agencyRepository.findById(id)); 
-        }
+	@Post("/")
+	public Mono<AgencyDTO> postAgency(@Body AgencyDTO agency) {
+		log.debug("REST, save or update agency: {}", agency);
+		return Mono.from(hostLmsRepository.findByCode(agency.hostLMSCode()))
+			.flatMap(lms -> {
+				if (lms == null) {
+					log.error("Unable to locate lms with code {}", agency.hostLMSCode());
+					return Mono.empty();
+				}
+				return Mono.just(DataAgency.builder()
+					.id(agency.id())
+					.code(agency.code())
+					.name(agency.name())
+					.hostLms(lms)
+					.authProfile(agency.authProfile())
+					.idpUrl(agency.idpUrl())
+					.build());
+			})
+			.flatMap(this::saveOrUpdate)
+			.flatMap(this::addHostLms)
+			.map(AgencyDTO::mapToAgencyDTO);
+	}
 
         /*
  	@Post("/")
@@ -73,25 +101,15 @@ public class AgenciesController {
                         .flatMap(exists -> Mono.fromDirect(exists ? agencyRepository.update(agency) : agencyRepository.save(agency)));
 	}
         */
+	private Mono<DataAgency> addHostLms(DataAgency dataAgency) {
+		log.debug("addHostLms: {}", dataAgency);
+		return Mono.from(agencyRepository.findHostLmsIdById(dataAgency.getId()))
+			.flatMap(hostLmsId -> Mono.from(hostLmsRepository.findById(hostLmsId)))
+			.map(dataAgency::setHostLms);
+	}
 
-	// TODO: Convert return DataAgency to AgencyDTO
-        @Post("/")
-        public Mono<DataAgency> postAgency(@Body AgencyDTO agency) {
-
-		// Convert AgencyDTO into DataAgency with correctly linked HostLMS
-		DataHostLms lms = Mono.from(hostLmsRepository.findByCode(agency.hostLMSCode())).block();
-
-		if ( lms == null ) {
-			log.error("Unable to locate lms with code {}",agency.hostLMSCode());
-		}
-
-                DataAgency da = new DataAgency(agency.id(),
-                                               agency.code(),
-                                               agency.name(),
-                                               lms);
- 
-                return Mono.from(agencyRepository.existsById(da.getId()))
-                       .flatMap(exists -> Mono.fromDirect(exists ? agencyRepository.update(da) : agencyRepository.save(da)));
-        }
-
+	private Mono<DataAgency> saveOrUpdate(DataAgency agency) {
+		return Mono.from(agencyRepository.existsById(agency.getId()))
+			.flatMap(exists -> Mono.from(exists ? agencyRepository.update(agency) : agencyRepository.save(agency)));
+	}
 }
