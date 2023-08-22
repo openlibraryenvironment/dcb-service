@@ -45,6 +45,7 @@ import services.k_int.integration.marc4j.Marc4jRecordUtils;
 
 public interface MarcIngestSource<T> extends IngestSource {
 
+	public static final String NS_GOLDRUSH = "GOLDRUSH";
 	final static Pattern REGEX_NAMESPACE_ID_PAIR = Pattern.compile("^((\\(([^)]+)\\))|(([^:]+):))(.*)$");
 	final static Pattern REGEX_LINKAGE_245_880 = Pattern.compile("^880-(\\d+)");
 	final static Pattern REGEX_REMOVE_PUNCTUATION = Pattern.compile("\\p{Punct}");
@@ -211,11 +212,14 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 
 	default IngestRecordBuilder enrichWithGoldrush(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
-		GoldrushKey grk = getGoldrushKey(marcRecord);
-		ingestRecord.addIdentifier( id -> {
-			id.namespace("GOLDRUSH").value(grk.getText());
-		});
-		return ingestRecord;
+		final GoldrushKey grk = getGoldrushKey(marcRecord);
+		
+		return Optional.of(grk.getText())
+			.map( StringUtils::trimToNull )
+			.map( grVal -> Identifier.build(id -> id.namespace(NS_GOLDRUSH).value(grk.getText())))
+			.map( ingestRecord::addIdentifiers )
+			.orElse( ingestRecord )
+		;
 	}
 
 

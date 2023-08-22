@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.transaction.Transactional;
 import javax.transaction.Transactional.TxType;
@@ -22,7 +23,7 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micronaut.retry.annotation.CircuitBreaker;
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.retry.annotation.Retryable;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
@@ -30,6 +31,7 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
+import services.k_int.utils.Predicates;
 
 @Singleton
 public class RecordClusteringService {
@@ -71,8 +73,9 @@ public class RecordClusteringService {
 	}
 	
 	private boolean completeIdentifiersPredicate ( BibIdentifier bibId ) {
-		return bibId.getNamespace() != null &&
-				bibId.getValue() != null;
+		return Stream.of( bibId.getNamespace(), bibId.getValue())
+			.map( StringUtils::trimToNull )
+			.count() == 2;
 	}
 	
 	@Transactional
@@ -163,12 +166,12 @@ public class RecordClusteringService {
 	@Transactional
 	public Flux<MatchPoint> idMatchPoints( BibRecord bib ) {
 		return bibRecords.findAllIdentifiersForBib( bib )
-				.filter( this::completeIdentifiersPredicate )
+				.filter( Predicates.failureLoggingPredicate(
+						this::completeIdentifiersPredicate, log::info, "Blank match point skipped for bib: {}", bib.getId()))
+				
 				.map( id -> String.format("%s:%s:%s", MATCHPOINT_ID, id.getNamespace(), id.getValue()) )
 				.map( MatchPoint::buildFromString ) ;
 	}
-	
-	
 
 	private Flux<MatchPoint> recordMatchPoints ( BibRecord bib ) {
 		
