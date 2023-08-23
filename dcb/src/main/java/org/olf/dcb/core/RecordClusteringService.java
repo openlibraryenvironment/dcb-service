@@ -79,7 +79,7 @@ public class RecordClusteringService {
 	}
 	
 	@Transactional
-	public Mono<Tuple2<List<MatchPoint>, List<ClusterRecord>>> collectClusterRecords(Publisher<MatchPoint> matchPoints) {
+	public Mono<Tuple2<List<MatchPoint>, List<ClusterRecord>>> collectClusterRecords(String derivedType, Publisher<MatchPoint> matchPoints) {
 		 return Flux.from( matchPoints )
 		 	.collectList()
 		 	.flatMap( mps -> {
@@ -87,7 +87,7 @@ public class RecordClusteringService {
 		 			.map( MatchPoint::getValue )
 		 			.collect(Collectors.toUnmodifiableSet());
 		 		
-		 		return Flux.from( clusterRecords.findAllByMatchPoints( ids ) )
+		 		return Flux.from( clusterRecords.findAllByDerivedTypeAndMatchPoints(derivedType, ids ) )
 		 				.collectList()
 		 				.map( crs -> Tuples.of( mps, crs ));
 		 	});
@@ -212,7 +212,7 @@ public class RecordClusteringService {
 			.flatMap( theBib -> Mono.fromDirect( matchPointRepository.deleteAllByBibId( theBib.getId()))
 					.thenReturn( theBib ) )
 			.map( this::collectMatchPoints )
-			.flatMap( this::collectClusterRecords )
+			.flatMap( matchPointPub -> collectClusterRecords(bib.getDerivedType(), matchPointPub) )
 			.flatMap(TupleUtils.function( this::saveMatchPointsAndMergeClusters ))
 			.switchIfEmpty( createMinimalCluster(bib) )
 			.flatMap( cr -> {

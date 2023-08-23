@@ -59,6 +59,9 @@ public interface ClusterRecordRepository {
 	
 	@NonNull
 	Publisher<ClusterRecord> findAllByMatchPoints ( Collection<UUID> points );
+	
+	@NonNull
+	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPoints ( String derivedType, Collection<UUID> points );
 
 	@NonNull
 	@SingleResult
