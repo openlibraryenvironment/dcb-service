@@ -71,6 +71,7 @@ public class TrackingService implements Runnable {
 		trackSupplierItems().flatMap( this::checkSupplierItem).subscribe();
 		trackActiveSupplierHolds().flatMap( this::checkSupplierRequest).subscribe();
 		trackVirtualItems().flatMap( this::checkVirtualItem).subscribe();
+                log.debug("Completed");
 	}
 
 	public Flux<PatronRequest> trackActivePatronRequestHolds() {
@@ -145,10 +146,12 @@ public class TrackingService implements Runnable {
                 }
         }
 	public Mono<SupplierRequest> checkSupplierItem(SupplierRequest sr) {
-		log.debug("Check (hostlms) supplierItem from supplier request {} {} {}",sr.getLocalItemId(),sr.getLocalItemStatus(),sr.getHostLmsCode());
+		log.debug("Check (hostlms) supplierItem from supplier request item={} status={} code={}",sr.getLocalItemId(),sr.getLocalItemStatus(),sr.getHostLmsCode());
 		if ( ( sr.getHostLmsCode() != null ) && ( sr.getLocalItemId() != null ) ) {
+                        log.debug("hostLms code and itemId present.. continue");
 			return hostLmsService.getClientFor(sr.getHostLmsCode())
 				.flatMap( client -> Mono.from(client.getItem(sr.getLocalItemId())) )
+                                .doOnNext( item -> log.debug("Process item {}",item) )
 				.filter ( item -> !item.getStatus().equals(sr.getLocalItemStatus()) )
 				.flatMap ( item -> {
 					log.debug("Detected supplying system - supplier item status change {} to {}",sr.getLocalItemStatus(),item.getStatus());

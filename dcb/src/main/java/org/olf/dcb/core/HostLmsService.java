@@ -10,17 +10,19 @@ import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.IngestSourcesProvider;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.reactivestreams.Publisher;
-
 import io.micronaut.context.BeanContext;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
 public class HostLmsService implements IngestSourcesProvider {
 	// private final Map<UUID, HostLms> fromConfigById;
 	private final BeanContext context;
 	private final HostLmsRepository hostLmsRepository;
+        private static Logger log = LoggerFactory.getLogger(HostLmsService.class);
 
 	HostLmsService(BeanContext context, HostLmsRepository hostLmsRepository) {
 		this.hostLmsRepository = hostLmsRepository;
@@ -30,6 +32,7 @@ public class HostLmsService implements IngestSourcesProvider {
 	public Mono<DataHostLms> findById(UUID id) {
 		return getAllHostLms()
 			.collectList()
+                        .doOnNext( list -> log.debug("Got list of hostLms systems {}",list))
 			.map(list -> findFirstById(id, list));
 	}
 
@@ -41,6 +44,7 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	public Mono<DataHostLms> findByCode(String code) {
+                log.debug("findHostLmsByCode {}",code);
 		return getAllHostLms()
 			.collectList()
 			.map(list -> findFirstByCode(code, list));
@@ -63,6 +67,7 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	public Flux<DataHostLms> getAllHostLms() {
+                log.debug("getAllHostLms()");
 		return Flux.from(hostLmsRepository.findAll());
 	}
 

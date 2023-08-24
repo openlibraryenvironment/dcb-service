@@ -20,10 +20,10 @@
 	<logger name="org.olf.dcb" level="DEBUG"/>
 	<logger name="services.k_int" level="DEBUG"/>
 	<logger name="io.micronaut.security" level="WARN"/>
-	<logger name="com.zaxxer.hikari.HikariDataSource" level="DEBUG"/>
-	<logger name="org.testcontainers" level="DEBUG"/>
-	<logger name="io.micronaut.org.testcontainers" level="DEBUG"/>
-        <logger name="io.micronaut.context.lifecycle" level="DEBUG"/>
+	<logger name="com.zaxxer.hikari.HikariDataSource" level="WARN"/>
+	<logger name="org.testcontainers" level="WARN"/>
+	<logger name="io.micronaut.org.testcontainers" level="WARN"/>
+        <logger name="io.micronaut.context.lifecycle" level="WARN"/>
 
 	<root level="info">
 		<appender-ref ref="STDOUT"/>
