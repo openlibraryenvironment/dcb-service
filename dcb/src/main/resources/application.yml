@@ -75,10 +75,10 @@ db:
 datasources:
   default:
     enabled: true
+    dialect: POSTGRES
     driverClassName: org.postgresql.Driver
     schema-generate: NONE
     db-type: postgresql
-    dialect: postgres
     minimumIdle: 0
     maximumPoolSize: 1
     reconnect: true
@@ -89,9 +89,11 @@ r2dbc:
   datasources:
     default:
       enabled: true
+      dialect: POSTGRES
       # https://micronaut-projects.github.io/micronaut-test-resources/latest/guide/
       # Specify db-type so test resources knows what to provision
-      db-type: postgresql
+      # db-type: postgresql
+      db-type: postgres
       reconnect: true
       # url: ${DB_URL:`r2dbc:postgresql://localhost:5432/postgres`}
       # username: ${DB_USER:`postgres`}
@@ -114,9 +116,8 @@ r2dbc:
       #host: "${db.host:localhost}"
       #username: "${db.username:}"
       #password: "${db.password:}"
-      dialect: postgres
-      
       schema-generate: NONE
+
 
 # elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
 netty:

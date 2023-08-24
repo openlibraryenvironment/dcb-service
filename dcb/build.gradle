@@ -8,7 +8,7 @@ plugins {
 	id("com.github.johnrengelman.shadow") version "8.1.1"
         // See https://plugins.gradle.org/plugin/io.micronaut.application
 	id("io.micronaut.application") version "4.0.2"
-	id("io.micronaut.test-resources") version "4.0.2"
+	// id("io.micronaut.test-resources") version "4.0.2"
 	id("io.micronaut.aot") version "4.0.2"
 	id('jacoco')
 	id 'org.olf.dcb-bom'
@@ -101,7 +101,7 @@ dependencies {
 	implementation("io.micronaut.flyway:micronaut-flyway")
 
 	// Metrics (Prometheus)
-	implementation "io.micronaut.micrometer:micronaut-micrometer-registry-prometheus"
+	// implementation "io.micronaut.micrometer:micronaut-micrometer-registry-prometheus"
 	
 	// Also required to enable endpoint
 	implementation "io.micronaut:micronaut-management"

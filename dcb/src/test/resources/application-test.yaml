@@ -33,9 +33,13 @@ micronaut:
 r2dbc:
   datasources:
     default:
+      dialect: POSTGRES
       options:
         maxSize: 2
         initialSize: 2
+datasources:
+  default:
+    dialect: POSTGRES
 
 #elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
 netty:
