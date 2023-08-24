@@ -99,7 +99,6 @@ public class SupplierRequest {
 
 	@ToString.Include
 	@Nullable
-	@Size(max = 200)
 	@Enumerated(EnumType.STRING)
 	private SupplierRequestStatusCode statusCode;
 

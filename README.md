@@ -65,3 +65,15 @@ Module documentation can be found here: https://openlibraryenvironment.github.io
 
 export JDK_JAVAC_OPTIONS="--trace-class-initialization=org.codehaus.stax2.typed.Base64Variants"
 
+
+## Get a postgres session
+
+by finding the postgres port with 
+
+    docker ps
+
+Then running psql
+
+    psql -U test -h localhost -p PORT_FROM_DOCKER_PS
+
+password will be test

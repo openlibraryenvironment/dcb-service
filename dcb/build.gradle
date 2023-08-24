@@ -8,7 +8,7 @@ plugins {
 	id("com.github.johnrengelman.shadow") version "8.1.1"
         // See https://plugins.gradle.org/plugin/io.micronaut.application
 	id("io.micronaut.application") version "4.0.2"
-	// id("io.micronaut.test-resources") version "4.0.2"
+	id("io.micronaut.test-resources") version "4.0.2"
 	id("io.micronaut.aot") version "4.0.2"
 	id('jacoco')
 	id 'org.olf.dcb-bom'
@@ -36,7 +36,6 @@ dependencies {
 	// This should likely always be first in the annotations list
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
-
 	
 	annotationProcessor('io.micronaut:micronaut-graal')
 	annotationProcessor("io.micronaut.serde:micronaut-serde-processor")
@@ -88,10 +87,10 @@ dependencies {
 	
 	// Without this dependency, testcontainer injection seems not to happen at all.
 	// Wonder if this is because the bean that uses PG is a r2dbc service
-	runtimeOnly("org.postgresql:r2dbc-postgresql:1.0.2.RELEASE")
+	runtimeOnly("org.postgresql:r2dbc-postgresql")
 
 
-        testRuntimeOnly("io.micronaut.testresources:micronaut-test-resources-client")
+        // testRuntimeOnly("io.micronaut.testresources:micronaut-test-resources-client")
 
 	// Uncommmenting this dependency results in
 	// testresources Micronaut Message: Could not resolve placeholder ${auto.test.resources.r2dbc.datasources.default.options.protocol}
@@ -127,9 +126,8 @@ dependencies {
 	testImplementation('io.projectreactor:reactor-test')
 	testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 	
-	testImplementation(platform("org.testcontainers:testcontainers-bom"))
+	// testImplementation(platform("org.testcontainers:testcontainers-bom"))
 	
-	testRuntimeOnly("org.testcontainers:postgresql")
         runtimeOnly("org.yaml:snakeyaml")
 }
 

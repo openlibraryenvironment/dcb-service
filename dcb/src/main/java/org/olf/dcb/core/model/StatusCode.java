@@ -56,7 +56,6 @@ public class StatusCode {
 	private String description;
 
 	@Nullable
-	@Size(max = 32)
 	private Boolean tracked;
 }
 
