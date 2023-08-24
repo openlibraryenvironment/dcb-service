@@ -90,6 +90,9 @@ dependencies {
 	// Wonder if this is because the bean that uses PG is a r2dbc service
 	runtimeOnly("org.postgresql:r2dbc-postgresql:1.0.2.RELEASE")
 
+
+        testRuntimeOnly("io.micronaut.testresources:micronaut-test-resources-client")
+
 	// Uncommmenting this dependency results in
 	// testresources Micronaut Message: Could not resolve placeholder ${auto.test.resources.r2dbc.datasources.default.options.protocol}
 	//
