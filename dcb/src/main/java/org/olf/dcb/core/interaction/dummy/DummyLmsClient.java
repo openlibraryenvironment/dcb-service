@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import javax.transaction.Transactional;
-import javax.transaction.Transactional.TxType;
-import javax.validation.constraints.NotNull;
+import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
+import jakarta.validation.constraints.NotNull;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.BranchRecord;

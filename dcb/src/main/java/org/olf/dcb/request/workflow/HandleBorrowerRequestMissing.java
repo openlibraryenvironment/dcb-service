@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import io.micronaut.context.BeanProvider;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 import java.util.Map;
 import java.util.Objects;
 

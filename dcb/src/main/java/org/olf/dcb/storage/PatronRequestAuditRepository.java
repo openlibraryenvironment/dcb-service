@@ -6,8 +6,8 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.reactivestreams.Publisher;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 public interface PatronRequestAuditRepository {
 

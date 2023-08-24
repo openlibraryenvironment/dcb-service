@@ -2,8 +2,8 @@ package org.olf.dcb.request.fulfilment;
 
 import java.util.UUID;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import io.micronaut.core.annotation.Nullable;
 
 import io.micronaut.serde.annotation.Serdeable;

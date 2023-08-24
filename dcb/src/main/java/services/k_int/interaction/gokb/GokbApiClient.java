@@ -6,7 +6,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;

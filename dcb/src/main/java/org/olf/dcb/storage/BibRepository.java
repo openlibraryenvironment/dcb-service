@@ -3,8 +3,8 @@ package org.olf.dcb.storage;
 import java.util.List;
 import java.util.Collection;
 import java.util.UUID;
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import io.micronaut.core.annotation.Introspected;
 import io.micronaut.data.annotation.Query;
 

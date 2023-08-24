@@ -48,7 +48,7 @@ public class IngestService implements Runnable {
 	}
 
 
-	@javax.annotation.PostConstruct
+	@jakarta.annotation.PostConstruct
 	private void init() {
 		log.info("IngestService::init - providers:{}",sourceProviders.toString());
 	}

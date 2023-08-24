@@ -2,7 +2,7 @@ package services.k_int.interaction.sierra;
 
 import io.micronaut.serde.annotation.Serdeable;
 
-import javax.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotEmpty;
 
 @Serdeable
 public record SierraCodeTuple (

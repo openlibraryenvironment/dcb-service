@@ -16,8 +16,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import javax.transaction.Transactional;
-import javax.validation.constraints.NotEmpty;
+import jakarta.transaction.Transactional;
+import jakarta.validation.constraints.NotEmpty;
 
 import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;

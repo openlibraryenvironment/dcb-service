@@ -4,8 +4,8 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
 
-import javax.transaction.Transactional;
-import javax.validation.Valid;
+import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.storage.ClusterRecordRepository;

@@ -3,7 +3,7 @@ package org.olf.dcb.ingest.model;
 import java.util.List;
 import java.util.function.Consumer;
 
-import javax.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotEmpty;
 
 import org.olf.dcb.ingest.model.Identifier.IdentifierBuilder;
 

@@ -2,8 +2,8 @@ package org.olf.dcb.configuration;
 
 import java.util.List;
 
-import javax.transaction.Transactional;
-import javax.transaction.Transactional.TxType;
+import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
 
 import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.DataAgency;
@@ -63,7 +63,7 @@ public class ConfigurationService implements Runnable {
     }
 
 
-    @javax.annotation.PostConstruct
+    @jakarta.annotation.PostConstruct
     private void init() {
         log.info("ConfigurationService::init - providers:{}", sourceProviders.toString());
     }

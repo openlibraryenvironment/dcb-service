@@ -5,16 +5,16 @@ buildscript {
 }
 
 plugins {
-	id("com.github.johnrengelman.shadow") version "7.1.2"
+	id("com.github.johnrengelman.shadow") version "8.1.1"
         // See https://plugins.gradle.org/plugin/io.micronaut.application
-	id("io.micronaut.application") version "3.7.7"
-	id("io.micronaut.test-resources") version "3.7.7"
+	id("io.micronaut.application") version "4.0.2"
+	id("io.micronaut.test-resources") version "4.0.2"
+	id("io.micronaut.aot") version "4.0.2"
 	id('jacoco')
 	id 'org.olf.dcb-bom'
 	id 'service.k_int.micronaut-multi'
         // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
         id "com.gorylenko.gradle-git-properties" version "2.4.1"
-        id "org.openrewrite.rewrite" version "latest.release"
 }
 
 //configurations.all {
@@ -44,6 +44,8 @@ dependencies {
 	annotationProcessor("io.micronaut.openapi:micronaut-openapi")
 	annotationProcessor('io.micronaut.security:micronaut-security-annotations')
 	annotationProcessor("io.micronaut.data:micronaut-data-processor")
+        annotationProcessor("io.micronaut.validation:micronaut-validation-processor")
+
 	compileOnly("org.graalvm.nativeimage:svm")
 
 	// Implementation
@@ -60,7 +62,8 @@ dependencies {
 	implementation("io.micronaut.reactor:micronaut-reactor-http-client")
 	implementation("io.swagger.core.v3:swagger-annotations")
 	implementation("jakarta.annotation:jakarta.annotation-api")
-	implementation("io.micronaut:micronaut-validation")
+	// implementation("io.micronaut:micronaut-validation")
+        implementation("io.micronaut.validation:micronaut-validation")
 
 	implementation("org.apache.logging.log4j:log4j-api")
 	implementation("org.apache.logging.log4j:log4j-core")
@@ -124,11 +127,7 @@ dependencies {
 	testImplementation(platform("org.testcontainers:testcontainers-bom"))
 	
 	testRuntimeOnly("org.testcontainers:postgresql")
-
-        rewrite("org.openrewrite.recipe:rewrite-micronaut:2.1.1")
 }
-
-rewrite {     activeRecipe("org.openrewrite.java.micronaut.Micronaut3to4Migration") }
 
 //configurations.all {
 //	resolutionStrategy.dependencySubstitution {
@@ -223,8 +222,8 @@ tasks {
 		dependsOn test
 
 		reports {
-			xml.enabled false
-			csv.enabled false
+			// xml.enabled false
+			// csv.enabled false
 		}
 
 		afterEvaluate {

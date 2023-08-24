@@ -6,7 +6,7 @@ import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 
 import java.util.UUID;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.AvailabilityResponseView;

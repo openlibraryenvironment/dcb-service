@@ -1,7 +1,7 @@
 package org.olf.dcb.storage;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.UUID;
 import org.olf.dcb.core.model.NumericRangeMapping;

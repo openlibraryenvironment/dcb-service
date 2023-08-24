@@ -5,7 +5,7 @@ import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import java.time.Instant;
 import java.util.UUID;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.ingest.IngestSource;

@@ -7,7 +7,7 @@ import jakarta.inject.Singleton;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.storage.PatronRequestAuditRepository;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 import java.util.UUID;
 
 @Singleton

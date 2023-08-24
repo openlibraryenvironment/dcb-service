@@ -1,10 +1,10 @@
 package org.olf.dcb.storage.postgres;
 
-import static javax.transaction.Transactional.TxType.NOT_SUPPORTED;
+import static jakarta.transaction.Transactional.TxType.NOT_SUPPORTED;
 
 import java.util.UUID;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 
 import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.storage.BibIdentifierRepository;

@@ -19,7 +19,7 @@ import reactor.core.publisher.Mono;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 import java.time.Instant;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 import org.olf.dcb.request.resolution.HostLmsReactions;
 
 @Refreshable
@@ -50,7 +50,7 @@ public class TrackingService implements Runnable {
 		this.hostLmsReactions = hostLmsReactions;
 	}
 
-	@javax.annotation.PostConstruct
+	@jakarta.annotation.PostConstruct
 	private void init() {
 	}
 

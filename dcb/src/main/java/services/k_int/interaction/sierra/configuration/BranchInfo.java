@@ -3,7 +3,7 @@ package services.k_int.interaction.sierra.configuration;
 import java.util.List;
 import java.util.Map;
 
-import javax.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotEmpty;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;

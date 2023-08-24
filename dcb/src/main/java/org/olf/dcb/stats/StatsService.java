@@ -36,7 +36,7 @@ public class StatsService {
 	Map<String, StatCounter> stat_counters = new HashMap<String, StatCounter>();
 
 
-  @javax.annotation.PostConstruct
+  @jakarta.annotation.PostConstruct
   public void init() {
     // Config cfg = new Config("DCB");
     // instance = Hazelcast.getOrCreateHazelcastInstance(cfg);

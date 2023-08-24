@@ -4,8 +4,8 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.reactivestreams.Publisher;

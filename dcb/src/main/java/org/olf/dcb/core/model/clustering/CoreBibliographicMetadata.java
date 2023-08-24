@@ -3,7 +3,7 @@ package org.olf.dcb.core.model.clustering;
 import java.util.Map;
 import java.util.Optional;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 import org.olf.dcb.ingest.model.Author;
 import org.slf4j.Logger;

@@ -17,7 +17,7 @@ import io.micronaut.context.ApplicationContext;
 import java.util.Map;
 import java.util.HashMap;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 import java.util.List;
 
 /**
@@ -44,7 +44,7 @@ public class HostLmsReactions {
 		this.allWorkflowActions = allWorkflowActions;
 	}
 
-	@javax.annotation.PostConstruct
+	@jakarta.annotation.PostConstruct
 	private void init() {
 		log.info("HostLmsReactions::init");
 		for ( WorkflowAction w: allWorkflowActions ) {

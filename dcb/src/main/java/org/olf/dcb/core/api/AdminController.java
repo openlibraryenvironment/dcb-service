@@ -24,7 +24,7 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.annotation.Nullable;
