@@ -88,7 +88,7 @@ dependencies {
 	
 	// Without this dependency, testcontainer injection seems not to happen at all.
 	// Wonder if this is because the bean that uses PG is a r2dbc service
-	runtimeOnly("org.postgresql:r2dbc-postgresql:1.0.1.RELEASE")
+	runtimeOnly("org.postgresql:r2dbc-postgresql:1.0.2.RELEASE")
 
 	// Uncommmenting this dependency results in
 	// testresources Micronaut Message: Could not resolve placeholder ${auto.test.resources.r2dbc.datasources.default.options.protocol}
@@ -127,6 +127,7 @@ dependencies {
 	testImplementation(platform("org.testcontainers:testcontainers-bom"))
 	
 	testRuntimeOnly("org.testcontainers:postgresql")
+        runtimeOnly("org.yaml:snakeyaml")
 }
 
 //configurations.all {
@@ -222,8 +223,8 @@ tasks {
 		dependsOn test
 
 		reports {
-			// xml.enabled false
-			// csv.enabled false
+			xml.required = false
+			csv.required = false
 		}
 
 		afterEvaluate {
