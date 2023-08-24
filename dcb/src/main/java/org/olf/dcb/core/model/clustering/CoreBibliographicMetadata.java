@@ -22,7 +22,7 @@ public interface CoreBibliographicMetadata {
 	
 	public Map<String, Object> getCanonicalMetadata();
 
-	public CoreBibliographicMetadata setMetadataValue( @NotNull String key, Object value ) {
+	public default CoreBibliographicMetadata setMetadataValue( @NotNull String key, Object value ) {
 		final Map<String, Object> canonicalMetadata = getCanonicalMetadata();
 		if (value == null) {
 			canonicalMetadata.remove(key);
@@ -36,7 +36,7 @@ public interface CoreBibliographicMetadata {
 		return this;
 	}
 
-	public <T> T getMetadataValue( String key, Class<T> type ) {
+	public default <T> T getMetadataValue( String key, Class<T> type ) {
 		final Map<String, Object> canonicalMetadata = getCanonicalMetadata();
 		
 		Object mapVal = canonicalMetadata.get(key);
