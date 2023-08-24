@@ -14,6 +14,7 @@ plugins {
 	id 'service.k_int.micronaut-multi'
         // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
         id "com.gorylenko.gradle-git-properties" version "2.4.1"
+        id "org.openrewrite.rewrite" version "latest.release"
 }
 
 //configurations.all {
@@ -123,7 +124,11 @@ dependencies {
 	testImplementation(platform("org.testcontainers:testcontainers-bom"))
 	
 	testRuntimeOnly("org.testcontainers:postgresql")
+
+        rewrite("org.openrewrite.recipe:rewrite-micronaut:2.1.1")
 }
+
+rewrite {     activeRecipe("org.openrewrite.java.micronaut.Micronaut3to4Migration") }
 
 //configurations.all {
 //	resolutionStrategy.dependencySubstitution {
