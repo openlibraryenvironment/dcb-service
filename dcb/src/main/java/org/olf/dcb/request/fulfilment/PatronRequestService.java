@@ -5,7 +5,6 @@ import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 import java.util.List;
 import java.util.UUID;
 
-import io.micronaut.asm.commons.Remapper;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;

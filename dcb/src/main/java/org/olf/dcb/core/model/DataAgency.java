@@ -61,4 +61,10 @@ public class DataAgency implements Agency {
 	@Nullable
 	@Size(max = 200)
 	private String idpUrl;
+
+        public static class DataAgencyBuilder {
+                public DataAgencyBuilder() { }
+                // Lombok will fill in the fields and methods
+        }
+
 }

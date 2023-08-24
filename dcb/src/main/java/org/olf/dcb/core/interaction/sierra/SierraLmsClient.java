@@ -89,7 +89,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
 	private static final Integer FIXED_FIELD_158 = Integer.valueOf(158);
 
-	private final ConversionService<?> conversionService = ConversionService.SHARED;
+	private final ConversionService conversionService = ConversionService.SHARED;
 	private final HostLms lms;
 	private final SierraApiClient client;
 	private final ProcessStateService processStateService;

@@ -21,7 +21,8 @@ public interface CoreBibliographicMetadata {
 	static final Logger log = LoggerFactory.getLogger(CoreBibliographicMetadata.class);
 	
 	public Map<String, Object> getCanonicalMetadata();
-	private CoreBibliographicMetadata setMetadataValue( @NotNull String key, Object value ) {
+
+	public CoreBibliographicMetadata setMetadataValue( @NotNull String key, Object value ) {
 		final Map<String, Object> canonicalMetadata = getCanonicalMetadata();
 		if (value == null) {
 			canonicalMetadata.remove(key);
@@ -35,7 +36,7 @@ public interface CoreBibliographicMetadata {
 		return this;
 	}
 
-	private <T> T getMetadataValue( String key, Class<T> type ) {
+	public <T> T getMetadataValue( String key, Class<T> type ) {
 		final Map<String, Object> canonicalMetadata = getCanonicalMetadata();
 		
 		Object mapVal = canonicalMetadata.get(key);

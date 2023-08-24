@@ -223,11 +223,11 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 
 
-		private static Stream<String> extractControlData(final Record marcRecord, @NotEmpty final String tag) {
+		public static Stream<String> extractControlData(final Record marcRecord, @NotEmpty final String tag) {
 
-		return marcRecord.getVariableFields(tag).stream().filter(Objects::nonNull).map(ControlField.class::cast)
+		        return marcRecord.getVariableFields(tag).stream().filter(Objects::nonNull).map(ControlField.class::cast)
 				.map(field -> field.getData());
-	}
+	        }
 
 	Publisher<T> getResources(Instant since);
 

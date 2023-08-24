@@ -76,7 +76,7 @@ public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 	private static final Logger log = LoggerFactory.getLogger(FolioLmsClient.class);
 
 	private static final String UUID5_PREFIX = "ingest-source:folio-lms";
-	private final ConversionService<?> conversionService = ConversionService.SHARED;
+	private final ConversionService conversionService = ConversionService.SHARED;
 	private final HostLms lms;
 	// private final FolioApiClient client;
 	private final ProcessStateService processStateService;

@@ -80,7 +80,7 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 	private static final Logger log = LoggerFactory.getLogger(DummyLmsClient.class);
 
 	private static final String UUID5_PREFIX = "ingest-source:dummy-lms";
-	private final ConversionService<?> conversionService = ConversionService.SHARED;
+	private final ConversionService conversionService = ConversionService.SHARED;
 	private final HostLms lms;
 	private final ProcessStateService processStateService;
 	private final RawSourceRepository rawSourceRepository;
