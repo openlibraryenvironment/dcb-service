@@ -57,6 +57,9 @@ public class AgenciesController {
 		if (pageable == null) {
 			pageable = Pageable.from(0, 100);
 		}
+
+                log.debug("agencies::list");
+
 		@Valid Pageable finalPageable = pageable;
 		return Flux.from(agencyRepository.findAll())
 			// work around as fetching agency will not fetch hostLms or hostLmsId
