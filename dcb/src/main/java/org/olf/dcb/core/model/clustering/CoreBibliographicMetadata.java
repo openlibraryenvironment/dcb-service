@@ -74,6 +74,7 @@ public interface CoreBibliographicMetadata {
 		return getMetadataValue(MD_DERIVED_TYPE, String.class, conversionService);
 	}
 	
+	@Transient
 	public default CoreBibliographicMetadata setDerivedType(String derivedType) {
 		return setMetadataValue(MD_DERIVED_TYPE, derivedType);
 	}
@@ -84,10 +85,12 @@ public interface CoreBibliographicMetadata {
 		return getMetadataValue(MD_RECORD_STATUS, String.class, conversionService);
 	}
 	
+	@Transient
 	public default CoreBibliographicMetadata setRecordStatus(String recordStatus) {
 		return setMetadataValue(MD_RECORD_STATUS, recordStatus);
 	}	
 	
+	@Transient
 	public default CoreBibliographicMetadata setTitle(String title) {
 		return setMetadataValue(MD_TITLE, title);
 	}
@@ -104,6 +107,7 @@ public interface CoreBibliographicMetadata {
 		return getMetadataValue(MD_AUTHOR, Author.class, conversionService);
 	}
 
+	@Transient
 	public default CoreBibliographicMetadata setAuthor(Author author) {
 		return setMetadataValue(MD_AUTHOR, author);
 	}
@@ -114,6 +118,7 @@ public interface CoreBibliographicMetadata {
 		return getMetadataValue(MD_PLACE_OF_PUB, String.class, conversionService);
 	}
 	
+	@Transient
 	public default CoreBibliographicMetadata setPlaceOfPublication(String placeOfPublication) {
 		return setMetadataValue(MD_PLACE_OF_PUB, placeOfPublication);
 	}
@@ -124,10 +129,12 @@ public interface CoreBibliographicMetadata {
 		return getMetadataValue(MD_PUBLISHER, String.class, conversionService);
 	}
 	
+	@Transient
 	public default CoreBibliographicMetadata setPublisher(String publisher) {
 		return setMetadataValue(MD_PUBLISHER, publisher);
 	}
 	
+	@Transient
 	public default CoreBibliographicMetadata setDateOfPublication(String dateOfPublication) {
 		return setMetadataValue(MD_DATE_OF_PUB, dateOfPublication);
 	}
@@ -144,6 +151,7 @@ public interface CoreBibliographicMetadata {
 		return getMetadataValue(MD_EDITION, String.class, conversionService);
 	}
 	
+	@Transient
 	public default CoreBibliographicMetadata setEdition(String edition) {
 		return setMetadataValue(MD_EDITION, edition);
 	}
@@ -154,6 +162,7 @@ public interface CoreBibliographicMetadata {
 		return getMetadataValue(MD_LARGE_PRINT, Boolean.class, conversionService);
 	}
 	
+	@Transient
 	public default CoreBibliographicMetadata setLargePrint(boolean largePrint) {
 		return setMetadataValue(MD_LARGE_PRINT, largePrint);
 	}
