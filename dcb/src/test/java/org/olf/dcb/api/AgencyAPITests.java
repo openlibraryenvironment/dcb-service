@@ -45,13 +45,18 @@ class AgencyAPITests {
 	@Test
 	void shouldReturnAgenciesByUsingAPItoSaveAndList() {
 		// Arrange
+                log.info("get client");
 		final var blockingClient = client.toBlocking();
+                log.info("create hostLmsCode");
 		final var hostLms = hostLmsFixture.createHostLms(randomUUID(), "hostLmsCode");
 		final var accessToken = getAccessToken(blockingClient);
+                log.info("create agency");
 		final var agencyDTO = AgencyDTO.builder().id(randomUUID()).code("ab6").name("agencyName")
 			.authProfile("authProfile").idpUrl("idpUrl").hostLMSCode("hostLmsCode").build();
+                log.info("get agencies");
 		final var postRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(accessToken);
 		final var postResponse = blockingClient.exchange(postRequest, AgencyDTO.class);
+                log.info("get agencies page");
 		final var listRequest = HttpRequest.GET("/agencies?page=0&size=10").bearerAuth(accessToken);
 		// Act
 		final var listResponse = blockingClient.exchange(listRequest, Argument.of(Page.class, AgencyDTO.class));

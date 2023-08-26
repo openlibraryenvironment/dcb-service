@@ -13,19 +13,19 @@ import io.micronaut.data.annotation.Transient;
 @Introspected
 public interface HostLms {
 	
-	@NonNull
-	@Id
+	// @NonNull
+	// @Id
 	public UUID getId();
 	
-	@NonNull
+	// @NonNull
 	public String getCode();
 	
-	@NonNull
+	// @NonNull
 	public String getName();
 	
-        @NonNull
+        // @NonNull
 	public Class<? extends HostLmsClient> getType();
 	
-	@NonNull
+	// @NonNull
 	Map<String, Object> getClientConfig();
 }
