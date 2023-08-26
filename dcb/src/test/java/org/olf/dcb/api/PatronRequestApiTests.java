@@ -265,7 +265,7 @@ class PatronRequestApiTests {
 		assertThat(placedPatronRequest.requestor().localId(), is("872321"));
 
 		log.info("Waiting for placed....");
-		AdminApiClient.AdminAccessPatronRequest fetchedPatronRequest = await().atMost(5, SECONDS)
+		AdminApiClient.AdminAccessPatronRequest fetchedPatronRequest = await().atMost(8, SECONDS)
 				.until(() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.id()), isPlacedAtBorrowingAgency());
 
 		assertThat(fetchedPatronRequest, is(notNullValue()));

@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 
 
-@Prototype
+// @Prototype
 public class MarcRecordImplConverter implements TypeConverter<RecordImpl, JsonNode> {
 
     private final ConversionService conversionService;

@@ -120,24 +120,27 @@ public class ConfigurationService implements Runnable {
         }
 
 
-  	@Transactional(value = TxType.REQUIRED)
+  	@Transactional(value = TxType.REQUIRES_NEW)
         public Mono<ShelvingLocation> upsertShelvingLocation(ShelvingLocation sl) {
                 log.debug("upsertShelvingLocation {}", sl);
                 return Mono.from(shelvingLocationRepository.existsById(sl.getId()))
-                        .flatMap(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)));
+                        .flatMap(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)))
+                        .thenReturn(sl);
         }
 
-        @Transactional(value = TxType.REQUIRED)
+        @Transactional(value = TxType.REQUIRES_NEW)
         public Mono<Location> upsertLocation(Location l) {
-                log.debug("upsertLocation {}", l);
+                log.debug("upsertLocation {}/{}/{}/{}", l.getId(),l.getCode(),l.getType(),l.getName());
                 return Mono.from(locationRepository.existsById(l.getId()))
-                        .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)));
+                        .doOnNext(exists -> log.debug("Location with id {} exists? {}",l.getId(),exists) )
+                        .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)))
+                        .thenReturn(l);
         }
 
 
   	@Transactional(value = TxType.REQUIRED)
         public Mono<Void> createSubLocations(Location l, BranchRecord br) {
-	        log.debug("Create sub locations at {} for {}",l,br);
+	        log.debug("Create sub locations at {} for {}",l.getCode(),br.getLocalBranchId());
                 return Flux.fromIterable(br.getSubLocations())
                         .map(slr -> mapLocationRecordToSubLocation(slr, l, br))
                         .flatMap(locrec -> upsertLocation(locrec))
@@ -194,8 +197,11 @@ public class ConfigurationService implements Runnable {
 						.type("BRANCH")
 						.build();
 
-					return Mono.from(locationRepository.existsById(l.getId()))
-						.flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)))
+					// return Mono.from(locationRepository.existsById(l.getId()))
+                                        //         .doOnNext(exists -> log.debug("Check if location with id {} exists ?",l.getId(),exists))
+					// 	.flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)))
+
+                                        return upsertLocation(l)
 						.flatMap(savedLocation -> createSubLocations(savedLocation, br))
 						.thenReturn(l);
 
@@ -219,8 +225,11 @@ public class ConfigurationService implements Runnable {
                     .type("PICKUP")
                     .build();
 
-            return Mono.from(locationRepository.existsById(upsert_location.getId()))
-                    .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(upsert_location) : locationRepository.save(upsert_location)));
+            return upsertLocation(upsert_location)
+                        .thenReturn(upsert_location);
+
+            // return Mono.from(locationRepository.existsById(upsert_location.getId()))
+            //         .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(upsert_location) : locationRepository.save(upsert_location)));
                     // .thenReturn(upsert_location);
         } else {
             log.warn("Unable to save agency for statically configured HostLMS");

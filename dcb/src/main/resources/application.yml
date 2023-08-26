@@ -1,4 +1,6 @@
 micronaut:
+  serde:
+    maximum-nesting-depth: 4096
   application:
     name: dcb
   router:
