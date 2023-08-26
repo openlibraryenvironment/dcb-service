@@ -21,6 +21,8 @@ import reactor.core.publisher.Mono;
 import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
+import io.micronaut.core.convert.ConversionService;
+
 @Refreshable
 @Singleton
 //@Parallel
@@ -39,12 +41,14 @@ public class IngestService implements Runnable {
 	private final List<IngestSourcesProvider> sourceProviders;
 	private final PublisherTransformationService publisherTransformationService;
 	private final RecordClusteringService recordClusteringService;
+	private final ConversionService conversionService;
 
-	IngestService(BibRecordService bibRecordService, List<IngestSourcesProvider> sourceProviders, PublisherTransformationService publisherHooksService, RecordClusteringService recordClusteringService) {
+	IngestService(BibRecordService bibRecordService, List<IngestSourcesProvider> sourceProviders, PublisherTransformationService publisherHooksService, RecordClusteringService recordClusteringService, ConversionService conversionService) {
 		this.bibRecordService = bibRecordService;
 		this.sourceProviders = sourceProviders;
 		this.publisherTransformationService = publisherHooksService;
 		this.recordClusteringService = recordClusteringService;
+		this.conversionService = conversionService;
 	}
 
 
@@ -79,7 +83,7 @@ public class IngestService implements Runnable {
 
 					return false;
 				})
-				.map(source -> source.apply(lastRun))
+				.map(source -> source.apply(lastRun, conversionService))
 				.onErrorResume(t -> {
 					log.error("Error ingesting data {}", t.getMessage());
 					t.printStackTrace();

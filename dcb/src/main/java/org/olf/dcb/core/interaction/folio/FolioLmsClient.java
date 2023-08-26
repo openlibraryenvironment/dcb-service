@@ -76,7 +76,7 @@ public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 	private static final Logger log = LoggerFactory.getLogger(FolioLmsClient.class);
 
 	private static final String UUID5_PREFIX = "ingest-source:folio-lms";
-	private final ConversionService conversionService = ConversionService.SHARED;
+	private final ConversionService conversionService;
 	private final HostLms lms;
 	// private final FolioApiClient client;
 	private final ProcessStateService processStateService;
@@ -84,6 +84,7 @@ public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 
 	public FolioLmsClient(@Parameter HostLms lms, 
 		RawSourceRepository rawSourceRepository, 
+		ConversionService conversionService,
                 ProcessStateService processStateService) {
 		this.lms = lms;
 
@@ -91,6 +92,7 @@ public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 		// client = clientFactory.createClientFor(lms);
 		this.rawSourceRepository = rawSourceRepository;
 		this.processStateService = processStateService;
+		this.conversionService = conversionService;
 	}
 
 	@Override

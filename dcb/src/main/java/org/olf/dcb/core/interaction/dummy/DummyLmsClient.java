@@ -80,20 +80,22 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 	private static final Logger log = LoggerFactory.getLogger(DummyLmsClient.class);
 
 	private static final String UUID5_PREFIX = "ingest-source:dummy-lms";
-	private final ConversionService conversionService = ConversionService.SHARED;
+	private final ConversionService conversionService;
 	private final HostLms lms;
 	private final ProcessStateService processStateService;
 	private final RawSourceRepository rawSourceRepository;
 
 	public DummyLmsClient(@Parameter HostLms lms, 
 		RawSourceRepository rawSourceRepository, 
-                ProcessStateService processStateService) {
+                ProcessStateService processStateService,
+                ConversionService conversionService) {
 		this.lms = lms;
 
 		// Get a sierra api client.
 		// client = clientFactory.createClientFor(lms);
 		this.rawSourceRepository = rawSourceRepository;
 		this.processStateService = processStateService;
+		this.conversionService = conversionService;
 	}
 
 	@Override

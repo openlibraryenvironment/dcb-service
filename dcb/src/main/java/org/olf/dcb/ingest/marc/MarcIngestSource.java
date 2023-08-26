@@ -43,6 +43,8 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import services.k_int.integration.marc4j.Marc4jRecordUtils;
 
+import io.micronaut.core.convert.ConversionService;
+
 public interface MarcIngestSource<T> extends IngestSource {
 
 	public static final String NS_GOLDRUSH = "GOLDRUSH";
@@ -52,23 +54,23 @@ public interface MarcIngestSource<T> extends IngestSource {
 
 	static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
 
-	default IngestRecordBuilder populateRecordFromMarc(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
+	default IngestRecordBuilder populateRecordFromMarc(final IngestRecordBuilder ingestRecord, final Record marcRecord, ConversionService conversionService) {
 
 		// Leader fields
-		enrichWithLeaderInformation(ingestRecord, marcRecord);
+		enrichWithLeaderInformation(ingestRecord, marcRecord, conversionService);
 
 		// Title(s)
-		enrichWithTitleInformation(ingestRecord, marcRecord);
+		enrichWithTitleInformation(ingestRecord, marcRecord, conversionService);
 
 		// Identifiers
 		enrichWithIdentifiers(ingestRecord, marcRecord);
 
 		// Author(s)
-		enrichWithAuthorInformation(ingestRecord, marcRecord);
+		enrichWithAuthorInformation(ingestRecord, marcRecord, conversionService);
 
 		enrichWithGoldrush(ingestRecord, marcRecord);
 
-		enrichWithCanonicalRecord(ingestRecord, marcRecord);
+		enrichWithCanonicalRecord(ingestRecord, marcRecord, conversionService);
 		
 		enrichWithMetadataScore(ingestRecord, marcRecord);
 
@@ -79,7 +81,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 	String getDefaultControlIdNamespace();
 
 	default IngestRecordBuilder enrichWithLeaderInformation(final IngestRecordBuilder ingestRecord,
-			final Record marcRecord) {
+			final Record marcRecord, ConversionService conversionService) {
 
 		// This page has useful info for how to convert leader character position 06
 		// into a value that can be used to interpret 008 fields
@@ -97,7 +99,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 
 	default IngestRecordBuilder enrichWithAuthorInformation(final IngestRecordBuilder ingestRecord,
-			final Record marcRecord) {
+			final Record marcRecord, ConversionService conversionService) {
 
 		// II: This block was adding author names as identifiers. Whilst we do want to extract author names,
 		// I don't think we want them in identifiers, so commenting out for now.
@@ -121,11 +123,12 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 
 	default IngestRecordBuilder enrichWithTitleInformation(final IngestRecordBuilder ingestRecord,
-			final Record marcRecord) {
+			final Record marcRecord,
+                        ConversionService conversionService) {
 		// Initial title.
 		final String title = Stream.of("245", "243", "240", "246", "222", "210", "240", "247", "130")
 				.filter(Objects::nonNull).flatMap(tag -> concatSubfieldData(marcRecord, tag, "abc"))
-				.filter(StringUtils::isNotEmpty).reduce(ingestRecord.build().getTitle(), (current, item) -> {
+				.filter(StringUtils::isNotEmpty).reduce(ingestRecord.build().getTitle(conversionService), (current, item) -> {
 					if (StringUtils.isEmpty(current)) {
 						ingestRecord.title(item);
 						ingestRecord.addIdentifier(id -> {
@@ -236,7 +239,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 	Record resourceToMarc(T resource);
 
 	@Override
-	public default Publisher<IngestRecord> apply(Instant since) {
+	public default Publisher<IngestRecord> apply(Instant since, ConversionService conversionService) {
 
 		log.info("Read from the marc source and publish a stream of IngestRecords");
 
@@ -247,7 +250,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 							.zipWith(Mono.just( resourceToMarc(resource) ) )
 									// .map( this::createMatchKey ))
 							.map(TupleUtils.function(( ir, marcRecord ) -> {
-								return populateRecordFromMarc(ir, marcRecord).build();
+								return populateRecordFromMarc(ir, marcRecord, conversionService).build();
 							}));
 				});
 	}
@@ -315,17 +318,19 @@ public interface MarcIngestSource<T> extends IngestSource {
 		return grk;
 	}
 
-	public default IngestRecordBuilder enrichWithCanonicalRecord(final IngestRecordBuilder irb, final Record marcRecord) {
+	public default IngestRecordBuilder enrichWithCanonicalRecord(final IngestRecordBuilder irb, 
+                final Record marcRecord,
+                final ConversionService conversionService) {
 		Map<String,Object> canonical_metadata = new HashMap<>();
 		IngestRecord ir = irb.build();
-		canonical_metadata.put("title",ir.getTitle());
+		canonical_metadata.put("title",ir.getTitle(conversionService));
 		canonical_metadata.put("identifiers",ir.getIdentifiers());
-		canonical_metadata.put("derivedType",ir.getDerivedType());
-		canonical_metadata.put("recordStatus",ir.getRecordStatus());
+		canonical_metadata.put("derivedType",ir.getDerivedType(conversionService));
+		canonical_metadata.put("recordStatus",ir.getRecordStatus(conversionService));
 		// canonical_metadata.put("typeOfRecord",ir.getTypeOfRecord());
 		// canonical_metadata.put("bibLevel",ir.getBibLevel());
 		// canonical_metadata.put("materialType",ir.getMaterialType());
-		canonical_metadata.put("author",ir.getAuthor());
+		canonical_metadata.put("author",ir.getAuthor(conversionService));
 		canonical_metadata.put("otherAuthors",ir.getOtherAuthors());
 
 		DataField publisher = (DataField) marcRecord.getVariableField("260");

@@ -42,6 +42,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import io.micronaut.core.convert.ConversionService;
+
 @Controller("/clusters")
 @Tag(name = "Cluster Records (Read only)")
 public class ClusterRecordController {
@@ -51,11 +53,14 @@ public class ClusterRecordController {
 
 	private final ClusterRecordRepository _clusterRecordRepository;
 	private final BibRepository _bibRepository;
+	private final ConversionService conversionService;
 
 	public ClusterRecordController(ClusterRecordRepository clusterRecordRepository,
-																 BibRepository bibRepository) {
+                BibRepository bibRepository,
+                ConversionService conversionService) {
 		_clusterRecordRepository = clusterRecordRepository;
 		_bibRepository = bibRepository;
+                this.conversionService = conversionService;
 	}
 
 	@Secured(SecurityRule.IS_ANONYMOUS)
@@ -162,13 +167,13 @@ public class ClusterRecordController {
 		return BibRecordDTO
 			.builder()
 			.bibId(br.getId())
-			.title(br.getTitle())
+			.title(br.getTitle(conversionService))
 			.sourceRecordId(br.getSourceRecordId())
 			.sourceSystemId(br.getSourceSystemId())
 			.sourceSystemCode(String.valueOf(br.getSourceSystemId()))
-			.recordStatus(br.getRecordStatus())
+			.recordStatus(br.getRecordStatus(conversionService))
 			.typeOfRecord(br.getTypeOfRecord())
-			.derivedType(br.getDerivedType())
+			.derivedType(br.getDerivedType(conversionService))
 			.canonicalMetadata(br.getCanonicalMetadata())
 			.build();
 	}

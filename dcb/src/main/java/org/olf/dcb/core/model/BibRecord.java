@@ -29,6 +29,8 @@ import lombok.Data;
 import lombok.Singular;
 import lombok.experimental.Accessors;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+import io.micronaut.core.convert.ConversionService;
+
 
 @Builder(toBuilder = true)
 @Data
@@ -109,21 +111,21 @@ public class BibRecord implements CoreBibliographicMetadata {
 
 	@Override
 	@Nullable
-	public String getDerivedType() {
-		return CoreBibliographicMetadata.super.getDerivedType();
+	public String getDerivedType(ConversionService conversionService) {
+		return CoreBibliographicMetadata.super.getDerivedType(conversionService);
 	}
 
 	@Override
 	@Nullable
-	public String getRecordStatus() {
-		return CoreBibliographicMetadata.super.getRecordStatus();
+	public String getRecordStatus(ConversionService conversionService) {
+		return CoreBibliographicMetadata.super.getRecordStatus(conversionService);
 	}
 	
 	@Override
 	@Nullable
 	@TypeDef(type = DataType.STRING)
-	public String getTitle() {
-		return CoreBibliographicMetadata.super.getTitle();
+	public String getTitle(ConversionService conversionService) {
+		return CoreBibliographicMetadata.super.getTitle(conversionService);
 	}
 	
 	public static class BibRecordBuilder {

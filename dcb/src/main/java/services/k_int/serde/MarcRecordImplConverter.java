@@ -12,35 +12,47 @@ import java.util.Optional;
 
 import org.marc4j.marc.impl.RecordImpl;
 import io.micronaut.json.tree.JsonNode;
+import io.micronaut.json.JsonMapper;
 
-// @Prototype
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
+
+@Prototype
 public class MarcRecordImplConverter implements TypeConverter<RecordImpl, JsonNode> {
 
-    private final ConversionService  conversionService;
+    private final ConversionService conversionService;
+    private final JsonMapper jsonMapper;
+    private static Logger log = LoggerFactory.getLogger(MarcRecordImplConverter.class);
 
-    public MarcRecordImplConverter(ConversionService conversionService) {
+
+    public MarcRecordImplConverter(ConversionService conversionService,
+                JsonMapper jsonMapper) {
         this.conversionService = conversionService;
+        this.jsonMapper = jsonMapper;
     }
 
     @Override
     public Optional<JsonNode> convert(RecordImpl marcRecord, Class<JsonNode> targetType, ConversionContext context) {
 
-
-
-        Optional<Integer> day = conversionService.convert(propertyMap.get("day"), Integer.class);
-        Optional<Integer> month = conversionService.convert(propertyMap.get("month"), Integer.class);
-        Optional<Integer> year = conversionService.convert(propertyMap.get("year"), Integer.class);
-        if (day.isPresent() && month.isPresent() && year.isPresent()) {
-            try {
-                return Optional.of(LocalDate.of(year.get(), month.get(), day.get())); // (3)
-            } catch (DateTimeException e) {
-                context.reject(propertyMap, e); // (4)
-                return Optional.empty();
-            }
+        log.debug("CONVERT {}",marcRecord);
+        try {
+                return Optional.of(jsonMapper.writeValueToTree(marcRecord));
+        }
+        catch ( Exception e ) {
+                e.printStackTrace();
         }
 
         return Optional.empty();
+/*
+
+See: https://docs.micronaut.io/latest/api/io/micronaut/json/JsonMapper.html
+
+@NonNull
+@NonNull JsonNode writeValueToTree(@Nullable
+ @Nullable Object value)
+*/
+
     }
 }

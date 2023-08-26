@@ -33,6 +33,8 @@ import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 import services.k_int.utils.Predicates;
 
+import io.micronaut.core.convert.ConversionService;
+
 @Singleton
 public class RecordClusteringService {
 
@@ -44,16 +46,20 @@ public class RecordClusteringService {
 	final ClusterRecordRepository clusterRecords;
 	final BibRecordService bibRecords;
 	final MatchPointRepository matchPointRepository;
+	final ConversionService conversionService;
 
 	final StatsService statsService;
 
 	public RecordClusteringService(
 		ClusterRecordRepository clusterRecordRepository,
-		BibRecordService bibRecordService, MatchPointRepository matchPointRepository, StatsService statsService) {
+		BibRecordService bibRecordService, MatchPointRepository matchPointRepository, 
+                StatsService statsService,
+                ConversionService conversionService) {
 		this.clusterRecords = clusterRecordRepository;
 		this.bibRecords = bibRecordService;
 		this.matchPointRepository = matchPointRepository;
 		this.statsService = statsService;
+		this.conversionService = conversionService;
 	}
 
 	// Get cluster record by id
@@ -194,7 +200,7 @@ public class RecordClusteringService {
 	public Mono<ClusterRecord> createMinimalCluster( BibRecord bib ) {
 		var cluster = ClusterRecord.builder()
 				.id(UUID.randomUUID())
-				.title( bib.getTitle() )
+				.title( bib.getTitle(conversionService) )
 				.selectedBib( bib.getId() )
 				.build();
 		
@@ -212,7 +218,7 @@ public class RecordClusteringService {
 			.flatMap( theBib -> Mono.fromDirect( matchPointRepository.deleteAllByBibId( theBib.getId()))
 					.thenReturn( theBib ) )
 			.map( this::collectMatchPoints )
-			.flatMap( matchPointPub -> collectClusterRecords(bib.getDerivedType(), matchPointPub) )
+			.flatMap( matchPointPub -> collectClusterRecords(bib.getDerivedType(conversionService), matchPointPub) )
 			.flatMap(TupleUtils.function( this::saveMatchPointsAndMergeClusters ))
 			.switchIfEmpty( createMinimalCluster(bib) )
 			.flatMap( cr -> {

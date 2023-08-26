@@ -36,7 +36,7 @@ public interface CoreBibliographicMetadata {
 		return this;
 	}
 
-	public default <T> T getMetadataValue( String key, Class<T> type ) {
+	public default <T> T getMetadataValue( String key, Class<T> type, ConversionService conversionService ) {
 		final Map<String, Object> canonicalMetadata = getCanonicalMetadata();
 		
 		Object mapVal = canonicalMetadata.get(key);
@@ -45,7 +45,8 @@ public interface CoreBibliographicMetadata {
 		
 		// Create the conversion context to allow us to log any errors in conversion
 		ArgumentConversionContext<T> context = ConversionContext.of(Argument.of(type));		
-		Optional<T> value = ConversionService.SHARED.convert(mapVal, context);
+		// Optional<T> value = ConversionService.SHARED.convert(mapVal, context);
+		Optional<T> value = conversionService.convert(mapVal, context);
 		
 		// Print any errors as warnings.
 		context.getLastError()
@@ -69,8 +70,8 @@ public interface CoreBibliographicMetadata {
 	
 	@Transient
 	@Nullable
-	public default String getDerivedType() {
-		return getMetadataValue(MD_DERIVED_TYPE, String.class);
+	public default String getDerivedType(ConversionService conversionService) {
+		return getMetadataValue(MD_DERIVED_TYPE, String.class, conversionService);
 	}
 	
 	public default CoreBibliographicMetadata setDerivedType(String derivedType) {
@@ -79,8 +80,8 @@ public interface CoreBibliographicMetadata {
 
 	@Transient
 	@Nullable
-	public default String getRecordStatus() {
-		return getMetadataValue(MD_RECORD_STATUS, String.class);
+	public default String getRecordStatus(ConversionService conversionService) {
+		return getMetadataValue(MD_RECORD_STATUS, String.class, conversionService);
 	}
 	
 	public default CoreBibliographicMetadata setRecordStatus(String recordStatus) {
@@ -93,14 +94,14 @@ public interface CoreBibliographicMetadata {
 
 	@Transient
 	@Nullable
-	public default String getTitle() {
-		return getMetadataValue(MD_TITLE, String.class);
+	public default String getTitle(ConversionService conversionService) {
+		return getMetadataValue(MD_TITLE, String.class, conversionService);
 	}
 	
 	@Transient
 	@Nullable
-	public default Author getAuthor() {
-		return getMetadataValue(MD_AUTHOR, Author.class);
+	public default Author getAuthor(ConversionService conversionService) {
+		return getMetadataValue(MD_AUTHOR, Author.class, conversionService);
 	}
 
 	public default CoreBibliographicMetadata setAuthor(Author author) {
@@ -109,8 +110,8 @@ public interface CoreBibliographicMetadata {
 
 	@Transient
 	@Nullable
-	public default String getPlaceOfPublication() {
-		return getMetadataValue(MD_PLACE_OF_PUB, String.class);
+	public default String getPlaceOfPublication(ConversionService conversionService) {
+		return getMetadataValue(MD_PLACE_OF_PUB, String.class, conversionService);
 	}
 	
 	public default CoreBibliographicMetadata setPlaceOfPublication(String placeOfPublication) {
@@ -119,8 +120,8 @@ public interface CoreBibliographicMetadata {
 
 	@Transient
 	@Nullable
-	public default String getPublisher() {
-		return getMetadataValue(MD_PUBLISHER, String.class);
+	public default String getPublisher(ConversionService conversionService) {
+		return getMetadataValue(MD_PUBLISHER, String.class, conversionService);
 	}
 	
 	public default CoreBibliographicMetadata setPublisher(String publisher) {
@@ -133,14 +134,14 @@ public interface CoreBibliographicMetadata {
 
 	@Transient
 	@Nullable
-	public default String getDateOfPublication() {
-		return getMetadataValue(MD_DATE_OF_PUB, String.class);
+	public default String getDateOfPublication(ConversionService conversionService) {
+		return getMetadataValue(MD_DATE_OF_PUB, String.class, conversionService);
 	}
 	
 	@Transient
 	@Nullable
-	public default String getEdition() {
-		return getMetadataValue(MD_EDITION, String.class);
+	public default String getEdition(ConversionService conversionService) {
+		return getMetadataValue(MD_EDITION, String.class, conversionService);
 	}
 	
 	public default CoreBibliographicMetadata setEdition(String edition) {
@@ -149,8 +150,8 @@ public interface CoreBibliographicMetadata {
 		
 	@Transient
 	@Nullable
-	public default boolean isLargePrint() {
-		return getMetadataValue(MD_LARGE_PRINT, Boolean.class);
+	public default boolean isLargePrint(ConversionService conversionService) {
+		return getMetadataValue(MD_LARGE_PRINT, Boolean.class, conversionService);
 	}
 	
 	public default CoreBibliographicMetadata setLargePrint(boolean largePrint) {

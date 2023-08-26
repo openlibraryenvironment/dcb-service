@@ -22,6 +22,8 @@ import services.k_int.interaction.gokb.GokbApiClient;
 import services.k_int.interaction.gokb.GokbTipp;
 import services.k_int.utils.UUIDUtils;
 
+import io.micronaut.core.convert.ConversionService;
+
 @Singleton
 @Requires(property = (GokbIngestSource.CONFIG_ROOT + ".enabled"), value = "true", defaultValue = "false")
 public class GokbIngestSource implements IngestSource {
@@ -31,13 +33,17 @@ public class GokbIngestSource implements IngestSource {
 	private static Logger log = LoggerFactory.getLogger(GokbIngestSource.class);
 
 	private final GokbApiClient gokbapi;
+        // import io.micronaut.core.convert.ConversionService;
+	private final ConversionService conversionService;
 
-	GokbIngestSource(GokbApiClient gokbapi) {
+	GokbIngestSource(GokbApiClient gokbapi,
+                ConversionService conversionService) {
 		this.gokbapi = gokbapi;
+		this.conversionService = conversionService;
 	}
 
 	@Override
-	public Publisher<IngestRecord> apply(Instant since) {
+	public Publisher<IngestRecord> apply(Instant since, ConversionService conversionService) {
 
 		log.info("Fetching from GOKb");
 

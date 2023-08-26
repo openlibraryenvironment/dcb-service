@@ -32,6 +32,8 @@ import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple4;
 import reactor.util.function.Tuples;
 
+import io.micronaut.core.convert.ConversionService;
+
 @Prototype
 public class BorrowingAgencyService {
 	private static final Logger log = LoggerFactory.getLogger(BorrowingAgencyService.class);
@@ -42,6 +44,7 @@ public class BorrowingAgencyService {
 	private final BibRepository bibRepository;
 	private final ClusterRecordRepository clusterRecordRepository;
         private final PatronRequestAuditService patronRequestAuditService;
+        private final ConversionService conversionService;
 
 	// Provider to prevent circular reference exception by allowing lazy access to
 	// this singleton.
@@ -53,7 +56,7 @@ public class BorrowingAgencyService {
 			ClusterRecordRepository clusterRecordRepository, ShelvingLocationRepository shelvingLocationRepository,
 			PatronRequestRepository patronRequestRepository, ReferenceValueMappingRepository referenceValueMappingRepository,
 			BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
-                        PatronRequestAuditService patronRequestAuditService) {
+                        PatronRequestAuditService patronRequestAuditService, ConversionService conversionService) {
 
 		this.hostLmsService = hostLmsService;
 		this.patronIdentityRepository = patronIdentityRepository;
@@ -63,6 +66,7 @@ public class BorrowingAgencyService {
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.patronRequestAuditService = patronRequestAuditService;
+		this.conversionService = conversionService;
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(PatronRequest patronRequest) {
@@ -114,12 +118,12 @@ public class BorrowingAgencyService {
 		log.debug("extractBibData(bibRecord: {})", bibRecord);
 
 		// Guard clause
-		if (bibRecord.getTitle() == null) {
+		if (bibRecord.getTitle(conversionService) == null) {
 			throw new IllegalArgumentException("Missing title information.");
 		}
 
-		return Bib.builder().title(bibRecord.getTitle())
-				.author(bibRecord.getAuthor() != null ? bibRecord.getAuthor().getName() : null).build();
+		return Bib.builder().title(bibRecord.getTitle(conversionService))
+				.author(bibRecord.getAuthor(conversionService) != null ? bibRecord.getAuthor(conversionService).getName() : null).build();
 	}
 
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, String>> createVirtualItem(

@@ -28,6 +28,10 @@ import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import io.micronaut.core.convert.ConversionContext;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.convert.TypeConverter;
+
 @Singleton
 public class BibRecordService {
 	
@@ -41,12 +45,16 @@ public class BibRecordService {
 
 	private final StatsService statsService;
 
+	private final ConversionService conversionService;
+
 	BibRecordService(BibRepository bibRepo,
-									 BibIdentifierRepository bibIdentifierRepository,
-									 StatsService statsService) {
+	        BibIdentifierRepository bibIdentifierRepository,
+		StatsService statsService,
+                ConversionService conversionService) {
 		this.bibRepo = bibRepo;
 		this.bibIdentifierRepo = bibIdentifierRepository;
 		this.statsService = statsService;
+		this.conversionService = conversionService;
 	}
 
 	private BibRecord step1(final BibRecord bib, final IngestRecord imported) {
@@ -59,13 +67,13 @@ public class BibRecordService {
 
 	private BibRecord minimalRecord(final IngestRecord imported) {
 
-		return BibRecord.builder().id(imported.getUuid()).title(imported.getTitle())
+		return BibRecord.builder().id(imported.getUuid()).title(imported.getTitle(conversionService))
 				.sourceSystemId(imported.getSourceSystem().getId())
 				.sourceRecordId(imported.getSourceRecordId())
-				.recordStatus(imported.getRecordStatus())
+				.recordStatus(imported.getRecordStatus(conversionService))
 				.typeOfRecord(imported.getTypeOfRecord())
-				.derivedType(imported.getDerivedType())
-				.blockingTitle(generateBlockingString(imported.getTitle()))
+				.derivedType(imported.getDerivedType(conversionService))
+				.blockingTitle(generateBlockingString(imported.getTitle(conversionService)))
 				.canonicalMetadata(imported.getCanonicalMetadata())
         .metadataScore(imported.getMetadataScore())
         .build();
@@ -156,8 +164,8 @@ public class BibRecordService {
 		// Will allow us to bail out of the resource early.
 		// We can raise events from with in that for the side effects.
 		// Add in some processing to abort if we don't have a title - probably we should treat this as a delete signal
-		if ( ( source.getTitle() == null ) || 
-         ( source.getTitle().length() == 0 ) ||
+		if ( ( source.getTitle(conversionService) == null ) || 
+         ( source.getTitle(conversionService).length() == 0 ) ||
          ( ( source.getSuppressFromDiscovery() != null ) && ( source.getSuppressFromDiscovery().equals(Boolean.TRUE) ) ) ||
          ( ( source.getDeleted() != null ) && ( source.getDeleted().equals(Boolean.TRUE) ) ) ) {
 			// Future development: We should probably signal this records source:id as 
