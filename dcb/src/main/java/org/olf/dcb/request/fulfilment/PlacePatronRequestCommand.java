@@ -10,9 +10,9 @@ import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
 public record PlacePatronRequestCommand(
-	@NotNull @NotBlank Citation citation,
-	@NotNull @NotBlank PickupLocation pickupLocation,
-	@NotNull @NotBlank Requestor requestor,
+	@NotNull Citation citation,
+	@NotNull PickupLocation pickupLocation,
+	@NotNull Requestor requestor,
         @Nullable String description) {
 
 	@Serdeable
