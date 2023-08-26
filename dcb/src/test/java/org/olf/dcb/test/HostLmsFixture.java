@@ -99,15 +99,15 @@ public class HostLmsFixture {
 	}
 
 	public void deleteAllHostLMS() {
-		dataAccess.deleteAll(agencyRepository.findAll(),
+		dataAccess.deleteAll(agencyRepository.queryAll(),
 			agency -> agencyRepository.delete(agency.getId()));
 
 		patronFixture.deleteAllPatrons();
 
-		dataAccess.deleteAll(numericRangeMappingRepository.findAll(),
+		dataAccess.deleteAll(numericRangeMappingRepository.queryAll(),
 			nm -> numericRangeMappingRepository.delete(nm.getId()));
 
-		dataAccess.deleteAll(hostLmsRepository.findAll(),
+		dataAccess.deleteAll(hostLmsRepository.queryAll(),
 			hostLms -> hostLmsRepository.delete(hostLms.getId()));
 	}
 

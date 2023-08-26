@@ -59,7 +59,7 @@ class AgencyRepoTests {
 
         	Mono.from(agencyRepository.save(new_agency)).block();
 
-        	final var fetchedAgencyRecords = Flux.from(agencyRepository.findAll())
+        	final var fetchedAgencyRecords = Flux.from(agencyRepository.queryAll())
                                 .collectList()
                                 .block();
 

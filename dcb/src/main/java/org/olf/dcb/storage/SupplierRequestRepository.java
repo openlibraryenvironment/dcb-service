@@ -29,7 +29,7 @@ public interface SupplierRequestRepository {
 	Publisher<SupplierRequest> findByPatronRequest(@NotNull PatronRequest pr);
 
 	@NonNull
-	Publisher<SupplierRequest> findAll();
+	Publisher<SupplierRequest> queryAll();
 
 	Publisher<Void> delete(UUID id);
 

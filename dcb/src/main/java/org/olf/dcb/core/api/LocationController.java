@@ -71,7 +71,7 @@ public class LocationController {
                         pageable = Pageable.from(0, 100);
                 }
 
-                return Mono.from(locationRepository.findAll(pageable));
+                return Mono.from(locationRepository.queryAll(pageable));
         }
 
         @Get("/{id}")

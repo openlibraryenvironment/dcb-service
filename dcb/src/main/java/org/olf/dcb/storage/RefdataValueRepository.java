@@ -37,10 +37,10 @@ public interface RefdataValueRepository {
 
     @NonNull
     @SingleResult
-    Publisher<Page<RefdataValue>> findAll(Pageable page);
+    Publisher<Page<RefdataValue>> queryAll(Pageable page);
 
     @NonNull
-    Publisher<? extends RefdataValue> findAll();
+    Publisher<? extends RefdataValue> queryAll();
 
     Publisher<Void> delete(UUID id);
 

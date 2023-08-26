@@ -53,7 +53,7 @@ public class SymbolController {
                         pageable = Pageable.from(0, 100);
                 }
 
-                return Mono.from(locationSymbolRepository.findAll(pageable));
+                return Mono.from(locationSymbolRepository.queryAll(pageable));
         }
 
         @Get("/{id}")

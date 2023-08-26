@@ -36,7 +36,7 @@ public interface BibRepository {
 	Publisher<BibRecord> findById(@NonNull UUID id);
 
 	@NonNull
-	Publisher<BibRecord> findAll();
+	Publisher<BibRecord> queryAll();
 	
 	Publisher<ClusterRecord> findContributesToById( @NonNull UUID id );
 	
@@ -45,7 +45,7 @@ public interface BibRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<Page<BibRecord>> findAll(Pageable page);
+	Publisher<Page<BibRecord>> queryAll(Pageable page);
 
 	@NonNull
 	@SingleResult

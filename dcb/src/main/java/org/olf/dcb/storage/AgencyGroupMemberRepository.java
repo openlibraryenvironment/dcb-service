@@ -36,10 +36,10 @@ public interface AgencyGroupMemberRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<Page<AgencyGroupMember>> findAll(Pageable page);
+	Publisher<Page<AgencyGroupMember>> queryAll(Pageable page);
 
 	@NonNull
-	Publisher<? extends AgencyGroupMember> findAll();
+	Publisher<? extends AgencyGroupMember> queryAll();
 
 	Publisher<Void> delete(UUID id);
 }

@@ -68,7 +68,7 @@ public class HostLmsService implements IngestSourcesProvider {
 
 	public Flux<DataHostLms> getAllHostLms() {
                 log.debug("getAllHostLms()");
-		return Flux.from(hostLmsRepository.findAll());
+		return Flux.from(hostLmsRepository.queryAll());
 	}
 
 	@Override

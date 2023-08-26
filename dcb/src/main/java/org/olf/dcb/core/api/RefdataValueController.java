@@ -49,7 +49,7 @@ public class RefdataValueController {
             pageable = Pageable.from(0, 100);
         }
 
-        return Mono.from(refdataValueRepository.findAll(pageable));
+        return Mono.from(refdataValueRepository.queryAll(pageable));
     }
 
     @Get("/{id}")

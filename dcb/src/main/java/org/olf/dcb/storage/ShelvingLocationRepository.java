@@ -42,10 +42,10 @@ public interface ShelvingLocationRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<Page<ShelvingLocation>> findAll(Pageable page);
+	Publisher<Page<ShelvingLocation>> queryAll(Pageable page);
 
 	@NonNull
-	Publisher<? extends ShelvingLocation> findAll();
+	Publisher<? extends ShelvingLocation> queryAll();
 
 	Publisher<Void> delete(UUID id);
 

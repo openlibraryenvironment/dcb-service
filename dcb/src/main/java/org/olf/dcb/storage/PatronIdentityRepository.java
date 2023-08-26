@@ -34,7 +34,7 @@ public interface PatronIdentityRepository {
 	Publisher<PatronIdentity> findAllByPatron(Patron patron);
 
 	@NonNull
-	Publisher<PatronIdentity> findAll();
+	Publisher<PatronIdentity> queryAll();
 
 	@NonNull
 	Publisher<Void> delete(UUID id);

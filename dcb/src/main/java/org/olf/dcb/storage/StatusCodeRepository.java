@@ -37,10 +37,10 @@ public interface StatusCodeRepository {
 
     @NonNull
     @SingleResult
-    Publisher<Page<StatusCode>> findAll(Pageable page);
+    Publisher<Page<StatusCode>> queryAll(Pageable page);
 
     @NonNull
-    Publisher<? extends StatusCode> findAll();
+    Publisher<? extends StatusCode> queryAll();
 
     Publisher<Void> delete(UUID id);
 

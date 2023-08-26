@@ -123,7 +123,7 @@ public class AdminController {
                         pageable = Pageable.from(0, 100);
                 }
 
-                return Mono.from(patronRequestRepository.findAll(pageable));
+                return Mono.from(patronRequestRepository.queryAll(pageable));
         }
 
 

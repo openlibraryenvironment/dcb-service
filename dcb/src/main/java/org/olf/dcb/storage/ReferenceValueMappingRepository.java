@@ -38,10 +38,10 @@ public interface ReferenceValueMappingRepository {
 
     @NonNull
     @SingleResult
-    Publisher<Page<ReferenceValueMapping>> findAll(Pageable page);
+    Publisher<Page<ReferenceValueMapping>> queryAll(Pageable page);
 
     @NonNull
-    Publisher<? extends ReferenceValueMapping> findAll();
+    Publisher<? extends ReferenceValueMapping> queryAll();
 
     Publisher<Void> delete(UUID id);
 

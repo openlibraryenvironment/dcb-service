@@ -50,7 +50,7 @@ public class ReferenceValueMappingsController {
             pageable = Pageable.from(0, 100);
         }
 
-        return Mono.from(referenceValueMappingRepository.findAll(pageable));
+        return Mono.from(referenceValueMappingRepository.queryAll(pageable));
     }
 
     @Get("/{id}")

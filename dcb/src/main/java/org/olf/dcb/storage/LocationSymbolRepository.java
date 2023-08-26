@@ -33,10 +33,10 @@ public interface LocationSymbolRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<Page<LocationSymbol>> findAll(Pageable page);
+	Publisher<Page<LocationSymbol>> queryAll(Pageable page);
 
 	@NonNull
-	Publisher<LocationSymbol> findAll();
+	Publisher<LocationSymbol> queryAll();
 
 	Publisher<Void> delete(UUID id);
 

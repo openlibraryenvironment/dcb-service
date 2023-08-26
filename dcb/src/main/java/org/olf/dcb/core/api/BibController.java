@@ -44,7 +44,7 @@ public class BibController {
 			pageable = Pageable.from(0, 100);
 		}
 
-		return Mono.from(_bibRepository.findAll(pageable));
+		return Mono.from(_bibRepository.queryAll(pageable));
 	}
 
 	@Get("/{id}")

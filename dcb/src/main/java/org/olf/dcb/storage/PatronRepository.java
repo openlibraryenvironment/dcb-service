@@ -21,7 +21,7 @@ public interface PatronRepository {
 	Publisher<Patron> findById(@NotNull UUID id);
 
 	@NonNull
-	Publisher<Patron> findAll();
+	Publisher<Patron> queryAll();
 
 	@NonNull
 	Publisher<Void> delete(UUID id);

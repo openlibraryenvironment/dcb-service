@@ -30,7 +30,7 @@ public interface BibIdentifierRepository {
     Publisher<BibIdentifier> findAllByOwner(@NonNull BibRecord owner);
 
     @NonNull
-    Publisher<BibIdentifier> findAll();
+    Publisher<BibIdentifier> queryAll();
 
     @NonNull
     @SingleResult

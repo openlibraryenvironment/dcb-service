@@ -33,10 +33,10 @@ public interface LocationRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<Page<Location>> findAll(Pageable page);
+	Publisher<Page<Location>> queryAll(Pageable page);
 
 	@NonNull
-	Publisher<Location> findAll();
+	Publisher<Location> queryAll();
 
 	Publisher<Void> delete(UUID id);
 

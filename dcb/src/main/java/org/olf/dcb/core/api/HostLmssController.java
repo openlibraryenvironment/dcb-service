@@ -47,7 +47,7 @@ public class HostLmssController {
 			pageable = Pageable.from(0, 100);
 		}
 
-		return Mono.from(hostLMSRepository.findAll(pageable));
+		return Mono.from(hostLMSRepository.queryAll(pageable));
 	}
 
 	@Get("/{id}")

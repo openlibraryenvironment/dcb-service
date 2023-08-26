@@ -53,7 +53,7 @@ public class SupplierRequestsFixture {
 	}
 
 	public void deleteAll() {
-		dataAccess.deleteAll(supplierRequestRepository.findAll(), this::deleteSupplierRequest);
+		dataAccess.deleteAll(supplierRequestRepository.queryAll(), this::deleteSupplierRequest);
 	}
 
 	private Publisher<Void> deleteSupplierRequest(SupplierRequest supplierRequest) {

@@ -44,10 +44,10 @@ public interface HostLmsRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<Page<DataHostLms>> findAll(Pageable page);
+	Publisher<Page<DataHostLms>>    queryAll(Pageable page);
 
 	@NonNull
-	Publisher<DataHostLms> findAll();
+	Publisher<DataHostLms>  queryAll();
 
 	Publisher<Void> delete(UUID id);
 }

@@ -24,7 +24,7 @@ public class AgencyFixture {
 	}
 
 	public void deleteAllAgencies() {
-		dataAccess.deleteAll(agencyRepository.findAll(),
+		dataAccess.deleteAll(agencyRepository.queryAll(),
 			mapping -> agencyRepository.delete(mapping.getId()));
 	}
 }

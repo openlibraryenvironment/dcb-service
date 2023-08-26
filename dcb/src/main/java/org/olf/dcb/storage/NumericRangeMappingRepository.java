@@ -33,7 +33,7 @@ public interface NumericRangeMappingRepository {
         Publisher<String> findMappedValueFor(String context, String domain, String target, Long value);
 
         @NonNull
-        Publisher<NumericRangeMapping> findAll();
+        Publisher<NumericRangeMapping> queryAll();
 
         Publisher<Void> delete(UUID id);
 

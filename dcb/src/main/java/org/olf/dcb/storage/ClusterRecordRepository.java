@@ -49,10 +49,10 @@ public interface ClusterRecordRepository {
 	Publisher<Boolean> existsById(@NonNull UUID id);
 
 	@NonNull
-	Publisher<ClusterRecord> findAll();
+	Publisher<ClusterRecord> queryAll();
 
 	@NonNull
-	Publisher<Page<ClusterRecord>> findAll(@Valid Pageable pageable);
+	Publisher<Page<ClusterRecord>> queryAll(@Valid Pageable pageable);
 
 	@NonNull
 	Publisher<Page<ClusterRecord>> findByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);

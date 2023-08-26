@@ -61,7 +61,7 @@ public class AgenciesController {
                 log.debug("agencies::list");
 
 		@Valid Pageable finalPageable = pageable;
-		return Flux.from(agencyRepository.findAll())
+		return Flux.from(agencyRepository.queryAll())
 			// work around as fetching agency will not fetch hostLms or hostLmsId
 			.flatMap(this::addHostLms)
 			.map(AgencyDTO::mapToAgencyDTO)

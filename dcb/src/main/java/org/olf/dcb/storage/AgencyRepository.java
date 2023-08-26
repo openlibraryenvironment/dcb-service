@@ -38,12 +38,12 @@ public interface AgencyRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<Page<DataAgency>> findAll(Pageable page);
+	Publisher<Page<DataAgency>> queryAll(Pageable page);
 
 	@NonNull
 	Publisher<DataAgency> findOneByCode(String code);
 
-	Publisher<DataAgency> findAll();
+	Publisher<DataAgency> queryAll();
 
 	Publisher<Void> delete(UUID id);
 
