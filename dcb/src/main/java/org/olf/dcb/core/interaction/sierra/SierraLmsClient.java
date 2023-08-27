@@ -619,13 +619,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
-	public UUID uuid5ForLocation(@NotNull final String hostLmsCode, @NotNull final String localBranchId,
-		@NotNull final String locationCode) {
+	public UUID uuid5ForLocation(@NotNull final String hostLmsCode, @NotNull final String localBranchId, @NotNull final String locationCode) {
 		final String concat = UUID5_PREFIX + ":LOC:" + hostLmsCode + ":" + localBranchId + ":" + locationCode;
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
 	public UUID uuid5ForPickupLocation(@NotNull final String hostLmsCode, @NotNull final String locationCode) {
+                // ToDo - work out if this shoud be :PL:
 		final String concat = UUID5_PREFIX + ":SL:" + hostLmsCode + ":" + locationCode;
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
