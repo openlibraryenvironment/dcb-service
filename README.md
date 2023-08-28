@@ -77,3 +77,4 @@ Then running psql
     psql -U test -h localhost -p PORT_FROM_DOCKER_PS
 
 password will be test
+
