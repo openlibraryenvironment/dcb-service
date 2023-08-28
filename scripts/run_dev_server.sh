@@ -16,3 +16,4 @@ echo Access postgres with "psql -h localhost -p 49168 -U test" and the password 
 
 
 ./gradlew run
+# ./gradlew nativeRun

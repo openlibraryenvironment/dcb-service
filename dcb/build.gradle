@@ -60,8 +60,8 @@ dependencies {
 	// implementation("io.micronaut:micronaut-validation")
         implementation("io.micronaut.validation:micronaut-validation")
 
-	implementation("org.apache.logging.log4j:log4j-api")
-	implementation("org.apache.logging.log4j:log4j-core")
+	// implementation("org.apache.logging.log4j:log4j-api")
+	// implementation("org.apache.logging.log4j:log4j-core")
 
 	// implementation("io.micronaut:micronaut-jackson-databind") // Not using Jackson for binding.
 	// implementation("io.micronaut.serde:micronaut-serde-jackson")
