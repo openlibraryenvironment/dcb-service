@@ -63,7 +63,7 @@ dependencies {
 	implementation("org.apache.logging.log4j:log4j-api")
 	implementation("org.apache.logging.log4j:log4j-core")
 
-	//	implementation("io.micronaut:micronaut-jackson-databind") // Not using Jackson for binding.
+	// implementation("io.micronaut:micronaut-jackson-databind") // Not using Jackson for binding.
 	// implementation("io.micronaut.serde:micronaut-serde-jackson")
 	// implementation("io.micronaut.xml:micronaut-jackson-xml")
 	implementation 'org.marc4j:marc4j'
