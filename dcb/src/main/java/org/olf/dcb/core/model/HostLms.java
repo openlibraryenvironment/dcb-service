@@ -9,7 +9,9 @@ import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.Transient;
+import io.micronaut.serde.annotation.Serdeable;
 
+@Serdeable
 @Introspected
 public interface HostLms {
 	
