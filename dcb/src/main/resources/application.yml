@@ -32,9 +32,9 @@ micronaut:
       - pattern: "/openapi/**"
         access:
           - isAnonymous()
-      - pattern: "/graphiql/**"
-        access:
-          - isAnonymous()
+      # - pattern: "/graphiql/**"
+      #   access:
+      #     - isAnonymous()
       - pattern: "/graphql/**"
         access:
           - isAuthenticated()
@@ -140,5 +140,6 @@ jackson:
 
 graphql:
   enabled: true
+  # Disable graphiql because we have protected it using a jwt
   graphiql: # enables the /graphiql endpoint to test calls against your graph.
-    enabled: true
+    enabled: false

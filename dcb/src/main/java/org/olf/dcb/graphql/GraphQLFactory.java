@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 
 // See : https://lifeinide.com/post/2019-04-15-micronaut-graphql-with-transaction-and-security-support/
 
-@Factory // 
+@Factory
 public class GraphQLFactory {
 
     private static Logger log = LoggerFactory.getLogger(GraphQLFactory.class);
