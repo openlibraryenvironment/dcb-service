@@ -3,7 +3,7 @@ package org.olf.dcb.core.model;
 import java.time.Instant;
 import java.util.UUID;
 
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.Size;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;

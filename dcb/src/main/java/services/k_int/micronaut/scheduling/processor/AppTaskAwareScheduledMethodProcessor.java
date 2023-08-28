@@ -23,8 +23,10 @@ public class AppTaskAwareScheduledMethodProcessor extends ScheduledMethodProcess
 
 	private final AppConfig config;
 
-	public AppTaskAwareScheduledMethodProcessor(BeanContext beanContext, Optional<ConversionService<?>> conversionService,
-																							TaskExceptionHandler<?, ?> taskExceptionHandler, AppConfig appConfig) {
+	public AppTaskAwareScheduledMethodProcessor(BeanContext beanContext, 
+                Optional<ConversionService> conversionService,
+                TaskExceptionHandler<?, ?> taskExceptionHandler, 
+                AppConfig appConfig) {
 		super(beanContext, conversionService, taskExceptionHandler);
 		this.config = appConfig;
 		log.info("Using AppTask aware scheduler");

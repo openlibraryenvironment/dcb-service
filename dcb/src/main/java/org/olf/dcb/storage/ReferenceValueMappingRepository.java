@@ -2,8 +2,8 @@ package org.olf.dcb.storage;
 
 import java.util.UUID;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.reactivestreams.Publisher;
@@ -12,6 +12,8 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
+import reactor.core.publisher.Mono;
+
 public interface ReferenceValueMappingRepository {
 
     @NonNull
@@ -36,10 +38,10 @@ public interface ReferenceValueMappingRepository {
 
     @NonNull
     @SingleResult
-    Publisher<Page<ReferenceValueMapping>> findAll(Pageable page);
+    Publisher<Page<ReferenceValueMapping>> queryAll(Pageable page);
 
     @NonNull
-    Publisher<? extends ReferenceValueMapping> findAll();
+    Publisher<? extends ReferenceValueMapping> queryAll();
 
     Publisher<Void> delete(UUID id);
 
@@ -62,5 +64,12 @@ public interface ReferenceValueMappingRepository {
                 @NonNull String sourceValue,
                 @NonNull String targetCategory,
                 @NonNull String targetContext);
+
+        @SingleResult
+        @NonNull
+        default Publisher<ReferenceValueMapping> saveOrUpdate(@Valid @NotNull @NonNull ReferenceValueMapping rvm) {
+                return Mono.from(this.existsById(rvm.getId()))
+                                .flatMap(update -> Mono.from(update ? this.update(rvm) : this.save(rvm)));
+        }
 
 }

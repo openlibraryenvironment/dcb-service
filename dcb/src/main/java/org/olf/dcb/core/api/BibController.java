@@ -2,7 +2,7 @@ package org.olf.dcb.core.api;
 
 import java.util.UUID;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.storage.BibRepository;
@@ -44,7 +44,7 @@ public class BibController {
 			pageable = Pageable.from(0, 100);
 		}
 
-		return Mono.from(_bibRepository.findAll(pageable));
+		return Mono.from(_bibRepository.queryAll(pageable));
 	}
 
 	@Get("/{id}")

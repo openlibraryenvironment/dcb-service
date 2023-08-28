@@ -26,7 +26,8 @@ public class AvailabilityResponseView {
 				new Status(item.getStatus().getCode().name()), item.getDueDate(),
 				new Location(item.getLocation().getCode(), item.getLocation().getName()),
 				item.getBarcode(), item.getCallNumber(), item.getHostLmsCode(),
-				item.getIsRequestable(), item.getHoldCount(), item.getLocalItemType(), item.getCanonicalItemType()))
+				item.getIsRequestable(), item.getHoldCount(), item.getLocalItemType(), item.getCanonicalItemType(),
+                                item.getLocalItemTypeCode()))
 			.toList();
 
 		final var mappedErrors = report.getErrors().stream()
@@ -54,6 +55,7 @@ public class AvailabilityResponseView {
 		private final Integer holdCount;
 		private final String localItemType;
 		private final String canonicalItemType;
+		private final String localItemTypeCode;
 	}
 
 	@Data

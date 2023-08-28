@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 
 @io.micronaut.context.annotation.Requires(env = {io.micronaut.context.env.Environment.DEVELOPMENT, io.micronaut.context.env.Environment.TEST, "development"})
 @Singleton
-public class DcbAuthenticationProvider implements AuthenticationProvider {
+public class DcbAuthenticationProvider implements AuthenticationProvider<HttpRequest<?>> {
 
 	private static List VALID_USERS = List.of( "user", "admin", "standard" );
 

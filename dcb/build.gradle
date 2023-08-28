@@ -5,23 +5,17 @@ buildscript {
 }
 
 plugins {
-	id("com.github.johnrengelman.shadow") version "7.1.2"
+	id("com.github.johnrengelman.shadow") version "8.1.1"
         // See https://plugins.gradle.org/plugin/io.micronaut.application
-	id("io.micronaut.application") version "3.7.7"
-	id("io.micronaut.test-resources") version "3.7.7"
+	id("io.micronaut.application") version "4.0.2"
+	id("io.micronaut.test-resources") version "4.0.2"
+	id("io.micronaut.aot") version "4.0.2"
 	id('jacoco')
 	id 'org.olf.dcb-bom'
 	id 'service.k_int.micronaut-multi'
         // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
         id "com.gorylenko.gradle-git-properties" version "2.4.1"
 }
-
-//configurations.all {
-//	resolutionStrategy.dependencySubstitution {
-//		substitute(module("io.micronaut:micronaut-jackson-databind"))
-//				.using(module("io.micronaut.serde:micronaut-serde-jackson:1.3.2"))
-//	}
-//}
 
 //version = "0.1"
 group = "org.olf.dcb"
@@ -34,15 +28,19 @@ repositories {
 dependencies {
 	// This should likely always be first in the annotations list
 	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
 
-	
+
+        annotationProcessor("org.projectlombok:lombok")
+        annotationProcessor("io.micronaut.data:micronaut-data-processor")
+        annotationProcessor("io.micronaut:micronaut-inject-java")
+        annotationProcessor("io.micronaut:micronaut-http-validation")
+        annotationProcessor("io.micronaut.openapi:micronaut-openapi")
+        annotationProcessor("io.micronaut.security:micronaut-security-annotations")
+        annotationProcessor("io.micronaut.serde:micronaut-serde-processor")
+        annotationProcessor("io.micronaut.validation:micronaut-validation-processor")
+
 	annotationProcessor('io.micronaut:micronaut-graal')
-	annotationProcessor("io.micronaut.serde:micronaut-serde-processor")
-	annotationProcessor("io.micronaut:micronaut-http-validation")
-	annotationProcessor("io.micronaut.openapi:micronaut-openapi")
-	annotationProcessor('io.micronaut.security:micronaut-security-annotations')
-	annotationProcessor("io.micronaut.data:micronaut-data-processor")
+
 	compileOnly("org.graalvm.nativeimage:svm")
 
 	// Implementation
@@ -59,13 +57,15 @@ dependencies {
 	implementation("io.micronaut.reactor:micronaut-reactor-http-client")
 	implementation("io.swagger.core.v3:swagger-annotations")
 	implementation("jakarta.annotation:jakarta.annotation-api")
-	implementation("io.micronaut:micronaut-validation")
+	// implementation("io.micronaut:micronaut-validation")
+        implementation("io.micronaut.validation:micronaut-validation")
 
-	implementation("org.apache.logging.log4j:log4j-api")
-	implementation("org.apache.logging.log4j:log4j-core")
+	// implementation("org.apache.logging.log4j:log4j-api")
+	// implementation("org.apache.logging.log4j:log4j-core")
 
-	//	implementation("io.micronaut:micronaut-jackson-databind") // Not using Jackson for binding.
-	implementation("io.micronaut.serde:micronaut-serde-jackson")
+	// implementation("io.micronaut:micronaut-jackson-databind") // Not using Jackson for binding.
+	// implementation("io.micronaut.serde:micronaut-serde-jackson")
+	// implementation("io.micronaut.xml:micronaut-jackson-xml")
 	implementation 'org.marc4j:marc4j'
 
 	runtimeOnly("ch.qos.logback:logback-classic")
@@ -83,7 +83,10 @@ dependencies {
 	
 	// Without this dependency, testcontainer injection seems not to happen at all.
 	// Wonder if this is because the bean that uses PG is a r2dbc service
-	runtimeOnly("org.postgresql:r2dbc-postgresql:1.0.1.RELEASE")
+	runtimeOnly("org.postgresql:r2dbc-postgresql")
+
+
+        // testRuntimeOnly("io.micronaut.testresources:micronaut-test-resources-client")
 
 	// Uncommmenting this dependency results in
 	// testresources Micronaut Message: Could not resolve placeholder ${auto.test.resources.r2dbc.datasources.default.options.protocol}
@@ -93,7 +96,7 @@ dependencies {
 	implementation("io.micronaut.flyway:micronaut-flyway")
 
 	// Metrics (Prometheus)
-	implementation "io.micronaut.micrometer:micronaut-micrometer-registry-prometheus"
+	// implementation "io.micronaut.micrometer:micronaut-micrometer-registry-prometheus"
 	
 	// Also required to enable endpoint
 	implementation "io.micronaut:micronaut-management"
@@ -119,21 +122,29 @@ dependencies {
 	testImplementation('io.projectreactor:reactor-test')
 	testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 	
-	testImplementation(platform("org.testcontainers:testcontainers-bom"))
+	// testImplementation(platform("org.testcontainers:testcontainers-bom"))
 	
 	testRuntimeOnly("org.testcontainers:postgresql")
 
 	implementation("io.micronaut.graphql:micronaut-graphql")
         implementation("jakarta.persistence:jakarta.persistence-api:3.0.0")
         implementation("org.apache.lucene:lucene-queryparser:9.7.0")
+
+        runtimeOnly("org.yaml:snakeyaml")
+
+        aotPlugins platform("io.micronaut.platform:micronaut-platform:4.0.5")
+        aotPlugins("io.micronaut.security:micronaut-security-aot")
+
+
 }
 
-//configurations.all {
-//	resolutionStrategy.dependencySubstitution {
-//		substitute(module("io.micronaut:micronaut-jackson-databind"))
-//				.using(module("io.micronaut.serde:micronaut-serde-jackson:1.5.0"))
-//	}
-//}
+configurations.all {
+	resolutionStrategy.dependencySubstitution {
+		substitute(module("io.micronaut:micronaut-jackson-databind"))
+				// .using(module("io.micronaut.serde:micronaut-serde-jackson:2.2.0"))
+				.using(module("io.micronaut.serde:micronaut-serde-jackson:1.5.0"))
+	}
+}
 
 application {
 	mainClass.set("org.olf.dcb.Application")
@@ -221,8 +232,8 @@ tasks {
 		dependsOn test
 
 		reports {
-			xml.enabled false
-			csv.enabled false
+			xml.required = false
+			csv.required = false
 		}
 
 		afterEvaluate {

@@ -15,7 +15,7 @@ import reactor.core.publisher.Mono;
 
 // This handler is called just to update the state of the supplier item - its a noop other than
 // adjusting the local copy of the state at the supplier
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 import java.util.Map;
 @Singleton
 @Named("SupplierRequestItemStateChange")

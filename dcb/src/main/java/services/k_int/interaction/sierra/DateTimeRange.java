@@ -5,7 +5,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 import jakarta.annotation.Nullable;
 
@@ -36,4 +36,10 @@ public class DateTimeRange {
 		consumer.accept(builder);
 		return builder.build();
 	}
+
+
+        public static class DateTimeRangeBuilder {
+                public DateTimeRangeBuilder() { }
+                // Lombok will fill in the fields and methods
+        }
 }

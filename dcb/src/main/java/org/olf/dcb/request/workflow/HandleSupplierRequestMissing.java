@@ -11,7 +11,7 @@ import jakarta.inject.Named;
 import org.olf.dcb.tracking.model.StateChange;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.storage.SupplierRequestRepository;
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 
 @Singleton
 @Named("SupplierRequestMissing")

@@ -1,5 +1,6 @@
 package org.olf.dcb.storage;
 
+import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -51,11 +52,14 @@ class AgencyRepoTests {
 
                 Mono.from(hostLmsRepository.save(new_host_lms)).block();
 
-        	DataAgency new_agency = new DataAgency(UUID.randomUUID(), "ACODE1", "Test Agency Name1", new_host_lms);
+        	DataAgency new_agency =
+						DataAgency.builder().id(randomUUID()).code("ACODE1").name("Test Agency Name1").hostLms(new_host_lms).build();
+
+
 
         	Mono.from(agencyRepository.save(new_agency)).block();
 
-        	final var fetchedAgencyRecords = Flux.from(agencyRepository.findAll())
+        	final var fetchedAgencyRecords = Flux.from(agencyRepository.queryAll())
                                 .collectList()
                                 .block();
 

@@ -2,7 +2,7 @@ package org.olf.dcb.core.api;
 
 import java.util.UUID;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.storage.HostLmsRepository;
@@ -47,7 +47,7 @@ public class HostLmssController {
 			pageable = Pageable.from(0, 100);
 		}
 
-		return Mono.from(hostLMSRepository.findAll(pageable));
+		return Mono.from(hostLMSRepository.queryAll(pageable));
 	}
 
 	@Get("/{id}")

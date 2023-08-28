@@ -2,8 +2,8 @@ package org.olf.dcb.storage;
 
 import java.util.UUID;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -34,7 +34,7 @@ public interface PatronIdentityRepository {
 	Publisher<PatronIdentity> findAllByPatron(Patron patron);
 
 	@NonNull
-	Publisher<PatronIdentity> findAll();
+	Publisher<PatronIdentity> queryAll();
 
 	@NonNull
 	Publisher<Void> delete(UUID id);

@@ -9,8 +9,8 @@ import io.micronaut.data.model.Pageable;
 import org.olf.dcb.core.model.ShelvingLocation;
 import org.reactivestreams.Publisher;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
 public interface ShelvingLocationRepository {
@@ -42,10 +42,10 @@ public interface ShelvingLocationRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<Page<ShelvingLocation>> findAll(Pageable page);
+	Publisher<Page<ShelvingLocation>> queryAll(Pageable page);
 
 	@NonNull
-	Publisher<? extends ShelvingLocation> findAll();
+	Publisher<? extends ShelvingLocation> queryAll();
 
 	Publisher<Void> delete(UUID id);
 

@@ -17,9 +17,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-import javax.transaction.Transactional;
-import javax.transaction.Transactional.TxType;
-import javax.validation.constraints.NotNull;
+import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
+import jakarta.validation.constraints.NotNull;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.BranchRecord;
@@ -36,6 +36,7 @@ import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.RawSourceRepository;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.tracking.model.LenderTrackingEvent;
 import org.olf.dcb.tracking.model.PatronTrackingEvent;
 import org.olf.dcb.tracking.model.PickupTrackingEvent;
@@ -88,15 +89,20 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
 	private static final Integer FIXED_FIELD_158 = Integer.valueOf(158);
 
-	private final ConversionService<?> conversionService = ConversionService.SHARED;
+	private final ConversionService conversionService;
 	private final HostLms lms;
 	private final SierraApiClient client;
 	private final ProcessStateService processStateService;
 	private final RawSourceRepository rawSourceRepository;
 	private final ItemResultToItemMapper itemResultToItemMapper;
+        private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
-	public SierraLmsClient(@Parameter HostLms lms, HostLmsSierraApiClientFactory clientFactory,
-		RawSourceRepository rawSourceRepository, ProcessStateService processStateService,
+	public SierraLmsClient(@Parameter HostLms lms, 
+                HostLmsSierraApiClientFactory clientFactory,
+		RawSourceRepository rawSourceRepository, 
+                ProcessStateService processStateService,
+                ReferenceValueMappingRepository referenceValueMappingRepository,
+                ConversionService conversionService,
 		ItemResultToItemMapper itemResultToItemMapper) {
 
 		this.lms = lms;
@@ -106,12 +112,25 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		client = clientFactory.createClientFor(lms);
 		this.rawSourceRepository = rawSourceRepository;
 		this.processStateService = processStateService;
+		this.referenceValueMappingRepository = referenceValueMappingRepository;
+		this.conversionService = conversionService;
 	}
 
 	@Override
 	public HostLms getHostLms() {
 		return lms;
 	}
+
+        public List<HostLmsPropertyDefinition> getSettings() {
+                return List.of(
+                        new HostLmsPropertyDefinition("base-url", "Base URL Of Sierra System", Boolean.TRUE, "URL" ),
+                        new HostLmsPropertyDefinition("key", "Key for this system", Boolean.TRUE, "String" ),
+                        new HostLmsPropertyDefinition("page-size", "How many items to retrieve in each page", Boolean.TRUE, "String" ),
+                        new HostLmsPropertyDefinition("secret", "Secret for this Sierra system", Boolean.TRUE, "String" ),
+                        new HostLmsPropertyDefinition("ingest", "Enable record harvesting for this source", Boolean.TRUE, "Boolean" )
+                );
+        }
+
 
 	private Mono<BibResultSet> fetchPage(Instant since, int offset, int limit) {
 		log.info("Creating subscribeable batch;  since={} offset={} limit={}", since, offset, limit);
@@ -331,15 +350,25 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<HostLmsItem> createItem(String bibId, String locationCode, String barcode) {
+	public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
 
-		return getMappedItemType(locationCode, "TODO")
+                // We start by working out what the right item type is for the target system. E.g. DCB Item Type "STD" is a standard
+                // circulating item, and for the "ARTHUR" system, the target iType is "209"
+		return getMappedItemType(lms.getCode(), cic.getCanonicalItemType())
 			.flatMap( itemType -> {
-				log.debug("createItem in SierraLmsClient - needs itemType mapper implementation {}",itemType);
+				log.debug("createItem in SierraLmsClient - itemType will be {}",itemType);
+
+                                // https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
+		                final var fixedFields = Map.of(
+                                        61, FixedField.builder().label("DCB-"+itemType).value(itemType).build(),
+                                        88, FixedField.builder().label("REQUEST").value("&").build()
+                                );
+
 				return Mono.from(client.createItem(ItemPatch.builder()
-					.bibIds(List.of(Integer.parseInt(bibId)))
-					.location(locationCode)
-					.barcodes(List.of(barcode))
+					.bibIds(List.of(Integer.parseInt(cic.getBibId())))
+					.location(cic.getLocationCode())
+					.barcodes(List.of(cic.getBarcode()))
+					.fixedFields(fixedFields)
 					.build()));
 			})
 			.doOnSuccess(result -> log.debug("the result of createItem({})", result))
@@ -351,9 +380,27 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	// The item type passed with the item is our canonical system item type, we need to look that up
 	// into a local item type using a system mapping
-	private Mono<String> getMappedItemType(String locationCode, String itemTypeCode) {
-		log.debug("getMappedItemType({},{})",locationCode,locationCode);
-		return Mono.just("TODO");
+	private Mono<String> getMappedItemType(String targetSystemCode, String itemTypeCode) {
+
+		log.debug("getMappedItemType({},{})",targetSystemCode,itemTypeCode);
+
+                // ToDo: Refactor tests so that this test causes a failure. both values should always be present in
+                // a production system, but we have many tests that don't set up the context, so this test is to 
+                // allow the tests to work without needing ephemeral context.
+                if ( ( targetSystemCode != null ) && ( itemTypeCode != null ) ) {
+                        // Map from the canonical DCB item type to the appropriate type for the target system
+                        return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+                                "ItemType",
+                                "DCB",
+                                itemTypeCode,
+                                "ItemType",
+                                targetSystemCode))
+                                .map( rvm -> rvm.getToValue() )
+                                .defaultIfEmpty("UNKNOWN");
+                }
+
+                log.warn("Request to map item type was missing required parameters");
+                return Mono.just("UNKNOWN");
 	}
 
 	@Override
@@ -572,13 +619,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
-	public UUID uuid5ForLocation(@NotNull final String hostLmsCode, @NotNull final String localBranchId,
-		@NotNull final String locationCode) {
+	public UUID uuid5ForLocation(@NotNull final String hostLmsCode, @NotNull final String localBranchId, @NotNull final String locationCode) {
 		final String concat = UUID5_PREFIX + ":LOC:" + hostLmsCode + ":" + localBranchId + ":" + locationCode;
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
 	public UUID uuid5ForPickupLocation(@NotNull final String hostLmsCode, @NotNull final String locationCode) {
+                // ToDo - work out if this shoud be :PL:
 		final String concat = UUID5_PREFIX + ":SL:" + hostLmsCode + ":" + locationCode;
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
@@ -851,5 +898,19 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.thenReturn("OK")
 			.defaultIfEmpty("ERROR");
 	}
+
+        public Mono<String> deleteItem(String id) {
+                log.debug("deleteItem({})",id);
+                return Mono.from(client.deleteItem(id))
+                        .thenReturn("OK")
+			.defaultIfEmpty("ERROR");
+        }
+
+        public Mono<String> deleteBib(String id) {
+                log.debug("deleteBib({})",id);
+                return Mono.from(client.deleteBib(id))
+                        .thenReturn("OK")
+			.defaultIfEmpty("ERROR");
+        }
 
 }

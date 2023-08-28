@@ -2,8 +2,8 @@ package org.olf.dcb.storage;
 
 import java.util.UUID;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
@@ -30,7 +30,7 @@ public interface BibIdentifierRepository {
     Publisher<BibIdentifier> findAllByOwner(@NonNull BibRecord owner);
 
     @NonNull
-    Publisher<BibIdentifier> findAll();
+    Publisher<BibIdentifier> queryAll();
 
     @NonNull
     @SingleResult

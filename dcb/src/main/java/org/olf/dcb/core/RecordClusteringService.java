@@ -7,9 +7,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import javax.transaction.Transactional;
-import javax.transaction.Transactional.TxType;
+import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
 
 import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
@@ -22,7 +23,7 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micronaut.retry.annotation.CircuitBreaker;
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.retry.annotation.Retryable;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
@@ -30,6 +31,9 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
+import services.k_int.utils.Predicates;
+
+import io.micronaut.core.convert.ConversionService;
 
 @Singleton
 public class RecordClusteringService {
@@ -42,16 +46,20 @@ public class RecordClusteringService {
 	final ClusterRecordRepository clusterRecords;
 	final BibRecordService bibRecords;
 	final MatchPointRepository matchPointRepository;
+	final ConversionService conversionService;
 
 	final StatsService statsService;
 
 	public RecordClusteringService(
 		ClusterRecordRepository clusterRecordRepository,
-		BibRecordService bibRecordService, MatchPointRepository matchPointRepository, StatsService statsService) {
+		BibRecordService bibRecordService, MatchPointRepository matchPointRepository, 
+                StatsService statsService,
+                ConversionService conversionService) {
 		this.clusterRecords = clusterRecordRepository;
 		this.bibRecords = bibRecordService;
 		this.matchPointRepository = matchPointRepository;
 		this.statsService = statsService;
+		this.conversionService = conversionService;
 	}
 
 	// Get cluster record by id
@@ -71,12 +79,13 @@ public class RecordClusteringService {
 	}
 	
 	private boolean completeIdentifiersPredicate ( BibIdentifier bibId ) {
-		return bibId.getNamespace() != null &&
-				bibId.getValue() != null;
+		return Stream.of( bibId.getNamespace(), bibId.getValue())
+			.map( StringUtils::trimToNull )
+			.count() == 2;
 	}
 	
 	@Transactional
-	public Mono<Tuple2<List<MatchPoint>, List<ClusterRecord>>> collectClusterRecords(Publisher<MatchPoint> matchPoints) {
+	public Mono<Tuple2<List<MatchPoint>, List<ClusterRecord>>> collectClusterRecords(String derivedType, Publisher<MatchPoint> matchPoints) {
 		 return Flux.from( matchPoints )
 		 	.collectList()
 		 	.flatMap( mps -> {
@@ -84,7 +93,7 @@ public class RecordClusteringService {
 		 			.map( MatchPoint::getValue )
 		 			.collect(Collectors.toUnmodifiableSet());
 		 		
-		 		return Flux.from( clusterRecords.findAllByMatchPoints( ids ) )
+		 		return Flux.from( clusterRecords.findAllByDerivedTypeAndMatchPoints(derivedType, ids ) )
 		 				.collectList()
 		 				.map( crs -> Tuples.of( mps, crs ));
 		 	});
@@ -163,12 +172,12 @@ public class RecordClusteringService {
 	@Transactional
 	public Flux<MatchPoint> idMatchPoints( BibRecord bib ) {
 		return bibRecords.findAllIdentifiersForBib( bib )
-				.filter( this::completeIdentifiersPredicate )
+				.filter( Predicates.failureLoggingPredicate(
+						this::completeIdentifiersPredicate, log::info, "Blank match point skipped for bib: {}", bib.getId()))
+				
 				.map( id -> String.format("%s:%s:%s", MATCHPOINT_ID, id.getNamespace(), id.getValue()) )
 				.map( MatchPoint::buildFromString ) ;
 	}
-	
-	
 
 	private Flux<MatchPoint> recordMatchPoints ( BibRecord bib ) {
 		
@@ -191,7 +200,7 @@ public class RecordClusteringService {
 	public Mono<ClusterRecord> createMinimalCluster( BibRecord bib ) {
 		var cluster = ClusterRecord.builder()
 				.id(UUID.randomUUID())
-				.title( bib.getTitle() )
+				.title( bib.getTitle(conversionService) )
 				.selectedBib( bib.getId() )
 				.build();
 		
@@ -209,7 +218,7 @@ public class RecordClusteringService {
 			.flatMap( theBib -> Mono.fromDirect( matchPointRepository.deleteAllByBibId( theBib.getId()))
 					.thenReturn( theBib ) )
 			.map( this::collectMatchPoints )
-			.flatMap( this::collectClusterRecords )
+			.flatMap( matchPointPub -> collectClusterRecords(bib.getDerivedType(conversionService), matchPointPub) )
 			.flatMap(TupleUtils.function( this::saveMatchPointsAndMergeClusters ))
 			.switchIfEmpty( createMinimalCluster(bib) )
 			.flatMap( cr -> {

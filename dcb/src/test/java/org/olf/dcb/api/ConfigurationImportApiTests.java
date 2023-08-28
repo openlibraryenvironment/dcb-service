@@ -27,7 +27,8 @@ import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.http.MediaType;
 import io.micronaut.security.authentication.UsernamePasswordCredentials;
-import io.micronaut.security.token.jwt.render.BearerAccessRefreshToken;
+import io.micronaut.security.token.render.BearerAccessRefreshToken;
+
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import services.k_int.test.mockserver.MockServerMicronautTest;

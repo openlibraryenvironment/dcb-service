@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import services.k_int.utils.UUIDUtils;
 
 public class DCBStringUtilities {

@@ -8,8 +8,8 @@ import io.micronaut.data.model.Pageable;
 import org.olf.dcb.core.model.AgencyGroup;
 import org.reactivestreams.Publisher;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
 public interface AgencyGroupRepository {
@@ -36,13 +36,13 @@ public interface AgencyGroupRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<Page<AgencyGroup>> findAll(Pageable page);
+	Publisher<Page<AgencyGroup>> queryAll(Pageable page);
 
 	@NonNull
 	Publisher<? extends AgencyGroup> findOneByCode(String code);
 
 	@NonNull
-	Publisher<? extends AgencyGroup> findAll();
+	Publisher<? extends AgencyGroup> queryAll();
 
 	Publisher<Void> delete(UUID id);
 

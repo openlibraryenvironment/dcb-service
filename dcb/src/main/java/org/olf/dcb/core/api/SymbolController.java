@@ -2,7 +2,7 @@ package org.olf.dcb.core.api;
 
 import java.util.UUID;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 import org.olf.dcb.core.api.types.LocationSymbolDTO;
 import org.olf.dcb.core.model.Location;
@@ -53,7 +53,7 @@ public class SymbolController {
                         pageable = Pageable.from(0, 100);
                 }
 
-                return Mono.from(locationSymbolRepository.findAll(pageable));
+                return Mono.from(locationSymbolRepository.queryAll(pageable));
         }
 
         @Get("/{id}")

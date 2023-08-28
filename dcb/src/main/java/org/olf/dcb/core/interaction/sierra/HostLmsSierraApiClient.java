@@ -33,6 +33,7 @@ import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
@@ -437,6 +438,14 @@ public class HostLmsSierraApiClient implements SierraApiClient {
                         .map(request -> request.body(checkoutPatch))
                         .flatMap(this::ensureToken)
                         .flatMap(request -> doRetrieve(request, Argument.of(LinkResult.class)));
+        }
+
+        public Publisher<HttpStatus> deleteItem(String id) {
+                return Mono.just(HttpStatus.OK);
+        }
+
+        public Publisher<HttpStatus> deleteBib(String id) {
+                return Mono.just(HttpStatus.OK);
         }
 
 }

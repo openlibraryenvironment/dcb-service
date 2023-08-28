@@ -1,7 +1,6 @@
 <configuration>
 
 	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-		<withJansi>true</withJansi>
 		<!-- encoders are assigned the type ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
 		<encoder>
 			<pattern>%cyan(%d{HH:mm:ss.SSS}) %gray([%thread]) %highlight(%-5level) %magenta(%logger{36}) - %msg%n</pattern>
@@ -21,6 +20,10 @@
 	<logger name="org.olf.dcb" level="DEBUG"/>
 	<logger name="services.k_int" level="DEBUG"/>
 	<logger name="io.micronaut.security" level="WARN"/>
+	<logger name="com.zaxxer.hikari.HikariDataSource" level="WARN"/>
+	<logger name="org.testcontainers" level="WARN"/>
+	<logger name="io.micronaut.org.testcontainers" level="WARN"/>
+        <logger name="io.micronaut.context.lifecycle" level="WARN"/>
 
 	<root level="info">
 		<appender-ref ref="STDOUT"/>

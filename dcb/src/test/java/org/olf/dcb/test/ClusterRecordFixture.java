@@ -27,7 +27,7 @@ public class ClusterRecordFixture {
 	}
 
 	public void deleteAllClusterRecords() {
-		dataAccess.deleteAll(clusterRecordRepository.findAll(),
+		dataAccess.deleteAll(clusterRecordRepository.queryAll(),
 			clusterRecord -> clusterRecordRepository.delete(clusterRecord.getId()));
 	}
 }

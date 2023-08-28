@@ -11,7 +11,7 @@ import jakarta.inject.Named;
 import org.olf.dcb.tracking.model.StateChange;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.storage.PatronRequestRepository;
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;

@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.Size;
 
 import org.olf.dcb.processing.matching.MatchKey;
 import org.olf.dcb.utils.DCBStringUtilities;

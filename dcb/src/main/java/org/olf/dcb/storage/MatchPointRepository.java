@@ -10,7 +10,7 @@ public interface MatchPointRepository {
 
 	<M extends MatchPoint> Publisher<MatchPoint> saveAll(Collection<MatchPoint> matchPoints);
 	
-	Publisher<MatchPoint> findAll();
+	Publisher<MatchPoint> queryAll();
 	
 	Publisher<Void> deleteAllByBibId(UUID bib);
 	

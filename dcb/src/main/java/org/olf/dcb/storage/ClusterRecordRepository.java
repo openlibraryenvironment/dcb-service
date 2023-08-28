@@ -4,8 +4,8 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.reactivestreams.Publisher;
@@ -49,16 +49,19 @@ public interface ClusterRecordRepository {
 	Publisher<Boolean> existsById(@NonNull UUID id);
 
 	@NonNull
-	Publisher<ClusterRecord> findAll();
+	Publisher<ClusterRecord> queryAll();
 
 	@NonNull
-	Publisher<Page<ClusterRecord>> findAll(@Valid Pageable pageable);
+	Publisher<Page<ClusterRecord>> queryAll(@Valid Pageable pageable);
 
 	@NonNull
 	Publisher<Page<ClusterRecord>> findByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);
 	
 	@NonNull
 	Publisher<ClusterRecord> findAllByMatchPoints ( Collection<UUID> points );
+	
+	@NonNull
+	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPoints ( String derivedType, Collection<UUID> points );
 
 	@NonNull
 	@SingleResult

@@ -8,12 +8,14 @@ hosts:
     client:
       base-url: "https://sandbox.iii.com"
       ingest: true
+      page-size: 100
   KCTOWERS:
     name: KCTOWERS
     code: KCTOWERS
     type: org.olf.dcb.core.interaction.sierra.SierraLmsClient
     client:
       base-url: "https://kc-towers.searchmobius.org:443"
+      page-size: 100
 
 # agencies:
 #   testAgency1:

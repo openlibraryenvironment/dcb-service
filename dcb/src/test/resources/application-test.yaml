@@ -33,9 +33,17 @@ micronaut:
 r2dbc:
   datasources:
     default:
+      dialect: POSTGRES
       options:
-        maxSize: 2
-        initialSize: 2
+        maxSize: 3
+        initialSize: 3
+        validationQuery: "SELECT 1"
+        validationDepth: REMOTE
+      schema-generate: NONE
+
+datasources:
+  default:
+    dialect: POSTGRES
 
 #elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
 netty:

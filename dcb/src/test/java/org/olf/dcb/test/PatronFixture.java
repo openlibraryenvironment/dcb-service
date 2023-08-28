@@ -76,7 +76,7 @@ public class PatronFixture {
 
 		deleteAllPatronIdentities();
 
-		dataAccess.deleteAll(patronRepository.findAll(),
+		dataAccess.deleteAll(patronRepository.queryAll(),
 			patronIdentity -> patronRepository.delete(patronIdentity.getId()));
 	}
 
@@ -90,7 +90,7 @@ public class PatronFixture {
 	}
 
 	public List<Patron> findAll() {
-		return manyValuesFrom(patronRepository.findAll());
+		return manyValuesFrom(patronRepository.queryAll());
 	}
 
 	public List<PatronIdentity> findIdentities(Patron patron) {
@@ -113,7 +113,7 @@ public class PatronFixture {
 	}
 
 	private void deleteAllPatronIdentities() {
-		dataAccess.deleteAll(patronIdentityRepository.findAll(),
+		dataAccess.deleteAll(patronIdentityRepository.queryAll(),
 			patronIdentity -> patronIdentityRepository.delete(patronIdentity.getId()));
 	}
 }

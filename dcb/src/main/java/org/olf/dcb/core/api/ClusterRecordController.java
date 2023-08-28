@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 import org.olf.dcb.core.api.types.BibRecordDTO;
 import org.olf.dcb.core.api.types.ClusterBibDTO;
@@ -35,12 +35,14 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
+import io.micronaut.core.convert.ConversionService;
 
 @Controller("/clusters")
 @Tag(name = "Cluster Records (Read only)")
@@ -51,11 +53,14 @@ public class ClusterRecordController {
 
 	private final ClusterRecordRepository _clusterRecordRepository;
 	private final BibRepository _bibRepository;
+	private final ConversionService conversionService;
 
 	public ClusterRecordController(ClusterRecordRepository clusterRecordRepository,
-																 BibRepository bibRepository) {
+                BibRepository bibRepository,
+                ConversionService conversionService) {
 		_clusterRecordRepository = clusterRecordRepository;
 		_bibRepository = bibRepository;
+                this.conversionService = conversionService;
 	}
 
 	@Secured(SecurityRule.IS_ANONYMOUS)
@@ -162,13 +167,13 @@ public class ClusterRecordController {
 		return BibRecordDTO
 			.builder()
 			.bibId(br.getId())
-			.title(br.getTitle())
+			.title(br.getTitle(conversionService))
 			.sourceRecordId(br.getSourceRecordId())
 			.sourceSystemId(br.getSourceSystemId())
 			.sourceSystemCode(String.valueOf(br.getSourceSystemId()))
-			.recordStatus(br.getRecordStatus())
+			.recordStatus(br.getRecordStatus(conversionService))
 			.typeOfRecord(br.getTypeOfRecord())
-			.derivedType(br.getDerivedType())
+			.derivedType(br.getDerivedType(conversionService))
 			.canonicalMetadata(br.getCanonicalMetadata())
 			.build();
 	}

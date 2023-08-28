@@ -39,7 +39,7 @@ public class PatronRequestsFixture {
 
 	public void deleteAllPatronRequests() {
 		supplierRequestsFixture.deleteAll();
-		dataAccess.deleteAll(patronRequestRepository.findAll(), this::deletePatronRequest);
+		dataAccess.deleteAll(patronRequestRepository.queryAll(), this::deletePatronRequest);
 	}
 
 	private Publisher<Void> deletePatronRequest(PatronRequest patronRequest) {

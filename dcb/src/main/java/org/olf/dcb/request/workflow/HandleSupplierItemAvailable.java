@@ -11,8 +11,10 @@ import org.olf.dcb.tracking.model.StateChange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
+import io.micronaut.context.BeanProvider;
 
-import javax.transaction.Transactional;
+
+import jakarta.transaction.Transactional;
 import java.util.Map;
 @Singleton
 @Named("SupplierRequestItemAvailable")
@@ -22,15 +24,19 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private PatronRequestRepository patronRequestRepository;
 	private SupplierRequestRepository supplierRequestRepository;
+        // Provider to prevent circular reference exception by allowing lazy access to this singleton.
+        private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 
 	public HandleSupplierItemAvailable(
 		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		PatronRequestRepository patronRequestRepository,
-		SupplierRequestRepository supplierRequestRepository)
+		SupplierRequestRepository supplierRequestRepository,
+                BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider)
 	{
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
+                this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 	}
 
 
@@ -56,7 +62,7 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 					        // An item becoming available means the request process has 'completed'
                                                 log.debug("Finalising supplier request - item is available at lender again");
 					        sr.setLocalItemStatus("AVAILABLE");
-					        pr.setStatus(PatronRequest.Status.FINALISED);
+					        pr.setStatus(PatronRequest.Status.COMPLETED);
                                         }
 
 					log.debug("Set local status to AVAILABLE and save {}", sr);
@@ -64,6 +70,8 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 						.doOnNext(ssr -> log.debug("Saved {}", ssr))
 						.flatMap(ssr -> Mono.from(patronRequestRepository.saveOrUpdate(pr)))
 						.doOnNext(spr -> log.debug("Saved {}", spr))
+                                                // See if we can progress the patron request at all
+                                                .flatMap( spr -> Mono.from(patronRequestWorkflowServiceProvider.get().progressAll(spr)) )
 						.thenReturn(context);
 				} else {
 					log.warn("Unable to locate supplier request to mark item as available");

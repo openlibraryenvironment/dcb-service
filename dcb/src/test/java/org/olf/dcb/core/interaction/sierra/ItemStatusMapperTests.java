@@ -32,7 +32,7 @@ class ItemStatusMapperTests {
 
 	@BeforeEach
 	public void beforeEach() {
-		new DataAccess().deleteAll(referenceValueMappingRepository.findAll(),
+		new DataAccess().deleteAll(referenceValueMappingRepository.queryAll(),
 			mapping -> referenceValueMappingRepository.delete(mapping.getId()));
 	}
 

@@ -19,7 +19,7 @@ package org.olf.dcb.storage.postgres;
 
 import java.util.UUID;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 
 import org.olf.dcb.core.model.ShelvingLocation;
 import org.olf.dcb.storage.ShelvingLocationRepository;

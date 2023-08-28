@@ -2,8 +2,8 @@ package org.olf.dcb.configuration;
 
 import java.util.List;
 
-import javax.transaction.Transactional;
-import javax.transaction.Transactional.TxType;
+import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
 
 import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.DataAgency;
@@ -63,7 +63,7 @@ public class ConfigurationService implements Runnable {
     }
 
 
-    @javax.annotation.PostConstruct
+    @jakarta.annotation.PostConstruct
     private void init() {
         log.info("ConfigurationService::init - providers:{}", sourceProviders.toString());
     }
@@ -124,22 +124,30 @@ public class ConfigurationService implements Runnable {
         public Mono<ShelvingLocation> upsertShelvingLocation(ShelvingLocation sl) {
                 log.debug("upsertShelvingLocation {}", sl);
                 return Mono.from(shelvingLocationRepository.existsById(sl.getId()))
-                        .flatMap(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)));
+                        // .flatMap(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)))
+                        .map(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)))
+                        .thenReturn(sl);
         }
 
         @Transactional(value = TxType.REQUIRED)
         public Mono<Location> upsertLocation(Location l) {
-                log.debug("upsertLocation {}", l);
+                log.debug("upsertLocation {}/{}/{}/{}", l.getId(),l.getCode(),l.getType(),l.getName());
                 return Mono.from(locationRepository.existsById(l.getId()))
-                        .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)));
+                        .doOnNext(exists -> log.debug("Location with id {} exists? {}",l.getId(),exists) )
+                        .map(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)))
+                        .doOnError(err -> {
+                                log.error("Unable to upsert location {}:{}",l,err);
+                         })
+                        .thenReturn(l);
         }
 
 
   	@Transactional(value = TxType.REQUIRED)
         public Mono<Void> createSubLocations(Location l, BranchRecord br) {
-	        log.debug("Create sub locations at {} for {}",l,br);
+	        log.debug("Create sub locations at {} for {}",l.getCode(),br.getLocalBranchId());
                 return Flux.fromIterable(br.getSubLocations())
                         .map(slr -> mapLocationRecordToSubLocation(slr, l, br))
+                        .doOnNext(locrec -> log.debug("Attempt to upsert {}",locrec))
                         .flatMap(locrec -> upsertLocation(locrec))
                         .then(Mono.empty());
         }
@@ -162,7 +170,7 @@ public class ConfigurationService implements Runnable {
 
 			// log.debug("upsertAgency {}", br);
 			return Mono.from(agencyRepository.existsById(upsert_agency.getId()))
-				.flatMap(exists -> Mono.fromDirect(exists ? agencyRepository.update(upsert_agency) : agencyRepository.save(upsert_agency)))
+				.map(exists -> Mono.fromDirect(exists ? agencyRepository.update(upsert_agency) : agencyRepository.save(upsert_agency)))
 				.thenReturn(upsert_agency);
 		} else {
 			log.warn("Unable to save agency for statically configured HostLMS");
@@ -194,8 +202,11 @@ public class ConfigurationService implements Runnable {
 						.type("BRANCH")
 						.build();
 
-					return Mono.from(locationRepository.existsById(l.getId()))
-						.flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)))
+					// return Mono.from(locationRepository.existsById(l.getId()))
+                                        //         .doOnNext(exists -> log.debug("Check if location with id {} exists ?",l.getId(),exists))
+					// 	.flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)))
+
+                                        return upsertLocation(l)
 						.flatMap(savedLocation -> createSubLocations(savedLocation, br))
 						.thenReturn(l);
 
@@ -219,9 +230,8 @@ public class ConfigurationService implements Runnable {
                     .type("PICKUP")
                     .build();
 
-            return Mono.from(locationRepository.existsById(upsert_location.getId()))
-                    .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(upsert_location) : locationRepository.save(upsert_location)));
-                    // .thenReturn(upsert_location);
+            return upsertLocation(upsert_location)
+                        .thenReturn(upsert_location);
         } else {
             log.warn("Unable to save agency for statically configured HostLMS");
             return Mono.empty();
@@ -235,7 +245,7 @@ public class ConfigurationService implements Runnable {
      * @param cr - A canonical branch record which tries to minimise the differences between different host systems
      * @return the same config record but processed
      */
-    @Transactional(value = TxType.REQUIRES_NEW)
+    @Transactional(value = TxType.REQUIRED)
     public Mono<ConfigurationRecord> handleConfigRecord(ConfigurationRecord cr) {
         // log.debug("handleConfigRecord({})",cr);
         return Mono.just(cr)
@@ -259,6 +269,7 @@ public class ConfigurationService implements Runnable {
     @Transactional(value = TxType.REQUIRED)
     protected Mono<RefdataValue> handleRefdataRecord(RefdataRecord refdataRecord) {
         log.debug("handleRefdataRecord {}",refdataRecord);
+
         RefdataValue rdv = RefdataValue
                 .builder()
                 .id(refdataRecord.getId())
@@ -267,18 +278,16 @@ public class ConfigurationService implements Runnable {
                 .label(refdataRecord.getLabel())
                 .value(refdataRecord.getValue())
                 .build();
+
         return Mono.from(refdataValueRepository.existsById(rdv.getId()))
-                .flatMap(exists -> Mono.fromDirect(exists ? refdataValueRepository.update(rdv) : refdataValueRepository.save(rdv)))
-                .onErrorContinue((e, o) -> {
-                  log.error("Error occurred attempting to process "+o+" "+rdv+" "+e.getMessage());
-                });
+                .map(exists -> Mono.fromDirect(exists ? refdataValueRepository.update(rdv) : refdataValueRepository.save(rdv)))
+                .thenReturn(rdv);
     }
 
     @Scheduled(initialDelay = "10s", fixedDelay = "${dcb.networkconfigingest.interval:24h}")
     @AppTask
     @Override
     public void run() {
-
         if (this.mutex != null && !this.mutex.isDisposed()) {
             log.info("Configuration Ingest already running skipping. Mutex: {}", this.mutex);
             return;

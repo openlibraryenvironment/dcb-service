@@ -9,9 +9,10 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.reactivestreams.Publisher;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
+
 
 public interface AgencyRepository {
 
@@ -21,7 +22,7 @@ public interface AgencyRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<? extends DataAgency> persist(@Valid @NotNull @NonNull DataAgency agency);
+	Publisher<DataAgency> persist(@Valid @NotNull @NonNull DataAgency agency);
 
 	@NonNull
 	@SingleResult
@@ -37,20 +38,19 @@ public interface AgencyRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<Page<DataAgency>> findAll(Pageable page);
+	Publisher<Page<DataAgency>> queryAll(Pageable page);
 
 	@NonNull
-	Publisher<? extends DataAgency> findOneByCode(String code);
+	Publisher<DataAgency> findOneByCode(String code);
 
-	@NonNull
-	Publisher<? extends DataAgency> findAll();
+	Publisher<DataAgency> queryAll();
 
 	Publisher<Void> delete(UUID id);
 
 	Publisher<Void> deleteByCode(@NotNull String code);
 
-        // Find the ID Of the HostLms for this repository. Wanted findHostLmsById but that seems to cause problems.
-        Publisher<UUID> findHostLmsIdById(@NonNull UUID id);
+	// Find the ID Of the HostLms for this repository. Wanted findHostLmsById but that seems to cause problems.
+	Publisher<UUID> findHostLmsIdById(@NonNull UUID id);
 
 	@NonNull
 	@SingleResult

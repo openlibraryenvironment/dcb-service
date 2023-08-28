@@ -2,7 +2,7 @@ package org.olf.dcb.core.api;
 
 import java.util.UUID;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 import org.olf.dcb.core.api.types.LocationDTO;
 import org.olf.dcb.core.model.DataAgency;
@@ -71,7 +71,7 @@ public class LocationController {
                         pageable = Pageable.from(0, 100);
                 }
 
-                return Mono.from(locationRepository.findAll(pageable));
+                return Mono.from(locationRepository.queryAll(pageable));
         }
 
         @Get("/{id}")

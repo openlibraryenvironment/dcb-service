@@ -3,8 +3,8 @@ package org.olf.dcb.storage;
 import java.util.List;
 import java.util.Collection;
 import java.util.UUID;
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import io.micronaut.core.annotation.Introspected;
 import io.micronaut.data.annotation.Query;
 
@@ -36,7 +36,7 @@ public interface BibRepository {
 	Publisher<BibRecord> findById(@NonNull UUID id);
 
 	@NonNull
-	Publisher<BibRecord> findAll();
+	Publisher<BibRecord> queryAll();
 	
 	Publisher<ClusterRecord> findContributesToById( @NonNull UUID id );
 	
@@ -45,7 +45,7 @@ public interface BibRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<Page<BibRecord>> findAll(Pageable page);
+	Publisher<Page<BibRecord>> queryAll(Pageable page);
 
 	@NonNull
 	@SingleResult

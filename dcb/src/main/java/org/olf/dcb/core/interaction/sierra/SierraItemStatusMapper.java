@@ -15,7 +15,6 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static org.apache.logging.log4j.util.Strings.isEmpty;
 import static org.olf.dcb.core.model.ItemStatusCode.*;
 
 /**
@@ -58,7 +57,7 @@ class SierraItemStatusMapper {
 
 	private ItemStatusCode fallbackStatusMapping(String statusCode) {
 		final var AVAILABLE_CODE = "-";
-		return isEmpty(statusCode) ? UNKNOWN : statusCode.equals(AVAILABLE_CODE) ? AVAILABLE : UNAVAILABLE;
+		return ( ( statusCode == null ) || ( statusCode.length() == 0 ) ) ? UNKNOWN : statusCode.equals(AVAILABLE_CODE) ? AVAILABLE : UNAVAILABLE;
 	}
 
 	private ItemStatusCode checkForDueDate(ItemStatusCode itemStatusCode, String dueDate) {

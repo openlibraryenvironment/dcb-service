@@ -1,11 +1,11 @@
 package org.olf.dcb.storage.postgres;
 
-import static javax.transaction.Transactional.TxType.NOT_SUPPORTED;
+import static jakarta.transaction.Transactional.TxType.NOT_SUPPORTED;
 
 import java.util.Collection;
 import java.util.UUID;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;

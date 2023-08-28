@@ -2,8 +2,8 @@ package org.olf.dcb.storage;
 
 import java.util.UUID;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronIdentity;
@@ -33,11 +33,11 @@ public interface PatronRequestRepository {
 	Publisher<PatronRequest> findById(@NotNull UUID id);
 
 	@NonNull
-	Publisher<PatronRequest> findAll();
+	Publisher<PatronRequest> queryAll();
 
 	@NonNull
 	@SingleResult
-	Publisher<Page<PatronRequest>> findAll(Pageable page);
+	Publisher<Page<PatronRequest>> queryAll(Pageable page);
 
 	@SingleResult
 	Publisher<Void> delete(UUID id);

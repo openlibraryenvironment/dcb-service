@@ -2,8 +2,8 @@ package org.olf.dcb.storage;
 
 import java.util.UUID;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 import org.olf.dcb.core.model.DataHostLms;
 import org.reactivestreams.Publisher;
@@ -44,10 +44,10 @@ public interface HostLmsRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<Page<DataHostLms>> findAll(Pageable page);
+	Publisher<Page<DataHostLms>>    queryAll(Pageable page);
 
 	@NonNull
-	Publisher<DataHostLms> findAll();
+	Publisher<DataHostLms>  queryAll();
 
 	Publisher<Void> delete(UUID id);
 }

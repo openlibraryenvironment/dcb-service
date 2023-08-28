@@ -72,13 +72,13 @@ class LocationRepoTests {
                                                 .build();
                 Mono.from(locationSymbolRepository.save(new_ls2)).block();
 
-        	final var fetchedLocationRecords = Flux.from(locationRepository.findAll())
+        	final var fetchedLocationRecords = Flux.from(locationRepository.queryAll())
                                 .collectList()
                                 .block();
 
         	assertThat(fetchedLocationRecords.size(), is(1));
 
-        	final var fetchedLocationSymbolRecords = Flux.from(locationSymbolRepository.findAll())
+        	final var fetchedLocationSymbolRecords = Flux.from(locationSymbolRepository.queryAll())
                                 .collectList()
                                 .block();
 

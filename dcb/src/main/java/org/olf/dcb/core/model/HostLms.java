@@ -9,23 +9,25 @@ import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.Transient;
+import io.micronaut.serde.annotation.Serdeable;
 
+@Serdeable
 @Introspected
 public interface HostLms {
 	
-	@NonNull
-	@Id
+	// @NonNull
+	// @Id
 	public UUID getId();
 	
-	@NonNull
+	// @NonNull
 	public String getCode();
 	
-	@NonNull
+	// @NonNull
 	public String getName();
 	
-        @NonNull
+        // @NonNull
 	public Class<? extends HostLmsClient> getType();
 	
-	@NonNull
+	// @NonNull
 	Map<String, Object> getClientConfig();
 }

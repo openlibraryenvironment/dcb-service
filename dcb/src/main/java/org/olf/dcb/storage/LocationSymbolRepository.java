@@ -2,8 +2,8 @@ package org.olf.dcb.storage;
 
 import java.util.UUID;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 import org.olf.dcb.core.model.LocationSymbol;
 import org.reactivestreams.Publisher;
@@ -33,10 +33,10 @@ public interface LocationSymbolRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<Page<LocationSymbol>> findAll(Pageable page);
+	Publisher<Page<LocationSymbol>> queryAll(Pageable page);
 
 	@NonNull
-	Publisher<LocationSymbol> findAll();
+	Publisher<LocationSymbol> queryAll();
 
 	Publisher<Void> delete(UUID id);
 
