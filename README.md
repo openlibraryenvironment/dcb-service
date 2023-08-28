@@ -78,3 +78,5 @@ Then running psql
 
 password will be test
 
+
+https://guides.micronaut.io/latest/micronaut-graphql-todo-maven-java.html

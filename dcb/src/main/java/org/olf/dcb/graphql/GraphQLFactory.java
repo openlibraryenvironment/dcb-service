@@ -55,8 +55,14 @@ public class GraphQLFactory {
 
         RuntimeWiring runtimeWiring = RuntimeWiring.newRuntimeWiring()
                 .type( TypeRuntimeWiring.newTypeWiring("Query")
-                        // .dataFetcher("agencies", dataFetchers.getAgenciesDataFetcher())
                         .dataFetcher("hello", dataFetchers.getHelloDataFetcher())
+                        .dataFetcher("agencies", dataFetchers.getAgenciesDataFetcher())
+                        .dataFetcher("agencyGroups", dataFetchers.getAgencyGroupsDataFetcher())
+                     )
+                .type("Mutation", typeWiring -> typeWiring 
+                        // .dataFetcher("createToDo", createToDoDataFetcher)
+                        // .dataFetcher("completeToDo", completeToDoDataFetcher)
+                        .dataFetcher("createAgencyGroup", dataFetchers.getCreateAgencyGroupDataFetcher())
                      )
                 .build();
 

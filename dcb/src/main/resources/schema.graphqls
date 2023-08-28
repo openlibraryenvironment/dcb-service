@@ -1,3 +1,22 @@
 type Query {
     hello(name: String): String!
+    agencies: [Agency]!
+    agencyGroups: [AgencyGroup]!
+}
+
+
+type Mutation {
+    createAgencyGroup(name: String, code:String): AgencyGroup!
+}
+
+type Agency {
+    id: ID
+    code: String
+    name: String
+}
+
+type AgencyGroup {
+    id: ID
+    code: String
+    name: String
 }

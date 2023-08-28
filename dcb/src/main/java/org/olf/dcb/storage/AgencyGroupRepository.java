@@ -11,6 +11,7 @@ import org.reactivestreams.Publisher;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
+import reactor.core.publisher.Mono;
 
 public interface AgencyGroupRepository {
 
@@ -39,12 +40,21 @@ public interface AgencyGroupRepository {
 	Publisher<Page<AgencyGroup>> queryAll(Pageable page);
 
 	@NonNull
-	Publisher<? extends AgencyGroup> findOneByCode(String code);
+	Publisher<AgencyGroup> findOneByCode(String code);
 
-	@NonNull
-	Publisher<? extends AgencyGroup> queryAll();
+	Publisher<AgencyGroup> queryAll();
 
 	Publisher<Void> delete(UUID id);
 
 	Publisher<Void> deleteByCode(@NotNull String code);
+
+        @SingleResult
+        @NonNull
+        default Publisher<AgencyGroup> saveOrUpdate(@Valid @NotNull AgencyGroup ag) {
+                return Mono.from(this.existsById(ag.getId()))
+                        .map( update -> { return Mono.fromDirect( update ? this.update(ag) : this.save(ag)); })
+                        .thenReturn(ag)
+                        ;
+        }
+
 }
