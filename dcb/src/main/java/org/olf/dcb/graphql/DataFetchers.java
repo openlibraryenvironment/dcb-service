@@ -13,6 +13,9 @@ import org.olf.dcb.core.model.AgencyGroup;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.UUID;
+import services.k_int.utils.UUIDUtils;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
 @Singleton
 public class DataFetchers {
@@ -23,7 +26,8 @@ public class DataFetchers {
   private AgencyRepository agencyRepository;
 
   public DataFetchers(AgencyRepository agencyRepository,
-                      AgencyGroupRepository agencyGroupRepository) {
+                      AgencyGroupRepository agencyGroupRepository
+        ) {
     this.agencyRepository = agencyRepository;
     this.agencyGroupRepository = agencyGroupRepository;
   }
@@ -62,21 +66,6 @@ public class DataFetchers {
         name = "World";
       }
       return String.format("Hello %s!", name);
-    };
-  }
-
-  public DataFetcher<AgencyGroup> getCreateAgencyGroupDataFetcher() {
-    return env -> {
-      log.debug("getCreateAgencyGroupDataFetcher");
-      String name = env.getArgument("name");
-      String code = env.getArgument("code");
-
-      AgencyGroup ag = AgencyGroup.builder()
-                          .name(name)
-                          .code(code)
-                          .build();
-
-      return Mono.from(agencyGroupRepository.saveOrUpdate(ag)).block();
     };
   }
 

@@ -12,7 +12,10 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 import reactor.core.publisher.Mono;
+import jakarta.transaction.Transactional;
 
+
+@Transactional
 public interface AgencyGroupRepository {
 
 	@NonNull
@@ -52,8 +55,7 @@ public interface AgencyGroupRepository {
         @NonNull
         default Publisher<AgencyGroup> saveOrUpdate(@Valid @NotNull AgencyGroup ag) {
                 return Mono.from(this.existsById(ag.getId()))
-                        .map( update -> { return Mono.fromDirect( update ? this.update(ag) : this.save(ag)); })
-                        .thenReturn(ag)
+                        .flatMap( update -> Mono.from( update ? this.update(ag) : this.save(ag)) )
                         ;
         }
 

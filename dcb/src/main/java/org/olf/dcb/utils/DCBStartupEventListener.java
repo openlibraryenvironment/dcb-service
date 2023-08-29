@@ -21,6 +21,10 @@ import org.olf.dcb.storage.StatusCodeRepository;
 import org.reactivestreams.Publisher;
 import services.k_int.utils.UUIDUtils;
 
+import org.olf.dcb.core.model.AgencyGroup;
+import org.olf.dcb.storage.AgencyGroupRepository;
+
+
 @Singleton
 public class DCBStartupEventListener implements ApplicationEventListener<StartupEvent> {
 
@@ -28,6 +32,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	private final AgencyRepository agencyRepository;
 	private final HostLmsRepository hostLmsRepository;
 	private final StatusCodeRepository statusCodeRepository;
+	private final AgencyGroupRepository agencyGroupRepository;
 	private final HostLms[] confHosts;
 
 	private static final String REACTOR_DEBUG_VAR = "REACTOR_DEBUG";
@@ -38,11 +43,13 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
                                        AgencyRepository agencyRepository,
                                        HostLmsRepository hostLmsRepository,
                                        StatusCodeRepository statusCodeRepository,
+                                       AgencyGroupRepository agencyGroupRepository,
                                        HostLms[] confHosts) {
 		this.environment = environment;
 		this.agencyRepository = agencyRepository;
 		this.statusCodeRepository = statusCodeRepository;
 		this.hostLmsRepository = hostLmsRepository;
+		this.agencyGroupRepository = agencyGroupRepository;
 		this.confHosts = confHosts;
 	}
 
@@ -91,6 +98,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 
 		log.info("Exit onApplicationEvent");
 	}
+
 	private Mono<DataHostLms> upsertHostLms(DataHostLms hostLMS) {
 		log.debug("upsertHostLms {}",hostLMS);
   		return Mono.from(hostLmsRepository.existsById(hostLMS.getId()))
@@ -123,4 +131,14 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		log.debug("upsert {}",sc);
 		return statusCodeRepository.saveOrUpdate(sc);
 	}
+
+	private Publisher<AgencyGroup> saveOrUpdateAgencyGroup(String code, String name) {
+                AgencyGroup ag = AgencyGroup.builder()
+                        .id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "AgencyGroup:"+code))
+                        .code(code)
+                        .name(name)
+                        .build();
+                log.debug("upsert {}",ag);
+                return agencyGroupRepository.saveOrUpdate(ag);
+        }
 }

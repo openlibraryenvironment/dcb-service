@@ -33,9 +33,9 @@ public class GraphQLFactory {
 
     @Bean
     @Singleton
-    public GraphQL graphQL(ResourceResolver resourceResolver, 
-                           DataFetchers dataFetchers) { // 
-
+    public GraphQL graphQL(CreateAgencyGroupDataFetcher createAgencyGroupDataFetcher,
+                           ResourceResolver resourceResolver, 
+                           DataFetchers dataFetchers) {
 
         log.debug("GraphQLFactory::graphQL");
 
@@ -60,9 +60,7 @@ public class GraphQLFactory {
                         .dataFetcher("agencyGroups", dataFetchers.getAgencyGroupsDataFetcher())
                      )
                 .type("Mutation", typeWiring -> typeWiring 
-                        // .dataFetcher("createToDo", createToDoDataFetcher)
-                        // .dataFetcher("completeToDo", completeToDoDataFetcher)
-                        .dataFetcher("createAgencyGroup", dataFetchers.getCreateAgencyGroupDataFetcher())
+                        .dataFetcher("createAgencyGroup", createAgencyGroupDataFetcher)
                      )
                 .build();
 
