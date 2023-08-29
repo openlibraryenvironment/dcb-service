@@ -142,14 +142,13 @@ public class ConfigurationService implements Runnable {
                          });
         }
 
-
   	@Transactional(value = TxType.REQUIRED)
         public Mono<Void> createSubLocations(Location l, BranchRecord br) {
 	        log.debug("Create sub locations at {} for {}",l.getCode(),br.getLocalBranchId());
                 return Flux.fromIterable(br.getSubLocations())
                         .map(slr -> mapLocationRecordToSubLocation(slr, l, br))
                         .doOnNext(locrec -> log.debug("Attempt to upsert {}",locrec))
-                        .flatMap(locrec -> upsertLocation(locrec))
+                        .concatMap(locrec -> upsertLocation(locrec))
                         .then(Mono.empty());
         }
 
@@ -296,7 +295,7 @@ public class ConfigurationService implements Runnable {
 
         this.mutex = getConfigRecordStream()
                 .doOnCancel(cleanUp())
-                .flatMap(this::handleConfigRecord)
+                .concatMap(this::handleConfigRecord)
                 .subscribe();
     }
 
