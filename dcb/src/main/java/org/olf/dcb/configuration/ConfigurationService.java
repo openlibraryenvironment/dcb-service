@@ -124,9 +124,10 @@ public class ConfigurationService implements Runnable {
         public Mono<ShelvingLocation> upsertShelvingLocation(ShelvingLocation sl) {
                 log.debug("upsertShelvingLocation {}", sl);
                 return Mono.from(shelvingLocationRepository.existsById(sl.getId()))
-                        // .flatMap(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)))
-                        .map(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)))
-                        .thenReturn(sl);
+                        .flatMap(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)))
+                        // .map(exists -> Mono.fromDirect(exists ? shelvingLocationRepository.update(sl) : shelvingLocationRepository.save(sl)))
+                        // .thenReturn(sl)
+                ;
         }
 
         @Transactional(value = TxType.REQUIRED)
@@ -134,11 +135,11 @@ public class ConfigurationService implements Runnable {
                 log.debug("upsertLocation {}/{}/{}/{}", l.getId(),l.getCode(),l.getType(),l.getName());
                 return Mono.from(locationRepository.existsById(l.getId()))
                         .doOnNext(exists -> log.debug("Location with id {} exists? {}",l.getId(),exists) )
-                        .map(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)))
+                        //.map(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)))
+                        .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)))
                         .doOnError(err -> {
                                 log.error("Unable to upsert location {}:{}",l,err);
-                         })
-                        .thenReturn(l);
+                         });
         }
 
 
@@ -170,8 +171,7 @@ public class ConfigurationService implements Runnable {
 
 			// log.debug("upsertAgency {}", br);
 			return Mono.from(agencyRepository.existsById(upsert_agency.getId()))
-				.map(exists -> Mono.fromDirect(exists ? agencyRepository.update(upsert_agency) : agencyRepository.save(upsert_agency)))
-				.thenReturn(upsert_agency);
+				.flatMap(exists -> Mono.fromDirect(exists ? agencyRepository.update(upsert_agency) : agencyRepository.save(upsert_agency)));
 		} else {
 			log.warn("Unable to save agency for statically configured HostLMS");
 			return Mono.empty();
@@ -280,8 +280,7 @@ public class ConfigurationService implements Runnable {
                 .build();
 
         return Mono.from(refdataValueRepository.existsById(rdv.getId()))
-                .map(exists -> Mono.fromDirect(exists ? refdataValueRepository.update(rdv) : refdataValueRepository.save(rdv)))
-                .thenReturn(rdv);
+                .flatMap(exists -> Mono.fromDirect(exists ? refdataValueRepository.update(rdv) : refdataValueRepository.save(rdv)));
     }
 
     @Scheduled(initialDelay = "10s", fixedDelay = "${dcb.networkconfigingest.interval:24h}")
