@@ -24,6 +24,7 @@ import lombok.ToString;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Data
 @Serdeable
@@ -57,6 +58,7 @@ public class DataHostLms implements HostLms {
 	@TypeDef(type = DataType.JSON)
 	Map<String, Object> clientConfig;
 
+        @JsonIgnore
 	@SuppressWarnings("unchecked")
 	@Transient
 	public Class<? extends HostLmsClient> getType() {
