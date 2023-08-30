@@ -5,6 +5,8 @@ import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.AgencyGroup;
 import org.olf.dcb.core.model.AgencyGroupMember;
 import org.reactivestreams.Publisher;
 
@@ -54,5 +56,10 @@ public interface AgencyGroupMemberRepository {
                         .flatMap( update -> Mono.from( update ? this.update(agm) : this.save(agm)) )
                         ;
         }
+
+        Publisher<AgencyGroupMember> findByGroup(AgencyGroup group);
+
+        Publisher<AgencyGroupMember> findByAgency(DataAgency agency);
+
 
 }

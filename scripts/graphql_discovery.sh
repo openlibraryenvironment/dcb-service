@@ -44,21 +44,22 @@ echo
 
 curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ "query": "mutation { createAgencyGroup(input: { code:\"MOBIUS\", name:\"MOBIUS\" } ) { id,name,code } }" }'
 
-echo
-echo
-echo List agency groups
-echo
-
-curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ "query": "query { agencyGroups { id, code, name, members { id }  } }" }'
-
-# curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ "query": "query { hello(name:\"fred\") }" }'
-
-echo
-echo List agencies
-echo
-curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ "query": "query { agencies { id, code, name } }" }'
 
 echo
 echo Add agency to group
 echo
 curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ "query": "mutation { addAgencyToGroup(input: { agency:\"906237d8-8850-50b4-9883-34cc49167ff1\", group:\"26ccba70-f119-5f7d-968e-3388d0a5cdcf\" } ) { id } }" }'
+
+echo
+echo
+echo List agency groups
+echo
+
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ "query": "query { agencyGroups { id, code, name, members { id agency { id name code }  }  } }" }'
+
+echo
+echo List agencies
+echo
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ "query": "query { agencies { id, code, name } }" }'
+echo
+

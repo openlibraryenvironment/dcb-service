@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.AgencyGroupRepository;
+import org.olf.dcb.storage.AgencyGroupMemberRepository;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.AgencyGroup;
 import org.olf.dcb.core.model.AgencyGroupMember;
@@ -26,12 +27,15 @@ public class DataFetchers {
 
   private AgencyGroupRepository agencyGroupRepository;
   private AgencyRepository agencyRepository;
+  private AgencyGroupMemberRepository agencyGroupMemberRepository;
 
   public DataFetchers(AgencyRepository agencyRepository,
-                      AgencyGroupRepository agencyGroupRepository
+                      AgencyGroupRepository agencyGroupRepository,
+                      AgencyGroupMemberRepository agencyGroupMemberRepository
         ) {
     this.agencyRepository = agencyRepository;
     this.agencyGroupRepository = agencyGroupRepository;
+    this.agencyGroupMemberRepository = agencyGroupMemberRepository;
   }
 
   /**
@@ -52,26 +56,15 @@ public class DataFetchers {
   }
 
 
-  /*
-  public DataFetcher<Iterable<AgencyGroup>> getAgencyGroupsDataFetcher() {
-    return dataFetchingEnvironment -> {
-      log.debug("AgencyGroupsDataFetcher::get");
-      // securityService...  boolean isAuthenticated(), boolean hasRole(String), Optional<Authentication> getAuthentication Optional<String> username
-      // log.debug("Current user : {}",securityService.username().orElse(null));
-      return Flux.from(agencyGroupRepository.queryAll()).toIterable();
-    };
-  }
-  */
-
   public DataFetcher<Iterable<AgencyGroupMember>> getAgencyGroupMembersDataFetcher() {
     return env -> {
-      log.debug("getAgencyGroupMembersDataFetche {}",env);
+      log.debug("getAgencyGroupMembersDataFetcher args={}/ctx={}/root={}/src={}",env.getArguments(),env.getContext(),env.getRoot(),env.getSource());
       // securityService...  boolean isAuthenticated(), boolean hasRole(String), Optional<Authentication> getAuthentication Optional<String> username
       // log.debug("Current user : {}",securityService.username().orElse(null));
 
-      List<AgencyGroupMember> l = new java.util.ArrayList();
-
-      return l;
+      // List<AgencyGroupMember> l = new java.util.ArrayList();
+      // return l;
+      return Flux.from(agencyGroupMemberRepository.findByGroup(env.getSource())).toIterable();
     };
   }
 
