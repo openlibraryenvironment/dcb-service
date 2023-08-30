@@ -58,7 +58,6 @@ public class DataHostLms implements HostLms {
 	@TypeDef(type = DataType.JSON)
 	Map<String, Object> clientConfig;
 
-        @JsonIgnore
 	@SuppressWarnings("unchecked")
 	@Transient
         @JsonIgnore
