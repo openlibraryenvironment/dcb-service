@@ -49,7 +49,7 @@ echo
 echo List agency groups
 echo
 
-curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ "query": "query { agencyGroups { id, code, name } }" }'
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ "query": "query { agencyGroups { id, code, name, members { id }  } }" }'
 
 # curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ "query": "query { hello(name:\"fred\") }" }'
 

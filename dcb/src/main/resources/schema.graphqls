@@ -45,6 +45,7 @@ type AgencyGroup {
     id: ID!
     code: String!
     name: String!
+    members: [AgencyGroupMember]
 }
 
 type AgencyGroupMember {

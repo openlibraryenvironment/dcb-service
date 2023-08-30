@@ -36,6 +36,7 @@ public class GraphQLFactory {
     public GraphQL graphQL(CreateAgencyGroupDataFetcher createAgencyGroupDataFetcher,
                            AddAgencyToGroupDataFetcher addAgencyToGroupDataFetcher,
                            ResourceResolver resourceResolver, 
+                           AgencyGroupsDataFetcher agencyGroupsDataFetcher,
                            DataFetchers dataFetchers) {
 
         log.debug("GraphQLFactory::graphQL");
@@ -58,12 +59,15 @@ public class GraphQLFactory {
                 .type( TypeRuntimeWiring.newTypeWiring("Query")
                         .dataFetcher("hello", dataFetchers.getHelloDataFetcher())
                         .dataFetcher("agencies", dataFetchers.getAgenciesDataFetcher())
-                        .dataFetcher("agencyGroups", dataFetchers.getAgencyGroupsDataFetcher())
+                        .dataFetcher("agencyGroups", agencyGroupsDataFetcher)
                      )
                 .type("Mutation", typeWiring -> typeWiring 
                         .dataFetcher("createAgencyGroup", createAgencyGroupDataFetcher)
                         .dataFetcher("addAgencyToGroup", addAgencyToGroupDataFetcher)
                      )
+                .type("AgencyGroup", typeWiring -> typeWiring
+                        .dataFetcher("members", dataFetchers.getAgencyGroupMembersDataFetcher())
+                )
                 .build();
 
         // Create the executable schema.

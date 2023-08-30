@@ -10,10 +10,12 @@ import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.AgencyGroupRepository;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.AgencyGroup;
+import org.olf.dcb.core.model.AgencyGroupMember;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
+import java.util.List;
 import services.k_int.utils.UUIDUtils;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
@@ -50,12 +52,26 @@ public class DataFetchers {
   }
 
 
+  /*
   public DataFetcher<Iterable<AgencyGroup>> getAgencyGroupsDataFetcher() {
     return dataFetchingEnvironment -> {
       log.debug("AgencyGroupsDataFetcher::get");
       // securityService...  boolean isAuthenticated(), boolean hasRole(String), Optional<Authentication> getAuthentication Optional<String> username
       // log.debug("Current user : {}",securityService.username().orElse(null));
       return Flux.from(agencyGroupRepository.queryAll()).toIterable();
+    };
+  }
+  */
+
+  public DataFetcher<Iterable<AgencyGroupMember>> getAgencyGroupMembersDataFetcher() {
+    return env -> {
+      log.debug("getAgencyGroupMembersDataFetche {}",env);
+      // securityService...  boolean isAuthenticated(), boolean hasRole(String), Optional<Authentication> getAuthentication Optional<String> username
+      // log.debug("Current user : {}",securityService.username().orElse(null));
+
+      List<AgencyGroupMember> l = new java.util.ArrayList();
+
+      return l;
     };
   }
 
