@@ -4,19 +4,51 @@ type Query {
     agencyGroups: [AgencyGroup]!
 }
 
-
 type Mutation {
-    createAgencyGroup(name: String, code:String): AgencyGroup!
+    createAgencyGroup(input: AgencyGroupInput): AgencyGroup!
+    addAgencyToGroup(input: AddAgencyToGroupCommand): AgencyGroupMember!
 }
 
+input AddAgencyToGroupCommand {
+        agency: ID!
+        group: ID!
+}
+
+
+"""
+Graphql does not allow types to be reused as input types as the semantics are different. We create the input types here.
+AgencyGroupInput : fields that define a new agency group.
+"""
+input AgencyGroupInput {
+    id: ID
+    code: String!
+    name: String!
+}
+
+"""
+An Agency is a legal entity participating in resource sharing - perhaps an institution, or a consortium or some  other service provider, for
+example Hathi Trust or internet archive. Agencies are the root object off which branch locations and other domain specific records can hang.
+"""
 type Agency {
     id: ID
     code: String
     name: String
 }
 
+"""
+An agency group is a collection of Agencies that can be referred to a sa group. Agencies are "Members" of agency groups and properties can be
+attached to the membership. Agency groups most often represent consortia. The consortium itself is probably still best modelled as an Agency 
+for the purposes of it's interactions with other systems, but for modelling the members of a consortium, agency group is a useful abstracton for
+expressing the aggregation of agencies under a single heading
+"""
 type AgencyGroup {
-    id: ID
-    code: String
-    name: String
+    id: ID!
+    code: String!
+    name: String!
+}
+
+type AgencyGroupMember {
+  id: ID!
+  agency: Agency
+  group: AgencyGroup
 }

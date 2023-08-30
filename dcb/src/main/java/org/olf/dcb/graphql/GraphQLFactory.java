@@ -34,6 +34,7 @@ public class GraphQLFactory {
     @Bean
     @Singleton
     public GraphQL graphQL(CreateAgencyGroupDataFetcher createAgencyGroupDataFetcher,
+                           AddAgencyToGroupDataFetcher addAgencyToGroupDataFetcher,
                            ResourceResolver resourceResolver, 
                            DataFetchers dataFetchers) {
 
@@ -61,6 +62,7 @@ public class GraphQLFactory {
                      )
                 .type("Mutation", typeWiring -> typeWiring 
                         .dataFetcher("createAgencyGroup", createAgencyGroupDataFetcher)
+                        .dataFetcher("addAgencyToGroup", addAgencyToGroupDataFetcher)
                      )
                 .build();
 

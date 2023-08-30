@@ -12,6 +12,10 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+
 public interface AgencyGroupMemberRepository {
 
 	@NonNull
@@ -20,7 +24,7 @@ public interface AgencyGroupMemberRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<? extends AgencyGroupMember> persist(@Valid @NotNull @NonNull AgencyGroupMember agencyGroup);
+	Publisher<AgencyGroupMember> persist(@Valid @NotNull @NonNull AgencyGroupMember agencyGroup);
 
 	@NonNull
 	@SingleResult
@@ -28,7 +32,7 @@ public interface AgencyGroupMemberRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<? extends AgencyGroupMember> findById(@NonNull UUID id);
+	Publisher<AgencyGroupMember> findById(@NonNull UUID id);
 
 	@NonNull
 	@SingleResult
@@ -42,4 +46,13 @@ public interface AgencyGroupMemberRepository {
 	Publisher<? extends AgencyGroupMember> queryAll();
 
 	Publisher<Void> delete(UUID id);
+
+        @SingleResult
+        @NonNull
+        default Publisher<AgencyGroupMember> saveOrUpdate(@Valid @NotNull AgencyGroupMember agm) {
+                return Mono.from(this.existsById(agm.getId()))
+                        .flatMap( update -> Mono.from( update ? this.update(agm) : this.save(agm)) )
+                        ;
+        }
+
 }

@@ -12,6 +12,7 @@ import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
+import lombok.experimental.Accessors;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,6 +21,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import lombok.ToString;
 
 @Data
+@Accessors(chain=true)
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
 @NoArgsConstructor(onConstructor_ = @Creator())
@@ -35,10 +37,13 @@ public class AgencyGroupMember {
 	@TypeDef( type = DataType.UUID)
 	private UUID id;
 
+        @Relation(value = Relation.Kind.MANY_TO_ONE)
 	@ToString.Include
 	@NonNull
-	private Agency agency;
+	private DataAgency agency;
 
+        @Relation(value = Relation.Kind.MANY_TO_ONE)
+	@ToString.Include
 	@NonNull
 	private AgencyGroup group;
 }
