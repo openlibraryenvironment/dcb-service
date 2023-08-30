@@ -92,6 +92,7 @@ public class AgenciesController {
 					.idpUrl(agency.idpUrl())
 					.build());
 			})
+                        .doOnNext(a -> log.debug("save agency {}",a))
 			.flatMap(this::saveOrUpdate)
 			.flatMap(this::addHostLms)
 			.map(AgencyDTO::mapToAgencyDTO);
@@ -112,6 +113,7 @@ public class AgenciesController {
 	}
 
 	private Mono<DataAgency> saveOrUpdate(DataAgency agency) {
+		log.debug("saveOrUpdate: {}", agency);
 		return Mono.from(agencyRepository.existsById(agency.getId()))
 			.flatMap(exists -> Mono.from(exists ? agencyRepository.update(agency) : agencyRepository.save(agency)));
 	}

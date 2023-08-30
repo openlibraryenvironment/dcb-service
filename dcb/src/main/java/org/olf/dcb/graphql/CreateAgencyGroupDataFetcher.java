@@ -18,8 +18,11 @@ import services.k_int.utils.UUIDUtils;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
 @Singleton
-public class CreateAgencyGroupDataFetcher implements DataFetcher<AgencyGroup> {
+public class CreateAgencyGroupDataFetcher implements DataFetcher<CompletableFuture<AgencyGroup>> {
 
   private static Logger log = LoggerFactory.getLogger(DataFetchers.class);
 
@@ -38,27 +41,34 @@ public class CreateAgencyGroupDataFetcher implements DataFetcher<AgencyGroup> {
 
 
   @Override
-  public AgencyGroup get(DataFetchingEnvironment env) {
-    String name = env.getArgument("name");
-    String code = env.getArgument("code");
+  public CompletableFuture<AgencyGroup> get(DataFetchingEnvironment env) {
+    // String name = env.getArgument("name");
+    // String code = env.getArgument("code");
+    // AgencyGroup input = env.getArgument("input");
+    Map input_map = env.getArgument("input");
+
+    AgencyGroup input = AgencyGroup.builder()
+                        .id(input_map.get("id") != null ? UUID.fromString(input_map.get("id").toString()) : null )
+                        .code(input_map.get("code").toString())
+                        .name(input_map.get("name").toString())
+                        .build();
   
-    log.debug("getCreateAgencyGroupDataFetcher {}/{}",code,name);
+  
+    log.debug("getCreateAgencyGroupDataFetcher {}/{}",input_map,input);
 
-    UUID id = UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "AgencyGroup:"+code);
+    if ( input.getId() == null ) {
+      input.setId(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "AgencyGroup:"+input.getCode()));
+    }
+    else {
+      log.debug("update existing");
+    }
 
-    log.debug("getCreateAgencyGroupDataFetcher");
-    AgencyGroup ag = AgencyGroup.builder()
-                            .id(id)
-                            .name(name)
-                            .code(code)
-                            .build();
-
-    log.debug("save or update agency {}",ag);
+    log.debug("save or update agency {}",input);
 
     return Mono.from(
         r2dbcOperations.withTransaction(status -> 
-                Mono.from(agencyGroupRepository.saveOrUpdate(ag))
+                Mono.from(agencyGroupRepository.saveOrUpdate(input))
         )
-    ).block();
+    ).toFuture();
   }
 }

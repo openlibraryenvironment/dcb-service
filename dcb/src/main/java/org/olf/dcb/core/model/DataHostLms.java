@@ -61,6 +61,7 @@ public class DataHostLms implements HostLms {
         @JsonIgnore
 	@SuppressWarnings("unchecked")
 	@Transient
+        @JsonIgnore
 	public Class<? extends HostLmsClient> getType() {
 		//TODO: Replace this with a proper converter implementation then remove this getter.
 		
