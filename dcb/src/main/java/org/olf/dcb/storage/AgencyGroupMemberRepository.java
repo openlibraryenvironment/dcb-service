@@ -61,5 +61,10 @@ public interface AgencyGroupMemberRepository {
 
         Publisher<AgencyGroupMember> findByAgency(DataAgency agency);
 
+        // Get the agency for this AgencyGroupMember
+        Publisher<DataAgency> findAgencyById(UUID id);
+
+        Publisher<AgencyGroup> findGroupById(UUID id);
+
 
 }

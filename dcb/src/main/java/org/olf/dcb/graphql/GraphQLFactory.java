@@ -68,6 +68,9 @@ public class GraphQLFactory {
                 .type("AgencyGroup", typeWiring -> typeWiring
                         .dataFetcher("members", dataFetchers.getAgencyGroupMembersDataFetcher())
                 )
+                .type("AgencyGroupMember", typeWiring -> typeWiring
+                        .dataFetcher("agency", dataFetchers.getAgencyDataFetcherForGroupMember())
+                )
                 .build();
 
         // Create the executable schema.

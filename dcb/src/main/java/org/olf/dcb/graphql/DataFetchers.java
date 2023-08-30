@@ -19,6 +19,7 @@ import java.util.UUID;
 import java.util.List;
 import services.k_int.utils.UUIDUtils;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import java.util.concurrent.CompletableFuture;
 
 @Singleton
 public class DataFetchers {
@@ -55,6 +56,12 @@ public class DataFetchers {
     };
   }
 
+  public DataFetcher<CompletableFuture<DataAgency>> getAgencyDataFetcherForGroupMember() {
+    return env -> {
+      AgencyGroupMember agm = (AgencyGroupMember)env.getSource();
+      return Mono.from(agencyGroupMemberRepository.findAgencyById(agm.getId())).toFuture();
+    };
+  }
 
   public DataFetcher<Iterable<AgencyGroupMember>> getAgencyGroupMembersDataFetcher() {
     return env -> {
