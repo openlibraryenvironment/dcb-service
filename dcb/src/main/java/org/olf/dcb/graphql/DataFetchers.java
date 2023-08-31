@@ -48,8 +48,9 @@ public class DataFetchers {
    * 
    */
   public DataFetcher<Iterable<DataAgency>> getAgenciesDataFetcher() {
-    return dataFetchingEnvironment -> {
-      log.debug("AgenciesDataFetcher::get");
+    return env -> {
+      String query = env.getArgument("query");
+      log.debug("AgenciesDataFetcher::get({})",query);
       // securityService...  boolean isAuthenticated(), boolean hasRole(String), Optional<Authentication> getAuthentication Optional<String> username
       // log.debug("Current user : {}",securityService.username().orElse(null));
       return Flux.from(agencyRepository.queryAll()).toIterable();

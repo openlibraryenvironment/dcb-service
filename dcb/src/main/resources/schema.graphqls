@@ -1,6 +1,6 @@
 type Query {
     hello(name: String): String!
-    agencies: [Agency]!
+    agencies(query: String): [Agency]!
     agencyGroups: [AgencyGroup]!
 }
 
