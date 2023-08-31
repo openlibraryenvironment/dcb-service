@@ -6,7 +6,7 @@ import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
 import org.olf.dcb.storage.AgencyGroupRepository;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
 import org.olf.dcb.core.model.DataAgency;
@@ -28,16 +28,16 @@ public class DataFetchers {
   private static Logger log = LoggerFactory.getLogger(DataFetchers.class);
 
   private AgencyGroupRepository agencyGroupRepository;
-  private AgencyRepository agencyRepository;
+  private PostgresAgencyRepository postgresAgencyRepository;
   private AgencyGroupMemberRepository agencyGroupMemberRepository;
   private QueryService queryService;
 
-  public DataFetchers(AgencyRepository agencyRepository,
+  public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
                       AgencyGroupRepository agencyGroupRepository,
                       AgencyGroupMemberRepository agencyGroupMemberRepository,
                       QueryService queryService
         ) {
-        this.agencyRepository = agencyRepository;
+        this.postgresAgencyRepository = postgresAgencyRepository;
         this.agencyGroupRepository = agencyGroupRepository;
         this.agencyGroupMemberRepository = agencyGroupMemberRepository;
         this.queryService = queryService;
@@ -59,8 +59,8 @@ public class DataFetchers {
         // log.debug("Current user : {}",securityService.username().orElse(null));
         // return Flux.from(agencyRepository.queryAll()).toIterable();
 
-        Mono.justOrEmpty(queryService.evaluate(query, DataAgency.class))
-                        .flatMapMany(agencyRepository::queryAll)
+        return Mono.justOrEmpty(queryService.evaluate(query, DataAgency.class))
+                        .flatMapMany(postgresAgencyRepository::queryAll)
                         .toIterable();
     };
   }
@@ -80,7 +80,8 @@ public class DataFetchers {
 
       // List<AgencyGroupMember> l = new java.util.ArrayList();
       // return l;
-      return Flux.from(agencyGroupMemberRepository.findByGroup(env.getSource())).toIterable();
+      return Flux.from(agencyGroupMemberRepository.findByGroup(env.getSource()))
+        .toIterable();
     };
   }
 
