@@ -43,11 +43,16 @@ import org.reactivestreams.Publisher;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
+import io.micronaut.data.repository.jpa.reactive.ReactiveStreamsJpaSpecificationExecutor;
+
 
 
 @SuppressWarnings("unchecked")
 @Singleton
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 @Transactional
-public interface PostgresAgencyRepository extends ReactiveStreamsPageableRepository<DataAgency, UUID>, AgencyRepository {
+public interface PostgresAgencyRepository extends 
+        ReactiveStreamsPageableRepository<DataAgency, UUID>, 
+        ReactiveStreamsJpaSpecificationExecutor<DataAgency>,
+        AgencyRepository {
 }

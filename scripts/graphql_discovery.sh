@@ -60,6 +60,22 @@ curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X P
 echo
 echo List agencies
 echo
-curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ "query": "query { agencies { id, code, name } }" }'
+# lq=shorthand for lucene query
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ 
+  "query": "query($lq: String) { agencies(query: $lq) { id, code, name } }",
+  "variables": {
+    "lq" : "name:T*"
+  }
+}'
 echo
+
+# find no records?
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ 
+  "query": "query($lq: String) { agencies(query: $lq) { id, code, name } }",
+  "variables": {
+    "lq" : "name:NOTHERE"
+  }
+}'
+echo
+
 

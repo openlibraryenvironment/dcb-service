@@ -6,7 +6,7 @@ import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
 import org.olf.dcb.storage.AgencyGroupRepository;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
 import org.olf.dcb.core.model.DataAgency;
@@ -20,6 +20,7 @@ import java.util.List;
 import services.k_int.utils.UUIDUtils;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import java.util.concurrent.CompletableFuture;
+import services.k_int.data.querying.QueryService;
 
 @Singleton
 public class DataFetchers {
@@ -27,16 +28,16 @@ public class DataFetchers {
   private static Logger log = LoggerFactory.getLogger(DataFetchers.class);
 
   private AgencyGroupRepository agencyGroupRepository;
-  private AgencyRepository agencyRepository;
+  private PostgresAgencyRepository postgresAgencyRepository;
   private AgencyGroupMemberRepository agencyGroupMemberRepository;
 
-  public DataFetchers(AgencyRepository agencyRepository,
+  public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
                       AgencyGroupRepository agencyGroupRepository,
                       AgencyGroupMemberRepository agencyGroupMemberRepository
         ) {
-    this.agencyRepository = agencyRepository;
-    this.agencyGroupRepository = agencyGroupRepository;
-    this.agencyGroupMemberRepository = agencyGroupMemberRepository;
+        this.postgresAgencyRepository = postgresAgencyRepository;
+        this.agencyGroupRepository = agencyGroupRepository;
+        this.agencyGroupMemberRepository = agencyGroupMemberRepository;
   }
 
   /**
@@ -48,11 +49,17 @@ public class DataFetchers {
    * 
    */
   public DataFetcher<Iterable<DataAgency>> getAgenciesDataFetcher() {
-    return dataFetchingEnvironment -> {
-      log.debug("AgenciesDataFetcher::get");
-      // securityService...  boolean isAuthenticated(), boolean hasRole(String), Optional<Authentication> getAuthentication Optional<String> username
-      // log.debug("Current user : {}",securityService.username().orElse(null));
-      return Flux.from(agencyRepository.queryAll()).toIterable();
+    return env -> {
+        String query = env.getArgument("query");
+        log.debug("AgenciesDataFetcher::get({})",query);
+        // securityService...  boolean isAuthenticated(), boolean hasRole(String), Optional<Authentication> getAuthentication Optional<String> username
+        // log.debug("Current user : {}",securityService.username().orElse(null));
+        // return Flux.from(agencyRepository.queryAll()).toIterable();
+        QueryService qs = new QueryService();
+
+        return Mono.justOrEmpty(qs.evaluate(query, DataAgency.class))
+                        .flatMapMany(spec -> postgresAgencyRepository.findAll(spec))
+                        .toIterable();
     };
   }
 
@@ -71,7 +78,8 @@ public class DataFetchers {
 
       // List<AgencyGroupMember> l = new java.util.ArrayList();
       // return l;
-      return Flux.from(agencyGroupMemberRepository.findByGroup(env.getSource())).toIterable();
+      return Flux.from(agencyGroupMemberRepository.findByGroup(env.getSource()))
+        .toIterable();
     };
   }
 
