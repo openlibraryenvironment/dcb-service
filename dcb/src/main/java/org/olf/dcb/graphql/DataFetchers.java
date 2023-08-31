@@ -30,17 +30,14 @@ public class DataFetchers {
   private AgencyGroupRepository agencyGroupRepository;
   private PostgresAgencyRepository postgresAgencyRepository;
   private AgencyGroupMemberRepository agencyGroupMemberRepository;
-  private QueryService queryService;
 
   public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
                       AgencyGroupRepository agencyGroupRepository,
-                      AgencyGroupMemberRepository agencyGroupMemberRepository,
-                      QueryService queryService
+                      AgencyGroupMemberRepository agencyGroupMemberRepository
         ) {
         this.postgresAgencyRepository = postgresAgencyRepository;
         this.agencyGroupRepository = agencyGroupRepository;
         this.agencyGroupMemberRepository = agencyGroupMemberRepository;
-        this.queryService = queryService;
   }
 
   /**
@@ -58,9 +55,10 @@ public class DataFetchers {
         // securityService...  boolean isAuthenticated(), boolean hasRole(String), Optional<Authentication> getAuthentication Optional<String> username
         // log.debug("Current user : {}",securityService.username().orElse(null));
         // return Flux.from(agencyRepository.queryAll()).toIterable();
+        QueryService qs = new QueryService();
 
-        return Mono.justOrEmpty(queryService.evaluate(query, DataAgency.class))
-                        .flatMapMany(postgresAgencyRepository::queryAll)
+        return Mono.justOrEmpty(qs.evaluate(query, DataAgency.class))
+                        .flatMapMany(spec -> postgresAgencyRepository.findAll(spec))
                         .toIterable();
     };
   }
