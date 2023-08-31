@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import io.micronaut.core.type.Argument;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,10 +32,9 @@ import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.Params;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
-import services.k_int.interaction.sierra.patrons.ItemPatch;
-import services.k_int.interaction.sierra.patrons.PatronHoldPost;
-import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
+import services.k_int.interaction.sierra.patrons.*;
+
+import static io.micronaut.http.HttpMethod.POST;
 
 public interface SierraApiClient {
 	String CONFIG_ROOT = "sierra.client";
@@ -137,6 +137,9 @@ public interface SierraApiClient {
 	Publisher<SierraPatronRecord> patronFind(
 		@Nullable final String varFieldTag,
 		@Nullable final String varFieldContent);
+
+	@SingleResult
+	Publisher<String> validatePatronCredentials(final InternalPatronValidation body);
 
 	@SingleResult
 	default Publisher<AuthToken> login(BasicAuth creds) {

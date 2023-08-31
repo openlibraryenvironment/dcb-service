@@ -1,5 +1,8 @@
 {
 	"id": 1000002,
+	"names": [
+		"Joe Bloggs"
+	],
 	"expirationDate": "2020-12-31",
 	"birthDate": "1990-01-23",
 	"patronType": 22,

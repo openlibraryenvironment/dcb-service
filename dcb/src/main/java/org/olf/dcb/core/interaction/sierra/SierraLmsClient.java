@@ -71,10 +71,7 @@ import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
-import services.k_int.interaction.sierra.patrons.ItemPatch;
-import services.k_int.interaction.sierra.patrons.PatronHoldPost;
-import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
+import services.k_int.interaction.sierra.patrons.*;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
@@ -419,22 +416,40 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.collectList();
 	}
 
-	@Override
-	public Mono<Tuple2<String, String>> patronFind(String varFieldContent) {
-		log.debug("patronFind({})", varFieldContent);
+	public Mono<Patron> patronFind(String varFieldTag, String varFieldContent) {
+		log.debug("patronFind({}, {})", varFieldTag, varFieldContent);
 
-		return Mono.from(client.patronFind("u", varFieldContent))
+		return Mono.from(client.patronFind(varFieldTag, varFieldContent))
 			.doOnSuccess(result -> log.debug("the result of patronFind({})", result))
 			.filter(result -> nonNull(result.getId()) && nonNull(result.getPatronType()))
-			.map(this::returnPatronValues)
+			.map(this::sierraPatronToHostLmsPatron)
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when finding Patron: {}", error.getMessage());
 				return Mono.empty();
 			});
 	}
 
-	public Tuple2<String, String> returnPatronValues(SierraPatronRecord record) {
-		return Tuples.of(valueOf(record.getId()), valueOf(record.getPatronType()));
+	@Override
+	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
+		log.debug("patronAuth({})", authProfile);
+		return switch (authProfile) {
+			case "BARCODE+PIN" -> validatePatronCredentials("native", patronPrinciple, secret);
+			case "BARCODE+NAME" -> validatePatronByBarcodeAndName(patronPrinciple, secret);
+			case "UNIQUE-ID" -> patronFind("u", patronPrinciple);
+			default -> Mono.empty();
+		};
+	}
+
+	private Mono<Patron> validatePatronCredentials(String authMethod, String barcode, String pin) {
+		final var internalPatronValidation = InternalPatronValidation.builder()
+			.authMethod(authMethod).patronId(barcode).patronSecret(pin).build();
+		return Mono.from(client.validatePatronCredentials(internalPatronValidation))
+			.doOnSuccess(resp -> log.debug("response of validatePatronCredentials: {}", resp))
+			.flatMap(this::getPatronByLocalId);
+	}
+
+	private Mono<Patron> validatePatronByBarcodeAndName(String barcode, String name) {
+		return patronFind("b", barcode).filter(patron -> patron.getLocalNames().contains(name));
 	}
 
 	@Override

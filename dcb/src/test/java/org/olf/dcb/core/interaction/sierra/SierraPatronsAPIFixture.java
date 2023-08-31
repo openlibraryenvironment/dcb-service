@@ -79,21 +79,21 @@ public class SierraPatronsAPIFixture {
 			.respond(successfulPatron());
 	}
 
-	public void patronResponseForUniqueId(String uniqueId) {
+	public void patronResponseForUniqueId(String tag, String content) {
 		mockServer
-			.when(findPatron(uniqueId))
+			.when(findPatron(tag, content))
 			.respond(patronFoundResponse());
 	}
 
-	public void patronResponseForUniqueIdExpectedPtype(String uniqueId) {
+	public void patronResponseForUniqueIdExpectedPtype(String tag, String uniqueId) {
 		mockServer
-			.when(findPatron(uniqueId))
+			.when(findPatron(tag, uniqueId))
 			.respond(successfulPatron());
 	}
 
-	public void patronNotFoundResponseForUniqueId(String uniqueId) {
+	public void patronNotFoundResponseForUniqueId(String tag, String content) {
 		mockServer
-			.when(findPatron(uniqueId))
+			.when(findPatron(tag, content))
 			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
@@ -191,10 +191,10 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerRequests.post(patronPatch);
 	}
 
-	private HttpRequest findPatron(String uniqueId) {
+	private HttpRequest findPatron(String tag, String content) {
 		return sierraMockServerRequests.get("/find")
-			.withQueryStringParameter("varFieldTag", "u")
-			.withQueryStringParameter("varFieldContent", uniqueId);
+			.withQueryStringParameter("varFieldTag", tag)
+			.withQueryStringParameter("varFieldContent", content);
 	}
 
 	private HttpRequest postPatronHoldRequest(String patronId) {

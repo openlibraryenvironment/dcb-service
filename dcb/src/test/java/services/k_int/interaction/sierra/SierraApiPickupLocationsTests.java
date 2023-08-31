@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import io.micronaut.context.annotation.Property;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,8 @@ import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
+@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
+@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SierraApiPickupLocationsTests {
 	private static final String HOST_LMS_CODE = "sierra-locations-api-tests";

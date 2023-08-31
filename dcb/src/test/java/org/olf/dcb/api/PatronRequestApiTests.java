@@ -125,7 +125,7 @@ class PatronRequestApiTests {
 
 		// patron service
 //		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@home-library");
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@ab6");
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "872321@ab6");
 
 //		sierraPatronsAPIFixture.postPatronResponse("872321@home-library", 2745326);
 		 sierraPatronsAPIFixture.postPatronResponse("872321@ab6", 2745326);

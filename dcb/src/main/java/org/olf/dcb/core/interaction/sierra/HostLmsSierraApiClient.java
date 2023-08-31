@@ -54,11 +54,7 @@ import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
-import services.k_int.interaction.sierra.patrons.CheckoutPatch;
-import services.k_int.interaction.sierra.patrons.ItemPatch;
-import services.k_int.interaction.sierra.patrons.PatronHoldPost;
-import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
+import services.k_int.interaction.sierra.patrons.*;
 
 @Secondary
 @Prototype
@@ -239,6 +235,15 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			uri -> uri
 				.queryParam("varFieldTag", varFieldTag)
 				.queryParam("varFieldContent", varFieldContent));
+	}
+
+	@SingleResult
+	public Publisher<String> validatePatronCredentials(InternalPatronValidation body) {
+		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/validate_patron_credentials_post_2
+		return postRequest("patrons/auth")
+			.map(req -> req.body(body))
+			.flatMap(this::ensureToken)
+			.flatMap(req -> doRetrieve(req, Argument.of(String.class)));
 	}
 
 	@SingleResult

@@ -121,10 +121,6 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 	// 	return Mono.empty();
 	// }
 
-        public Mono<Tuple2<String, String>> patronFind(String uniqueId) {
-		return Mono.empty();
-	}
-
         // (localHoldId, localHoldStatus)
         public Mono<Tuple2<String, String>> placeHoldRequest(
                 String id,
@@ -220,12 +216,18 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 		return Mono.empty();
 	}
 
-        public Mono<Patron> updatePatron(String localId, String patronType) {
+	public Mono<Patron> updatePatron(String localId, String patronType) {
 		return Mono.empty();
 	}
 
+	@Override
+	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
+		// TODO: needs implementing
+		return null;
+	}
 
-        @Override
+
+	@Override
         public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
 		return Mono.empty();
 	}
