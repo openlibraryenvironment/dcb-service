@@ -11,6 +11,7 @@ import static org.olf.dcb.test.matchers.SierraErrorMatchers.isBadJsonError;
 
 import java.util.List;
 
+import io.micronaut.context.annotation.Property;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -30,6 +31,8 @@ import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
+@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
+@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SierraApiItemTests {
 	private static final String HOST_LMS_CODE = "sierra-item-api-tests";

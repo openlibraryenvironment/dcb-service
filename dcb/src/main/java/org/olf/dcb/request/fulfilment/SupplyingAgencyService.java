@@ -231,9 +231,9 @@ public class SupplyingAgencyService {
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
 			.flatMap(hostLmsClient ->
-					hostLmsClient.patronFind(patronService.getUniqueIdStringFor(patronRequest.getPatron())))
-			.flatMap(tuple ->
-				checkPatronType(tuple.getT1(), tuple.getT2(), patronRequest, supplierRequest.getHostLmsCode()))
+					hostLmsClient.patronAuth("UNIQUE-ID", patronService.getUniqueIdStringFor(patronRequest.getPatron()), null))
+			.flatMap(patron -> checkPatronType( patron.getLocalId().get(0),
+				patron.getLocalPatronType(), patronRequest, supplierRequest.getHostLmsCode()))
 			.flatMap(function((localId, patronType) ->
 				checkForPatronIdentity(patronRequest, supplierRequest.getHostLmsCode(), localId, patronType)));
 	}

@@ -8,6 +8,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micronaut.context.annotation.Property;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -26,6 +27,8 @@ import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
+@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
+@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SierraApiBibTests {
 	private static final String HOST_LMS_CODE = "sierra-bib-api-tests";

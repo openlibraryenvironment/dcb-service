@@ -38,10 +38,6 @@ public interface HostLmsClient {
 
 	Mono<String> createBib(Bib bib);
 
-	// ToDo: This needs to go away in favour of getPatronByLocalId usage
-	// (localId, localPtype)
-	Mono<Tuple2<String, String>> patronFind(String uniqueId);
-
 	// (localHoldId, localHoldStatus)
 	Mono<Tuple2<String, String>> placeHoldRequest(
 		String id, 
@@ -55,6 +51,8 @@ public interface HostLmsClient {
 	Mono<Patron> getPatronByLocalId(String localPatronId);
 
 	Mono<Patron> updatePatron(String localId, String patronType);
+
+	Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret);
 
 	Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand);
 

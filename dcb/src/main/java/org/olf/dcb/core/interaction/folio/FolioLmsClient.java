@@ -119,7 +119,7 @@ public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 	// 	return Mono.empty();
 	// }
 
-        public Mono<Tuple2<String, String>> patronFind(String uniqueId) {
+        public Mono<Patron> patronFind(String tag, String content) {
 		return Mono.empty();
 	}
 
@@ -222,8 +222,10 @@ public class FolioLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 		return Mono.empty();
 	}
 
+	@Override
+	public Mono<Patron> patronAuth(String authProfile, String barcode, String secret) { return Mono.empty(); }
 
-        @Override
+	@Override
         public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
 		return Mono.empty();
 	}
