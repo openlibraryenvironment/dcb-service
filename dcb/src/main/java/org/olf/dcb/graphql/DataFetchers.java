@@ -20,6 +20,7 @@ import java.util.List;
 import services.k_int.utils.UUIDUtils;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import java.util.concurrent.CompletableFuture;
+import services.k_int.data.querying.QueryService;
 
 @Singleton
 public class DataFetchers {
@@ -29,14 +30,17 @@ public class DataFetchers {
   private AgencyGroupRepository agencyGroupRepository;
   private AgencyRepository agencyRepository;
   private AgencyGroupMemberRepository agencyGroupMemberRepository;
+  private QueryService queryService;
 
   public DataFetchers(AgencyRepository agencyRepository,
                       AgencyGroupRepository agencyGroupRepository,
-                      AgencyGroupMemberRepository agencyGroupMemberRepository
+                      AgencyGroupMemberRepository agencyGroupMemberRepository,
+                      QueryService queryService
         ) {
-    this.agencyRepository = agencyRepository;
-    this.agencyGroupRepository = agencyGroupRepository;
-    this.agencyGroupMemberRepository = agencyGroupMemberRepository;
+        this.agencyRepository = agencyRepository;
+        this.agencyGroupRepository = agencyGroupRepository;
+        this.agencyGroupMemberRepository = agencyGroupMemberRepository;
+        this.queryService = queryService;
   }
 
   /**
@@ -49,11 +53,15 @@ public class DataFetchers {
    */
   public DataFetcher<Iterable<DataAgency>> getAgenciesDataFetcher() {
     return env -> {
-      String query = env.getArgument("query");
-      log.debug("AgenciesDataFetcher::get({})",query);
-      // securityService...  boolean isAuthenticated(), boolean hasRole(String), Optional<Authentication> getAuthentication Optional<String> username
-      // log.debug("Current user : {}",securityService.username().orElse(null));
-      return Flux.from(agencyRepository.queryAll()).toIterable();
+        String query = env.getArgument("query");
+        log.debug("AgenciesDataFetcher::get({})",query);
+        // securityService...  boolean isAuthenticated(), boolean hasRole(String), Optional<Authentication> getAuthentication Optional<String> username
+        // log.debug("Current user : {}",securityService.username().orElse(null));
+        // return Flux.from(agencyRepository.queryAll()).toIterable();
+
+        Mono.justOrEmpty(queryService.evaluate(query, DataAgency.class))
+                        .flatMapMany(agencyRepository::queryAll)
+                        .toIterable();
     };
   }
 
