@@ -15,8 +15,10 @@ import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.StatusCode;
+import org.olf.dcb.core.model.Grant;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
+import org.olf.dcb.storage.GrantRepository;
 import org.olf.dcb.storage.StatusCodeRepository;
 import org.reactivestreams.Publisher;
 import services.k_int.utils.UUIDUtils;
@@ -33,6 +35,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	private final HostLmsRepository hostLmsRepository;
 	private final StatusCodeRepository statusCodeRepository;
 	private final AgencyGroupRepository agencyGroupRepository;
+	private final GrantRepository grantRepository;
 	private final HostLms[] confHosts;
 
 	private static final String REACTOR_DEBUG_VAR = "REACTOR_DEBUG";
@@ -44,12 +47,14 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
                                        HostLmsRepository hostLmsRepository,
                                        StatusCodeRepository statusCodeRepository,
                                        AgencyGroupRepository agencyGroupRepository,
+                                       GrantRepository grantRepository,
                                        HostLms[] confHosts) {
 		this.environment = environment;
 		this.agencyRepository = agencyRepository;
 		this.statusCodeRepository = statusCodeRepository;
 		this.hostLmsRepository = hostLmsRepository;
 		this.agencyGroupRepository = agencyGroupRepository;
+		this.grantRepository = grantRepository;
 		this.confHosts = confHosts;
 	}
 
@@ -118,8 +123,31 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			.flatMap( v -> { return Mono.from(saveOrUpdateStatusCode("VirtualItem", "TRANSIT", Boolean.TRUE)); } )
 			.flatMap( v -> { return Mono.from(saveOrUpdateStatusCode("VirtualItem", "AVAILABLE", Boolean.TRUE)); } )
 			.flatMap( v -> { return Mono.from(saveOrUpdateStatusCode("VirtualItem", "LOANED", Boolean.TRUE)); } )
+                        // Grant all permissions on everything to anyone with the ADMIN role (And allow them to pass on grants)
+			.flatMap( v -> { return Mono.from(saveOrUpdateGrant("%", "%", "%", "%", "role", "ADMIN", Boolean.TRUE)); } )
 			.subscribe();
 	}
+
+	private Publisher<Grant> saveOrUpdateGrant( String resourceOwner, 
+                String resourceType, 
+                String resourceId, 
+                String grantedPerm, 
+                String granteeType, 
+                String grantee, 
+                Boolean grantOption) {
+                Grant g = Grant.builder()
+                                .id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Grant:"+resourceOwner+":"+
+                                        resourceType+":"+resourceId+":"+grantedPerm+":"+granteeType+":"+grantee+":"+grantOption))
+                                .grantResourceOwner(resourceOwner)
+                                .grantResourceType(resourceType)
+                                .grantResourceId(resourceId)
+                                .grantedPerm(grantedPerm)
+                                .granteeType(granteeType)
+                                .grantee(grantee)
+                                .grantOption(grantOption)
+                                .build();
+                return grantRepository.saveOrUpdate(g);
+        }
 
 	private Publisher<StatusCode> saveOrUpdateStatusCode(String model, String code, Boolean tracked) {
 		StatusCode sc = new StatusCode(
