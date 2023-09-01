@@ -420,7 +420,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("patronFind({}, {})", varFieldTag, varFieldContent);
 
 		return Mono.from(client.patronFind(varFieldTag, varFieldContent))
-			.doOnSuccess(result -> log.debug("the result of patronFind({})", result))
+			// .doOnSuccess(result -> log.debug("the result of patronFind({})", result))
 			.filter(result -> nonNull(result.getId()) && nonNull(result.getPatronType()))
 			.map(this::sierraPatronToHostLmsPatron)
 			.onErrorResume(NullPointerException.class, error -> {
@@ -458,8 +458,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
         // The correct URL for validating patrons in sierra is "/iii/sierra-api/v6/patrons/validate";
 	private Mono<Patron> validatePatronByBarcodeAndName(String barcode, String name) {
 
+                log.debug("validatePatronByBarcodeAndName({},{})",barcode,name);
+
                 // If the provided name is present in any of the names coming back from the client
 		return patronFind("b", barcode)
+                        .doOnSuccess( patron -> log.debug("Testing {}/{} to see if {} is present", patron, patron.getLocalNames(), name) )
                         .filter(patron -> patron.getLocalNames().stream().anyMatch( s -> s.startsWith(name)));
 
                         // .filter(patron -> patron.getLocalNames().contains(name));
