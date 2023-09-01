@@ -57,8 +57,7 @@ public class PatronAuthController {
 
 	private Mono<VerificationResponse> patronAuth(PatronCredentials creds, DataAgency agency) {
 		return hostLmsService.getClientFor(agency.getHostLms().code)
-			.flatMap(hostLmsClient -> hostLmsClient.patronAuth( processString(agency.getAuthProfile()),
-				creds.patronPrinciple, creds.secret))
+			.flatMap(hostLmsClient -> hostLmsClient.patronAuth( agency.getAuthProfile(), creds.patronPrinciple, creds.secret))
 			.map(patron -> VerificationResponse.builder()
 				.status(VALID)
 				.localPatronId(patron.getLocalId())
@@ -66,21 +65,6 @@ public class PatronAuthController {
 				.systemCode(agency.getHostLms().code)
 				.homeLocationCode(patron.getLocalHomeLibraryCode())
 				.build());
-	}
-
-	// Build the output string based on the presence of substrings
-	public static String processString(String input) {
-		final var lowercaseInput = input.toLowerCase();
-		final var containsBarcode = lowercaseInput.contains("barcode");
-		final var containsPin = lowercaseInput.contains("pin");
-		final var containsName = lowercaseInput.contains("name");
-		if (containsBarcode && containsPin) {
-			return "BARCODE+PIN";
-		} else if (containsBarcode && containsName) {
-			return "BARCODE+NAME";
-		} else {
-			return input;
-		}
 	}
 
 	private static VerificationResponse invalid(PatronCredentials patronCredentials) {

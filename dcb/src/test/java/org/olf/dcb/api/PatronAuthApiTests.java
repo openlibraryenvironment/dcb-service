@@ -81,7 +81,7 @@ public class PatronAuthApiTests {
 		final var blockingClient = client.toBlocking();
 		final var accessToken = getAccessToken(blockingClient);
 		final var agencyDTO = AgencyDTO.builder().id(randomUUID()).code("ab7").name("agencyName")
-			.authProfile("BARCODE+PIN").idpUrl("idpUrl").hostLMSCode(HOST_LMS_CODE).build();
+			.authProfile("BASIC/BARCODE+PIN").idpUrl("idpUrl").hostLMSCode(HOST_LMS_CODE).build();
 		final var agencyRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(accessToken);
 		final var agency = blockingClient.exchange(agencyRequest, AgencyDTO.class);
 		final var patronCredentials = PatronCredentials.builder().agencyCode("ab7")
@@ -113,7 +113,7 @@ public class PatronAuthApiTests {
 		final var blockingClient = client.toBlocking();
 		final var accessToken = getAccessToken(blockingClient);
 		final var agencyDTO = AgencyDTO.builder().id(randomUUID()).code("ab6").name("agencyName")
-			.authProfile("BARCODE+NAME").idpUrl("idpUrl").hostLMSCode(HOST_LMS_CODE).build();
+			.authProfile("BASIC/BARCODE+NAME").idpUrl("idpUrl").hostLMSCode(HOST_LMS_CODE).build();
 		final var agencyRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(accessToken);
 		final var agency = blockingClient.exchange(agencyRequest, AgencyDTO.class);
 		final var patronCredentials = PatronCredentials.builder().agencyCode("ab6")
