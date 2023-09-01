@@ -20,6 +20,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+
 import java.util.List;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
@@ -46,6 +53,7 @@ public class PatronAuthController {
 	}
 
 	@Post(consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
+        @Operation(summary = "Verify Patron Credentials", description = "Verify a patrons login details")
 	public Mono<HttpResponse<VerificationResponse>> patronAuth(@Body PatronCredentials request) {
 		log.debug("REST, verify patron {}", request);
 		return Mono.from(agencyRepository.findOneByCode(request.agencyCode))

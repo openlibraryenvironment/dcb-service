@@ -32,6 +32,9 @@ import lombok.ToString;
 @ToString(onlyExplicitlyIncluded = true)
 public class DataAgency implements Agency {
 
+        public static final String BASIC_BARCODE_AND_PIN = "BASIC/BARCODE+PIN";
+        public static final String BASIC_BARCODE_AND_NAME = "BASIC/BARCODE+NAME";
+
 	@ToString.Include
 	@NonNull
 	@Id
