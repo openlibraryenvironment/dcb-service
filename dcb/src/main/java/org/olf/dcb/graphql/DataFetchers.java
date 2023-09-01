@@ -7,8 +7,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
+import org.olf.dcb.storage.postgres.PostgresPatronRequestRepository;
+import org.olf.dcb.storage.postgres.PostgresSupplierRequestRepository;
 import org.olf.dcb.storage.AgencyGroupRepository;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.AgencyGroup;
 import org.olf.dcb.core.model.AgencyGroupMember;
@@ -29,15 +33,21 @@ public class DataFetchers {
 
   private AgencyGroupRepository agencyGroupRepository;
   private PostgresAgencyRepository postgresAgencyRepository;
+  private PostgresPatronRequestRepository postgresPatronRequestRepository;
+  private PostgresSupplierRequestRepository postgresSupplierRequestRepository;
   private AgencyGroupMemberRepository agencyGroupMemberRepository;
 
   public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
                       AgencyGroupRepository agencyGroupRepository,
-                      AgencyGroupMemberRepository agencyGroupMemberRepository
+                      AgencyGroupMemberRepository agencyGroupMemberRepository,
+                      PostgresPatronRequestRepository postgresPatronRequestRepository,
+                      PostgresSupplierRequestRepository postgresSupplierRequestRepository
         ) {
         this.postgresAgencyRepository = postgresAgencyRepository;
         this.agencyGroupRepository = agencyGroupRepository;
         this.agencyGroupMemberRepository = agencyGroupMemberRepository;
+        this.postgresPatronRequestRepository = postgresPatronRequestRepository;
+        this.postgresSupplierRequestRepository = postgresSupplierRequestRepository;
   }
 
   /**
@@ -93,4 +103,25 @@ public class DataFetchers {
     };
   }
 
+  public DataFetcher<Iterable<PatronRequest>> getPatronRequestsDataFetcher() {
+    return env -> {
+        String query = env.getArgument("query");
+        log.debug("PatronRequestsDataFetcher::get({})",query);
+        QueryService qs = new QueryService();
+        return Mono.justOrEmpty(qs.evaluate(query, PatronRequest.class))
+                        .flatMapMany(spec -> postgresPatronRequestRepository.findAll(spec))
+                        .toIterable();
+    }; 
+  }
+
+  public DataFetcher<Iterable<SupplierRequest>> getSupplierRequestsDataFetcher() {
+    return env -> {
+        String query = env.getArgument("query");
+        log.debug("SupplierRequestsDataFetcher::get({})",query);
+        QueryService qs = new QueryService();
+        return Mono.justOrEmpty(qs.evaluate(query, SupplierRequest.class))
+                        .flatMapMany(spec -> postgresSupplierRequestRepository.findAll(spec))
+                        .toIterable();
+    }; 
+  }
 }

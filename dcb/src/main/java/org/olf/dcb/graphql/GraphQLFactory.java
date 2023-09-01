@@ -60,6 +60,8 @@ public class GraphQLFactory {
                         .dataFetcher("hello", dataFetchers.getHelloDataFetcher())
                         .dataFetcher("agencies", dataFetchers.getAgenciesDataFetcher())
                         .dataFetcher("agencyGroups", agencyGroupsDataFetcher)
+                        .dataFetcher("patronRequests", dataFetchers.getPatronRequestsDataFetcher())
+                        .dataFetcher("supplierRequests", dataFetchers.getSupplierRequestsDataFetcher())
                      )
                 .type("Mutation", typeWiring -> typeWiring 
                         .dataFetcher("createAgencyGroup", createAgencyGroupDataFetcher)

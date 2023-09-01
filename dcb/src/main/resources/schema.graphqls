@@ -1,6 +1,8 @@
 type Query {
     hello(name: String): String!
     agencies(query: String): [Agency]!
+    patronRequests(query: String): [PatronRequest]!
+    supplierRequests(query: String): [SupplierRequest]!
     agencyGroups: [AgencyGroup]!
 }
 
@@ -52,4 +54,14 @@ type AgencyGroupMember {
   id: ID!
   agency: Agency
   group: AgencyGroup
+}
+
+type PatronRequest {
+  id: ID!
+  description: String
+}
+
+type SupplierRequest {
+  id: ID!
+  hostLmsCode: String;
 }
