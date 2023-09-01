@@ -457,7 +457,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
         // The correct URL for validating patrons in sierra is "/iii/sierra-api/v6/patrons/validate";
 	private Mono<Patron> validatePatronByBarcodeAndName(String barcode, String name) {
-		return patronFind("b", barcode).filter(patron -> patron.getLocalNames().contains(name));
+		return patronFind("b", barcode)
+                        .filter(patron -> patron.getLocalNames().contains(name));
 	}
 
 	@Override

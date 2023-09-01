@@ -234,7 +234,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		return get("patrons/find", Argument.of(SierraPatronRecord.class),
 			uri -> uri
 				.queryParam("varFieldTag", varFieldTag)
-				.queryParam("varFieldContent", varFieldContent));
+				.queryParam("varFieldContent", varFieldContent)
+				.queryParam("fields", "id,names,barcodes,deleted,suppressed,expirationDate,patronType,patronCodes,blockInfo,autoBlockInfo,homeLibraryCode,message,uniqueIds,emails,fixedFields"));
 	}
 
 	@SingleResult
