@@ -460,12 +460,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
                 log.debug("validatePatronByBarcodeAndName({},{})",barcode,name);
 
+                if ( ( name == null ) || ( name.length() < 4 ) )
+                        return Mono.empty();
+
                 // If the provided name is present in any of the names coming back from the client
 		return patronFind("b", barcode)
                         .doOnSuccess( patron -> log.debug("Testing {}/{} to see if {} is present", patron, patron.getLocalNames(), name) )
-                        .filter(patron -> patron.getLocalNames().stream().anyMatch( s -> s.startsWith(name)));
-
-                        // .filter(patron -> patron.getLocalNames().contains(name));
+                        .filter(patron -> patron.getLocalNames().stream().anyMatch( s -> s.toLowerCase().startsWith(name.toLowerCase())));
 	}
 
 	@Override
