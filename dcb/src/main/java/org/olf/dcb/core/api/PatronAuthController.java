@@ -64,7 +64,10 @@ public class PatronAuthController {
 	}
 
 	private Mono<VerificationResponse> patronAuth(PatronCredentials creds, DataAgency agency) {
+                log.debug("patronAuth({},{}) {}",creds,agency,agency.getAuthProfile());
+
 		return hostLmsService.getClientFor(agency.getHostLms().code)
+
 			.flatMap(hostLmsClient -> hostLmsClient.patronAuth( agency.getAuthProfile(), creds.patronPrinciple, creds.secret))
 			.map(patron -> VerificationResponse.builder()
 				.status(VALID)
