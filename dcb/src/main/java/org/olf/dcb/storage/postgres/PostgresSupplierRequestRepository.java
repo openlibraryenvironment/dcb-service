@@ -12,9 +12,16 @@ import io.micronaut.data.r2dbc.annotation.R2dbcRepository;
 import io.micronaut.data.repository.reactive.ReactiveStreamsPageableRepository;
 import jakarta.inject.Singleton;
 
+import io.micronaut.data.repository.jpa.reactive.ReactiveStreamsJpaSpecificationExecutor;
+
+
+
 @SuppressWarnings("unchecked")
 @Singleton
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 @Transactional
-public interface PostgresSupplierRequestRepository extends ReactiveStreamsPageableRepository<SupplierRequest, UUID>, SupplierRequestRepository {
+public interface PostgresSupplierRequestRepository extends 
+        ReactiveStreamsPageableRepository<SupplierRequest, UUID>, 
+        ReactiveStreamsJpaSpecificationExecutor<SupplierRequest>,
+        SupplierRequestRepository {
 }
