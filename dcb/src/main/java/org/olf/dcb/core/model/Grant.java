@@ -33,7 +33,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @NoArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
 @Serdeable
-@MappedEntity
+@MappedEntity(value = "dcb_grant")
 @ExcludeFromGeneratedCoverageReport
 public class Grant {
 
