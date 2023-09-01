@@ -63,5 +63,5 @@ type PatronRequest {
 
 type SupplierRequest {
   id: ID!
-  hostLmsCode: String;
+  hostLmsCode: String
 }
