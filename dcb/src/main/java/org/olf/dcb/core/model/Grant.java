@@ -69,5 +69,5 @@ public class Grant {
 
         @ToString.Include
         @NonNull
-        Boolean grant_option;
+        Boolean grantOption;
 }
