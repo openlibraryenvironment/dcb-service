@@ -198,7 +198,8 @@ tasks {
 
 	dockerfileNative {
 		label(labels)
-                graalArch.set(org.apache.tools.ant.taskdefs.condition.Os.isArch("aarch64") ? "aarch64" : "amd64")
+                // graalArch.set(org.apache.tools.ant.taskdefs.condition.Os.isArch("aarch64") ? "aarch64" : "amd64")
+                graalArch.set("x64")
 	}
 
 	boolean isPre = project.hasProperty('versionPreRelease') &&
