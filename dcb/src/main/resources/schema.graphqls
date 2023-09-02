@@ -58,10 +58,38 @@ type AgencyGroupMember {
 
 type PatronRequest {
   id: ID!
+  patronHostlmsCode: String
+  patron: Patron
+  requestingIdentity: PatronIdentity
+  bibClusterId: ID
+  pickupLocationCode: String
+  pickupPatronId: String
+  pickupItemId: String
+  pickupItemType: String
+  pickupItemStatus: String
+  pickupRequestId: String
+  pickupRequestStatus: String
+  status: String
+  localRequestId: String
+  localRequestStatus: String
+  localItemId: String
+  localItemStatus: String
+  localItemType: String
+  localBibId: String
   description: String
+  errorMessage: String
+  activeWorkflow: String
 }
 
 type SupplierRequest {
   id: ID!
   hostLmsCode: String
+}
+
+type Patron {
+  id: ID!
+}
+
+type PatronIdentity {
+  id: ID!
 }
