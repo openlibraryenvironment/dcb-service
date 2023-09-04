@@ -36,7 +36,10 @@ public interface CoreBibliographicMetadata {
 	}
 	
 	private static ConversionService getConversionService() {
-		return Application.getCurrentContext().getConversionService();
+		
+		return ConversionService.SHARED;
+		
+//		return Application.getCurrentContext().getConversionService();
 	}
 
 	public default <T> T getMetadataValue( String key, Class<T> type ) {
@@ -58,7 +61,7 @@ public interface CoreBibliographicMetadata {
 			});
 		
 		
-		return value.orElseGet(null);
+		return value.orElse(null);
 	}
 	
 	public default <T> T getMetadataValue( String key, Class<T> type, T defaultValue ) {
