@@ -5,11 +5,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.model.clustering.CoreBibliographicMetadata;
+import org.olf.dcb.ingest.model.Author;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
@@ -18,18 +16,21 @@ import io.micronaut.data.annotation.DateCreated;
 import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.data.annotation.MappedProperty;
 import io.micronaut.data.annotation.Relation;
+import io.micronaut.data.annotation.Transient;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Column;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Singular;
 import lombok.experimental.Accessors;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
-import io.micronaut.core.convert.ConversionService;
 
 
 @Builder(toBuilder = true)
@@ -92,7 +93,7 @@ public class BibRecord implements CoreBibliographicMetadata {
 	@Singular("canonicalMetadata")
 	@NonNull
 	@NotNull
-	@TypeDef(type = DataType.JSON)
+	@MappedProperty(type = DataType.JSON)
 	Map<String, Object> canonicalMetadata;
 
 	// Allocate a score to this record indicating it's semantic density in order to
@@ -109,23 +110,65 @@ public class BibRecord implements CoreBibliographicMetadata {
 	@Nullable
 	Integer processVersion;
 
-	@Override
-	@Nullable
-	public String getDerivedType(ConversionService conversionService) {
-		return CoreBibliographicMetadata.super.getDerivedType(conversionService);
-	}
+//	@Override
+//	@Nullable
+//	public String getDerivedType() {
+//		return CoreBibliographicMetadata.super.getDerivedType();
+//	}
 
-	@Override
-	@Nullable
-	public String getRecordStatus(ConversionService conversionService) {
-		return CoreBibliographicMetadata.super.getRecordStatus(conversionService);
-	}
+//	@Override
+//	@Nullable
+//	public String getRecordStatus() {
+//		return CoreBibliographicMetadata.super.getRecordStatus();
+//	}
 	
 	@Override
 	@Nullable
 	@TypeDef(type = DataType.STRING)
-	public String getTitle(ConversionService conversionService) {
-		return CoreBibliographicMetadata.super.getTitle(conversionService);
+	public String getTitle() {
+		return CoreBibliographicMetadata.super.getTitle();
+	}
+
+	@Override
+	@Transient
+	@Nullable
+	public Author getAuthor() {
+		return CoreBibliographicMetadata.super.getAuthor();
+	}
+
+	@Override
+	@Transient
+	@Nullable
+	public String getPlaceOfPublication() {
+		return CoreBibliographicMetadata.super.getPlaceOfPublication();
+	}
+
+	@Override
+	@Transient
+	@Nullable
+	public String getPublisher() {
+		return CoreBibliographicMetadata.super.getPublisher();
+	}
+
+	@Override
+	@Transient
+	@Nullable
+	public String getDateOfPublication() {
+		return CoreBibliographicMetadata.super.getDateOfPublication();
+	}
+
+	@Override
+	@Transient
+	@Nullable
+	public String getEdition() {
+		return CoreBibliographicMetadata.super.getEdition();
+	}
+
+	@Override
+	@Transient
+	public boolean isLargePrint() {
+		// Return type of boolean is incompatible with null, supply default.
+		return CoreBibliographicMetadata.super.isLargePrint();
 	}
 	
 	public static class BibRecordBuilder {
