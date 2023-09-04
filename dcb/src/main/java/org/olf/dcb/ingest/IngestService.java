@@ -23,7 +23,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 
 import io.micronaut.core.convert.ConversionService;
 
-@Refreshable
+//@Refreshable
 @Singleton
 //@Parallel
 public class IngestService implements Runnable {

@@ -14,7 +14,7 @@ eclipse {
 					'gradle_used_by_scope': ['main', 'test'].join(','),
 				])
 
-				def test_gen = new SourceFolder('.apt_generated_test', 'bin/test')
+				def test_gen = new SourceFolder('.apt_generated_tests', 'bin/test')
 				test_gen.getEntryAttributes().putAll([
 					'optional'            : true,
 					'gradle_scope'        : 'test',
@@ -28,3 +28,4 @@ eclipse {
 		}
 	}
 }
+
