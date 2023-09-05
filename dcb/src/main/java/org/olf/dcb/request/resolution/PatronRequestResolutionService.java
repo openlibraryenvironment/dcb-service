@@ -97,7 +97,8 @@ public class PatronRequestResolutionService {
                                                 "ShelvingLocation", item.getHostLmsCode().trim(), item.getLocation().getCode().trim(), "AGENCY", "DCB"))
                                 .map(mapping -> mapping.getToValue() )
                                 .doOnSuccess(mapping -> log.debug("Result from getting agency for shelving location: {}", mapping))
-				.flatMap(agencyCode -> Mono.from(agencyRepository.findOneByCode(agencyCode)) );
+				.flatMap(agencyCode -> Mono.from(agencyRepository.findOneByCode(agencyCode)) )
+                                .doOnSuccess(agency -> log.debug("Located agency record {}",agency));
 	}
 
 
@@ -106,9 +107,9 @@ public class PatronRequestResolutionService {
 	// isActive is intended to identify the "Current" supplier as we try different agencies.
 	private static SupplierRequest mapToSupplierRequest(Item item, PatronRequest patronRequest, DataAgency agency) {
 
-		log.debug("mapToSupplierRequest({}}, {})", item, patronRequest);
+		log.debug("mapToSupplierRequest({}}, {}, {})", item, patronRequest,agency);
                 if ( agency == null )
-                        log.error("NO AGENCY ATTEMPTING TO MAP SUPPLIER REQUEST");
+                        log.error("NO AGENCY ATTEMPTING TO MAP SUPPLIER REQUEST - The SupplierRequest localAgency will be null - this is test only behaviour");
 
 		final var supplierRequestId = UUID.randomUUID();
 
