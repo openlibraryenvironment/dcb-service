@@ -69,7 +69,7 @@ class ItemResultToItemMapper {
                                         .suppressed(result.getSuppressed())
 					.build())
                                 .flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode))
-                                .flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode, result.getLocation().getCode()))
+                                .flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode, result.getLocation().getCode().trim()))
                                 ;
 	}
 
