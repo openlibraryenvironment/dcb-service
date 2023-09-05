@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.items.SierraItem;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
 
 import java.time.ZonedDateTime;
 
@@ -16,12 +17,16 @@ class ItemResultToItemMapper {
 
 	private final SierraItemStatusMapper sierraItemStatusMapper;
 	private final SierraItemTypeMapper sierraItemTypeMapper;
+        private final ReferenceValueMappingRepository referenceValueMappingRepository;
         private static final Integer FIXED_FIELD_61 = Integer.valueOf(61);
 
+
 	ItemResultToItemMapper(SierraItemStatusMapper sierraItemStatusMapper,
-                               SierraItemTypeMapper sierraItemTypeMapper) {
+                               SierraItemTypeMapper sierraItemTypeMapper,
+                               ReferenceValueMappingRepository referenceValueMappingRepository) {
 		this.sierraItemStatusMapper = sierraItemStatusMapper;
 		this.sierraItemTypeMapper = sierraItemTypeMapper;
+		this.referenceValueMappingRepository = referenceValueMappingRepository;
 	}
 
 	Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem result, String hostLmsCode, String bibId) {
@@ -64,8 +69,16 @@ class ItemResultToItemMapper {
                                         .suppressed(result.getSuppressed())
 					.build())
                                 .flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode))
+                                .flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode, result.getLocation().getCode()))
                                 ;
 	}
+
+        Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromShelvingLocation(org.olf.dcb.core.model.Item item, String hostSystem, String itemShelvingLocation) {
+                return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+                                                "ShelvingLocation", hostSystem, itemShelvingLocation, "AGENCY", "DCB"))
+                        .map ( rvm -> item.setAgency( rvm.getToValue() ) )
+                        .defaultIfEmpty(item);
+        }
 
         Mono<org.olf.dcb.core.model.Item> enrichItemWithMappedItemType(org.olf.dcb.core.model.Item item, String hostSystem) {
                 // We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human readable string at the moment

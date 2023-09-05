@@ -39,6 +39,7 @@ public class Item implements Comparable<Item> {
         private String canonicalItemType;
         private Boolean deleted;
         private Boolean suppressed;
+        private String agency;
 
 	public boolean isAvailable() {
 		return getStatus().getCode() == AVAILABLE;
