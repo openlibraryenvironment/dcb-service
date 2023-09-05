@@ -5,8 +5,6 @@ import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import java.time.Instant;
 import java.util.UUID;
 
-import jakarta.validation.constraints.NotNull;
-
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
@@ -15,14 +13,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Requires;
+import io.micronaut.core.convert.ConversionService;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.gokb.GokbApiClient;
 import services.k_int.interaction.gokb.GokbTipp;
 import services.k_int.utils.UUIDUtils;
-
-import io.micronaut.core.convert.ConversionService;
 
 @Singleton
 @Requires(property = (GokbIngestSource.CONFIG_ROOT + ".enabled"), value = "true", defaultValue = "false")
@@ -33,36 +31,28 @@ public class GokbIngestSource implements IngestSource {
 	private static Logger log = LoggerFactory.getLogger(GokbIngestSource.class);
 
 	private final GokbApiClient gokbapi;
-        // import io.micronaut.core.convert.ConversionService;
-	private final ConversionService conversionService;
+	// import io.micronaut.core.convert.ConversionService;
 
-	GokbIngestSource(GokbApiClient gokbapi,
-                ConversionService conversionService) {
+	GokbIngestSource(GokbApiClient gokbapi, ConversionService conversionService) {
 		this.gokbapi = gokbapi;
-		this.conversionService = conversionService;
 	}
 
 	@Override
-	public Publisher<IngestRecord> apply(Instant since, ConversionService conversionService) {
+	public Publisher<IngestRecord> apply(Instant since) {
 
 		log.info("Fetching from GOKb");
 
 		// The stream of imported records.
-		return Flux.from(scrollAllResults(since, null)).name("gokp-tipps")
-				.filter(tipp -> tipp.tippTitleName() != null)
-				.map(tipp -> IngestRecord.build( record -> {
-					record
-						.uuid(uuid5ForTippUuid(tipp.uuid()))
-						.title(tipp.tippTitleName());
+		return Flux.from(scrollAllResults(since, null)).name("gokp-tipps").filter(tipp -> tipp.tippTitleName() != null)
+				.map(tipp -> IngestRecord.build(record -> {
+					record.uuid(uuid5ForTippUuid(tipp.uuid())).title(tipp.tippTitleName());
 				}));
 	}
-	
 
-	
 	private static final String UUID5_PREFIX = "ingest-source:gokb";
-	
-	public UUID uuid5ForTippUuid( @NotNull final UUID tippUuid ) {
-		
+
+	public UUID uuid5ForTippUuid(@NotNull final UUID tippUuid) {
+
 		final String concat = UUID5_PREFIX + ":" + tippUuid.toString();
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
@@ -70,8 +60,7 @@ public class GokbIngestSource implements IngestSource {
 	private Publisher<GokbTipp> scrollAllResults(final Instant lastRun, final String scrollId) {
 		log.info("Fetching scroll page from Gokb");
 		return Mono.from(gokbapi.scrollTipps(scrollId, lastRun))
-				.filter(resp -> "OK".equalsIgnoreCase(resp.result()) && resp.size() > 0)
-				.flatMapMany(resp -> {
+				.filter(resp -> "OK".equalsIgnoreCase(resp.result()) && resp.size() > 0).flatMapMany(resp -> {
 
 					log.info("Fetched a chunk of {} records", resp.size());
 					// We already have results. If there are more results then we create a
@@ -97,9 +86,8 @@ public class GokbIngestSource implements IngestSource {
 		return this.getClass().getName();
 	}
 
-        @Override
-        public Publisher<ConfigurationRecord> getConfigStream() {
-                return Flux.empty();
-        }
+	@Override
+	public Publisher<ConfigurationRecord> getConfigStream() {
+		return Flux.empty();
+	}
 }
-

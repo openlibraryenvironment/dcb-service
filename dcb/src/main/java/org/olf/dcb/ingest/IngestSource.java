@@ -1,7 +1,7 @@
 package org.olf.dcb.ingest;
 
 import java.time.Instant;
-import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.ingest.model.IngestRecord;
@@ -11,9 +11,7 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.naming.Named;
 import io.micronaut.core.util.Toggleable;
 
-import io.micronaut.core.convert.ConversionService;
-
-public interface IngestSource extends BiFunction<Instant, ConversionService, Publisher<IngestRecord>>, Toggleable, Named {
+public interface IngestSource extends Function<Instant, Publisher<IngestRecord>>, Toggleable, Named {
 
 	public static final int DEFAULT_PAGE_SIZE = 1000;
 
@@ -26,7 +24,7 @@ public interface IngestSource extends BiFunction<Instant, ConversionService, Pub
 	 * @return A Publisher of IngestRecords
 	 */
 	@Override
-	Publisher<IngestRecord> apply(@Nullable Instant changedSince, ConversionService conversionService);
+	Publisher<IngestRecord> apply(@Nullable Instant changedSince);
 
 	Publisher<ConfigurationRecord> getConfigStream();
 }

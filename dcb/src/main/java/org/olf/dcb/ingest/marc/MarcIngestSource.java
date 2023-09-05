@@ -16,9 +16,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import jakarta.transaction.Transactional;
-import jakarta.validation.constraints.NotEmpty;
-
 import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
@@ -27,8 +24,8 @@ import org.marc4j.marc.VariableField;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
-import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
+import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.processing.matching.goldrush.GoldrushKey;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.olf.dcb.utils.DCBStringUtilities;
@@ -38,12 +35,12 @@ import org.slf4j.LoggerFactory;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.util.StringUtils;
+import jakarta.transaction.Transactional;
+import jakarta.validation.constraints.NotEmpty;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import services.k_int.integration.marc4j.Marc4jRecordUtils;
-
-import io.micronaut.core.convert.ConversionService;
 
 public interface MarcIngestSource<T> extends IngestSource {
 
@@ -53,24 +50,26 @@ public interface MarcIngestSource<T> extends IngestSource {
 	final static Pattern REGEX_REMOVE_PUNCTUATION = Pattern.compile("\\p{Punct}");
 
 	static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
+	
+//	protected ConversionService getConversionService();
 
-	default IngestRecordBuilder populateRecordFromMarc(final IngestRecordBuilder ingestRecord, final Record marcRecord, ConversionService conversionService) {
+	default IngestRecordBuilder populateRecordFromMarc(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
 
 		// Leader fields
-		enrichWithLeaderInformation(ingestRecord, marcRecord, conversionService);
+		enrichWithLeaderInformation(ingestRecord, marcRecord);
 
 		// Title(s)
-		enrichWithTitleInformation(ingestRecord, marcRecord, conversionService);
+		enrichWithTitleInformation(ingestRecord, marcRecord);
 
 		// Identifiers
 		enrichWithIdentifiers(ingestRecord, marcRecord);
 
 		// Author(s)
-		enrichWithAuthorInformation(ingestRecord, marcRecord, conversionService);
+		enrichWithAuthorInformation(ingestRecord, marcRecord);
 
 		enrichWithGoldrush(ingestRecord, marcRecord);
 
-		enrichWithCanonicalRecord(ingestRecord, marcRecord, conversionService);
+		enrichWithCanonicalRecord(ingestRecord, marcRecord);
 		
 		enrichWithMetadataScore(ingestRecord, marcRecord);
 
@@ -81,7 +80,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 	String getDefaultControlIdNamespace();
 
 	default IngestRecordBuilder enrichWithLeaderInformation(final IngestRecordBuilder ingestRecord,
-			final Record marcRecord, ConversionService conversionService) {
+			final Record marcRecord) {
 
 		// This page has useful info for how to convert leader character position 06
 		// into a value that can be used to interpret 008 fields
@@ -99,7 +98,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 
 	default IngestRecordBuilder enrichWithAuthorInformation(final IngestRecordBuilder ingestRecord,
-			final Record marcRecord, ConversionService conversionService) {
+			final Record marcRecord) {
 
 		// II: This block was adding author names as identifiers. Whilst we do want to extract author names,
 		// I don't think we want them in identifiers, so commenting out for now.
@@ -123,12 +122,11 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 
 	default IngestRecordBuilder enrichWithTitleInformation(final IngestRecordBuilder ingestRecord,
-			final Record marcRecord,
-                        ConversionService conversionService) {
+			final Record marcRecord) {
 		// Initial title.
 		final String title = Stream.of("245", "243", "240", "246", "222", "210", "240", "247", "130")
 				.filter(Objects::nonNull).flatMap(tag -> concatSubfieldData(marcRecord, tag, "abc"))
-				.filter(StringUtils::isNotEmpty).reduce(ingestRecord.build().getTitle(conversionService), (current, item) -> {
+				.filter(StringUtils::isNotEmpty).reduce(ingestRecord.build().getTitle(), (current, item) -> {
 					if (StringUtils.isEmpty(current)) {
 						ingestRecord.title(item);
 						ingestRecord.addIdentifier(id -> {
@@ -239,7 +237,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 	Record resourceToMarc(T resource);
 
 	@Override
-	public default Publisher<IngestRecord> apply(Instant since, ConversionService conversionService) {
+	public default Publisher<IngestRecord> apply(Instant since) {
 
 		log.info("Read from the marc source and publish a stream of IngestRecords");
 
@@ -250,7 +248,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 							.zipWith(Mono.just( resourceToMarc(resource) ) )
 									// .map( this::createMatchKey ))
 							.map(TupleUtils.function(( ir, marcRecord ) -> {
-								return populateRecordFromMarc(ir, marcRecord, conversionService).build();
+								return populateRecordFromMarc(ir, marcRecord).build();
 							}));
 				});
 	}
@@ -319,18 +317,17 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 
 	public default IngestRecordBuilder enrichWithCanonicalRecord(final IngestRecordBuilder irb, 
-                final Record marcRecord,
-                final ConversionService conversionService) {
+                final Record marcRecord) {
 		Map<String,Object> canonical_metadata = new HashMap<>();
 		IngestRecord ir = irb.build();
-		canonical_metadata.put("title",ir.getTitle(conversionService));
+		canonical_metadata.put("title",ir.getTitle());
 		canonical_metadata.put("identifiers",ir.getIdentifiers());
-		canonical_metadata.put("derivedType",ir.getDerivedType(conversionService));
-		canonical_metadata.put("recordStatus",ir.getRecordStatus(conversionService));
+		canonical_metadata.put("derivedType",ir.getDerivedType());
+		canonical_metadata.put("recordStatus",ir.getRecordStatus());
 		// canonical_metadata.put("typeOfRecord",ir.getTypeOfRecord());
 		// canonical_metadata.put("bibLevel",ir.getBibLevel());
 		// canonical_metadata.put("materialType",ir.getMaterialType());
-		canonical_metadata.put("author",ir.getAuthor(conversionService));
+		canonical_metadata.put("author",ir.getAuthor());
 		canonical_metadata.put("otherAuthors",ir.getOtherAuthors());
 
 		DataField publisher = (DataField) marcRecord.getVariableField("260");
