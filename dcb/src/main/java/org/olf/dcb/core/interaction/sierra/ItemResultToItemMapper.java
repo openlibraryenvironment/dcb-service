@@ -74,6 +74,7 @@ class ItemResultToItemMapper {
 	}
 
         Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromShelvingLocation(org.olf.dcb.core.model.Item item, String hostSystem, String itemShelvingLocation) {
+                log.debug("map shelving location to agency  {}:\"{}\"",hostSystem,itemShelvingLocation);
                 return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
                                                 "ShelvingLocation", hostSystem, itemShelvingLocation, "AGENCY", "DCB"))
                         .map ( rvm -> item.setAgency( rvm.getToValue() ) )
