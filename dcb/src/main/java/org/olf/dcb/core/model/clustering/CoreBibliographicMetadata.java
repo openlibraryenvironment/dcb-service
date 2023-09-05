@@ -3,7 +3,6 @@ package org.olf.dcb.core.model.clustering;
 import java.util.Map;
 import java.util.Optional;
 
-import org.olf.dcb.Application;
 import org.olf.dcb.ingest.model.Author;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +13,7 @@ import io.micronaut.core.convert.ConversionContext;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
 import jakarta.validation.constraints.NotNull;
+import services.k_int.micronaut.StaticHelpers;
 
 public interface CoreBibliographicMetadata {
 	
@@ -35,9 +35,9 @@ public interface CoreBibliographicMetadata {
 		return this;
 	}
 	
-	private static ConversionService getConversionService() {
+	private ConversionService getConversionService() {
 		
-		return ConversionService.SHARED;
+		return StaticHelpers.get().getConversionService();
 		
 //		return Application.getCurrentContext().getConversionService();
 	}
@@ -50,7 +50,8 @@ public interface CoreBibliographicMetadata {
 		if (type.isAssignableFrom(mapVal.getClass())) return type.cast(mapVal);
 		
 		// Create the conversion context to allow us to log any errors in conversion
-		ArgumentConversionContext<T> context = ConversionContext.of(Argument.of(type));		
+		ArgumentConversionContext<T> context = ConversionContext.of(Argument.of(type));
+		
 		// Optional<T> value = ConversionService.SHARED.convert(mapVal, context);
 		Optional<T> value = getConversionService().convert(mapVal, context);
 		

@@ -34,19 +34,20 @@ dependencies {
 	annotationProcessor("io.micronaut:micronaut-inject")
 	annotationProcessor("io.micronaut:micronaut-inject-java")
 	annotationProcessor("io.micronaut.data:micronaut-data-processor")
+	annotationProcessor("io.micronaut.serde:micronaut-serde-processor")
 	
 	annotationProcessor("io.micronaut:micronaut-http-validation")
 	annotationProcessor("io.micronaut.openapi:micronaut-openapi")
 	annotationProcessor("io.micronaut.security:micronaut-security-annotations")
-	annotationProcessor("io.micronaut.serde:micronaut-serde-processor")
 	annotationProcessor("io.micronaut.validation:micronaut-validation-processor")
 	annotationProcessor('io.micronaut:micronaut-graal')
 
 	compileOnly("org.graalvm.nativeimage:svm")
-	compileOnly("io.micronaut:micronaut-inject")
 	compileOnly("io.micronaut:micronaut-inject-java")
 
 	// Implementation
+	
+	implementation("io.micronaut.serde:micronaut-serde-jackson")
 	implementation("io.micronaut.security:micronaut-security-jwt")
 	implementation("io.micronaut:micronaut-http-client")
 	implementation("io.micronaut:micronaut-management")
@@ -67,7 +68,6 @@ dependencies {
 	// implementation("org.apache.logging.log4j:log4j-core")
 
 	// implementation("io.micronaut:micronaut-jackson-databind") // Not using Jackson for binding.
-	implementation("io.micronaut.serde:micronaut-serde-jackson")
 	// implementation("io.micronaut.xml:micronaut-jackson-xml")
 	implementation 'org.marc4j:marc4j'
 
@@ -110,9 +110,23 @@ dependencies {
 	// implementation 'com.hazelcast:hazelcast:5.3.0'
 
 	// Tests
-	testCompileOnly 'org.projectlombok:lombok'
 	testAnnotationProcessor 'org.projectlombok:lombok'
+	testAnnotationProcessor "io.micronaut:micronaut-inject-java" 
+	testCompileOnly 'org.projectlombok:lombok'
 	testCompileOnly 'io.micronaut:micronaut-inject-java'
+	
+	/**/
+	testAnnotationProcessor("io.micronaut.serde:micronaut-serde-processor")
+	
+	//*/
+	testAnnotationProcessor("io.micronaut.data:micronaut-data-processor")
+	testAnnotationProcessor("io.micronaut.validation:micronaut-validation-processor")
+	
+	testAnnotationProcessor("io.micronaut:micronaut-http-validation")
+	testAnnotationProcessor("io.micronaut.openapi:micronaut-openapi")
+	testAnnotationProcessor("io.micronaut.security:micronaut-security-annotations")
+	testAnnotationProcessor('io.micronaut:micronaut-graal')
+	/**/
 	
 	testImplementation("io.micronaut.test:micronaut-test-junit5")
 	testImplementation('org.mock-server:mockserver-junit-jupiter')
@@ -142,7 +156,6 @@ dependencies {
 
 	aotPlugins platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
 	aotPlugins("io.micronaut.security:micronaut-security-aot")
-
 
 }
 
