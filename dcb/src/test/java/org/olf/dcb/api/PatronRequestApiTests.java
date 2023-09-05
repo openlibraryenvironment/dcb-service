@@ -171,6 +171,8 @@ class PatronRequestApiTests {
 
 		referenceValueMappingFixture.deleteAllReferenceValueMappings();
 
+
+                log.debug("Creating dataHostLms records for codeAA and codeBB");
 		// add shelving location
 		UUID id1 = randomUUID();
 		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms(id1, "codeAA");
@@ -178,9 +180,12 @@ class PatronRequestApiTests {
 		UUID id = randomUUID();
 		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "codeBB");
 
+                log.debug("Creating dataAgency record for ab6");
 		DataAgency dataAgency = Mono.from(agencyRepository.save(
 			DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(dataHostLms2).build()))
-				.block();
+                        .doOnSuccess(da -> log.debug("Created ab6"))
+                        .doOnError(err -> log.error("Failure to create ab6 data agency {}",err))
+			.block();
 
 		ShelvingLocation shelvingLocation = ShelvingLocation.builder().id(randomUUID()).code("ab6").name("name")
 				.hostSystem(dataHostLms1).agency(dataAgency).build();

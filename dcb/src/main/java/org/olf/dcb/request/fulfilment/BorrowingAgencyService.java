@@ -94,10 +94,18 @@ public class BorrowingAgencyService {
 			PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 			SupplierRequest supplierRequest) {
 		final UUID bibClusterId = patronRequest.getBibClusterId();
+
+                if ( hostLmsClient == null ) {
+                        log.error("Cannot create a bib item at host system because hostLmsClient is NULL");
+                        throw new RuntimeException("Cannot create a bib item at host system because hostLmsClient is NULL");
+                }
+
 		log.debug("createVirtualBib for cluster {}", bibClusterId);
 		return Mono.from(clusterRecordRepository.findById(bibClusterId))
 				.flatMap(clusterRecord -> Mono.from(bibRepository.findById(clusterRecord.getSelectedBib())))
-				.map(this::extractBibData).flatMap(hostLmsClient::createBib).map(patronRequest::setLocalBibId)
+				.map(this::extractBibData)
+                                .flatMap(hostLmsClient::createBib)
+                                .map(patronRequest::setLocalBibId)
 				.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual bib.")))
 				.map(pr -> Tuples.of(pr, patronIdentity, hostLmsClient, supplierRequest));
 	}
@@ -119,6 +127,8 @@ public class BorrowingAgencyService {
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, String>> createVirtualItem(
 			PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 			SupplierRequest supplierRequest) {
+
+                log.debug("createVirtualItem(...)");
 
 		final String localBibId = patronRequest.getLocalBibId();
 		Objects.requireNonNull(localBibId, "Local bib ID not set on Patron Request");
