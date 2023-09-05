@@ -5,8 +5,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import jakarta.validation.Valid;
-
 import org.olf.dcb.core.api.types.BibRecordDTO;
 import org.olf.dcb.core.api.types.ClusterBibDTO;
 import org.olf.dcb.core.api.types.ClusterRecordDTO;
@@ -28,21 +26,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jakarta.validation.Valid;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import jakarta.validation.Valid;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import io.micronaut.core.convert.ConversionService;
 
 @Controller("/clusters")
 @Tag(name = "Cluster Records (Read only)")
@@ -53,14 +39,11 @@ public class ClusterRecordController {
 
 	private final ClusterRecordRepository _clusterRecordRepository;
 	private final BibRepository _bibRepository;
-	private final ConversionService conversionService;
 
 	public ClusterRecordController(ClusterRecordRepository clusterRecordRepository,
-                BibRepository bibRepository,
-                ConversionService conversionService) {
+                BibRepository bibRepository) {
 		_clusterRecordRepository = clusterRecordRepository;
 		_bibRepository = bibRepository;
-                this.conversionService = conversionService;
 	}
 
 	@Secured(SecurityRule.IS_ANONYMOUS)
@@ -167,13 +150,13 @@ public class ClusterRecordController {
 		return BibRecordDTO
 			.builder()
 			.bibId(br.getId())
-			.title(br.getTitle(conversionService))
+			.title(br.getTitle())
 			.sourceRecordId(br.getSourceRecordId())
 			.sourceSystemId(br.getSourceSystemId())
 			.sourceSystemCode(String.valueOf(br.getSourceSystemId()))
-			.recordStatus(br.getRecordStatus(conversionService))
+			.recordStatus(br.getRecordStatus())
 			.typeOfRecord(br.getTypeOfRecord())
-			.derivedType(br.getDerivedType(conversionService))
+			.derivedType(br.getDerivedType())
 			.canonicalMetadata(br.getCanonicalMetadata())
 			.build();
 	}

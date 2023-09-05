@@ -21,11 +21,12 @@ import io.micronaut.core.util.StringUtils;
 import io.micronaut.serde.Decoder;
 import io.micronaut.serde.Encoder;
 import io.micronaut.serde.Serde;
+import jakarta.annotation.PostConstruct;
 
 @Requires(classes = Record.class)
 @Prototype
 public class Marc4jRecordSerde implements Serde<Record> {
-
+	
 	// Instanciate the default class here. Works better with native compilation.
 	private static final MarcFactory factory = new MarcFactoryImpl();
 
@@ -48,6 +49,7 @@ public class Marc4jRecordSerde implements Serde<Record> {
 	@Override
 	public void serialize(Encoder enc, EncoderContext context, Argument<? extends Record> type, final Record record)
 		throws IOException {
+				
 		try (Encoder root = enc.encodeObject(type)) {
 			root.encodeKey(KEY_LEADER);
 			root.encodeString(record.getLeader().toString());

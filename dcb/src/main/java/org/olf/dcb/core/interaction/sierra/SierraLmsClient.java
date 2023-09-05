@@ -505,6 +505,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.fixedFields(fixedFields)
 			.build();
 
+                log.debug("create bib using Bib patch {}",bibPatch);
+
 		return Mono.from(client.bibs(bibPatch))
 			.doOnSuccess(result -> log.debug("the result of createBib({})", result))
 			.map(bibResult -> deRestify( bibResult.getLink()))
