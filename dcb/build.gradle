@@ -122,6 +122,12 @@ dependencies {
 	testImplementation('org.hamcrest:hamcrest')
 	testImplementation('org.awaitility:awaitility')
 	testImplementation('io.projectreactor:reactor-test')
+	
+	testImplementation (platform("org.junit:junit-bom:5.10.0"))
+	
+	testRuntimeOnly("org.junit.platform:junit-platform-launcher") {
+	  because("Only needed to run tests in IDE that bundles older versions")
+	}
 	testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 	
 	// testImplementation(platform("org.testcontainers:testcontainers-bom"))
