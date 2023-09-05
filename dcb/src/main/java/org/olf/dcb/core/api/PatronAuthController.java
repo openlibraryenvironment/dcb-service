@@ -1,6 +1,7 @@
 package org.olf.dcb.core.api;
 
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MediaType;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
@@ -8,7 +9,11 @@ import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.serde.annotation.Serdeable;
 import io.micronaut.validation.Validated;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,10 +26,7 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 
 import java.util.List;
@@ -53,8 +55,25 @@ public class PatronAuthController {
 	}
 
 	@Post(consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
-        @Operation(summary = "Verify Patron Credentials", description = "Verify a patrons login details")
-	public Mono<HttpResponse<VerificationResponse>> patronAuth(@Body PatronCredentials request) {
+	@Operation(
+		summary = "Verify Patron Credentials",
+		description = "Verify a patron's login details",
+		requestBody = @RequestBody(
+			description = "Request body containing patron credentials.",
+			content = @Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = PatronCredentials.class),
+				examples = {
+				@ExampleObject(
+						name = "BASIC/BARCODE+PIN",
+						value = "{\"agencyCode\": \"ab6\", \"patronPrinciple\": \"BAR123456\", \"secret\": \"1234\"}"
+					),
+					@ExampleObject(
+						name = "BASIC/BARCODE+NAME",
+						value = "{\"agencyCode\": \"ab6\", \"patronPrinciple\": \"BAR789012\", \"secret\": \"John Doe\"}"
+					)
+				}),
+			required = true
+		))
+	public Mono<HttpResponse<VerificationResponse>> patronAuth(@Body @Valid PatronCredentials request) {
 		log.debug("REST, verify patron {}", request);
 		return Mono.from(agencyRepository.findOneByCode(request.agencyCode))
 			.flatMap(this::addHostLms)
@@ -87,8 +106,11 @@ public class PatronAuthController {
 	@Data
 	@Serdeable
 	public static class PatronCredentials {
+		@Schema(name = "agencyCode", description = "The agency code associated with the patron", type = "String", example = "ab6")
 		String agencyCode;
+		@Schema(name = "patronPrinciple", description = "Patrons barcode or unique identifier", type = "String", example = "BAR789012")
 		String patronPrinciple;
+		@Schema(name = "secret", description = "Patrons PIN or name", type = "String", example = "1234")
 		String secret;
 	}
 
