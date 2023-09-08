@@ -60,6 +60,8 @@ Module documentation can be found here: https://openlibraryenvironment.github.io
 
 ## Tag a prerelease
 
+./gradew cgTagPre
+
 
 ## Trace graalvm issues with
 
