@@ -34,12 +34,13 @@ public class Item implements Comparable<Item> {
 	private Boolean isRequestable;
 	private Integer holdCount;
 	private String bibId;
-        private String localItemType;
-        private String localItemTypeCode;
-        private String canonicalItemType;
-        private Boolean deleted;
-        private Boolean suppressed;
-        private String agency;
+	private String localItemType;
+	private String localItemTypeCode;
+	private String canonicalItemType;
+	private Boolean deleted;
+	private Boolean suppressed;
+	private String agencyCode;
+	private String agencyDescription;
 
 	public boolean isAvailable() {
 		return getStatus().getCode() == AVAILABLE;

@@ -12,9 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
-import org.olf.dcb.test.BibRecordFixture;
-import org.olf.dcb.test.ClusterRecordFixture;
-import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.test.*;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.HttpRequest;
@@ -25,6 +25,8 @@ import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.UUID;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -42,6 +44,10 @@ class LiveAvailabilityApiTests {
 	private BibRecordFixture bibRecordFixture;
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 
 	@BeforeAll
 	@SneakyThrows
@@ -84,6 +90,25 @@ class LiveAvailabilityApiTests {
 		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId,
 			"798472", clusterRecord);
 
+		referenceValueMappingFixture.saveReferenceValueMapping(
+			ReferenceValueMapping.builder()
+				.id(UUID.randomUUID())
+				.fromCategory("ShelvingLocation")
+				.fromContext("live-availability-api-tests")
+				.fromValue("ab6")
+				.toCategory("AGENCY")
+				.toContext("DCB")
+				.toValue("345test")
+				.reciprocal(false)
+				.build() );
+
+		agencyFixture.saveAgency(
+			DataAgency.builder()
+				.id(randomUUID())
+				.code("345test")
+				.name("Test College")
+				.build());
+
 		final var uri = UriBuilder.of("/items/availability")
 			.queryParam("clusteredBibId", clusterRecordId)
 			.build();
@@ -110,6 +135,8 @@ class LiveAvailabilityApiTests {
 		assertThat(firstItem.getHoldCount(), is(0));
 		assertThat(firstItem.getLocalItemType(), is("999"));
 		assertThat(firstItem.getCanonicalItemType(), is("BKM"));
+		assertThat(firstItem.getAgency().getCode(), is("345test"));
+		assertThat(firstItem.getAgency().getDescription(), is("Test College"));
 
 		final var firstItemStatus = firstItem.getStatus();
 
@@ -133,6 +160,8 @@ class LiveAvailabilityApiTests {
 		assertThat(secondItem.getHoldCount(), is(0));
 		assertThat(secondItem.getLocalItemType(), is("999"));
 		assertThat(secondItem.getCanonicalItemType(), is("BKM"));
+		assertThat(secondItem.getAgency().getCode(), is("345test"));
+		assertThat(secondItem.getAgency().getDescription(), is("Test College"));
 
 		final var secondItemStatus = secondItem.getStatus();
 

@@ -6,6 +6,8 @@ import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.constraints.NotNull;
 
 import org.olf.dcb.item.availability.AvailabilityReport;
@@ -43,6 +45,10 @@ public class LiveAvailabilityController {
 		this.sharedIndexService = sharedIndexService;
 	}
 
+	@Operation(
+		summary = "Live Item Availability",
+		description = "Check Live Item Availability for a Bibliographic Record"
+	)
 	@SingleResult
 	@Get(value = "/items/availability", produces = APPLICATION_JSON)
 	public Mono<HttpResponse<AvailabilityResponseView>> getLiveAvailability(

@@ -8,6 +8,8 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 
@@ -26,9 +28,9 @@ public class AvailabilityResponseView {
 				new Status(item.getStatus().getCode().name()), item.getDueDate(),
 				new Location(item.getLocation().getCode(), item.getLocation().getName()),
 				item.getBarcode(), item.getCallNumber(), item.getHostLmsCode(),
-				item.getIsRequestable(), item.getHoldCount(), item.getLocalItemType(), item.getCanonicalItemType(),
-                                item.getLocalItemTypeCode(),
-				item.getAgency()))
+				item.getIsRequestable(), item.getHoldCount(), item.getLocalItemType(),
+				item.getCanonicalItemType(), item.getLocalItemTypeCode(),
+				new Agency(item.getAgencyCode(), item.getAgencyDescription())))
 			.toList();
 
 		final var mappedErrors = report.getErrors().stream()
@@ -57,7 +59,8 @@ public class AvailabilityResponseView {
 		private final String localItemType;
 		private final String canonicalItemType;
 		private final String localItemTypeCode;
-		private final String agency;
+		@Schema(description = "The items specific institution")
+		private final Agency agency;
 	}
 
 	@Data
@@ -78,5 +81,12 @@ public class AvailabilityResponseView {
 	@Serdeable
 	public static class Error {
 		private final String message;
+	}
+
+	@Data
+	@Serdeable
+	public static class Agency {
+		private final String code;
+		private final String description;
 	}
 }

@@ -40,6 +40,8 @@ public class AvailabilityResponse {
 		private final String localItemType;
 		@Nullable
 		private final String canonicalItemType;
+		@Nullable
+		private final Agency agency;
 	}
 
 	@Data
@@ -63,6 +65,15 @@ public class AvailabilityResponse {
 	public static class Error {
 		@Nullable
 		private final String message;
+	}
+
+	@Data
+	@Serdeable
+	public static class Agency {
+		@Nullable
+		private final String code;
+		@Nullable
+		private final String description;
 	}
 }
 
