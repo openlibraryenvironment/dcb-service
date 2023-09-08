@@ -1,7 +1,58 @@
 package org.olf.dcb.core.interaction.polaris.papi;
 
+import static io.micronaut.http.HttpMethod.GET;
+import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.Integer.parseInt;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.polaris.papi.MarcConverter.convertToMarcRecord;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.APP_ID;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.CLIENT_BASE_URL;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.DOMAIN_ID;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.LANG_ID;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.MAX_BIBS;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.ORG_ID;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.STAFF_PASSWORD;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.STAFF_USERNAME;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.UUID5_PREFIX;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.VERSION;
+import static reactor.function.TupleUtils.function;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Consumer;
+
+import org.marc4j.marc.Record;
+import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsHold;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.ingest.marc.MarcIngestSource;
+import org.olf.dcb.ingest.model.IngestRecord;
+import org.olf.dcb.ingest.model.RawSource;
+import org.olf.dcb.storage.RawSourceRepository;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
@@ -18,45 +69,13 @@ import io.micronaut.json.tree.JsonNode;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import org.marc4j.marc.Record;
-import org.olf.dcb.configuration.ConfigurationRecord;
-import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.ingest.marc.MarcIngestSource;
-import org.olf.dcb.ingest.model.IngestRecord;
-import org.olf.dcb.ingest.model.RawSource;
-import org.olf.dcb.storage.RawSourceRepository;
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import io.micronaut.context.annotation.Parameter;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import services.k_int.utils.UUIDUtils;
-
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.function.Consumer;
-
-import static io.micronaut.http.HttpMethod.GET;
-import static io.micronaut.http.HttpMethod.POST;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static java.lang.Integer.parseInt;
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.dcb.core.interaction.polaris.papi.MarcConverter.convertToMarcRecord;
-import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.*;
-import static reactor.function.TupleUtils.function;
 
 @Prototype
 public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRow>, HostLmsClient{
@@ -86,56 +105,6 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 		this.rawSourceRepository = rawSourceRepository;
 		this.conversionService = conversionService;
 		this.client = client;
-	}
-
-	private Mono<PublisherState> getInitialState(UUID context, String process) {
-		return processStateService.getStateMap(context, process)
-			.defaultIfEmpty(new HashMap<>())
-			.map(currentStateMap -> {
-				PublisherState generatorState = new PublisherState(currentStateMap);
-				log.info("backpressureAwareBibResultGenerator - state={} lmsid={} thread={}",
-					currentStateMap, lms.getId(), Thread.currentThread().getName());
-
-				String cursor = (String) currentStateMap.get("cursor");
-				if (cursor != null) {
-					log.debug("Cursor: " + cursor);
-					String[] components = cursor.split(":");
-
-					if (components.length > 1) {
-						switch (components[0]) {
-							case "bootstrap":
-								generatorState.offset = parseInt(components[1]);
-								log.info("Resuming bootstrap for {} at offset {}", lms.getName(), generatorState.offset);
-								break;
-							case "deltaSince":
-								generatorState.sinceMillis = Long.parseLong(components[1]);
-								generatorState.since = Instant.ofEpochMilli(generatorState.sinceMillis);
-								if (components.length == 3) {
-									generatorState.offset = parseInt(components[2]);
-								}
-								log.info("Resuming delta at timestamp {} offset={} name={}", generatorState.since, generatorState.offset, lms.getName());
-								break;
-						}
-					}
-				} else {
-					log.info("Start a fresh ingest");
-				}
-
-				// Make a note of the time before we start
-				generatorState.request_start_time = System.currentTimeMillis();
-				log.debug("Create generator: name={} offset={} since={}",
-					lms.getName(), generatorState.offset, generatorState.since);
-
-				return generatorState;
-			});
-	}
-
-	@Transactional(value = Transactional.TxType.REQUIRES_NEW)
-	protected Mono<PublisherState> saveState(PublisherState state) {
-		log.debug("Update state {} - {}", state,lms.getName());
-
-		return Mono.from(processStateService.updateState(lms.getId(), "ingest", state.storred_state))
-			.thenReturn(state);
 	}
 
 	private Mono<BibsPagedResult> fetchPage(Instant updatedate, Integer lastId, Integer nrecs) {
@@ -270,7 +239,7 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 	}
 
 	private Publisher<BibsPagedRow> pageAllResults(int pageSize) {
-		return getInitialState(lms.getId(), "ingest")
+		return Mono.from( getInitialState(lms.getId(), "ingest") )
 			.flatMapMany(state -> fetchPageAndUpdateState(state, pageSize))
 			.concatMap(function(this::processPageAndSaveState));
 	}
@@ -307,7 +276,7 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 		log.debug("page getting converted to iterable: {}", page);
 
 		return Flux.fromIterable(page.getGetBibsPagedRows())
-			.concatWith(Mono.defer(() -> saveState(state))
+			.concatWith(Mono.defer(() -> Mono.from(saveState(lms.getId(), "ingest", state)))
 				.flatMap(_s -> {
 					log.debug("Updating state...");
 					return Mono.empty();
@@ -514,33 +483,57 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 		private String BibliographicRecordXML;
 	}
 
-	@Builder(toBuilder = true)
-	@ToString
-	@RequiredArgsConstructor
-	@AllArgsConstructor
-	protected static class PublisherState {
+	@Override
+	public ProcessStateService getProcessStateService() {
+		return this.processStateService;
+	}
 
-		public final Map<String, Object> storred_state;
+	@Override
+	public PublisherState mapToPublisherState(Map<String, Object> mapData) {
+		PublisherState generatorState = new PublisherState(mapData);
+		log.info("backpressureAwareBibResultGenerator - state={} lmsid={} thread={}", mapData, lms.getId(),
+				Thread.currentThread().getName());
 
-		@Builder.Default
-		boolean possiblyMore = false;
+		String cursor = (String) mapData.get("cursor");
+		if (cursor != null) {
+			log.debug("Cursor: " + cursor);
+			String[] components = cursor.split(":");
 
-		@Builder.Default
-		int offset = 0;
+			if (components.length > 1) {
+				switch (components[0]) {
+				case "bootstrap":
+					generatorState.offset = parseInt(components[1]);
+					log.info("Resuming bootstrap for {} at offset {}", lms.getName(), generatorState.offset);
+					break;
+				case "deltaSince":
+					generatorState.sinceMillis = Long.parseLong(components[1]);
+					generatorState.since = Instant.ofEpochMilli(generatorState.sinceMillis);
+					if (components.length == 3) {
+						generatorState.offset = parseInt(components[2]);
+					}
+					log.info("Resuming delta at timestamp {} offset={} name={}", generatorState.since, generatorState.offset,
+							lms.getName());
+					break;
+				}
+			}
+		} else {
+			log.info("Start a fresh ingest");
+		}
 
-		@Builder.Default
-		Instant since = null;
+		// Make a note of the time before we start
+		generatorState.request_start_time = System.currentTimeMillis();
+		log.debug("Create generator: name={} offset={} since={}", lms.getName(), generatorState.offset,
+				generatorState.since);
 
-		@Builder.Default
-		long sinceMillis = 0;
+		return generatorState;
+	}
 
-		@Builder.Default
-		long request_start_time = 0;
 
-		@Builder.Default
-		boolean error = false;
-		@Builder.Default
-		int page_counter = 0;
 
+	@Transactional(value = Transactional.TxType.REQUIRES_NEW)
+	@Override
+	public Publisher<PublisherState> saveState(UUID context, String process, PublisherState state) {
+		return Mono.from(processStateService.updateState(context, "ingest", state.storred_state))
+				.thenReturn(state);
 	}
 }

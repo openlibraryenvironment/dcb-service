@@ -1,15 +1,23 @@
 package org.olf.dcb.ingest;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.naming.Named;
 import io.micronaut.core.util.Toggleable;
+import io.micronaut.transaction.annotation.Transactional;
+import reactor.core.publisher.Mono;
 
 public interface IngestSource extends Function<Instant, Publisher<IngestRecord>>, Toggleable, Named {
 
@@ -27,4 +35,26 @@ public interface IngestSource extends Function<Instant, Publisher<IngestRecord>>
 	Publisher<IngestRecord> apply(@Nullable Instant changedSince);
 
 	Publisher<ConfigurationRecord> getConfigStream();
+	
+	ProcessStateService getProcessStateService();
+	
+	PublisherState mapToPublisherState( Map<String, Object> mapData );
+	
+	@SingleResult
+	Publisher<PublisherState> saveState(UUID context, String process, PublisherState state);
+	
+	/**
+	 * Use the ProcessStateRepository to get the current state for
+	 * <idOfLms>:"ingest" process - a list of name value pairs If we don't find one,
+	 * just create a new empty map transform that data into the PublisherState class
+	 * above ^^
+	 */
+	@SingleResult
+	@Transactional
+	default Publisher<PublisherState> getInitialState(UUID context, String process) {
+		return getProcessStateService()
+			.getStateMap(context, process)
+			.defaultIfEmpty(new HashMap<>())
+			.map(this::mapToPublisherState);
+	}
 }

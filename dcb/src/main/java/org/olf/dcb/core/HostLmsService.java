@@ -10,12 +10,13 @@ import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.IngestSourcesProvider;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.micronaut.context.BeanContext;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Singleton
 public class HostLmsService implements IngestSourcesProvider {
@@ -58,12 +59,23 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	public Mono<HostLmsClient> getClientFor( final HostLms hostLms ) {
-		return Mono.just( context.createBean(hostLms.getType(), hostLms) );
+		
+		return Mono.just(hostLms.getType())
+			.filter(HostLmsClient.class::isAssignableFrom)
+			.map(type -> context.createBean(type, hostLms))
+			.cast(HostLmsClient.class);
 	}
 
 	public Mono<HostLmsClient> getClientFor(String code) {
 		return findByCode(code)
 			.flatMap(this::getClientFor);
+	}
+	
+	public Mono<IngestSource> getIngestSourceFor (final HostLms hostLms) {
+		return Mono.just(hostLms.getType())
+			.filter(IngestSource.class::isAssignableFrom)
+			.map(type -> context.createBean(type, hostLms))
+			.cast(IngestSource.class);
 	}
 
 	public Flux<DataHostLms> getAllHostLms() {
@@ -74,9 +86,7 @@ public class HostLmsService implements IngestSourcesProvider {
 	@Override
 	public Publisher<IngestSource> getIngestSources() {
 		return getAllHostLms()
-			.filter( hlms -> IngestSource.class.isAssignableFrom( hlms.getType() ))
-			.flatMap(this::getClientFor)
-			.cast(IngestSource.class);
+			.flatMap(this::getIngestSourceFor);
 	}
 
 	public static class UnknownHostLmsException extends RuntimeException {

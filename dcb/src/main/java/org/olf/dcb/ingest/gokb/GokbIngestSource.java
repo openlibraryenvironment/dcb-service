@@ -3,9 +3,12 @@ package org.olf.dcb.ingest.gokb;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.reactivestreams.Publisher;
@@ -89,5 +92,23 @@ public class GokbIngestSource implements IngestSource {
 	@Override
 	public Publisher<ConfigurationRecord> getConfigStream() {
 		return Flux.empty();
+	}
+
+	@Override
+	public ProcessStateService getProcessStateService() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public PublisherState mapToPublisherState(Map<String, Object> mapData) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Publisher<PublisherState> saveState(UUID context, String process, PublisherState state) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

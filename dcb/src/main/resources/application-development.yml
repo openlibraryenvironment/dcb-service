@@ -3,20 +3,21 @@
 hosts:
   SANDBOX:
     name: SANDBOX
-    code: SANDBOX
     type: org.olf.dcb.core.interaction.sierra.SierraLmsClient
     client:
       base-url: "https://sandbox.iii.com"
       ingest: false
       page-size: 100
-  KCTOWERS:
-    name: KCTOWERS
-    code: KCTOWERS
-    type: org.olf.dcb.core.interaction.sierra.SierraLmsClient
-    client:
-      base-url: "https://kc-towers.searchmobius.org:443"
-      page-size: 100
-      ingest: false
+      
+#  FOLIO-TEST-INGEST:
+#    name: Folio Test Ingest Source
+#    type: org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource
+#    client:
+#      base-url: "https://oai-host.com/oai/" # Note full path to OAI entry point.
+#      metadataPrefix: marc21
+#      recordSyntax: oai_dc
+#      apikey: <secret>
+#      ingest: true
 
 # agencies:
 #   testAgency1:

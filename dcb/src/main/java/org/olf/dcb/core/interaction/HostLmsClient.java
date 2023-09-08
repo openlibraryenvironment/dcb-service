@@ -12,25 +12,22 @@ import org.olf.dcb.core.model.Item;
 
 public interface HostLmsClient {
 
-	// All implementations must understand these states and be able to translate them to
+	// All implementations must understand these states and be able to translate
+	// them to
 	// local values when encountered via updateRequestStatus
 	enum CanonicalRequestState {
-		PLACED,
-		TRANSIT
+		PLACED, TRANSIT
 	}
 
 	enum CanonicalItemState {
-                AVAILABLE,
-                TRANSIT,
-                OFFSITE
-        }
-
+		AVAILABLE, TRANSIT, OFFSITE
+	}
 
 	HostLms getHostLms();
 
 	Flux<Map<String, ?>> getAllBibData();
 
-        List<HostLmsPropertyDefinition> getSettings();
+	List<HostLmsPropertyDefinition> getSettings();
 
 	Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode);
 
@@ -39,13 +36,8 @@ public interface HostLmsClient {
 	Mono<String> createBib(Bib bib);
 
 	// (localHoldId, localHoldStatus)
-	Mono<Tuple2<String, String>> placeHoldRequest(
-		String id, 
-		String recordType,
-		String recordNumber, 
-		String pickupLocation,
-		String note,
-                String patronRequestId);
+	Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType, String recordNumber,
+			String pickupLocation, String note, String patronRequestId);
 
 	// Flux<?> getAllAgencies();
 	Mono<Patron> getPatronByLocalId(String localPatronId);
@@ -62,10 +54,11 @@ public interface HostLmsClient {
 
 	Mono<String> updateItemStatus(String itemId, CanonicalItemState crs);
 
-        // WARNING We might need to make this accept a patronIdentity - as different systems might take different ways to identify the patron
-        Mono<String> checkOutItemToPatron(String itemId, String patronBarcode);
+	// WARNING We might need to make this accept a patronIdentity - as different
+	// systems might take different ways to identify the patron
+	Mono<String> checkOutItemToPatron(String itemId, String patronBarcode);
 
-        Mono<String> deleteItem(String id);
+	Mono<String> deleteItem(String id);
 
-        Mono<String> deleteBib(String id);
+	Mono<String> deleteBib(String id);
 }

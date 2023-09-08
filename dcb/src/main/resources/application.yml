@@ -2,8 +2,6 @@ micronaut:
   server:
     cors:
       enabled: true
-  serde:
-    maximum-nesting-depth: 32768
   application:
     name: dcb
   router:

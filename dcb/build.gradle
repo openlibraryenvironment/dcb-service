@@ -13,8 +13,8 @@ plugins {
 	id('jacoco')
 	id 'org.olf.dcb-bom'
 	id 'service.k_int.micronaut-multi'
-        // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
-        id "com.gorylenko.gradle-git-properties" version "2.4.1"
+  // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
+  id "com.gorylenko.gradle-git-properties" version "2.4.1"
 }
 
 //version = "0.1"
@@ -45,7 +45,7 @@ dependencies {
 	compileOnly("io.micronaut:micronaut-inject-java")
 
 	// Implementation
-	
+	implementation("io.micronaut.xml:micronaut-jackson-xml")
 	implementation("io.micronaut.serde:micronaut-serde-jackson")
 	implementation("io.micronaut.security:micronaut-security-jwt")
 	implementation("io.micronaut:micronaut-http-client")

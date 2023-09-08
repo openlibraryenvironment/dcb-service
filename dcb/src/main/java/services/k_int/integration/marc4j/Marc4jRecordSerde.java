@@ -14,21 +14,33 @@ import org.marc4j.marc.impl.MarcFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micronaut.context.annotation.Prototype;
+import com.fasterxml.jackson.core.JacksonException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+
 import io.micronaut.context.annotation.Requires;
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.serde.Decoder;
 import io.micronaut.serde.Encoder;
+import io.micronaut.serde.LimitingStream;
 import io.micronaut.serde.Serde;
-import jakarta.annotation.PostConstruct;
+import io.micronaut.serde.SerdeRegistry;
+import io.micronaut.serde.config.SerdeConfiguration;
+import io.micronaut.serde.jackson.JacksonDecoder;
+import jakarta.inject.Singleton;
 
 @Requires(classes = Record.class)
-@Prototype
-public class Marc4jRecordSerde implements Serde<Record> {
+@Singleton
+public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> implements Serde<Record> {
 	
 	// Instanciate the default class here. Works better with native compilation.
 	private static final MarcFactory factory = new MarcFactoryImpl();
+	
+	private final SerdeConfiguration serdeConfiguration;
+	private final SerdeRegistry registry;
 
 	private static Logger log = LoggerFactory.getLogger(Marc4jRecordSerde.class);
 
@@ -38,14 +50,23 @@ public class Marc4jRecordSerde implements Serde<Record> {
 
 	private static final String KEY_FIELDS = "fields";
 	private static final String KEY_SUBFIELDS = "subfields";
-//  private static final String KEY_CONTROLFIELD = "controlfield";
-//  private static final String KEY_DATAFIELD = "datafield";
-//  private static final String KEY_SUBFIELD = "subfield";
+
+	private static final String KEY_VALUE_INDICATOR = "";
+  private static final String KEY_TAG = "tag";
+  private static final String KEY_CONTROLFIELD = "controlfield";
+  private static final String KEY_DATAFIELD = "datafield";
+  private static final String KEY_SUBFIELD = "subfield";
+  private static final String KEY_CODE = "code";
 
 	private static final Pattern REGEX_CTRLFIELD = Pattern.compile( "00[0-9]" );
 	private static final Pattern REGEX_DATAFIELD = Pattern.compile( "((0[1-9])|[1-9][0-9])[0-9]" );
 	private static final Pattern REGEX_SUBFIELD = Pattern.compile( "[a-z0-9]" );
 
+	public Marc4jRecordSerde(@NonNull SerdeConfiguration serdeConfiguration, @NonNull SerdeRegistry registry) {
+		this.serdeConfiguration = serdeConfiguration;
+		this.registry = registry;
+	}
+	
 	@Override
 	public void serialize(Encoder enc, EncoderContext context, Argument<? extends Record> type, final Record record)
 		throws IOException {
@@ -61,7 +82,14 @@ public class Marc4jRecordSerde implements Serde<Record> {
 				for (var fieldData : record.getControlFields()) {
 					try (Encoder field = fields.encodeObject(Argument.of(ControlField.class))) {
 						field.encodeKey(fieldData.getTag());
-						field.encodeString(fieldData.getData());
+						final String val = fieldData.getData();
+						if (val == null) {
+							log.info("Field {} had a null value", fieldData.getTag());
+							field.encodeNull();
+						} else {
+							
+							field.encodeString(fieldData.getData());
+						}
 					}
 				}
 
@@ -84,7 +112,14 @@ public class Marc4jRecordSerde implements Serde<Record> {
 									
 									try (Encoder subField = subFields.encodeObject(Argument.of(Subfield.class))) {
 										subField.encodeKey(subFieldData.getCode() + "");
-										subField.encodeString(subFieldData.getData());
+										final String val = subFieldData.getData();
+										if (val == null) {
+											log.info("SubField {} of {} had a null value", subFieldData.getCode(), fieldData.getTag());
+											subField.encodeNull();
+										} else {
+											
+											subField.encodeString(subFieldData.getData());
+										}
 									}
 									
 								}
@@ -119,6 +154,15 @@ public class Marc4jRecordSerde implements Serde<Record> {
 						// Decode the fields.
 						decodeFieldsArray(root, record);
 					}
+
+					case KEY_CONTROLFIELD -> {
+						decodeRepeatedControlField(root, record);
+					}
+					
+					case KEY_DATAFIELD -> {
+						decodeRepeatedDataField(root, record);
+					}
+					
 					default -> {
 						// Unknown root property
 						root.skipValue();
@@ -132,6 +176,89 @@ public class Marc4jRecordSerde implements Serde<Record> {
 		return record;
 	}
 
+	protected void decodeRepeatedControlField( final Decoder dec, final Record record ) throws IOException {
+		try (Decoder controlField = dec.decodeObject()) {
+			
+			String tag = null, data = null;
+			
+			String currentKey;
+			while ((currentKey = controlField.decodeKey()) != null) {
+				switch (currentKey) {
+					case KEY_TAG -> {
+						tag = controlField.decodeString();
+					}
+					case KEY_VALUE_INDICATOR -> {
+						data = controlField.decodeString();
+					}
+					
+					default -> {
+						// Unknown root property
+						controlField.skipValue();
+					}
+				}
+			}
+			
+			if (tag != null) {
+				record.addVariableField(
+					factory.newControlField(tag, data));
+			}
+		}
+	}
+	
+	protected void decodeRepeatedDataField( final Decoder dec, final Record record ) throws IOException {
+		try (Decoder dataField = dec.decodeObject()) {
+			
+			DataField df = factory.newDataField();
+			
+			String currentKey;
+			while ((currentKey = dataField.decodeKey()) != null) {
+				switch (currentKey) {
+					case KEY_TAG -> {
+						df.setTag(dataField.decodeString());
+					}
+				
+					case KEY_INDICATOR_1 -> {
+						final String value = dataField.decodeString();
+						df.setIndicator1(value.length() >= 1 ? value.charAt(0) : ' ');
+					}
+					case KEY_INDICATOR_2 -> {
+						final String value = dataField.decodeString();
+						df.setIndicator2(value.length() >= 1 ? value.charAt(0) : ' ');
+					}
+					
+					case KEY_SUBFIELD -> {
+						try ( Decoder subfield = dataField.decodeObject() ) {
+							Subfield sf = factory.newSubfield();
+							
+							while ((currentKey = subfield.decodeKey()) != null) {
+								switch (currentKey) {
+									case KEY_CODE -> {
+										final String value = subfield.decodeString();
+										sf.setCode( value.length() >= 1 ? value.charAt(0) : ' ');
+									}
+								
+									case KEY_VALUE_INDICATOR -> {
+										sf.setData(subfield.decodeString());
+									}
+									default -> {
+										subfield.skipValue();
+									}
+								}
+							}
+							
+							df.addSubfield(sf);
+						}
+					}	
+						
+					default -> {
+						dataField.skipValue();
+					}
+				}
+			}
+			record.addVariableField(df);
+		}
+	}
+	
 	protected void decodeFieldsArray(final Decoder dec, final Record record) throws IOException {
 
 		try (Decoder fields = dec.decodeArray()) {
@@ -204,4 +331,11 @@ public class Marc4jRecordSerde implements Serde<Record> {
 
 	}
 
+	@Override
+	public Record deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JacksonException {
+		
+		Decoder decoder = JacksonDecoder.create(p, LimitingStream.limitsFromConfiguration(serdeConfiguration));
+		final Argument<Record> type = Argument.of(Record.class);
+		return this.deserialize(decoder, registry.newDecoderContext(Record.class), type);
+	}
 }

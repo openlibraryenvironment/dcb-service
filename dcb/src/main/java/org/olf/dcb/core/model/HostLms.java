@@ -26,7 +26,7 @@ public interface HostLms {
 	public String getName();
 	
         // @NonNull
-	public Class<? extends HostLmsClient> getType();
+	public Class<?> getType();
 	
 	// @NonNull
 	Map<String, Object> getClientConfig();
