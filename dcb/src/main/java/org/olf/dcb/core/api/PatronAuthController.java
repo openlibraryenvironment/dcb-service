@@ -106,11 +106,11 @@ public class PatronAuthController {
 	@Data
 	@Serdeable
 	public static class PatronCredentials {
-		@Schema(name = "agencyCode", description = "The agency code associated with the patron", type = "String", example = "ab6")
+		@Schema(name = "agencyCode", description = "The agency code associated with the patron", type = "string", example = "ab6")
 		String agencyCode;
-		@Schema(name = "patronPrinciple", description = "Patrons barcode or unique identifier", type = "String", example = "BAR789012")
+		@Schema(name = "patronPrinciple", description = "Patrons barcode or unique identifier", type = "string", example = "BAR789012")
 		String patronPrinciple;
-		@Schema(name = "secret", description = "Patrons PIN or name", type = "String", example = "1234")
+		@Schema(name = "secret", description = "Patrons PIN or name", type = "string", example = "1234")
 		String secret;
 	}
 

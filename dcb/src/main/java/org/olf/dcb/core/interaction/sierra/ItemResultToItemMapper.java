@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.sierra;
 
 import jakarta.inject.Singleton;
+import org.olf.dcb.storage.AgencyRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
@@ -18,15 +19,17 @@ class ItemResultToItemMapper {
 	private final SierraItemStatusMapper sierraItemStatusMapper;
 	private final SierraItemTypeMapper sierraItemTypeMapper;
         private final ReferenceValueMappingRepository referenceValueMappingRepository;
+				private final AgencyRepository agencyRepository;
         private static final Integer FIXED_FIELD_61 = Integer.valueOf(61);
 
 
 	ItemResultToItemMapper(SierraItemStatusMapper sierraItemStatusMapper,
                                SierraItemTypeMapper sierraItemTypeMapper,
-                               ReferenceValueMappingRepository referenceValueMappingRepository) {
+                               ReferenceValueMappingRepository referenceValueMappingRepository, AgencyRepository agencyRepository) {
 		this.sierraItemStatusMapper = sierraItemStatusMapper;
 		this.sierraItemTypeMapper = sierraItemTypeMapper;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
+		this.agencyRepository = agencyRepository;
 	}
 
 	Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem result, String hostLmsCode, String bibId) {
@@ -76,9 +79,14 @@ class ItemResultToItemMapper {
         Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromShelvingLocation(org.olf.dcb.core.model.Item item, String hostSystem, String itemShelvingLocation) {
                 log.debug("map shelving location to agency  {}:\"{}\"",hostSystem,itemShelvingLocation);
                 return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-                                                "ShelvingLocation", hostSystem, itemShelvingLocation, "AGENCY", "DCB"))
-                        .map ( rvm -> item.setAgency( rvm.getToValue() ) )
-                        .defaultIfEmpty(item);
+									"ShelvingLocation", hostSystem, itemShelvingLocation, "AGENCY", "DCB"))
+									.flatMap(rvm -> Mono.from(agencyRepository.findOneByCode( rvm.getToValue() )))
+									.map(dataAgency -> {
+										item.setAgencyCode( dataAgency.getCode() );
+										item.setAgencyDescription( dataAgency.getName() );
+										return item;
+									})
+									.defaultIfEmpty(item);
         }
 
         Mono<org.olf.dcb.core.model.Item> enrichItemWithMappedItemType(org.olf.dcb.core.model.Item item, String hostSystem) {
