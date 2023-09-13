@@ -16,6 +16,13 @@ hosts:
     client:
       base-url: "https://kc-towers.searchmobius.org:443"
       page-size: 100
+  DUMMYA:
+    name: DUMMYA
+    code: DUMMYA
+    type: org.olf.dcb.core.interaction.dummy.DummyLmsClient
+    client:
+      num-records-to-generate: 100
+      ingest: false
 
 # agencies:
 #   testAgency1:

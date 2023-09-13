@@ -15,5 +15,8 @@ export DCB_SCHEDULED_TASKS_ENABLED="true"
 echo Access postgres with "psql -h localhost -p 49168 -U test" and the password test
 
 
+export HOSTS_DUMMYA_CLIENT_INGEST="false"
+
+
 ./gradlew run
 # ./gradlew nativeRun
