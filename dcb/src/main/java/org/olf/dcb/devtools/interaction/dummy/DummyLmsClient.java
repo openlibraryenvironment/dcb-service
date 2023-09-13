@@ -25,7 +25,7 @@ import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.ingest.marc.MarcIngestSource;
+import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.olf.dcb.ingest.model.RawSource;
@@ -67,13 +67,17 @@ import services.k_int.interaction.oai.records.OaiListRecordsMarcXML;
 
 import org.olf.dcb.core.interaction.CreateItemCommand;
 
+import io.micronaut.core.annotation.Nullable;
+
+
 
 /**
  * This adapter exists to allow devs to run a fully functional local system without
  * configuring an external HostLMS.
  */
+// public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRecordsMarcXML> {
 @Prototype
-public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRecordsMarcXML> {
+public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	private static final Logger log = LoggerFactory.getLogger(DummyLmsClient.class);
 
@@ -88,9 +92,6 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
                 ProcessStateService processStateService,
                 ConversionService conversionService) {
 		this.lms = lms;
-
-		// Get a sierra api client.
-		// client = clientFactory.createClientFor(lms);
 		this.rawSourceRepository = rawSourceRepository;
 		this.processStateService = processStateService;
 		this.conversionService = conversionService;
@@ -115,63 +116,9 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 		return Mono.empty();
 	}
 
-        // public Mono<String> createPatron(String uniqueId, String patronType) {
-	// 	return Mono.empty();
-	// }
-
-        // (localHoldId, localHoldStatus)
-        public Mono<Tuple2<String, String>> placeHoldRequest(
-                String id,
-                String recordType,
-                String recordNumber,
-                String pickupLocation,
-                String note,
-                String patronRequestId) {
-		return Mono.empty();
-	}
-
-
         public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		return Mono.empty();
 	}
-
-        @Override
-        public RawSourceRepository getRawSourceRepository() {
-                return rawSourceRepository;
-        }
-
-        @Override
-        public Record resourceToMarc(OaiListRecordsMarcXML resource) {
-                return null;
-        }
-
-        @Override
-        public IngestRecordBuilder initIngestRecordBuilder(OaiListRecordsMarcXML resource) {
-
-                // Use the host LMS as the
-                return IngestRecord.builder()
-                        .uuid(uuid5ForOAIResult(resource))
-                        .sourceSystem(lms)
-                        .sourceRecordId(resource.id())
-                        .suppressFromDiscovery(resource.suppressed())
-                        .deleted(resource.deleted());
-        }
-
-        @Override
-        public Publisher<OaiListRecordsMarcXML> getResources(Instant since) {
-		return Flux.empty();
-	}
-
-        @Override
-        @NotNull
-        public String getDefaultControlIdNamespace() {
-                return lms.getName();
-        }
-
-        @Override
-        public Publisher<ConfigurationRecord> getConfigStream() {
-                return Flux.empty();
-        }
 
         @Override
         public String getName() {
@@ -182,24 +129,6 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
         public boolean isEnabled() {
                 return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(Boolean.TRUE);
         }       
-
-	// Privatesu
-
-	// This should convert whatever type the FOLIO source returns to a RawSource
-        @Override
-        public RawSource resourceToRawSource(OaiListRecordsMarcXML resource) {
-
-                // final JsonNode rawJson = conversionService.convertRequired(resource.marc(), JsonNode.class);
-
-                // @SuppressWarnings("unchecked")
-                // final Map<String, ?> rawJsonString = conversionService.convertRequired(rawJson, Map.class);
-
-                // RawSource raw = RawSource.builder().id(uuid5ForRawJson(resource)).hostLmsId(lms.getId()).remoteId(resource.id())
-                //         .json(rawJsonString).build();
-
-                // return raw;
-		return null;
-        }
 
         public UUID uuid5ForOAIResult(@NotNull final OaiListRecordsMarcXML result) {
                 final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":" + result.id();
@@ -255,4 +184,25 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
                 return Mono.just("DUMMY");
         }
 
+
+        @Override
+        public Publisher<IngestRecord> apply(@Nullable Instant changedSince) {
+                return Mono.empty();
+        }
+
+        @Override
+        public Publisher<ConfigurationRecord> getConfigStream() {
+                return Mono.empty();
+        }
+
+        @Override
+        public Mono<Tuple2<String, String>> placeHoldRequest(
+                String id,
+                String recordType,
+                String recordNumber,
+                String pickupLocation,
+                String note,
+                String patronRequestId) {
+                return Mono.empty();
+        }
 }
