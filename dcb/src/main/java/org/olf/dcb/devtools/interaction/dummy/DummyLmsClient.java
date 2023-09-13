@@ -68,6 +68,7 @@ import services.k_int.interaction.oai.records.OaiListRecordsMarcXML;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 
 import io.micronaut.core.annotation.Nullable;
+import java.io.StringWriter;
 
 
 
@@ -86,6 +87,8 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	private final HostLms lms;
 	private final ProcessStateService processStateService;
 	private final RawSourceRepository rawSourceRepository;
+
+        private static final String[] titleWords = { "Science", "Philosophy", "Music", "Art", "Nonsense", "Dialectic", "Curiosity", "Reading", "Numeracy", "Literacy" };
 
 	public DummyLmsClient(@Parameter HostLms lms, 
 		RawSourceRepository rawSourceRepository, 
@@ -130,8 +133,8 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
                 return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(Boolean.TRUE);
         }       
 
-        public UUID uuid5ForOAIResult(@NotNull final OaiListRecordsMarcXML result) {
-                final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":" + result.id();
+        public UUID uuid5ForDummyRecord(@NotNull final String record_id) {
+                final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":" + record_id;
                 return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
         }
 
@@ -187,7 +190,37 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
         @Override
         public Publisher<IngestRecord> apply(@Nullable Instant changedSince) {
-                return Mono.empty();
+
+                log.debug("apply... {}",changedSince);
+
+                // Lets generate 100 records to begin with
+                long num_records = 100;
+
+                return Flux.generate(() -> 1, (state, sink) -> {
+
+                        // We number generated records starting at 1000000 to give us space to return any
+                        // manually defined test records first.
+                        log.debug("Generate record {}",state);
+
+                        String str_record_id = ""+(1000000+state);
+                        Map<String, Object> canonicalMetadata = new HashMap();
+                        canonicalMetadata.put("title",generateTitle(str_record_id));
+                        UUID rec_uuid = uuid5ForDummyRecord(str_record_id);
+
+                        IngestRecord next_ingest_record = IngestRecord.builder()
+                                .uuid(rec_uuid)
+                                .sourceSystem(lms)
+                                .sourceRecordId(str_record_id)
+                                .canonicalMetadata(canonicalMetadata)
+                                .derivedType("Books")
+                                .build();
+                        sink.next(next_ingest_record);
+
+                        if (state==num_records) {
+                                sink.complete();
+                        }
+                        return state + 1;
+                });
         }
 
         @Override
@@ -204,5 +237,18 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
                 String note,
                 String patronRequestId) {
                 return Mono.empty();
+        }
+
+        private String generateTitle(String recordId) {
+                StringWriter sw = new StringWriter();
+
+                for ( int i=0; i<recordId.length(); i++ ) {
+                        if ( i > 0 )
+                                sw.write(" ");
+                        // conver the char at position i into an integer of that value 0-9
+                        int digit = recordId.charAt(i)-48;
+                        sw.write(titleWords[digit]);
+                }
+                return sw.toString();
         }
 }
