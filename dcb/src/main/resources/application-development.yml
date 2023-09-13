@@ -19,7 +19,7 @@ hosts:
   DUMMYA:
     name: DUMMYA
     code: DUMMYA
-    type: org.olf.dcb.core.interaction.dummy.DummyLmsClient
+    type: org.olf.dcb.devtools.interaction.dummy.DummyLmsClient
     client:
       num-records-to-generate: 100
       ingest: false
