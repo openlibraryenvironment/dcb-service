@@ -10,7 +10,7 @@ plugins {
 	// See https://plugins.gradle.org/plugin/io.micronaut.application
 	id("io.micronaut.application") version "$micronautGradleVersion"
 	id("io.micronaut.test-resources") version "$micronautGradleVersion"
-	id("io.micronaut.aot") version "$micronautGradleVersion"
+	// id("io.micronaut.aot") version "$micronautGradleVersion"
 	id('jacoco')
 	id 'org.olf.dcb-bom'
 	id 'service.k_int.micronaut-multi'
@@ -155,8 +155,8 @@ dependencies {
 
 	runtimeOnly("org.yaml:snakeyaml")
 
-	aotPlugins platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
-	aotPlugins ("io.micronaut.security:micronaut-security-aot")
+	//aotPlugins platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
+	//aotPlugins ("io.micronaut.security:micronaut-security-aot")
 
 }
 
@@ -183,17 +183,17 @@ micronaut {
 		incremental(true)
 		annotations("org.olf.dcb.*", "services.k_int.*")
 	}
-	aot {
-    // Please review carefully the optimizations enabled below
-    // Check https://micronaut-projects.github.io/micronaut-aot/latest/guide/ for more details
-      optimizeServiceLoading = true
-      convertYamlToJava = true
-      precomputeOperations = true
-      cacheEnvironment = false
-      optimizeClassLoading = true
-      deduceEnvironment = false
-      optimizeNetty = true
-  }
+//	aot {
+//    // Please review carefully the optimizations enabled below
+//    // Check https://micronaut-projects.github.io/micronaut-aot/latest/guide/ for more details
+//      optimizeServiceLoading = true
+//      convertYamlToJava = true
+//      precomputeOperations = true
+//      cacheEnvironment = false
+//      optimizeClassLoading = true
+//      deduceEnvironment = false
+//      optimizeNetty = true
+//  }
 }
 
 final Set<String> jacocoExcludes = [
@@ -263,7 +263,7 @@ tasks {
 
 		afterEvaluate {
 			classDirectories.setFrom(files(classDirectories.files.collect {
-	fileTree(dir: it, exclude: jacocoExcludes)
+	      fileTree(dir: it, exclude: jacocoExcludes)
 			}))
 		}
 	}
