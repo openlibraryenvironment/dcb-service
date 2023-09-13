@@ -31,7 +31,7 @@ dependencies {
 	compileOnly 'org.projectlombok:lombok'
 
 	annotationProcessor("org.projectlombok:lombok")
-	annotationProcessor("io.micronaut:micronaut-inject")
+	// annotationProcessor("io.micronaut:micronaut-inject")
 	annotationProcessor("io.micronaut:micronaut-inject-java")
 	annotationProcessor("io.micronaut.data:micronaut-data-processor")
 	annotationProcessor("io.micronaut.serde:micronaut-serde-processor")
@@ -55,7 +55,7 @@ dependencies {
 	//	implementation("io.micronaut.elasticsearch:micronaut-elasticsearch")
 	implementation("io.micronaut.reactor:micronaut-reactor")
 //	implementation('io.projectreactor.addons:reactor-extra')
-	implementation platform('io.projectreactor:reactor-bom')
+	// implementation platform('io.projectreactor:reactor-bom')
 	implementation 'io.projectreactor.addons:reactor-extra'
 	
 	implementation("io.micronaut.reactor:micronaut-reactor-http-client")
@@ -71,7 +71,8 @@ dependencies {
 	// implementation("io.micronaut.xml:micronaut-jackson-xml")
 	implementation 'org.marc4j:marc4j'
 
-	runtimeOnly("ch.qos.logback:logback-classic")
+	implementation("ch.qos.logback:logback-core")
+	implementation("ch.qos.logback:logback-classic")
 	runtimeOnly("org.slf4j:log4j-over-slf4j")
 
 
@@ -137,7 +138,7 @@ dependencies {
 	testImplementation('org.awaitility:awaitility')
 	testImplementation('io.projectreactor:reactor-test')
 	
-	testImplementation (platform("org.junit:junit-bom:5.10.0"))
+	testImplementation (platform("org.junit:junit-bom"))
 	
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher") {
 	  because("Only needed to run tests in IDE that bundles older versions")
@@ -149,25 +150,15 @@ dependencies {
 	testRuntimeOnly("org.testcontainers:postgresql")
 
 	implementation("io.micronaut.graphql:micronaut-graphql")
-	implementation("jakarta.persistence:jakarta.persistence-api:3.0.0")
-	implementation("org.apache.lucene:lucene-queryparser:9.7.0")
+	implementation("jakarta.persistence:jakarta.persistence-api")
+	implementation("org.apache.lucene:lucene-queryparser")
 
 	runtimeOnly("org.yaml:snakeyaml")
 
-	aotPlugins platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
-	aotPlugins("io.micronaut.security:micronaut-security-aot")
+	aotPlugins platform("io.micronaut.platform:micronaut-platform")
+	aotPlugins ("io.micronaut.security:micronaut-security-aot")
 
 }
-
-/*
-configurations.all {
-	resolutionStrategy.dependencySubstitution {
-		substitute(module("io.micronaut:micronaut-jackson-databind"))
-	// .using(module("io.micronaut.serde:micronaut-serde-jackson:2.2.0"))
-	.using(module("io.micronaut.serde:micronaut-serde-jackson:2.2.0"))
-	}
-}
-*/
 
 application {
 	mainClass.set("org.olf.dcb.Application")
