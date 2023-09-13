@@ -183,6 +183,17 @@ micronaut {
 		incremental(true)
 		annotations("org.olf.dcb.*", "services.k_int.*")
 	}
+	aot {
+    // Please review carefully the optimizations enabled below
+    // Check https://micronaut-projects.github.io/micronaut-aot/latest/guide/ for more details
+      optimizeServiceLoading = true
+      convertYamlToJava = true
+      precomputeOperations = true
+      cacheEnvironment = false
+      optimizeClassLoading = true
+      deduceEnvironment = false
+      optimizeNetty = true
+  }
 }
 
 final Set<String> jacocoExcludes = [
