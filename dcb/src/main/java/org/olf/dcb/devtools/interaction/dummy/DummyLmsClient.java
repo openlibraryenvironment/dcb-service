@@ -1,4 +1,4 @@
-package org.olf.dcb.core.interaction.dummy;
+package org.olf.dcb.devtools.interaction.dummy;
 
 import static java.lang.Integer.parseInt;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
@@ -69,10 +69,8 @@ import org.olf.dcb.core.interaction.CreateItemCommand;
 
 
 /**
- * IMPORTANT. This class exists to ensure that there is always an empty implementation of the
- * required methods for devs to use as a template when integrating with new HostLMS systems.
- * please keep it up to date when changing any of the system wide interfaces but don't turn it
- * into a concrete implementation. Please copy to a new concrete implementation as needed
+ * This adapter exists to allow devs to run a fully functional local system without
+ * configuring an external HostLMS.
  */
 @Prototype
 public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRecordsMarcXML> {
