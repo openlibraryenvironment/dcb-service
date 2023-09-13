@@ -223,6 +223,7 @@ tasks {
 		label(labels)
                 // graalArch.set(org.apache.tools.ant.taskdefs.condition.Os.isArch("aarch64") ? "aarch64" : "amd64")
                 // graalArch.set("x64")
+                graalArch.set("compatibility")
 	}
 
 	boolean isPre = project.hasProperty('versionPreRelease') &&

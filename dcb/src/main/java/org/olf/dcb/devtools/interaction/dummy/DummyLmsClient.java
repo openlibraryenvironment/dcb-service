@@ -191,35 +191,39 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
         @Override
         public Publisher<IngestRecord> apply(@Nullable Instant changedSince) {
 
-                log.debug("apply... {}",changedSince);
+                log.debug("apply... {},{}",changedSince,lms.getClientConfig().toString());
 
                 // Lets generate 100 records to begin with
-                long num_records = 100;
+                Integer i = (Integer)(lms.getClientConfig().get("num-records-to-generate"));
+                if ( i == null )
+                  i = Integer.valueOf(0);
 
-                return Flux.generate(() -> 1, (state, sink) -> {
+                final Integer num_records = i;
 
-                        // We number generated records starting at 1000000 to give us space to return any
-                        // manually defined test records first.
-                        log.debug("Generate record {}",state);
+                return Flux.generate(() -> Integer.valueOf(0), (state, sink) -> {
+                        if ( state.intValue() < num_records.intValue() ) {
+                                // We number generated records starting at 1000000 to give us space to return any
+                                // manually defined test records first.
+                                log.debug("Generate record {}",state.intValue());
 
-                        String str_record_id = ""+(1000000+state);
-                        Map<String, Object> canonicalMetadata = new HashMap();
-                        canonicalMetadata.put("title",generateTitle(str_record_id));
-                        UUID rec_uuid = uuid5ForDummyRecord(str_record_id);
+                                String str_record_id = ""+(1000000+(state.intValue()));
+                                Map<String, Object> canonicalMetadata = new HashMap();
+                                canonicalMetadata.put("title",generateTitle(str_record_id));
+                                UUID rec_uuid = uuid5ForDummyRecord(str_record_id);
 
-                        IngestRecord next_ingest_record = IngestRecord.builder()
-                                .uuid(rec_uuid)
-                                .sourceSystem(lms)
-                                .sourceRecordId(str_record_id)
-                                .canonicalMetadata(canonicalMetadata)
-                                .derivedType("Books")
-                                .build();
-                        sink.next(next_ingest_record);
-
-                        if (state==num_records) {
+                                IngestRecord next_ingest_record = IngestRecord.builder()
+                                        .uuid(rec_uuid)
+                                        .sourceSystem(lms)
+                                        .sourceRecordId(str_record_id)
+                                        .canonicalMetadata(canonicalMetadata)
+                                        .derivedType("Books")
+                                        .build();
+                                sink.next(next_ingest_record);
+                        }
+                        else {
                                 sink.complete();
                         }
-                        return state + 1;
+                        return Integer.valueOf(state.intValue() + 1);
                 });
         }
 
