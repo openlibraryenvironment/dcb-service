@@ -196,7 +196,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
                 // Lets generate 100 records to begin with
                 long num_records = 100;
 
-                return Flux.generate(() -> 0, (state, sink) -> {
+                return Flux.generate(() -> 1, (state, sink) -> {
 
                         // We number generated records starting at 1000000 to give us space to return any
                         // manually defined test records first.
@@ -212,6 +212,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
                                 .sourceSystem(lms)
                                 .sourceRecordId(str_record_id)
                                 .canonicalMetadata(canonicalMetadata)
+                                .derivedType("Books")
                                 .build();
                         sink.next(next_ingest_record);
 
