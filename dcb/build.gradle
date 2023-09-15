@@ -223,7 +223,9 @@ tasks {
 		label(labels)
                 // graalArch.set(org.apache.tools.ant.taskdefs.condition.Os.isArch("aarch64") ? "aarch64" : "amd64")
                 // graalArch.set("x64")
-                graalArch.set("compatibility")
+                // graalArch.set("compatibility")
+                // Apparently graal defaults to x86-64-v3 - dev server is v2 so targetting v2
+                graalArch.set("x86-64-v2")
 	}
 
 	boolean isPre = project.hasProperty('versionPreRelease') &&

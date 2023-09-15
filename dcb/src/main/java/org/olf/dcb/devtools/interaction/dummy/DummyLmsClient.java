@@ -56,17 +56,14 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
-
-
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 import reactor.util.retry.Retry;
 import java.time.Duration;
-
 import services.k_int.interaction.oai.records.OaiListRecordsMarcXML;
-
 import org.olf.dcb.core.interaction.CreateItemCommand;
-
+import org.olf.dcb.core.model.ItemStatus;
+import org.olf.dcb.core.model.ItemStatusCode;
 import io.micronaut.core.annotation.Nullable;
 import java.io.StringWriter;
 
@@ -116,7 +113,41 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
         public Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode) {
-		return Mono.empty();
+                // All Dummy systems return holdins for each shelving location
+                log.debug("getItemsByBibId({},{})",bibId,hostLmsCode);
+                String shelvingLocations = (String) lms.getClientConfig().get("shelving-locations");
+                if ( shelvingLocations != null ) {
+                        int n=0;
+                        List<Item> result_items = new ArrayList();
+                        String[] locs = shelvingLocations.split(",");
+                        for ( String s : locs ) {
+                                result_items.add(
+                                        Item.builder() 
+                                                .id(bibId+"-i"+n)
+                                                .bibId(bibId)
+                                                .status(new ItemStatus(ItemStatusCode.AVAILABLE))
+                                                .hostLmsCode(lms.getCode())
+                                                // .dueDate(parsedDueDate)
+                                                .location(org.olf.dcb.core.model.Location.builder()
+                                                .code(s)
+                                                .name(s)
+                                                .build())
+                                                .barcode(bibId+"-i"+n)
+                                                .callNumber("CN-"+bibId)
+                                                .holdCount(0)
+                                                .localItemType("Books/Monographs")
+                                                .localItemTypeCode("BKM")
+                                                .deleted(false)
+                                                .suppressed(false)
+                                                .build()
+                                );
+                                n++;
+                        }
+
+                        return Mono.just(result_items);
+                }
+
+	        return Mono.empty();
 	}
 
         public Mono<Patron> getPatronByLocalId(String localPatronId) {
@@ -159,14 +190,17 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	@Override
         public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
+                log.debug("createItem({})",cic);
 		return Mono.empty();
 	}
 
 	public Mono<HostLmsHold> getHold(String holdId) {
+                log.debug("getHold({})",holdId);
 		return Mono.empty();
 	}
 
 	public Mono<HostLmsItem> getItem(String itemId) {
+                log.debug("getItem({})",itemId);
 		return Mono.empty();
 	}
 
