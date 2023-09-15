@@ -6,7 +6,6 @@ buildscript {
 
 plugins {
 	id("com.github.johnrengelman.shadow") version "8.1.1"
-
 	// See https://plugins.gradle.org/plugin/io.micronaut.application
 	id("io.micronaut.application") version "$micronautGradleVersion"
 	id("io.micronaut.test-resources") version "$micronautGradleVersion"
@@ -14,8 +13,8 @@ plugins {
 	id('jacoco')
 	id 'org.olf.dcb-bom'
 	id 'service.k_int.micronaut-multi'
-	 // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
-  id "com.gorylenko.gradle-git-properties" version "2.4.1"
+        // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
+        id "com.gorylenko.gradle-git-properties" version "2.4.1"
 }
 
 //version = "0.1"
@@ -225,7 +224,7 @@ tasks {
                 // graalArch.set("x64")
                 // graalArch.set("compatibility")
                 // Apparently graal defaults to x86-64-v3 - dev server is v2 so targetting v2
-                graalArch.set("x86-64-v2")
+                // graalArch.set("x86-64-v2")
 	}
 
 	boolean isPre = project.hasProperty('versionPreRelease') &&
@@ -254,6 +253,7 @@ tasks {
 
 	dockerBuildNative {
 		images = nativImageNames
+                // buildArgs.add('-march=x86-64-v2')
 	}
 
 	jacocoTestReport {
@@ -286,4 +286,12 @@ tasks {
 			}
 		}
 	}
+}
+
+graalvmNative {
+    binaries {
+        main {
+            buildArgs.add('-march=x86-64-v2')
+        }
+    }
 }

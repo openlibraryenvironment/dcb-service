@@ -67,13 +67,17 @@ public class Location {
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private Location parentLocation;
 
-    /**
-     * The host system on which this location is managed
-     */
-    @NonNull
-    @Relation(value = Relation.Kind.MANY_TO_ONE)
-    private DataHostLms hostSystem;
+        /**
+         * The host system on which this location is managed
+         */
+        @NonNull
+        @Relation(value = Relation.Kind.MANY_TO_ONE)
+        private DataHostLms hostSystem;
 
-    // List this location in the pickup location lists
+        // List this location in the pickup location lists
 	private Boolean isPickup;
+
+        private Long longitude;
+
+        private Long latitude;
 }
