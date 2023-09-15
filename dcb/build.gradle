@@ -284,3 +284,12 @@ tasks {
 		}
 	}
 }
+
+graalvmNative {
+    binaries {
+        main {
+            buildArgs.add('-march=x86-64-v2')
+        }
+    }
+}
+
