@@ -657,6 +657,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	public UUID uuid5ForLocation(@NotNull final String hostLmsCode, @NotNull final String localBranchId, @NotNull final String locationCode) {
 		final String concat = UUID5_PREFIX + ":LOC:" + hostLmsCode + ":" + localBranchId + ":" + locationCode;
+		log.debug("Create uuid5ForLocation {}",concat);
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
