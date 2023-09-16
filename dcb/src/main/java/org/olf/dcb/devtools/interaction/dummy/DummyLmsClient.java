@@ -67,6 +67,8 @@ import org.olf.dcb.core.model.ItemStatusCode;
 import io.micronaut.core.annotation.Nullable;
 import java.io.StringWriter;
 
+import org.olf.dcb.core.interaction.shared.PublisherState;
+
 
 
 /**
@@ -289,4 +291,57 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
                 }
                 return sw.toString();
         }
+
+
+	
+        /**
+         * Use the ProcessStateRepository to get the current state for
+         * <idOfLms>:"ingest" process - a list of name value pairs If we don't find one,
+         * just create a new empty map transform that data into the PublisherState class
+         * above ^^
+         * THIS SHOULD REALLY MOVE TO A SHARED SUPERCLASS
+         */
+        private Mono<PublisherState> getInitialState(UUID context, String process) {
+                return processStateService.getStateMap(context, process)
+                        .defaultIfEmpty(new HashMap<>())
+                        .map(current_state -> {
+                                PublisherState generator_state = new PublisherState(current_state);
+                                log.info("state=" + current_state + " lmsid=" + lms.getId() + " thread="+ Thread.currentThread().getName());
+
+                                String cursor = (String) current_state.get("cursor");
+                                if (cursor != null) {
+                                        log.debug("Cursor: " + cursor);
+                                        String[] components = cursor.split(":");
+
+                                        if (components[0].equals("bootstrap")) {
+                                                // Bootstrap cursor is used for the initial load where we need to just page
+                                                // through everything
+                                                // from day 0
+                                                generator_state.offset = parseInt(components[1]);
+                                                log.info("Resuming bootstrap for "+lms.getName()+" at offset " + generator_state.offset);
+                                        } else if (components[0].equals("deltaSince")) {
+                                                // Delta cursor is used after the initial bootstrap and lets us know the point
+                                                // in time
+                                                // from where we need to fetch records
+                                                generator_state.sinceMillis = Long.parseLong(components[1]);
+                                                generator_state.since = Instant.ofEpochMilli(generator_state.sinceMillis);
+                                                if (components.length == 3) {
+                                                        // We're recovering from an interuption whilst processing a delta
+                                                        generator_state.offset = parseInt(components[2]);
+                                                }
+                                                log.info("Resuming delta at timestamp " + generator_state.since + " offset=" + generator_state.offset+" name="+lms.getName());
+                                        }
+                                } else {
+                                        log.info("Start a fresh ingest");
+                                }
+
+                                // Make a note of the time before we start
+                                generator_state.request_start_time = System.currentTimeMillis();
+                                log.debug("Create generator: name={} offset={} since={}", lms.getName(),
+                                        generator_state.offset, generator_state.since);
+
+                                return generator_state;
+                        });
+        }
+
 }

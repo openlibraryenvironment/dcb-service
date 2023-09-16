@@ -75,6 +75,8 @@ import services.k_int.interaction.sierra.patrons.*;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
+import org.olf.dcb.core.interaction.shared.PublisherState;
+
 /**
  * See: https://sandbox.iii.com/iii/sierra-api/swagger/index.html
  * https://gitlab.com/knowledge-integration/libraries/dcb-service/-/raw/68fd93de0f84f928597481b16d2887bd7e58f455/dcb/src/main/java/org/olf/dcb/core/interaction/sierra/SierraLmsClient.java
@@ -725,36 +727,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private UUID uuid5ForConfigRecord(String field, String code) {
 		final String concat = UUID5_PREFIX + ":RDV:" + lms.getCode() + ":" + field + ":" + code;
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
-	}
-
-	@Builder(toBuilder = true)
-	@ToString
-	@RequiredArgsConstructor
-	@AllArgsConstructor
-	protected static class PublisherState {
-
-		public final Map<String, Object> storred_state;
-
-		@Builder.Default
-		boolean possiblyMore = false;
-
-		@Builder.Default
-		int offset = 0;
-
-		@Builder.Default
-		Instant since = null;
-
-		@Builder.Default
-		long sinceMillis = 0;
-
-		@Builder.Default
-		long request_start_time = 0;
-
-		@Builder.Default
-		boolean error = false;
-		@Builder.Default
-		int page_counter = 0;
-
 	}
 
 	@Override
