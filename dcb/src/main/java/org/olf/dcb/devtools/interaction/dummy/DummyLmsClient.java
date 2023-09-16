@@ -71,6 +71,8 @@ import io.micronaut.core.annotation.Nullable;
 import java.io.StringWriter;
 
 import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
+import org.olf.dcb.storage.AgencyRepository;
 
 
 
@@ -89,17 +91,23 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	private final HostLms lms;
 	private final ProcessStateService processStateService;
 	private final RawSourceRepository rawSourceRepository;
+	private final ReferenceValueMappingRepository referenceValueMappingRepository;
+	private final AgencyRepository agencyRepository;
 
         private static final String[] titleWords = { "Science", "Philosophy", "Music", "Art", "Nonsense", "Dialectic", "Curiosity", "Reading", "Numeracy", "Literacy" };
 
 	public DummyLmsClient(@Parameter HostLms lms, 
 		RawSourceRepository rawSourceRepository, 
                 ProcessStateService processStateService,
-                ConversionService conversionService) {
+                ConversionService conversionService,
+		ReferenceValueMappingRepository referenceValueMappingRepository,
+		AgencyRepository agencyRepository) {
 		this.lms = lms;
 		this.rawSourceRepository = rawSourceRepository;
 		this.processStateService = processStateService;
 		this.conversionService = conversionService;
+		this.referenceValueMappingRepository = referenceValueMappingRepository;
+		this.agencyRepository = agencyRepository;
 	}
 
 	@Override
@@ -134,9 +142,9 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
                                                 .hostLmsCode(lms.getCode())
                                                 // .dueDate(parsedDueDate)
                                                 .location(org.olf.dcb.core.model.Location.builder()
-                                                .code(s)
-                                                .name(s)
-                                                .build())
+                                                	.code(s)
+                                                	.name(s)
+                                                	.build())
                                                 .barcode(bibId+"-i"+n)
                                                 .callNumber("CN-"+bibId)
                                                 .holdCount(0)
@@ -149,7 +157,10 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
                                 n++;
                         }
 
-                        return Mono.just(result_items);
+                        /// return Mono.just(result_items)
+                        return Flux.fromIterable(result_items)
+				.flatMap( item -> enrichItemAgencyFromShelvingLocation(item, item.getHostLmsCode(), item.getLocation().getCode()))
+				.collectList();
                 }
 
 	        return Mono.empty();
@@ -382,6 +393,19 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
                 return Mono.from(processStateService.updateState(lms.getId(), "ingest", state.storred_state))
                         .thenReturn(state);
+        }
+
+        Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromShelvingLocation(org.olf.dcb.core.model.Item item, String hostSystem, String itemShelvingLocation) {
+                log.debug("map shelving location to agency  {}:\"{}\"",hostSystem,itemShelvingLocation);
+                return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+                                                                        "ShelvingLocation", hostSystem, itemShelvingLocation, "AGENCY", "DCB"))
+                                                                        .flatMap(rvm -> Mono.from(agencyRepository.findOneByCode( rvm.getToValue() )))
+                                                                        .map(dataAgency -> {
+                                                                                item.setAgencyCode( dataAgency.getCode() );
+                                                                                item.setAgencyDescription( dataAgency.getName() );
+                                                                                return item;
+                                                                        })
+                                                                        .defaultIfEmpty(item);
         }
 
 }
