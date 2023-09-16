@@ -49,6 +49,8 @@ class LocationRepoTests {
                                                 .name("Location1 Name")
                                                 .type("Location")  // Campus, Library, Location, Pickup Location
                                                 .isPickup(Boolean.TRUE)  // Campus, Library, Location, Pickup Location
+                                                .latitude(53.383331)
+                                                .longitude(-1.466667)
                                                 .build();
 
                 Mono.from(locationRepository.save(new_location)).block();

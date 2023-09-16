@@ -107,7 +107,9 @@ public class ConfigurationService implements Runnable {
     }
 
         private Location mapLocationRecordToSubLocation(LocationRecord lr, Location l, BranchRecord br) {
-                log.debug("create sub location record for {} at {}",lr,l);
+
+                log.debug("create sub location record for {} under {}",lr.getId(),l.getId());
+
                 return new Location()
                         .builder()
                         .id(lr.getId())
@@ -144,10 +146,10 @@ public class ConfigurationService implements Runnable {
 
   	@Transactional(value = TxType.REQUIRED)
         public Mono<Void> createSubLocations(Location l, BranchRecord br) {
-	        log.debug("Create sub locations at {} for {}",l.getCode(),br.getLocalBranchId());
+	        log.debug("Create sub locations under location {}/{}",l.getId(),l.getCode());
                 return Flux.fromIterable(br.getSubLocations())
                         .map(slr -> mapLocationRecordToSubLocation(slr, l, br))
-                        .doOnNext(locrec -> log.debug("Attempt to upsert {}",locrec))
+                        .doOnNext(locrec -> log.debug("Attempt to upsert sub location {}",locrec))
                         .concatMap(locrec -> upsertLocation(locrec))
                         .then(Mono.empty());
         }
