@@ -25,7 +25,7 @@ import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.ingest.marc.MarcIngestSource;
+import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.olf.dcb.ingest.model.RawSource;
@@ -56,24 +56,26 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
-
-
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 import reactor.util.retry.Retry;
 import java.time.Duration;
-
 import services.k_int.interaction.oai.records.OaiListRecordsMarcXML;
-
 import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.model.ItemStatus;
+import org.olf.dcb.core.model.ItemStatusCode;
+import io.micronaut.core.annotation.Nullable;
+import java.io.StringWriter;
+
 
 
 /**
  * This adapter exists to allow devs to run a fully functional local system without
  * configuring an external HostLMS.
  */
+// public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRecordsMarcXML> {
 @Prototype
-public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRecordsMarcXML> {
+public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	private static final Logger log = LoggerFactory.getLogger(DummyLmsClient.class);
 
@@ -83,14 +85,13 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 	private final ProcessStateService processStateService;
 	private final RawSourceRepository rawSourceRepository;
 
+        private static final String[] titleWords = { "Science", "Philosophy", "Music", "Art", "Nonsense", "Dialectic", "Curiosity", "Reading", "Numeracy", "Literacy" };
+
 	public DummyLmsClient(@Parameter HostLms lms, 
 		RawSourceRepository rawSourceRepository, 
                 ProcessStateService processStateService,
                 ConversionService conversionService) {
 		this.lms = lms;
-
-		// Get a sierra api client.
-		// client = clientFactory.createClientFor(lms);
 		this.rawSourceRepository = rawSourceRepository;
 		this.processStateService = processStateService;
 		this.conversionService = conversionService;
@@ -112,66 +113,46 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 	}
 
         public Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode) {
-		return Mono.empty();
+                // All Dummy systems return holdins for each shelving location
+                log.debug("getItemsByBibId({},{})",bibId,hostLmsCode);
+                String shelvingLocations = (String) lms.getClientConfig().get("shelving-locations");
+                if ( shelvingLocations != null ) {
+                        int n=0;
+                        List<Item> result_items = new ArrayList();
+                        String[] locs = shelvingLocations.split(",");
+                        for ( String s : locs ) {
+                                result_items.add(
+                                        Item.builder() 
+                                                .id(bibId+"-i"+n)
+                                                .bibId(bibId)
+                                                .status(new ItemStatus(ItemStatusCode.AVAILABLE))
+                                                .hostLmsCode(lms.getCode())
+                                                // .dueDate(parsedDueDate)
+                                                .location(org.olf.dcb.core.model.Location.builder()
+                                                .code(s)
+                                                .name(s)
+                                                .build())
+                                                .barcode(bibId+"-i"+n)
+                                                .callNumber("CN-"+bibId)
+                                                .holdCount(0)
+                                                .localItemType("Books/Monographs")
+                                                .localItemTypeCode("BKM")
+                                                .deleted(false)
+                                                .suppressed(false)
+                                                .build()
+                                );
+                                n++;
+                        }
+
+                        return Mono.just(result_items);
+                }
+
+	        return Mono.empty();
 	}
-
-        // public Mono<String> createPatron(String uniqueId, String patronType) {
-	// 	return Mono.empty();
-	// }
-
-        // (localHoldId, localHoldStatus)
-        public Mono<Tuple2<String, String>> placeHoldRequest(
-                String id,
-                String recordType,
-                String recordNumber,
-                String pickupLocation,
-                String note,
-                String patronRequestId) {
-		return Mono.empty();
-	}
-
 
         public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		return Mono.empty();
 	}
-
-        @Override
-        public RawSourceRepository getRawSourceRepository() {
-                return rawSourceRepository;
-        }
-
-        @Override
-        public Record resourceToMarc(OaiListRecordsMarcXML resource) {
-                return null;
-        }
-
-        @Override
-        public IngestRecordBuilder initIngestRecordBuilder(OaiListRecordsMarcXML resource) {
-
-                // Use the host LMS as the
-                return IngestRecord.builder()
-                        .uuid(uuid5ForOAIResult(resource))
-                        .sourceSystem(lms)
-                        .sourceRecordId(resource.id())
-                        .suppressFromDiscovery(resource.suppressed())
-                        .deleted(resource.deleted());
-        }
-
-        @Override
-        public Publisher<OaiListRecordsMarcXML> getResources(Instant since) {
-		return Flux.empty();
-	}
-
-        @Override
-        @NotNull
-        public String getDefaultControlIdNamespace() {
-                return lms.getName();
-        }
-
-        @Override
-        public Publisher<ConfigurationRecord> getConfigStream() {
-                return Flux.empty();
-        }
 
         @Override
         public String getName() {
@@ -183,26 +164,8 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
                 return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(Boolean.TRUE);
         }       
 
-	// Privatesu
-
-	// This should convert whatever type the FOLIO source returns to a RawSource
-        @Override
-        public RawSource resourceToRawSource(OaiListRecordsMarcXML resource) {
-
-                // final JsonNode rawJson = conversionService.convertRequired(resource.marc(), JsonNode.class);
-
-                // @SuppressWarnings("unchecked")
-                // final Map<String, ?> rawJsonString = conversionService.convertRequired(rawJson, Map.class);
-
-                // RawSource raw = RawSource.builder().id(uuid5ForRawJson(resource)).hostLmsId(lms.getId()).remoteId(resource.id())
-                //         .json(rawJsonString).build();
-
-                // return raw;
-		return null;
-        }
-
-        public UUID uuid5ForOAIResult(@NotNull final OaiListRecordsMarcXML result) {
-                final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":" + result.id();
+        public UUID uuid5ForDummyRecord(@NotNull final String record_id) {
+                final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":" + record_id;
                 return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
         }
 
@@ -227,14 +190,17 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
 
 	@Override
         public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
+                log.debug("createItem({})",cic);
 		return Mono.empty();
 	}
 
 	public Mono<HostLmsHold> getHold(String holdId) {
+                log.debug("getHold({})",holdId);
 		return Mono.empty();
 	}
 
 	public Mono<HostLmsItem> getItem(String itemId) {
+                log.debug("getItem({})",itemId);
 		return Mono.empty();
 	}
 
@@ -255,4 +221,72 @@ public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRe
                 return Mono.just("DUMMY");
         }
 
+
+        @Override
+        public Publisher<IngestRecord> apply(@Nullable Instant changedSince) {
+
+                log.debug("apply... {},{}",changedSince,lms.getClientConfig().toString());
+
+                // Lets generate 100 records to begin with
+                Integer i = (Integer)(lms.getClientConfig().get("num-records-to-generate"));
+                if ( i == null )
+                  i = Integer.valueOf(0);
+
+                final Integer num_records = i;
+
+                return Flux.generate(() -> Integer.valueOf(0), (state, sink) -> {
+                        if ( state.intValue() < num_records.intValue() ) {
+                                // We number generated records starting at 1000000 to give us space to return any
+                                // manually defined test records first.
+                                log.debug("Generate record {}",state.intValue());
+
+                                String str_record_id = ""+(1000000+(state.intValue()));
+                                Map<String, Object> canonicalMetadata = new HashMap();
+                                canonicalMetadata.put("title",generateTitle(str_record_id));
+                                UUID rec_uuid = uuid5ForDummyRecord(str_record_id);
+
+                                IngestRecord next_ingest_record = IngestRecord.builder()
+                                        .uuid(rec_uuid)
+                                        .sourceSystem(lms)
+                                        .sourceRecordId(str_record_id)
+                                        .canonicalMetadata(canonicalMetadata)
+                                        .derivedType("Books")
+                                        .build();
+                                sink.next(next_ingest_record);
+                        }
+                        else {
+                                sink.complete();
+                        }
+                        return Integer.valueOf(state.intValue() + 1);
+                });
+        }
+
+        @Override
+        public Publisher<ConfigurationRecord> getConfigStream() {
+                return Mono.empty();
+        }
+
+        @Override
+        public Mono<Tuple2<String, String>> placeHoldRequest(
+                String id,
+                String recordType,
+                String recordNumber,
+                String pickupLocation,
+                String note,
+                String patronRequestId) {
+                return Mono.empty();
+        }
+
+        private String generateTitle(String recordId) {
+                StringWriter sw = new StringWriter();
+
+                for ( int i=0; i<recordId.length(); i++ ) {
+                        if ( i > 0 )
+                                sw.write(" ");
+                        // conver the char at position i into an integer of that value 0-9
+                        int digit = recordId.charAt(i)-48;
+                        sw.write(titleWords[digit]);
+                }
+                return sw.toString();
+        }
 }

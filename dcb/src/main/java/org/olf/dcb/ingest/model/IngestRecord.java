@@ -75,7 +75,7 @@ public class IngestRecord implements CoreBibliographicMetadata {
 	Map<String, Object> canonicalMetadata;
 	
 	@Nullable
-  Integer metadataScore;
+        Integer metadataScore;
 
 
 //  @Nullable String edition();
