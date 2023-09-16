@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -73,8 +74,10 @@ public class RecordClusteringService {
 	}
 	
 	private boolean completeIdentifiersPredicate ( BibIdentifier bibId ) {
+		
 		return Stream.of( bibId.getNamespace(), bibId.getValue())
 			.map( StringUtils::trimToNull )
+			.filter( Objects::nonNull )
 			.count() == 2;
 	}
 	
