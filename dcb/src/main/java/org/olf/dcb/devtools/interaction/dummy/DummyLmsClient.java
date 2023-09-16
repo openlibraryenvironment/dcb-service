@@ -289,29 +289,40 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 		if ( records_generated_so_far == 0 ) {
 			log.debug("Bootstrap a dummy collection with some reasonable records");
+			generateRealRecords(result);
 		}
 
 		// Then bulk out the collection with generated records
-		for ( int n=0; ( ( n<limit ) && ( (records_generated_so_far+n) < target ) ) ; n++ ) {
-
+		for ( int n=result.size(); ( ( n<limit ) && ( (records_generated_so_far+n) < target ) ) ; n++ ) {
                         String str_record_id = ""+(1000000+(n+records_generated_so_far));
-
-                        Map<String, Object> canonicalMetadata = new HashMap();
-                        canonicalMetadata.put("title",generateTitle(str_record_id));
-                        UUID rec_uuid = uuid5ForDummyRecord(str_record_id);
-			Set<Identifier> identifiers = new HashSet();
-			identifiers.add(Identifier.builder().namespace("isbn").value(str_record_id).build());
-			result.add(IngestRecord.builder()
-                                        .uuid(rec_uuid)
-                                        .sourceSystem(lms)
-                                        .sourceRecordId(str_record_id)
-					.identifiers(identifiers)
-                                        .canonicalMetadata(canonicalMetadata)
-                                        .derivedType("Books")
-                                        .build());
+			result.add(createDummyBookRecord(str_record_id, str_record_id, generateTitle(str_record_id)));
 		}
 
 		return Mono.just(result);
+	}
+
+	private void generateRealRecords(List<IngestRecord> result) {
+		log.debug("Adding in real records");
+		result.add(createDummyBookRecord("0000001","978-0471948391","Brain of the Firm 2e: 10 (Classic Beer Series)"));
+	}
+
+	private IngestRecord createDummyBookRecord(String str_record_id, String isbn13, String title) {
+                UUID rec_uuid = uuid5ForDummyRecord(str_record_id);
+
+                Map<String, Object> canonicalMetadata = new HashMap();
+                canonicalMetadata.put("title",title);
+
+		Set<Identifier> identifiers = new HashSet();
+		identifiers.add(Identifier.builder().namespace("isbn").value(isbn13).build());
+
+		return IngestRecord.builder()
+                                        .uuid(rec_uuid)
+                                        .sourceSystem(lms)
+                                        .sourceRecordId(str_record_id)
+                                        .identifiers(identifiers)
+                                        .canonicalMetadata(canonicalMetadata)
+                                        .derivedType("Books")
+                                        .build();
 	}
 
         @Override
