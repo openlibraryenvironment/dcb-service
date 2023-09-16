@@ -33,7 +33,7 @@ class ItemResultToItemMapper {
 	}
 
 	Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem result, String hostLmsCode, String bibId) {
-		// log.debug("mapResultToItem({}, {})", result, hostLmsCode);
+		log.debug("mapResultToItem(result, {}, {})", hostLmsCode, bibId);
 
 			final var dueDate = result.getStatus().getDuedate();
 
