@@ -65,6 +65,10 @@ public class DataAgency implements Agency {
 	@Size(max = 200)
 	private String idpUrl;
 
+        private Double longitude;
+
+        private Double latitude;
+
         public static class DataAgencyBuilder {
                 public DataAgencyBuilder() { }
                 // Lombok will fill in the fields and methods

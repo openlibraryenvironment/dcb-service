@@ -77,7 +77,7 @@ public class Location {
         // List this location in the pickup location lists
 	private Boolean isPickup;
 
-        private Long longitude;
+        private Double longitude;
 
-        private Long latitude;
+        private Double latitude;
 }

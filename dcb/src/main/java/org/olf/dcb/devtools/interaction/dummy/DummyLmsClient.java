@@ -8,7 +8,9 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import java.util.UUID;
 
@@ -26,6 +28,7 @@ import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.ingest.IngestSource;
+import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.olf.dcb.ingest.model.RawSource;
@@ -66,6 +69,8 @@ import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import io.micronaut.core.annotation.Nullable;
 import java.io.StringWriter;
+
+import org.olf.dcb.core.interaction.shared.PublisherState;
 
 
 
@@ -225,41 +230,100 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
         @Override
         public Publisher<IngestRecord> apply(@Nullable Instant changedSince) {
 
-                log.debug("apply... {},{}",changedSince,lms.getClientConfig().toString());
+		int pageSize=100;
+                return getInitialState(lms.getId(), "ingest")
+                        .flatMap(state -> Mono.zip(Mono.just(state.toBuilder().build()), fetchPage(state, pageSize)))
+                        .expand(TupleUtils.function(( state ,bibs ) -> {
 
-                // Lets generate 100 records to begin with
-                Integer i = (Integer)(lms.getClientConfig().get("num-records-to-generate"));
-                if ( i == null )
-                  i = Integer.valueOf(0);
 
-                final Integer num_records = i;
+                		int target_record_count = ((Integer)(lms.getClientConfig().get("num-records-to-generate"))).intValue();
+				int records_generated_so_far = Integer.valueOf(state.storred_state.get("num_generated").toString()).intValue();
+				records_generated_so_far += bibs.size();
+                                state.storred_state.put("num_generated", ""+records_generated_so_far);
 
-                return Flux.generate(() -> Integer.valueOf(0), (state, sink) -> {
-                        if ( state.intValue() < num_records.intValue() ) {
-                                // We number generated records starting at 1000000 to give us space to return any
-                                // manually defined test records first.
-                                log.debug("Generate record {}",state.intValue());
+                                state.possiblyMore = records_generated_so_far < target_record_count;
 
-                                String str_record_id = ""+(1000000+(state.intValue()));
-                                Map<String, Object> canonicalMetadata = new HashMap();
-                                canonicalMetadata.put("title",generateTitle(str_record_id));
-                                UUID rec_uuid = uuid5ForDummyRecord(str_record_id);
+                                // Increment the offset for the next fetch
+                                state.offset += bibs.size();
 
-                                IngestRecord next_ingest_record = IngestRecord.builder()
+                                // If we have exhausted the currently cached page, and we are at the end,
+                                // terminate.
+                                if (!state.possiblyMore) {
+                                        log.info("{} ingest Terminating cleanly - run out of bib results - new timestamp is {}", lms.getName(), state.request_start_time);
+                                        return Mono.empty();
+
+                                } else {
+                                        log.info("Exhausted current page from {} , prep next", lms.getName());
+                                }
+
+                                // Create a new mono that first saves the state and then uses it to fetch another page.
+                                return Mono.just(state.toBuilder().build()) // toBuilder().build() should copy the object.
+                                        .zipWhen( updatedState -> fetchPage(updatedState, pageSize));
+                        }))
+                        .concatMap( TupleUtils.function((state, page) -> {
+                                return Flux.fromIterable(page)
+                                        // Concatenate with the state so we can propagate signals from the save operation.
+                                        .concatWith(Mono.defer(() ->
+                                                        saveState(state))
+                                                .flatMap(_s -> {
+                                                        log.debug("Updating state...");
+                                                        return Mono.empty();
+                                                }))
+
+                                        .doOnComplete(() -> log.debug("Consumed {} items", page.size()));
+                        }));
+
+        }
+
+        private Mono<List<IngestRecord>> fetchPage(PublisherState state, int limit) {
+
+                log.debug("fetchPage... {},{},{}",state,limit);
+                log.debug("fetchPage... config={}",lms.getClientConfig());
+
+                int target = ((Integer)(lms.getClientConfig().get("num-records-to-generate"))).intValue();
+		int records_generated_so_far = Integer.valueOf(state.storred_state.get("num_generated").toString()).intValue();
+
+		log.debug("target: {}, current:{}",target,records_generated_so_far);
+
+		List<IngestRecord> result = new ArrayList();
+
+		if ( records_generated_so_far == 0 ) {
+			log.debug("Bootstrap a dummy collection with some reasonable records");
+			generateRealRecords(result);
+		}
+
+		// Then bulk out the collection with generated records
+		for ( int n=result.size(); ( ( n<limit ) && ( (records_generated_so_far+n) < target ) ) ; n++ ) {
+                        String str_record_id = ""+(1000000+(n+records_generated_so_far));
+			result.add(createDummyBookRecord(str_record_id, str_record_id, generateTitle(str_record_id)));
+		}
+
+		return Mono.just(result);
+	}
+
+	private void generateRealRecords(List<IngestRecord> result) {
+		log.debug("Adding in real records");
+		result.add(createDummyBookRecord("0000001","978-0471948391","Brain of the Firm 2e: 10 (Classic Beer Series)"));
+	}
+
+	private IngestRecord createDummyBookRecord(String str_record_id, String isbn13, String title) {
+                UUID rec_uuid = uuid5ForDummyRecord(str_record_id);
+
+                Map<String, Object> canonicalMetadata = new HashMap();
+                canonicalMetadata.put("title",title);
+
+		Set<Identifier> identifiers = new HashSet();
+		identifiers.add(Identifier.builder().namespace("isbn").value(isbn13).build());
+
+		return IngestRecord.builder()
                                         .uuid(rec_uuid)
                                         .sourceSystem(lms)
                                         .sourceRecordId(str_record_id)
+                                        .identifiers(identifiers)
                                         .canonicalMetadata(canonicalMetadata)
                                         .derivedType("Books")
                                         .build();
-                                sink.next(next_ingest_record);
-                        }
-                        else {
-                                sink.complete();
-                        }
-                        return Integer.valueOf(state.intValue() + 1);
-                });
-        }
+	}
 
         @Override
         public Publisher<ConfigurationRecord> getConfigStream() {
@@ -289,4 +353,35 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
                 }
                 return sw.toString();
         }
+
+
+	
+        /**
+         * Use the ProcessStateRepository to get the current state for
+         * <idOfLms>:"ingest" process - a list of name value pairs If we don't find one,
+         * just create a new empty map transform that data into the PublisherState class
+         * above ^^
+         * THIS SHOULD REALLY MOVE TO A SHARED SUPERCLASS
+         */
+        private Mono<PublisherState> getInitialState(UUID context, String process) {
+                return processStateService.getStateMap(context, process)
+                        .defaultIfEmpty(new HashMap<>())
+                        .map(current_state -> {
+				PublisherState generator_state = new PublisherState(current_state);
+                                if ( current_state.get("num_generated") == null ) {
+					current_state.put("num_generated", Long.valueOf(0));
+                                }
+                                generator_state.request_start_time = System.currentTimeMillis();
+                                return generator_state;
+                        });
+        }
+
+        @Transactional(value = TxType.REQUIRES_NEW)
+        protected Mono<PublisherState> saveState(PublisherState state) {
+                log.debug("Update state {} - {}", state,lms.getName());
+
+                return Mono.from(processStateService.updateState(lms.getId(), "ingest", state.storred_state))
+                        .thenReturn(state);
+        }
+
 }
