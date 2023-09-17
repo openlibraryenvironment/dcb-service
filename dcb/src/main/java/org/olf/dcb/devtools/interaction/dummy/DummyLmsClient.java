@@ -167,6 +167,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
         public Mono<Patron> getPatronByLocalId(String localPatronId) {
+		log.info("getPatronByLocalId({})",localPatronId);
 		return Mono.empty();
 	}
 
@@ -186,20 +187,24 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
         }
 
         public Mono<String> createPatron(Patron patron) {
+		log.info("Create patron {}",patron);
 		return Mono.empty();
 	}
 
         public Mono<String> createBib(Bib bib) {
+		log.info("Create bib {}",bib);
 		return Mono.empty();
 	}
 
 	public Mono<Patron> updatePatron(String localId, String patronType) {
+		log.info("Update patron {},{}",localId,patronType);
 		return Mono.empty();
 	}
 
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
 		// TODO: needs implementing
+		log.info("patronAuth({},{},...",authProfile,patronPrinciple);
 		return null;
 	}
 
@@ -221,11 +226,13 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
+		log.info("updateItemStatus({},{})",itemId,crs);
 		return Mono.just("Dummy");
 	}
 
         // WARNING We might need to make this accept a patronIdentity - as different systems might take different ways to identify the patron
         public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
+		log.info("checkOutItemToPatron({},{})",itemId,patronBarcode);
 		return Mono.just("DUMMY");
 	}
 
@@ -349,7 +356,11 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
                 String pickupLocation,
                 String note,
                 String patronRequestId) {
-                return Mono.empty();
+		log.info("placeHoldRequest({},{},{},{},{})",id,recordType,recordNumber,pickupLocation,note,patronRequestId);
+
+		// (localHoldId, localHoldStatus)
+                // return Mono.empty();
+                return Mono.just(Tuples.of(UUID.randomUUID().toString(),"HELD"));
         }
 
         private String generateTitle(String recordId) {
