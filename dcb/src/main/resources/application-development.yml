@@ -45,3 +45,8 @@ micronaut:
           jwks:
             keycloak:
               url: ${KEYCLOAK_CERT_URL:""}
+
+dcb:
+  itemResolver:
+    code: Geo
+

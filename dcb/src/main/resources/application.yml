@@ -146,3 +146,7 @@ graphql:
   # Disable graphiql because we have protected it using a jwt
   graphiql: # enables the /graphiql endpoint to test calls against your graph.
     enabled: false
+
+dcb:
+  itemResolver:
+    code: FirstItem

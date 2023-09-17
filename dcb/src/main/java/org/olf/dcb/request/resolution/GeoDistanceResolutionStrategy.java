@@ -10,14 +10,14 @@ import org.slf4j.LoggerFactory;
 import jakarta.inject.Singleton;
 
 @Singleton
-public class FirstRequestableItemResolutionStrategy implements ResolutionStrategy {
-	private static final Logger log = LoggerFactory.getLogger(FirstRequestableItemResolutionStrategy.class);
+public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
+	private static final Logger log = LoggerFactory.getLogger(GeoDistanceResolutionStrategy.class);
 
-	public static final String FIRST_ITEM_STRATEGY = "FirstItem";
+	public static final String GEO_DISTANCE_STRATEGY = "Geo";
 
 	@Override
 	public String getCode() {
-		return FIRST_ITEM_STRATEGY;
+		return GEO_DISTANCE_STRATEGY;
 	}
 
 
