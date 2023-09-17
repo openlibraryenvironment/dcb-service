@@ -90,6 +90,8 @@ public class AgenciesController {
 					.hostLms(lms)
 					.authProfile(agency.authProfile())
 					.idpUrl(agency.idpUrl())
+					.longitude(agency.longitude())
+					.latitude(agency.latitude())
 					.build());
 			})
                         .doOnNext(a -> log.debug("save agency {}",a))

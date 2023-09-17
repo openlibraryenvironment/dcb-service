@@ -113,6 +113,8 @@ public class LocationController {
                                     .type(location.type())
                                     .agency(agency)
                                     .isPickup(location.isPickup())
+                                    .longitude(location.longitude())
+                                    .latitude(location.latitude())
                                     .build();
 
                 return Mono.from(locationRepository.existsById(l.getId()))
