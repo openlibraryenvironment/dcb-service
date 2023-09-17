@@ -139,7 +139,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
                                                 .id(bibId+"-i"+n)
                                                 .bibId(bibId)
                                                 .status(new ItemStatus(ItemStatusCode.AVAILABLE))
-                                                .hostLmsCode(lms.getCode())
+                                                .hostLmsCode(hostLmsCode)
                                                 // .dueDate(parsedDueDate)
                                                 .location(org.olf.dcb.core.model.Location.builder()
                                                 	.code(s)

@@ -26,6 +26,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
+
 @Builder
 @Data
 @NoArgsConstructor(onConstructor_ = @Creator())
@@ -36,6 +41,8 @@ import java.util.UUID;
 @Accessors(chain = true)
 @ToString(onlyExplicitlyIncluded = true)
 public class PatronRequest {
+
+        private static final Logger log = LoggerFactory.getLogger(PatronRequest.class);
 
 	@Serdeable
 	public static enum Status {
@@ -188,6 +195,7 @@ public class PatronRequest {
 	}
 
 	public PatronRequest resolveToNoItemsAvailable() {
+		log.debug("resolveToNoItemsAvailable()");
 		return setStatus(Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
 	}
 

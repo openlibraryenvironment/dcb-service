@@ -43,7 +43,7 @@ public class PatronRequestResolutionService {
 	}
 
 	public Mono<Resolution> resolvePatronRequest(PatronRequest patronRequest) {
-		log.debug("resolvePatronRequest({})", patronRequest);
+		log.debug("resolvePatronRequest(id={}) current status ={}", patronRequest.getId(),patronRequest.getStatus());
 
 		final var clusterRecordId = patronRequest.getBibClusterId();
 
@@ -56,8 +56,7 @@ public class PatronRequestResolutionService {
 			.doOnNext(item -> log.debug("Selected item {}",item))
 			.flatMap(item -> createSupplierRequest(item, patronRequest))
 			.map(PatronRequestResolutionService::mapToResolution)
-			.onErrorReturn(NoItemsRequestableAtAnyAgency.class,
-				resolveToNoItemsAvailable(patronRequest));
+			.onErrorReturn(NoItemsRequestableAtAnyAgency.class, resolveToNoItemsAvailable(patronRequest));
 	}
 
 	private Mono<ClusteredBib> findClusterRecord(UUID clusterRecordId) {
@@ -85,6 +84,7 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<SupplierRequest> createSupplierRequest(Item item, PatronRequest patronRequest) {
+		log.debug("createSupplierRequest() current pr status = {}",patronRequest.getStatus());
 		return resolveSupplyingAgency(item)
 			.map(agency -> mapToSupplierRequest(item, patronRequest, agency))
 			// This is fugly - it happens because some of the tests don't care about the agency being real
@@ -92,7 +92,9 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<DataAgency> resolveSupplyingAgency(Item item) {
-                log.debug("Attempting to resolveSupplyingAgency({})",item);
+
+                log.debug("Attempting to resolveSupplyingAgency(hostSystem={},shelvingLocation={})",item.getHostLmsCode().trim(), item.getLocation().getCode().trim());
+
                 return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
                                                 "ShelvingLocation", item.getHostLmsCode().trim(), item.getLocation().getCode().trim(), "AGENCY", "DCB"))
                                 .map(mapping -> mapping.getToValue() )
@@ -108,8 +110,9 @@ public class PatronRequestResolutionService {
 	private static SupplierRequest mapToSupplierRequest(Item item, PatronRequest patronRequest, DataAgency agency) {
 
 		log.debug("mapToSupplierRequest({}}, {}, {})", item, patronRequest,agency);
+
                 if ( agency == null )
-                        log.error("NO AGENCY ATTEMPTING TO MAP SUPPLIER REQUEST - The SupplierRequest localAgency will be null - this is test only behaviour");
+                        log.error("\n\n** NO AGENCY ATTEMPTING TO MAP SUPPLIER REQUEST - The SupplierRequest localAgency will be null - this is test only behaviour**\n\n");
 
 		final var supplierRequestId = UUID.randomUUID();
 

@@ -12,7 +12,7 @@ public class FirstRequestableItemResolutionStrategy implements ResolutionStrateg
 
 	@Override
 	public Item chooseItem(List<Item> items, UUID clusterRecordId) {
-		log.debug("chooseItem({})", items);
+		log.debug("chooseItem(array of size {})", items.size());
 
 		return items.stream()
 			.filter(Item::getIsRequestable)

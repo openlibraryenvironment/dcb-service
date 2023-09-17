@@ -34,9 +34,9 @@ public class RequestableItemService {
 	}
 
 	private Boolean isInAllowedLocation(Item item) {
-		log.debug("isInAllowedLocation({})", item);
 
 		final var locationCode = item.getLocationCode();
+		log.debug("isInAllowedLocation({})", locationCode);
 
 		// location filtering only evaluated if value set to true in config
 		// if not set, all locations are allowed
