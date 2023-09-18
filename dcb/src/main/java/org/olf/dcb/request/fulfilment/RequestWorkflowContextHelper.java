@@ -155,10 +155,17 @@ public class RequestWorkflowContextHelper {
 			// Look up the virtual patron identity and attach to the context
 			return Mono.from(supplierRequestRepository.findVirtualIdentityById(sr.getId()))
 				.flatMap(vi -> {
-                                        // log.debug("found virtual identity {}",vi);
+                                        log.debug("found virtual identity {}",vi);
                                         return Mono.just(ctx.setPatronVirtualIdentity(vi));
                                 })
-				.defaultIfEmpty(ctx);
+                        	.switchIfEmpty(Mono.defer(() -> {
+					log.error("Unable lookup patron virtual identity for supplier request {}",sr.getId());
+					return Mono.just(ctx);
+				}));
+				// .defaultIfEmpty(ctx);
+		}
+		else {
+			log.error("No supplier request to augment");
 		}
 
 		return Mono.just(ctx);

@@ -46,7 +46,7 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 
 		log.debug("makeTransition({})", patronRequest);
 		return supplyingAgencyService.placePatronRequestAtSupplyingAgency(patronRequest)
-				.doOnSuccess(pr -> log.debug("Placed patron request to supplier: {}", pr))
+				.doOnSuccess(pr -> log.debug("Placed patron request to supplier: pr={}", pr))
 				.doOnError(
 						error -> log.error("Error occurred during placing a patron request to supplier: {}", error.getMessage()))
 				.flatMap(this::createAuditEntry);
