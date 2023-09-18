@@ -4,7 +4,13 @@ import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.PatronRequest;
 
 public interface ResolutionStrategy {
-	Item chooseItem(List<Item> items, UUID clusterRecordId);
+
+	// Resolution Strategies must return a code which can be used to select
+	// an implementation based on config
+	String getCode();
+
+	Item chooseItem(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest);
 }

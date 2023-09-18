@@ -26,7 +26,16 @@ import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import java.util.concurrent.CompletableFuture;
 import services.k_int.data.querying.QueryService;
 
+import io.micronaut.core.annotation.TypeHint;
+import io.micronaut.core.annotation.TypeHint.AccessType;
+import jakarta.inject.Singleton;
+
 @Singleton
+@TypeHint(typeNames = {
+		"org.apache.lucene.search.Query",
+                "org.apache.lucene.search.MultiTermQuery"
+          }, 
+          accessType = {AccessType.ALL_DECLARED_CONSTRUCTORS, AccessType.ALL_DECLARED_FIELDS, AccessType.ALL_DECLARED_METHODS})
 public class DataFetchers {
 
   private static Logger log = LoggerFactory.getLogger(DataFetchers.class);

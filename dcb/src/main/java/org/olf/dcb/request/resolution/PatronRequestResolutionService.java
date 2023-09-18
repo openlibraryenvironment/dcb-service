@@ -20,9 +20,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
-@Prototype
+
+import io.micronaut.context.annotation.Value;
+
+
+@Singleton
 public class PatronRequestResolutionService {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestResolutionService.class);
 
@@ -30,29 +35,50 @@ public class PatronRequestResolutionService {
 	private final LiveAvailabilityService liveAvailabilityService;
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 	private final AgencyRepository agencyRepository;
+        private final List<ResolutionStrategy> allResolutionStrategies;
+	private String itemResolver = null;
 
 	public PatronRequestResolutionService(SharedIndexService sharedIndexService,
 		ReferenceValueMappingRepository referenceValueMappingRepository,
 		AgencyRepository agencyRepository,
-		LiveAvailabilityService liveAvailabilityService) {
+		LiveAvailabilityService liveAvailabilityService,
+                @Value("${dcb.itemResolver.code}") String itemResolver,
+                List<ResolutionStrategy> allResolutionStrategies) {
 
 		this.sharedIndexService = sharedIndexService;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.agencyRepository = agencyRepository;
 		this.liveAvailabilityService = liveAvailabilityService;
+		this.itemResolver = itemResolver;
+		this.allResolutionStrategies = allResolutionStrategies;
+
+
+                log.debug("Available item resolver strategies (selected={})",this.itemResolver);
+                for (ResolutionStrategy t : allResolutionStrategies) {
+                        log.debug(t.getClass().getName());
+                }
+
 	}
 
 	public Mono<Resolution> resolvePatronRequest(PatronRequest patronRequest) {
-		log.debug("resolvePatronRequest(id={}) current status ={}", patronRequest.getId(),patronRequest.getStatus());
+		log.debug("resolvePatronRequest(id={}) current status ={} resolver={}", patronRequest.getId(),patronRequest.getStatus(),itemResolver);
 
 		final var clusterRecordId = patronRequest.getBibClusterId();
 
-		final var resolutionStrategy = new FirstRequestableItemResolutionStrategy();
+		// final var resolutionStrategy = new FirstRequestableItemResolutionStrategy();
+		final var resolutionStrategy = allResolutionStrategies.stream()
+			.filter( strat -> strat.getCode().equals(this.itemResolver))
+			.findFirst()
+			.get();
+
+		if ( resolutionStrategy==null )
+			throw new RuntimeException("No resolver with code "+this.itemResolver);
+
 
 		return findClusterRecord(clusterRecordId)
 			.map(this::validateClusteredBib)
 			.flatMap(this::getItems)
-			.map(items -> resolutionStrategy.chooseItem(items, clusterRecordId))
+			.map(items -> resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest))
 			.doOnNext(item -> log.debug("Selected item {}",item))
 			.flatMap(item -> createSupplierRequest(item, patronRequest))
 			.map(PatronRequestResolutionService::mapToResolution)

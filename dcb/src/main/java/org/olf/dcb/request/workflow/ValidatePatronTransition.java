@@ -55,8 +55,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	 * process.
 	 */
 	private Mono<PatronIdentity> validatePatronIdentity(PatronIdentity pi) {
-		log.debug("validatePatronIdentity by calling out to host LMS - PI is {} host lms client is {}", pi,
-				pi.getHostLms());
+		log.debug("validatePatronIdentity by calling out to host LMS - PI is {} host lms client is {}", pi, pi.getHostLms());
 		return hostLmsService.getClientFor(pi.getHostLms()).flatMap(client -> client.getPatronByLocalId(pi.getLocalId()))
 				.flatMap(hostLmsPatron -> {
 					log.debug("update patron identity with latest info from host {}", hostLmsPatron);
@@ -94,14 +93,16 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				"findMapping(targetContext=DCB, targetCategory=AGENCY, sourceCategory=Location, sourceContext={}, sourceValue={}",
 				systemCode, homeLibraryCode);
 
-		return findMapping("DCB", "AGENCY", "Location", systemCode, homeLibraryCode).flatMap(locatedMapping -> {
-			log.debug("Located mapping {}", locatedMapping);
-			return Mono.from(agencyRepository.findOneByCode(locatedMapping.getToValue()));
-		}).flatMap(locatedAgency -> {
-			log.debug("Located agency {}", locatedAgency);
-			pi.setResolvedAgency(locatedAgency);
-			return Mono.just(pi);
-		});
+		return findMapping("DCB", "AGENCY", "Location", systemCode, homeLibraryCode)
+			.flatMap(locatedMapping -> {
+				log.debug("Located mapping {}", locatedMapping);
+				return Mono.from(agencyRepository.findOneByCode(locatedMapping.getToValue()));
+			})
+			.flatMap(locatedAgency -> {
+				log.debug("Located agency {}", locatedAgency);
+				pi.setResolvedAgency(locatedAgency);
+				return Mono.just(pi);
+			});
 	}
 
 	/**
@@ -157,8 +158,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 	private Mono<ReferenceValueMapping> findMapping(String targetContext, String targetCategory, String sourceCategory,
 			String sourceContext, String sourceValue) {
-		log.debug("findMapping src ctx={} cat={} val={} target ctx={} cat={}", sourceContext, sourceCategory, sourceValue,
-				targetContext, targetCategory);
+		log.debug("findMapping src ctx={} cat={} val={} target ctx={} cat={}", sourceContext, sourceCategory, sourceValue, targetContext, targetCategory);
 		return Mono
 				.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
 						sourceCategory, sourceContext, sourceValue, targetCategory, targetContext));
