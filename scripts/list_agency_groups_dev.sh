@@ -23,12 +23,12 @@ curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X P
 
 echo
 echo
-echo
+echo Wildcard
 
 curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "$TARGET/graphql" -d '{ 
   "query": "query($lq: String) { agencies(query: $lq) { id, code, name } }",
   "variables": {
-    "lq" : "code:D*"
+    "lq" : "code:*"
   }
 }'
 
