@@ -114,16 +114,21 @@ public class PatronRequestResolutionService {
 		return resolveSupplyingAgency(item)
 			.map(agency -> mapToSupplierRequest(item, patronRequest, agency))
 			// This is fugly - it happens because some of the tests don't care about the agency being real
-			.defaultIfEmpty( mapToSupplierRequest(item, patronRequest, null));
+			.defaultIfEmpty( mapToSupplierRequest(item, patronRequest, null) );
 	}
 
 	private Mono<DataAgency> resolveSupplyingAgency(Item item) {
 
-                log.debug("Attempting to resolveSupplyingAgency(hostSystem={},shelvingLocation={})",item.getHostLmsCode().trim(), item.getLocation().getCode().trim());
+                String host_lms_code = item.getHostLmsCode().trim();
+                String shelving_location = item.getLocation().getCode().trim();
+                log.debug("Attempting to resolveSupplyingAgency(hostSystem={},shelvingLocation={})",host_lms_code, shelving_location);
 
                 return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-                                                "ShelvingLocation", item.getHostLmsCode().trim(), item.getLocation().getCode().trim(), "AGENCY", "DCB"))
-                                .map(mapping -> mapping.getToValue() )
+                                                "ShelvingLocation", host_lms_code, shelving_location, "AGENCY", "DCB"))
+                                .map(mapping -> {
+                                        log.info("Gettting value from mapping {}",mapping);
+                                        return mapping.getToValue();
+                                } )
                                 .doOnSuccess(mapping -> log.debug("Result from getting agency for shelving location: {}", mapping))
 				.flatMap(agencyCode -> Mono.from(agencyRepository.findOneByCode(agencyCode)) )
                                 .doOnSuccess(agency -> log.debug("Located agency record {}",agency));
@@ -135,7 +140,7 @@ public class PatronRequestResolutionService {
 	// isActive is intended to identify the "Current" supplier as we try different agencies.
 	private static SupplierRequest mapToSupplierRequest(Item item, PatronRequest patronRequest, DataAgency agency) {
 
-		log.debug("mapToSupplierRequest({}}, {}, {})", item, patronRequest,agency);
+		log.debug("mapToSupplierRequest({}, {}, {})", item, patronRequest,agency);
 
                 if ( agency == null )
                         log.error("\n\n** NO AGENCY ATTEMPTING TO MAP SUPPLIER REQUEST - The SupplierRequest localAgency will be null - this is test only behaviour**\n\n");
