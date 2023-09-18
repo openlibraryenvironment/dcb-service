@@ -53,7 +53,7 @@ public class PatronRequestResolutionService {
 		this.allResolutionStrategies = allResolutionStrategies;
 
 
-                log.debug("Available item resolver strategies");
+                log.debug("Available item resolver strategies (selected={})",this.itemResolver);
                 for (ResolutionStrategy t : allResolutionStrategies) {
                         log.debug(t.getClass().getName());
                 }
