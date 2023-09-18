@@ -329,6 +329,10 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
                 Map<String, Object> canonicalMetadata = new HashMap();
                 canonicalMetadata.put("title",title);
+                List subjects = List.of( Map.of("label", "Cybernetics"), Map.of("label", "General Systems Theory") );
+                canonicalMetadata.put("subjects",subjects);
+                List agents = List.of( Map.of("label", "Beers, Stafford", "subtype", "author") );
+                canonicalMetadata.put("agents",agents);
 
 		Set<Identifier> identifiers = new HashSet();
 		identifiers.add(Identifier.builder().namespace("isbn").value(isbn13).build());
