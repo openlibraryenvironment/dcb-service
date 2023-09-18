@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.PatronRequest;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +24,7 @@ public class FirstRequestableItemResolutionStrategy implements ResolutionStrateg
 
 
 	@Override
-	public Item chooseItem(List<Item> items, UUID clusterRecordId) {
+	public Item chooseItem(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest) {
 		log.debug("chooseItem(array of size {})", items.size());
 
 		return items.stream()

@@ -78,7 +78,7 @@ public class PatronRequestResolutionService {
 		return findClusterRecord(clusterRecordId)
 			.map(this::validateClusteredBib)
 			.flatMap(this::getItems)
-			.map(items -> resolutionStrategy.chooseItem(items, clusterRecordId))
+			.map(items -> resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest))
 			.doOnNext(item -> log.debug("Selected item {}",item))
 			.flatMap(item -> createSupplierRequest(item, patronRequest))
 			.map(PatronRequestResolutionService::mapToResolution)
