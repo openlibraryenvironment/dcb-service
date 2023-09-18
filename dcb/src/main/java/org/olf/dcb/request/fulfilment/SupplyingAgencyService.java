@@ -107,9 +107,7 @@ public class SupplyingAgencyService {
 	}
 
 	private Mono<RequestWorkflowContext> checkAndCreatePatronAtSupplier(RequestWorkflowContext psrc) {
-
 		log.debug("checkAndCreatePatronAtSupplier");
-
 		PatronRequest patronRequest = psrc.getPatronRequest();
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 

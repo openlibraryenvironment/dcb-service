@@ -140,12 +140,14 @@ public class RequestWorkflowContextHelper {
         // If there is a -live- supplier request availabe for this patron request attach it to the context
         //
         private Mono<RequestWorkflowContext> findSupplierRequest(RequestWorkflowContext ctx) {
+		log.debug("findSupplierRequest");
                 return supplierRequestService.findSupplierRequestFor(ctx.getPatronRequest())
                         .flatMap(supplierRequest -> Mono.just(ctx.setSupplierRequest(supplierRequest)))
                         .defaultIfEmpty(ctx);
         }               
 
 	private Mono<RequestWorkflowContext> decorateWithPatronVirtualIdentity(RequestWorkflowContext ctx) {
+		log.debug("decorateWithPatronVirtualIdentity");
 		SupplierRequest sr = ctx.getSupplierRequest();
                 // log.debug("decorateWithPatronVirtualIdentity {}",sr);
 
@@ -167,6 +169,7 @@ public class RequestWorkflowContextHelper {
 	// it is tempting to thing that resolving patron and lending systems could be coalesced into a single function, but
 	// this is problematic due to the semantic difference. Please think carefully before attempting this (Desireable) consolidation
         private Mono<RequestWorkflowContext> resolvePickupLocationAgency(RequestWorkflowContext ctx) {
+		log.debug("resolvePickupLocationAgency");
                 return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
                         "PickupLocation",
                         "DCB",
@@ -186,6 +189,7 @@ public class RequestWorkflowContextHelper {
         // this means that the agencyRepo.findHostLmsById approach does't work as expected, so we need to get the agency in a 2 step
         // process where we first grab the ID of the hostLms then we get it by ID
         private Mono<DataAgency> getDataAgencyWithHostLms(String code) {
+		log.debug("getDataAgencyWithHostLms");
                 return Mono.from(agencyRepository.findOneByCode(code))
                         .flatMap(agency -> {
                                 // log.debug("getDataAgencyWithHostLms({}) {}",code,agency);

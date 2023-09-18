@@ -68,6 +68,14 @@ curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X P
   }
 }'
 echo
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ 
+  "query": "query($lq: String) { agencies(query: $lq) { id, code, name } }",
+  "variables": {
+    "lq" : "name:D*"
+  }
+}'
+echo
+
 
 # find no records?
 curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "http://localhost:8080/graphql" -d '{ 
