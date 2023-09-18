@@ -3,7 +3,7 @@ type Query {
     agencies(query: String): [Agency]!
     patronRequests(query: String): [PatronRequest]!
     supplierRequests(query: String): [SupplierRequest]!
-    agencyGroups: [AgencyGroup]!
+    agencyGroups(query: String): [AgencyGroup]!
 }
 
 type Mutation {
