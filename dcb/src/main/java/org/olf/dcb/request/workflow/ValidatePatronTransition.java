@@ -55,7 +55,11 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	 * process.
 	 */
 	private Mono<PatronIdentity> validatePatronIdentity(PatronIdentity pi) {
+
+		// We have a patron id from elsewhere, call the patrons home system to get a record which describes
+		// the patron.
 		log.debug("validatePatronIdentity by calling out to host LMS - PI is {} host lms client is {}", pi, pi.getHostLms());
+
 		return hostLmsService.getClientFor(pi.getHostLms()).flatMap(client -> client.getPatronByLocalId(pi.getLocalId()))
 				.flatMap(hostLmsPatron -> {
 					log.debug("update patron identity with latest info from host {}", hostLmsPatron);
