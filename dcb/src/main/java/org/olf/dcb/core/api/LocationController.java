@@ -26,7 +26,7 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
-
+import io.micronaut.core.annotation.Nullable;
 
 @Controller("/locations")
 @Tag(name = "Locations")
@@ -63,12 +63,17 @@ public class LocationController {
                 description = "Paginate through the list of known locations",
                 parameters = {
                         @Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
-                        @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
+                        @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100"),
+                        @Parameter(in = ParameterIn.QUERY, name = "type", description = "Location typefileter", schema = @Schema(type = "string"), example = "PICKUP")}
         )
         @Get("/{?pageable*}")
-        public Mono<Page<Location>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
+        public Mono<Page<Location>> list(@Nullable @Parameter String type, @Parameter(hidden = true) @Valid Pageable pageable) {
                 if (pageable == null) {
                         pageable = Pageable.from(0, 100);
+                }
+
+                if ( ( type != null ) && ( type.length() > 0 ) ) {
+                  return Mono.from(locationRepository.queryAllByType(type,pageable));
                 }
 
                 return Mono.from(locationRepository.queryAll(pageable));

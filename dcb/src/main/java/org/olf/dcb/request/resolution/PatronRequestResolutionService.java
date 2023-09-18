@@ -114,7 +114,9 @@ public class PatronRequestResolutionService {
 		return resolveSupplyingAgency(item)
 			.map(agency -> mapToSupplierRequest(item, patronRequest, agency))
 			// This is fugly - it happens because some of the tests don't care about the agency being real
-			.defaultIfEmpty( mapToSupplierRequest(item, patronRequest, null) );
+                        .switchIfEmpty(Mono.fromCallable(() -> {
+                                return mapToSupplierRequest(item, patronRequest, null);
+                        }));
 	}
 
 	private Mono<DataAgency> resolveSupplyingAgency(Item item) {
