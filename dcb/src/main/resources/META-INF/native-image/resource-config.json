@@ -1,6 +1,7 @@
 {
   "resources": [
     {"pattern":"\\Qgit.properties\\E"},
-    {"pattern":".*opencsv.*properties"}
+    {"pattern":".*opencsv.*properties"},
+    {"pattern":".*QueryParserMessages.*"}
   ]
 }
