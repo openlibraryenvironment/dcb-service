@@ -82,6 +82,7 @@ public class RequestWorkflowContextHelper {
         }
 
 	private Mono<RequestWorkflowContext> decorateContextWithLenderDetails(RequestWorkflowContext ctx) {
+                log.info("decorateContextWithLenderDetails");
                 ctx.setLenderAgencyCode(ctx.getSupplierRequest().getLocalAgency());
                 ctx.setLenderSystemCode(ctx.getSupplierRequest().getHostLmsCode());
 		return Mono.just(ctx);
@@ -91,7 +92,7 @@ public class RequestWorkflowContextHelper {
 	// Find and attach those records here.
 	// We also need   patronAgencyCode, patronSystemCode and patronAgency
 	private Mono<RequestWorkflowContext> decorateContextWithPatronDetails(RequestWorkflowContext ctx) {
-
+                log.info("decorateContextWithPatronDetails");
 		if ( ( ctx.getPatronRequest() == null ) || ( ctx.getPatronRequest().getId() == null ) ) {
 			log.error("Context does not have a patron request");
 			throw new RuntimeException("Unable to locate patron request in workflow context");
@@ -104,6 +105,7 @@ public class RequestWorkflowContextHelper {
 	}
 
 	private Mono<RequestWorkflowContext> decorateContextWithPatronAgency(RequestWorkflowContext ctx) {
+                log.info("decorateContextWithPatronAgency");
 
 		return Mono.from(patronIdentityRepository.findResolvedAgencyById(ctx.getPatronHomeIdentity().getId()))
 			.flatMap( agency -> {
@@ -115,6 +117,7 @@ public class RequestWorkflowContextHelper {
 	}
 
 	private Mono<RequestWorkflowContext> decorateContextWithPatronSystem(RequestWorkflowContext ctx) {
+                log.info("decorateContextWithPatronSystem");
 
 		// There is a problem here - as per getDataAgencyWithHostLms agencyRepository.findHostLmsById doesn't work directly
                 return Mono.from(agencyRepository.findHostLmsIdById(ctx.getPatronAgency().getId()))
@@ -128,6 +131,7 @@ public class RequestWorkflowContextHelper {
 
 	// We find the patrons requesting identity via the patron request requestingIdentity property. this should NEVER be null
 	private Mono<RequestWorkflowContext> getRequestingIdentity(RequestWorkflowContext ctx) {
+                log.info("getRequestingIdentity");
 
 		// log.debug("getRequestingIdentity for request {}",ctx.getPatronRequest());
 
