@@ -49,6 +49,16 @@ public class AgencyGroupsDataFetcher implements DataFetcher<Iterable<AgencyGroup
   @Override
   // public CompletableFuture<Iterable<AgencyGroup>> get(DataFetchingEnvironment env) {
   public Iterable<AgencyGroup> get(DataFetchingEnvironment env) {
+
+    String query = env.getArgument("query");
+    log.debug("AgencyGroupsDataFetcher::get({})",query);
+    //QueryService qs = new QueryService();
+    //if ( ( query != null ) && ( query.length() > 0 ) ) {
+    //  return Mono.justOrEmpty(qs.evaluate(query, DataAgency.class))
+    //                      .flatMapMany(spec -> postgresAgencyRepository.findAll(spec))
+    //                      .toIterable();
+    //}
+
     return Flux.from(agencyGroupRepository.queryAll()).toIterable();
   }
 
