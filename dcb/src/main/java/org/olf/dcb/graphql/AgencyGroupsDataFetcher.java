@@ -55,11 +55,13 @@ public class AgencyGroupsDataFetcher implements DataFetcher<Iterable<AgencyGroup
     QueryService qs = new QueryService();
     String query = env.getArgument("query");
     if ( ( query != null ) && ( query.length() > 0 ) ) {
+      log.debug("Returning query version of agencies");
       return Mono.justOrEmpty(qs.evaluate(query, AgencyGroup.class))
                           .flatMapMany(spec -> agencyGroupRepository.findAll(spec))
                           .toIterable();
     }
 
+    log.debug("Returning simple agency list");
     return Flux.from(agencyGroupRepository.queryAll()).toIterable();
   }
 

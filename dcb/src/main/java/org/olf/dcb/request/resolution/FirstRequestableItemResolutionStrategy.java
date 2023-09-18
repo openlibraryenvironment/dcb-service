@@ -28,6 +28,7 @@ public class FirstRequestableItemResolutionStrategy implements ResolutionStrateg
 		log.debug("chooseItem(array of size {})", items.size());
 
 		return items.stream()
+                        .peek(item -> log.debug("Consider item requestable:{} holds:{} ",item.getIsRequestable(),item.hasNoHolds()))
 			.filter(Item::getIsRequestable)
 			.filter(Item::hasNoHolds)
 			.findFirst()

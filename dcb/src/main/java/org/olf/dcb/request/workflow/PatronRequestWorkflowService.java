@@ -61,7 +61,11 @@ public class PatronRequestWorkflowService {
 
 	public void initiate(PatronRequest patronRequest) {
 		log.debug("initiate({})", patronRequest);
-		progressAll(patronRequest).subscribe();
+		progressAll(patronRequest)
+                        .doFinally( signalType -> {
+                                log.debug("Completed processing for {}",patronRequest.getId());
+                        })
+                        .subscribe();
 	}
 	
 	public Flux<PatronRequest> progressAll(PatronRequest patronRequest) {
@@ -82,12 +86,12 @@ public class PatronRequestWorkflowService {
 		
 		return Mono.justOrEmpty(action)
 			.flatMapMany(transition -> {
-				log.debug("found action {} applying transition", action.getClass().getName());
-				Flux<PatronRequest> pr = applyTransition(transition, patronRequest);
-				log.debug("start applying actions, there may be subsequent transitions possible");
+			        log.debug("found action {} applying transition", action.get().getClass().getName());
+			        Flux<PatronRequest> pr = applyTransition(transition, patronRequest);
+			        log.debug("start applying actions, there may be subsequent transitions possible");
 				
-				// Resolve as incomplete.
-				return pr;
+			        // Resolve as incomplete.
+			        return pr;
 			})
 			.transform(getErrorTransformerFor(patronRequest));
 	}
