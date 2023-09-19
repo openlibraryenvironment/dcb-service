@@ -175,5 +175,4 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(Status.PATRON_VERIFIED);
 	}
-
 }
