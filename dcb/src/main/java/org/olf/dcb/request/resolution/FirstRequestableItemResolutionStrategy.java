@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
 
+import reactor.core.publisher.Mono;
+
 @Singleton
 public class FirstRequestableItemResolutionStrategy implements ResolutionStrategy {
 	private static final Logger log = LoggerFactory.getLogger(FirstRequestableItemResolutionStrategy.class);
@@ -24,14 +26,16 @@ public class FirstRequestableItemResolutionStrategy implements ResolutionStrateg
 
 
 	@Override
-	public Item chooseItem(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest) {
+	public Mono<Item> chooseItem(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest) {
 		log.debug("chooseItem(array of size {})", items.size());
 
-		return items.stream()
-                        .peek(item -> log.debug("Consider item requestable:{} holds:{} ",item.getIsRequestable(),item.hasNoHolds()))
-			.filter(Item::getIsRequestable)
-			.filter(Item::hasNoHolds)
-			.findFirst()
-			.orElseThrow(() -> new NoItemsRequestableAtAnyAgency(clusterRecordId));
+		return Mono.just(
+			items.stream()
+                       		.peek(item -> log.debug("Consider item requestable:{} holds:{} ",item.getIsRequestable(),item.hasNoHolds()))
+				.filter(Item::getIsRequestable)
+				.filter(Item::hasNoHolds)
+				.findFirst()
+				.orElseThrow(() -> new NoItemsRequestableAtAnyAgency(clusterRecordId))
+		);
 	}
 }

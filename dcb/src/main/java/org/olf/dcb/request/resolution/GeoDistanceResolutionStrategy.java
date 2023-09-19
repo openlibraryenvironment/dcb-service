@@ -2,13 +2,12 @@ package org.olf.dcb.request.resolution;
 
 import java.util.List;
 import java.util.UUID;
-
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import jakarta.inject.Singleton;
+import reactor.core.publisher.Mono;
 
 @Singleton
 public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
@@ -23,7 +22,7 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 
 
 	@Override
-	public Item chooseItem(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest) {
+	public Mono<Item> chooseItem(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest) {
 		log.debug("chooseItem(array of size {},{},{})", items.size(),clusterRecordId,patronRequest);
 
 		long distanceFromPickupKM = 10000000;
@@ -55,7 +54,7 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 		if ( selectedItem == null )
 			throw new NoItemsRequestableAtAnyAgency(clusterRecordId);
 
-		return selectedItem;
+		return Mono.just(selectedItem);
 	}
 
 

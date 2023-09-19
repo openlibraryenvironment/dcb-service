@@ -29,7 +29,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 		final var item = createItem("78458456", AVAILABLE, true);
 
 		// Act
-		final var chosenItem = resolutionStrategy.chooseItem(List.of(item), randomUUID(), null);
+		final var chosenItem = resolutionStrategy.chooseItem(List.of(item), randomUUID(), null).block();
 
 		// Assert
 		assertThat("Should have expected local ID",
@@ -52,7 +52,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 		final var items = List.of(unavailableItem, unknownStatusItem, checkedOutItem,
 			firstAvailableItem, secondAvailableItem);
 
-		final var chosenItem = resolutionStrategy.chooseItem(items, randomUUID(), null);
+		final var chosenItem = resolutionStrategy.chooseItem(items, randomUUID(), null).block();
 
 		// Assert
 		assertThat("Should have expected local ID",
@@ -75,7 +75,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 		final var clusterId = randomUUID();
 
 		final var exception = assertThrows(NoItemsRequestableAtAnyAgency.class,
-			() -> resolutionStrategy.chooseItem(items, clusterId, null));
+			() -> resolutionStrategy.chooseItem(items, clusterId, null).block());
 
 		// Assert
 		assertThat("Should get message associated with cluster record",
