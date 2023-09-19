@@ -47,6 +47,6 @@ micronaut:
               url: ${KEYCLOAK_CERT_URL:""}
 
 dcb:
-  itemResolver:
+  itemresolver:
     code: Geo
 

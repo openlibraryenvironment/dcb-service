@@ -57,5 +57,5 @@ dcb:
   requestability:
     location:
       filtering: false
-  itemResolver:
+  itemresolver:
     code: FirstItem

@@ -110,14 +110,20 @@ public class RequestWorkflowContextHelper {
 	private Mono<RequestWorkflowContext> decorateContextWithPatronAgency(RequestWorkflowContext ctx) {
                 log.info("decorateContextWithPatronAgency");
 
-		return Mono.from(patronIdentityRepository.findResolvedAgencyById(ctx.getPatronHomeIdentity().getId()))
-			.flatMap( agency -> {
-				log.debug("Found patron agency {}",agency);
-				ctx.setPatronAgency(agency);
-				ctx.setPatronAgencyCode(agency.getCode());
-				return Mono.just(ctx);
-			})
-                        .defaultIfEmpty(ctx);
+                if ( ctx.getPatronHomeIdentity() != null ) {
+        		return Mono.from(patronIdentityRepository.findResolvedAgencyById(ctx.getPatronHomeIdentity().getId()))
+	        		.flatMap( agency -> {
+		        		log.debug("Found patron agency {}",agency);
+			        	ctx.setPatronAgency(agency);
+				        ctx.setPatronAgencyCode(agency.getCode());
+        				return Mono.just(ctx);
+	        		})
+                                .defaultIfEmpty(ctx);
+                }
+                else {
+                        log.warn("Cannot add patron agency to request - patron home identity is not attached to PR");
+                }
+                return Mono.just(ctx);
 	}
 
 	private Mono<RequestWorkflowContext> decorateContextWithPatronSystem(RequestWorkflowContext ctx) {
