@@ -20,7 +20,7 @@ public class JpaSpecificationQueryParser<T> extends QueryParserHelper {
 	    
 		// this.getQueryConfigHandler().setAllowLeadingWildcard(true);
 		// https://lucene.apache.org/core/9_7_0/queryparser/org/apache/lucene/queryparser/flexible/standard/processors/AllowLeadingWildcardProcessor.html
-		this.getQueryConfigHandler().set(StandardQueryConfigHandler.ConfigurationKeys.ALLOW_LEADING_WILDCARD,true);
+		// this.getQueryConfigHandler().set(StandardQueryConfigHandler.ConfigurationKeys.ALLOW_LEADING_WILDCARD,true);
 		// Looking for a way to allow leading *
 		//
 		// https://lucene.apache.org/core/9_1_0/queryparser/org/apache/lucene/queryparser/flexible/standard/parser/StandardSyntaxParser.html
@@ -28,6 +28,8 @@ public class JpaSpecificationQueryParser<T> extends QueryParserHelper {
 		// var config =  this.getQueryConfigHandler();
 		// config.setAllowLeadingWildcard(true);
 	}
+	
+	
 
 	@SuppressWarnings("unchecked")
 	@Override

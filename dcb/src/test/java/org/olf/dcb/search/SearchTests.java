@@ -1,6 +1,5 @@
 package org.olf.dcb.search;
 
-import org.joda.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
@@ -19,6 +18,9 @@ class SearchTests {
 	@Inject
 	@Client("/")
 	HttpClient client;
+	
+	@Inject
+	QueryService qs;
 
 	@BeforeEach
 	void beforeEach() {
@@ -29,7 +31,6 @@ class SearchTests {
 
 	@Test
 	void testSearchUtility() {
-		QueryService qs = new QueryService();
 		try {
 			Mono.justOrEmpty( qs.evaluate("title:title*", ClusterRecord.class) )
 				.flatMapMany(clusterRecordRepo::findAll)

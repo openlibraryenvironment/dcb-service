@@ -18,6 +18,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
+import services.k_int.data.querying.DefaultQueryField;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import lombok.ToString;
 
@@ -32,18 +33,19 @@ import lombok.ToString;
 @ToString(onlyExplicitlyIncluded = true)
 public class DataAgency implements Agency {
 
-        public static final String BASIC_BARCODE_AND_PIN = "BASIC/BARCODE+PIN";
-        public static final String BASIC_BARCODE_AND_NAME = "BASIC/BARCODE+NAME";
+	public static final String BASIC_BARCODE_AND_PIN = "BASIC/BARCODE+PIN";
+	public static final String BASIC_BARCODE_AND_NAME = "BASIC/BARCODE+NAME";
 
 	@ToString.Include
 	@NonNull
 	@Id
-	@TypeDef( type = DataType.UUID)
+	@TypeDef(type = DataType.UUID)
 	private UUID id;
 
 	@ToString.Include
 	@NonNull
 	@Size(max = 32)
+	@DefaultQueryField
 	private String code;
 
 	@ToString.Include
@@ -65,13 +67,14 @@ public class DataAgency implements Agency {
 	@Size(max = 200)
 	private String idpUrl;
 
-        private Double longitude;
+	private Double longitude;
 
-        private Double latitude;
+	private Double latitude;
 
-        public static class DataAgencyBuilder {
-                public DataAgencyBuilder() { }
-                // Lombok will fill in the fields and methods
-        }
+	public static class DataAgencyBuilder {
+		public DataAgencyBuilder() {
+		}
+		// Lombok will fill in the fields and methods
+	}
 
 }

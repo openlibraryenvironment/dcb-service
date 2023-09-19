@@ -7,7 +7,7 @@ hosts:
     type: org.olf.dcb.core.interaction.sierra.SierraLmsClient
     client:
       base-url: "https://sandbox.iii.com"
-      ingest: true
+      ingest: false
       page-size: 100
   KCTOWERS:
     name: KCTOWERS
@@ -16,14 +16,7 @@ hosts:
     client:
       base-url: "https://kc-towers.searchmobius.org:443"
       page-size: 100
-  DUMMYA:
-    name: DUMMYA
-    code: DUMMYA
-    type: org.olf.dcb.devtools.interaction.dummy.DummyLmsClient
-    client:
-      num-records-to-generate: 100
       ingest: false
-
 # agencies:
 #   testAgency1:
 #     hostLms: sandbox
