@@ -106,7 +106,11 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				log.debug("Located agency {}", locatedAgency);
 				pi.setResolvedAgency(locatedAgency);
 				return Mono.just(pi);
-			});
+			})
+                        .switchIfEmpty(Mono.defer(() -> {
+                                log.error("Unable lookup patrons home agency from home library code - DO NOT PROCEED");
+                                return Mono.just(pi);
+                        }));
 	}
 
 	/**
