@@ -31,7 +31,7 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
                 for ( Item item : items ) {
 			if ( item.getIsRequestable() && item.hasNoHolds() ) {
 				// Item is requestable and has no holds....
-				log.debug("Attempt to calc distance to {}",item.getLocation());
+				log.debug("Attempt to calc distance to {}",item);
 				if ( ( item.getLocation() != null ) &&
 				     ( item.getLocation().getLatitude() != null ) &&
 				     ( item.getLocation().getLongitude() != null ) ) {

@@ -63,6 +63,7 @@ public class RequestWorkflowContextHelper {
 			.flatMap( this::decorateContextWithPatronDetails )
                         .flatMap( this::decorateContextWithLenderDetails )
                         .flatMap( this::resolvePickupLocationAgency)
+                        .flatMap( this::report )
                         ;
         }
 
@@ -78,6 +79,7 @@ public class RequestWorkflowContextHelper {
 			.flatMap( this::decorateContextWithPatronDetails )
                         .flatMap( this::decorateContextWithLenderDetails )
                         .flatMap( this::resolvePickupLocationAgency )
+                        .flatMap( this::report )
                         ;
         }
 
@@ -101,19 +103,27 @@ public class RequestWorkflowContextHelper {
 		return getRequestingIdentity(ctx)
 			.flatMap(this::decorateContextWithPatronAgency)
 			.flatMap(this::decorateContextWithPatronSystem)
+                        .defaultIfEmpty(ctx)
 			;
 	}
 
 	private Mono<RequestWorkflowContext> decorateContextWithPatronAgency(RequestWorkflowContext ctx) {
                 log.info("decorateContextWithPatronAgency");
 
-		return Mono.from(patronIdentityRepository.findResolvedAgencyById(ctx.getPatronHomeIdentity().getId()))
-			.flatMap( agency -> {
-				log.debug("Found patron agency {}",agency);
-				ctx.setPatronAgency(agency);
-				ctx.setPatronAgencyCode(agency.getCode());
-				return Mono.just(ctx);
-			});
+                if ( ctx.getPatronHomeIdentity() != null ) {
+        		return Mono.from(patronIdentityRepository.findResolvedAgencyById(ctx.getPatronHomeIdentity().getId()))
+	        		.flatMap( agency -> {
+		        		log.debug("Found patron agency {}",agency);
+			        	ctx.setPatronAgency(agency);
+				        ctx.setPatronAgencyCode(agency.getCode());
+        				return Mono.just(ctx);
+	        		})
+                                .defaultIfEmpty(ctx);
+                }
+                else {
+                        log.warn("Cannot add patron agency to request - patron home identity is not attached to PR");
+                }
+                return Mono.just(ctx);
 	}
 
 	private Mono<RequestWorkflowContext> decorateContextWithPatronSystem(RequestWorkflowContext ctx) {
@@ -126,7 +136,8 @@ public class RequestWorkflowContextHelper {
 				ctx.setPatronSystem(patronHostLms);
 				ctx.setPatronSystemCode(patronHostLms.getCode());
 				return Mono.just( ctx );
-			});
+			})
+                        .defaultIfEmpty(ctx);
 	}
 
 	// We find the patrons requesting identity via the patron request requestingIdentity property. this should NEVER be null
@@ -136,7 +147,8 @@ public class RequestWorkflowContextHelper {
 		// log.debug("getRequestingIdentity for request {}",ctx.getPatronRequest());
 
 		return Mono.from(patronRequestRepository.findRequestingIdentityById(ctx.getPatronRequest().getId()))
-                        .flatMap( pid -> Mono.just(ctx.setPatronHomeIdentity(pid)) );
+                        .flatMap( pid -> Mono.just(ctx.setPatronHomeIdentity(pid)) )
+                        .defaultIfEmpty(ctx);
 	}
 
         // Remember that @Accessors means that setSupplierRequest returns this
@@ -167,7 +179,6 @@ public class RequestWorkflowContextHelper {
 					log.warn("Unable lookup patron virtual identity for supplier request {}",sr.getId());
 					return Mono.just(ctx);
 				}));
-				// .defaultIfEmpty(ctx);
 		}
 		else {
 			log.error("No supplier request to augment");
@@ -213,6 +224,26 @@ public class RequestWorkflowContextHelper {
                                         });
                                 // return Mono.just(agency);
                         });
+        }
+
+        private Mono<RequestWorkflowContext> report(RequestWorkflowContext ctx) {
+                log.debug("  ctx agency:{} system:{} {} hasPatronAgency:{} hasPatronSystem:{} pickupAgency:{} pickupSystem:{} hasLenderAgency:{}",
+                                ctx.getPatronAgencyCode(),
+                                ctx.getPatronSystemCode(),
+                                ctx.getPatronAgency() != null,
+                                ctx.getPatronSystem() != null,
+                                ctx.getPickupAgencyCode(),
+                                ctx.getPickupSystemCode(),
+                                ctx.getPickupAgency() != null,
+                                ctx.getLenderAgencyCode(),
+                                ctx.getLenderSystemCode(),
+                                ctx.getLenderAgency() != null);
+                log.debug("      hasPatronHomeIdentity:{} hasPatronVirtualIdentity:{} supplierHoldId: {} supplierHoldStatus:{}",
+                                ctx.getPatronHomeIdentity() != null,
+                                ctx.getPatronVirtualIdentity() != null,
+                                ctx.getSupplierHoldId(),
+                                ctx.getSupplierHoldStatus());
+                return Mono.just(ctx);
         }
 
 }

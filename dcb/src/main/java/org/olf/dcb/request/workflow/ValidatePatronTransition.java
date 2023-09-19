@@ -99,14 +99,15 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 		return findMapping("DCB", "AGENCY", "Location", systemCode, homeLibraryCode)
 			.flatMap(locatedMapping -> {
-				log.debug("Located mapping {}", locatedMapping);
+				log.debug("Located Loc-to-agency mapping {}", locatedMapping);
 				return Mono.from(agencyRepository.findOneByCode(locatedMapping.getToValue()));
 			})
 			.flatMap(locatedAgency -> {
 				log.debug("Located agency {}", locatedAgency);
 				pi.setResolvedAgency(locatedAgency);
 				return Mono.just(pi);
-			});
+			})
+                        .switchIfEmpty(Mono.error(new RuntimeException("Unable to resolve patron home library code("+systemCode+"/"+homeLibraryCode+") to an agency")));
 	}
 
 	/**
@@ -162,15 +163,16 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 	private Mono<ReferenceValueMapping> findMapping(String targetContext, String targetCategory, String sourceCategory,
 			String sourceContext, String sourceValue) {
+
 		log.debug("findMapping src ctx={} cat={} val={} target ctx={} cat={}", sourceContext, sourceCategory, sourceValue, targetContext, targetCategory);
+
 		return Mono
-				.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-						sourceCategory, sourceContext, sourceValue, targetCategory, targetContext));
+			.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+					sourceCategory, sourceContext, sourceValue, targetCategory, targetContext));
 	}
 
 	@Override
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(Status.PATRON_VERIFIED);
 	}
-
 }

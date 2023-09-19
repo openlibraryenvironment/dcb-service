@@ -42,7 +42,7 @@ public class PatronRequestResolutionService {
 		ReferenceValueMappingRepository referenceValueMappingRepository,
 		AgencyRepository agencyRepository,
 		LiveAvailabilityService liveAvailabilityService,
-                @Value("${dcb.itemResolver.code}") String itemResolver,
+                @Value("${dcb.itemresolver.code}") String itemResolver,
                 List<ResolutionStrategy> allResolutionStrategies) {
 
 		this.sharedIndexService = sharedIndexService;

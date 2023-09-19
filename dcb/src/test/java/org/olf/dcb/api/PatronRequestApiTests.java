@@ -200,15 +200,17 @@ class PatronRequestApiTests {
 		ReferenceValueMapping rvm = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("ShelvingLocation")
 				.fromContext("patron-request-api-tests").fromValue("ab6").toCategory("AGENCY").toContext("DCB").toValue("ab6")
 				.build();
-
 		referenceValueMappingFixture.saveReferenceValueMapping(rvm);
 
                 ReferenceValueMapping rvm2= ReferenceValueMapping.builder().id(randomUUID()).fromCategory("Location")
                                 .fromContext("patron-request-api-tests").fromValue("tstce").toCategory("AGENCY").toContext("DCB").toValue("ab6")
                                 .build();
-
                 referenceValueMappingFixture.saveReferenceValueMapping(rvm2);
 
+                ReferenceValueMapping rvm3= ReferenceValueMapping.builder().id(randomUUID()).fromCategory("Location")
+                                .fromContext("patron-request-api-tests").fromValue("tstr").toCategory("AGENCY").toContext("DCB").toValue("ab6")
+                                .build();
+                referenceValueMappingFixture.saveReferenceValueMapping(rvm3);
 		// Mono.from(referenceValueMappingRepository.save(rvm))
 		// .block();
 
