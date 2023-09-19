@@ -215,7 +215,17 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
 		// TODO: needs implementing
 		log.info("patronAuth({},{},...",authProfile,patronPrinciple);
-		return null;
+
+                // Pretend that we already know everything about all patrons, this will skip the patron create step
+                // when placing a request - at least for now.
+		return Mono.just(Patron.builder()
+				        .localId(List.of(patronPrinciple))
+				        .localNames(List.of("Dummy Name"))
+				        .localBarcodes(List.of(patronPrinciple))
+				        .uniqueIds(List.of(patronPrinciple))
+				        .localPatronType("STD")
+				        .localHomeLibraryCode("TR")
+                                        .build());
 	}
 
 
