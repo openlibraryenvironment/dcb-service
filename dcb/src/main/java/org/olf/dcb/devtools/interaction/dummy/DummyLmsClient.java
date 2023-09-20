@@ -234,7 +234,12 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	@Override
         public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
                 log.debug("createItem({})",cic);
-		return Mono.empty();
+                return Mono.just(
+                        HostLmsItem.builder()
+                                .localId(cic.getBibId())
+                                .status(HostLmsItem.ITEM_AVAILABLE)
+                                .barcode(cic.getBarcode())
+                                .build());
 	}
 
 	public Mono<HostLmsHold> getHold(String holdId) {

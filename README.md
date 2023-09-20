@@ -22,6 +22,7 @@ DB connection effectively, 2 different connections - with JDBC only being used f
 
 | ENV                                      | Description                                                                        | Example                                                                                   |
 |------------------------------------------|------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| DCB_ITEMRESOLVER_CODE                    | Identify the default resolution strategy for selecting items. Currently Geo. Geo only works when Agencies and Locations are configured with latitude and longitude fields. Items with missing geo data will ranked last when this strategt is selected | FirstItem    | Geo                                       |
 | R2DBC_DATASOURCES_DEFAULT_URL            | R2DBC Connect URL                                                                  | r2dbc:postgresql://localhost:5432/dcb                                                     |
 | R2DBC_DATASOURCES_DEFAULT_USERNAME       | R2DBC Username                                                                     | dcb                                                                                       |
 | R2DBC_DATASOURCES_DEFAULT_PASSWORD       | R2DBC Password                                                                     | dcb                                                                                       |
