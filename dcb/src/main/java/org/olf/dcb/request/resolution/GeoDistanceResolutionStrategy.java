@@ -22,8 +22,12 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 	private LocationRepository locationRepository;
 	private AgencyRepository agencyRepository;
 
-	public GeoDistanceResolutionStrategy(LocationRepository locationRepository) {
+	public GeoDistanceResolutionStrategy(
+		LocationRepository locationRepository,
+		AgencyRepository agencyRepository
+	) {
 		this.locationRepository = locationRepository;
+		this.agencyRepository = agencyRepository;
 	}
 
 	@Override
