@@ -54,6 +54,9 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 		if ( selectedItem == null )
 			throw new NoItemsRequestableAtAnyAgency(clusterRecordId);
 
+		// Resolve patronRequest.pickupLocationCode to a location
+		// map all items to geoInfoBundles that include distance
+		// reduce to closest item
 		return Mono.just(selectedItem);
 	}
 
