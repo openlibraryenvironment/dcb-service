@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TARGET="http://localhost:8080"
+TARGET="https://dcb-dev.sph.k-int.com"
 # TARGET="https://dcb.libsdev.k-int.com"
 
 RESHARE_ROOT_UUID=`uuidgen --sha1 -n @dns --name org.olf.dcb`
@@ -165,7 +165,9 @@ curl -X POST $TARGET/locations -H "Content-Type: application/json"  -H "Authoriz
   "name":"K-Int Office",
   "type":"PICKUP",
   "agency":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-1-1`'",
-  "isPickup":true
+  "isPickup":true,
+  "latitude":53.383331,
+  "longitude":-1.466667
 }'
 
 
@@ -177,4 +179,41 @@ echo
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
   "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name MAP-Location-DUMMY1-PHS-AGENCY-DCB`'",
   "fromCategory":"Location", "fromContext":"DUMMY1", "fromValue":"PHS", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-1" }'
+
+curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name MAP-Location-DUMMY1-TR-AGENCY-DCB`'",
+  "fromCategory":"Location", "fromContext":"DUMMY1", "fromValue":"TR", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-1" }'
+
+curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name MAP-Location-DUMMY1-PU-DA-1-1-KI-AGENCY-DCB`'",
+  "fromCategory":"PickupLocation", "fromContext":"DCB", "fromValue":"PU-DA-1-1-KI", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-1" }'
+
+# DUMMYn to SPINE
+
+curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name DUMMY1-patronType-STD-to-DCB`'",
+  "fromCategory":"patronType", "fromContext":"DUMMY1", "fromValue":"STD", "toCategory":"patronType", "toContext":"DCB", "toValue":"STD" }'
+
+curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name DUMMY2-patronType-STD-to-DCB`'",
+  "fromCategory":"patronType", "fromContext":"DUMMY2", "fromValue":"STD", "toCategory":"patronType", "toContext":"DCB", "toValue":"STD" }'
+
+curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name DUMMY3-patronType-STD-to-DCB`'",
+  "fromCategory":"patronType", "fromContext":"DUMMY3", "fromValue":"STD", "toCategory":"patronType", "toContext":"DCB", "toValue":"STD" }'
+
+# SPINE to DUMMYn
+
+curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name DCB-patronType-STD-to-DUMMY1`'",
+  "fromCategory":"patronType", "fromContext":"DCB", "fromValue":"STD", "toCategory":"patronType", "toContext":"DUMMY1", "toValue":"STD" }'
+
+curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name DCB-patronType-STD-to-DUMMY2`'",
+  "fromCategory":"patronType", "fromContext":"DCB", "fromValue":"STD", "toCategory":"patronType", "toContext":"DUMMY2", "toValue":"STD" }'
+
+curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name DCB-patronType-STD-to-DUMMY3`'",
+  "fromCategory":"patronType", "fromContext":"DCB", "fromValue":"STD", "toCategory":"patronType", "toContext":"DUMMY3", "toValue":"STD" }'
+
 
