@@ -8,12 +8,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
+import org.olf.dcb.storage.LocationRepository;
 
 @Singleton
 public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
+
 	private static final Logger log = LoggerFactory.getLogger(GeoDistanceResolutionStrategy.class);
 
 	public static final String GEO_DISTANCE_STRATEGY = "Geo";
+	private LocationRepository locationRepository;
+
+	private static class ItemWithDistance {
+		public ItemWithDistance(Item item, double distance) { this.item = item; this.distance = distance; };
+		public Item item;
+		public double distance;
+	};
+
+
+	public GeoDistanceResolutionStrategy(LocationRepository locationRepository) {
+		this.locationRepository = locationRepository;
+	}
 
 	@Override
 	public String getCode() {
@@ -23,41 +38,31 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 
 	@Override
 	public Mono<Item> chooseItem(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest) {
+
 		log.debug("chooseItem(array of size {},{},{})", items.size(),clusterRecordId,patronRequest);
 
-		long distanceFromPickupKM = 10000000;
-		Item selectedItem = null;
-                for ( Item item : items ) {
-			if ( item.getIsRequestable() && item.hasNoHolds() ) {
-				// Item is requestable and has no holds....
-				log.debug("Attempt to calc distance to {}",item);
-				if ( ( item.getLocation() != null ) &&
-				     ( item.getLocation().getLatitude() != null ) &&
-				     ( item.getLocation().getLongitude() != null ) ) {
-					log.debug("Item has geo propeties");	
-					// Calculate distance from pickup location to this agency
-					long distance = (long) 0; // distance...
-					if ( distance < distanceFromPickupKM ) {
-						log.debug("We have a new closest item");
-						selectedItem = item;
-					}
-				}
-				else {
-					if ( selectedItem == null ) {
-						log.debug("Selecting the first item even though it doesn't have geo props");
-						selectedItem = item;
-					}
-				}
-			}
-		}
+		if ( patronRequest.getPickupLocationCode() == null )
+			return Mono.error(new RuntimeException("No pickup location code"));
 
-		if ( selectedItem == null )
-			throw new NoItemsRequestableAtAnyAgency(clusterRecordId);
-
-		// Resolve patronRequest.pickupLocationCode to a location
-		// map all items to geoInfoBundles that include distance
-		// reduce to closest item
-		return Mono.just(selectedItem);
+		// Look up location by code
+		return Mono.from(locationRepository.findOneByCode(patronRequest.getPickupLocationCode()))
+			// Create an ItemWithDistance for each item that calculates the distance to pickup_location
+			.flatMapMany(pickup_location ->
+				Flux.fromIterable(items)
+					.filter( item -> ( item.getIsRequestable() && item.hasNoHolds() ) )
+					.map( item -> {
+						log.debug("Calculating distance from {} to {}",pickup_location,item);
+						double distance = 10000000;
+						if ( ( item.getLocation() != null ) &&
+				  	 	     ( item.getLocation().getLatitude() != null ) &&
+				    	 	     ( item.getLocation().getLongitude() != null ) ) {
+						// Item has a geo location so calculate distance for real
+						}
+						return new ItemWithDistance(item, distance);
+					}))
+			// Reduce to the closest one
+			.reduce((o1, o2) -> o1.distance < o2.distance ? o1 : o2 )
+			.map( itemWithDistance -> itemWithDistance.item );
 	}
 
 
