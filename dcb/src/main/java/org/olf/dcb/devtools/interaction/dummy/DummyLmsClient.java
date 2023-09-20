@@ -198,12 +198,14 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
         public Mono<String> createPatron(Patron patron) {
 		log.info("Create patron {}",patron);
-		return Mono.empty();
+		String newPatronUUID = UUID.randomUUID().toString();
+		return Mono.just(newPatronUUID);
 	}
 
         public Mono<String> createBib(Bib bib) {
 		log.info("Create bib {}",bib);
-		return Mono.empty();
+		String newBibUUID = UUID.randomUUID().toString();
+		return Mono.just(newBibUUID);
 	}
 
 	public Mono<Patron> updatePatron(String localId, String patronType) {

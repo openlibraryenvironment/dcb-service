@@ -42,6 +42,9 @@ public interface LocationRepository {
 	@NonNull
 	Publisher<Location> queryAll();
 
+	@NonNull
+	Publisher<Location> findOneByCode(String code);
+
 	Publisher<Void> delete(UUID id);
 
 }
