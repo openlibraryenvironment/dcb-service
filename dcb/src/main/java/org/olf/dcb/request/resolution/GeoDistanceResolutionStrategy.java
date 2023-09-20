@@ -2,6 +2,7 @@ package org.olf.dcb.request.resolution;
 
 import java.util.List;
 import java.util.UUID;
+import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
 import org.slf4j.Logger;
@@ -10,6 +11,7 @@ import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 import org.olf.dcb.storage.LocationRepository;
+import org.olf.dcb.storage.AgencyRepository;
 
 @Singleton
 public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
@@ -18,13 +20,7 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 
 	public static final String GEO_DISTANCE_STRATEGY = "Geo";
 	private LocationRepository locationRepository;
-
-	private static class ItemWithDistance {
-		public ItemWithDistance(Item item, double distance) { this.item = item; this.distance = distance; };
-		public Item item;
-		public double distance;
-	};
-
+	private AgencyRepository agencyRepository;
 
 	public GeoDistanceResolutionStrategy(LocationRepository locationRepository) {
 		this.locationRepository = locationRepository;
@@ -50,21 +46,45 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 			.flatMapMany(pickup_location ->
 				Flux.fromIterable(items)
 					.filter( item -> ( item.getIsRequestable() && item.hasNoHolds() ) )
-					.map( item -> {
-						log.debug("Calculating distance from {} to {}",pickup_location,item);
-						double distance = 10000000;
-						if ( ( item.getLocation() != null ) &&
-				  	 	     ( item.getLocation().getLatitude() != null ) &&
-				    	 	     ( item.getLocation().getLongitude() != null ) ) {
-						// Item has a geo location so calculate distance for real
-						}
-						return new ItemWithDistance(item, distance);
-					}))
+					.map ( item -> {
+						return ItemWithDistance.builder()
+							.item(item)
+							.build();
+					})
+					// Look up the items holding agency
+					.flatMap( this::decorateWithAgency )
+					// Calculate the distance from the pickup location to the holding agency
+					.flatMap( this::calculateDistance ))
 			// Reduce to the closest one
-			.reduce((o1, o2) -> o1.distance < o2.distance ? o1 : o2 )
-			.map( itemWithDistance -> itemWithDistance.item );
+			.reduce((o1, o2) -> o1.getDistance() < o2.getDistance() ? o1 : o2 )
+			.map( itemWithDistance -> itemWithDistance.getItem() );
 	}
 
+	// Decorate the ItemWithDistance with the agency that holds the item (And hence, the location of that agency)
+        private Mono<ItemWithDistance> decorateWithAgency(ItemWithDistance iwd) {
+		log.debug("decorateWithAgency({})",iwd.getItem().getAgencyCode());
+		return Mono.from(agencyRepository.findOneByCode(iwd.getItem().getAgencyCode()))
+			.map ( agency -> {
+				return iwd.setItemAgency(agency);
+			});
+	}
+
+	// Do the actual distance calculation
+        private Mono<ItemWithDistance> calculateDistance(ItemWithDistance iwd) {
+		log.debug("calculateDistance({})",iwd);
+
+	// .map( itemWithDistance -> {
+	// log.debug("Calculating distance {}",itemWithDistance);
+	// double distance = 10000000;
+	// if ( ( item.getLocation() != null ) &&
+	// ( item.getLocation().getLatitude() != null ) &&
+	// ( item.getLocation().getLongitude() != null ) ) {
+	// // Item has a geo location so calculate distance for real
+	// }
+	// return itemWithDistance;
+	// }))
+		return Mono.just(iwd.setDistance(10000000));
+	}
 
 	private static double distance(double lat1, double lon1, double lat2, double lon2, String unit) {
 		if ((lat1 == lat2) && (lon1 == lon2)) {
