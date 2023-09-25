@@ -1,6 +1,7 @@
 #!/bin/bash
 
-TARGET="https://dcb-dev.sph.k-int.com"
+TARGET="http://localhost:8080"
+# TARGET="https://dcb-dev.sph.k-int.com"
 # TARGET="https://dcb.libsdev.k-int.com"
 
 RESHARE_ROOT_UUID=`uuidgen --sha1 -n @dns --name org.olf.dcb`
