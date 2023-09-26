@@ -355,6 +355,7 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 	public UUID uuid5ForBibPagedRow(@NotNull final BibsPagedRow result) {
 
 		final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":" + result.getBibliographicRecordID();
+                log.debug("uuid5ForBibPagedRow - str is {}",concat);
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
