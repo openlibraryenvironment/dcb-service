@@ -32,7 +32,8 @@ public class PublisherTransformationService {
 	@SuppressWarnings("unchecked")
 	@NonNull
 	public<T> Function<Publisher<T>, Publisher<T>> getTransformationChain ( String type ) {
-		
+		log.info("getTransformationChain {}",type);
+
 		var hooks = beanContext.getBeansOfType( PublisherTransformation.class, Qualifiers.byName(type) );
 		Function<Publisher<T>, Publisher<T>> chain = ( pub ) -> pub;
 		for (var hook : hooks) {

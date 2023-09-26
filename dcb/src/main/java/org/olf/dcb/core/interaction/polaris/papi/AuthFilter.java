@@ -1,0 +1,150 @@
+package org.olf.dcb.core.interaction.polaris.papi;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.micronaut.http.HttpHeaders;
+import io.micronaut.http.MutableHttpRequest;
+import reactor.core.publisher.Mono;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.*;
+
+public class AuthFilter {
+	static final Logger log = LoggerFactory.getLogger(AuthFilter.class);
+	private AuthToken currentToken;
+	private final PAPILmsClient client;
+	public AuthFilter(PAPILmsClient client) {
+		this.client = client;
+	}
+
+	public Mono<MutableHttpRequest<?>> ensureAuth (MutableHttpRequest<?> request) {
+		return authentication(request).map(this::authorization);
+	}
+
+	private <T> Mono<MutableHttpRequest<?>> authentication (MutableHttpRequest<?> request) {
+		return Mono.justOrEmpty(currentToken)
+			.filter(token -> !token.isExpired())
+			.switchIfEmpty( client.acquireAccessToken().map(newToken -> currentToken = newToken) )
+			.map(validToken -> {
+				final String token = validToken.getAccessToken();
+				if (request.getPath().contains("protected")) {
+					// Update the request path to include the token
+					final var General_URI_Parameters = client.getGeneralUriParameters();
+					final var currentPath = request.getPath();
+					final var target = "/PAPIService/REST/protected" + General_URI_Parameters;
+					final var replacement = "/PAPIService/REST/protected" + General_URI_Parameters + "/" + token;
+					final var newPath = currentPath.replace(target, replacement);
+					// update request with new path
+					return request.uri(uriBuilder -> uriBuilder.replacePath(newPath)).header("X-PAPI-AccessToken", token);
+				}
+				return request.header("X-PAPI-AccessToken", token);
+			});
+	}
+
+	public MutableHttpRequest<?> authorization (MutableHttpRequest<?> request) {
+		// Calculate the authentication header value
+		final Map<String, Object> conf = client.getHostLms().getClientConfig();
+		final String id = (String) conf.get(ACCESS_ID);
+		final String key = (String) conf.get(ACCESS_KEY);
+		final String method = request.getMethod().name();
+		final String path = request.getUri().toString();
+		final String date = generateFormattedDate();
+		String accessSecret = (currentToken != null && currentToken.getAccessSecret() != null) ? currentToken.getAccessSecret() : "";
+		String signature = calculateApiSignature(key, method, path, date, accessSecret);
+		final var token = "PWS " + id + ":" + signature;
+
+		request.header(HttpHeaders.AUTHORIZATION, token);
+		request.header("PolarisDate", date);
+
+//		log.debug("authorization token: " + token);
+		return request;
+	}
+
+	private String generateFormattedDate() {
+		final var formatter = DateTimeFormatter
+			.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z")
+			.withZone(ZoneId.of("GMT"))
+			.withLocale(Locale.ENGLISH);;
+		return formatter.format(Instant.now());
+	}
+
+	private String calculateApiSignature(
+		String accessKey, String method, String path, String date, String password) {
+//		log.debug("accessKey: {}, method: {}, path: {}, date: {}, password: {}", accessKey, method, path, date, password);
+		try {
+			Mac mac = Mac.getInstance(HMAC_SHA1_ALGORITHM);
+			byte[] secretBytes = accessKey.getBytes();
+			SecretKeySpec signingKey = new SecretKeySpec(secretBytes, HMAC_SHA1_ALGORITHM);
+			mac.init(signingKey);
+
+			String data = method + path + date + (password != null && !password.isEmpty() ? password : "");
+//			log.debug("encodeStr: {}", data);
+
+			byte[] rawHmac = mac.doFinal(data.getBytes());
+			return Base64.getEncoder().encodeToString(rawHmac);
+		} catch (Exception e) {
+			// Handle any exceptions that might occur during the calculation
+			throw new RuntimeException("Error calculating API signature", e);
+		}
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class AuthToken {
+		@JsonProperty("PAPIErrorCode")
+		private int papiErrorCode;
+
+		@JsonProperty("ErrorMessage")
+		private String errorMessage;
+
+		@JsonProperty("AccessToken")
+		private String accessToken;
+
+		@JsonProperty("AccessSecret")
+		private String accessSecret;
+
+		@JsonProperty("PolarisUserID")
+		private int polarisUserID;
+
+		@JsonProperty("BranchID")
+		private int branchID;
+
+		@JsonProperty("AuthExpDate")
+		private String authExpDate;
+
+		public boolean isExpired() {
+			return instantOf(authExpDate).isBefore(Instant.now());
+		}
+	}
+
+	public static Instant instantOf(String dateStr) {
+		Pattern pattern = Pattern.compile("\\/Date\\((\\d+)([+-]\\d+)\\)\\/");
+		Matcher matcher = pattern.matcher(dateStr);
+
+		if (matcher.matches()) {
+			long timestamp = Long.parseLong(matcher.group(1));
+			int timeZoneOffsetMinutes = Integer.parseInt(matcher.group(2));
+			int timeZoneOffsetMillis = timeZoneOffsetMinutes * 60 * 1000;
+			long timestampWithOffset = timestamp - timeZoneOffsetMillis;
+			return Instant.ofEpochMilli(timestampWithOffset);
+		} else {
+			throw new IllegalArgumentException("Invalid date string format");
+		}
+	}
+}

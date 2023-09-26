@@ -80,11 +80,14 @@ public class IngestService implements Runnable {
 					return false;
 				})
 				.map(source -> source.apply(lastRun))
+					.doOnNext(ingestRecordPublisher -> log.debug("returning record publisher: {}", ingestRecordPublisher.toString()))
 				.onErrorResume(t -> {
 					log.error("Error ingesting data {}", t.getMessage());
 					t.printStackTrace();
 					return Mono.empty();
 				}))
+			.doOnComplete(() -> log.debug(""))
+
 				.limitRate(8000, 6000) // Prefetch 
 				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_RECORDS)) // Apply any hooks for "ingest-records"
 				// Cluster record got or seeded inline.

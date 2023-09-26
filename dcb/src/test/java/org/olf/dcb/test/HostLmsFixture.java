@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
@@ -22,8 +23,6 @@ import services.k_int.utils.UUIDUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 
 @Prototype
@@ -96,6 +95,29 @@ public class HostLmsFixture {
                 createNumericRangeMapping(code,"ItemType", Long.valueOf(998), Long.valueOf(1001), "DCB", "BKM");
 
                 return result;
+	}
+
+	public DataHostLms createPAPIHostLms(String staffUsername, String staffPassword,
+		String host, String code, String domain, String accessId, String accessKey) {
+
+		return createHostLms(
+			DataHostLms.builder()
+				.id(randomUUID())
+				.code(code)
+				.name(code)
+				.lmsClientClass(PAPILmsClient.class.getCanonicalName())
+				.clientConfig(Map.of(
+					"staff-username", staffUsername,
+					"staff-password", staffPassword,
+					"base-url", host,
+					"domain-id", domain,
+					"access-id", accessId,
+					"access-key", accessKey,
+					"version", "v1",
+					"lang-id", "1033",
+					"app-id", "100",
+					"org-id", "1"))
+				.build());
 	}
 
 	public void deleteAllHostLMS() {
