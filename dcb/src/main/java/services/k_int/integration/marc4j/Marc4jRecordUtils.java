@@ -53,7 +53,7 @@ public interface Marc4jRecordUtils {
 			case 'c', 'd', 'i', 'j' -> "Music";
 			case 'e', 'f' 					-> "Maps";
 			case 'g', 'k', 'o', 'r' -> "Visual Materials";
-			case 'm'								-> "Computer Flile";
+			case 'm'								-> "Computer File";
 			case 'p' 								-> "Mixed Materials";
 			case 't' 								-> "Books";			
 			default 								-> "Unknown";
