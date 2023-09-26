@@ -346,7 +346,7 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 		@SuppressWarnings("unchecked")
 		final Map<String, ?> rawJsonString = conversionService.convertRequired(rawJson, Map.class);
 
-		RawSource raw = RawSource.builder().id(uuid5ForRawJson(record)).hostLmsId(lms.getId()).remoteId(String.valueOf(record.getId()))
+		RawSource raw = RawSource.builder().id(uuid5ForBibPagedRow(resource)).hostLmsId(lms.getId()).remoteId(String.valueOf(record.getId()))
 			.json(rawJsonString).build();
 
 		return raw;
@@ -355,13 +355,12 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 	public UUID uuid5ForBibPagedRow(@NotNull final BibsPagedRow result) {
 
 		final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":" + result.getBibliographicRecordID();
-                log.debug("uuid5ForBibPagedRow - str is {}",concat);
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
-	public UUID uuid5ForRawJson(@NotNull final Record result) {
+	public UUID uuid5ForRawJson(@NotNull final BibsPagedRow result) {
 
-		final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":raw:" + result.getId();
+		final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":raw:" + result.getBibliographicRecordID();
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
