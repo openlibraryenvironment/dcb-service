@@ -145,7 +145,7 @@ public class BibRecordService {
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Publisher<BibRecord> process(final IngestRecord source) {
 
-		// log.debug("BibRecordService::process(...clusterid={})",source.getClusterRecordId());
+//		 log.debug("BibRecordService::process(...clusterid={})",source.getClusterRecordId());
 
 		statsService.notifyEvent("IngestRecord",source.getSourceSystem().getCode());
 
@@ -160,11 +160,11 @@ public class BibRecordService {
          ( source.getTitle().length() == 0 ) ||
          ( ( source.getSuppressFromDiscovery() != null ) && ( source.getSuppressFromDiscovery().equals(Boolean.TRUE) ) ) ||
          ( ( source.getDeleted() != null ) && ( source.getDeleted().equals(Boolean.TRUE) ) ) ) {
-			// Future development: We should probably signal this records source:id as 
+			// Future development: We should probably signal this records source:id as
 			// a delete and look in bib_records for a record corresponding to this one, so we can mark it deleted
 			// If we have no such record, all is well, continue.
 			statsService.notifyEvent("DroppedTitle",source.getSourceSystem().getCode());
-			// log.warn("Record {} with empty title - bailing",source);
+			 log.warn("Record {} with empty title - bailing",source);
 			return Mono.empty();
 		}
 

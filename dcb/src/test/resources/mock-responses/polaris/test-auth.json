@@ -1,0 +1,9 @@
+{
+	"PAPIErrorCode": 0,
+	"ErrorMessage": "string",
+	"AccessToken": "string",
+	"AccessSecret": "string",
+	"PolarisUserID": 0,
+	"BranchID": 0,
+	"AuthExpDate": "2023-09-18T16:40:04.652Z"
+}
