@@ -23,7 +23,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.*;
  *
  */
 @Singleton
-class SierraItemTypeMapper {
+public class SierraItemTypeMapper {
         private static final Logger log = LoggerFactory.getLogger(SierraItemTypeMapper.class);
 
         private NumericRangeMappingRepository numericRangeMappingRepository;

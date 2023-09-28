@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 
-public class MarcConverter {
+class MarcConverter {
 	static final Logger log = LoggerFactory.getLogger(MarcConverter.class);
 	public static Record convertToMarcRecord(String xmlString) {
 		try {
