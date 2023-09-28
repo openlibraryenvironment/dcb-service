@@ -5,7 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.olf.dcb.core.interaction.sierra.SierraItemStatusMapper;
+import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.test.DataAccess;
@@ -25,7 +25,7 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 @DcbTest
 class ItemStatusMapperTests {
 	@Inject
-	private SierraItemStatusMapper mapper;
+	private ItemStatusMapper mapper;
 
 	@Inject
 	private ReferenceValueMappingRepository referenceValueMappingRepository;

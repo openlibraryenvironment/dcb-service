@@ -1,22 +1,44 @@
 package org.olf.dcb.core.interaction.polaris.papi;
 
-import static io.micronaut.http.HttpMethod.GET;
-import static io.micronaut.http.HttpMethod.POST;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static java.lang.Integer.parseInt;
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.dcb.core.interaction.polaris.papi.MarcConverter.convertToMarcRecord;
-import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.APP_ID;
-import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.CLIENT_BASE_URL;
-import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.DOMAIN_ID;
-import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.LANG_ID;
-import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.MAX_BIBS;
-import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.ORG_ID;
-import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.STAFF_PASSWORD;
-import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.STAFF_USERNAME;
-import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.UUID5_PREFIX;
-import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.VERSION;
-import static reactor.function.TupleUtils.function;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.annotation.Creator;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.type.Argument;
+import io.micronaut.core.util.StringUtils;
+import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MutableHttpRequest;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.json.tree.JsonNode;
+import io.micronaut.serde.annotation.Serdeable;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import org.marc4j.marc.Record;
+import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
+import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.ingest.marc.MarcIngestSource;
+import org.olf.dcb.ingest.model.IngestRecord;
+import org.olf.dcb.ingest.model.RawSource;
+import org.olf.dcb.storage.RawSourceRepository;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import io.micronaut.context.annotation.Parameter;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import services.k_int.utils.UUIDUtils;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -28,65 +50,25 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-import org.marc4j.marc.Record;
-import org.olf.dcb.configuration.ConfigurationRecord;
-import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsHold;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.shared.PublisherState;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.ingest.marc.MarcIngestSource;
-import org.olf.dcb.ingest.model.IngestRecord;
-import org.olf.dcb.ingest.model.RawSource;
-import org.olf.dcb.storage.RawSourceRepository;
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import io.micronaut.context.annotation.Parameter;
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.core.annotation.Creator;
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.async.annotation.SingleResult;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.type.Argument;
-import io.micronaut.core.util.StringUtils;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.MutableHttpRequest;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.uri.UriBuilder;
-import io.micronaut.json.tree.JsonNode;
-import io.micronaut.serde.annotation.Serdeable;
-import jakarta.transaction.Transactional;
-import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
-import services.k_int.utils.UUIDUtils;
+import static io.micronaut.http.HttpMethod.GET;
+import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.polaris.papi.MarcConverter.convertToMarcRecord;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.*;
 
 @Prototype
 public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRow>, HostLmsClient{
 	private static final Logger log = LoggerFactory.getLogger(PAPILmsClient.class);
-	private final HostLms lms;
 	private final URI rootUri;
+	private final HostLms lms;
 	private final HttpClient client;
 	private final ProcessStateService processStateService;
 	private final RawSourceRepository rawSourceRepository;
 	private final ConversionService conversionService;
 	private final AuthFilter authFilter;
+	private final IngestHelper ingestHelper;
+	private final ItemResultToItemMapper itemResultToItemMapper;
 
 	@Creator
 	public PAPILmsClient(
@@ -94,26 +76,19 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 		@Parameter("client") HttpClient client,
 		ProcessStateService processStateService,
 		RawSourceRepository rawSourceRepository,
-		ConversionService conversionService)
-	{
+		ConversionService conversionService, ItemResultToItemMapper itemResultToItemMapper) {
 		log.debug("Creating PAPI HostLms client for HostLms {}", hostLms);
 		rootUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
 
 		lms = hostLms;
+		this.itemResultToItemMapper = itemResultToItemMapper;
+		this.ingestHelper = new IngestHelper(this, hostLms, processStateService);
 		this.authFilter = new AuthFilter(this);
 		this.processStateService = processStateService;
 		this.rawSourceRepository = rawSourceRepository;
 		this.conversionService = conversionService;
 		this.client = client;
 	}
-
-	private Mono<BibsPagedResult> fetchPage(Instant updatedate, Integer lastId, Integer nrecs) {
-		log.info("Creating subscribeable batch from last id;  {}, {}", lastId, nrecs);
-		final var date = formatDateFrom(updatedate);
-		return Mono.from( synch_BibsPagedGet(date, lastId, nrecs) )
-			//.doOnSuccess(bibsPagedResult -> log.debug("result of bibPagedResult: {}", bibsPagedResult))
-			.doOnSubscribe(_s -> log.info("Fetching batch from Sierra {} with since={} offset={} limit={}",
-				lms.getName(), updatedate, lastId, nrecs));	}
 
 	@SingleResult
 	public Publisher<BibsPagedResult> synch_BibsPagedGet(String updatedate, Integer lastId, Integer nrecs) {
@@ -123,6 +98,19 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 				.queryParam("updatedate", updatedate)
 				.queryParam("lastid", lastId)
 				.queryParam("nrecs", nrecs));
+	}
+
+	@Override
+	public Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode) {
+		// /protected/1/{AccessToken}/synch/items/bibid/{BibID}?excludeecontent=false
+		String path = "/PAPIService/REST/protected" + getGeneralUriParameters() + "/synch/items/bibid/" + bibId;
+		return getRequest(path, Argument.of(ItemGetResponse.class),
+			// TODO: default false should this be changed?
+			uri -> uri.queryParam("excludeecontent", false))
+			.map(ItemGetResponse::getItemGetRows)
+			.flatMapMany(Flux::fromIterable)
+			.flatMap(result -> itemResultToItemMapper.mapItemGetRowToItem(result, hostLmsCode, bibId))
+			.collectList();
 	}
 
 	public String getGeneralUriParameters() {
@@ -164,23 +152,8 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 		}
 	}
 
-	public Mono<AuthFilter.AuthToken> acquireAccessToken() {
-		final Map<String, Object> conf = lms.getClientConfig();
-		final String domain = (String) conf.get(DOMAIN_ID);
-		final String username = (String) conf.get(STAFF_USERNAME);
-		final String password = (String) conf.get(STAFF_PASSWORD);
-
-		return Mono.from( staffAuthenticator(domain, username, password) );
-	}
-
-	private Mono<AuthFilter.AuthToken> staffAuthenticator(String domain, String username, String password) {
-		return Mono.just(UriBuilder.of("/PAPIService/REST/protected" + getGeneralUriParameters() + "/authenticator/staff").build())
-			.map(this::resolve)
-			.map(resolvedUri -> HttpRequest.create(POST, resolvedUri.toString()).accept(APPLICATION_JSON))
-			.map(request -> request.body(StaffCredentials.builder().Domain(domain).Username(username).Password(password).build()))
-			.map(authFilter::authorization)
-			.flatMap(request -> Mono.from(client.exchange(request, AuthFilter.AuthToken.class)))
-			.flatMap(response -> Mono.justOrEmpty(response.getBody()));
+	public <T> Mono<HttpResponse<T>> exchange(MutableHttpRequest<?> request, Class<T> returnClass) {
+		return Mono.from(client.exchange(request, returnClass));
 	}
 
 	private <T> Mono<MutableHttpRequest<?>> postRequest(String path) {
@@ -201,124 +174,8 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 			.map(resolvedUri -> HttpRequest.<T>create(method, resolvedUri.toString()).accept(APPLICATION_JSON));
 	}
 
-	private URI resolve(URI relativeURI) {
+	URI resolve(URI relativeURI) {
 		return resolve(rootUri, relativeURI);
-	}
-
-	@Override
-	public Publisher<ConfigurationRecord> getConfigStream() {
-		log.debug("{}, {}", "getConfigStream() not implemented, returning: ", null);
-		return Mono.empty();
-	}
-
-	@Override
-	public String getDefaultControlIdNamespace() {
-		return lms.getName();
-	}
-
-	@Override
-	public Publisher<BibsPagedRow> getResources(Instant since) {
-		log.info("Fetching MARC JSON from Polaris for {}", lms.getName());
-
-		return Flux.from( pageAllResults(MAX_BIBS) )
-			.filter(bibsPagedRow -> {
-				log.debug("getResources({}), ", bibsPagedRow);
-				return bibsPagedRow.getBibliographicRecordXML() != null;
-			})
-
-			.onErrorResume(t -> {
-				log.error("Error ingesting data {}", t.getMessage());
-				t.printStackTrace();
-				return Mono.empty();
-			})
-			.switchIfEmpty(
-				Mono.fromCallable(() -> {
-					log.info("No results returned. Stopping");
-					return null;
-				}));
-	}
-
-	private Publisher<BibsPagedRow> pageAllResults(int pageSize) {
-		return Mono.from( getInitialState(lms.getId(), "ingest") )
-			.flatMapMany(state -> fetchPageAndUpdateState(state, pageSize))
-			.concatMap(function(this::processPageAndSaveState));
-	}
-
-	private Flux<Tuple2<PublisherState, BibsPagedResult>> fetchPageAndUpdateState(PublisherState state, int pageSize) {
-		return Mono.zip(Mono.just(state.toBuilder().build()), fetchPage(state.since, state.offset, pageSize))
-			.expand(function((currentState, results) -> {
-				var bibs = results.getGetBibsPagedRows();
-				log.info("Fetched a chunk of {} records for {}", bibs.size(), lms.getName());
-				log.info("got page {} of data, containing {} results", currentState.page_counter++, bibs.size());
-				currentState.possiblyMore = bibs.size() == pageSize;
-
-				if (!currentState.possiblyMore) {
-					log.info("{} ingest Terminating cleanly - run out of bib results - new timestamp is {}", lms.getName(), currentState.request_start_time);
-					currentState.storred_state.put("cursor", "deltaSince:" + currentState.request_start_time);
-					currentState.storred_state.put("name", lms.getName());
-					log.info("No more results to fetch from {}", lms.getName());
-					return Mono.empty();
-				} else {
-					log.info("Exhausted current page from {}, prep next", lms.getName());
-					if (currentState.since != null) {
-						currentState.storred_state.put("cursor", "deltaSince:" + currentState.sinceMillis + ":" + currentState.offset);
-					} else {
-						currentState.storred_state.put("cursor", "bootstrap:" + currentState.offset);
-					}
-				}
-				return Mono.just(currentState.toBuilder().build())
-					.zipWhen(updatedState -> fetchPage(updatedState.since, updatedState.offset, pageSize));
-			}));
-	}
-
-	private Publisher<BibsPagedRow> processPageAndSaveState(PublisherState state, BibsPagedResult page) {
-		state.offset = page.getLastID();
-		log.debug("page getting converted to iterable: {}", page);
-
-		return Flux.fromIterable(page.getGetBibsPagedRows())
-			.concatWith(Mono.defer(() -> Mono.from(saveState(lms.getId(), "ingest", state)))
-				.flatMap(_s -> {
-					log.debug("Updating state...");
-					return Mono.empty();
-				}))
-			.doOnComplete(() -> log.debug("Consumed {} items", page.getGetBibsPagedRows().size()));
-	}
-
-	@Override
-	public IngestRecord.IngestRecordBuilder initIngestRecordBuilder(BibsPagedRow resource) {
-		return IngestRecord.builder()
-			.uuid(uuid5ForBibPagedRow(resource))
-			.sourceSystem(lms)
-			.sourceRecordId(String.valueOf(resource.getBibliographicRecordID()))
-			// TODO: resolve differences from sierra
-			.suppressFromDiscovery(!resource.getIsDisplayInPAC())
-			.deleted(false);
-	}
-
-	@Override
-	public Record resourceToMarc(BibsPagedRow resource) {
-		return convertToMarcRecord( resource.getBibliographicRecordXML() );
-	}
-
-	@Override
-	public RawSourceRepository getRawSourceRepository() {
-		return rawSourceRepository;
-	}
-
-	@Override
-	public RawSource resourceToRawSource(BibsPagedRow resource) {
-//		log.debug("resourceToRawSource: {}", resource);
-
-		Record record = convertToMarcRecord( resource.getBibliographicRecordXML() );
-		final JsonNode rawJson = conversionService.convertRequired(record, JsonNode.class);
-
-		@SuppressWarnings("unchecked")
-		final Map<String, ?> rawJsonString = conversionService.convertRequired(rawJson, Map.class);
-
-		RawSource raw = RawSource.builder().id(uuid5ForBibPagedRow(resource)).hostLmsId(lms.getId()).remoteId(String.valueOf(record.getId()))
-			.json(rawJsonString).build();
-
-		return raw;
 	}
 
 	public UUID uuid5ForBibPagedRow(@NotNull final BibsPagedRow result) {
@@ -356,11 +213,6 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 
 	@Override
 	public List<HostLmsPropertyDefinition> getSettings() {
-		return null;
-	}
-
-	@Override
-	public Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode) {
 		return null;
 	}
 
@@ -429,14 +281,91 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 		return null;
 	}
 
-	@Builder
-	@Data
-	@AllArgsConstructor
-	@Serdeable
-	public static class StaffCredentials {
-		private String Domain;
-		private String Username;
-		private String Password;
+	@Override
+	public String getDefaultControlIdNamespace() {
+		return lms.getName();
+	}
+
+	@Override
+	public Publisher<BibsPagedRow> getResources(Instant since) {
+		log.info("Fetching MARC JSON from Polaris for {}", lms.getName());
+
+		final Map<String, Object> conf = lms.getClientConfig();
+		final Integer pageSize = (Integer) conf.get(MAX_BIBS);
+
+		return Flux.from( ingestHelper.pageAllResults(pageSize) )
+			.filter(bibsPagedRow -> {
+//				log.debug("getResources({}), ", bibsPagedRow);
+				return bibsPagedRow.getBibliographicRecordXML() != null;
+			})
+			.onErrorResume(t -> {
+				log.error("Error ingesting data {}", t.getMessage());
+				t.printStackTrace();
+				return Mono.empty();
+			})
+			.switchIfEmpty(
+				Mono.fromCallable(() -> {
+					log.info("No results returned. Stopping");
+					return null;
+				}));
+	}
+
+	@Override
+	public IngestRecord.IngestRecordBuilder initIngestRecordBuilder(BibsPagedRow resource) {
+		return IngestRecord.builder()
+			.uuid(uuid5ForBibPagedRow(resource))
+			.sourceSystem(lms)
+			.sourceRecordId(String.valueOf(resource.getBibliographicRecordID()))
+			// TODO: resolve differences from sierra
+			.suppressFromDiscovery(!resource.getIsDisplayInPAC())
+			.deleted(false);
+	}
+
+	@Override
+	public Record resourceToMarc(BibsPagedRow resource) {
+		return convertToMarcRecord( resource.getBibliographicRecordXML() );
+	}
+
+	@Override
+	public RawSourceRepository getRawSourceRepository() {
+		return rawSourceRepository;
+	}
+
+	@Override
+	public RawSource resourceToRawSource(BibsPagedRow resource) {
+//		log.debug("resourceToRawSource: {}", resource);
+
+		Record record = convertToMarcRecord( resource.getBibliographicRecordXML() );
+		final JsonNode rawJson = conversionService.convertRequired(record, JsonNode.class);
+
+		@SuppressWarnings("unchecked")
+		final Map<String, ?> rawJsonString = conversionService.convertRequired(rawJson, Map.class);
+
+		RawSource raw = RawSource.builder().id(uuid5ForRawJson(resource)).hostLmsId(lms.getId()).remoteId(String.valueOf(record.getId()))
+			.json(rawJsonString).build();
+
+		return raw;
+	}
+
+	@Override
+	public Publisher<ConfigurationRecord> getConfigStream() {
+		log.debug("{}, {}", "getConfigStream() not implemented, returning: ", null);
+		return Mono.empty();
+	}
+
+	@Override
+	public ProcessStateService getProcessStateService() {
+		return this.processStateService;
+	}
+
+	@Override
+	public PublisherState mapToPublisherState(Map<String, Object> mapData) {
+		return ingestHelper.mapToPublisherState(mapData);
+	}
+
+	@Override
+	public Publisher<PublisherState> saveState(UUID context, String process, PublisherState state) {
+		return ingestHelper.saveState(state);
 	}
 
 	@Builder
@@ -482,58 +411,100 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 		@JsonInclude(JsonInclude.Include.NON_NULL)
 		private String BibliographicRecordXML;
 	}
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class ItemGetResponse {
+		@JsonProperty("PAPIErrorCode")
+		private Integer PAPIErrorCode;
 
-	@Override
-	public ProcessStateService getProcessStateService() {
-		return this.processStateService;
+		@JsonProperty("ErrorMessage")
+		private String ErrorMessage;
+
+		@JsonProperty("ItemGetRows")
+		private List<ItemGetRow> ItemGetRows;
 	}
 
-	@Override
-	public PublisherState mapToPublisherState(Map<String, Object> mapData) {
-		PublisherState generatorState = new PublisherState(mapData);
-		log.info("backpressureAwareBibResultGenerator - state={} lmsid={} thread={}", mapData, lms.getId(),
-				Thread.currentThread().getName());
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class ItemGetRow {
+		@JsonProperty("LocationID")
+		private Integer LocationID;
 
-		String cursor = (String) mapData.get("cursor");
-		if (cursor != null) {
-			log.debug("Cursor: " + cursor);
-			String[] components = cursor.split(":");
+		@JsonProperty("LocationName")
+		private String LocationName;
 
-			if (components.length > 1) {
-				switch (components[0]) {
-				case "bootstrap":
-					generatorState.offset = parseInt(components[1]);
-					log.info("Resuming bootstrap for {} at offset {}", lms.getName(), generatorState.offset);
-					break;
-				case "deltaSince":
-					generatorState.sinceMillis = Long.parseLong(components[1]);
-					generatorState.since = Instant.ofEpochMilli(generatorState.sinceMillis);
-					if (components.length == 3) {
-						generatorState.offset = parseInt(components[2]);
-					}
-					log.info("Resuming delta at timestamp {} offset={} name={}", generatorState.since, generatorState.offset,
-							lms.getName());
-					break;
-				}
-			}
-		} else {
-			log.info("Start a fresh ingest");
-		}
+		@JsonProperty("CollectionID")
+		private Integer CollectionID;
 
-		// Make a note of the time before we start
-		generatorState.request_start_time = System.currentTimeMillis();
-		log.debug("Create generator: name={} offset={} since={}", lms.getName(), generatorState.offset,
-				generatorState.since);
+		@JsonProperty("CollectionName")
+		private String CollectionName;
 
-		return generatorState;
-	}
+		@JsonProperty("Barcode")
+		private String Barcode;
 
+		@JsonProperty("PublicNote")
+		private String PublicNote;
 
+		@JsonProperty("CallNumber")
+		private String CallNumber;
 
-	@Transactional(value = Transactional.TxType.REQUIRES_NEW)
-	@Override
-	public Publisher<PublisherState> saveState(UUID context, String process, PublisherState state) {
-		return Mono.from(processStateService.updateState(context, "ingest", state.storred_state))
-				.thenReturn(state);
+		@JsonProperty("Designation")
+		private String Designation;
+
+		@JsonProperty("VolumeNumber")
+		private String VolumeNumber;
+
+		@JsonProperty("ShelfLocation")
+		private String ShelfLocation;
+
+		@JsonProperty("CircStatus")
+		private String CircStatus;
+
+		@JsonProperty("LastCircDate")
+		private String LastCircDate;
+
+		@JsonProperty("MaterialType")
+		private String MaterialType;
+
+		@JsonProperty("TextualHoldingsNote")
+		private String TextualHoldingsNote;
+
+		@JsonProperty("RetentionStatement")
+		private String RetentionStatement;
+
+		@JsonProperty("HoldingsStatement")
+		private String HoldingsStatement;
+
+		@JsonProperty("HoldingsNote")
+		private String HoldingsNote;
+
+		@JsonProperty("Holdable")
+		private Boolean Holdable;
+
+		@JsonProperty("DueDate")
+		private String DueDate;
+
+		@JsonProperty("ItemRecordID")
+		private Integer ItemRecordID;
+
+		@JsonProperty("BibliographicRecordID")
+		private Integer BibliographicRecordID;
+
+		@JsonProperty("IsDisplayInPAC")
+		private Boolean IsDisplayInPAC;
+
+		@JsonProperty("CreationDate")
+		private String CreationDate;
+
+		@JsonProperty("FirstAvailableDate")
+		private String FirstAvailableDate;
+
+		@JsonProperty("ModificationDate")
+		@JsonInclude(JsonInclude.Include.NON_NULL)
+		private String ModificationDate;
 	}
 }

@@ -1,4 +1,4 @@
-package org.olf.dcb.core.interaction.sierra;
+package org.olf.dcb.core.interaction.shared;
 
 import jakarta.inject.Singleton;
 
@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.items.Status;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -23,15 +25,15 @@ Status is interpreted based upon
  this documentation</a>
  */
 @Singleton
-class SierraItemStatusMapper {
+public class ItemStatusMapper {
 	private static final Logger log = LoggerFactory.getLogger(ItemResultToItemMapper.class);
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
-	SierraItemStatusMapper(ReferenceValueMappingRepository referenceValueMappingRepository) {
+	ItemStatusMapper(ReferenceValueMappingRepository referenceValueMappingRepository) {
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 	}
 
-	Mono<ItemStatus> mapStatus(Status status, String hostLmsCode) {
+	public Mono<ItemStatus> mapStatus(Status status, String hostLmsCode) {
 		log.debug("mapStatus( status: {}, hostLmsCode: {} )", status, hostLmsCode);
 
 		final var statusCode = getValue(status, Status::getCode);
@@ -56,8 +58,12 @@ class SierraItemStatusMapper {
 	}
 
 	private ItemStatusCode fallbackStatusMapping(String statusCode) {
-		final var AVAILABLE_CODE = "-";
-		return ( ( statusCode == null ) || ( statusCode.length() == 0 ) ) ? UNKNOWN : statusCode.equals(AVAILABLE_CODE) ? AVAILABLE : UNAVAILABLE;
+		final List<String> AVAILABLE_CODES = Arrays.asList("-", "Available");
+		return ( ( statusCode == null ) || ( statusCode.length() == 0 ) )
+			? UNKNOWN
+			: AVAILABLE_CODES.contains(statusCode)
+			? AVAILABLE
+			: UNAVAILABLE;
 	}
 
 	private ItemStatusCode checkForDueDate(ItemStatusCode itemStatusCode, String dueDate) {

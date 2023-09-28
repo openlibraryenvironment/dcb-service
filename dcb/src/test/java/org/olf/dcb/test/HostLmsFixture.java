@@ -3,6 +3,7 @@ package org.olf.dcb.test;
 import static java.util.UUID.randomUUID;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -100,23 +101,26 @@ public class HostLmsFixture {
 	public DataHostLms createPAPIHostLms(String staffUsername, String staffPassword,
 		String host, String code, String domain, String accessId, String accessKey) {
 
+		Map<String, Object> clientConfig = new HashMap<>();
+		clientConfig.put("staff-username", staffUsername);
+		clientConfig.put("staff-password", staffPassword);
+		clientConfig.put("base-url", host);
+		clientConfig.put("domain-id", domain);
+		clientConfig.put("access-id", accessId);
+		clientConfig.put("access-key", accessKey);
+		clientConfig.put("version", "v1");
+		clientConfig.put("lang-id", "1033");
+		clientConfig.put("app-id", "100");
+		clientConfig.put("org-id", "1");
+		clientConfig.put("page-size", 100);
+
 		return createHostLms(
 			DataHostLms.builder()
 				.id(randomUUID())
 				.code(code)
 				.name(code)
 				.lmsClientClass(PAPILmsClient.class.getCanonicalName())
-				.clientConfig(Map.of(
-					"staff-username", staffUsername,
-					"staff-password", staffPassword,
-					"base-url", host,
-					"domain-id", domain,
-					"access-id", accessId,
-					"access-key", accessKey,
-					"version", "v1",
-					"lang-id", "1033",
-					"app-id", "100",
-					"org-id", "1"))
+				.clientConfig(clientConfig)
 				.build());
 	}
 

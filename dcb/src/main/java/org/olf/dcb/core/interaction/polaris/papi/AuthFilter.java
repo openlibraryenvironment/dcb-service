@@ -1,6 +1,8 @@
 package org.olf.dcb.core.interaction.polaris.papi;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,9 +23,11 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.*;
 
-public class AuthFilter {
+class AuthFilter {
 	static final Logger log = LoggerFactory.getLogger(AuthFilter.class);
 	private AuthToken currentToken;
 	private final PAPILmsClient client;
@@ -38,7 +42,7 @@ public class AuthFilter {
 	private <T> Mono<MutableHttpRequest<?>> authentication (MutableHttpRequest<?> request) {
 		return Mono.justOrEmpty(currentToken)
 			.filter(token -> !token.isExpired())
-			.switchIfEmpty( client.acquireAccessToken().map(newToken -> currentToken = newToken) )
+			.switchIfEmpty( acquireAccessToken().map(newToken -> currentToken = newToken) )
 			.map(validToken -> {
 				final String token = validToken.getAccessToken();
 				if (request.getPath().contains("protected")) {
@@ -55,7 +59,7 @@ public class AuthFilter {
 			});
 	}
 
-	public MutableHttpRequest<?> authorization (MutableHttpRequest<?> request) {
+	private MutableHttpRequest<?> authorization (MutableHttpRequest<?> request) {
 		// Calculate the authentication header value
 		final Map<String, Object> conf = client.getHostLms().getClientConfig();
 		final String id = (String) conf.get(ACCESS_ID);
@@ -74,12 +78,23 @@ public class AuthFilter {
 		return request;
 	}
 
-	private String generateFormattedDate() {
-		final var formatter = DateTimeFormatter
-			.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z")
-			.withZone(ZoneId.of("GMT"))
-			.withLocale(Locale.ENGLISH);;
-		return formatter.format(Instant.now());
+	private Mono<AuthFilter.AuthToken> acquireAccessToken() {
+		final Map<String, Object> conf = client.getHostLms().getClientConfig();
+		final String domain = (String) conf.get(DOMAIN_ID);
+		final String username = (String) conf.get(STAFF_USERNAME);
+		final String password = (String) conf.get(STAFF_PASSWORD);
+
+		return Mono.from( staffAuthenticator(domain, username, password) );
+	}
+
+	private Mono<AuthFilter.AuthToken> staffAuthenticator(String domain, String username, String password) {
+		return Mono.just(UriBuilder.of("/PAPIService/REST/protected" + client.getGeneralUriParameters() + "/authenticator/staff").build())
+			.map(client::resolve)
+			.map(resolvedUri -> HttpRequest.create(POST, resolvedUri.toString()).accept(APPLICATION_JSON))
+			.map(request -> request.body(StaffCredentials.builder().Domain(domain).Username(username).Password(password).build()))
+			.map(this::authorization)
+			.flatMap(request -> client.exchange(request, AuthToken.class))
+			.flatMap(response -> Mono.justOrEmpty(response.getBody()));
 	}
 
 	private String calculateApiSignature(
@@ -102,11 +117,45 @@ public class AuthFilter {
 		}
 	}
 
+	private String generateFormattedDate() {
+		final var formatter = DateTimeFormatter
+			.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z")
+			.withZone(ZoneId.of("GMT"))
+			.withLocale(Locale.ENGLISH);;
+		return formatter.format(Instant.now());
+	}
+
+	private static Instant instantOf(String dateStr) {
+		Pattern pattern = Pattern.compile("\\/Date\\((\\d+)([+-]\\d+)\\)\\/");
+		Matcher matcher = pattern.matcher(dateStr);
+
+		if (matcher.matches()) {
+			long timestamp = Long.parseLong(matcher.group(1));
+			int timeZoneOffsetMinutes = Integer.parseInt(matcher.group(2));
+			int timeZoneOffsetMillis = timeZoneOffsetMinutes * 60 * 1000;
+			long timestampWithOffset = timestamp - timeZoneOffsetMillis;
+			return Instant.ofEpochMilli(timestampWithOffset);
+		} else {
+			throw new IllegalArgumentException("Invalid date string format");
+		}
+	}
+
 	@Builder
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	public static class AuthToken {
+	private static class StaffCredentials {
+		private String Domain;
+		private String Username;
+		private String Password;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	private static class AuthToken {
+
 		@JsonProperty("PAPIErrorCode")
 		private int papiErrorCode;
 
@@ -124,27 +173,11 @@ public class AuthFilter {
 
 		@JsonProperty("BranchID")
 		private int branchID;
-
 		@JsonProperty("AuthExpDate")
 		private String authExpDate;
-
 		public boolean isExpired() {
 			return instantOf(authExpDate).isBefore(Instant.now());
 		}
-	}
 
-	public static Instant instantOf(String dateStr) {
-		Pattern pattern = Pattern.compile("\\/Date\\((\\d+)([+-]\\d+)\\)\\/");
-		Matcher matcher = pattern.matcher(dateStr);
-
-		if (matcher.matches()) {
-			long timestamp = Long.parseLong(matcher.group(1));
-			int timeZoneOffsetMinutes = Integer.parseInt(matcher.group(2));
-			int timeZoneOffsetMillis = timeZoneOffsetMinutes * 60 * 1000;
-			long timestampWithOffset = timestamp - timeZoneOffsetMillis;
-			return Instant.ofEpochMilli(timestampWithOffset);
-		} else {
-			throw new IllegalArgumentException("Invalid date string format");
-		}
 	}
 }
