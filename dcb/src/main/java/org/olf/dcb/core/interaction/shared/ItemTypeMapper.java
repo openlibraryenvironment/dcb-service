@@ -1,34 +1,22 @@
-package org.olf.dcb.core.interaction.sierra;
+package org.olf.dcb.core.interaction.shared;
 
 import jakarta.inject.Singleton;
-import org.olf.dcb.core.model.ItemStatus;
-import org.olf.dcb.core.model.ItemStatusCode;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
-import services.k_int.interaction.sierra.items.Status;
 
-import org.olf.dcb.core.model.NumericRangeMapping;
 import org.olf.dcb.storage.NumericRangeMappingRepository;
-
-import java.util.Optional;
-import java.util.function.Function;
-
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static org.olf.dcb.core.model.ItemStatusCode.*;
 
 /**
  *
  */
 @Singleton
-public class SierraItemTypeMapper {
-        private static final Logger log = LoggerFactory.getLogger(SierraItemTypeMapper.class);
+public class ItemTypeMapper {
+        private static final Logger log = LoggerFactory.getLogger(ItemTypeMapper.class);
 
         private NumericRangeMappingRepository numericRangeMappingRepository;
 
-        public SierraItemTypeMapper(NumericRangeMappingRepository numericRangeMappingRepository) {
+        public ItemTypeMapper(NumericRangeMappingRepository numericRangeMappingRepository) {
                 this.numericRangeMappingRepository = numericRangeMappingRepository;
         }
 

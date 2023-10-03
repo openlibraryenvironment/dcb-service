@@ -5,6 +5,7 @@ import static java.util.Comparator.naturalOrder;
 import static java.util.Comparator.nullsLast;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.Comparator;
 
@@ -26,7 +27,7 @@ public class Item implements Comparable<Item> {
 	private String id;
 	private ItemStatus status;
 	@Nullable
-	private ZonedDateTime dueDate;
+	private Instant dueDate;
 	private Location location;
 	private String barcode;
 	private String callNumber;
