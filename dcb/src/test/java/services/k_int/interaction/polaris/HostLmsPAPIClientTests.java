@@ -1,0 +1,121 @@
+package services.k_int.interaction.polaris;
+
+import io.micronaut.context.annotation.Property;
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import jakarta.inject.Inject;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.*;
+import org.olf.dcb.ingest.IngestService;
+import org.olf.dcb.test.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.io.IOException;
+import java.time.Instant;
+import java.util.UUID;
+
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
+
+@MockServerMicronautTest
+@MicronautTest(transactional = false, rebuildContext = true)
+@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
+@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+public class HostLmsPAPIClientTests {
+	private final Logger log = LoggerFactory.getLogger(HostLmsPAPIClientTests.class);
+	private static final String HOST_LMS_CODE = "polaris-hostlms-tests";
+	@Inject
+	private ResourceLoader loader;
+	@Inject
+	private IngestService ingestService;
+	@Inject
+	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private ClusterRecordFixture clusterRecordFixture;
+	@Inject
+	private HostLmsService hostLmsService;
+	@Inject
+	private BibRecordFixture bibRecordFixture;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
+	@Inject
+	private HttpClient client;
+	private static final String CP_RESOURCES_POLARIS = "classpath:mock-responses/polaris/";
+	private PolarisTestUtils.MockPolarisPAPIHost mockPolaris;
+	private DataHostLms polarisHostLms;
+
+	private String getResourceAsString(String cp_resources, String resourceName) throws IOException {
+		return new String(loader.getResourceAsStream(cp_resources + resourceName).get().readAllBytes());
+	}
+
+	@BeforeAll
+	public void addFakePolarisApis(MockServerClient mock) throws IOException {
+		final String BASE_URL = "https://polaris-hostlms-tests.com";
+		final String KEY = "polaris-hostlms-test-key";
+		final String SECRET = "polaris-hostlms-test-secret";
+		final String DOMAIN = "TEST";
+
+		hostLmsFixture.deleteAllHostLMS();
+
+		polarisHostLms = hostLmsFixture.createPAPIHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, DOMAIN, KEY, SECRET);
+		mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);
+
+		mockPolaris.whenRequest(req -> req.withMethod("POST")
+				.withPath("/PAPIService/REST/protected/v1/1033/100/1/authenticator/staff"))
+			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "test-auth.json")));
+	}
+
+	@Test
+	public void getItemsByBibIdTest() throws IOException {
+		// Arrange
+		referenceValueMappingFixture.saveReferenceValueMapping(
+			ReferenceValueMapping.builder().id(UUID.randomUUID())
+				.fromCategory("ShelvingLocation").fromContext("polaris-hostlms-tests").fromValue("15")
+				.toCategory("AGENCY").toContext("DCB").toValue("345test").reciprocal(false)
+				.build() );
+		agencyFixture.saveAgency(DataAgency.builder().id(randomUUID()).code("345test").name("Test College").build());
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
+		final var bibRecordId = randomUUID();
+		bibRecordFixture.createBibRecord(bibRecordId, polarisHostLms.getId(), "465675", clusterRecord);
+		mockPolaris.whenRequest(req -> req.withMethod("GET")
+				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/"+bibRecordId))
+			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "itemsGetResponseSample.json")));
+		// Act
+		final var itemsList = hostLmsFixture.createClient(HOST_LMS_CODE)
+			.getItemsByBibId(String.valueOf(bibRecordId), HOST_LMS_CODE).block();
+		// Assert
+		assertThat(itemsList, is(notNullValue()));
+		assertThat(itemsList.size(), is(3));
+		final var firstItem = itemsList.stream()
+			.filter(item -> "3512742".equals(item.getId()))
+			.findFirst()
+			.orElse(null);
+		assertThat(firstItem, is(notNullValue()));
+		assertThat(firstItem.getStatus(), is(new ItemStatus(ItemStatusCode.UNAVAILABLE)));
+		assertThat(firstItem.getDueDate().getClass(), is(Instant.class));
+		assertThat(firstItem.getLocation().getCode(), is("15"));
+		assertThat(firstItem.getLocation().getName(), is("SLPL Kingshighway"));
+		assertThat(firstItem.getBarcode(), is("3430470102"));
+		assertThat(firstItem.getCallNumber(), is("E Bellini Mario"));
+		assertThat(firstItem.getHostLmsCode(), is(HOST_LMS_CODE));
+		assertThat(firstItem.getBibId(), is(String.valueOf(bibRecordId)));
+		assertThat(firstItem.getLocalItemType(), is("Book"));
+		assertThat(firstItem.getSuppressed(), is(false));
+		assertThat(firstItem.getAgencyCode(), is("345test"));
+		assertThat(firstItem.getAgencyDescription(), is("Test College"));
+		assertThat(firstItem.getCanonicalItemType(), is("UNKNOWN"));
+	}
+}

@@ -2,7 +2,6 @@ package org.olf.dcb.core.interaction.shared;
 
 import jakarta.inject.Singleton;
 import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
-import org.olf.dcb.core.interaction.sierra.SierraItemTypeMapper;
 import org.olf.dcb.storage.AgencyRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,9 +10,9 @@ import services.k_int.interaction.sierra.items.SierraItem;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import services.k_int.interaction.sierra.items.Status;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
@@ -24,18 +23,18 @@ import static io.micronaut.core.util.StringUtils.isNotEmpty;
 public class ItemResultToItemMapper {
 	private static final Logger log = LoggerFactory.getLogger(ItemResultToItemMapper.class);
 	private final ItemStatusMapper itemStatusMapper;
-	private final SierraItemTypeMapper sierraItemTypeMapper;
+	private final ItemTypeMapper itemTypeMapper;
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 	private final AgencyRepository agencyRepository;
 	private static final Integer FIXED_FIELD_61 = Integer.valueOf(61);
 
 	ItemResultToItemMapper(ItemStatusMapper itemStatusMapper,
-		SierraItemTypeMapper sierraItemTypeMapper,
+		ItemTypeMapper itemTypeMapper,
 		ReferenceValueMappingRepository referenceValueMappingRepository,
 		AgencyRepository agencyRepository)
 	{
 		this.itemStatusMapper = itemStatusMapper;
-		this.sierraItemTypeMapper = sierraItemTypeMapper;
+		this.itemTypeMapper = itemTypeMapper;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.agencyRepository = agencyRepository;
 	}
@@ -46,7 +45,7 @@ public class ItemResultToItemMapper {
 			final var dueDate = result.getStatus().getDuedate();
 
 			final var parsedDueDate = isNotEmpty(dueDate)
-				? ZonedDateTime.parse(dueDate)
+				? Instant.parse(dueDate)
 				: null;
 
                         // We shouldlook into result.fixedFields for 61 here and set itemType according to that code and not
@@ -104,12 +103,15 @@ public class ItemResultToItemMapper {
 				.hostLmsCode(hostLmsCode)
 				.bibId(bibId)
 				.localItemType(itemGetRow.getMaterialType())
+				.localItemTypeCode(itemGetRow.getMaterialType())
 				.suppressed(!itemGetRow.getIsDisplayInPAC())
-				.build());
+				.build())
+				.flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode, item.getLocation().getCode().trim()))
+				.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode));
 	}
 
 	Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromShelvingLocation(org.olf.dcb.core.model.Item item, String hostSystem, String itemShelvingLocation) {
-			log.debug("map shelving location to agency  {}:\"{}\"",hostSystem,itemShelvingLocation);
+//			log.debug("map shelving location to agency  {}:\"{}\"",hostSystem,itemShelvingLocation);
 			return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
 				"ShelvingLocation", hostSystem, itemShelvingLocation, "AGENCY", "DCB"))
 				.flatMap(rvm -> Mono.from(agencyRepository.findOneByCode( rvm.getToValue() )))
@@ -124,22 +126,23 @@ public class ItemResultToItemMapper {
 	Mono<org.olf.dcb.core.model.Item> enrichItemWithMappedItemType(org.olf.dcb.core.model.Item item, String hostSystem) {
 			// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human readable string at the moment
 			// Sierra items should have a fixedField 61 according to https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
-			return sierraItemTypeMapper.getCanonicalItemType(hostSystem, item.getLocalItemTypeCode())
+//		log.debug("enrichItemWithMappedItemType: hostSystem: {}, localItemTypeCode: {}", hostSystem, item.getLocalItemTypeCode());
+			return itemTypeMapper.getCanonicalItemType(hostSystem, item.getLocalItemTypeCode())
 							.defaultIfEmpty("UNKNOWN")
 							.map( mappedType -> item.setCanonicalItemType(mappedType) );
 	}
 
-	public static ZonedDateTime convertFrom(String dueDate) {
-		log.debug("Converting String: '{}', to class: '{}'", dueDate, ZonedDateTime.class);
+	public static Instant convertFrom(String dueDate) {
+//		log.debug("Converting String: '{}', to class: '{}'", dueDate, ZonedDateTime.class);
 		if (dueDate == null) {
 			return null;
 		}
 		try {
-			DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("MMM d yyyy hh:mma", Locale.ENGLISH);
+			DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("MMM[  ][ ]d yyyy hh:mma", Locale.ENGLISH);
 			LocalDateTime localDateTime = LocalDateTime.parse(dueDate, inputFormatter);
 			ZoneId zoneId = ZoneId.of("UTC");
 
-			return localDateTime.atZone(zoneId);
+			return localDateTime.atZone(zoneId).toInstant();
 		} catch (DateTimeParseException e) {
 			log.error("Failed to parse due date: {}", dueDate);
 			log.error("Error details:", e);

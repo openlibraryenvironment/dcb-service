@@ -1,14 +1,12 @@
 package org.olf.dcb.item.availability;
 
-import java.time.ZonedDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
-import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
@@ -48,8 +46,7 @@ public class AvailabilityResponseView {
 		private final String id;
 		private final Status status;
 		@Nullable
-		@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
-		private final ZonedDateTime dueDate;
+		private final Instant dueDate;
 		private final Location location;
 		private final String barcode;
 		private final String callNumber;
