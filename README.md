@@ -1,7 +1,5 @@
 [![Release](https://github.com/openlibraryenvironment/dcb-service/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/openlibraryenvironment/dcb-service/actions/workflows/release.yml)
 
-
-
 # DCB Service
 
 A Direct Consortial Borrowing Service
@@ -82,6 +80,3 @@ Then running psql
     psql -U test -h localhost -p PORT_FROM_DOCKER_PS
 
 password will be test
-
-
-https://guides.micronaut.io/latest/micronaut-graphql-todo-maven-java.html
