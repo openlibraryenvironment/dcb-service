@@ -145,7 +145,15 @@ public class BibRecordService {
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Publisher<BibRecord> process(final IngestRecord source) {
 
-//		 log.debug("BibRecordService::process(...clusterid={})",source.getClusterRecordId());
+                log.debug("BibRecordService::process(source={}, sourceRecordId={}, clusterid={}, title={}, suppress:{}, deleted:{})",
+                        source.getSourceSystem().getCode(),
+                        source.getSourceRecordId(),
+                        source.getClusterRecordId(),
+                        source.getTitle(),
+                        source.getSuppressFromDiscovery(),
+                        source.getDeleted()
+                        );
+
 
 		statsService.notifyEvent("IngestRecord",source.getSourceSystem().getCode());
 
