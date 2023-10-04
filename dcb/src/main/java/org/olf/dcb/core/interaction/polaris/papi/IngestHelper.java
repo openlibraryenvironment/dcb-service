@@ -131,7 +131,7 @@ class IngestHelper {
 				log.info("got page {} of data, containing {} results", currentState.page_counter++, bibs.size());
 				currentState.possiblyMore = bibs.size() == pageSize;
 
-				if (currentState.possiblyMore) {
+				if (!currentState.possiblyMore) {
 					log.info("{} ingest Terminating cleanly - run out of bib results - new timestamp is {}", lms.getName(), currentState.request_start_time);
 					currentState.storred_state.put("cursor", "deltaSince:" + currentState.request_start_time);
 					currentState.storred_state.put("name", lms.getName());
