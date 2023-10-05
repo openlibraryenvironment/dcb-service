@@ -62,13 +62,20 @@ public class PatronAuthController {
 			description = "Request body containing patron credentials.",
 			content = @Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = PatronCredentials.class),
 				examples = {
-				@ExampleObject(
+					@ExampleObject(
 						name = "BASIC/BARCODE+PIN",
+						description = "Sierra only",
 						value = "{\"agencyCode\": \"ab6\", \"patronPrinciple\": \"BAR123456\", \"secret\": \"1234\"}"
 					),
 					@ExampleObject(
 						name = "BASIC/BARCODE+NAME",
+						description = "Sierra only",
 						value = "{\"agencyCode\": \"ab6\", \"patronPrinciple\": \"BAR789012\", \"secret\": \"John Doe\"}"
+					),
+					@ExampleObject(
+						name = "BASIC/BARCODE+PASSWORD",
+						description = "Polaris only",
+						value = "{\"agencyCode\": \"ab6\", \"patronPrinciple\": \"BAR789012\", \"secret\": \"password123\"}"
 					)
 				}),
 			required = true
@@ -110,7 +117,7 @@ public class PatronAuthController {
 		String agencyCode;
 		@Schema(name = "patronPrinciple", description = "Patrons barcode or unique identifier", type = "string", example = "BAR789012")
 		String patronPrinciple;
-		@Schema(name = "secret", description = "Patrons PIN or name", type = "string", example = "1234")
+		@Schema(name = "secret", description = "Patrons PIN, name or password", type = "string", example = "1234")
 		String secret;
 	}
 

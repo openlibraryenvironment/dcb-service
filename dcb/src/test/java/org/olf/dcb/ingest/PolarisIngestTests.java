@@ -71,7 +71,7 @@ public class PolarisIngestTests {
 
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/authenticator/staff"))
-			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "test-auth.json")));
+			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "test-staff-auth.json")));
 	}
 
 	@Test
