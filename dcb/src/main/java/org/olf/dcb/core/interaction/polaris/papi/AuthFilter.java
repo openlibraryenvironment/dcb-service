@@ -30,19 +30,25 @@ import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.*;
 class AuthFilter {
 	static final Logger log = LoggerFactory.getLogger(AuthFilter.class);
 	private AuthToken currentToken;
+	private PatronAuthToken patronAuthToken;
 	private final PAPILmsClient client;
 	public AuthFilter(PAPILmsClient client) {
 		this.client = client;
 	}
 
-	public Mono<MutableHttpRequest<?>> ensureAuth (MutableHttpRequest<?> request) {
-		return authentication(request).map(this::authorization);
+	public Mono<MutableHttpRequest<?>> ensureStaffAuth(MutableHttpRequest<?> request) {
+		return staffAuthentication(request).map(this::authorization);
 	}
 
-	private <T> Mono<MutableHttpRequest<?>> authentication (MutableHttpRequest<?> request) {
+	public Mono<MutableHttpRequest<?>> ensurePublicAuth(MutableHttpRequest<?> request,
+		PAPILmsClient.PatronCredentials patronCredentials) {
+		return patronAuthentication(request, patronCredentials).map(this::authorization);
+	}
+
+	private <T> Mono<MutableHttpRequest<?>> staffAuthentication (MutableHttpRequest<?> request) {
 		return Mono.justOrEmpty(currentToken)
 			.filter(token -> !token.isExpired())
-			.switchIfEmpty( acquireAccessToken().map(newToken -> currentToken = newToken) )
+			.switchIfEmpty( staffAuthenticator().map(newToken -> currentToken = newToken) )
 			.map(validToken -> {
 				final String token = validToken.getAccessToken();
 				if (request.getPath().contains("protected")) {
@@ -59,6 +65,38 @@ class AuthFilter {
 			});
 	}
 
+	private Mono<AuthToken> staffAuthenticator() {
+		final Map<String, Object> conf = client.getHostLms().getClientConfig();
+		final String domain = (String) conf.get(DOMAIN_ID);
+		final String username = (String) conf.get(STAFF_USERNAME);
+		final String password = (String) conf.get(STAFF_PASSWORD);
+		return Mono.just(UriBuilder.of("/PAPIService/REST/protected" + client.getGeneralUriParameters() + "/authenticator/staff").build())
+			.map(client::resolve)
+			.map(resolvedUri -> HttpRequest.create(POST, resolvedUri.toString()).accept(APPLICATION_JSON))
+			.map(request -> request.body(StaffCredentials.builder().Domain(domain).Username(username).Password(password).build()))
+			.map(this::authorization)
+			.flatMap(request -> client.exchange(request, AuthToken.class))
+			.flatMap(response -> Mono.justOrEmpty(response.getBody()));
+	}
+
+	private <T> Mono<MutableHttpRequest<?>> patronAuthentication (MutableHttpRequest<?> request,
+		PAPILmsClient.PatronCredentials patronCredentials) {
+		return Mono.justOrEmpty(patronAuthToken)
+			.filter(token -> !token.isExpired())
+			.switchIfEmpty( patronAuthenticator(patronCredentials).map(newToken -> patronAuthToken = newToken) )
+			.map(token -> request);
+	}
+
+	public Mono<PatronAuthToken> patronAuthenticator(PAPILmsClient.PatronCredentials patronCredentials) {
+		return Mono.just(UriBuilder.of("/PAPIService/REST/public" + client.getGeneralUriParameters() + "/authenticator/patron").build())
+			.map(client::resolve)
+			.map(resolvedUri -> HttpRequest.create(POST, resolvedUri.toString()).accept(APPLICATION_JSON))
+			.map(request -> request.body(patronCredentials))
+			.map(this::authorization)
+			.flatMap(request -> client.exchange(request, PatronAuthToken.class))
+			.flatMap(response -> Mono.justOrEmpty(response.getBody()));
+	}
+
 	private MutableHttpRequest<?> authorization (MutableHttpRequest<?> request) {
 		// Calculate the authentication header value
 		final Map<String, Object> conf = client.getHostLms().getClientConfig();
@@ -67,7 +105,22 @@ class AuthFilter {
 		final String method = request.getMethod().name();
 		final String path = request.getUri().toString();
 		final String date = generateFormattedDate();
-		String accessSecret = (currentToken != null && currentToken.getAccessSecret() != null) ? currentToken.getAccessSecret() : "";
+		String accessSecret = "";
+
+		if (request.getPath().contains("public")) {
+			accessSecret = Optional.ofNullable(patronAuthToken)
+				.filter(token -> token.getAccessSecret() != null)
+				.map(PatronAuthToken::getAccessSecret)
+				.orElse("");
+		}
+
+		if (request.getPath().contains("protected")) {
+			accessSecret = Optional.ofNullable(currentToken)
+				.filter(token -> token.getAccessSecret() != null)
+				.map(AuthToken::getAccessSecret)
+				.orElse("");
+		}
+
 		String signature = calculateApiSignature(key, method, path, date, accessSecret);
 		final var token = "PWS " + id + ":" + signature;
 
@@ -76,25 +129,6 @@ class AuthFilter {
 
 //		log.debug("authorization token: " + token);
 		return request;
-	}
-
-	private Mono<AuthFilter.AuthToken> acquireAccessToken() {
-		final Map<String, Object> conf = client.getHostLms().getClientConfig();
-		final String domain = (String) conf.get(DOMAIN_ID);
-		final String username = (String) conf.get(STAFF_USERNAME);
-		final String password = (String) conf.get(STAFF_PASSWORD);
-
-		return Mono.from( staffAuthenticator(domain, username, password) );
-	}
-
-	private Mono<AuthFilter.AuthToken> staffAuthenticator(String domain, String username, String password) {
-		return Mono.just(UriBuilder.of("/PAPIService/REST/protected" + client.getGeneralUriParameters() + "/authenticator/staff").build())
-			.map(client::resolve)
-			.map(resolvedUri -> HttpRequest.create(POST, resolvedUri.toString()).accept(APPLICATION_JSON))
-			.map(request -> request.body(StaffCredentials.builder().Domain(domain).Username(username).Password(password).build()))
-			.map(this::authorization)
-			.flatMap(request -> client.exchange(request, AuthToken.class))
-			.flatMap(response -> Mono.justOrEmpty(response.getBody()));
 	}
 
 	private String calculateApiSignature(
@@ -125,7 +159,7 @@ class AuthFilter {
 		return formatter.format(Instant.now());
 	}
 
-	private static Instant instantOf(String dateStr) {
+	static Instant instantOf(String dateStr) {
 		Pattern pattern = Pattern.compile("\\/Date\\((\\d+)([+-]\\d+)\\)\\/");
 		Matcher matcher = pattern.matcher(dateStr);
 
@@ -137,6 +171,28 @@ class AuthFilter {
 			return Instant.ofEpochMilli(timestampWithOffset);
 		} else {
 			throw new IllegalArgumentException("Invalid date string format");
+		}
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	private static class PatronAuthToken {
+		@JsonProperty("PAPIErrorCode")
+		private int papiErrorCode;
+		@JsonProperty("ErrorMessage")
+		private String errorMessage;
+		@JsonProperty("AccessToken")
+		private String accessToken;
+		@JsonProperty("AccessSecret")
+		private String accessSecret;
+		@JsonProperty("PatronID")
+		private int patronID;
+		@JsonProperty("AuthExpDate")
+		private String authExpDate;
+		public boolean isExpired() {
+			return instantOf(authExpDate).isBefore(Instant.now());
 		}
 	}
 

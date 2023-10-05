@@ -1,0 +1,13 @@
+{
+	"AssignedBranchID" : 39,
+	"AssignedBranchName" : "SLCL zBeckwith Administrative Building_staff only",
+	"Barcode" : "0088888888",
+	"ErrorMessage" : "",
+	"ExpirationDate" : "/Date(1759467600000-0500)/",
+	"OverridePasswordUsed" : false,
+	"PAPIErrorCode" : 0,
+	"PatronBarcode" : "0088888888",
+	"PatronCodeID" : 5,
+	"PatronID" : 1255192,
+	"ValidPatron" : true
+}

@@ -53,6 +53,8 @@ import java.util.function.Consumer;
 import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.String.valueOf;
+import static java.util.Collections.singletonList;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.core.interaction.polaris.papi.MarcConverter.convertToMarcRecord;
 import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.*;
@@ -90,6 +92,29 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 		this.client = client;
 	}
 
+	@Override
+	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
+		//log.debug("patronAuth({})", authProfile);
+		return switch (authProfile) {
+			case "BASIC/BARCODE+PASSWORD" -> patronValidate(patronPrinciple, secret);
+			default -> Mono.empty();
+		};
+	}
+
+	@SingleResult
+	public Mono<Patron> patronValidate(String barcode, String password) {
+		final var path = "/PAPIService/REST/public" + getGeneralUriParameters() + "/patron/" + barcode;
+		final var patronCredentials = PatronCredentials.builder().barcode(barcode).password(password).build();
+		return getRequest(path, Argument.of(PatronValidateResult.class), uri -> {}, patronCredentials)
+			.filter(PatronValidateResult::getValidPatron)
+			.map(patronValidateResult -> Patron.builder()
+				.localId(singletonList(valueOf(patronValidateResult.getPatronID())))
+				.localPatronType(valueOf(patronValidateResult.getPatronCodeID()))
+				.localBarcodes(singletonList(patronValidateResult.getBarcode()))
+				.localHomeLibraryCode(valueOf(patronValidateResult.getAssignedBranchID()))
+				.build());
+	}
+
 	@SingleResult
 	public Publisher<BibsPagedResult> synch_BibsPagedGet(String updatedate, Integer lastId, Integer nrecs) {
 		String path = "/PAPIService/REST/protected" + getGeneralUriParameters() + "/synch/bibs/MARCXML/paged";
@@ -102,10 +127,8 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 
 	@Override
 	public Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode) {
-		// /protected/1/{AccessToken}/synch/items/bibid/{BibID}?excludeecontent=false
 		String path = "/PAPIService/REST/protected" + getGeneralUriParameters() + "/synch/items/bibid/" + bibId;
 		return getRequest(path, Argument.of(ItemGetResponse.class),
-			// TODO: default false should this be changed?
 			uri -> uri.queryParam("excludeecontent", false))
 			.map(ItemGetResponse::getItemGetRows)
 			.flatMapMany(Flux::fromIterable)
@@ -157,14 +180,22 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 	}
 
 	private <T> Mono<MutableHttpRequest<?>> postRequest(String path) {
-		return createRequest(POST, path).flatMap( authFilter::ensureAuth );
+		return createRequest(POST, path).flatMap( authFilter::ensureStaffAuth);
 	}
 
 	private <T> Mono<T> getRequest(String path, Argument<T> argumentType,
 		Consumer<UriBuilder> uriBuilderConsumer) {
 
 		return createRequest(GET, path).map(req -> req.uri(uriBuilderConsumer))
-			.flatMap( authFilter::ensureAuth )
+			.flatMap( authFilter::ensureStaffAuth)
+			.flatMap(request -> Mono.from(client.retrieve(request, argumentType)));
+	}
+
+	private <T> Mono<T> getRequest(String path, Argument<T> argumentType,
+		Consumer<UriBuilder> uriBuilderConsumer, PatronCredentials patronCredentials) {
+
+		return createRequest(GET, path).map(req -> req.uri(uriBuilderConsumer))
+			.flatMap(req -> authFilter.ensurePublicAuth(req, patronCredentials))
 			.flatMap(request -> Mono.from(client.retrieve(request, argumentType)));
 	}
 
@@ -238,11 +269,6 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 
 	@Override
 	public Mono<Patron> updatePatron(String localId, String patronType) {
-		return null;
-	}
-
-	@Override
-	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
 		return null;
 	}
 
@@ -366,6 +392,17 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 	@Override
 	public Publisher<PublisherState> saveState(UUID context, String process, PublisherState state) {
 		return ingestHelper.saveState(state);
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class PatronCredentials {
+		@JsonProperty("Barcode")
+		private String barcode;
+		@JsonProperty("Password")
+		private String password;
 	}
 
 	@Builder
@@ -506,5 +543,44 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 		@JsonProperty("ModificationDate")
 		@JsonInclude(JsonInclude.Include.NON_NULL)
 		private String ModificationDate;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class PatronValidateResult {
+		@JsonProperty("PAPIErrorCode")
+		private Integer PAPIErrorCode;
+
+		@JsonProperty("ErrorMessage")
+		private String ErrorMessage;
+
+		@JsonProperty("Barcode")
+		private String Barcode;
+
+		@JsonProperty("ValidPatron")
+		private Boolean ValidPatron;
+
+		@JsonProperty("PatronID")
+		private Integer PatronID;
+
+		@JsonProperty("PatronCodeID")
+		private Integer PatronCodeID;
+
+		@JsonProperty("AssignedBranchID")
+		private Integer AssignedBranchID;
+
+		@JsonProperty("PatronBarcode")
+		private String PatronBarcode;
+
+		@JsonProperty("AssignedBranchName")
+		private String AssignedBranchName;
+
+		@JsonProperty("ExpirationDate")
+		private String ExpirationDate;
+
+		@JsonProperty("OverridePasswordUsed")
+		private Boolean OverridePasswordUsed;
 	}
 }

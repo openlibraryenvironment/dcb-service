@@ -19,6 +19,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static java.util.UUID.randomUUID;
@@ -75,7 +76,7 @@ public class HostLmsPAPIClientTests {
 
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/authenticator/staff"))
-			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "test-auth.json")));
+			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "test-staff-auth.json")));
 	}
 
 	@Test
@@ -92,7 +93,7 @@ public class HostLmsPAPIClientTests {
 		bibRecordFixture.createBibRecord(bibRecordId, polarisHostLms.getId(), "465675", clusterRecord);
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/"+bibRecordId))
-			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "itemsGetResponseSample.json")));
+			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "items-get.json")));
 		// Act
 		final var itemsList = hostLmsFixture.createClient(HOST_LMS_CODE)
 			.getItemsByBibId(String.valueOf(bibRecordId), HOST_LMS_CODE).block();
@@ -117,5 +118,28 @@ public class HostLmsPAPIClientTests {
 		assertThat(firstItem.getAgencyCode(), is("345test"));
 		assertThat(firstItem.getAgencyDescription(), is("Test College"));
 		assertThat(firstItem.getCanonicalItemType(), is("UNKNOWN"));
+	}
+
+	@Test
+	public void patronAuth() throws IOException {
+		// Arrange
+		mockPolaris.whenRequest(req -> req.withMethod("POST")
+				.withPath("/PAPIService/REST/public/v1/1033/100/1/authenticator/patron"))
+			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "test-patron-auth.json")));
+		mockPolaris.whenRequest(req -> req.withMethod("GET")
+				.withPath("/PAPIService/REST/public/v1/1033/100/1/patron/"+"3100222227777"))
+			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "patron-by-barcode.json")));
+		// Act
+		final var patron = hostLmsFixture.createClient(HOST_LMS_CODE)
+			.patronAuth("BASIC/BARCODE+PASSWORD", "3100222227777", "password123").block();
+		// Assert
+		assertThat(patron, is(notNullValue()));
+		assertThat(patron.getLocalId(), is(List.of("1255192")));
+		assertThat(patron.getLocalPatronType(), is("5"));
+		assertThat(patron.getLocalBarcodes(), is(List.of("0088888888")));
+		assertThat(patron.getLocalHomeLibraryCode(), is("39"));
+		// not returned
+		assertThat(patron.getLocalNames(), is(nullValue()));
+		assertThat(patron.getUniqueIds(), is(nullValue()));
 	}
 }
