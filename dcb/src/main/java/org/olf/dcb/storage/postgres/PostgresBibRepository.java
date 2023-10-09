@@ -18,14 +18,21 @@ import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.query.builder.sql.Dialect;
 import io.micronaut.data.r2dbc.annotation.R2dbcRepository;
 import io.micronaut.data.repository.reactive.ReactiveStreamsPageableRepository;
+import io.micronaut.data.repository.jpa.reactive.ReactiveStreamsJpaSpecificationExecutor;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
+
+import io.micronaut.data.annotation.Query;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
+import jakarta.validation.Valid;
+
 
 @SuppressWarnings("unchecked")
 @Singleton
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 @Transactional
-public interface PostgresBibRepository extends ReactiveStreamsPageableRepository<BibRecord, UUID>, BibRepository {
+public interface PostgresBibRepository extends ReactiveStreamsPageableRepository<BibRecord, UUID>, ReactiveStreamsJpaSpecificationExecutor<BibRecord>, BibRepository {
 	
 	@Override
 	@NonNull
@@ -48,5 +55,7 @@ public interface PostgresBibRepository extends ReactiveStreamsPageableRepository
 	default Publisher<Void> commit() {
 		return Mono.empty();
 	}
+
+        Publisher<Page<BibRecord>> findAll(@Valid Pageable pageable);
 
 }

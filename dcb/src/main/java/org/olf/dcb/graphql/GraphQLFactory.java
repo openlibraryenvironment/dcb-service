@@ -34,6 +34,8 @@ public class GraphQLFactory {
 			AddAgencyToGroupDataFetcher addAgencyToGroupDataFetcher,
 			ResourceResolver resourceResolver,
 			AgencyGroupsDataFetcher agencyGroupsDataFetcher,
+			InstanceClusterDataFetcher instanceClusterDataFetcher,
+			SourceBibDataFetcher sourceBibDataFetcher,
 			DataFetchers dataFetchers) {
 
 		log.debug("GraphQLFactory::graphQL");
@@ -57,7 +59,10 @@ public class GraphQLFactory {
 						.dataFetcher("agencies", dataFetchers.getAgenciesDataFetcher())
 						.dataFetcher("agencyGroups", agencyGroupsDataFetcher)
 						.dataFetcher("patronRequests", dataFetchers.getPatronRequestsDataFetcher())
-						.dataFetcher("supplierRequests", dataFetchers.getSupplierRequestsDataFetcher()))
+						.dataFetcher("supplierRequests", dataFetchers.getSupplierRequestsDataFetcher())
+						.dataFetcher("instanceClusters", instanceClusterDataFetcher)
+						.dataFetcher("sourceBibs", sourceBibDataFetcher)
+				)
 				.type("Mutation",
 						typeWiring -> typeWiring.dataFetcher("createAgencyGroup", createAgencyGroupDataFetcher)
 								.dataFetcher("addAgencyToGroup", addAgencyToGroupDataFetcher))
