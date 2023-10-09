@@ -77,17 +77,7 @@ class ConsortialFolioHostLmsClientItemTests {
 			);
 
 		// Act
-		final var uri = UriBuilder.of("https://fake-folio/rtac")
-			.queryParam("instanceIds", "d68dfc67-a947-4b7a-9833-b71155d67579")
-			.queryParam("fullPeriodicals", true)
-			.build();
-
-		final var request = HttpRequest.create(HttpMethod.GET, uri.toString())
-			// Base 64 encoded API key
-			.header("Authorization", "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9")
-			.accept(APPLICATION_JSON);
-
-		final var response = Mono.from(client.retrieve(request, Argument.of(OuterHoldings.class))).block();
+		final var response = getHoldings().block();
 
 		// Assert
 		assertThat("Response should not be null", response, is(notNullValue()));
@@ -117,6 +107,20 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasProperty("permanentLoanType", is("stks"))
 				)
 			));
+	}
+
+	private Mono<OuterHoldings> getHoldings() {
+		final var uri = UriBuilder.of("https://fake-folio/rtac")
+			.queryParam("instanceIds", "d68dfc67-a947-4b7a-9833-b71155d67579")
+			.queryParam("fullPeriodicals", true)
+			.build();
+
+		final var request = HttpRequest.create(HttpMethod.GET, uri.toString())
+			// Base 64 encoded API key
+			.header("Authorization", "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9")
+			.accept(APPLICATION_JSON);
+
+		return Mono.from(client.retrieve(request, Argument.of(OuterHoldings.class)));
 	}
 
 	@Serdeable
