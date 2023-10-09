@@ -1,18 +1,22 @@
 package org.olf.dcb.request.resolution;
 
 import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.UUID;
+
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.HostLmsService.UnknownHostLmsException;
-import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
-import org.olf.dcb.request.resolution.SharedIndexService;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.DcbTest;
@@ -75,28 +79,19 @@ class SharedIndexServiceTests {
 		assertThat(clusteredBib, is(notNullValue()));
 		assertThat(clusteredBib.getId(), is(clusterRecordId));
 
-		final var bibs = clusteredBib.getBibs();
-
-		assertThat(bibs, is(notNullValue()));
-		assertThat(bibs, hasSize(2));
-
-		final var firstBib = bibs.get(0);
-
-		assertThat(firstBib, is(notNullValue()));
-		assertThat(firstBib.getId(), is(firstBibRecordId));
-		assertThat(firstBib.getBibRecordId(), is("798472"));
-
-		assertThat(firstBib.getHostLms(), is(notNullValue()));
-		assertThat(firstBib.getHostLms().getCode(), is("SECOND-HOST-LMS"));
-
-		final var secondBib = bibs.get(1);
-
-		assertThat(secondBib, is(notNullValue()));
-		assertThat(secondBib.getId(), is(secondBibRecordId));
-		assertThat(secondBib.getBibRecordId(), is("896857"));
-
-		assertThat(secondBib.getHostLms(), is(notNullValue()));
-		assertThat(secondBib.getHostLms().getCode(), is("FIRST-HOST-LMS"));
+		assertThat("Should have multiple bib records",
+			clusteredBib.getBibs(), containsInAnyOrder(
+				allOf(
+					hasId(firstBibRecordId),
+					hasBibRecordId("798472"),
+					hasHostLmsCode("SECOND-HOST-LMS")
+				),
+				allOf(
+					hasProperty("id", is(secondBibRecordId)),
+					hasBibRecordId("896857"),
+					hasHostLmsCode("FIRST-HOST-LMS")
+				)
+			));
 	}
 
 	@Test
@@ -146,5 +141,18 @@ class SharedIndexServiceTests {
 		assertThat(exception, is(notNullValue()));
 		assertThat(exception.getMessage(), is(
 			"No Host LMS found for ID: " + unknownHostId));
+	}
+
+	private static Matcher<Bib> hasId(UUID expectedId) {
+		return hasProperty("id", is(expectedId));
+	}
+
+	private static Matcher<Bib> hasBibRecordId(String expectedId) {
+		return hasProperty("bibRecordId", is(expectedId));
+	}
+
+	private static Matcher<Bib> hasHostLmsCode(String expectedCode) {
+		return hasProperty("hostLms",
+			hasProperty("code", is(expectedCode)));
 	}
 }
