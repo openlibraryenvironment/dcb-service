@@ -22,6 +22,9 @@ import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import java.util.List;
 import java.util.UUID;
 
+import io.micronaut.http.client.BlockingHttpClient;
+import io.micronaut.security.authentication.UsernamePasswordCredentials;
+import io.micronaut.security.token.render.BearerAccessRefreshToken;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -439,10 +442,12 @@ class PatronRequestApiTests {
 			}
 		};
 
-		final var request = HttpRequest.POST("/patrons/requests/place", requestBody);
+		final var blockingClient = client.toBlocking();
+		final var accessToken = getAccessToken(blockingClient);
+		final var request = HttpRequest.POST("/patrons/requests/place", requestBody).bearerAuth(accessToken);
 
 		// When placing a request for a patron at an unknown local system
-		final var exception = assertThrows(HttpClientResponseException.class, () -> client.toBlocking().exchange(request));
+		final var exception = assertThrows(HttpClientResponseException.class, () -> blockingClient.exchange(request));
 
 		// Then a bad request response should be returned
 		final var response = exception.getResponse();
@@ -482,5 +487,14 @@ class PatronRequestApiTests {
 
 		referenceValueMappingFixture.saveReferenceValueMapping(
 				patronFixture.createPatronTypeMapping("DCB", "15", "patron-request-api-tests", "15"));
+	}
+
+	private static String getAccessToken(BlockingHttpClient blockingClient) {
+		final var creds = new UsernamePasswordCredentials("admin", "password");
+		final var loginRequest = HttpRequest.POST("/login", creds);
+		final var loginResponse = blockingClient.exchange(loginRequest, BearerAccessRefreshToken.class);
+		final var bearerAccessRefreshToken = loginResponse.body();
+		final var accessToken = bearerAccessRefreshToken.getAccessToken();
+		return accessToken;
 	}
 }
