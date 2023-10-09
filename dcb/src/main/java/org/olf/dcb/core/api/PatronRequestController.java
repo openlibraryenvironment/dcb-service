@@ -43,7 +43,7 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
 @Validated
-@Secured(SecurityRule.IS_ANONYMOUS)
+@Secured(SecurityRule.IS_AUTHENTICATED)
 @Controller("/patrons/requests")
 @Tag(name = "Patron Request API")
 public class PatronRequestController {
@@ -156,5 +156,4 @@ public class PatronRequestController {
 			return Mono.empty();
 		}
 	}
-
 }
