@@ -18,16 +18,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 
-import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.uri.UriBuilder;
-import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
-import lombok.Builder;
-import lombok.Data;
 import reactor.core.publisher.Mono;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -121,31 +117,5 @@ class ConsortialFolioHostLmsClientItemTests {
 			.accept(APPLICATION_JSON);
 
 		return Mono.from(client.retrieve(request, Argument.of(OuterHoldings.class)));
-	}
-
-	@Serdeable
-	@Builder
-	@Data
-	public static class OuterHoldings {
-		@Nullable List<OuterHolding> holdings;
-	}
-
-	@Serdeable
-	@Builder
-	@Data
-	public static class OuterHolding {
-		@Nullable String instanceId;
-		@Nullable List<Holding> holdings;
-	}
-
-	@Serdeable
-	@Builder
-	@Data
-	public static class Holding {
-		@Nullable String id;
-		@Nullable String callNumber;
-		@Nullable String location;
-		@Nullable String status;
-		@Nullable String permanentLoanType;
 	}
 }
