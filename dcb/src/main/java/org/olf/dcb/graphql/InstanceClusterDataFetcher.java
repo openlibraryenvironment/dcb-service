@@ -11,9 +11,12 @@ import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.data.querying.QueryService;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
+import org.reactivestreams.Publisher;
 
 @Singleton
-public class InstanceClusterDataFetcher implements DataFetcher<Iterable<ClusterRecord>> {
+public class InstanceClusterDataFetcher implements DataFetcher<Publisher<Page<ClusterRecord>>> {
 
 	private static Logger log = LoggerFactory.getLogger(InstanceClusterDataFetcher.class);
 
@@ -27,18 +30,19 @@ public class InstanceClusterDataFetcher implements DataFetcher<Iterable<ClusterR
 	}
 
 	@Override
-	public Iterable<ClusterRecord> get(DataFetchingEnvironment env) throws Exception {
+	public Publisher<Page<ClusterRecord>> get(DataFetchingEnvironment env) throws Exception {
 
 		log.debug("InstanceClusterDataFetcher::get({})", env);
 		String query = env.getArgument("query");
+		Pageable pageable = Pageable.from(0);
 		if ((query != null) && (query.length() > 0)) {
 			log.debug("Returning query version of agencies");
 			return Mono.justOrEmpty(qs.evaluate(query, ClusterRecord.class))
-					.flatMapMany(spec -> clusterRecordRepository.findAll(spec)).toIterable();
+					.flatMap(spec -> Mono.from(clusterRecordRepository.findAll(spec, pageable)));
 		}
 
 		log.debug("Returning simple clusterRecord list");
-		return Flux.from(clusterRecordRepository.queryAll()).toIterable();
+		return Mono.from(clusterRecordRepository.queryAll(pageable));
 	}
 
 }

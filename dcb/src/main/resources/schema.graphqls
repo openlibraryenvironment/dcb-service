@@ -4,9 +4,8 @@ type Query {
     patronRequests(query: String): [PatronRequest]!
     supplierRequests(query: String): [SupplierRequest]!
     agencyGroups(query: String): [AgencyGroup]!
-    instanceClusters(query: String): [ClusterRecord]!
-    sourceBibs(query: String): [BibRecord]!
-
+    instanceClusters(query: String, pageno: Int, pagesize: Int): [ClusterRecord]!
+    sourceBibs(query: String, pageno:Int, pagesize: Int): [BibRecord]!
 }
 
 type Mutation {
