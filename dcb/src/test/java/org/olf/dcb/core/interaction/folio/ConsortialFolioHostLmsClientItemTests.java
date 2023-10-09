@@ -42,6 +42,11 @@ class ConsortialFolioHostLmsClientItemTests {
 		// Arrange
 		mockServerClient
 			.when(org.mockserver.model.HttpRequest.request()
+				.withHeader("Accept", APPLICATION_JSON)
+				.withHeader("Host", "fake-folio")
+				.withHeader("Authorization", "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9")
+				.withQueryStringParameter("fullPeriodicals", "true")
+				.withQueryStringParameter("instanceIds", "d68dfc67-a947-4b7a-9833-b71155d67579")
 				.withPath("/rtac")
 			)
 			.respond(response()
