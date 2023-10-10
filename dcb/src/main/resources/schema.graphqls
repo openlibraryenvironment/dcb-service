@@ -4,7 +4,7 @@ type Query {
     patronRequests(query: String): [PatronRequest]!
     supplierRequests(query: String): [SupplierRequest]!
     agencyGroups(query: String): [AgencyGroup]!
-    instanceClusters(query: String, pageno: Int, pagesize: Int): [ClusterRecord]!
+    instanceClusters(query: String, pageno: Int, pagesize: Int): ClusterRecordPage!
     sourceBibs(query: String, pageno:Int, pagesize: Int): [BibRecord]!
 }
 
@@ -94,6 +94,15 @@ type Patron {
 
 type PatronIdentity {
   id: ID!
+}
+
+"""
+See: https://micronaut-projects.github.io/micronaut-data/2.4.0/api/io/micronaut/data/model/Page.html
+"""
+type ClusterRecordPage {
+  contents: [ClusterRecord]
+  pageNumber: Int
+  size: Int
 }
 
 type ClusterRecord {
