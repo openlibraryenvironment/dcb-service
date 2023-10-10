@@ -64,7 +64,10 @@ public class SharedIndexService {
 
 	private Publisher<Bib> findHostLms(BibRecord bibRecord) {
 		return Mono.from(hostLmsService.findById(bibRecord.getSourceSystemId()))
-			.map(hostLms -> new Bib(bibRecord.getId(), bibRecord.getSourceRecordId(),
-				hostLms));
+			.map(hostLms -> Bib.builder()
+				.id(bibRecord.getId())
+				.sourceRecordId(bibRecord.getSourceRecordId())
+				.hostLms(hostLms)
+				.build());
 	}
 }
