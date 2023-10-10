@@ -12,5 +12,5 @@ import lombok.Data;
 @Data
 public class OuterHolding {
 	@Nullable String instanceId;
-	@Nullable List<Holding> holdings;
+	List<Holding> holdings;
 }

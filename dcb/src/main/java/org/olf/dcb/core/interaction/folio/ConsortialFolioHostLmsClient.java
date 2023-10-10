@@ -1,23 +1,26 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 
 import java.util.List;
 
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ItemStatus;
+import org.olf.dcb.core.model.Location;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -26,6 +29,7 @@ import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.uri.UriBuilder;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Prototype
@@ -51,7 +55,24 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<List<Item>> getItems(BibRecord bib) {
-		return Mono.empty();
+		return getHoldings(bib.getSourceRecordId())
+			.flatMapIterable(OuterHoldings::getHoldings)
+			.flatMap(this::mapHoldingToItem)
+			.collectList();
+	}
+
+	private Flux<Item> mapHoldingToItem(OuterHolding outerHoldings) {
+		return Flux.fromStream(outerHoldings.getHoldings().stream()
+			.map(holding -> Item.builder()
+				.localId(holding.getId())
+				.localBibId(outerHoldings.getInstanceId())
+				.callNumber(holding.getCallNumber())
+				.status(new ItemStatus(AVAILABLE))
+				.localItemType(holding.getPermanentLoanType())
+				.location(Location.builder()
+					.name(holding.getLocation())
+					.build())
+			.build()));
 	}
 
 	@Override
