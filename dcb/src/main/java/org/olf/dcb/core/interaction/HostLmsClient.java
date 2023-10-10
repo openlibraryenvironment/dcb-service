@@ -1,14 +1,14 @@
 package org.olf.dcb.core.interaction;
 
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
-
 import java.util.List;
 import java.util.Map;
 
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
 
 public interface HostLmsClient {
 
@@ -29,7 +29,7 @@ public interface HostLmsClient {
 
 	List<HostLmsPropertyDefinition> getSettings();
 
-	Mono<List<Item>> getItemsByBibId(String bibId);
+	Mono<List<Item>> getItems(String localBibId);
 
 	Mono<String> createPatron(Patron patron);
 

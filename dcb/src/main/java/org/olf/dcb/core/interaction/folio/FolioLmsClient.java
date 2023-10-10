@@ -57,7 +57,7 @@ public class FolioLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<List<Item>> getItemsByBibId(String bibId) {
+	public Mono<List<Item>> getItems(String localBibId) {
 		return Mono.empty();
 	}
 

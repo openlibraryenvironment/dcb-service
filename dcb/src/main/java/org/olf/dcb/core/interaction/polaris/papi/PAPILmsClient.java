@@ -142,13 +142,13 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 	}
 
 	@Override
-	public Mono<List<Item>> getItemsByBibId(String bibId) {
-		String path = "/PAPIService/REST/protected" + getGeneralUriParameters() + "/synch/items/bibid/" + bibId;
+	public Mono<List<Item>> getItems(String localBibId) {
+		String path = "/PAPIService/REST/protected" + getGeneralUriParameters() + "/synch/items/bibid/" + localBibId;
 		return getRequest(path, Argument.of(ItemGetResponse.class),
 			uri -> uri.queryParam("excludeecontent", false))
 			.map(ItemGetResponse::getItemGetRows)
 			.flatMapMany(Flux::fromIterable)
-			.flatMap(result -> itemResultToItemMapper.mapItemGetRowToItem(result, lms.getCode(), bibId))
+			.flatMap(result -> itemResultToItemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId))
 			.collectList();
 	}
 

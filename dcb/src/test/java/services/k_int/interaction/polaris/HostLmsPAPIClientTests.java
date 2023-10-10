@@ -106,7 +106,7 @@ public class HostLmsPAPIClientTests {
 			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "items-get.json")));
 		// Act
 		final var itemsList = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.getItemsByBibId(String.valueOf(bibRecordId)).block();
+			.getItems(String.valueOf(bibRecordId)).block();
 		// Assert
 		assertThat(itemsList, is(notNullValue()));
 		assertThat(itemsList.size(), is(3));

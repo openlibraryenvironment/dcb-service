@@ -337,16 +337,16 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<List<Item>> getItemsByBibId(String bibId) {
-		log.debug("getItemsByBibId({})", bibId);
+	public Mono<List<Item>> getItems(String localBibId) {
+		log.debug("getItemsByBibId({})", localBibId);
 
 		return Mono
-				.from(client.items(params -> params.deleted(false).bibIds(List.of(bibId))
+				.from(client.items(params -> params.deleted(false).bibIds(List.of(localBibId))
 						.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "suppressed", "bibIds", "location",
 								"status", "volumes", "barcode", "callNumber", "itemType", "transitInfo", "copyNo", "holdCount",
 								"fixedFields", "varFields"))))
 				.map(ResultSet::getEntries).flatMapMany(Flux::fromIterable)
-				.flatMap(result -> itemResultToItemMapper.mapResultToItem(result, lms.getCode(), bibId)).collectList();
+				.flatMap(result -> itemResultToItemMapper.mapResultToItem(result, lms.getCode(), localBibId)).collectList();
 	}
 
 	public Mono<Patron> patronFind(String varFieldTag, String varFieldContent) {

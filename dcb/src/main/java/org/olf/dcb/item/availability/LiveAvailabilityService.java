@@ -61,7 +61,7 @@ public class LiveAvailabilityService {
 		} else {
 			return hostLmsService.getClientFor(bib.getHostLms())
 				.flatMap(hostLmsClient -> hostLmsClient
-					.getItemsByBibId(bib.getSourceRecordId()))
+					.getItems(bib.getSourceRecordId()))
 				.doOnError(error -> log.debug("Error occurred fetching items: ", error))
 				.map(AvailabilityReport::ofItems)
 				.onErrorReturn(AvailabilityReport.ofErrors(mapToError(bib)));
