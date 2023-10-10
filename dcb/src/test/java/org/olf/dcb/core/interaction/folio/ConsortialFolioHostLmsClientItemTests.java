@@ -68,10 +68,10 @@ class ConsortialFolioHostLmsClientItemTests {
 			))
 			.build());
 
-		final var client = hostLmsFixture.createFolioClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createFolioClient(HOST_LMS_CODE, httpClient);
 
 		// Act
-		final var response = client.getHoldings(httpClient).block();
+		final var response = client.getHoldings().block();
 
 		// Assert
 		assertThat("Response should not be null", response, is(notNullValue()));

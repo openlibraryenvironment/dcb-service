@@ -183,12 +183,12 @@ public class HostLmsFixture {
 		return new HostLmsSierraApiClient(hostLms, client);
 	}
 
-	public ConsortialFolioHostLmsClient createFolioClient(String code) {
+	public ConsortialFolioHostLmsClient createFolioClient(String code, HttpClient httpClient) {
 		final var hostLms = findByCode(code);
 
 		// Need to create a client directly
 		// because injecting gives incorrectly configured client
-		return new ConsortialFolioHostLmsClient(hostLms);
+		return new ConsortialFolioHostLmsClient(hostLms, httpClient);
 	}
 
 	public DataHostLms findByCode(String code) {

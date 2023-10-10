@@ -30,15 +30,18 @@ import reactor.core.publisher.Mono;
 
 @Prototype
 public class ConsortialFolioHostLmsClient implements HostLmsClient {
-	private final HostLms lms;
+	private final HostLms hostLms;
 
-	public ConsortialFolioHostLmsClient(@Parameter HostLms lms) {
-		this.lms = lms;
+	private final HttpClient httpClient;
+
+	public ConsortialFolioHostLmsClient(@Parameter HostLms hostLms, @Parameter("client") HttpClient httpClient) {
+		this.hostLms = hostLms;
+		this.httpClient = httpClient;
 	}
 
 	@Override
 	public HostLms getHostLms() {
-		return lms;
+		return hostLms;
 	}
 
 	@Override
@@ -133,7 +136,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return Mono.just("DUMMY");
 	}
 
-	Mono<OuterHoldings> getHoldings(HttpClient httpClient) {
+	Mono<OuterHoldings> getHoldings() {
 		final var uri = UriBuilder.of("https://fake-folio/rtac")
 			.queryParam("instanceIds", "d68dfc67-a947-4b7a-9833-b71155d67579")
 			// Full periodicals refers to items, without this parameter holdings will be returned instead of items
@@ -146,6 +149,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			// MUST explicitly accept JSON otherwise XML will be returned
 			.accept(APPLICATION_JSON);
 
-		return Mono.from(httpClient.retrieve(request, Argument.of(OuterHoldings.class)));
+		return Mono.from(this.httpClient.retrieve(request, Argument.of(OuterHoldings.class)));
 	}
 }
