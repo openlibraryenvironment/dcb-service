@@ -73,6 +73,8 @@ class ConsortialFolioHostLmsClientItemTests {
 			))
 			.build());
 
+		hostLmsFixture.createFolioClient(HOST_LMS_CODE);
+
 		// Act
 		final var response = getHoldings().block();
 
