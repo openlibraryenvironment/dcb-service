@@ -43,7 +43,7 @@ public class HostLmsFixture {
 	}
 
 	public DataHostLms createHostLms(UUID id, String code) {
-		return createHostLms(new DataHostLms(id, code, "Test Host LMS",
+		return saveHostLms(new DataHostLms(id, code, "Test Host LMS",
 			SierraLmsClient.class.getCanonicalName(), Map.of()));
 	}
 
@@ -71,7 +71,7 @@ public class HostLmsFixture {
 
 		numericRangeMappingFixture.createMapping(code, "ItemType", 998L, 1001L, "DCB", "BKM");
 
-		return createHostLms(
+		return saveHostLms(
 			DataHostLms.builder()
 				.id(randomUUID())
 				.code(code)
@@ -97,7 +97,7 @@ public class HostLmsFixture {
 		clientConfig.put("org-id", "1");
 		clientConfig.put("page-size", 100);
 
-		return createHostLms(
+		return saveHostLms(
 			DataHostLms.builder()
 				.id(randomUUID())
 				.code(code)
@@ -107,7 +107,7 @@ public class HostLmsFixture {
 				.build());
 	}
 
-	private DataHostLms createHostLms(DataHostLms hostLms) {
+	private DataHostLms saveHostLms(DataHostLms hostLms) {
 		return singleValueFrom(hostLmsRepository.save(hostLms));
 	}
 
