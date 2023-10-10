@@ -15,16 +15,14 @@ import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.http.client.HttpClient;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Prototype
 public class HostLmsFixture {
-	private final Logger log = LoggerFactory.getLogger(HostLmsFixture.class);
-
 	private final DataAccess dataAccess = new DataAccess();
 
 	private final HostLmsRepository hostLmsRepository;
