@@ -61,6 +61,22 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.collectList();
 	}
 
+	private Mono<OuterHoldings> getHoldings(String instanceId) {
+		final var uri = UriBuilder.of("https://fake-folio/rtac")
+			.queryParam("instanceIds", instanceId)
+			// Full periodicals refers to items, without this parameter holdings will be returned instead of items
+			.queryParam("fullPeriodicals", true)
+			.build();
+
+		final var request = HttpRequest.create(HttpMethod.GET, uri.toString())
+			// Base 64 encoded API key
+			.header("Authorization", "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9")
+			// MUST explicitly accept JSON otherwise XML will be returned
+			.accept(APPLICATION_JSON);
+
+		return Mono.from(this.httpClient.retrieve(request, Argument.of(OuterHoldings.class)));
+	}
+
 	private Flux<Item> mapHoldingToItem(OuterHolding outerHoldings) {
 		return Flux.fromStream(outerHoldings.getHoldings().stream()
 			.map(holding -> Item.builder()
@@ -155,21 +171,5 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> deleteBib(String id) {
 		return Mono.just("DUMMY");
-	}
-
-	Mono<OuterHoldings> getHoldings(String instanceId) {
-		final var uri = UriBuilder.of("https://fake-folio/rtac")
-			.queryParam("instanceIds", instanceId)
-			// Full periodicals refers to items, without this parameter holdings will be returned instead of items
-			.queryParam("fullPeriodicals", true)
-			.build();
-
-		final var request = HttpRequest.create(HttpMethod.GET, uri.toString())
-			// Base 64 encoded API key
-			.header("Authorization", "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9")
-			// MUST explicitly accept JSON otherwise XML will be returned
-			.accept(APPLICATION_JSON);
-
-		return Mono.from(this.httpClient.retrieve(request, Argument.of(OuterHoldings.class)));
 	}
 }

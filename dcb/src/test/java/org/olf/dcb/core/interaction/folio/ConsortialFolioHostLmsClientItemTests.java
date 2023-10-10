@@ -22,7 +22,6 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.test.HostLmsFixture;
 
-import io.micronaut.http.client.HttpClient;
 import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -33,8 +32,6 @@ class ConsortialFolioHostLmsClientItemTests {
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
-	@Inject
-	private HttpClient httpClient;
 
 	@BeforeEach
 	public void beforeEach() {
@@ -42,7 +39,7 @@ class ConsortialFolioHostLmsClientItemTests {
 
 		hostLmsFixture.createFolioHostLms(HOST_LMS_CODE, "", "", "", "");
 	}
-	
+
 	@Test
 	void shouldBeAbleToGetItems(MockServerClient mockServerClient) {
 		// Arrange
@@ -72,7 +69,7 @@ class ConsortialFolioHostLmsClientItemTests {
 			))
 			.build());
 
-		final var client = hostLmsFixture.createFolioClient(HOST_LMS_CODE, httpClient);
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
 		// Act
 		final var items = client.getItems(BibRecord.builder()
