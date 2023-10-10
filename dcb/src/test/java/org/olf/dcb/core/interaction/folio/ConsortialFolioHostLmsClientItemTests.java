@@ -36,41 +36,29 @@ class ConsortialFolioHostLmsClientItemTests {
 	@Test
 	void shouldBeAbleToFetchHoldings(MockServerClient mockServerClient) {
 		// Arrange
-		mockServerClient
-			.when(org.mockserver.model.HttpRequest.request()
-				.withHeader("Accept", APPLICATION_JSON)
-				.withHeader("Host", "fake-folio")
-				.withHeader("Authorization", "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9")
-				.withQueryStringParameter("fullPeriodicals", "true")
-				.withQueryStringParameter("instanceIds", "d68dfc67-a947-4b7a-9833-b71155d67579")
-				.withPath("/rtac")
-			)
-			.respond(response()
-				.withStatusCode(200)
-				.withBody(json(OuterHoldings.builder()
+		mockHoldingsByInstanceId(mockServerClient, "d68dfc67-a947-4b7a-9833-b71155d67579", OuterHoldings.builder()
+			.holdings(List.of(
+				OuterHolding.builder()
+					.instanceId("d68dfc67-a947-4b7a-9833-b71155d67579")
 					.holdings(List.of(
-						OuterHolding.builder()
-							.instanceId("d68dfc67-a947-4b7a-9833-b71155d67579")
-							.holdings(List.of(
-								Holding.builder()
-									.id("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2")
-									.callNumber("QA273.A5450 1984")
-									.location("Crerar, Lower Level, Bookstacks")
-									.status("Available")
-									.permanentLoanType("stks")
-									.build(),
-								Holding.builder()
-									.id("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3")
-									.callNumber("QA273.A5450 1984")
-									.location("Social Service Administration")
-									.status("Available")
-									.permanentLoanType("stks")
-									.build()
-							))
+						Holding.builder()
+							.id("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2")
+							.callNumber("QA273.A5450 1984")
+							.location("Crerar, Lower Level, Bookstacks")
+							.status("Available")
+							.permanentLoanType("stks")
+							.build(),
+						Holding.builder()
+							.id("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3")
+							.callNumber("QA273.A5450 1984")
+							.location("Social Service Administration")
+							.status("Available")
+							.permanentLoanType("stks")
 							.build()
 					))
-					.build()))
-			);
+					.build()
+			))
+			.build());
 
 		// Act
 		final var response = getHoldings().block();
@@ -117,5 +105,23 @@ class ConsortialFolioHostLmsClientItemTests {
 			.accept(APPLICATION_JSON);
 
 		return Mono.from(client.retrieve(request, Argument.of(OuterHoldings.class)));
+	}
+
+	private static void mockHoldingsByInstanceId(MockServerClient mockServerClient,
+		String instanceId, OuterHoldings holdings) {
+
+		mockServerClient
+			.when(org.mockserver.model.HttpRequest.request()
+				.withHeader("Accept", APPLICATION_JSON)
+				.withHeader("Host", "fake-folio")
+				.withHeader("Authorization", "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9")
+				.withQueryStringParameter("fullPeriodicals", "true")
+				.withQueryStringParameter("instanceIds", instanceId)
+				.withPath("/rtac")
+			)
+			.respond(response()
+				.withStatusCode(200)
+				.withBody(json(holdings))
+			);
 	}
 }
