@@ -1,32 +1,42 @@
 package services.k_int.interaction.polaris;
 
-import io.micronaut.context.annotation.Property;
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.model.*;
-import org.olf.dcb.ingest.IngestService;
-import org.olf.dcb.test.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import services.k_int.test.mockserver.MockServerMicronautTest;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.ItemStatus;
+import org.olf.dcb.core.model.ItemStatusCode;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.ingest.IngestService;
+import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.test.BibRecordFixture;
+import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.micronaut.context.annotation.Property;
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import jakarta.inject.Inject;
+import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @MicronautTest(transactional = false, rebuildContext = true)
@@ -96,7 +106,7 @@ public class HostLmsPAPIClientTests {
 			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "items-get.json")));
 		// Act
 		final var itemsList = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.getItemsByBibId(String.valueOf(bibRecordId), HOST_LMS_CODE).block();
+			.getItemsByBibId(String.valueOf(bibRecordId)).block();
 		// Assert
 		assertThat(itemsList, is(notNullValue()));
 		assertThat(itemsList.size(), is(3));

@@ -337,7 +337,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode) {
+	public Mono<List<Item>> getItemsByBibId(String bibId) {
 		log.debug("getItemsByBibId({})", bibId);
 
 		return Mono

@@ -91,7 +91,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return Flux.empty();
 	}
 
-	public Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode) {
+	public Mono<List<Item>> getItemsByBibId(String bibId) {
 		// All Dummy systems return holdings for each shelving location
 		log.debug("getItemsByBibId({},{})", bibId, lms.getCode());
 		String shelvingLocations = (String) lms.getClientConfig().get("shelving-locations");

@@ -29,7 +29,7 @@ public interface HostLmsClient {
 
 	List<HostLmsPropertyDefinition> getSettings();
 
-	Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode);
+	Mono<List<Item>> getItemsByBibId(String bibId);
 
 	Mono<String> createPatron(Patron patron);
 
