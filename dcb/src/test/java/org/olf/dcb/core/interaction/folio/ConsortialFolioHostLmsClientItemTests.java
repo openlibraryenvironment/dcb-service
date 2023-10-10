@@ -20,13 +20,8 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.test.HostLmsFixture;
 
-import io.micronaut.core.type.Argument;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.uri.UriBuilder;
 import jakarta.inject.Inject;
-import reactor.core.publisher.Mono;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -73,10 +68,10 @@ class ConsortialFolioHostLmsClientItemTests {
 			))
 			.build());
 
-		hostLmsFixture.createFolioClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createFolioClient(HOST_LMS_CODE);
 
 		// Act
-		final var response = getHoldings(httpClient).block();
+		final var response = client.getHoldings(httpClient).block();
 
 		// Assert
 		assertThat("Response should not be null", response, is(notNullValue()));
@@ -106,20 +101,6 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasProperty("permanentLoanType", is("stks"))
 				)
 			));
-	}
-
-	private Mono<OuterHoldings> getHoldings(HttpClient httpClient) {
-		final var uri = UriBuilder.of("https://fake-folio/rtac")
-			.queryParam("instanceIds", "d68dfc67-a947-4b7a-9833-b71155d67579")
-			.queryParam("fullPeriodicals", true)
-			.build();
-
-		final var request = HttpRequest.create(HttpMethod.GET, uri.toString())
-			// Base 64 encoded API key
-			.header("Authorization", "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9")
-			.accept(APPLICATION_JSON);
-
-		return Mono.from(httpClient.retrieve(request, Argument.of(OuterHoldings.class)));
 	}
 
 	private static void mockHoldingsByInstanceId(MockServerClient mockServerClient,
