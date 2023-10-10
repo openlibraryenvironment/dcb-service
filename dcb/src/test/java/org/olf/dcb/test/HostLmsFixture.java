@@ -42,10 +42,6 @@ public class HostLmsFixture {
 		this.numericRangeMappingFixture = numericRangeMappingFixture;
 	}
 
-	public DataHostLms createHostLms(DataHostLms hostLms) {
-		return singleValueFrom(hostLmsRepository.save(hostLms));
-	}
-
 	public DataHostLms createHostLms(UUID id, String code) {
 		return createHostLms(new DataHostLms(id, code, "Test Host LMS",
 			SierraLmsClient.class.getCanonicalName(), Map.of()));
@@ -109,6 +105,10 @@ public class HostLmsFixture {
 				.lmsClientClass(PAPILmsClient.class.getCanonicalName())
 				.clientConfig(clientConfig)
 				.build());
+	}
+
+	private DataHostLms createHostLms(DataHostLms hostLms) {
+		return singleValueFrom(hostLmsRepository.save(hostLms));
 	}
 
 	public void deleteAll() {
