@@ -346,7 +346,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 								"status", "volumes", "barcode", "callNumber", "itemType", "transitInfo", "copyNo", "holdCount",
 								"fixedFields", "varFields"))))
 				.map(ResultSet::getEntries).flatMapMany(Flux::fromIterable)
-				.flatMap(result -> itemResultToItemMapper.mapResultToItem(result, hostLmsCode, bibId)).collectList();
+				.flatMap(result -> itemResultToItemMapper.mapResultToItem(result, lms.getCode(), bibId)).collectList();
 	}
 
 	public Mono<Patron> patronFind(String varFieldTag, String varFieldContent) {
