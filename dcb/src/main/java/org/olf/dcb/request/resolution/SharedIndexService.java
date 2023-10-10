@@ -12,17 +12,15 @@ import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.ClusterRecordRepository;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Prototype
 public class SharedIndexService {
-	private static final Logger log = LoggerFactory.getLogger(SharedIndexService.class);
-
 	private final ClusterRecordRepository clusterRecordRepository;
 	private final BibRepository bibRepository;
 	private final HostLmsService hostLmsService;
