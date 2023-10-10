@@ -14,9 +14,11 @@ import static org.mockserver.model.JsonBody.json;
 
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.test.HostLmsFixture;
 
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpMethod;
@@ -31,7 +33,14 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(PER_CLASS)
 class ConsortialFolioHostLmsClientItemTests {
 	@Inject
+	private HostLmsFixture hostLmsFixture;
+	@Inject
 	private HttpClient client;
+
+	@BeforeEach
+	public void beforeEach() {
+		hostLmsFixture.deleteAll();
+	}
 
 	@Test
 	void shouldBeAbleToFetchHoldings(MockServerClient mockServerClient) {
