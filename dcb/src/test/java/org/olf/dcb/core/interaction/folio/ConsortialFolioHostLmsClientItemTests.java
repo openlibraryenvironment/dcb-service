@@ -37,7 +37,7 @@ class ConsortialFolioHostLmsClientItemTests {
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
-	private HttpClient client;
+	private HttpClient httpClient;
 
 	@BeforeEach
 	public void beforeEach() {
@@ -76,7 +76,7 @@ class ConsortialFolioHostLmsClientItemTests {
 		hostLmsFixture.createFolioClient(HOST_LMS_CODE);
 
 		// Act
-		final var response = getHoldings().block();
+		final var response = getHoldings(httpClient).block();
 
 		// Assert
 		assertThat("Response should not be null", response, is(notNullValue()));
@@ -108,7 +108,7 @@ class ConsortialFolioHostLmsClientItemTests {
 			));
 	}
 
-	private Mono<OuterHoldings> getHoldings() {
+	private Mono<OuterHoldings> getHoldings(HttpClient httpClient) {
 		final var uri = UriBuilder.of("https://fake-folio/rtac")
 			.queryParam("instanceIds", "d68dfc67-a947-4b7a-9833-b71155d67579")
 			.queryParam("fullPeriodicals", true)
@@ -119,7 +119,7 @@ class ConsortialFolioHostLmsClientItemTests {
 			.header("Authorization", "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9")
 			.accept(APPLICATION_JSON);
 
-		return Mono.from(client.retrieve(request, Argument.of(OuterHoldings.class)));
+		return Mono.from(httpClient.retrieve(request, Argument.of(OuterHoldings.class)));
 	}
 
 	private static void mockHoldingsByInstanceId(MockServerClient mockServerClient,
