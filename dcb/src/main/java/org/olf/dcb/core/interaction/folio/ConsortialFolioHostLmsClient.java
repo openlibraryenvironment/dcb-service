@@ -136,9 +136,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return Mono.just("DUMMY");
 	}
 
-	Mono<OuterHoldings> getHoldings() {
+	Mono<OuterHoldings> getHoldings(String instanceId) {
 		final var uri = UriBuilder.of("https://fake-folio/rtac")
-			.queryParam("instanceIds", "d68dfc67-a947-4b7a-9833-b71155d67579")
+			.queryParam("instanceIds", instanceId)
 			// Full periodicals refers to items, without this parameter holdings will be returned instead of items
 			.queryParam("fullPeriodicals", true)
 			.build();

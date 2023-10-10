@@ -13,6 +13,7 @@ import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,10 +45,12 @@ class ConsortialFolioHostLmsClientItemTests {
 	@Test
 	void shouldBeAbleToFetchHoldings(MockServerClient mockServerClient) {
 		// Arrange
-		mockHoldingsByInstanceId(mockServerClient, "d68dfc67-a947-4b7a-9833-b71155d67579", OuterHoldings.builder()
+		final var instanceId = UUID.randomUUID().toString();
+
+		mockHoldingsByInstanceId(mockServerClient, instanceId, OuterHoldings.builder()
 			.holdings(List.of(
 				OuterHolding.builder()
-					.instanceId("d68dfc67-a947-4b7a-9833-b71155d67579")
+					.instanceId(instanceId)
 					.holdings(List.of(
 						Holding.builder()
 							.id("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2")
@@ -71,7 +74,7 @@ class ConsortialFolioHostLmsClientItemTests {
 		final var client = hostLmsFixture.createFolioClient(HOST_LMS_CODE, httpClient);
 
 		// Act
-		final var response = client.getHoldings().block();
+		final var response = client.getHoldings(instanceId).block();
 
 		// Assert
 		assertThat("Response should not be null", response, is(notNullValue()));
@@ -80,7 +83,7 @@ class ConsortialFolioHostLmsClientItemTests {
 		final var onlyOuterHolding = response.getHoldings().get(0);
 
 		assertThat("Should have instance ID",
-			onlyOuterHolding.getInstanceId(), is("d68dfc67-a947-4b7a-9833-b71155d67579"));
+			onlyOuterHolding.getInstanceId(), is(instanceId));
 
 		assertThat("Should have 2 holdings", onlyOuterHolding.getHoldings(), hasSize(2));
 
