@@ -13,6 +13,6 @@ import lombok.Data;
 @Builder
 public class Bib {
 	private final UUID id;
-	private final String bibRecordId;
+	private final String sourceRecordId;
 	private final HostLms hostLms;
 }

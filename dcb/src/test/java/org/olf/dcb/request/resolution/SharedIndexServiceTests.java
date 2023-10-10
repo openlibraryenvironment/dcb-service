@@ -83,12 +83,12 @@ class SharedIndexServiceTests {
 			clusteredBib.getBibs(), containsInAnyOrder(
 				allOf(
 					hasId(firstBibRecordId),
-					hasBibRecordId("798472"),
+					hasSourceRecordId("798472"),
 					hasHostLmsCode("SECOND-HOST-LMS")
 				),
 				allOf(
 					hasProperty("id", is(secondBibRecordId)),
-					hasBibRecordId("896857"),
+					hasSourceRecordId("896857"),
 					hasHostLmsCode("FIRST-HOST-LMS")
 				)
 			));
@@ -147,8 +147,8 @@ class SharedIndexServiceTests {
 		return hasProperty("id", is(expectedId));
 	}
 
-	private static Matcher<Bib> hasBibRecordId(String expectedId) {
-		return hasProperty("bibRecordId", is(expectedId));
+	private static Matcher<Bib> hasSourceRecordId(String expectedId) {
+		return hasProperty("sourceRecordId", is(expectedId));
 	}
 
 	private static Matcher<Bib> hasHostLmsCode(String expectedCode) {
