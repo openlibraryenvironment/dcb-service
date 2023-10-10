@@ -92,8 +92,8 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	public Mono<List<Item>> getItemsByBibId(String bibId, String hostLmsCode) {
-		// All Dummy systems return holdins for each shelving location
-		log.debug("getItemsByBibId({},{})", bibId, hostLmsCode);
+		// All Dummy systems return holdings for each shelving location
+		log.debug("getItemsByBibId({},{})", bibId, lms.getCode());
 		String shelvingLocations = (String) lms.getClientConfig().get("shelving-locations");
 		if (shelvingLocations != null) {
 			int n = 0;
@@ -101,7 +101,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 			String[] locs = shelvingLocations.split(",");
 			for (String s : locs) {
 				result_items.add(Item.builder().id(bibId + "-i" + n).bibId(bibId)
-						.status(new ItemStatus(ItemStatusCode.AVAILABLE)).hostLmsCode(hostLmsCode)
+						.status(new ItemStatus(ItemStatusCode.AVAILABLE)).hostLmsCode(lms.getCode())
 						// .dueDate(parsedDueDate)
 						.location(org.olf.dcb.core.model.Location.builder().code(s).name(s).build()).barcode(bibId + "-i" + n)
 						.callNumber("CN-" + bibId).holdCount(0).localItemType("Books/Monographs").localItemTypeCode("BKM")
@@ -109,7 +109,6 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 				n++;
 			}
 
-			/// return Mono.just(result_items)
 			return Flux.fromIterable(result_items)
 					.flatMap(
 							item -> enrichItemAgencyFromShelvingLocation(item, item.getHostLmsCode(), item.getLocation().getCode()))
