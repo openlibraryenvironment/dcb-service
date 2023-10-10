@@ -35,6 +35,13 @@ public class ItemMatchers {
 		));
 	}
 
+	public static Matcher<Item> hasLocation(String expectedName) {
+		return hasProperty("location", allOf(
+			hasProperty("name", is(expectedName)),
+			hasProperty("code", is(nullValue()))
+		));
+	}
+
 	public static Matcher<Item> hasDueDate(String expectedDueDate) {
 		return hasProperty("dueDate", is(Instant.parse(expectedDueDate)));
 	}
