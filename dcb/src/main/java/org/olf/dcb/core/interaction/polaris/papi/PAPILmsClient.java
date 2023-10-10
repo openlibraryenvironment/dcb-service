@@ -1,7 +1,56 @@
 package org.olf.dcb.core.interaction.polaris.papi;
 
+import static io.micronaut.http.HttpMethod.GET;
+import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.String.valueOf;
+import static java.util.Collections.singletonList;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.polaris.papi.MarcConverter.convertToMarcRecord;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.APP_ID;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.CLIENT_BASE_URL;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.LANG_ID;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.MAX_BIBS;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.ORG_ID;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.UUID5_PREFIX;
+import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.VERSION;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Consumer;
+
+import org.marc4j.marc.Record;
+import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsHold;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
+import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.ingest.marc.MarcIngestSource;
+import org.olf.dcb.ingest.model.IngestRecord;
+import org.olf.dcb.ingest.model.RawSource;
+import org.olf.dcb.storage.RawSourceRepository;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
@@ -18,46 +67,13 @@ import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.json.tree.JsonNode;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import org.marc4j.marc.Record;
-import org.olf.dcb.configuration.ConfigurationRecord;
-import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
-import org.olf.dcb.core.interaction.shared.PublisherState;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.ingest.marc.MarcIngestSource;
-import org.olf.dcb.ingest.model.IngestRecord;
-import org.olf.dcb.ingest.model.RawSource;
-import org.olf.dcb.storage.RawSourceRepository;
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import io.micronaut.context.annotation.Parameter;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import services.k_int.utils.UUIDUtils;
-
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.function.Consumer;
-
-import static io.micronaut.http.HttpMethod.GET;
-import static io.micronaut.http.HttpMethod.POST;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static java.lang.String.valueOf;
-import static java.util.Collections.singletonList;
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.dcb.core.interaction.polaris.papi.MarcConverter.convertToMarcRecord;
-import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.*;
 
 @Prototype
 public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRow>, HostLmsClient{
@@ -132,7 +148,7 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 			uri -> uri.queryParam("excludeecontent", false))
 			.map(ItemGetResponse::getItemGetRows)
 			.flatMapMany(Flux::fromIterable)
-			.flatMap(result -> itemResultToItemMapper.mapItemGetRowToItem(result, hostLmsCode, bibId))
+			.flatMap(result -> itemResultToItemMapper.mapItemGetRowToItem(result, lms.getCode(), bibId))
 			.collectList();
 	}
 
