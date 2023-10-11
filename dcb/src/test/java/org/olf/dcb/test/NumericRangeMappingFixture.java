@@ -19,7 +19,7 @@ public class NumericRangeMappingFixture {
 		this.repository = repository;
 	}
 
-	public void createNumericRangeMapping(String system, String domain,
+	public void createMapping(String system, String domain,
 		Long lowerBound, Long upperBound, String targetContext, String targetValue) {
 
 		log.debug("createNumericRangeMapping({},{},{},{},{},{})", system, domain,

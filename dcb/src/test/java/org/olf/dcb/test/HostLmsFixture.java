@@ -69,7 +69,7 @@ public class HostLmsFixture {
 				.build());
 
 		log.debug("Creating numeric range mapping");
-		numericRangeMappingFixture.createNumericRangeMapping(code, "ItemType", 998L, 1001L, "DCB", "BKM");
+		numericRangeMappingFixture.createMapping(code, "ItemType", 998L, 1001L, "DCB", "BKM");
 
 		return result;
 	}
