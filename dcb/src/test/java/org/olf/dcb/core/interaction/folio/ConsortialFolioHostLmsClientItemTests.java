@@ -42,7 +42,8 @@ class ConsortialFolioHostLmsClientItemTests {
 	public void beforeEach() {
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createFolioHostLms(HOST_LMS_CODE, "", API_KEY, "", "");
+		hostLmsFixture.createFolioHostLms(HOST_LMS_CODE, "https://fake-folio",
+			API_KEY, "", "");
 	}
 
 	@Test
@@ -50,7 +51,7 @@ class ConsortialFolioHostLmsClientItemTests {
 		// Arrange
 		final var instanceId = UUID.randomUUID().toString();
 
-		mockHoldingsByInstanceId(mockServerClient, API_KEY, instanceId, OuterHoldings.builder()
+		mockHoldingsByInstanceId(mockServerClient, "fake-folio", API_KEY, instanceId, OuterHoldings.builder()
 			.holdings(List.of(
 				OuterHolding.builder()
 					.instanceId(instanceId)
@@ -107,12 +108,12 @@ class ConsortialFolioHostLmsClientItemTests {
 	}
 
 	private static void mockHoldingsByInstanceId(MockServerClient mockServerClient,
-		String apiKey, String instanceId, OuterHoldings holdings) {
+		String host, String apiKey, String instanceId, OuterHoldings holdings) {
 
 		mockServerClient
 			.when(org.mockserver.model.HttpRequest.request()
 				.withHeader("Accept", APPLICATION_JSON)
-				.withHeader("Host", "fake-folio")
+				.withHeader("Host", host)
 				.withHeader("Authorization", apiKey)
 				.withQueryStringParameter("fullPeriodicals", "true")
 				.withQueryStringParameter("instanceIds", instanceId)

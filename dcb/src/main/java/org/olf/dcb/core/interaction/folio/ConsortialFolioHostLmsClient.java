@@ -6,6 +6,7 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlProperty
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +20,7 @@ import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
@@ -40,6 +42,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private final HttpClient httpClient;
 	private final String apiKey;
+	private final URI rootUri;
 
 	public ConsortialFolioHostLmsClient(@Parameter HostLms hostLms, @Parameter("client") HttpClient httpClient) {
 		this.hostLms = hostLms;
@@ -48,6 +51,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		// These are the same config keys as from FolioOaiPmhIngestSource
 		// which was implemented prior to this client
 		this.apiKey = getConfigValue(hostLms.getClientConfig(), "apikey");
+		this.rootUri = UriBuilder.of(getConfigValue(hostLms.getClientConfig(), "base-url")).build();
 	}
 
 	@Override
@@ -69,13 +73,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<OuterHoldings> getHoldings(String instanceId) {
-		final var uri = UriBuilder.of("https://fake-folio/rtac")
-			.queryParam("instanceIds", instanceId)
-			// Full periodicals refers to items, without this parameter holdings will be returned instead of items
-			.queryParam("fullPeriodicals", true)
-			.build();
+		final var relativeUri = UriBuilder.of("/rtac").build();
 
-		final var request = HttpRequest.create(HttpMethod.GET, uri.toString())
+		final var request = HttpRequest.create(HttpMethod.GET, resolve(relativeUri).toString())
+			.uri(uriBuilder -> uriBuilder
+				.queryParam("instanceIds", instanceId)
+				// Full periodicals refers to items, without this parameter holdings will be returned instead of items
+				.queryParam("fullPeriodicals", true)
+			)
 			// Base 64 encoded API key
 			.header("Authorization", apiKey)
 			// MUST explicitly accept JSON otherwise XML will be returned
@@ -178,6 +183,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> deleteBib(String id) {
 		return Mono.just("DUMMY");
+	}
+
+	private URI resolve(URI relativeURI) {
+		return RelativeUriResolver.resolve(rootUri, relativeURI);
 	}
 
 	private static String getConfigValue(Map<String, Object> clientConfig, String key) {
