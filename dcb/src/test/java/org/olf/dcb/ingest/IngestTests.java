@@ -13,7 +13,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.ingest.IngestService;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.test.HostLmsFixture;
 import org.slf4j.Logger;
@@ -62,7 +61,7 @@ public class IngestTests {
 		final String KEY = "ingest-service-key";
 		final String SECRET = "ingest-service-secret";
 
-		hostLmsFixture.deleteAllHostLMS();
+		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 

@@ -111,7 +111,7 @@ class PatronRequestApiTests {
 
 		SierraTestUtils.mockFor(mock, BASE_URL).setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		hostLmsFixture.deleteAllHostLMS();
+		hostLmsFixture.deleteAll();
 
 		DataHostLms h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
                 log.debug("Created dataHostLms {}",h1);
@@ -223,7 +223,7 @@ class PatronRequestApiTests {
 	void afterAll() {
 		Mono.from(shelvingLocationRepository.deleteByCode("ab6")).block();
 		Mono.from(agencyRepository.deleteByCode("ab6")).block();
-		hostLmsFixture.deleteAllHostLMS();
+		hostLmsFixture.deleteAll();
 	}
 
 	@Test

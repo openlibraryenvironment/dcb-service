@@ -38,7 +38,7 @@ class AgencyAPITests {
 
 	@BeforeEach
 	void beforeEach() {
-		hostLmsFixture.deleteAllHostLMS();
+		hostLmsFixture.deleteAll();
 		agencyRepository.deleteAll();
 	}
 

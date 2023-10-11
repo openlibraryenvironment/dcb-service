@@ -16,7 +16,6 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.item.availability.LiveAvailabilityService;
 import org.olf.dcb.request.resolution.SharedIndexService;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -69,7 +68,7 @@ class LiveAvailabilityServiceTests {
 		SierraTestUtils.mockFor(mock, SECOND_HOST_LMS_BASE_URL)
 			.setValidCredentials(SECOND_SYSTEM_KEY, SECOND_SYSTEM_SECRET, SECOND_SYSTEM_TOKEN, 60);
 
-		hostLmsFixture.deleteAllHostLMS();
+		hostLmsFixture.deleteAll();
 
 		firstHostLms = hostLmsFixture.createSierraHostLms(FIRST_HOST_LMS_KEY,
 			FIRST_HOST_LMS_SECRET, FIRST_HOST_LMS_BASE_URL, FIRST_HOST_LMS_CODE);

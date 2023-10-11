@@ -100,7 +100,7 @@ public class HostLmsFixture {
 				.build());
 	}
 
-	public void deleteAllHostLMS() {
+	public void deleteAll() {
 		dataAccess.deleteAll(agencyRepository.queryAll(),
 			agency -> agencyRepository.delete(agency.getId()));
 

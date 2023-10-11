@@ -65,7 +65,7 @@ public class PatronAuthApiTests {
 		final String KEY = "patron-auth-key";
 		final String SECRET = "patron-auth-secret";
 
-		hostLmsFixture.deleteAllHostLMS();
+		hostLmsFixture.deleteAll();
 		agencyRepository.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);

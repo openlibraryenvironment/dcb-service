@@ -64,7 +64,7 @@ public class ValidatePatronTests {
 		SierraTestUtils.mockFor(mock, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		hostLmsFixture.deleteAllHostLMS();
+		hostLmsFixture.deleteAll();
 		DataHostLms s1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 
 		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);

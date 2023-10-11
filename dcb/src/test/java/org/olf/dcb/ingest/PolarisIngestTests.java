@@ -59,7 +59,7 @@ public class PolarisIngestTests {
 		final String SECRET = "ingest-service-secret";
 		final String DOMAIN = "TEST";
 
-		hostLmsFixture.deleteAllHostLMS();
+		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createPAPIHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, DOMAIN, KEY, SECRET);
 		var mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);

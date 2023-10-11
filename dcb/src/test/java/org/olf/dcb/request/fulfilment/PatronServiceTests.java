@@ -4,7 +4,6 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.olf.dcb.request.fulfilment.PatronService;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
@@ -28,7 +27,7 @@ class PatronServiceTests {
 	@BeforeEach
 	void beforeEach() {
 		patronFixture.deleteAllPatrons();
-		hostLmsFixture.deleteAllHostLMS();
+		hostLmsFixture.deleteAll();
 	}
 
 	@Test

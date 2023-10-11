@@ -11,7 +11,6 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.storage.HostLmsRepository;
@@ -31,7 +30,7 @@ class HostLmsTests {
 
 	@BeforeEach
 	void beforeEach() {
-		hostLmsFixture.deleteAllHostLMS();
+		hostLmsFixture.deleteAll();
 	}
 
 	@Test

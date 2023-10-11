@@ -62,7 +62,7 @@ class ClusterRecordTests {
 		final String KEY = "cluster-record-key";
 		final String SECRET = "cluster-record-secret";
 
-		hostLmsFixture.deleteAllHostLMS();
+		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 

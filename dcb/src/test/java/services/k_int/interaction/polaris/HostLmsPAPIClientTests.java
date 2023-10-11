@@ -79,7 +79,7 @@ public class HostLmsPAPIClientTests {
 		final String SECRET = "polaris-hostlms-test-secret";
 		final String DOMAIN = "TEST";
 
-		hostLmsFixture.deleteAllHostLMS();
+		hostLmsFixture.deleteAll();
 
 		polarisHostLms = hostLmsFixture.createPAPIHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, DOMAIN, KEY, SECRET);
 		mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);

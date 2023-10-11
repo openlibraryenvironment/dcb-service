@@ -50,7 +50,7 @@ class SierraApiLoginTests {
 	void beforeAll() {
 		final String BASE_URL = "https://login-api-tests.com";
 
-		hostLmsFixture.deleteAllHostLMS();
+		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 	}
