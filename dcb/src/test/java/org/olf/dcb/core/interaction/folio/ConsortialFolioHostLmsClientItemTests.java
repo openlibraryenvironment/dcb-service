@@ -1,8 +1,11 @@
 package org.olf.dcb.core.interaction.folio;
 
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
@@ -107,5 +110,19 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasLocation("Social Service Administration")
 				)
 			));
+	}
+
+	@Test
+	void shouldDefineAvailableSettings() {
+		final var settings = client.getSettings();
+
+		assertThat("Should have expected settings", settings, containsInAnyOrder(
+			allOf(
+				hasProperty("name", is("base-url")),
+				hasProperty("description", is("Base URL Of FOLIO System")),
+				hasProperty("mandatory", is(true)),
+				hasProperty("typeCode", is("URL"))
+			)
+		));
 	}
 }
