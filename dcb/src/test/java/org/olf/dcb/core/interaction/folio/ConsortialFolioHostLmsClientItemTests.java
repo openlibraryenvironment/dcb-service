@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
@@ -29,15 +30,15 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 class ConsortialFolioHostLmsClientItemTests {
-	private static final String HOST_LMS_CODE = "folio-lms-client-item-tests";
-	
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	private MockFolioFixture mockFolioFixture;
+	private HostLmsClient client;
 
 	@BeforeEach
 	public void beforeEach(MockServerClient mockServerClient) {
 		final var API_KEY = "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9";
+		final var HOST_LMS_CODE = "folio-lms-client-item-tests";
 
 		hostLmsFixture.deleteAll();
 
@@ -45,6 +46,8 @@ class ConsortialFolioHostLmsClientItemTests {
 			API_KEY, "", "");
 
 		mockFolioFixture = new MockFolioFixture(mockServerClient, "fake-folio", API_KEY);
+
+		client = hostLmsFixture.createClient(HOST_LMS_CODE);
 	}
 
 	@Test
@@ -75,8 +78,6 @@ class ConsortialFolioHostLmsClientItemTests {
 					.build()
 			))
 			.build());
-
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
 		// Act
 		final var items = client.getItems(BibRecord.builder()
