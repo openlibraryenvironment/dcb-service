@@ -16,7 +16,6 @@ import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.UUID5_PREF
 import static org.olf.dcb.core.interaction.polaris.papi.PAPIConstants.VERSION;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -35,6 +34,7 @@ import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.HostLms;
@@ -57,7 +57,6 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
-import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -169,28 +168,6 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 		return String.format("/%s/%s/%s/%s", version, langId, appId, orgId);
 	}
 
-	private static URI resolve(URI baseUri, URI relativeURI) {
-		URI thisUri = baseUri;
-
-		// if the URI features credentials strip this out
-		if (StringUtils.isNotEmpty(thisUri.getUserInfo())) {
-			try {
-				thisUri = new URI(thisUri.getScheme(), null, thisUri.getHost(), thisUri.getPort(), thisUri.getPath(),
-					thisUri.getQuery(), thisUri.getFragment());
-			} catch (URISyntaxException e) {
-				throw new IllegalStateException("URI is invalid: " + e.getMessage(), e);
-			}
-		}
-
-		final var rawQuery = thisUri.getRawQuery();
-
-		if (StringUtils.isNotEmpty(rawQuery)) {
-			return thisUri.resolve(relativeURI + "?" + rawQuery);
-		} else {
-			return thisUri.resolve(relativeURI);
-		}
-	}
-
 	public <T> Mono<HttpResponse<T>> exchange(MutableHttpRequest<?> request, Class<T> returnClass) {
 		return Mono.from(client.exchange(request, returnClass));
 	}
@@ -222,7 +199,7 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 	}
 
 	URI resolve(URI relativeURI) {
-		return resolve(rootUri, relativeURI);
+		return RelativeUriResolver.resolve(rootUri, relativeURI);
 	}
 
 	public UUID uuid5ForBibPagedRow(@NotNull final BibsPagedRow result) {

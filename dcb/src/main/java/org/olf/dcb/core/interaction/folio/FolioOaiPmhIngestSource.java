@@ -6,7 +6,6 @@ import static java.lang.Integer.parseInt;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
@@ -17,6 +16,7 @@ import java.util.function.Consumer;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.ingest.marc.MarcIngestSource;
@@ -263,31 +263,9 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	}
 
 	private URI resolve(URI relativeURI) {
-		return resolve(rootUri, relativeURI);
+		return RelativeUriResolver.resolve(rootUri, relativeURI);
 	}
 
-	private static URI resolve(URI baseUri, URI relativeURI) {
-		URI thisUri = baseUri;
-
-		// if the URI features credentials strip this out
-		if (StringUtils.isNotEmpty(thisUri.getUserInfo())) {
-			try {
-				thisUri = new URI(thisUri.getScheme(), null, thisUri.getHost(), thisUri.getPort(), thisUri.getPath(),
-					thisUri.getQuery(), thisUri.getFragment());
-			} catch (URISyntaxException e) {
-				throw new IllegalStateException("URI is invalid: " + e.getMessage(), e);
-			}
-		}
-
-		final var rawQuery = thisUri.getRawQuery();
-
-		if (StringUtils.isNotEmpty(rawQuery)) {
-			return thisUri.resolve(relativeURI + "?" + rawQuery);
-		} else {
-			return thisUri.resolve(relativeURI);
-		}
-	}
-	
 	private <T> Mono<MutableHttpRequest<T>> createRequest(HttpMethod method, String path) {
 		return Mono.just(UriBuilder.of(path).build())
 			.map(this::resolve)
