@@ -7,7 +7,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
-import io.micronaut.core.annotation.Nullable;
 
 @Builder
 @Data
@@ -16,8 +15,8 @@ import io.micronaut.core.annotation.Nullable;
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
 public class HostLmsPropertyDefinition {
-        private String name;
-        private String description;
-        private Boolean mandatory;
-        private String typeCode;
+	private String name;
+	private String description;
+	private Boolean mandatory;
+	private String typeCode;
 }
