@@ -33,6 +33,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(PER_CLASS)
 class ConsortialFolioHostLmsClientItemTests {
 	private static final String HOST_LMS_CODE = "folio-lms-client-item-tests";
+	private static final String API_KEY = "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9";
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
@@ -41,7 +42,7 @@ class ConsortialFolioHostLmsClientItemTests {
 	public void beforeEach() {
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createFolioHostLms(HOST_LMS_CODE, "", "", "", "");
+		hostLmsFixture.createFolioHostLms(HOST_LMS_CODE, "", API_KEY, "", "");
 	}
 
 	@Test
@@ -49,7 +50,7 @@ class ConsortialFolioHostLmsClientItemTests {
 		// Arrange
 		final var instanceId = UUID.randomUUID().toString();
 
-		mockHoldingsByInstanceId(mockServerClient, instanceId, OuterHoldings.builder()
+		mockHoldingsByInstanceId(mockServerClient, API_KEY, instanceId, OuterHoldings.builder()
 			.holdings(List.of(
 				OuterHolding.builder()
 					.instanceId(instanceId)
@@ -106,13 +107,13 @@ class ConsortialFolioHostLmsClientItemTests {
 	}
 
 	private static void mockHoldingsByInstanceId(MockServerClient mockServerClient,
-		String instanceId, OuterHoldings holdings) {
+		String apiKey, String instanceId, OuterHoldings holdings) {
 
 		mockServerClient
 			.when(org.mockserver.model.HttpRequest.request()
 				.withHeader("Accept", APPLICATION_JSON)
 				.withHeader("Host", "fake-folio")
-				.withHeader("Authorization", "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9")
+				.withHeader("Authorization", apiKey)
 				.withQueryStringParameter("fullPeriodicals", "true")
 				.withQueryStringParameter("instanceIds", instanceId)
 				.withPath("/rtac")

@@ -4,8 +4,10 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static services.k_int.utils.MapUtils.getAsOptionalString;
 
 import java.util.List;
+import java.util.Map;
 
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
@@ -37,10 +39,15 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private final HostLms hostLms;
 
 	private final HttpClient httpClient;
+	private final String apiKey;
 
 	public ConsortialFolioHostLmsClient(@Parameter HostLms hostLms, @Parameter("client") HttpClient httpClient) {
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
+
+		// These are the same config keys as from FolioOaiPmhIngestSource
+		// which was implemented prior to this client
+		this.apiKey = getConfigValue(hostLms.getClientConfig(), "apikey");
 	}
 
 	@Override
@@ -70,7 +77,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var request = HttpRequest.create(HttpMethod.GET, uri.toString())
 			// Base 64 encoded API key
-			.header("Authorization", "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9")
+			.header("Authorization", apiKey)
 			// MUST explicitly accept JSON otherwise XML will be returned
 			.accept(APPLICATION_JSON);
 
@@ -154,10 +161,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
 		return Mono.just("Dummy");
 	}
+
 	// WARNING We might need to make this accept a patronIdentity - as different
 
 	// systems might take different ways to identify the patron
-
 	@Override
 	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
 		return Mono.just("DUMMY");
@@ -171,5 +178,15 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> deleteBib(String id) {
 		return Mono.just("DUMMY");
+	}
+
+	private static String getConfigValue(Map<String, Object> clientConfig, String key) {
+		final var optionalConfigValue = getAsOptionalString(clientConfig, key);
+
+		if (optionalConfigValue.isEmpty()) {
+			throw new IllegalArgumentException("Missing required configuration property: \"" + key + "\"");
+		}
+
+		return optionalConfigValue.get();
 	}
 }
