@@ -13,23 +13,17 @@ import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.core.model.NumericRangeMapping;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
-import org.olf.dcb.storage.NumericRangeMappingRepository;
-
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.http.client.HttpClient;
-import services.k_int.utils.UUIDUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.http.client.HttpClient;
 
 @Prototype
 public class HostLmsFixture {
-
-        private final Logger log = LoggerFactory.getLogger(HostLmsFixture.class);
+	private final Logger log = LoggerFactory.getLogger(HostLmsFixture.class);
 
 	private final DataAccess dataAccess = new DataAccess();
 
@@ -37,40 +31,22 @@ public class HostLmsFixture {
 	private final HostLmsService hostLmsService;
 	private final AgencyRepository agencyRepository;
 	private final PatronFixture patronFixture;
-	private final NumericRangeMappingRepository numericRangeMappingRepository;
+	private final NumericRangeMappingFixture numericRangeMappingFixture;
 
 	public HostLmsFixture(HostLmsRepository hostLmsRepository,
 		HostLmsService hostLmsService, AgencyRepository agencyRepository,
-		PatronFixture patronFixture,
-                NumericRangeMappingRepository numericRangeMappingRepository) {
+		PatronFixture patronFixture, NumericRangeMappingFixture numericRangeMappingFixture) {
 
 		this.hostLmsRepository = hostLmsRepository;
 		this.hostLmsService = hostLmsService;
 		this.agencyRepository = agencyRepository;
 		this.patronFixture = patronFixture;
-		this.numericRangeMappingRepository = numericRangeMappingRepository;
+		this.numericRangeMappingFixture = numericRangeMappingFixture;
 	}
 
 	public DataHostLms createHostLms(DataHostLms hostLms) {
 		return singleValueFrom(hostLmsRepository.save(hostLms));
 	}
-
-        public NumericRangeMapping createNumericRangeMapping(String system, String domain, Long lowerBound, Long upperBound, String targetContext, String targetValue) {
-
-                log.debug("createNumericRangeMapping({},{},{},{},{},{})",system,domain,lowerBound,upperBound,targetContext,targetValue);
-
-                NumericRangeMapping nrm = NumericRangeMapping.builder()
-                        .id(UUIDUtils.dnsUUID(system+":"+":"+domain+":"+targetContext+":"+lowerBound))
-                        .context(system)
-                        .domain(domain)
-                        .lowerBound(lowerBound)
-                        .upperBound(upperBound)
-                        .targetContext(targetContext)
-                        .mappedValue(targetValue)
-                        .build();
-
-                return singleValueFrom(numericRangeMappingRepository.save(nrm));
-        }
 
 	public DataHostLms createHostLms(UUID id, String code) {
 		return createHostLms(new DataHostLms(id, code, "Test Host LMS",
@@ -92,10 +68,10 @@ public class HostLmsFixture {
 					"base-url", host))
 				.build());
 
-                log.debug("Creating numeric range mapping");
-                createNumericRangeMapping(code,"ItemType", Long.valueOf(998), Long.valueOf(1001), "DCB", "BKM");
+		log.debug("Creating numeric range mapping");
+		numericRangeMappingFixture.createNumericRangeMapping(code, "ItemType", 998L, 1001L, "DCB", "BKM");
 
-                return result;
+		return result;
 	}
 
 	public DataHostLms createPAPIHostLms(String staffUsername, String staffPassword,
@@ -130,8 +106,7 @@ public class HostLmsFixture {
 
 		patronFixture.deleteAllPatrons();
 
-		dataAccess.deleteAll(numericRangeMappingRepository.queryAll(),
-			nm -> numericRangeMappingRepository.delete(nm.getId()));
+		numericRangeMappingFixture.deleteAll();
 
 		dataAccess.deleteAll(hostLmsRepository.queryAll(),
 			hostLms -> hostLmsRepository.delete(hostLms.getId()));
