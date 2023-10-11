@@ -3,18 +3,17 @@ package org.olf.dcb.core.interaction.sierra;
 import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpMethod.PUT;
-import static io.micronaut.http.HttpMethod.DELETE;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
 import static reactor.core.publisher.Mono.empty;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.model.HostLms;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -27,7 +26,6 @@ import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.type.Argument;
-import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.BasicAuth;
 import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpMethod;
@@ -87,7 +85,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		log.debug("Creating Sierra HostLms client for HostLms {}", hostLms);
 
 		URI hostUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
-		rootUri = resolve(hostUri, UriBuilder.of("/iii/sierra-api/v6/").build());
+		URI relativeURI = UriBuilder.of("/iii/sierra-api/v6/").build();
+		rootUri = RelativeUriResolver.resolve(hostUri, relativeURI);
 
 		lms = hostLms;
 		this.client = client;
@@ -278,29 +277,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	}
 
 	private URI resolve(URI relativeURI) {
-		return resolve(rootUri, relativeURI);
-	}
-
-	private static URI resolve(URI baseUri, URI relativeURI) {
-		URI thisUri = baseUri;
-
-		// if the URI features credentials strip this out
-		if (StringUtils.isNotEmpty(thisUri.getUserInfo())) {
-			try {
-				thisUri = new URI(thisUri.getScheme(), null, thisUri.getHost(), thisUri.getPort(), thisUri.getPath(),
-						thisUri.getQuery(), thisUri.getFragment());
-			} catch (URISyntaxException e) {
-				throw new IllegalStateException("URI is invalid: " + e.getMessage(), e);
-			}
-		}
-
-		final var rawQuery = thisUri.getRawQuery();
-
-		if (StringUtils.isNotEmpty(rawQuery)) {
-			return thisUri.resolve(relativeURI + "?" + rawQuery);
-		} else {
-			return thisUri.resolve(relativeURI);
-		}
+		return RelativeUriResolver.resolve(rootUri, relativeURI);
 	}
 
 	private <T> Mono<T> handleResponseErrors(final Mono<T> current) {
