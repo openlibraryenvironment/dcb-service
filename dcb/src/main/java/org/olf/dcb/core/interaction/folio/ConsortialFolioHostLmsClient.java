@@ -2,6 +2,7 @@ package org.olf.dcb.core.interaction.folio;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
@@ -61,7 +62,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public List<HostLmsPropertyDefinition> getSettings() {
-		return List.of(urlPropertyDefinition("base-url", "Base URL Of FOLIO System", TRUE));
+		return List.of(
+			urlPropertyDefinition("base-url", "Base URL of the FOLIO system", TRUE),
+			stringPropertyDefinition("apikey", "API key for this FOLIO tenant", TRUE)
+		);
 	}
 
 	@Override

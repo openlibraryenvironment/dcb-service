@@ -119,9 +119,15 @@ class ConsortialFolioHostLmsClientItemTests {
 		assertThat("Should have expected settings", settings, containsInAnyOrder(
 			allOf(
 				hasProperty("name", is("base-url")),
-				hasProperty("description", is("Base URL Of FOLIO System")),
+				hasProperty("description", is("Base URL of the FOLIO system")),
 				hasProperty("mandatory", is(true)),
 				hasProperty("typeCode", is("URL"))
+			),
+			allOf(
+				hasProperty("name", is("apikey")),
+				hasProperty("description", is("API key for this FOLIO tenant")),
+				hasProperty("mandatory", is(true)),
+				hasProperty("typeCode", is("String"))
 			)
 		));
 	}
