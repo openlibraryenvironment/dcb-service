@@ -5,11 +5,9 @@ import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
-import static services.k_int.utils.MapUtils.getAsOptionalString;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
@@ -57,8 +55,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
 
-		this.apiKey = getRequiredConfigValue(hostLms, API_KEY_SETTING);
-		this.rootUri = UriBuilder.of(getRequiredConfigValue(hostLms, BASE_URL_SETTING)).build();
+		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
+		this.rootUri = UriBuilder.of(BASE_URL_SETTING.getRequiredConfigValue(hostLms)).build();
 	}
 
 	@Override
@@ -197,19 +195,5 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private URI resolve(URI relativeURI) {
 		return RelativeUriResolver.resolve(rootUri, relativeURI);
-	}
-
-	private static String getRequiredConfigValue(HostLms hostLms, HostLmsPropertyDefinition setting) {
-		return getRequiredConfigValue(hostLms.getClientConfig(), setting.getName());
-	}
-
-	private static String getRequiredConfigValue(Map<String, Object> clientConfig, String key) {
-		final var optionalConfigValue = getAsOptionalString(clientConfig, key);
-
-		if (optionalConfigValue.isEmpty()) {
-			throw new IllegalArgumentException("Missing required configuration property: \"" + key + "\"");
-		}
-
-		return optionalConfigValue.get();
 	}
 }

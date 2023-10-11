@@ -4,6 +4,8 @@ import static services.k_int.utils.MapUtils.getAsOptionalString;
 
 import java.util.Map;
 
+import org.olf.dcb.core.model.HostLms;
+
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -41,6 +43,20 @@ public class HostLmsPropertyDefinition {
 		String description, Boolean mandatory) {
 
 		return new IntegerHostLmsPropertyDefinition(name, description, mandatory);
+	}
+
+	public String getRequiredConfigValue(HostLms hostLms) {
+		return getRequiredConfigValue(hostLms.getClientConfig(), getName());
+	}
+
+	private static String getRequiredConfigValue(Map<String, Object> clientConfig, String key) {
+		final var optionalConfigValue = getAsOptionalString(clientConfig, key);
+
+		if (optionalConfigValue.isEmpty()) {
+			throw new IllegalArgumentException("Missing required configuration property: \"" + key + "\"");
+		}
+
+		return optionalConfigValue.get();
 	}
 
 	public static class IntegerHostLmsPropertyDefinition extends HostLmsPropertyDefinition {
