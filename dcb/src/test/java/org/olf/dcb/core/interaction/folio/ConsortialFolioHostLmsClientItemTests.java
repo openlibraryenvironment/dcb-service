@@ -1,13 +1,10 @@
 package org.olf.dcb.core.interaction.folio;
 
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockserver.model.HttpResponse.response;
-import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
@@ -33,25 +30,29 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(PER_CLASS)
 class ConsortialFolioHostLmsClientItemTests {
 	private static final String HOST_LMS_CODE = "folio-lms-client-item-tests";
-	private static final String API_KEY = "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9";
-
+	
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	private MockFolioFixture mockFolioFixture;
 
 	@BeforeEach
-	public void beforeEach() {
+	public void beforeEach(MockServerClient mockServerClient) {
+		final var API_KEY = "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9";
+
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createFolioHostLms(HOST_LMS_CODE, "https://fake-folio",
 			API_KEY, "", "");
+
+		mockFolioFixture = new MockFolioFixture(mockServerClient, "fake-folio", API_KEY);
 	}
 
 	@Test
-	void shouldBeAbleToGetItems(MockServerClient mockServerClient) {
+	void shouldBeAbleToGetItems() {
 		// Arrange
 		final var instanceId = UUID.randomUUID().toString();
 
-		mockHoldingsByInstanceId(mockServerClient, "fake-folio", API_KEY, instanceId, OuterHoldings.builder()
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId, OuterHoldings.builder()
 			.holdings(List.of(
 				OuterHolding.builder()
 					.instanceId(instanceId)
@@ -105,23 +106,5 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasLocation("Social Service Administration")
 				)
 			));
-	}
-
-	private static void mockHoldingsByInstanceId(MockServerClient mockServerClient,
-		String host, String apiKey, String instanceId, OuterHoldings holdings) {
-
-		mockServerClient
-			.when(org.mockserver.model.HttpRequest.request()
-				.withHeader("Accept", APPLICATION_JSON)
-				.withHeader("Host", host)
-				.withHeader("Authorization", apiKey)
-				.withQueryStringParameter("fullPeriodicals", "true")
-				.withQueryStringParameter("instanceIds", instanceId)
-				.withPath("/rtac")
-			)
-			.respond(response()
-				.withStatusCode(200)
-				.withBody(json(holdings))
-			);
 	}
 }
