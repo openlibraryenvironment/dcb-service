@@ -39,9 +39,17 @@ import reactor.core.publisher.Mono;
 
 @Prototype
 public class ConsortialFolioHostLmsClient implements HostLmsClient {
+	// These are the same config keys as from FolioOaiPmhIngestSource
+	// which was implemented prior to this client
+	private static final HostLmsPropertyDefinition BASE_URL_SETTING
+		= urlPropertyDefinition("base-url", "Base URL of the FOLIO system", TRUE);
+	private static final HostLmsPropertyDefinition API_KEY_SETTING
+		= stringPropertyDefinition("apikey", "API key for this FOLIO tenant", TRUE);
+
 	private final HostLms hostLms;
 
 	private final HttpClient httpClient;
+
 	private final String apiKey;
 	private final URI rootUri;
 
@@ -49,10 +57,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
 
-		// These are the same config keys as from FolioOaiPmhIngestSource
-		// which was implemented prior to this client
-		this.apiKey = getConfigValue(hostLms.getClientConfig(), "apikey");
-		this.rootUri = UriBuilder.of(getConfigValue(hostLms.getClientConfig(), "base-url")).build();
+		this.apiKey = getRequiredConfigValue(hostLms, API_KEY_SETTING);
+		this.rootUri = UriBuilder.of(getRequiredConfigValue(hostLms, BASE_URL_SETTING)).build();
 	}
 
 	@Override
@@ -63,8 +69,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public List<HostLmsPropertyDefinition> getSettings() {
 		return List.of(
-			urlPropertyDefinition("base-url", "Base URL of the FOLIO system", TRUE),
-			stringPropertyDefinition("apikey", "API key for this FOLIO tenant", TRUE)
+			BASE_URL_SETTING,
+			API_KEY_SETTING
 		);
 	}
 
@@ -174,11 +180,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	// WARNING We might need to make this accept a patronIdentity - as different
 
 	// systems might take different ways to identify the patron
+
 	@Override
 	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
 		return Mono.just("DUMMY");
 	}
-
 	@Override
 	public Mono<String> deleteItem(String id) {
 		return Mono.just("DUMMY");
@@ -193,7 +199,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return RelativeUriResolver.resolve(rootUri, relativeURI);
 	}
 
-	private static String getConfigValue(Map<String, Object> clientConfig, String key) {
+	private static String getRequiredConfigValue(HostLms hostLms, HostLmsPropertyDefinition setting) {
+		return getRequiredConfigValue(hostLms.getClientConfig(), setting.getName());
+	}
+
+	private static String getRequiredConfigValue(Map<String, Object> clientConfig, String key) {
 		final var optionalConfigValue = getAsOptionalString(clientConfig, key);
 
 		if (optionalConfigValue.isEmpty()) {
