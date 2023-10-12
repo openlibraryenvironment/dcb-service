@@ -9,19 +9,16 @@ import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-
-import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.olf.dcb.core.model.ItemStatus;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.test.DataAccess;
 import org.olf.dcb.test.DcbTest;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.items.Status;
@@ -33,6 +30,9 @@ class ItemStatusMapperTests {
 
 	@Inject
 	private ReferenceValueMappingRepository referenceValueMappingRepository;
+
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
 	@BeforeEach
 	public void beforeEach() {
@@ -100,7 +100,7 @@ class ItemStatusMapperTests {
 	@Test
 	void statusCheckedOutIsMappedWhenValidMappingPresent() {
 		// Arrange
-		saveReferenceValueMapping("-", "AVAILABLE");
+		referenceValueMappingFixture.defineItemStatusMapping("test1", "-", "AVAILABLE");
 
 		// Act
 		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
@@ -113,7 +113,7 @@ class ItemStatusMapperTests {
 	@Test
 	void statusAvailableIsMappedWhenValidMappingPresent() {
 		// Arrange
-		saveReferenceValueMapping("-", "AVAILABLE");
+		referenceValueMappingFixture.defineItemStatusMapping("test1", "-", "AVAILABLE");
 
 		// Act
 		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", null));
@@ -126,7 +126,7 @@ class ItemStatusMapperTests {
 	@Test
 	void statusUnavailableIsMappedWhenValidMappingPresent() {
 		// Arrange
-		saveReferenceValueMapping("/", "UNAVAILABLE");
+		referenceValueMappingFixture.defineItemStatusMapping("test1", "/", "UNAVAILABLE");
 
 		// Act
 		final var mappedStatus = mapStatus(new Status("/", "UNAVAILABLE", null));
@@ -139,7 +139,7 @@ class ItemStatusMapperTests {
 	@Test
 	void statusIsNotMappedToInvalidEnum() {
 		// Arrange
-		saveReferenceValueMapping("?", "INVALID");
+		referenceValueMappingFixture.defineItemStatusMapping("test1", "?", "INVALID");
 
 		// Act
 		final var exception = assertThrows(IllegalArgumentException.class, () ->
@@ -154,19 +154,5 @@ class ItemStatusMapperTests {
 	private ItemStatus mapStatus(Status status) {
 		return mapper.mapStatus(status, "test1", sierraFallback())
 			.block();
-	}
-
-	private void saveReferenceValueMapping(String fromValue, String toValue) {
-		final var mapping = ReferenceValueMapping.builder()
-			.id(UUID.randomUUID())
-			.fromCategory("itemStatus")
-			.fromContext("test1")
-			.fromValue(fromValue)
-			.toCategory("itemStatus")
-			.toContext("DCB")
-			.toValue(toValue)
-			.reciprocal(true)
-			.build();
-		singleValueFrom(referenceValueMappingRepository.save(mapping));
 	}
 }
