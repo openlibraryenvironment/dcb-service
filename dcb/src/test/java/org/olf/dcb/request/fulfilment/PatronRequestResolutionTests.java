@@ -132,6 +132,9 @@ class PatronRequestResolutionTests {
 		assertThat("Should have expected local item ID",
 			onlySupplierRequest.getLocalItemId(), is("1000002"));
 
+		assertThat("Should have expected local bib ID",
+			onlySupplierRequest.getLocalBibId(), is("465675"));
+
 		assertThat("Should have expected local item barcode",
 			onlySupplierRequest.getLocalItemBarcode(), is("6565750674"));
 
