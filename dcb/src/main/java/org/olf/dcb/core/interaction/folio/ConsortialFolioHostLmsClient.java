@@ -76,7 +76,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<List<Item>> getItems(BibRecord bib) {
 		return getHoldings(bib.getSourceRecordId())
 			.flatMapIterable(OuterHoldings::getHoldings)
-			.flatMap(this::mapHoldingToItem)
+			.flatMap(this::mapHoldingsToItems)
 			.collectList();
 	}
 
@@ -97,18 +97,22 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return Mono.from(this.httpClient.retrieve(request, Argument.of(OuterHoldings.class)));
 	}
 
-	private Flux<Item> mapHoldingToItem(OuterHolding outerHoldings) {
-		return Flux.fromStream(outerHoldings.getHoldings().stream()
-			.map(holding -> Item.builder()
-				.localId(holding.getId())
-				.localBibId(outerHoldings.getInstanceId())
-				.callNumber(holding.getCallNumber())
-				.status(new ItemStatus(AVAILABLE))
-				.localItemType(holding.getPermanentLoanType())
-				.location(Location.builder()
-					.name(holding.getLocation())
-					.build())
-			.build()));
+	private Flux<Item> mapHoldingsToItems(OuterHolding outerHoldings) {
+		return Flux.fromStream(outerHoldings.getHoldings().stream())
+			.flatMap(holding -> mapHoldingToItem(holding, outerHoldings.getInstanceId()));
+	}
+
+	private Mono<Item> mapHoldingToItem(Holding holding, String instanceId) {
+		return Mono.just(Item.builder()
+			.localId(holding.getId())
+			.localBibId(instanceId)
+			.callNumber(holding.getCallNumber())
+			.status(new ItemStatus(AVAILABLE))
+			.localItemType(holding.getPermanentLoanType())
+			.location(Location.builder()
+				.name(holding.getLocation())
+				.build())
+			.build());
 	}
 
 	@Override
