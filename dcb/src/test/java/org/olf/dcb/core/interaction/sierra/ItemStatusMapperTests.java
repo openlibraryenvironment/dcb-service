@@ -1,26 +1,30 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import jakarta.inject.Inject;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
+import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
+import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.test.DataAccess;
 import org.olf.dcb.test.DcbTest;
 
+import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.items.Status;
-
-import java.util.UUID;
-
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.core.model.ItemStatusCode.*;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 @DcbTest
 class ItemStatusMapperTests {
@@ -38,8 +42,7 @@ class ItemStatusMapperTests {
 
 	@Test
 	void statusIsAvailableWhenCodeIsHyphenAndDueDateIsNotPresent() {
-		final var mappedStatus = mapper.mapStatus(
-			new Status("-", "AVAILABLE", null), "test1").block();
+		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", null));
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(AVAILABLE));
@@ -47,8 +50,7 @@ class ItemStatusMapperTests {
 
 	@Test
 	void statusIsAvailableWhenCodeIsHyphenAndDueDateIsBlank() {
-		final var mappedStatus = mapper.mapStatus(
-			new Status("-", "AVAILABLE", ""), "test1").block();
+		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", ""));
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(AVAILABLE));
@@ -56,8 +58,7 @@ class ItemStatusMapperTests {
 
 	@Test
 	void statusIsCheckedOutWhenCodeIsHyphenAndDueDateIsPresent() {
-		final var mappedStatus = mapper.mapStatus(
-			new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"), "test1").block();
+		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(CHECKED_OUT));
@@ -74,7 +75,7 @@ class ItemStatusMapperTests {
 	void statusIsUnavailableWhenCodeAnythingOtherThanHyphen(String code,
 		String displayText) {
 
-		final var mappedStatus = mapper.mapStatus(new Status(code, displayText, null), "test1").block();
+		final var mappedStatus = mapStatus(new Status(code, displayText, null));
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(UNAVAILABLE));
@@ -82,8 +83,7 @@ class ItemStatusMapperTests {
 
 	@Test
 	void statusIsUnknownWhenCodeIsEmpty() {
-		final var mappedStatus = mapper.mapStatus(
-			new Status("", "", ""), "test1").block();
+		final var mappedStatus = mapStatus(new Status("", "", ""));
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(UNKNOWN));
@@ -91,7 +91,7 @@ class ItemStatusMapperTests {
 
 	@Test
 	void statusIsUnknownWhenSierraStatusIsNull() {
-		final var mappedStatus = mapper.mapStatus(null, "test1").block();
+		final var mappedStatus = mapStatus(null);
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(UNKNOWN));
@@ -103,8 +103,7 @@ class ItemStatusMapperTests {
 		saveReferenceValueMapping("-", "AVAILABLE");
 
 		// Act
-		final var mappedStatus = mapper.mapStatus(
-			new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"), "test1").block();
+		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
 
 		// Assert
 		assertThat(mappedStatus, is(notNullValue()));
@@ -117,8 +116,7 @@ class ItemStatusMapperTests {
 		saveReferenceValueMapping("-", "AVAILABLE");
 
 		// Act
-		final var mappedStatus = mapper.mapStatus(
-			new Status("-", "AVAILABLE", null), "test1").block();
+		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", null));
 
 		// Assert
 		assertThat(mappedStatus, is(notNullValue()));
@@ -131,8 +129,7 @@ class ItemStatusMapperTests {
 		saveReferenceValueMapping("/", "UNAVAILABLE");
 
 		// Act
-		final var mappedStatus = mapper.mapStatus(
-			new Status("/", "UNAVAILABLE", null), "test1").block();
+		final var mappedStatus = mapStatus(new Status("/", "UNAVAILABLE", null));
 
 		// Assert
 		assertThat(mappedStatus, is(notNullValue()));
@@ -145,13 +142,17 @@ class ItemStatusMapperTests {
 		saveReferenceValueMapping("?", "INVALID");
 
 		// Act
-		final var exception = assertThrows(IllegalArgumentException.class, () -> mapper.mapStatus(
-				new Status("?", "INVALID", "2023-04-22T15:55:13Z"), "test1").block());
+		final var exception = assertThrows(IllegalArgumentException.class, () ->
+			mapStatus(new Status("?", "INVALID", "2023-04-22T15:55:13Z")));
 
 		// Assert
 		assertThat(exception, is(notNullValue()));
 		assertThat(exception.getMessage(),
 			is("No enum constant org.olf.dcb.core.model.ItemStatusCode.INVALID"));
+	}
+
+	private ItemStatus mapStatus(Status status) {
+		return mapper.mapStatus(status, "test1").block();
 	}
 
 	private void saveReferenceValueMapping(String fromValue, String toValue) {
