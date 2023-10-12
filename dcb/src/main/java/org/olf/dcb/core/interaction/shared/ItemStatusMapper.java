@@ -36,12 +36,18 @@ public class ItemStatusMapper {
 	}
 
 	public Mono<ItemStatus> mapStatus(Status status, String hostLmsCode) {
+		return mapStatus(status, hostLmsCode, this::fallbackStatusMapping);
+	}
+
+	public Mono<ItemStatus> mapStatus(Status status, String hostLmsCode,
+		FallbackMapper fallbackStatusMapping) {
+
 		log.debug("mapStatus( status: {}, hostLmsCode: {} )", status, hostLmsCode);
 
 		final var statusCode = getValue(status, Status::getCode);
 		final var dueDate = getValue(status, Status::getDuedate);
 
-		return mapStatus(statusCode, hostLmsCode, this::fallbackStatusMapping)
+		return mapStatus(statusCode, hostLmsCode, fallbackStatusMapping)
 			.map(itemStatusCode -> checkForDueDate(itemStatusCode, dueDate))
 			.map(ItemStatus::new);
 	}
@@ -78,7 +84,7 @@ public class ItemStatusMapper {
 	}
 
 	@FunctionalInterface
-	private interface FallbackMapper {
+	public interface FallbackMapper {
 		ItemStatusCode map(String statusCode);
 	}
 }
