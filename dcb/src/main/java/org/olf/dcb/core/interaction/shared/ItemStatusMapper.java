@@ -28,7 +28,18 @@ Status is interpreted based upon
  */
 @Singleton
 public class ItemStatusMapper {
+	public static ItemStatusCode defaultFallbackStatusMapping(String statusCode) {
+		final var AVAILABLE_CODES = Arrays.asList("-", "Available");
+
+		return (statusCode == null || (statusCode.isEmpty()))
+			? UNKNOWN
+			: AVAILABLE_CODES.contains(statusCode)
+				? AVAILABLE
+				: UNAVAILABLE;
+	}
+
 	private static final Logger log = LoggerFactory.getLogger(ItemResultToItemMapper.class);
+
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	ItemStatusMapper(ReferenceValueMappingRepository referenceValueMappingRepository) {
@@ -36,7 +47,7 @@ public class ItemStatusMapper {
 	}
 
 	public Mono<ItemStatus> mapStatus(Status status, String hostLmsCode) {
-		return mapStatus(status, hostLmsCode, this::fallbackStatusMapping);
+		return mapStatus(status, hostLmsCode, ItemStatusMapper::defaultFallbackStatusMapping);
 	}
 
 	public Mono<ItemStatus> mapStatus(Status status, String hostLmsCode,
@@ -67,16 +78,6 @@ public class ItemStatusMapper {
 
 	private String getValue(Status status, Function<Status, String> function) {
 		return Optional.ofNullable(status).map(function).orElse(null);
-	}
-
-	private ItemStatusCode fallbackStatusMapping(String statusCode) {
-		final var AVAILABLE_CODES = Arrays.asList("-", "Available");
-
-		return (statusCode == null || (statusCode.isEmpty()))
-				? UNKNOWN
-				: AVAILABLE_CODES.contains(statusCode)
-					? AVAILABLE
-					: UNAVAILABLE;
 	}
 
 	private ItemStatusCode checkForDueDate(ItemStatusCode itemStatusCode, String dueDate) {
