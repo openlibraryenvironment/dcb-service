@@ -8,6 +8,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
+import java.util.Map;
 
 import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
 import org.olf.dcb.storage.AgencyRepository;
@@ -17,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
+import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
 
@@ -49,17 +51,7 @@ public class ItemResultToItemMapper {
 			? Instant.parse(dueDate)
 			: null;
 
-		// We should look into result.fixedFields for 61 here and set itemType according to that code
-		// and not the human-readable text
-		String localItemTypeCode = null;
-		
-		if (result.getFixedFields() != null) {
-			if (result.getFixedFields().get(FIXED_FIELD_61) != null) {
-				localItemTypeCode = result.getFixedFields().get(FIXED_FIELD_61).getValue().toString();
-			}
-		}
-
-		final var flitc = localItemTypeCode;
+		final var localItemTypeCode = determineLocalItemTypeCode(result.getFixedFields());
 
 		final var locationCode = result.getLocation().getCode().trim();
 
@@ -78,12 +70,26 @@ public class ItemResultToItemMapper {
 				.holdCount(result.getHoldCount())
 				.localBibId(localBibId)
 				.localItemType(result.getItemType())
-				.localItemTypeCode(flitc)
+				.localItemTypeCode(localItemTypeCode)
 				.deleted(result.getDeleted())
 				.suppressed(result.getSuppressed())
 				.build())
 				.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode))
 				.flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode, locationCode));
+	}
+
+	private static String determineLocalItemTypeCode(Map<Integer, FixedField> fixedFields) {
+		// We should look into result.fixedFields for 61 here and set itemType according to that code
+		// and not the human-readable text
+		String localItemTypeCode = null;
+
+		if (fixedFields != null) {
+			if (fixedFields.get(FIXED_FIELD_61) != null) {
+				localItemTypeCode = fixedFields.get(FIXED_FIELD_61).getValue().toString();
+			}
+		}
+
+		return localItemTypeCode;
 	}
 
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(
