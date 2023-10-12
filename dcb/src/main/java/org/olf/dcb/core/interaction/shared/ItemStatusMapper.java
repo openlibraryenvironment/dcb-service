@@ -47,11 +47,13 @@ public class ItemStatusMapper {
 	}
 
 	private Mono<ItemStatusCode> mapStatus(String statusCode, String hostLmsCode) {
+		final FallbackMapper fallbackMapper = this::fallbackStatusMapping;
+
 		return Mono.justOrEmpty(statusCode)
 			.flatMap(code -> fetchReferenceValueMap(code, hostLmsCode))
 			.map(ReferenceValueMapping::getToValue)
 			.map(ItemStatusCode::valueOf)
-			.defaultIfEmpty(fallbackStatusMapping(statusCode));
+			.defaultIfEmpty(fallbackMapper.map(statusCode));
 	}
 
 	private Mono<ReferenceValueMapping> fetchReferenceValueMap(String statusCode, String hostLmsCode) {
@@ -75,5 +77,10 @@ public class ItemStatusMapper {
 
 	private ItemStatusCode checkForDueDate(ItemStatusCode itemStatusCode, String dueDate) {
 		return itemStatusCode.equals(AVAILABLE) && isNotEmpty(dueDate) ? CHECKED_OUT : itemStatusCode;
+	}
+
+	@FunctionalInterface
+	private interface FallbackMapper {
+		ItemStatusCode map(String statusCode);
 	}
 }
