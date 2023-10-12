@@ -20,5 +20,6 @@ public class ClusterRecordDTO {
 	String title;
 	UUID selectedBibId;
 	BibRecordDTO selectedBib;
+	boolean isDeleted;
 	List<ClusterBibDTO> bibs;
 }

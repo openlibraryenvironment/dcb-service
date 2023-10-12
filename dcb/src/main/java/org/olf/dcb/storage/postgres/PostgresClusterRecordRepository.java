@@ -11,6 +11,9 @@ import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.storage.ClusterRecordRepository;
 import org.reactivestreams.Publisher;
 
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -55,5 +58,6 @@ public interface PostgresClusterRecordRepository extends ReactiveStreamsPageable
 			+ "   AND mp_.value IN (:points)"
 			+ " ORDER BY date_created ASC;")
 	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPoints ( String derivedType, Collection<UUID> points );
+
 }
 

@@ -82,13 +82,16 @@ public class ClusterRecordController {
 				return Flux.fromIterable(clusterRecords)
 					.flatMap(clusterRecord -> {
 						// go fetch the bib record here and attach it if we find one	
-						return Mono.from(_bibRepository.findById(clusterRecord.getSelectedBibId()))
-							.flatMap(bib -> {
+						return Mono.justOrEmpty(clusterRecord.getSelectedBibId())
+							.map(_bibRepository::findById)
+							.flatMap( Mono::from )
+							.map(bib -> {
 								if (bib != null) {
 									clusterRecord.setSelectedBib(mapBibToDTO(bib));
 								}
-								return Mono.just(clusterRecord);
-							});
+								return clusterRecord;
+							})
+							.defaultIfEmpty(clusterRecord);
 					})
 					.flatMap(clusterRecord -> {
 						// Add in the IDs of the bib records that compose this cluster - so we can find cluster records
@@ -140,6 +143,7 @@ public class ClusterRecordController {
 			.builder()
 			.dateUpdated(cr.getDateUpdated().toString())
 			.dateCreated(cr.getDateCreated().toString())
+			.isDeleted(Boolean.TRUE.equals(cr.getIsDeleted()))
 			.clusterId(cr.getId())
 			.title(cr.getTitle())
 			.selectedBibId(cr.getSelectedBib())

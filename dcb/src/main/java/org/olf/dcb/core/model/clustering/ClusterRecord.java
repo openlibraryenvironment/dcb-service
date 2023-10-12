@@ -9,6 +9,7 @@ import org.olf.dcb.core.model.BibRecord;
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.data.annotation.AutoPopulated;
 import io.micronaut.data.annotation.DateCreated;
 import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.data.annotation.Id;
@@ -21,6 +22,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.Accessors;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 @Builder
@@ -30,6 +32,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Serdeable
 @MappedEntity
 @ExcludeFromGeneratedCoverageReport
+@Accessors(chain = true)
 public class ClusterRecord {
 	
 	@NonNull
@@ -58,5 +61,5 @@ public class ClusterRecord {
 	private final UUID selectedBib;
 
 	@Nullable
-        private Boolean isDeleted;
+  private Boolean isDeleted;
 }

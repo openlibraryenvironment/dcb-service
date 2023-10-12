@@ -21,11 +21,16 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.context.BeanProvider;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
 
 @Singleton
 public class BibRecordService {
@@ -37,15 +42,18 @@ public class BibRecordService {
 	private final BibRepository bibRepo;
 
 	private final BibIdentifierRepository bibIdentifierRepo;
-
+	private final BeanProvider<RecordClusteringService> recordClusteringServiceProvider;
+	
 	private final StatsService statsService;
 
 
-	BibRecordService(BibRepository bibRepo,
-	        BibIdentifierRepository bibIdentifierRepository,
-		StatsService statsService) {
+	public BibRecordService(
+	  BibRepository bibRepo,
+	  BibIdentifierRepository bibIdentifierRepository,
+		StatsService statsService, BeanProvider<RecordClusteringService> recordClusteringServiceProvider) {
 		this.bibRepo = bibRepo;
 		this.bibIdentifierRepo = bibIdentifierRepository;
+		this.recordClusteringServiceProvider = recordClusteringServiceProvider;
 		this.statsService = statsService;
 	}
 
@@ -141,18 +149,27 @@ public class BibRecordService {
 	public Mono<ClusterRecord> moveBetweenClusterRecords(Collection<ClusterRecord> fromAll, ClusterRecord to) {
 		return Mono.fromDirect(bibRepo.updateByContributesToInList(fromAll, to)).thenReturn(to);
 	}
-
+	
+	@Transactional
+	public Mono<Void> delete(@NonNull BibRecord bib) {
+		
+		return Mono.justOrEmpty(bib.getId())
+			.map(bibRepo::delete)
+			.flatMap(Mono::from);
+	}
+	
+	@SingleResult
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Publisher<BibRecord> process(final IngestRecord source) {
 
-                log.debug("BibRecordService::process(source={}, sourceRecordId={}, clusterid={}, title={}, suppress:{}, deleted:{})",
-                        source.getSourceSystem().getCode(),
-                        source.getSourceRecordId(),
-                        source.getClusterRecordId(),
-                        source.getTitle(),
-                        source.getSuppressFromDiscovery(),
-                        source.getDeleted()
-                        );
+    log.debug("BibRecordService::process(source={}, sourceRecordId={}, clusterid={}, title={}, suppress:{}, deleted:{})",
+        source.getSourceSystem().getCode(),
+        source.getSourceRecordId(),
+        source.getClusterRecordId(),
+        source.getTitle(),
+        source.getSuppressFromDiscovery(),
+        source.getDeleted()
+        );
 
 
 		statsService.notifyEvent("IngestRecord",source.getSourceSystem().getCode());
@@ -164,26 +181,45 @@ public class BibRecordService {
 		// Will allow us to bail out of the resource early.
 		// We can raise events from with in that for the side effects.
 		// Add in some processing to abort if we don't have a title - probably we should treat this as a delete signal
-		if ( ( source.getTitle() == null ) || 
-         ( source.getTitle().length() == 0 ) ||
-         ( ( source.getSuppressFromDiscovery() != null ) && ( source.getSuppressFromDiscovery().equals(Boolean.TRUE) ) ) ||
-         ( ( source.getDeleted() != null ) && ( source.getDeleted().equals(Boolean.TRUE) ) ) ) {
-			// Future development: We should probably signal this records source:id as
-			// a delete and look in bib_records for a record corresponding to this one, so we can mark it deleted
-			// If we have no such record, all is well, continue.
+		
+		if ( StringUtils.trimToNull(source.getTitle()) == null) {
 			statsService.notifyEvent("DroppedTitle",source.getSourceSystem().getCode());
-			 log.warn("Record {} with empty title - bailing",source);
+			log.warn("Record {} with empty title - bailing", source);
 			return Mono.empty();
 		}
-
-		// Check if existing...
+		
 		return Mono.just(source)
-				.flatMap(this::getOrSeed)
-				.flatMap((final BibRecord bib) -> {
-					final List<ProcessingStep> pipeline = new ArrayList<>();
-					pipeline.add(this::step1);
-					return Flux.fromIterable(pipeline).reduce(bib, (theBib, step) -> step.apply(bib, source));
-				})
+			.zipWhen( this::getOrSeed )
+			.flatMap(TupleUtils.function(( ir, bib ) -> {
+
+				final boolean suppressed = Boolean.TRUE.equals( ir.getSuppressFromDiscovery() );
+				final boolean deleted = Boolean.TRUE.equals( ir.getDeleted() );
+				
+				if ( suppressed || deleted ) {
+					// Suppress...
+					statsService.notifyEvent("DroppedTitle",source.getSourceSystem().getCode());
+					log.debug("Record {} flagged as {}, ensure we redact accordingly.", source, deleted ? "deleted" : "suppressed");
+					
+					return Mono.justOrEmpty( bib.getId() )
+						.flatMap( this::getClusterRecordForBib )
+						.flatMap( cr -> this.findAllByContributesTo(cr)
+							.collectList()
+							.flatMap( bibs -> bibs.size() > 1 ? Mono.empty() : Mono.just( cr ) )
+						)
+						.doOnNext( id -> log.debug("Soft deleteing cluster record {} as only referenced bib to be deleted due to suppression") )
+						.flatMap( recordClusteringServiceProvider.get()::softDelete )
+						.then( this.delete(bib).then(Mono.empty()) )
+					;
+				}
+				
+				// Default to just re-emitting the bib.
+				return Mono.just(bib);
+			}))
+			.flatMap((final BibRecord bib) -> {
+				final List<ProcessingStep> pipeline = new ArrayList<>();
+				pipeline.add(this::step1);
+				return Flux.fromIterable(pipeline).reduce(bib, (theBib, step) -> step.apply(bib, source));
+			})
 		.flatMap(this::saveOrUpdate).flatMap(savedBib -> this.saveIdentifiers(savedBib, source))
 		.flatMap( finalBib -> this.updateStatistics(finalBib, source, start_time) );
 	}

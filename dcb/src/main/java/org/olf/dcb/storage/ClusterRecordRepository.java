@@ -11,6 +11,7 @@ import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -66,8 +67,10 @@ public interface ClusterRecordRepository {
 	@NonNull
 	@SingleResult
 	Publisher<Void> delete(@NonNull UUID id);
+	
+	@SingleResult
+	Publisher<Long> updateTitleById( @Nullable String title, @NonNull UUID id );
 
 	@NonNull
-	@SingleResult
-	Publisher<Void> deleteByIdInList(@NonNull Collection<UUID> id);
+	Publisher<ClusterRecord> findAllByIdInList(@NonNull Collection<UUID> id);
 }

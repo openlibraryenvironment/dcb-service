@@ -1,5 +1,6 @@
 package org.olf.dcb.core;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -96,13 +97,37 @@ public class RecordClusteringService {
 		 	});
 	}
 	
+	@Transactional
+	public Mono<Void> softDelete(ClusterRecord theRecord) {
+		return Mono.justOrEmpty(theRecord)
+			.filter( cr -> Objects.nonNull(cr.getId()) )
+			.map( current -> 
+				// Create a new record for the deleted item.
+				ClusterRecord.builder()
+					.id(current.getId())
+					.dateCreated(current.getDateCreated())
+					.isDeleted(true)
+					.build())
+			.map( clusterRecords::update )
+			.flatMap(Mono::from)
+			.doOnNext(cr -> log.debug("Soft deleted cluster {}", cr.getId()))
+			.then();
+	}
+	
+	@Transactional
+	public Mono<Void> softDeleteByIdInList(Collection<UUID> ids) {
+		return Flux.from(clusterRecords.findAllByIdInList(ids))
+			.flatMap( this::softDelete )
+			.then();
+	}
+	
 	// Remove the items in a new transaction.
 	@Transactional
-	public Mono<ClusterRecord> mergeClusterRecords( ClusterRecord to, Collection<ClusterRecord> from ) {
+	protected Mono<ClusterRecord> mergeClusterRecords( ClusterRecord to, Collection<ClusterRecord> from ) {
 		
 		return Mono.fromDirect( bibRecords.moveBetweenClusterRecords(from, to) )
 			.then( Mono.fromDirect(
-					clusterRecords.deleteByIdInList(
+					this.softDeleteByIdInList(
 							from
 								.stream()
 								.map(ClusterRecord::getId)
@@ -111,7 +136,7 @@ public class RecordClusteringService {
 	}
 	
 	@Transactional
-	public Mono<ClusterRecord> reduceClusterRecords( final int pointsCreated,  final List<ClusterRecord> clusterList ) {
+	protected Mono<ClusterRecord> reduceClusterRecords( final int pointsCreated,  final List<ClusterRecord> clusterList ) {
 		final int matches = clusterList.size();
 		
 		return switch (matches) {
@@ -160,7 +185,7 @@ public class RecordClusteringService {
 	}
 	
 	@Transactional
-	public Mono<ClusterRecord> saveMatchPointsAndMergeClusters(List<MatchPoint> matchPoints, List<ClusterRecord> clusters) {
+	protected Mono<ClusterRecord> saveMatchPointsAndMergeClusters(List<MatchPoint> matchPoints, List<ClusterRecord> clusters) {
 		return Flux.from( matchPointRepository.saveAll(matchPoints) )
 			.then( Mono.just( Tuples.of( matchPoints.size(), clusters ))
 					.flatMap( TupleUtils.function( this::reduceClusterRecords )));
@@ -205,6 +230,18 @@ public class RecordClusteringService {
 			.map( clusterRecords::save )
 			.flatMap( Mono::fromDirect );
 	}
+	
+	@Transactional(value = TxType.MANDATORY)
+	public Mono<ClusterRecord> touch ( final ClusterRecord cluster ) {
+		return Mono.justOrEmpty(cluster.getId())
+			.flatMap( theId -> {
+				return Mono.from(clusterRecords.updateTitleById(cluster.getTitle(), theId) )
+					.doOnNext( total -> {
+						log.debug("Touch updatedDate on cluster record {} yeilded {} records updated", theId, total);
+					});
+			})
+			.thenReturn( cluster );
+	}
 
 	@Retryable
 	@Transactional(value = TxType.REQUIRES_NEW)
@@ -217,6 +254,8 @@ public class RecordClusteringService {
 			.map( this::collectMatchPoints )
 			.flatMap( matchPointPub -> collectClusterRecords(bib.getDerivedType(), matchPointPub) )
 			.flatMap(TupleUtils.function( this::saveMatchPointsAndMergeClusters ))
+			.flatMap( this::touch ) // Ensure the matched ClusterRecord's date is changed.
+			
 			.switchIfEmpty( createMinimalCluster(bib) )
 			.flatMap( cr -> {
 				final var linkedBib = bib.toBuilder()
