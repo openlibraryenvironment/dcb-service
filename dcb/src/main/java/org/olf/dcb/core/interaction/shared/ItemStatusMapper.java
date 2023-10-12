@@ -1,6 +1,14 @@
 package org.olf.dcb.core.interaction.shared;
 
-import jakarta.inject.Singleton;
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
+import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.function.Function;
 
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
@@ -8,16 +16,10 @@ import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.items.Status;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
-
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static org.olf.dcb.core.model.ItemStatusCode.*;
 
 /**
 Status is interpreted based upon
@@ -58,12 +60,13 @@ public class ItemStatusMapper {
 	}
 
 	private ItemStatusCode fallbackStatusMapping(String statusCode) {
-		final List<String> AVAILABLE_CODES = Arrays.asList("-", "Available");
-		return ( ( statusCode == null ) || ( statusCode.length() == 0 ) )
-			? UNKNOWN
-			: AVAILABLE_CODES.contains(statusCode)
-			? AVAILABLE
-			: UNAVAILABLE;
+		final var AVAILABLE_CODES = Arrays.asList("-", "Available");
+
+		return (statusCode == null || (statusCode.isEmpty()))
+				? UNKNOWN
+				: AVAILABLE_CODES.contains(statusCode)
+					? AVAILABLE
+					: UNAVAILABLE;
 	}
 
 	private ItemStatusCode checkForDueDate(ItemStatusCode itemStatusCode, String dueDate) {
