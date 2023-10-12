@@ -20,6 +20,7 @@ import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
@@ -48,15 +49,20 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private final HttpClient httpClient;
 
+	private final ItemStatusMapper itemStatusMapper;
+
 	private final String apiKey;
 	private final URI rootUri;
 
-	public ConsortialFolioHostLmsClient(@Parameter HostLms hostLms, @Parameter("client") HttpClient httpClient) {
+	public ConsortialFolioHostLmsClient(@Parameter HostLms hostLms,
+		@Parameter("client") HttpClient httpClient, ItemStatusMapper itemStatusMapper) {
+
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
 
 		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
 		this.rootUri = UriBuilder.of(BASE_URL_SETTING.getRequiredConfigValue(hostLms)).build();
+		this.itemStatusMapper = itemStatusMapper;
 	}
 
 	@Override
