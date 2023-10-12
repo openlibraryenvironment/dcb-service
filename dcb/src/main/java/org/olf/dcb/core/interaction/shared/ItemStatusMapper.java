@@ -82,6 +82,10 @@ public class ItemStatusMapper {
 			return fallbackBasedUponAvailableStatuses(List.of("-"));
 		}
 
+		static FallbackMapper polarisFallback() {
+			return fallbackBasedUponAvailableStatuses(List.of("Available"));
+		}
+
 		static FallbackMapper fallbackBasedUponAvailableStatuses(
 			List<String> availableStatusCodes) {
 

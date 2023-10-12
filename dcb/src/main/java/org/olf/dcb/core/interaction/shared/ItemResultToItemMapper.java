@@ -2,6 +2,7 @@ package org.olf.dcb.core.interaction.shared;
 
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.sierraFallback;
+import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.polarisFallback;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -98,10 +99,12 @@ public class ItemResultToItemMapper {
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(
 		PAPILmsClient.ItemGetRow itemGetRow, String hostLmsCode, String localBibId) {
 
-		return itemStatusMapper.mapStatus(Status.builder()
+		final var status = Status.builder()
 				.code(itemGetRow.getCircStatus())
 				.duedate(itemGetRow.getDueDate())
-				.build(), hostLmsCode)
+				.build();
+
+		return itemStatusMapper.mapStatus(status, hostLmsCode, polarisFallback())
 			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
 				.id(String.valueOf(itemGetRow.getItemRecordID()))
 				.status(itemStatus)
