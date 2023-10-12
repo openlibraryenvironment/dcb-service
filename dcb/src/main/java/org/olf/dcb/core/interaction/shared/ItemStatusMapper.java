@@ -41,13 +41,17 @@ public class ItemStatusMapper {
 		final var statusCode = getValue(status, Status::getCode);
 		final var dueDate = getValue(status, Status::getDuedate);
 
+		return mapStatus(statusCode, hostLmsCode)
+			.map(itemStatusCode -> checkForDueDate(itemStatusCode, dueDate))
+			.map(ItemStatus::new);
+	}
+
+	private Mono<ItemStatusCode> mapStatus(String statusCode, String hostLmsCode) {
 		return Mono.justOrEmpty(statusCode)
 			.flatMap(code -> fetchReferenceValueMap(code, hostLmsCode))
 			.map(ReferenceValueMapping::getToValue)
 			.map(ItemStatusCode::valueOf)
-			.defaultIfEmpty( fallbackStatusMapping(statusCode) )
-			.map(itemStatusCode -> checkForDueDate(itemStatusCode, dueDate))
-			.map(ItemStatus::new);
+			.defaultIfEmpty(fallbackStatusMapping(statusCode));
 	}
 
 	private Mono<ReferenceValueMapping> fetchReferenceValueMap(String statusCode, String hostLmsCode) {
