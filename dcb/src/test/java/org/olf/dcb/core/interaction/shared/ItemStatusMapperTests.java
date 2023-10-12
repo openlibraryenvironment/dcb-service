@@ -15,8 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.olf.dcb.core.model.ItemStatus;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
-import org.olf.dcb.test.DataAccess;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
@@ -29,15 +27,11 @@ class ItemStatusMapperTests {
 	private ItemStatusMapper mapper;
 
 	@Inject
-	private ReferenceValueMappingRepository referenceValueMappingRepository;
-
-	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
 	@BeforeEach
 	public void beforeEach() {
-		new DataAccess().deleteAll(referenceValueMappingRepository.queryAll(),
-			mapping -> referenceValueMappingRepository.delete(mapping.getId()));
+		referenceValueMappingFixture.deleteAllReferenceValueMappings();
 	}
 
 	@Test
