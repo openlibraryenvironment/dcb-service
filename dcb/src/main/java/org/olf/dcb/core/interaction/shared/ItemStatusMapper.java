@@ -37,11 +37,6 @@ public class ItemStatusMapper {
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 	}
 
-	public Mono<ItemStatus> mapStatus(Status status, String hostLmsCode) {
-		return mapStatus(status, hostLmsCode,
-			fallbackBasedUponAvailableStatuses(List.of("-", "Available")));
-	}
-
 	public Mono<ItemStatus> mapStatus(Status status, String hostLmsCode,
 		FallbackMapper fallbackStatusMapping) {
 
