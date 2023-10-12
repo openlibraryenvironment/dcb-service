@@ -78,10 +78,14 @@ public class ItemStatusMapper {
 
 	@FunctionalInterface
 	public interface FallbackMapper {
+		static FallbackMapper sierraFallback() {
+			return fallbackBasedUponAvailableStatuses(List.of("-"));
+		}
+
 		static FallbackMapper fallbackBasedUponAvailableStatuses(
 			List<String> availableStatusCodes) {
 
-			return statusCode -> (statusCode== null || (statusCode.isEmpty()))
+			return statusCode -> (statusCode == null || (statusCode.isEmpty()))
 				? UNKNOWN
 				: availableStatusCodes.contains(statusCode)
 					? AVAILABLE

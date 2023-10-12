@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.shared;
 
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.sierraFallback;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -42,7 +43,9 @@ public class ItemResultToItemMapper {
 		this.agencyRepository = agencyRepository;
 	}
 
-	public Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem result, String hostLmsCode, String localBibId) {
+	public Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem result,
+		String hostLmsCode, String localBibId) {
+
 		log.debug("mapResultToItem(result, {}, {})", hostLmsCode, localBibId);
 
 		final var dueDate = result.getStatus().getDuedate();
@@ -55,7 +58,7 @@ public class ItemResultToItemMapper {
 
 		final var locationCode = result.getLocation().getCode().trim();
 
-		return itemStatusMapper.mapStatus(result.getStatus(), hostLmsCode)
+		return itemStatusMapper.mapStatus(result.getStatus(), hostLmsCode, sierraFallback())
 			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
 				.id(result.getId())
 				.status(itemStatus)
