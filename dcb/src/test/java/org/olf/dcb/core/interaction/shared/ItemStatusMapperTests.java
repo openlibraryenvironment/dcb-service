@@ -1,4 +1,4 @@
-package org.olf.dcb.core.interaction.sierra;
+package org.olf.dcb.core.interaction.shared;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -17,7 +17,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
