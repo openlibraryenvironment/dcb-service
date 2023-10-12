@@ -17,7 +17,6 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 
-import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -69,29 +68,22 @@ class ConsortialFolioHostLmsClientItemTests {
 		// Arrange
 		final var instanceId = UUID.randomUUID().toString();
 
-		mockFolioFixture.mockHoldingsByInstanceId(instanceId, OuterHoldings.builder()
-			.holdings(List.of(
-				OuterHolding.builder()
-					.instanceId(instanceId)
-					.holdings(List.of(
-						Holding.builder()
-							.id("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2")
-							.callNumber("QA273.A5450 1984")
-							.location("Crerar, Lower Level, Bookstacks")
-							.status("Available")
-							.permanentLoanType("stks")
-							.build(),
-						Holding.builder()
-							.id("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3")
-							.callNumber("QA273.A5450 1984")
-							.location("Social Service Administration")
-							.status("Available")
-							.permanentLoanType("stks")
-							.build()
-					))
-					.build()
-			))
-			.build());
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
+			Holding.builder()
+				.id("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2")
+				.callNumber("QA273.A5450 1984")
+				.location("Crerar, Lower Level, Bookstacks")
+				.status("Available")
+				.permanentLoanType("stks")
+				.build(),
+			Holding.builder()
+				.id("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3")
+				.callNumber("QA273.A5450 1984")
+				.location("Social Service Administration")
+				.status("Available")
+				.permanentLoanType("stks")
+				.build()
+		);
 
 		mapStatus("Available", AVAILABLE);
 
@@ -130,23 +122,16 @@ class ConsortialFolioHostLmsClientItemTests {
 		final var checkedOutItemId = UUID.randomUUID().toString();
 		final var availableItemId = UUID.randomUUID().toString();
 
-		mockFolioFixture.mockHoldingsByInstanceId(instanceId, OuterHoldings.builder()
-			.holdings(List.of(
-				OuterHolding.builder()
-					.instanceId(instanceId)
-					.holdings(List.of(
-						exampleHolding()
-							.id(checkedOutItemId)
-							.status("Checked out")
-							.build(),
-						exampleHolding()
-							.id(availableItemId)
-							.status("Available")
-							.build()
-					))
-					.build()
-			))
-			.build());
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
+			exampleHolding()
+				.id(checkedOutItemId)
+				.status("Checked out")
+				.build(),
+			exampleHolding()
+				.id(availableItemId)
+				.status("Available")
+				.build()
+		);
 
 		mapStatus("Available", AVAILABLE);
 		mapStatus("Checked out", CHECKED_OUT);

@@ -4,6 +4,8 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 
+import java.util.List;
+
 import org.mockserver.client.MockServerClient;
 
 public class MockFolioFixture {
@@ -15,6 +17,21 @@ public class MockFolioFixture {
 		this.mockServerClient = mockServerClient;
 		this.host = host;
 		this.apiKey = apiKey;
+	}
+
+	void mockHoldingsByInstanceId(String instanceId, Holding... holdings) {
+		mockHoldingsByInstanceId(instanceId, List.of(holdings));
+	}
+
+	void mockHoldingsByInstanceId(String instanceId, List<Holding> holdings) {
+		mockHoldingsByInstanceId(instanceId, OuterHoldings.builder()
+			.holdings(List.of(
+				OuterHolding.builder()
+					.instanceId(instanceId)
+					.holdings(holdings)
+					.build()
+			))
+			.build());
 	}
 
 	void mockHoldingsByInstanceId(String instanceId, OuterHoldings holdings) {
