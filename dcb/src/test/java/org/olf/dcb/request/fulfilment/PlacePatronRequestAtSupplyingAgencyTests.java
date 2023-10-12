@@ -76,7 +76,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		DataHostLms d1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 		this.agency_ab6 = agencyFixture.saveAgency(
 			DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(d1).build());
-		referenceValueMappingFixture.deleteAllReferenceValueMappings();
+		referenceValueMappingFixture.deleteAll();
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 		// patron hold requests success
 		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002");

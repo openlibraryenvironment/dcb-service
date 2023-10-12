@@ -31,7 +31,7 @@ class ItemStatusMapperTests {
 
 	@BeforeEach
 	public void beforeEach() {
-		referenceValueMappingFixture.deleteAllReferenceValueMappings();
+		referenceValueMappingFixture.deleteAll();
 	}
 
 	@Test

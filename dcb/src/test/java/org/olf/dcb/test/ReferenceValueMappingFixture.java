@@ -23,7 +23,7 @@ public class ReferenceValueMappingFixture {
 		singleValueFrom(repository.save(mapping));
 	}
 
-	public void deleteAllReferenceValueMappings() {
+	public void deleteAll() {
 		dataAccess.deleteAll(repository.queryAll(),
 			mapping -> repository.delete(mapping.getId()));
 	}

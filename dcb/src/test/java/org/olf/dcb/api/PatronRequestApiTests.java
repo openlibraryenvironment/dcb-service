@@ -172,7 +172,7 @@ class PatronRequestApiTests {
 		bibRecordFixture.deleteAllBibRecords();
 		clusterRecordFixture.deleteAllClusterRecords();
 
-		referenceValueMappingFixture.deleteAllReferenceValueMappings();
+		referenceValueMappingFixture.deleteAll();
 
 
                 log.debug("Creating dataHostLms records for codeAA and codeBB");
