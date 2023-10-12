@@ -6,7 +6,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 
-import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -28,16 +28,6 @@ Status is interpreted based upon
  */
 @Singleton
 public class ItemStatusMapper {
-	public static ItemStatusCode defaultFallbackStatusMapping(String statusCode) {
-		final var AVAILABLE_CODES = Arrays.asList("-", "Available");
-
-		return (statusCode == null || (statusCode.isEmpty()))
-			? UNKNOWN
-			: AVAILABLE_CODES.contains(statusCode)
-				? AVAILABLE
-				: UNAVAILABLE;
-	}
-
 	private static final Logger log = LoggerFactory.getLogger(ItemResultToItemMapper.class);
 
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
@@ -47,7 +37,8 @@ public class ItemStatusMapper {
 	}
 
 	public Mono<ItemStatus> mapStatus(Status status, String hostLmsCode) {
-		return mapStatus(status, hostLmsCode, ItemStatusMapper::defaultFallbackStatusMapping);
+		return mapStatus(status, hostLmsCode,
+			FallbackMapper.fallbackBasedUponAvailableStatuses(List.of("-", "Available")));
 	}
 
 	public Mono<ItemStatus> mapStatus(Status status, String hostLmsCode,
@@ -86,6 +77,16 @@ public class ItemStatusMapper {
 
 	@FunctionalInterface
 	public interface FallbackMapper {
+		static FallbackMapper fallbackBasedUponAvailableStatuses(
+			List<String> availableStatusCodes) {
+
+			return statusCode -> (statusCode== null || (statusCode.isEmpty()))
+				? UNKNOWN
+				: availableStatusCodes.contains(statusCode)
+					? AVAILABLE
+					: UNAVAILABLE;
+		}
+
 		ItemStatusCode map(String statusCode);
 	}
 }
