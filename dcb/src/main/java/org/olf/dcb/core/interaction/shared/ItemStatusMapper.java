@@ -79,11 +79,15 @@ public class ItemStatusMapper {
 	@FunctionalInterface
 	public interface FallbackMapper {
 		static FallbackMapper sierraFallback() {
-			return fallbackBasedUponAvailableStatuses(List.of("-"));
+			return fallbackBasedUponAvailableStatuses("-");
 		}
 
 		static FallbackMapper polarisFallback() {
-			return fallbackBasedUponAvailableStatuses(List.of("Available"));
+			return fallbackBasedUponAvailableStatuses("Available");
+		}
+
+		static FallbackMapper fallbackBasedUponAvailableStatuses(String... availableStatusCodes) {
+			return fallbackBasedUponAvailableStatuses(List.of(availableStatusCodes));
 		}
 
 		static FallbackMapper fallbackBasedUponAvailableStatuses(
