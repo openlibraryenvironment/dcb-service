@@ -26,6 +26,7 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -35,6 +36,9 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 class ConsortialFolioHostLmsClientItemTests {
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+
 	private MockFolioFixture mockFolioFixture;
 	private HostLmsClient client;
 
@@ -44,6 +48,8 @@ class ConsortialFolioHostLmsClientItemTests {
 		final var HOST_LMS_CODE = "folio-lms-client-item-tests";
 
 		hostLmsFixture.deleteAll();
+
+		referenceValueMappingFixture.deleteAll();
 
 		hostLmsFixture.createFolioHostLms(HOST_LMS_CODE, "https://fake-folio",
 			API_KEY, "", "");
