@@ -1,14 +1,6 @@
 package org.olf.dcb.core.interaction.shared;
 
-import jakarta.inject.Singleton;
-import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
-import org.olf.dcb.storage.AgencyRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Mono;
-import services.k_int.interaction.sierra.items.SierraItem;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
-import services.k_int.interaction.sierra.items.Status;
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -17,7 +9,16 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
+import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import jakarta.inject.Singleton;
+import reactor.core.publisher.Mono;
+import services.k_int.interaction.sierra.items.SierraItem;
+import services.k_int.interaction.sierra.items.Status;
 
 @Singleton
 public class ItemResultToItemMapper {
@@ -39,8 +40,8 @@ public class ItemResultToItemMapper {
 		this.agencyRepository = agencyRepository;
 	}
 
-	public Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem result, String hostLmsCode, String bibId) {
-		log.debug("mapResultToItem(result, {}, {})", hostLmsCode, bibId);
+	public Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem result, String hostLmsCode, String localBibId) {
+		log.debug("mapResultToItem(result, {}, {})", hostLmsCode, localBibId);
 
 			final var dueDate = result.getStatus().getDuedate();
 
@@ -72,7 +73,7 @@ public class ItemResultToItemMapper {
 					.callNumber(result.getCallNumber())
 					.hostLmsCode(hostLmsCode)
 					.holdCount(result.getHoldCount())
-					.bibId(bibId)
+					.localBibId(localBibId)
                                         .localItemType(result.getItemType())
                                         .localItemTypeCode(flitc)
                                         .deleted(result.getDeleted())
@@ -84,8 +85,8 @@ public class ItemResultToItemMapper {
 	}
 
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(
-		PAPILmsClient.ItemGetRow itemGetRow, String hostLmsCode, String bibId) {
-//		log.debug("mapItemGetRowToItem( itemGetRow: {}, hostLmsCode: {}, bibId: {})", itemGetRow, hostLmsCode, bibId);
+		PAPILmsClient.ItemGetRow itemGetRow, String hostLmsCode, String localBibId) {
+
 		return itemStatusMapper.mapStatus(Status.builder()
 				.code(itemGetRow.getCircStatus())
 				.duedate(itemGetRow.getDueDate())
@@ -101,7 +102,7 @@ public class ItemResultToItemMapper {
 				.barcode(itemGetRow.getBarcode())
 				.callNumber(itemGetRow.getCallNumber())
 				.hostLmsCode(hostLmsCode)
-				.bibId(bibId)
+				.localBibId(localBibId)
 				.localItemType(itemGetRow.getMaterialType())
 				.localItemTypeCode(itemGetRow.getMaterialType())
 				.suppressed(!itemGetRow.getIsDisplayInPAC())

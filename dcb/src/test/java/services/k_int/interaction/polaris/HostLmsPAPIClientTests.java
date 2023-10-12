@@ -122,7 +122,7 @@ public class HostLmsPAPIClientTests {
 		assertThat(firstItem.getBarcode(), is("3430470102"));
 		assertThat(firstItem.getCallNumber(), is("E Bellini Mario"));
 		assertThat(firstItem.getHostLmsCode(), is(HOST_LMS_CODE));
-		assertThat(firstItem.getBibId(), is(String.valueOf(bibRecordId)));
+		assertThat(firstItem.getLocalBibId(), is(String.valueOf(bibRecordId)));
 		assertThat(firstItem.getLocalItemType(), is("Book"));
 		assertThat(firstItem.getSuppressed(), is(false));
 		assertThat(firstItem.getAgencyCode(), is("345test"));

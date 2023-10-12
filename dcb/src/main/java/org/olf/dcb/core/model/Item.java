@@ -6,7 +6,6 @@ import static java.util.Comparator.nullsLast;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 
 import java.time.Instant;
-import java.time.ZonedDateTime;
 import java.util.Comparator;
 
 import io.micronaut.core.annotation.Nullable;
@@ -34,7 +33,7 @@ public class Item implements Comparable<Item> {
 	private String hostLmsCode;
 	private Boolean isRequestable;
 	private Integer holdCount;
-	private String bibId;
+	private String localBibId;
 	private String localItemType;
 	private String localItemTypeCode;
 	private String canonicalItemType;

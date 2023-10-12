@@ -100,7 +100,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 			List<Item> result_items = new ArrayList<>();
 			String[] locs = shelvingLocations.split(",");
 			for (String s : locs) {
-				result_items.add(Item.builder().id(localBibId + "-i" + n).bibId(localBibId)
+				result_items.add(Item.builder().id(localBibId + "-i" + n).localBibId(localBibId)
 						.status(new ItemStatus(ItemStatusCode.AVAILABLE)).hostLmsCode(lms.getCode())
 						// .dueDate(parsedDueDate)
 						.location(org.olf.dcb.core.model.Location.builder().code(s).name(s).build()).barcode(localBibId + "-i" + n)

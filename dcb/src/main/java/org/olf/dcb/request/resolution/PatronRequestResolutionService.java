@@ -19,7 +19,6 @@ import org.olf.dcb.item.availability.LiveAvailabilityService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micronaut.context.annotation.Prototype;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
@@ -151,13 +150,13 @@ public class PatronRequestResolutionService {
 			.id(supplierRequestId)
 			.patronRequest(updatedPatronRequest)
 			.localItemId(item.getId())
-			.localBibId(item.getBibId())
+			.localBibId(item.getLocalBibId())
 			.localItemBarcode(item.getBarcode())
 			.localItemLocationCode(item.getLocation().getCode())
 			.localItemType(item.getLocalItemType())
 			.canonicalItemType(item.getCanonicalItemType())
 			.hostLmsCode(item.getHostLmsCode())
-                        .localAgency( agency != null ? agency.getCode() : null )
+			.localAgency(agency != null ? agency.getCode() : null)
 			.statusCode(PENDING)
 			.isActive(Boolean.TRUE)
 			.resolvedAgency(agency)
