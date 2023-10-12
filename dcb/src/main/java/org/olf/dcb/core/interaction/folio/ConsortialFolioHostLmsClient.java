@@ -4,7 +4,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
-import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.unknownStatusFallback;
 
 import java.net.URI;
 import java.util.List;
@@ -18,12 +18,11 @@ import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
+import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.Location;
 
 import io.micronaut.context.annotation.Parameter;
@@ -109,16 +108,19 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<Item> mapHoldingToItem(Holding holding, String instanceId) {
-		return Mono.just(Item.builder()
-			.localId(holding.getId())
-			.localBibId(instanceId)
-			.callNumber(holding.getCallNumber())
-			.status(new ItemStatus(AVAILABLE))
-			.localItemType(holding.getPermanentLoanType())
-			.location(Location.builder()
-				.name(holding.getLocation())
-				.build())
-			.build());
+		return Mono.justOrEmpty(holding.getStatus())
+			.flatMap(status -> itemStatusMapper.mapStatus(status, null, hostLms.getCode(),
+					false, unknownStatusFallback()))
+			.map(status -> Item.builder()
+				.localId(holding.getId())
+				.localBibId(instanceId)
+				.callNumber(holding.getCallNumber())
+				.status(status)
+				.localItemType(holding.getPermanentLoanType())
+				.location(Location.builder()
+					.name(holding.getLocation())
+					.build())
+				.build());
 	}
 
 	@Override

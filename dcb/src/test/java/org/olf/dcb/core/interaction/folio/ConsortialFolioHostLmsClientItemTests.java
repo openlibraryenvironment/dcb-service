@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
@@ -23,17 +24,22 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
+import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 class ConsortialFolioHostLmsClientItemTests {
+	private static final String HOST_LMS_CODE = "folio-lms-client-item-tests";
+
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
@@ -45,7 +51,6 @@ class ConsortialFolioHostLmsClientItemTests {
 	@BeforeEach
 	public void beforeEach(MockServerClient mockServerClient) {
 		final var API_KEY = "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9";
-		final var HOST_LMS_CODE = "folio-lms-client-item-tests";
 
 		hostLmsFixture.deleteAll();
 
@@ -88,11 +93,10 @@ class ConsortialFolioHostLmsClientItemTests {
 			))
 			.build());
 
+		mapStatus("Available", AVAILABLE);
+
 		// Act
-		final var items = client.getItems(BibRecord.builder()
-				.sourceRecordId(instanceId)
-				.build())
-			.block();
+		final var items = getItems(instanceId);
 
 		// Assert
 		assertThat("Should have 2 items", items, hasSize(2));
@@ -119,6 +123,52 @@ class ConsortialFolioHostLmsClientItemTests {
 	}
 
 	@Test
+	void shouldMapItemStatusUsingReferenceValueMappings() {
+		// Arrange
+		final var instanceId = UUID.randomUUID().toString();
+
+		final var checkedOutItemId = UUID.randomUUID().toString();
+		final var availableItemId = UUID.randomUUID().toString();
+
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId, OuterHoldings.builder()
+			.holdings(List.of(
+				OuterHolding.builder()
+					.instanceId(instanceId)
+					.holdings(List.of(
+						exampleHolding()
+							.id(checkedOutItemId)
+							.status("Checked out")
+							.build(),
+						exampleHolding()
+							.id(availableItemId)
+							.status("Available")
+							.build()
+					))
+					.build()
+			))
+			.build());
+
+		mapStatus("Available", AVAILABLE);
+		mapStatus("Checked out", CHECKED_OUT);
+
+		// Act
+		final var items = getItems(instanceId);
+
+		// Assert
+		assertThat("Items should have mapped status", items,
+			contains(
+				allOf(
+					hasLocalId(checkedOutItemId),
+					hasStatus(CHECKED_OUT)
+				),
+				allOf(
+					hasLocalId(availableItemId),
+					hasStatus(AVAILABLE)
+				)
+			));
+	}
+
+	@Test
 	void shouldDefineAvailableSettings() {
 		final var settings = client.getSettings();
 
@@ -136,5 +186,25 @@ class ConsortialFolioHostLmsClientItemTests {
 				hasProperty("typeCode", is("String"))
 			)
 		));
+	}
+
+	@Nullable
+	private List<Item> getItems(String instanceId) {
+		return client.getItems(BibRecord.builder()
+				.sourceRecordId(instanceId)
+				.build())
+			.block();
+	}
+
+	private void mapStatus(String localStatus, ItemStatusCode canonicalStatus) {
+		referenceValueMappingFixture
+			.defineItemStatusMapping(HOST_LMS_CODE, localStatus, canonicalStatus.name());
+	}
+
+	private static Holding.HoldingBuilder exampleHolding() {
+		return Holding.builder()
+			.callNumber("QA273.A5450 1984")
+			.location("Crerar, Lower Level, Bookstacks")
+			.status("Available");
 	}
 }

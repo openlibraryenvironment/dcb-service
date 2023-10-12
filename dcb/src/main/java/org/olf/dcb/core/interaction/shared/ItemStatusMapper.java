@@ -62,6 +62,10 @@ public class ItemStatusMapper {
 
 	@FunctionalInterface
 	public interface FallbackMapper {
+		static FallbackMapper unknownStatusFallback() {
+			return statusCode -> UNKNOWN;
+		}
+
 		static FallbackMapper fallbackBasedUponAvailableStatuses(String... availableStatusCodes) {
 			return fallbackBasedUponAvailableStatuses(List.of(availableStatusCodes));
 		}

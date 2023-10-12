@@ -4,6 +4,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.unknownStatusFallback;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
@@ -11,7 +12,6 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -109,9 +109,5 @@ class ItemStatusMapperTests {
 	private ItemStatus mapStatus(String statusCode, String dueDate) {
 		return mapper.mapStatus(statusCode, dueDate, HOST_LMS_CODE, true, unknownStatusFallback())
 			.block();
-	}
-
-	private static FallbackMapper unknownStatusFallback() {
-		return statusCode -> UNKNOWN;
 	}
 }
