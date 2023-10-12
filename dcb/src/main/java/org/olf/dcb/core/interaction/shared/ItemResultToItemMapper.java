@@ -43,45 +43,47 @@ public class ItemResultToItemMapper {
 	public Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem result, String hostLmsCode, String localBibId) {
 		log.debug("mapResultToItem(result, {}, {})", hostLmsCode, localBibId);
 
-			final var dueDate = result.getStatus().getDuedate();
+		final var dueDate = result.getStatus().getDuedate();
 
-			final var parsedDueDate = isNotEmpty(dueDate)
-				? Instant.parse(dueDate)
-				: null;
+		final var parsedDueDate = isNotEmpty(dueDate)
+			? Instant.parse(dueDate)
+			: null;
 
-                        // We shouldlook into result.fixedFields for 61 here and set itemType according to that code and not
-                        // the human readable text
-                        String localItemTypeCode = null; 
-                        if ( result.getFixedFields() != null ) {
-                                if ( result.getFixedFields().get(FIXED_FIELD_61) != null ) {
-                                        localItemTypeCode = result.getFixedFields().get(FIXED_FIELD_61).getValue().toString();
-                                }
-                        }
+		// We should look into result.fixedFields for 61 here and set itemType according to that code
+		// and not the human-readable text
+		String localItemTypeCode = null;
+		
+		if (result.getFixedFields() != null) {
+			if (result.getFixedFields().get(FIXED_FIELD_61) != null) {
+				localItemTypeCode = result.getFixedFields().get(FIXED_FIELD_61).getValue().toString();
+			}
+		}
 
-                        final var flitc = localItemTypeCode;
+		final var flitc = localItemTypeCode;
 
-			return itemStatusMapper.mapStatus(result.getStatus(), hostLmsCode)
-				.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
-					.id(result.getId())
-					.status(itemStatus)
-					.dueDate(parsedDueDate)
-					.location(org.olf.dcb.core.model.Location.builder()
-						.code(result.getLocation().getCode().trim())
-						.name(result.getLocation().getName())
-						.build())
-					.barcode(result.getBarcode())
-					.callNumber(result.getCallNumber())
-					.hostLmsCode(hostLmsCode)
-					.holdCount(result.getHoldCount())
-					.localBibId(localBibId)
-                                        .localItemType(result.getItemType())
-                                        .localItemTypeCode(flitc)
-                                        .deleted(result.getDeleted())
-                                        .suppressed(result.getSuppressed())
+		final var locationCode = result.getLocation().getCode().trim();
+
+		return itemStatusMapper.mapStatus(result.getStatus(), hostLmsCode)
+			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
+				.id(result.getId())
+				.status(itemStatus)
+				.dueDate(parsedDueDate)
+				.location(org.olf.dcb.core.model.Location.builder()
+					.code(locationCode)
+					.name(result.getLocation().getName())
 					.build())
-                                .flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode))
-                                .flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode, result.getLocation().getCode().trim()))
-                                ;
+				.barcode(result.getBarcode())
+				.callNumber(result.getCallNumber())
+				.hostLmsCode(hostLmsCode)
+				.holdCount(result.getHoldCount())
+				.localBibId(localBibId)
+				.localItemType(result.getItemType())
+				.localItemTypeCode(flitc)
+				.deleted(result.getDeleted())
+				.suppressed(result.getSuppressed())
+				.build())
+				.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode))
+				.flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode, locationCode));
 	}
 
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(

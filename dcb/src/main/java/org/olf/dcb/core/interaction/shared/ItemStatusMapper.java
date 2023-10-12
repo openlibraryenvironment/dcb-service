@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.shared;
 
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.fallbackBasedUponAvailableStatuses;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
@@ -38,7 +39,7 @@ public class ItemStatusMapper {
 
 	public Mono<ItemStatus> mapStatus(Status status, String hostLmsCode) {
 		return mapStatus(status, hostLmsCode,
-			FallbackMapper.fallbackBasedUponAvailableStatuses(List.of("-", "Available")));
+			fallbackBasedUponAvailableStatuses(List.of("-", "Available")));
 	}
 
 	public Mono<ItemStatus> mapStatus(Status status, String hostLmsCode,
