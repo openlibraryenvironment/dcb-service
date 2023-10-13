@@ -57,6 +57,7 @@ public class GraphQLFactory {
 				.type(TypeRuntimeWiring.newTypeWiring("Query")
 						.dataFetcher("agencies", dataFetchers.getAgenciesDataFetcher())
 						.dataFetcher("hostLms", dataFetchers.getHostLMSDataFetcher())
+						.dataFetcher("locations", dataFetchers.getLocationsDataFetcher())
 						.dataFetcher("agencyGroups", agencyGroupsDataFetcher)
 						.dataFetcher("patronRequests", dataFetchers.getPatronRequestsDataFetcher())
 						.dataFetcher("supplierRequests", dataFetchers.getSupplierRequestsDataFetcher())
