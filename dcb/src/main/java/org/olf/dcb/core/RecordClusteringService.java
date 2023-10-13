@@ -1,6 +1,5 @@
 package org.olf.dcb.core;
 
-import java.time.Instant;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -235,7 +234,7 @@ public class RecordClusteringService {
 	public Mono<ClusterRecord> touch ( final ClusterRecord cluster ) {
 		return Mono.justOrEmpty(cluster.getId())
 			.flatMap( theId -> {
-				return Mono.from(clusterRecords.updateTitleById(cluster.getTitle(), theId) )
+				return Mono.from(clusterRecords.touch(theId) )
 					.doOnNext( total -> {
 						log.debug("Touch updatedDate on cluster record {} yeilded {} records updated", theId, total);
 					});

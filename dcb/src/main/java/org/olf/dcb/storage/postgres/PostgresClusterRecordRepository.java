@@ -4,15 +4,11 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
 
-import jakarta.transaction.Transactional;
-import jakarta.validation.Valid;
-
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.storage.ClusterRecordRepository;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
@@ -22,6 +18,8 @@ import io.micronaut.data.r2dbc.annotation.R2dbcRepository;
 import io.micronaut.data.repository.jpa.reactive.ReactiveStreamsJpaSpecificationExecutor;
 import io.micronaut.data.repository.reactive.ReactiveStreamsPageableRepository;
 import jakarta.inject.Singleton;
+import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 
 
 @SuppressWarnings("unchecked")
@@ -58,6 +56,15 @@ public interface PostgresClusterRecordRepository extends ReactiveStreamsPageable
 			+ "   AND mp_.value IN (:points)"
 			+ " ORDER BY date_created ASC;")
 	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPoints ( String derivedType, Collection<UUID> points );
+	
+	@SingleResult
+	Publisher<Long> updateById( @NonNull UUID id );
+	
+	@Override
+	@SingleResult
+	default Publisher<Long> touch( @NonNull UUID id ) {
+		return this.updateById(id);
+	}
 
 }
 

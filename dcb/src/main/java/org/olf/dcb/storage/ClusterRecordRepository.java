@@ -4,19 +4,17 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
 
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
-
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.annotation.QueryHint;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Mono;
-import io.micronaut.data.annotation.QueryHint;
 
 
 public interface ClusterRecordRepository {
@@ -69,7 +67,7 @@ public interface ClusterRecordRepository {
 	Publisher<Void> delete(@NonNull UUID id);
 	
 	@SingleResult
-	Publisher<Long> updateTitleById( @Nullable String title, @NonNull UUID id );
+	Publisher<Long> touch( @NonNull UUID id );
 
 	@NonNull
 	Publisher<ClusterRecord> findAllByIdInList(@NonNull Collection<UUID> id);
