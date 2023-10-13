@@ -22,6 +22,9 @@ public interface RawSourceRepository {
 	@SingleResult
 	Publisher<? extends RawSource> update(@Valid @NotNull @NonNull RawSource rawSource);
 	
+	@NonNull
+	@SingleResult
+	Publisher<RawSource> findOneByHostLmsIdAndRemoteId(UUID hostLmsID, String remoteId);
 
 	@SingleResult
 	@NonNull
@@ -34,8 +37,4 @@ public interface RawSourceRepository {
 	@NonNull
 	@SingleResult
 	Publisher<Boolean> existsById( @NonNull UUID id );
-
-//	@NonNull
-//	@SingleResult
-//	Publisher<? extends RawSource> update(@Valid @NotNull @NonNull RawSource rawSource);
 }

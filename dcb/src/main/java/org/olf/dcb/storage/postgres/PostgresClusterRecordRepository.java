@@ -21,15 +21,16 @@ import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 
-
 @SuppressWarnings("unchecked")
 @Singleton
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 @Transactional
-public interface PostgresClusterRecordRepository extends ReactiveStreamsPageableRepository<ClusterRecord, UUID>, ReactiveStreamsJpaSpecificationExecutor<ClusterRecord>, ClusterRecordRepository {
+public interface PostgresClusterRecordRepository extends 
+                                                        ReactiveStreamsPageableRepository<ClusterRecord, UUID>, 
+                                                        ReactiveStreamsJpaSpecificationExecutor<ClusterRecord>, 
+                                                        ClusterRecordRepository {
 
-	/* @Join("bibs") we don't need the bibs, just the record from the primary bib */
-	Publisher<Page<ClusterRecord>> findAll(@Valid Pageable pageable);
+	// Publisher<Page<ClusterRecord>> findAll(@Valid Pageable pageable);
 
 	/*
 	 * // Doing the join can cause recursion in the graph

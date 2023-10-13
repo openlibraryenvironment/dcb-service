@@ -1,11 +1,12 @@
 type Query {
-    hello(name: String): String!
-    agencies(query: String): [Agency]!
-    patronRequests(query: String): [PatronRequest]!
+    agencies(query: String, pageno: Int, pagesize: Int): AgencyPage!
+    hostLms(query: String, pageno:Int, pagesize: Int): HostLmsPage!
+    locations(query: String, pageno:Int, pagesize: Int): LocationPage!
+    patronRequests(query: String, pageno:Int, pagesize: Int): PatronRequestPage
     supplierRequests(query: String): [SupplierRequest]!
     agencyGroups(query: String): [AgencyGroup]!
     instanceClusters(query: String, pageno: Int, pagesize: Int): ClusterRecordPage!
-    sourceBibs(query: String, pageno:Int, pagesize: Int): [BibRecord]!
+    sourceBibs(query: String, pageno:Int, pagesize: Int): BibRecordPage!
 }
 
 type Mutation {
@@ -29,6 +30,14 @@ input AgencyGroupInput {
     name: String!
 }
 
+type HostLms {
+  id: ID
+  code: String
+  name: String
+  lmsClientClass: String
+  clientConfig: String
+}
+
 """
 An Agency is a legal entity participating in resource sharing - perhaps an institution, or a consortium or some  other service provider, for
 example Hathi Trust or internet archive. Agencies are the root object off which branch locations and other domain specific records can hang.
@@ -37,6 +46,10 @@ type Agency {
     id: ID
     code: String
     name: String
+    authProfile: String
+    longitude: Float
+    latitude: Float
+    hostLms: HostLms
 }
 
 """
@@ -96,21 +109,98 @@ type PatronIdentity {
   id: ID!
 }
 
+type Location {
+  id: ID!
+  code: String
+  name: String
+  type: String
+  agency: Agency
+  parentLocation: Location
+  hostSystem: HostLms
+  isPickup: Boolean
+  longitude: Float
+  latitude: Float
+}
+
 """
 See: https://micronaut-projects.github.io/micronaut-data/2.4.0/api/io/micronaut/data/model/Page.html
 """
+type Pageable {
+  number: Int
+  offset: Int
+}
+
 type ClusterRecordPage {
-  contents: [ClusterRecord]
-  pageNumber: Int
-  size: Int
+  content: [ClusterRecord]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type BibRecordPage {
+  content: [BibRecord]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type HostLmsPage {
+  content: [HostLms]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type AgencyPage {
+  content: [Agency]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type LocationPage {
+  content: [Location]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type PatronRequestPage {
+  content: [PatronRequest]
+  totalSize: Int
+  pageable: Pageable
 }
 
 type ClusterRecord {
   id: ID!
   title: String
+  selectedBib: ID
+  isDeleted: Boolean
+  dateCreated: String
+  dateUpdated: String
+  members: [BibRecord]
 }
 
 type BibRecord {
   id: ID!
+  dateCreated: String
+  dateUpdated: String
   title: String
+  author: String
+  placeOfPublication: String
+  publisher: String
+  dateOfPublication: String
+  edition: String
+  isLargePrint: Boolean
+  clusterReason: String
+  typeOfRecord: String
+  canonicalMetadata: String
+  metadataScore: Int
+  processVersion: Int
+  contributesTo: ClusterRecord
+  sourceSystemId: ID
+  sourceRecordId: String
+  sourceRecord: RawSource
+}
+
+type RawSource {
+  id: ID!
+  hostLmsId: ID!
+  remoteId: String
+  rawRecord: String
 }

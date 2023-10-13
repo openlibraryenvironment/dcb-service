@@ -3,8 +3,6 @@ package org.olf.dcb.request.fulfilment;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.olf.dcb.request.fulfilment.PatronTypeMappingNotFound;
-import org.olf.dcb.request.fulfilment.PatronTypeService;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -27,7 +25,7 @@ class PatronTypeServiceTests {
 
 	@BeforeEach
 	public void beforeEach() {
-		referenceValueMappingFixture.deleteAllReferenceValueMappings();
+		referenceValueMappingFixture.deleteAll();
 	}
 
 	@Test

@@ -55,8 +55,9 @@ public class GraphQLFactory {
 
 		RuntimeWiring runtimeWiring = RuntimeWiring.newRuntimeWiring()
 				.type(TypeRuntimeWiring.newTypeWiring("Query")
-						.dataFetcher("hello", dataFetchers.getHelloDataFetcher())
 						.dataFetcher("agencies", dataFetchers.getAgenciesDataFetcher())
+						.dataFetcher("hostLms", dataFetchers.getHostLMSDataFetcher())
+						.dataFetcher("locations", dataFetchers.getLocationsDataFetcher())
 						.dataFetcher("agencyGroups", agencyGroupsDataFetcher)
 						.dataFetcher("patronRequests", dataFetchers.getPatronRequestsDataFetcher())
 						.dataFetcher("supplierRequests", dataFetchers.getSupplierRequestsDataFetcher())
@@ -70,6 +71,10 @@ public class GraphQLFactory {
 						typeWiring -> typeWiring.dataFetcher("members", dataFetchers.getAgencyGroupMembersDataFetcher()))
 				.type("AgencyGroupMember",
 						typeWiring -> typeWiring.dataFetcher("agency", dataFetchers.getAgencyDataFetcherForGroupMember()))
+				.type("ClusterRecord",
+						typeWiring -> typeWiring.dataFetcher("members", dataFetchers.getClusterMembersDataFetcher()))
+                                .type("BibRecord",
+                                        typeWiring -> typeWiring.dataFetcher("sourceRecord", dataFetchers.getSourceRecordForBibDataFetcher()))
 				.build();
 
 		// Create the executable schema.

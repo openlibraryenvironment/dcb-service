@@ -40,6 +40,9 @@ public interface BibRepository {
 	Publisher<BibRecord> findAllByContributesTo(ClusterRecord clusterRecord);
 
 	@NonNull
+	Publisher<Page<BibRecord>> findAllByContributesTo( ClusterRecord clusterRecord, Pageable page );
+
+	@NonNull
 	@SingleResult
 	Publisher<Page<BibRecord>> queryAll(Pageable page);
 

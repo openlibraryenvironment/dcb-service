@@ -71,7 +71,7 @@ public class ValidatePatronTests {
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("467295");
 
-		referenceValueMappingFixture.deleteAllReferenceValueMappings();
+		referenceValueMappingFixture.deleteAll();
 
 		agencyFixture.deleteAllAgencies();
 		agencyFixture.saveAgency(DataAgency.builder()
