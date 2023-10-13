@@ -38,6 +38,67 @@ class ItemStatusMapperTests {
 	}
 
 	@Nested
+	class ReferenceValueMappingTests {
+		@Test
+		void statusCheckedOutIsMappedWhenValidMappingPresent() {
+			// Arrange
+			defineStatusMapping("-", "AVAILABLE");
+
+			// Act
+			final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
+
+			// Assert
+			assertThat(mappedStatus, is(notNullValue()));
+			assertThat(mappedStatus.getCode(), is(CHECKED_OUT));
+		}
+
+		@Test
+		void statusAvailableIsMappedWhenValidMappingPresent() {
+			// Arrange
+			defineStatusMapping("-", "AVAILABLE");
+
+			// Act
+			final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", null));
+
+			// Assert
+			assertThat(mappedStatus, is(notNullValue()));
+			assertThat(mappedStatus.getCode(), is(AVAILABLE));
+		}
+
+		@Test
+		void statusUnavailableIsMappedWhenValidMappingPresent() {
+			// Arrange
+			defineStatusMapping("/", "UNAVAILABLE");
+
+			// Act
+			final var mappedStatus = mapStatus(new Status("/", "UNAVAILABLE", null));
+
+			// Assert
+			assertThat(mappedStatus, is(notNullValue()));
+			assertThat(mappedStatus.getCode(), is(UNAVAILABLE));
+		}
+
+		@Test
+		void statusIsNotMappedToInvalidEnum() {
+			// Arrange
+			defineStatusMapping("?", "INVALID");
+
+			// Act
+			final var exception = assertThrows(IllegalArgumentException.class, () ->
+				mapStatus(new Status("?", "INVALID", "2023-04-22T15:55:13Z")));
+
+			// Assert
+			assertThat(exception, is(notNullValue()));
+			assertThat(exception.getMessage(),
+				is("No enum constant org.olf.dcb.core.model.ItemStatusCode.INVALID"));
+		}
+
+		private void defineStatusMapping(String fromValue, String toValue) {
+			referenceValueMappingFixture.defineItemStatusMapping(HOST_LMS_CODE, fromValue, toValue);
+		}
+	}
+
+	@Nested
 	class SierraFallbackMappingTests {
 		@Test
 		void statusIsAvailableWhenCodeIsHyphenAndDueDateIsNotPresent() {
@@ -93,64 +154,6 @@ class ItemStatusMapperTests {
 			assertThat(mappedStatus, is(notNullValue()));
 			assertThat(mappedStatus.getCode(), is(UNKNOWN));
 		}
-	}
-
-	@Test
-	void statusCheckedOutIsMappedWhenValidMappingPresent() {
-		// Arrange
-		defineStatusMapping("-", "AVAILABLE");
-
-		// Act
-		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
-
-		// Assert
-		assertThat(mappedStatus, is(notNullValue()));
-		assertThat(mappedStatus.getCode(), is(CHECKED_OUT));
-	}
-
-	@Test
-	void statusAvailableIsMappedWhenValidMappingPresent() {
-		// Arrange
-		defineStatusMapping("-", "AVAILABLE");
-
-		// Act
-		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", null));
-
-		// Assert
-		assertThat(mappedStatus, is(notNullValue()));
-		assertThat(mappedStatus.getCode(), is(AVAILABLE));
-	}
-
-	@Test
-	void statusUnavailableIsMappedWhenValidMappingPresent() {
-		// Arrange
-		defineStatusMapping("/", "UNAVAILABLE");
-
-		// Act
-		final var mappedStatus = mapStatus(new Status("/", "UNAVAILABLE", null));
-
-		// Assert
-		assertThat(mappedStatus, is(notNullValue()));
-		assertThat(mappedStatus.getCode(), is(UNAVAILABLE));
-	}
-
-	@Test
-	void statusIsNotMappedToInvalidEnum() {
-		// Arrange
-		defineStatusMapping("?", "INVALID");
-
-		// Act
-		final var exception = assertThrows(IllegalArgumentException.class, () ->
-			mapStatus(new Status("?", "INVALID", "2023-04-22T15:55:13Z")));
-
-		// Assert
-		assertThat(exception, is(notNullValue()));
-		assertThat(exception.getMessage(),
-			is("No enum constant org.olf.dcb.core.model.ItemStatusCode.INVALID"));
-	}
-
-	private void defineStatusMapping(String fromValue, String toValue) {
-		referenceValueMappingFixture.defineItemStatusMapping(HOST_LMS_CODE, fromValue, toValue);
 	}
 
 	private ItemStatus mapStatus(Status status) {
