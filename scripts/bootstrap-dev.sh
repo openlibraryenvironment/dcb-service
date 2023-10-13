@@ -56,7 +56,7 @@ curl -X POST $TARGET/hostlmss -H "Content-Type: application/json"  -H "Authoriza
   "lmsClientClass": "org.olf.dcb.devtools.interaction.dummy.DummyLmsClient", 
   "clientConfig": { 
     "ingest": "true",
-    "num-records-to-generate": 2000,
+    "num-records-to-generate": 500,
     "shelving-locations": "LM3-A1-SL1,LM3-A2-SL1"
   } 
 }'
