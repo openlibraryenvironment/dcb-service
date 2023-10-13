@@ -96,7 +96,7 @@ class ItemStatusMapperTests {
 	@Test
 	void statusCheckedOutIsMappedWhenValidMappingPresent() {
 		// Arrange
-		referenceValueMappingFixture.defineItemStatusMapping(HOST_LMS_CODE, "-", "AVAILABLE");
+		defineStatusMapping("-", "AVAILABLE");
 
 		// Act
 		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
@@ -109,7 +109,7 @@ class ItemStatusMapperTests {
 	@Test
 	void statusAvailableIsMappedWhenValidMappingPresent() {
 		// Arrange
-		referenceValueMappingFixture.defineItemStatusMapping(HOST_LMS_CODE, "-", "AVAILABLE");
+		defineStatusMapping("-", "AVAILABLE");
 
 		// Act
 		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", null));
@@ -122,7 +122,7 @@ class ItemStatusMapperTests {
 	@Test
 	void statusUnavailableIsMappedWhenValidMappingPresent() {
 		// Arrange
-		referenceValueMappingFixture.defineItemStatusMapping(HOST_LMS_CODE, "/", "UNAVAILABLE");
+		defineStatusMapping("/", "UNAVAILABLE");
 
 		// Act
 		final var mappedStatus = mapStatus(new Status("/", "UNAVAILABLE", null));
@@ -135,7 +135,7 @@ class ItemStatusMapperTests {
 	@Test
 	void statusIsNotMappedToInvalidEnum() {
 		// Arrange
-		referenceValueMappingFixture.defineItemStatusMapping(HOST_LMS_CODE, "?", "INVALID");
+		defineStatusMapping("?", "INVALID");
 
 		// Act
 		final var exception = assertThrows(IllegalArgumentException.class, () ->
@@ -145,6 +145,10 @@ class ItemStatusMapperTests {
 		assertThat(exception, is(notNullValue()));
 		assertThat(exception.getMessage(),
 			is("No enum constant org.olf.dcb.core.model.ItemStatusCode.INVALID"));
+	}
+
+	private void defineStatusMapping(String fromValue, String toValue) {
+		referenceValueMappingFixture.defineItemStatusMapping(HOST_LMS_CODE, fromValue, toValue);
 	}
 
 	private ItemStatus mapStatus(Status status) {
