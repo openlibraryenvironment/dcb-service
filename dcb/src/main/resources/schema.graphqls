@@ -1,6 +1,7 @@
 type Query {
     agencies(query: String, pageno: Int, pagesize: Int): AgencyPage!
     hostLms(query: String, pageno:Int, pagesize: Int): HostLmsPage!
+    locations(query: String, pageno:Int, pagesize: Int): LocationPage!
     patronRequests(query: String): [PatronRequest]!
     supplierRequests(query: String): [SupplierRequest]!
     agencyGroups(query: String): [AgencyGroup]!
@@ -108,6 +109,19 @@ type PatronIdentity {
   id: ID!
 }
 
+type Location {
+  id: ID!
+  code: String
+  name: String
+  type: String
+  agency: Agency
+  parentLocation: Location
+  hostSystem: HostLms
+  isPickup: Boolean
+  longitude: Float
+  latitude: Float
+}
+
 """
 See: https://micronaut-projects.github.io/micronaut-data/2.4.0/api/io/micronaut/data/model/Page.html
 """
@@ -136,6 +150,12 @@ type HostLmsPage {
 
 type AgencyPage {
   content: [Agency]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type LocationPage {
+  content: [Location]
   totalSize: Int
   pageable: Pageable
 }

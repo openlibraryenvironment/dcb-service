@@ -9,6 +9,7 @@ import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
 import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
@@ -17,6 +18,7 @@ import org.olf.dcb.storage.postgres.PostgresSupplierRequestRepository;
 import org.olf.dcb.storage.postgres.PostgresBibRepository;
 import org.olf.dcb.storage.postgres.PostgresRawSourceRepository;
 import org.olf.dcb.storage.postgres.PostgresHostLmsRepository;
+import org.olf.dcb.storage.postgres.PostgresLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.reactivestreams.Publisher;
@@ -47,6 +49,7 @@ public class DataFetchers {
 	private final PostgresBibRepository postgresBibRepository;
         private final PostgresRawSourceRepository postgresRawSourceRepository;
         private final PostgresHostLmsRepository postgresHostLmsRepository;
+        private final PostgresLocationRepository postgresLocationRepository;
 	private final QueryService qs;
 
 	public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
@@ -56,6 +59,7 @@ public class DataFetchers {
 			PostgresBibRepository postgresBibRepository, 
                         PostgresRawSourceRepository postgresRawSourceRepository,
                         PostgresHostLmsRepository postgresHostLmsRepository,
+                        PostgresLocationRepository postgresLocationRepository,
                         QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
@@ -65,6 +69,7 @@ public class DataFetchers {
 		this.postgresBibRepository = postgresBibRepository;
                 this.postgresRawSourceRepository = postgresRawSourceRepository;
                 this.postgresHostLmsRepository = postgresHostLmsRepository;
+                this.postgresLocationRepository = postgresLocationRepository;
 	}
 
 
@@ -143,6 +148,28 @@ public class DataFetchers {
                         return Mono.from(postgresRawSourceRepository.findOneByHostLmsIdAndRemoteId(sourceSystemUUID,sourceRecordId)).toFuture();
                 };
         }
+
+        public DataFetcher<CompletableFuture<Page<Location>>> getLocationsDataFetcher() {
+                return env -> {
+                        Integer pageno = env.getArgument("pageno");
+                        Integer pagesize = env.getArgument("pagesize");
+                        String query = env.getArgument("query");
+
+                        if ( pageno == null ) pageno = Integer.valueOf(0);
+                        if ( pagesize == null ) pagesize = Integer.valueOf(10);
+
+                        log.debug("InstanceClusterDataFetcher::get({},{},{})", pageno,pagesize,query);
+                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
+
+                        if ((query != null) && (query.length() > 0)) {
+                                var spec = qs.evaluate(query, Location.class);
+                                return Mono.from(postgresLocationRepository.findAll(spec, pageable)).toFuture();
+                        }
+
+                        return Mono.from(postgresLocationRepository.findAll(pageable)).toFuture();
+                };
+        }
+
 
         public DataFetcher<CompletableFuture<Page<DataHostLms>>> getHostLMSDataFetcher() {
                 return env -> {
