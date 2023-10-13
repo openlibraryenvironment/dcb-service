@@ -1,6 +1,6 @@
 type Query {
-    hello(name: String): String!
-    agencies(query: String): [Agency]!
+    agencies(query: String, pageno: Int, pagesize: Int): AgencyPage!
+    hostLms(query: String, pageno:Int, pagesize: Int): HostLmsPage!
     patronRequests(query: String): [PatronRequest]!
     supplierRequests(query: String): [SupplierRequest]!
     agencyGroups(query: String): [AgencyGroup]!
@@ -29,6 +29,14 @@ input AgencyGroupInput {
     name: String!
 }
 
+type HostLms {
+  id: ID
+  code: String
+  name: String
+  lmsClientClass: String
+  clientConfig: String
+}
+
 """
 An Agency is a legal entity participating in resource sharing - perhaps an institution, or a consortium or some  other service provider, for
 example Hathi Trust or internet archive. Agencies are the root object off which branch locations and other domain specific records can hang.
@@ -37,6 +45,10 @@ type Agency {
     id: ID
     code: String
     name: String
+    authProfile: String
+    longitude: Float
+    latitude: Float
+    hostLms: HostLms
 }
 
 """
@@ -112,6 +124,18 @@ type ClusterRecordPage {
 
 type BibRecordPage {
   content: [BibRecord]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type HostLmsPage {
+  content: [HostLms]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type AgencyPage {
+  content: [Agency]
   totalSize: Int
   pageable: Pageable
 }

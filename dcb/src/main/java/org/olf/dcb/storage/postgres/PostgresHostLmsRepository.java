@@ -20,12 +20,13 @@ import io.micronaut.data.model.Pageable;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-
-
+import io.micronaut.data.repository.jpa.reactive.ReactiveStreamsJpaSpecificationExecutor;
 
 @SuppressWarnings("unchecked")
 @Singleton
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 @Transactional
-public interface PostgresHostLmsRepository extends ReactiveStreamsPageableRepository<DataHostLms, UUID>, HostLmsRepository {
+public interface PostgresHostLmsRepository extends ReactiveStreamsPageableRepository<DataHostLms, UUID>, 
+                                                        ReactiveStreamsJpaSpecificationExecutor<DataHostLms>,
+                                                        HostLmsRepository {
 }
