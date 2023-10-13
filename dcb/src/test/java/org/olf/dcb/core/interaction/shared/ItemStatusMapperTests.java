@@ -23,6 +23,8 @@ import services.k_int.interaction.sierra.items.Status;
 
 @DcbTest
 class ItemStatusMapperTests {
+	private static final String HOST_LMS_CODE = "test1";
+
 	@Inject
 	private ItemStatusMapper mapper;
 
@@ -94,7 +96,7 @@ class ItemStatusMapperTests {
 	@Test
 	void statusCheckedOutIsMappedWhenValidMappingPresent() {
 		// Arrange
-		referenceValueMappingFixture.defineItemStatusMapping("test1", "-", "AVAILABLE");
+		referenceValueMappingFixture.defineItemStatusMapping(HOST_LMS_CODE, "-", "AVAILABLE");
 
 		// Act
 		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
@@ -107,7 +109,7 @@ class ItemStatusMapperTests {
 	@Test
 	void statusAvailableIsMappedWhenValidMappingPresent() {
 		// Arrange
-		referenceValueMappingFixture.defineItemStatusMapping("test1", "-", "AVAILABLE");
+		referenceValueMappingFixture.defineItemStatusMapping(HOST_LMS_CODE, "-", "AVAILABLE");
 
 		// Act
 		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", null));
@@ -120,7 +122,7 @@ class ItemStatusMapperTests {
 	@Test
 	void statusUnavailableIsMappedWhenValidMappingPresent() {
 		// Arrange
-		referenceValueMappingFixture.defineItemStatusMapping("test1", "/", "UNAVAILABLE");
+		referenceValueMappingFixture.defineItemStatusMapping(HOST_LMS_CODE, "/", "UNAVAILABLE");
 
 		// Act
 		final var mappedStatus = mapStatus(new Status("/", "UNAVAILABLE", null));
@@ -133,7 +135,7 @@ class ItemStatusMapperTests {
 	@Test
 	void statusIsNotMappedToInvalidEnum() {
 		// Arrange
-		referenceValueMappingFixture.defineItemStatusMapping("test1", "?", "INVALID");
+		referenceValueMappingFixture.defineItemStatusMapping(HOST_LMS_CODE, "?", "INVALID");
 
 		// Act
 		final var exception = assertThrows(IllegalArgumentException.class, () ->
@@ -146,7 +148,7 @@ class ItemStatusMapperTests {
 	}
 
 	private ItemStatus mapStatus(Status status) {
-		return mapper.mapStatus(status, "test1", sierraFallback())
+		return mapper.mapStatus(status, HOST_LMS_CODE, sierraFallback())
 			.block();
 	}
 }
