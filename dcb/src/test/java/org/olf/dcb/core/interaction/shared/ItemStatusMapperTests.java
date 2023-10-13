@@ -45,7 +45,7 @@ class ItemStatusMapperTests {
 			defineStatusMapping("-", "AVAILABLE");
 
 			// Act
-			final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
+			final var mappedStatus = mapSierraStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
 
 			// Assert
 			assertThat(mappedStatus, is(notNullValue()));
@@ -58,7 +58,7 @@ class ItemStatusMapperTests {
 			defineStatusMapping("-", "AVAILABLE");
 
 			// Act
-			final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", null));
+			final var mappedStatus = mapSierraStatus(new Status("-", "AVAILABLE", null));
 
 			// Assert
 			assertThat(mappedStatus, is(notNullValue()));
@@ -71,7 +71,7 @@ class ItemStatusMapperTests {
 			defineStatusMapping("/", "UNAVAILABLE");
 
 			// Act
-			final var mappedStatus = mapStatus(new Status("/", "UNAVAILABLE", null));
+			final var mappedStatus = mapSierraStatus(new Status("/", "UNAVAILABLE", null));
 
 			// Assert
 			assertThat(mappedStatus, is(notNullValue()));
@@ -85,7 +85,7 @@ class ItemStatusMapperTests {
 
 			// Act
 			final var exception = assertThrows(IllegalArgumentException.class, () ->
-				mapStatus(new Status("?", "INVALID", "2023-04-22T15:55:13Z")));
+				mapSierraStatus(new Status("?", "INVALID", "2023-04-22T15:55:13Z")));
 
 			// Assert
 			assertThat(exception, is(notNullValue()));
@@ -102,7 +102,7 @@ class ItemStatusMapperTests {
 	class SierraFallbackMappingTests {
 		@Test
 		void statusIsAvailableWhenCodeIsHyphenAndDueDateIsNotPresent() {
-			final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", null));
+			final var mappedStatus = mapSierraStatus(new Status("-", "AVAILABLE", null));
 
 			assertThat(mappedStatus, is(notNullValue()));
 			assertThat(mappedStatus.getCode(), is(AVAILABLE));
@@ -110,7 +110,7 @@ class ItemStatusMapperTests {
 
 		@Test
 		void statusIsAvailableWhenCodeIsHyphenAndDueDateIsBlank() {
-			final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", ""));
+			final var mappedStatus = mapSierraStatus(new Status("-", "AVAILABLE", ""));
 
 			assertThat(mappedStatus, is(notNullValue()));
 			assertThat(mappedStatus.getCode(), is(AVAILABLE));
@@ -118,7 +118,7 @@ class ItemStatusMapperTests {
 
 		@Test
 		void statusIsCheckedOutWhenCodeIsHyphenAndDueDateIsPresent() {
-			final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
+			final var mappedStatus = mapSierraStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
 
 			assertThat(mappedStatus, is(notNullValue()));
 			assertThat(mappedStatus.getCode(), is(CHECKED_OUT));
@@ -133,7 +133,7 @@ class ItemStatusMapperTests {
 		@CsvSource({"m,MISSING", "!,ON HOLDSHELF", "$,BILLED PAID", "n,BILLED NOTPAID",
 			"z,CL RETURNED", "o,LIB USE ONLY", "t,IN TRANSIT"})
 		void statusIsUnavailableWhenCodeAnythingOtherThanHyphen(String code, String displayText) {
-			final var mappedStatus = mapStatus(new Status(code, displayText, null));
+			final var mappedStatus = mapSierraStatus(new Status(code, displayText, null));
 
 			assertThat(mappedStatus, is(notNullValue()));
 			assertThat(mappedStatus.getCode(), is(UNAVAILABLE));
@@ -141,7 +141,7 @@ class ItemStatusMapperTests {
 
 		@Test
 		void statusIsUnknownWhenCodeIsEmpty() {
-			final var mappedStatus = mapStatus(new Status("", "", ""));
+			final var mappedStatus = mapSierraStatus(new Status("", "", ""));
 
 			assertThat(mappedStatus, is(notNullValue()));
 			assertThat(mappedStatus.getCode(), is(UNKNOWN));
@@ -149,14 +149,14 @@ class ItemStatusMapperTests {
 
 		@Test
 		void statusIsUnknownWhenSierraStatusIsNull() {
-			final var mappedStatus = mapStatus(null);
+			final var mappedStatus = mapSierraStatus(null);
 
 			assertThat(mappedStatus, is(notNullValue()));
 			assertThat(mappedStatus.getCode(), is(UNKNOWN));
 		}
 	}
 
-	private ItemStatus mapStatus(Status status) {
+	private ItemStatus mapSierraStatus(Status status) {
 		return mapper.mapStatus(status, HOST_LMS_CODE, sierraFallback())
 			.block();
 	}
