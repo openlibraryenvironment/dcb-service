@@ -114,14 +114,26 @@ public class DataFetchers {
 		};
 	}
 
-	public DataFetcher<Iterable<PatronRequest>> getPatronRequestsDataFetcher() {
-		return env -> {
-			String query = env.getArgument("query");
-			log.debug("PatronRequestsDataFetcher::get({})", query);
-			return Mono.justOrEmpty(qs.evaluate(query, PatronRequest.class))
-					.flatMapMany(spec -> postgresPatronRequestRepository.findAll(spec)).toIterable();
-		};
-	}
+
+        public DataFetcher<CompletableFuture<Page<PatronRequest>>> getPatronRequestsDataFetcher() {
+                return env -> {
+                        Integer pageno = env.getArgument("pageno");
+                        Integer pagesize = env.getArgument("pagesize");
+                        String query = env.getArgument("query");
+                        
+                        if ( pageno == null ) pageno = Integer.valueOf(0);
+                        if ( pagesize == null ) pagesize = Integer.valueOf(10);
+
+                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
+                
+                        if ((query != null) && (query.length() > 0)) {
+                                var spec = qs.evaluate(query, PatronRequest.class);
+                                return Mono.from(postgresPatronRequestRepository.findAll(spec, pageable)).toFuture();
+                        }
+                        
+                        return Mono.from(postgresPatronRequestRepository.findAll(pageable)).toFuture();
+                };
+        }
 
 	public DataFetcher<Iterable<SupplierRequest>> getSupplierRequestsDataFetcher() {
 		return env -> {
