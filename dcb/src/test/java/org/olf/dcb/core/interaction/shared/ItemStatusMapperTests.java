@@ -15,10 +15,12 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
+import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.items.Status;
 
@@ -45,7 +47,8 @@ class ItemStatusMapperTests {
 			defineStatusMapping("-", "AVAILABLE");
 
 			// Act
-			final var mappedStatus = mapSierraStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
+			final var mappedStatus = mapStatusWithUnknownFallback(
+				new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
 
 			// Assert
 			assertThat(mappedStatus, is(notNullValue()));
@@ -58,7 +61,8 @@ class ItemStatusMapperTests {
 			defineStatusMapping("-", "AVAILABLE");
 
 			// Act
-			final var mappedStatus = mapSierraStatus(new Status("-", "AVAILABLE", null));
+			final var mappedStatus = mapStatusWithUnknownFallback(
+				new Status("-", "AVAILABLE", null));
 
 			// Assert
 			assertThat(mappedStatus, is(notNullValue()));
@@ -71,7 +75,8 @@ class ItemStatusMapperTests {
 			defineStatusMapping("/", "UNAVAILABLE");
 
 			// Act
-			final var mappedStatus = mapSierraStatus(new Status("/", "UNAVAILABLE", null));
+			final var mappedStatus = mapStatusWithUnknownFallback(
+				new Status("/", "UNAVAILABLE", null));
 
 			// Assert
 			assertThat(mappedStatus, is(notNullValue()));
@@ -85,12 +90,27 @@ class ItemStatusMapperTests {
 
 			// Act
 			final var exception = assertThrows(IllegalArgumentException.class, () ->
-				mapSierraStatus(new Status("?", "INVALID", "2023-04-22T15:55:13Z")));
+				mapStatusWithUnknownFallback(
+					new Status("?", "INVALID", "2023-04-22T15:55:13Z")));
 
 			// Assert
 			assertThat(exception, is(notNullValue()));
 			assertThat(exception.getMessage(),
 				is("No enum constant org.olf.dcb.core.model.ItemStatusCode.INVALID"));
+		}
+
+		@Test
+		void statusIsUnknownWhenNoMatchingMappingIsDefined() {
+			// Arrange
+			defineStatusMapping("?", "INVALID");
+
+			// Act
+			final var mappedStatus = mapStatusWithUnknownFallback(
+				new Status("NOT_MATCHED", "", null));
+
+			// Assert
+			assertThat(mappedStatus, is(notNullValue()));
+			assertThat(mappedStatus.getCode(), is(UNKNOWN));
 		}
 
 		private void defineStatusMapping(String fromValue, String toValue) {
@@ -115,7 +135,6 @@ class ItemStatusMapperTests {
 			assertThat(mappedStatus, is(notNullValue()));
 			assertThat(mappedStatus.getCode(), is(AVAILABLE));
 		}
-
 		@Test
 		void statusIsCheckedOutWhenCodeIsHyphenAndDueDateIsPresent() {
 			final var mappedStatus = mapSierraStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
@@ -156,8 +175,23 @@ class ItemStatusMapperTests {
 		}
 	}
 
+	@Nullable
 	private ItemStatus mapSierraStatus(Status status) {
-		return mapper.mapStatus(status, HOST_LMS_CODE, sierraFallback())
+		return mapStatus(status, sierraFallback());
+	}
+
+	@Nullable
+	private ItemStatus mapStatusWithUnknownFallback(Status status) {
+		return mapStatus(status, unknownStatusFallback());
+	}
+
+	@Nullable
+	private ItemStatus mapStatus(Status status, FallbackMapper fallbackMapper) {
+		return mapper.mapStatus(status, HOST_LMS_CODE, fallbackMapper)
 			.block();
+	}
+
+	private static FallbackMapper unknownStatusFallback() {
+		return statusCode -> UNKNOWN;
 	}
 }
