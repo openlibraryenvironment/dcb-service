@@ -11,6 +11,12 @@ import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import jakarta.persistence.criteria.Path;
 import services.k_int.data.querying.JpaQuerySpecificationBuilder;
 
+/**
+ *
+ * see: https://github.com/michelrisucci/jpa-jpql-filter/blob/master/core/src/main/java/javax/persistence/filter/core/conditional/like/ILike.java
+ * see: https://tomee.apache.org/jakartaee-10.0/javadoc/jakarta/persistence/criteria/CriteriaBuilder.html
+ * see: https://micronaut-projects.github.io/micronaut-data/latest/api/io/micronaut/data/repository/jpa/criteria/QuerySpecification.html
+ */
 public class LuceneWildcardQueryNodeBuilder<T> implements JpaQuerySpecificationBuilder<T,WildcardQueryNode> {
 
 	private static final Logger log = LoggerFactory.getLogger(LuceneWildcardQueryNodeBuilder.class);

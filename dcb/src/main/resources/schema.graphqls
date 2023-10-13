@@ -5,7 +5,7 @@ type Query {
     supplierRequests(query: String): [SupplierRequest]!
     agencyGroups(query: String): [AgencyGroup]!
     instanceClusters(query: String, pageno: Int, pagesize: Int): ClusterRecordPage!
-    sourceBibs(query: String, pageno:Int, pagesize: Int): [BibRecord]!
+    sourceBibs(query: String, pageno:Int, pagesize: Int): BibRecordPage!
 }
 
 type Mutation {
@@ -99,18 +99,58 @@ type PatronIdentity {
 """
 See: https://micronaut-projects.github.io/micronaut-data/2.4.0/api/io/micronaut/data/model/Page.html
 """
+type Pageable {
+  number: Int
+  offset: Int
+}
+
 type ClusterRecordPage {
-  contents: [ClusterRecord]
-  pageNumber: Int
-  size: Int
+  content: [ClusterRecord]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type BibRecordPage {
+  content: [BibRecord]
+  totalSize: Int
+  pageable: Pageable
 }
 
 type ClusterRecord {
   id: ID!
   title: String
+  selectedBib: ID
+  isDeleted: Boolean
+  dateCreated: String
+  dateUpdated: String
+  members: [BibRecord]
 }
 
 type BibRecord {
   id: ID!
+  dateCreated: String
+  dateUpdated: String
   title: String
+  author: String
+  placeOfPublication: String
+  publisher: String
+  dateOfPublication: String
+  edition: String
+  isLargePrint: Boolean
+  clusterReason: String
+  typeOfRecord: String
+  canonicalMetadata: String
+  metadataScore: Int
+  processVersion: Int
+  contributesTo: ClusterRecord
+  sourceSystemId: ID
+  sourceRecordId: String
+  sourceRecord: RawSource
+}
+
+type RawSource {
+  id: ID!
+  hostLmsId: ID!
+  remoteId: String
+  rawRecord: String
 }

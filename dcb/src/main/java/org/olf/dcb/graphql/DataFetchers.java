@@ -6,12 +6,20 @@ import org.olf.dcb.core.model.AgencyGroupMember;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
 import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
 import org.olf.dcb.storage.postgres.PostgresPatronRequestRepository;
 import org.olf.dcb.storage.postgres.PostgresSupplierRequestRepository;
+import org.olf.dcb.storage.postgres.PostgresBibRepository;
+import org.olf.dcb.storage.postgres.PostgresRawSourceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.reactivestreams.Publisher;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
 
 import graphql.schema.DataFetcher;
 import io.micronaut.core.annotation.TypeHint;
@@ -20,6 +28,8 @@ import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.data.querying.QueryService;
+import java.util.List;
+import java.util.UUID;
 
 @Singleton
 @TypeHint(typeNames = { "org.apache.lucene.search.Query", "org.apache.lucene.search.MultiTermQuery" }, accessType = {
@@ -32,17 +42,24 @@ public class DataFetchers {
 	private final PostgresPatronRequestRepository postgresPatronRequestRepository;
 	private final PostgresSupplierRequestRepository postgresSupplierRequestRepository;
 	private final AgencyGroupMemberRepository agencyGroupMemberRepository;
+	private final PostgresBibRepository postgresBibRepository;
+        private final PostgresRawSourceRepository postgresRawSourceRepository;
 	private final QueryService qs;
 
 	public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
 			AgencyGroupMemberRepository agencyGroupMemberRepository,
 			PostgresPatronRequestRepository postgresPatronRequestRepository,
-			PostgresSupplierRequestRepository postgresSupplierRequestRepository, QueryService qs) {
+			PostgresSupplierRequestRepository postgresSupplierRequestRepository, 
+			PostgresBibRepository postgresBibRepository, 
+                        PostgresRawSourceRepository postgresRawSourceRepository,
+                        QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
 		this.agencyGroupMemberRepository = agencyGroupMemberRepository;
 		this.postgresPatronRequestRepository = postgresPatronRequestRepository;
 		this.postgresSupplierRequestRepository = postgresSupplierRequestRepository;
+		this.postgresBibRepository = postgresBibRepository;
+                this.postgresRawSourceRepository = postgresRawSourceRepository;
 	}
 
 	/**
@@ -115,4 +132,22 @@ public class DataFetchers {
 					.flatMapMany(spec -> postgresSupplierRequestRepository.findAll(spec)).toIterable();
 		};
 	}
+
+        public DataFetcher<CompletableFuture<List<BibRecord>>> getClusterMembersDataFetcher() {
+                return env -> {
+                        log.debug("getClusterMembersDataFetcher args={}/ctx={}/root={}/src={}", env.getArguments(), env.getGraphQlContext(), env.getRoot(), env.getSource());
+                        return Flux.from(postgresBibRepository.findAllByContributesTo(env.getSource())).collectList().toFuture();
+                };
+        }
+
+        public DataFetcher<CompletableFuture<RawSource>> getSourceRecordForBibDataFetcher() {
+                return env -> {
+                        BibRecord br = (BibRecord) env.getSource();
+                        String sourceRecordId=br.getSourceRecordId();
+                        UUID sourceSystemUUID=br.getSourceSystemId();
+                        log.debug("Find raw source with ID {} from {}",sourceRecordId,sourceSystemUUID);
+                        return Mono.from(postgresRawSourceRepository.findOneByHostLmsIdAndRemoteId(sourceSystemUUID,sourceRecordId)).toFuture();
+                };
+        }
+
 }

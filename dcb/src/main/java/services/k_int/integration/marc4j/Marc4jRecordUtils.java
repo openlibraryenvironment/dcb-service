@@ -46,17 +46,21 @@ public interface Marc4jRecordUtils {
 			case 'a' -> {
 				yield switch (leader.getImplDefined1()[0]) {
 					case 'a', 'c', 'd', 'm' -> "Books";
-					default 								-> "Continuing Resources";
+					default -> "Continuing Resources";
 				};
 			}
-			
-			case 'c', 'd', 'i', 'j' -> "Music";
-			case 'e', 'f' 					-> "Maps";
-			case 'g', 'k', 'o', 'r' -> "Visual Materials";
-			case 'm'								-> "Computer File";
-			case 'p' 								-> "Mixed Materials";
-			case 't' 								-> "Books";			
-			default 								-> "Unknown";
+			case 'c' -> "Notated Music";
+                        case 'd' -> "Manuscript notated music";
+                        case 'i' -> "Audiobook";
+                        case 'j' -> "Music";
+			case 'e', 'f' -> "Maps";
+			case 'g', 'k' -> "Visual Materials";
+                        case 'o' -> "Kit";
+			case 'm' -> "Computer File";
+			case 'p' -> "Mixed Materials";
+			case 't' -> "Books";			
+			case 'r' -> "Object";			
+			default -> "Unknown";
 		};
 	}
 }
