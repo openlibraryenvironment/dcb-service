@@ -152,7 +152,7 @@ class IngestHelper {
 
 	private Publisher<PAPILmsClient.BibsPagedRow> processPageAndSaveState(PublisherState state, PAPILmsClient.BibsPagedResult page) {
 		state.offset = page.getLastID();
-		log.debug("page getting converted to iterable: {}", page);
+		// log.debug("page getting converted to iterable: {}", page);
 
 		return Flux.fromIterable(page.getGetBibsPagedRows())
 			.concatWith(Mono.defer(() -> saveState(state))
