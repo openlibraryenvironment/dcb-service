@@ -59,6 +59,7 @@ public class GraphQLFactory {
 						.dataFetcher("hostLms", dataFetchers.getHostLMSDataFetcher())
 						.dataFetcher("locations", dataFetchers.getLocationsDataFetcher())
 						.dataFetcher("agencyGroups", agencyGroupsDataFetcher)
+						.dataFetcher("agencyGroups2", dataFetchers.getPaginatedAgencyGroupsDataFetcher())
 						.dataFetcher("patronRequests", dataFetchers.getPatronRequestsDataFetcher())
 						.dataFetcher("supplierRequests", dataFetchers.getSupplierRequestsDataFetcher())
 						.dataFetcher("instanceClusters", instanceClusterDataFetcher)

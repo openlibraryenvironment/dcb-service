@@ -3,8 +3,9 @@ type Query {
     hostLms(query: String, pageno:Int, pagesize: Int): HostLmsPage!
     locations(query: String, pageno:Int, pagesize: Int): LocationPage!
     patronRequests(query: String, pageno:Int, pagesize: Int): PatronRequestPage
-    supplierRequests(query: String): [SupplierRequest]!
+    supplierRequests(query: String, pageno:Int, pagesize: Int): SupplierRequestPage!
     agencyGroups(query: String): [AgencyGroup]!
+    agencyGroups2(query: String, pageno:Int, pagesize: Int): AgencyGroupPage!
     instanceClusters(query: String, pageno: Int, pagesize: Int): ClusterRecordPage!
     sourceBibs(query: String, pageno:Int, pagesize: Int): BibRecordPage!
 }
@@ -162,6 +163,18 @@ type LocationPage {
 
 type PatronRequestPage {
   content: [PatronRequest]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type SupplierRequestPage {
+  content: [SupplierRequest]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type AgencyGroupPage {
+  content: [AgencyGroup]
   totalSize: Int
   pageable: Pageable
 }
