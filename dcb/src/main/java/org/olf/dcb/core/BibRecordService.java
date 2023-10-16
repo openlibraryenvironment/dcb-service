@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
+import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;

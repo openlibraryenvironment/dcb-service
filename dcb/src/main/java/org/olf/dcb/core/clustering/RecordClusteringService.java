@@ -1,4 +1,4 @@
-package org.olf.dcb.core;
+package org.olf.dcb.core.clustering;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -10,6 +10,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.olf.dcb.core.BibRecordService;
 import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
