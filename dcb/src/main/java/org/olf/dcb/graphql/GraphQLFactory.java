@@ -33,7 +33,6 @@ public class GraphQLFactory {
 			CreateAgencyGroupDataFetcher createAgencyGroupDataFetcher,
 			AddAgencyToGroupDataFetcher addAgencyToGroupDataFetcher,
 			ResourceResolver resourceResolver,
-			AgencyGroupsDataFetcher agencyGroupsDataFetcher,
 			InstanceClusterDataFetcher instanceClusterDataFetcher,
 			SourceBibDataFetcher sourceBibDataFetcher,
 			DataFetchers dataFetchers) {
@@ -58,8 +57,7 @@ public class GraphQLFactory {
 						.dataFetcher("agencies", dataFetchers.getAgenciesDataFetcher())
 						.dataFetcher("hostLms", dataFetchers.getHostLMSDataFetcher())
 						.dataFetcher("locations", dataFetchers.getLocationsDataFetcher())
-						.dataFetcher("agencyGroups", agencyGroupsDataFetcher)
-						.dataFetcher("agencyGroups2", dataFetchers.getPaginatedAgencyGroupsDataFetcher())
+						.dataFetcher("agencyGroups", dataFetchers.getPaginatedAgencyGroupsDataFetcher())
 						.dataFetcher("patronRequests", dataFetchers.getPatronRequestsDataFetcher())
 						.dataFetcher("supplierRequests", dataFetchers.getSupplierRequestsDataFetcher())
 						.dataFetcher("instanceClusters", instanceClusterDataFetcher)

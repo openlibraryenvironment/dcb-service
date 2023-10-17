@@ -4,8 +4,7 @@ type Query {
     locations(query: String, pageno:Int, pagesize: Int): LocationPage!
     patronRequests(query: String, pageno:Int, pagesize: Int): PatronRequestPage
     supplierRequests(query: String, pageno:Int, pagesize: Int): SupplierRequestPage!
-    agencyGroups(query: String): [AgencyGroup]!
-    agencyGroups2(query: String, pageno:Int, pagesize: Int): AgencyGroupPage!
+    agencyGroups(query: String, pageno:Int, pagesize: Int): AgencyGroupPage!
     instanceClusters(query: String, pageno: Int, pagesize: Int): ClusterRecordPage!
     sourceBibs(query: String, pageno:Int, pagesize: Int): BibRecordPage!
 }

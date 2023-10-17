@@ -105,20 +105,12 @@ public class DataFetchers {
 		};
 	}
 
-	public DataFetcher<Iterable<AgencyGroupMember>> getAgencyGroupMembersDataFetcher() {
-		return env -> {
-			log.debug("getAgencyGroupMembersDataFetcher args={}/ctx={}/root={}/src={}", env.getArguments(),
-					env.getGraphQlContext(), env.getRoot(), env.getSource());
-			// securityService... boolean isAuthenticated(), boolean hasRole(String),
-			// Optional<Authentication> getAuthentication Optional<String> username
-			// log.debug("Current user : {}",securityService.username().orElse(null));
-
-			// List<AgencyGroupMember> l = new java.util.ArrayList();
-			// return l;
-			return Flux.from(agencyGroupMemberRepository.findByGroup(env.getSource())).toIterable();
-		};
-	}
-
+        public DataFetcher<CompletableFuture<List<AgencyGroupMember>>> getAgencyGroupMembersDataFetcher() {
+                return env -> {
+                        log.debug("getAgencyGroupMembersDataFetcher args={}/ctx={}/root={}/src={}", env.getArguments(), env.getGraphQlContext(), env.getRoot(), env.getSource());
+                        return Flux.from(agencyGroupMemberRepository.findByGroup(env.getSource())).collectList().toFuture();
+                };
+        }
 
         public DataFetcher<CompletableFuture<Page<PatronRequest>>> getPatronRequestsDataFetcher() {
                 return env -> {
