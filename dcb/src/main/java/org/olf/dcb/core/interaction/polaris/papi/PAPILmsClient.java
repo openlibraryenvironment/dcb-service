@@ -73,6 +73,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import services.k_int.utils.UUIDUtils;
+import services.k_int.utils.MapUtils;
+import io.micronaut.core.util.StringUtils;
+
 
 @Prototype
 public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRow>, HostLmsClient{
@@ -221,6 +224,11 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("UTC"));
 		return formatter.format(instant);
 	}
+
+        @Override
+        public boolean isEnabled() {
+                return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(Boolean.TRUE);
+        }
 
 	@Override
 	public @NonNull String getName() {
