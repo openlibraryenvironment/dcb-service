@@ -51,9 +51,11 @@ public interface ClusterRecordRepository {
 	Publisher<ClusterRecord> queryAll();
 
 	@NonNull
+	@SingleResult
 	Publisher<Page<ClusterRecord>> queryAll(@Valid Pageable pageable);
 
 	@NonNull
+	@SingleResult
 	Publisher<Page<ClusterRecord>> findByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);
 	
 	@NonNull

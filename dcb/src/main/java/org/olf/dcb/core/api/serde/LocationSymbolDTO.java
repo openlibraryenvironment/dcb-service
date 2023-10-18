@@ -1,4 +1,4 @@
-package org.olf.dcb.core.api.types;
+package org.olf.dcb.core.api.serde;
 
 import java.util.UUID;
 

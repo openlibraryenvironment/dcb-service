@@ -1,15 +1,19 @@
-package org.olf.dcb.core;
+package org.olf.dcb.core.svc;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.olf.dcb.core.BibRecordService;
 import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
@@ -22,6 +26,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.core.util.StringUtils;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
 import io.micronaut.retry.annotation.Retryable;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
@@ -48,9 +54,10 @@ public class RecordClusteringService {
 	final StatsService statsService;
 
 	public RecordClusteringService(
-		ClusterRecordRepository clusterRecordRepository,
-		BibRecordService bibRecordService, MatchPointRepository matchPointRepository, 
-                StatsService statsService) {
+			ClusterRecordRepository clusterRecordRepository,
+			BibRecordService bibRecordService,
+			MatchPointRepository matchPointRepository,
+		  StatsService statsService) {
 		this.clusterRecords = clusterRecordRepository;
 		this.bibRecords = bibRecordService;
 		this.matchPointRepository = matchPointRepository;
@@ -269,5 +276,17 @@ public class RecordClusteringService {
 		// -> Asynchronously merge other Cluster Records
 		// Add matchkeys, and cluster to bib.
 		// Save and return bib.
+	}
+	
+	
+	public <T> Mono<Page<T>> getPageAs(Optional<Instant> since, Pageable pageable, Function<ClusterRecord, T> mapper) {
+
+		// return Mono.from( _clusterRecordRepository.findAll(pageable) )
+		return Mono.from(
+			clusterRecords.findByDateUpdatedGreaterThanOrderByDateUpdated(
+				since.orElse(Instant.ofEpochMilli(0L)),
+				pageable))
+				
+			.map(page -> page.map(mapper));
 	}
 }

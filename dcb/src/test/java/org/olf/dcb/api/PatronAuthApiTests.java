@@ -16,7 +16,7 @@ import lombok.Data;
 import org.junit.jupiter.api.*;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpResponse;
-import org.olf.dcb.core.api.types.AgencyDTO;
+import org.olf.dcb.core.api.serde.AgencyDTO;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
 import org.olf.dcb.test.HostLmsFixture;

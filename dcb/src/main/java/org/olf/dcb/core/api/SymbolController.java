@@ -4,7 +4,7 @@ import java.util.UUID;
 
 import jakarta.validation.Valid;
 
-import org.olf.dcb.core.api.types.LocationSymbolDTO;
+import org.olf.dcb.core.api.serde.LocationSymbolDTO;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.LocationSymbol;
 import org.olf.dcb.storage.LocationRepository;
