@@ -29,9 +29,9 @@ import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.retry.annotation.Retryable;
+import io.micronaut.transaction.TransactionDefinition.Propagation;
+import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
-import jakarta.transaction.Transactional.TxType;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
@@ -114,7 +114,7 @@ public class RecordClusteringService {
 					.dateCreated(current.getDateCreated())
 					.isDeleted(true)
 					.build())
-			.map( clusterRecords::update )
+			.map( this::update )
 			.flatMap(Mono::from)
 			.doOnNext(cr -> log.debug("Soft deleted cluster {}", cr.getId()))
 			.then();
@@ -182,7 +182,8 @@ public class RecordClusteringService {
 								toRemove.add(c);
 							}});
 						
-						yield mergeClusterRecords(primary, toRemove);
+						yield mergeClusterRecords(primary, toRemove)
+							.flatMap(this::electSelectedBib);
 					}
 				};
 			}
@@ -237,7 +238,7 @@ public class RecordClusteringService {
 			.flatMap( Mono::fromDirect );
 	}
 	
-	@Transactional(value = TxType.MANDATORY)
+	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<ClusterRecord> touch ( final ClusterRecord cluster ) {
 		return Mono.justOrEmpty(cluster.getId())
 			.flatMap( theId -> {
@@ -248,9 +249,14 @@ public class RecordClusteringService {
 			})
 			.thenReturn( cluster );
 	}
+	
+	@Transactional(propagation = Propagation.MANDATORY)
+	public Mono<ClusterRecord> update ( final ClusterRecord cluster ) {
+		return Mono.from ( clusterRecords.update(cluster) ).thenReturn(cluster);
+	}
 
 	@Retryable
-	@Transactional(value = TxType.REQUIRES_NEW)
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Mono<BibRecord> clusterBib ( final BibRecord bib ) {
 
 		// Generate MatchPoints
@@ -288,5 +294,30 @@ public class RecordClusteringService {
 				pageable))
 				
 			.map(page -> page.map(mapper));
+	}
+	
+
+	@Transactional
+	public Mono<ClusterRecord> electSelectedBib( final ClusterRecord cr ) {
+		return this.electSelectedBib(cr, Optional.empty());
+	}
+	
+	@Transactional
+	public Mono<ClusterRecord> electSelectedBib( final ClusterRecord cr, final Optional<BibRecord> ignoreBib ) {
+		// Use the record with the highest score
+		return bibRecords.findTop2HighestScoringContributorId( cr )
+			.filter( id -> 
+				ignoreBib
+					.map( ignore -> !id.equals(ignore.getId()) )
+					.orElse(Boolean.TRUE))
+			
+			.next()
+			.zipWith(Mono.just(cr))
+			.map(TupleUtils.function((contrib, cluster) -> {
+				log.debug("Setting selected bib on cluster record {} to {}", cluster.getId(), contrib);
+				return cluster.setSelectedBib(contrib);
+			}))
+			.flatMap(this::update)
+			.defaultIfEmpty(cr);
 	}
 }

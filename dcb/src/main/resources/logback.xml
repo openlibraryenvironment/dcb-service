@@ -1,6 +1,6 @@
 <configuration>
 
-	<appender name="STDOUT"
+	<appender name="STDOUT_SYNC"
 		class="ch.qos.logback.core.ConsoleAppender">
 		<!-- encoders are assigned the type ch.qos.logback.classic.encoder.PatternLayoutEncoder 
 			by default -->
@@ -9,6 +9,10 @@
 			</pattern>
 		</encoder>
 	</appender>
+	
+	<appender name="STDOUT" class="ch.qos.logback.classic.AsyncAppender">
+    <appender-ref ref="STDOUT_SYNC" />
+  </appender>
 
 	<logger name="io.micronaut.http.client" level="DEBUG"/>
 	<logger name="services.k_int.interaction" level="DEBUG"/>

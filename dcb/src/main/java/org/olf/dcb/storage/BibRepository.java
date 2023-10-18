@@ -39,6 +39,9 @@ public interface BibRepository {
 
 	@NonNull
 	Publisher<BibRecord> findAllByContributesTo(ClusterRecord clusterRecord);
+	
+	@NonNull
+	Publisher<BibRecord> findTop2ByContributesToOrderByMetadataScoreDesc (ClusterRecord clusterRecord);
 
 	@NonNull
 	Publisher<Page<BibRecord>> findAllByContributesTo( ClusterRecord clusterRecord, Pageable page );
