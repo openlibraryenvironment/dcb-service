@@ -1,17 +1,12 @@
 package org.olf.dcb.core.api;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.olf.dcb.core.api.types.BibRecordDTO;
-import org.olf.dcb.core.api.types.ClusterBibDTO;
-import org.olf.dcb.core.api.types.ClusterRecordDTO;
-import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.api.serde.ClusterRecordDTO;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
-import org.olf.dcb.storage.BibRepository;
-import org.olf.dcb.storage.ClusterRecordRepository;
+import org.olf.dcb.core.svc.RecordClusteringService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +22,6 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Controller("/clusters")
@@ -36,14 +30,11 @@ public class ClusterRecordController {
 
 	private static final Logger log = LoggerFactory.getLogger(ClusterRecordController.class);
 
-
-	private final ClusterRecordRepository _clusterRecordRepository;
-	private final BibRepository _bibRepository;
-
-	public ClusterRecordController(ClusterRecordRepository clusterRecordRepository,
-                BibRepository bibRepository) {
-		_clusterRecordRepository = clusterRecordRepository;
-		_bibRepository = bibRepository;
+	private final RecordClusteringService recordClusteringService;
+	
+	public ClusterRecordController(
+			RecordClusteringService recordClusteringService) {
+		this.recordClusteringService = recordClusteringService;
 	}
 
 	@Secured(SecurityRule.IS_ANONYMOUS)
@@ -55,125 +46,18 @@ public class ClusterRecordController {
 			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100"),
 			@Parameter(in = ParameterIn.QUERY, name = "since", description = "since", schema = @Schema(type = "string"))}
 	)
-	@Get("/{?pageable*,since}")
-	public Mono<Page<ClusterRecordDTO>> listMapped(@Parameter(hidden = true) @Valid Pageable pageable, Optional<String> since) {
-
-		if (pageable == null) {
-			pageable = Pageable.from(0, 100);
-		}
-
-		Instant i = null;
-		if (since.isPresent()) {
-			// log.debug("Since is present");
-			// Since is a timestamp formatted as 2023-05-03T18:56:40.872444Z
-			i = Instant.parse(since.get());
-			// log.debug("Using instant: {}", i.toString());
-		} else {
-			// log.debug("Since is not present");
-			i = java.time.Instant.ofEpochMilli(0L);
-		}
-
+	@Get("/{?since}{?pageable*}")
+	public Mono<Page<ClusterRecordDTO>> listMapped(Optional<Instant> since, @Parameter(hidden = true) @Valid Pageable pageable) {
 
 		// return Mono.from( _clusterRecordRepository.findAll(pageable) )
-		return Mono.from(_clusterRecordRepository.findByDateUpdatedGreaterThanOrderByDateUpdated(i, pageable))
-			.flatMap(page -> Mono.just(convertPage(page)))
-			.flatMap(pageOfClusterDTO -> {
-				List<ClusterRecordDTO> clusterRecords = pageOfClusterDTO.getContent();
-				return Flux.fromIterable(clusterRecords)
-					.flatMap(clusterRecord -> {
-						// go fetch the bib record here and attach it if we find one	
-						return Mono.justOrEmpty(clusterRecord.getSelectedBibId())
-							.map(_bibRepository::findById)
-							.flatMap( Mono::from )
-							.map(bib -> {
-								if (bib != null) {
-									clusterRecord.setSelectedBib(mapBibToDTO(bib));
-								}
-								return clusterRecord;
-							})
-							.defaultIfEmpty(clusterRecord);
-					})
-					.flatMap(clusterRecord -> {
-						// Add in the IDs of the bib records that compose this cluster - so we can find cluster records
-						// by the id of their members
-						return getBibsForCluster(clusterRecord.getClusterId())
-							.flatMap(bibs -> {
-								clusterRecord.setBibs(bibs);
-								return Mono.just(clusterRecord);
-							});
-					})
-					.collectList()
-					.map(enrichedClusterRecords -> {
-						return Page.of(enrichedClusterRecords, pageOfClusterDTO.getPageable(), pageOfClusterDTO.getTotalSize());
-					});
-			});
-
-	}
-
-        private ClusterBibDTO clusterBibFromMemberBib(BibRepository.MemberBib bibProjection) {
-                return ClusterBibDTO
-                           .builder()
-                           .bibId(bibProjection.bibid())
-                           .title(bibProjection.title())
-                           .sourceRecordId(bibProjection.sourcerecordid())
-                           .sourceSystem(bibProjection.sourcesystem())
-                           .metadataScore(bibProjection.metadatascore())
-                           .clusterReason(bibProjection.clusterreason())
-                           .build();
-        }
-
-	private Mono<List<ClusterBibDTO>> getBibsForCluster(UUID cluster_id) {
-                // b.id, b.title, b.sourceRecordId, b.metadataScore, b.cluster_reason, h.code
-		return Flux.from(_bibRepository.findMemberBibsForCluster(cluster_id))
-                        .map( bibProjection -> clusterBibFromMemberBib(bibProjection) )
-			.collectList();
-	}
-
-//	private Flux<ClusterRecordDTO> getFluxForPage(Page<ClusterRecordDTO> page) {
-//		return Flux.fromIterable(page);
-//	}
-
-	private ClusterRecordDTO mapClusterRecordToDTO(ClusterRecord cr) {
-
-		// Mono<BibRecord> br = Mono.from(_bibRepository.findById(cr.getSelectedBib()));
-		// BibRecordDTO selectedBib = mapBibToDTO(br.block());
-
-		// New cluster DTO
-		return ClusterRecordDTO
-			.builder()
-			.dateUpdated(cr.getDateUpdated().toString())
-			.dateCreated(cr.getDateCreated().toString())
-			.isDeleted(Boolean.TRUE.equals(cr.getIsDeleted()))
-			.clusterId(cr.getId())
-			.title(cr.getTitle())
-			.selectedBibId(cr.getSelectedBib())
-			.build();
-	}
-
-	private BibRecordDTO mapBibToDTO(BibRecord br) {
-		return BibRecordDTO
-			.builder()
-			.bibId(br.getId())
-			.title(br.getTitle())
-			.sourceRecordId(br.getSourceRecordId())
-			.sourceSystemId(br.getSourceSystemId())
-			.sourceSystemCode(String.valueOf(br.getSourceSystemId()))
-			.recordStatus(br.getRecordStatus())
-			.typeOfRecord(br.getTypeOfRecord())
-			.derivedType(br.getDerivedType())
-			.canonicalMetadata(br.getCanonicalMetadata())
-			.build();
-	}
-
-	private Page<ClusterRecordDTO> convertPage(Page<ClusterRecord> cr) {
-		return cr.map(this::mapClusterRecordToDTO);
+		return recordClusteringService.getPageAs(since, pageable, ClusterRecordDTO::new);
 	}
 
 	@Secured(SecurityRule.IS_ANONYMOUS)
 	@Get("/{id}")
 	public Mono<ClusterRecord> show(UUID id) {
 		log.debug("ClusterRecordController::show({})", id);
-		return Mono.from(_clusterRecordRepository.findById(id));
+		return Mono.from(recordClusteringService.findById(id));
 	}
 
 }

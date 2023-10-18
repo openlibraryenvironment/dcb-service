@@ -10,7 +10,9 @@ import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.annotation.Join;
 import io.micronaut.data.annotation.Query;
+import io.micronaut.data.annotation.Join.Type;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.model.query.builder.sql.Dialect;
@@ -41,9 +43,6 @@ public interface PostgresClusterRecordRepository extends
 	 * @Join("bibs") Publisher<ClusterRecord> findById(@NotNull UUID id);
 	 */
 
-	/* @Join("bibs") */
-	Publisher<Page<ClusterRecord>> findByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);
-
 	@Query(value = "SELECT cr_.*, mp_.value mp_val FROM cluster_record cr_"
 			+ "	INNER JOIN bib_record br_ ON br_.contributes_to = cr_.id"
 			+ "	INNER JOIN match_point mp_ ON mp_.bib_id = br_.id"
@@ -57,6 +56,13 @@ public interface PostgresClusterRecordRepository extends
 			+ "   AND mp_.value IN (:points)"
 			+ " ORDER BY date_created ASC;")
 	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPoints ( String derivedType, Collection<UUID> points );
+	
+
+	@NonNull
+	@SingleResult
+	@Override
+	@Join(value = "bibs", type = Type.LEFT_FETCH)
+	Publisher<Page<ClusterRecord>> findByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);
 	
 	@SingleResult
 	Publisher<Long> updateById( @NonNull UUID id );

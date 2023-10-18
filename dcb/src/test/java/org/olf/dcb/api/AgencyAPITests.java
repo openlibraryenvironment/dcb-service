@@ -13,7 +13,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.olf.dcb.core.api.types.AgencyDTO;
+import org.olf.dcb.core.api.serde.AgencyDTO;
 import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
 import org.olf.dcb.test.HostLmsFixture;
 import org.slf4j.Logger;
@@ -63,15 +63,16 @@ class AgencyAPITests {
 		// Assert
 		assertThat(listResponse.getStatus(), is(OK));
 		assertThat(listResponse.getBody().isPresent(), is(true));
+		
 		Page<AgencyDTO> page = listResponse.getBody().get();
 		final var onlySavedAgency = page.getContent().get(0);
 		assertThat(page.getContent().size(), is(1));
-		assertThat(onlySavedAgency.id(), is(agencyDTO.id()));
-		assertThat(onlySavedAgency.code(), is("ab6"));
-		assertThat(onlySavedAgency.name(), is("agencyName"));
-		assertThat(onlySavedAgency.authProfile(), is("authProfile"));
-		assertThat(onlySavedAgency.idpUrl(), is("idpUrl"));
-		assertThat(onlySavedAgency.hostLMSCode(), is("hostLmsCode")); // showing work around works
+		assertThat(onlySavedAgency.getId(), is(agencyDTO.getId()));
+		assertThat(onlySavedAgency.getCode(), is("ab6"));
+		assertThat(onlySavedAgency.getName(), is("agencyName"));
+		assertThat(onlySavedAgency.getAuthProfile(), is("authProfile"));
+		assertThat(onlySavedAgency.getIdpUrl(), is("idpUrl"));
+		assertThat(onlySavedAgency.getHostLMSCode(), is("hostLmsCode")); // showing work around works
 	}
 
 	private static String getAccessToken(BlockingHttpClient blockingClient) {
