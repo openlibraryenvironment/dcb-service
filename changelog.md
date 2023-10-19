@@ -1,5 +1,17 @@
 # Changelog
 
+## Version 1.6.1
+
+### Changes
+* [Refactor]
+	* Move record clustering service into package.
+* [Rework]
+	* Cluster controller to use service and improve response time
+
+### Fixes
+* [Polaris]
+	* Overrid the isEnabled method to honour settings from config
+
 ## Version 1.6.0
 
 ### Additions
@@ -8,6 +20,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* release - updated Release build instructions
 	* ingest - Tone down logging on papi ingest - was filling logs with every marc record
 	* Use existing delete all method for mappings DCB-479
