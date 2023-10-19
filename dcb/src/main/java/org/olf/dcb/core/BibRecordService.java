@@ -6,6 +6,7 @@ import static org.olf.dcb.utils.DCBStringUtilities.uuid5ForIdentifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.BibIdentifier;
@@ -26,9 +27,9 @@ import io.micronaut.context.BeanProvider;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.util.StringUtils;
+import io.micronaut.transaction.TransactionDefinition.Propagation;
+import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
-import jakarta.transaction.Transactional.TxType;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
@@ -160,7 +161,7 @@ public class BibRecordService {
 	}
 	
 	@SingleResult
-	@Transactional(value = TxType.REQUIRES_NEW)
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Publisher<BibRecord> process(final IngestRecord source) {
 
     log.debug("BibRecordService::process(source={}, sourceRecordId={}, clusterid={}, title={}, suppress:{}, deleted:{})",
@@ -204,10 +205,10 @@ public class BibRecordService {
 					return Mono.justOrEmpty( bib.getId() )
 						.flatMap( this::getClusterRecordForBib )
 						.flatMap( cr -> this.findAllByContributesTo(cr)
-							.collectList()
-							.flatMap( bibs -> bibs.size() > 1 ? Mono.empty() : Mono.just( cr ) )
+							.count()
+							.flatMap( size -> size > 1 ? recordClusteringServiceProvider.get().electSelectedBib(cr, Optional.ofNullable(bib)).then(Mono.empty()) : Mono.just( cr ) )
 						)
-						.doOnNext( id -> log.debug("Soft deleteing cluster record {} as only referenced bib to be deleted due to suppression") )
+						.doOnNext( cr -> log.debug("Soft deleteing cluster record {} as only referenced bib to be deleted due to suppression", cr.getId()) )
 						.flatMap( recordClusteringServiceProvider.get()::softDelete )
 						.then( this.delete(bib).then(Mono.empty()) )
 					;
@@ -223,6 +224,12 @@ public class BibRecordService {
 			})
 		.flatMap(this::saveOrUpdate).flatMap(savedBib -> this.saveIdentifiers(savedBib, source))
 		.flatMap( finalBib -> this.updateStatistics(finalBib, source, start_time) );
+	}
+	
+	@Transactional
+	public Flux<UUID> findTop2HighestScoringContributorId( @NonNull ClusterRecord cr  ) {
+		return Flux.from( bibRepo.findTop2ByContributesToOrderByMetadataScoreDesc(cr) )
+				.map( BibRecord::getId );
 	}
 
 	public Publisher<Void> cleanup() {

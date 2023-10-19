@@ -57,7 +57,7 @@ public class ClusterRecord {
 
 	// The UUID of the bib record selected to "Represent" this cluster (could be the first record)
 	@Nullable
-	private final UUID selectedBib;
+	private UUID selectedBib;
 
 	@Nullable
   private Boolean isDeleted;
