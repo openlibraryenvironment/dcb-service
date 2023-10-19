@@ -336,6 +336,40 @@ public interface MarcIngestSource<T> extends IngestSource {
 			setIfSubfieldPresent(publisher,'b',canonical_metadata,"publisher");
 			setIfSubfieldPresent(publisher,'c',canonical_metadata,"dateOfPublication");
 		}
+                else {
+                        DataField pubdate1 = (DataField) marcRecord.getVariableField("264");
+                        if ( pubdate1 != null) {
+		                setIfSubfieldPresent(pubdate1,'c',canonical_metadata,"dateOfPublication");
+                        }
+                }
+
+		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("500") ) {
+                        addToCanonicalMetadata("notes", vf, "a", canonical_metadata);
+                }
+
+		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("520") ) {
+                        addToCanonicalMetadata("summary", vf, "a", canonical_metadata);
+                }
+
+		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("505") ) {
+                        addToCanonicalMetadata("contents", vf, "a", canonical_metadata);
+                }
+
+		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("504") ) {
+                        addToCanonicalMetadata("bibNotes", vf, "a", canonical_metadata);
+                }
+
+		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("490") ) { 
+                        addToCanonicalMetadata("series", vf, "abcdefghijklmnopqrstuvwxyz", canonical_metadata); }
+		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("830") ) { 
+                        addToCanonicalMetadata("series", vf, "abcdefghijklmnopqrstuvwxyz", canonical_metadata); }
+
+		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("041") ) { addToCanonicalMetadata("language", vf, "a", canonical_metadata); }
+
+
+
+                // Commented - 700s need to be added as author objects
+		// addToCanonicalMetadata("author", "700", "other", marcRecord, canonical_metadata);
 
 		// Extract some subject metadata
 		addToCanonicalMetadata("subjects", "600", "personal-name", marcRecord, canonical_metadata);
@@ -345,9 +379,20 @@ public interface MarcIngestSource<T> extends IngestSource {
 		addToCanonicalMetadata("subjects", "647", "named-event", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("subjects", "648", "chronological-term", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("subjects", "650", "topical-term", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "651", "topical-term", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("subjects", "653", "index-term-uncontrolled", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("subjects", "654", "faceted", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "655", "faceted", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "657", "faceted", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "658", "faceted", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("subjects", "662", "hierarchial-place-name", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "690", "local-subject", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "691", "local-subject", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "695", "local-subject", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "696", "local-subject", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "697", "local-subject", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "698", "local-subject", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "699", "local-subject", marcRecord, canonical_metadata);
 
 		addToCanonicalMetadata("agents", "100", "name-personal", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("agents", "110", "name-corporate", marcRecord, canonical_metadata);
@@ -389,10 +434,12 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 
 	private void setIfSubfieldPresent(DataField f, char subfield, Map<String, Object> target, String key) {
-		Subfield subfield_v = f.getSubfield(subfield);
-		if ( subfield_v != null ) {
-			target.put(key,tidy(subfield_v.getData()));
-		}
+                if ( f != null ) {
+		        Subfield subfield_v = f.getSubfield(subfield);
+		        if ( subfield_v != null ) {
+			        target.put(key,tidy(subfield_v.getData()));
+		        }
+                }
 	}
 
 	private String tidy(String inputstr) {
@@ -401,6 +448,24 @@ public interface MarcIngestSource<T> extends IngestSource {
 			result = REGEX_REMOVE_PUNCTUATION.matcher(inputstr).replaceAll("");
 		return result;
 	}
+
+
+	private void addToCanonicalMetadata(String property, 
+                VariableField vf,
+                String tags, 
+                Map<String, Object> canonical_metadata) {
+
+                String value = ((DataField)vf).getSubfieldsAsString("a");
+
+                if ( value != null ) {
+		        List<Object> the_values = (List<Object>) canonical_metadata.get(property);
+                        if ( the_values == null ) {
+                                the_values = new ArrayList();
+                                canonical_metadata.put(property, the_values);
+                        }
+                        the_values.add(value);
+                }
+        }
 
 	private void addToCanonicalMetadata(String property, String tag, String subtype, Record marcRecord,
 			Map<String, Object> canonical_metadata) {
