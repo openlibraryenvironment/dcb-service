@@ -30,7 +30,7 @@ import io.micronaut.core.annotation.Nullable;
 
 @Controller("/locations")
 @Tag(name = "Locations")
-@Secured(SecurityRule.IS_ANONYMOUS)
+@Secured({ "ADMIN" })
 public class LocationController {
 
         private static final Logger log = LoggerFactory.getLogger(LocationController.class);

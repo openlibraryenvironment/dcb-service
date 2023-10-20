@@ -29,7 +29,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Validated
-@Secured(SecurityRule.IS_ANONYMOUS)
+@Secured({ "ADMIN" })
 @Controller("/agencies")
 @Tag(name = "Agencies")
 public class AgenciesController {
