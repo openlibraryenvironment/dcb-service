@@ -1,0 +1,32 @@
+{
+        "default": {
+                "states":[
+                        { "code": "SUBMITTED_TO_DCB" },
+                        { "code": "PATRON_VALIDATED" },
+                        { "code": "RESOLVED" },
+                        { "code": "REQUEST_PLACED_AT_SUPPLYING_AGENCY" },
+                        { "code": "REQUEST_PLACED_AT_BORROWING_AGENCY" },
+                        { "code": "PICKUP_TRANSIT" },
+                        { "code": "ON_HOLD_SHELF" },
+                        { "code": "LOANED" },
+                        { "code": "RET-TRANSIT" },
+                        { "code": "COMPLETED" },
+                        { "code": "CANCELLED" }
+                },
+                "transitions":[
+                        { "from": "SUBMITTED_TO_DCB",                    "to": "PATRON_VALIDATED",                    "action": "ValidatePatronTransition" },
+                        { "from": "PATRON_VALIDATEDPATRON_VALIDATED",    "to": "RESOLVED",                            "action": "PatronRequestResolutionStateTransition" },
+                        { "from": "RESOLVED",                            "to": "REQUEST_PLACED_AT_SUPPLYING_AGENCY",  "action": "PlacePatronRequestAtSupplyingAgencyStateTransition" },
+                        { "from": "REQUEST_PLACED_AT_SUPPLYING_AGENCY",  "to": "REQUEST_PLACED_AT_BORROWING_AGENCY",  "action": "PlacePatronRequestAtBorrowingAgencyStateTransition" },
+                        { "from": "REQUEST_PLACED_AT_BORROWING_AGENCY",  "to": "PICKUP_TRANSIT",                      "event": "HandleSupplierInTransit" },
+                        { "from": "*",                                   "to": "PICKUP_TRANSIT",                      "event": "HandleBorrowerItemInTransit" },
+                        { "from": "*",                                   "to": "ON_HOLD_SHELF",                       "event": "HandleBorrowerItemOnHoldShelf" },
+                        { "from": "*",                                   "to": "LOANED",                              "event": "HandleBorrowerItemLoaned" },
+                        { "from": "*",                                   "to": "RET-TRANSIT",                         "event": "HandleBorrowerRequestReturnTransit" },
+                        { "from": "*",                                   "to": "COMPLETED",                           "event": "HandleBorrowerRequestMissing" },
+                        { "from": "*",                                   "to": "CANCELLED",                           "event": "HandleBorrowerRequestMissing" },
+                        { "from": "*",                                   "to": "COMPLETED",                           "event": "HandleSupplierItemAvailable" }
+                ]
+        }
+                
+}
