@@ -4,10 +4,14 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
-import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.fallbackBasedUponAvailableStatuses;
+import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
+import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
@@ -54,7 +58,13 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private final URI rootUri;
 
 	public static ItemStatusMapper.FallbackMapper folioFallback() {
-		return fallbackBasedUponAvailableStatuses("Available");
+		final var statusCodeMap = Map.of(
+			"Available", AVAILABLE,
+			"Checked out", CHECKED_OUT);
+
+		return statusCode -> (statusCode == null || (statusCode.isEmpty()))
+			? UNKNOWN
+			: statusCodeMap.getOrDefault(statusCode, UNAVAILABLE);
 	}
 
 	public ConsortialFolioHostLmsClient(@Parameter HostLms hostLms,

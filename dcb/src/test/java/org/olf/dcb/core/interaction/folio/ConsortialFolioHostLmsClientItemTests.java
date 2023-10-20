@@ -156,6 +156,51 @@ class ConsortialFolioHostLmsClientItemTests {
 	}
 
 	@Test
+	void shouldMapItemStatusUsingFallbackMappings() {
+		// Arrange
+		final var instanceId = UUID.randomUUID().toString();
+
+		final var availableItemId = UUID.randomUUID().toString();
+		final var checkedOutItemId = UUID.randomUUID().toString();
+		final var declaredLostItemId = UUID.randomUUID().toString();
+
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
+			exampleHolding()
+				.id(availableItemId)
+				.status("Available")
+				.build(),
+			exampleHolding()
+				.id(checkedOutItemId)
+				.status("Checked out")
+				.build(),
+			exampleHolding()
+				.id(declaredLostItemId)
+				.status("Declared lost")
+				.build()
+		);
+
+		// Act
+		final var items = getItems(instanceId);
+
+		// Assert
+		assertThat("Items should have mapped status", items,
+			containsInAnyOrder(
+				allOf(
+					hasLocalId(availableItemId),
+					hasStatus(AVAILABLE)
+				),
+				allOf(
+					hasLocalId(checkedOutItemId),
+					hasStatus(CHECKED_OUT)
+				),
+				allOf(
+					hasLocalId(declaredLostItemId),
+					hasStatus(UNAVAILABLE)
+				)
+			));
+	}
+
+	@Test
 	void shouldDefineAvailableSettings() {
 		final var settings = client.getSettings();
 
