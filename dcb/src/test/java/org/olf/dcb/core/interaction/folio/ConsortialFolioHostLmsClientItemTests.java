@@ -10,6 +10,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
+import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
@@ -133,8 +134,10 @@ class ConsortialFolioHostLmsClientItemTests {
 				.build()
 		);
 
-		mapStatus("Available", AVAILABLE);
-		mapStatus("Checked out", CHECKED_OUT);
+		// These mappings need to be unrealistic in order to distinguish between
+		// use of the mappings over the fallback method
+		mapStatus("Available", CHECKED_OUT);
+		mapStatus("Checked out", UNAVAILABLE);
 
 		// Act
 		final var items = getItems(instanceId);
@@ -144,11 +147,11 @@ class ConsortialFolioHostLmsClientItemTests {
 			contains(
 				allOf(
 					hasLocalId(checkedOutItemId),
-					hasStatus(CHECKED_OUT)
+					hasStatus(UNAVAILABLE)
 				),
 				allOf(
 					hasLocalId(availableItemId),
-					hasStatus(AVAILABLE)
+					hasStatus(CHECKED_OUT)
 				)
 			));
 	}
