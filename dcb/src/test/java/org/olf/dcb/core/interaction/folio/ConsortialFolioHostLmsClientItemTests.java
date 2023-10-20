@@ -18,6 +18,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -85,8 +86,6 @@ class ConsortialFolioHostLmsClientItemTests {
 				.permanentLoanType("stks")
 				.build()
 		);
-
-		mapStatus("Available", AVAILABLE);
 
 		// Act
 		final var items = getItems(instanceId);

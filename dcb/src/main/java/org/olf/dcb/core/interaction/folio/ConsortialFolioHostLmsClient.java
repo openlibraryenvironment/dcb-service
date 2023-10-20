@@ -4,7 +4,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
-import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.unknownStatusFallback;
+import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.fallbackBasedUponAvailableStatuses;
 
 import java.net.URI;
 import java.util.List;
@@ -52,6 +52,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private final String apiKey;
 	private final URI rootUri;
+
+	public static ItemStatusMapper.FallbackMapper folioFallback() {
+		return fallbackBasedUponAvailableStatuses("Available");
+	}
 
 	public ConsortialFolioHostLmsClient(@Parameter HostLms hostLms,
 		@Parameter("client") HttpClient httpClient, ItemStatusMapper itemStatusMapper) {
@@ -109,8 +113,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private Mono<Item> mapHoldingToItem(Holding holding, String instanceId) {
 		return Mono.justOrEmpty(holding.getStatus())
-			.flatMap(status -> itemStatusMapper.mapStatus(status, null, hostLms.getCode(),
-					false, unknownStatusFallback()))
+			.flatMap(status -> itemStatusMapper.mapStatus(status, null,
+				hostLms.getCode(), false, folioFallback()))
 			.map(status -> Item.builder()
 				.localId(holding.getId())
 				.localBibId(instanceId)
