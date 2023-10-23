@@ -11,8 +11,8 @@ import org.reactivestreams.Publisher;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.annotation.Join;
-import io.micronaut.data.annotation.Query;
 import io.micronaut.data.annotation.Join.Type;
+import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.model.query.builder.sql.Dialect;
@@ -22,6 +22,9 @@ import io.micronaut.data.repository.reactive.ReactiveStreamsPageableRepository;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
 
 @SuppressWarnings("unchecked")
 @Singleton
@@ -61,8 +64,22 @@ public interface PostgresClusterRecordRepository extends
 	@NonNull
 	@SingleResult
 	@Override
+	default Publisher<Page<ClusterRecord>> findByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable) {
+		
+		return Mono.from( findIdByDateUpdatedGreaterThanOrderByDateUpdated(i, pageable) )
+			.zipWhen( uuids -> Flux.from( findAllByIdInOrderByDateUpdated(uuids.getContent())).collectList() )
+			.map(TupleUtils.function(( page, expandedData ) ->
+				Page.of(expandedData, page.getPageable(), page.getTotalSize())))
+		;
+	}
+	
+	@NonNull
 	@Join(value = "bibs", type = Type.LEFT_FETCH)
-	Publisher<Page<ClusterRecord>> findByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);
+	Publisher<ClusterRecord> findAllByIdInOrderByDateUpdated(Collection<UUID> id);
+	
+	@NonNull
+	@SingleResult
+	Publisher<Page<UUID>> findIdByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);
 	
 	@SingleResult
 	Publisher<Long> updateById( @NonNull UUID id );
