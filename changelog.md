@@ -1,8 +1,28 @@
 # Changelog
 
+## Version 1.7.0
+
+### Additions
+* [General]
+	* Re-elect selected bib on cluster if current is deleted
+
+### Changes
+* [Chore]
+	* docs - Added state model json
+
+### Fixes
+* [Harvesting]
+	* Send suppressed=true and deleted=true when harvesting from Sierra
+* [Security]
+	* remove anon auth from rest endpoints
+* [General]
+	* Query for page then expand in separate query
+
 ## Version 1.6.1
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Refactor]
 	* Move record clustering service into package.
 * [Rework]
