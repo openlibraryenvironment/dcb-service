@@ -134,9 +134,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private Mono<BibResultSet> fetchPage(Instant since, int offset, int limit) {
 		log.info("Creating subscribeable batch;  since={} offset={} limit={}", since, offset, limit);
 		return Mono.from(client.bibs(params -> {
-			params.deleted(true)
-                                .suppressed(true)
-                                .offset(offset).limit(limit)
+			params.offset(offset).limit(limit)
 				.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "deleted", "marc", "suppressed"));
 
 			if (since != null) {
