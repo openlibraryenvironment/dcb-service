@@ -318,7 +318,11 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 		log.info("Fetching MARC JSON from Polaris for {}", lms.getName());
 
 		final Map<String, Object> conf = lms.getClientConfig();
-		final Integer pageSize = (Integer) conf.get(MAX_BIBS);
+		Integer pageSize = (Integer) conf.get(MAX_BIBS);
+                if ( pageSize > 100 ) {
+                        log.info("Limiting POLARIS page size to 100");
+                        pageSize = 100;
+                }
 
 		return Flux.from( ingestHelper.pageAllResults(pageSize) )
 			.filter(bibsPagedRow -> {
