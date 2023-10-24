@@ -28,7 +28,9 @@ public class DateTimeRange {
 			return fromStr;
 		}
 
-		return String.format("[%s,%s]", fromStr, toStr);
+                // https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/bibs/Get_a_list_of_bibs_get_1
+                // Sierra seems to want the Z specifier, so add it in explicit
+		return String.format("[%sZ,%sZ]", fromStr, toStr);
 	}
 
 	public static DateTimeRange build(Consumer<DateTimeRangeBuilder> consumer) {
