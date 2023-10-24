@@ -330,11 +330,19 @@ public interface MarcIngestSource<T> extends IngestSource {
 		canonical_metadata.put("author",ir.getAuthor());
 		canonical_metadata.put("otherAuthors",ir.getOtherAuthors());
 
-		DataField publisher = (DataField) marcRecord.getVariableField("260");
-		if ( publisher != null ) {
-			setIfSubfieldPresent(publisher,'a',canonical_metadata,"placeOfPublication");
-			setIfSubfieldPresent(publisher,'b',canonical_metadata,"publisher");
-			setIfSubfieldPresent(publisher,'c',canonical_metadata,"dateOfPublication");
+		DataField publisher1 = (DataField) marcRecord.getVariableField("264");
+		if ( publisher1 != null ) {
+			setIfSubfieldPresent(publisher1,'a',canonical_metadata,"placeOfPublication");
+			setIfSubfieldPresent(publisher1,'b',canonical_metadata,"publisher");
+			setIfSubfieldPresent(publisher1,'c',canonical_metadata,"dateOfPublication");
+                }
+                else {
+		        DataField publisher2 = (DataField) marcRecord.getVariableField("260");
+		        if ( publisher2 != null ) {
+			        setIfSubfieldPresent(publisher2,'a',canonical_metadata,"placeOfPublication");
+			        setIfSubfieldPresent(publisher2,'b',canonical_metadata,"publisher");
+			        setIfSubfieldPresent(publisher2,'c',canonical_metadata,"dateOfPublication");
+                        }
 		}
 
 		// Extract some subject metadata
