@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 1.7.1
+
+### Fixes
+* [Ingest]
+	* In sierra - deleted=true means ONLY deleted records, suppressed=true means ONLY suppressed records. The default is to return all and thats what we want
+
 ## Version 1.7.0
 
 ### Additions
@@ -8,6 +14,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* docs - Added state model json
 
 ### Fixes
