@@ -1,6 +1,30 @@
 # Changelog
 
+## Version 1.7.2
+
+### Changes
+* [Chore]
+	* When setting page size for polaris, limit the value to 100
+* [Refactor]
+	* Move BibRecordService to svc package
+
+### Fixes
+* [Harvesting]
+	* Sierra date ranges require the time zone signifier Z
+* [Ingest]
+	* Syntax error caused by previous merge
+* [Marc   Ingest]
+	* DCB-504 DCB-521 - check 264 for publication info before 260
+* [General]
+	* Ignore resumption initially if we have a since.
+	* Save removed resumption token
+	* Remove related bib identifiers before the bib
+
 ## Version 1.7.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [Ingest]
