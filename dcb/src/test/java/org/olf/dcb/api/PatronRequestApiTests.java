@@ -466,11 +466,8 @@ class PatronRequestApiTests {
 	}
 
 	private void savePatronTypeMappings() {
-		referenceValueMappingFixture.saveReferenceValueMapping(
-			patronFixture.createPatronTypeMapping("patron-request-api-tests", "15", "DCB", "15"));
-
-		referenceValueMappingFixture.saveReferenceValueMapping(
-			patronFixture.createPatronTypeMapping("DCB", "15", "patron-request-api-tests", "15"));
+		referenceValueMappingFixture.definePatronTypeMapping("patron-request-api-tests", "15", "DCB", "15");
+		referenceValueMappingFixture.definePatronTypeMapping("DCB", "15", "patron-request-api-tests", "15");
 	}
 
 	private static String getAccessToken(BlockingHttpClient blockingClient) {

@@ -30,7 +30,7 @@ public class ReferenceValueMappingFixture {
 	}
 
 	public void defineItemStatusMapping(String fromHostLmsCode, String fromValue, String toValue) {
-		final var mapping = ReferenceValueMapping.builder()
+		saveReferenceValueMapping(ReferenceValueMapping.builder()
 			.id(UUID.randomUUID())
 			.fromCategory("itemStatus")
 			.fromContext(fromHostLmsCode)
@@ -39,13 +39,11 @@ public class ReferenceValueMappingFixture {
 			.toContext("DCB")
 			.toValue(toValue)
 			.reciprocal(true)
-			.build();
-
-		saveReferenceValueMapping(mapping);
+			.build());
 	}
 
 	public void definePickupLocationToAgencyMapping(String pickupLocationCode, String agencyCode) {
-		final var mapping = ReferenceValueMapping.builder()
+		saveReferenceValueMapping(ReferenceValueMapping.builder()
 			.id(randomUUID())
 			.fromCategory("PickupLocation")
 			.fromContext("DCB")
@@ -53,15 +51,13 @@ public class ReferenceValueMappingFixture {
 			.toCategory("AGENCY")
 			.toContext("DCB")
 			.toValue(agencyCode)
-			.build();
-
-		saveReferenceValueMapping(mapping);
+			.build());
 	}
 
 	public void defineShelvingLocationToAgencyMapping(String fromContext,
 		String shelvingLocationCode, String agencyCode) {
 
-		final var mapping = ReferenceValueMapping.builder()
+		saveReferenceValueMapping(ReferenceValueMapping.builder()
 			.id(randomUUID())
 			.fromCategory("ShelvingLocation")
 			.fromContext(fromContext)
@@ -69,15 +65,13 @@ public class ReferenceValueMappingFixture {
 			.toCategory("AGENCY")
 			.toContext("DCB")
 			.toValue(agencyCode)
-			.build();
-
-		saveReferenceValueMapping(mapping);
+			.build());
 	}
 
 	public void defineLocationToAgencyMapping(String fromContext,
 		String locationCode, String agencyCode) {
 
-		final var mapping = ReferenceValueMapping.builder()
+		saveReferenceValueMapping(ReferenceValueMapping.builder()
 			.id(randomUUID())
 			.fromCategory("Location")
 			.fromContext(fromContext)
@@ -85,8 +79,22 @@ public class ReferenceValueMappingFixture {
 			.toCategory("AGENCY")
 			.toContext("DCB")
 			.toValue(agencyCode)
-			.build();
+			.build());
+	}
 
-		saveReferenceValueMapping(mapping);
+	public void definePatronTypeMapping(String fromContext, String fromPatronType,
+		String toContext, String toPatronType) {
+
+		saveReferenceValueMapping(
+			ReferenceValueMapping.builder()
+				.id(UUID.randomUUID())
+				.fromCategory("patronType")
+				.fromContext(fromContext)
+				.fromValue(fromPatronType)
+				.toCategory("patronType")
+				.toContext(toContext)
+				.toValue(toPatronType)
+				.reciprocal(true)
+				.build());
 	}
 }

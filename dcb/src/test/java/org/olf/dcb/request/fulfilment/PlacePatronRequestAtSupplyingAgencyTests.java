@@ -271,14 +271,11 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		);
 	}
 	private void savePatronTypeMappings() {
+		referenceValueMappingFixture.definePatronTypeMapping(
+			"supplying-agency-service-tests", "-", "DCB", "-");
 
-		referenceValueMappingFixture.saveReferenceValueMapping(
-			patronFixture.createPatronTypeMapping(
-				"supplying-agency-service-tests", "-", "DCB", "-"));
-
-		referenceValueMappingFixture.saveReferenceValueMapping(
-			patronFixture.createPatronTypeMapping(
-				"DCB", "-", "supplying-agency-service-tests", "15"));
+		referenceValueMappingFixture.definePatronTypeMapping(
+			"DCB", "-", "supplying-agency-service-tests", "15");
 
                 ReferenceValueMapping pul = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("PickupLocation")
                                 .fromContext("DCB").fromValue("ABC123").toCategory("AGENCY").toContext("DCB").toValue("ab6")
