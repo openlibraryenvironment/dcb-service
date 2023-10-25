@@ -193,10 +193,7 @@ class PatronRequestApiTests {
 
 		Mono.from(shelvingLocationRepository.save(shelvingLocation)).block();
 
-		ReferenceValueMapping pul = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("PickupLocation")
-			.fromContext("DCB").fromValue("ABC123").toCategory("AGENCY").toContext("DCB").toValue("AGENCY1")
-			.build();
-		referenceValueMappingFixture.saveReferenceValueMapping(pul);
+		referenceValueMappingFixture.definePickupLocationToAgencyMapping("ABC123", "AGENCY1");
 
 		ReferenceValueMapping rvm = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("ShelvingLocation")
 			.fromContext("patron-request-api-tests").fromValue("ab6").toCategory("AGENCY").toContext("DCB").toValue("ab6")

@@ -1,5 +1,6 @@
 package org.olf.dcb.test;
 
+import static java.util.UUID.randomUUID;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.UUID;
@@ -38,6 +39,20 @@ public class ReferenceValueMappingFixture {
 			.toContext("DCB")
 			.toValue(toValue)
 			.reciprocal(true)
+			.build();
+
+		saveReferenceValueMapping(mapping);
+	}
+
+	public void definePickupLocationToAgencyMapping(String pickupLocationCode, String agencyCode) {
+		final var mapping = ReferenceValueMapping.builder()
+			.id(randomUUID())
+			.fromCategory("PickupLocation")
+			.fromContext("DCB")
+			.fromValue(pickupLocationCode)
+			.toCategory("AGENCY")
+			.toContext("DCB")
+			.toValue(agencyCode)
 			.build();
 
 		saveReferenceValueMapping(mapping);
