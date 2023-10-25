@@ -17,7 +17,6 @@ import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.naming.Named;
 import io.micronaut.core.util.Toggleable;
 import io.micronaut.transaction.annotation.Transactional;
-import reactor.core.publisher.Mono;
 
 public interface IngestSource extends Function<Instant, Publisher<IngestRecord>>, Toggleable, Named {
 

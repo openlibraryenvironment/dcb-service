@@ -155,6 +155,22 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		}));
 	}
 	
+	private Mono<ListRecordsResponse> handleErrors ( Mono<Response> stream ) {
+		
+		return stream.flatMap( resp -> {
+			var error = resp.error();
+			if (error != null) {
+				return switch( error.code() ) {
+					case noRecordsMatch -> Mono.empty();
+					
+					default -> Mono.error(new IllegalStateException(String.format("%s: %s", error.code(), error.detail())));
+				};
+			}
+			
+			return Mono.justOrEmpty( resp.listRecords() );
+		});
+	}
+	
 	private Mono<ListRecordsResponse> fetchPage(Instant since, Optional<String> resumptionToken) {
 		log.info("Creating subscribeable batch;  since={}, resumptionToken={}", since, resumptionToken);
 	
@@ -177,25 +193,22 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 			});
 			
 		}))
-		.mapNotNull( resp -> {
-			var error = resp.error();
-			if (error != null) {
-				if (error.code() == Response.ErrorCode.noRecordsMatch) {
-					return null;
-				}
-				
-				throw new IllegalStateException(String.format("%s: %s", error.code(), error.detail()));
-			}
-			
-			return resp.listRecords();
-		})
+		.transform( this::handleErrors )
 		.doOnSubscribe(_s -> log.info("Fetching batch from Folio OAI PMH {} with since={} resumptionToken={}", lms.getName(), since, resumptionToken));
 	}
 	
 	private Publisher<OaiRecord> pageAllResults() {
 		return Mono.from( getInitialState(lms.getId(), "ingest") )
-			.flatMap(
-				state -> Mono.zip(Mono.just(state.toBuilder().build()), fetchPage(state.since, MapUtils.getAsOptionalString(state.storred_state, "resumptionToken") ) ))			
+			.map(state -> state.toBuilder().build())
+			.zipWhen(state -> {
+				
+				// For the initial fetch... If there is a since... Ignore the resumption.
+				return Mono.justOrEmpty(state.since)
+					.flatMap( since -> fetchPage( since, null ) )
+					.switchIfEmpty(
+							Mono.defer (() ->
+								fetchPage(null, MapUtils.getAsOptionalString(state.storred_state, "resumptionToken") )));
+			})
 			.expand(TupleUtils.function((state, response) -> {
 				
 				var records = response.records();
