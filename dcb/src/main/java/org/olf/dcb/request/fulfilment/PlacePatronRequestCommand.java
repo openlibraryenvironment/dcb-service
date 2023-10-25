@@ -2,18 +2,16 @@ package org.olf.dcb.request.fulfilment;
 
 import java.util.UUID;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import io.micronaut.core.annotation.Nullable;
-
 import io.micronaut.serde.annotation.Serdeable;
+import jakarta.validation.constraints.NotNull;
 
 @Serdeable
 public record PlacePatronRequestCommand(
 	@NotNull Citation citation,
 	@NotNull PickupLocation pickupLocation,
 	@NotNull Requestor requestor,
-        @Nullable String description) {
+	@Nullable String description) {
 
 	@Serdeable
 	public record PickupLocation(String code) { }
