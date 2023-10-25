@@ -35,7 +35,6 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.ShelvingLocation;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
@@ -197,15 +196,11 @@ class PatronRequestApiTests {
 		referenceValueMappingFixture.defineShelvingLocationToAgencyMapping(
 			"patron-request-api-tests", "ab6", "ab6");
 
-		ReferenceValueMapping rvm2 = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("Location")
-			.fromContext("patron-request-api-tests").fromValue("tstce").toCategory("AGENCY").toContext("DCB").toValue("ab6")
-			.build();
-		referenceValueMappingFixture.saveReferenceValueMapping(rvm2);
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			"patron-request-api-tests", "tstce", "ab6");
 
-		ReferenceValueMapping rvm3 = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("Location")
-			.fromContext("patron-request-api-tests").fromValue("tstr").toCategory("AGENCY").toContext("DCB").toValue("ab6")
-			.build();
-		referenceValueMappingFixture.saveReferenceValueMapping(rvm3);
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			"patron-request-api-tests", "tstr", "ab6");
 	}
 
 	@AfterAll
