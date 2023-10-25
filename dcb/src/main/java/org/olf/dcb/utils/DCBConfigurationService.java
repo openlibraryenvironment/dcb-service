@@ -85,8 +85,8 @@ public class DCBConfigurationService {
 
                 return Mono.from(httpClient.exchange(request, String.class))
                                 .flatMapMany( this::extractData )
-                                .flatMap( nrmr -> {
-                                        log.debug("Process range: {}",nrmr.toString());
+                                .concatMap( nrmr -> {
+                                        log.debug("Process ref value mapping: {}",nrmr.toString());
                                         return processReferenceValueMapping(nrmr);
                                 })
                                 .collectList()
@@ -102,7 +102,7 @@ public class DCBConfigurationService {
 
 		return Mono.from(httpClient.exchange(request, String.class))
 				.flatMapMany( this::extractData )
-				.flatMap( nrmr -> {
+				.concatMap( nrmr -> {
 					log.debug("Process range: {}",nrmr.toString());
 					return processNumericRangeMapping(nrmr);
 				})

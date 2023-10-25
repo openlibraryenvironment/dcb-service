@@ -217,4 +217,8 @@ curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json" 
   "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name DCB-patronType-STD-to-DUMMY3`'",
   "fromCategory":"patronType", "fromContext":"DCB", "fromValue":"STD", "toCategory":"patronType", "toContext":"DUMMY3", "toValue":"STD" }'
 
+curl -X POST $TARGET/admin/cfg -H "Accept-Language: en" -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "profile":"referenceValueMappingImport",
+  "url":"https://docs.google.com/spreadsheets/d/e/2PACX-1vTbJ3CgU6WYT4t5njNZPYHS8xjhjD8mevHVJK2oUWe5Zqwuwm_fbvv58hypPgDjXKlbr9G-8gVJz4zt/pub?gid=523902094&single=true&output=tsv"
+}'
 
