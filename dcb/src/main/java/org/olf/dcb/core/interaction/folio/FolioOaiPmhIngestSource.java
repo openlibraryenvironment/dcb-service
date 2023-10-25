@@ -215,8 +215,14 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 					state.storred_state.remove("resumptionToken");
 	
 					log.info("No more results to fetch from {}", lms.getName());
-					return Mono.empty();
-	
+					
+					// Need to ensure we store the new state here.
+					
+					return Mono.defer(() -> saveState(lms.getId(), "ingest", state))
+						.flatMap(_s -> {
+							log.debug("Ensuring removedresumption token is saved...");
+							return Mono.empty();
+						});
 				} else {
 					log.info("Exhausted current page from {} , prep next", lms.getName());
 					// We have finished consuming a page of data, but there is more to come.
