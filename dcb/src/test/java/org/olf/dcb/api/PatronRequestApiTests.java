@@ -212,7 +212,7 @@ class PatronRequestApiTests {
 
 	@Test
 	@DisplayName("should be able to place patron request for new patron")
-	void shouldBeAbleToPlacePatronForNewPatron() {
+	void shouldBeAbleToPlaceRequestForNewPatron() {
 		log.info("\n\nshouldBeAbleToPlacePatronForNewPatron\n\n");
 		// Arrange
 		final var clusterRecordId = randomUUID();
