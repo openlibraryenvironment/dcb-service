@@ -13,8 +13,11 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.test.*;
+import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.test.BibRecordFixture;
+import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.HttpRequest;
@@ -25,8 +28,6 @@ import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.util.UUID;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -90,17 +91,8 @@ class LiveAvailabilityApiTests {
 		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId,
 			"798472", clusterRecord);
 
-		referenceValueMappingFixture.saveReferenceValueMapping(
-			ReferenceValueMapping.builder()
-				.id(UUID.randomUUID())
-				.fromCategory("ShelvingLocation")
-				.fromContext("live-availability-api-tests")
-				.fromValue("ab6")
-				.toCategory("AGENCY")
-				.toContext("DCB")
-				.toValue("345test")
-				.reciprocal(false)
-				.build() );
+		referenceValueMappingFixture.defineShelvingLocationToAgencyMapping(
+			"live-availability-api-tests", "ab6", "345test");
 
 		agencyFixture.saveAgency(
 			DataAgency.builder()
