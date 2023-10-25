@@ -13,7 +13,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.olf.dcb.core.BibRecordService;
 import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;

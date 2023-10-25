@@ -1,4 +1,4 @@
-package org.olf.dcb.core;
+package org.olf.dcb.core.svc;
 
 import static org.olf.dcb.utils.DCBStringUtilities.generateBlockingString;
 import static org.olf.dcb.utils.DCBStringUtilities.uuid5ForIdentifier;
@@ -12,7 +12,6 @@ import java.util.UUID;
 import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
-import org.olf.dcb.core.svc.RecordClusteringService;
 import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.processing.ProcessingStep;

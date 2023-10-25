@@ -4,8 +4,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
-import org.olf.dcb.core.BibRecordService;
 import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.core.svc.RecordClusteringService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

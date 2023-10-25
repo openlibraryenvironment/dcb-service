@@ -4,7 +4,7 @@ import io.micronaut.runtime.context.scope.Refreshable;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Singleton;
 
-import org.olf.dcb.core.BibRecordService;
+import org.olf.dcb.core.svc.BibRecordService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
