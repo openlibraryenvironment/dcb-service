@@ -1,9 +1,16 @@
 # Changelog
 
+## Version 1.7.3
+
+### Changes
+* [Feature]
+	* Rollup beta for weekly release
+
 ## Version 1.7.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* When setting page size for polaris, limit the value to 100
 * [Refactor]
 	* Move BibRecordService to svc package
