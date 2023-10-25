@@ -57,4 +57,20 @@ public class ReferenceValueMappingFixture {
 
 		saveReferenceValueMapping(mapping);
 	}
+
+	public void defineShelvingLocationToAgencyMapping(String fromContext,
+		String shelvingLocationCode, String agencyCode) {
+
+		final var mapping = ReferenceValueMapping.builder()
+			.id(randomUUID())
+			.fromCategory("ShelvingLocation")
+			.fromContext(fromContext)
+			.fromValue(shelvingLocationCode)
+			.toCategory("AGENCY")
+			.toContext("DCB")
+			.toValue(agencyCode)
+			.build();
+
+		saveReferenceValueMapping(mapping);
+	}
 }
