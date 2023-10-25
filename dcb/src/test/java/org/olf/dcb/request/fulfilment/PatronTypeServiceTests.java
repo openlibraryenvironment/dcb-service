@@ -31,7 +31,6 @@ class PatronTypeServiceTests {
 
 		// We set up a mapping HOSTA.1 -> DCB.DCB_UG -> 15
 		referenceValueMappingFixture.definePatronTypeMapping("HOSTA", "1", "DCB", "DCB_UG");
-		referenceValueMappingFixture.definePatronTypeMapping("HOSTA", "1", "DCB", "DCB_UG");
 
 		// Mapping from DCB::DCB_UG to EXAMPLE-CODE:15
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", "DCB_UG", "EXAMPLE-CODE", "15");

@@ -466,6 +466,7 @@ class PatronRequestApiTests {
 	}
 
 	private void savePatronTypeMappings() {
+		// These seem to be reciprocal, however removing one of the mappings leads to failures
 		referenceValueMappingFixture.definePatronTypeMapping("patron-request-api-tests", "15", "DCB", "15");
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", "15", "patron-request-api-tests", "15");
 	}
