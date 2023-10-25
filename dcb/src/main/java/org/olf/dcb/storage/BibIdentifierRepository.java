@@ -39,6 +39,10 @@ public interface BibIdentifierRepository {
     @NonNull
     @SingleResult
     Publisher<Void> delete(@NonNull UUID id);
+    
+    @NonNull
+    @SingleResult
+    Publisher<Long> deleteAllByOwner(@NonNull BibRecord owner);
 
     @NonNull
     @SingleResult

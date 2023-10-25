@@ -3,7 +3,6 @@ package org.olf.dcb.storage;
 import java.util.Collection;
 import java.util.UUID;
 
-import org.olf.dcb.core.api.serde.ClusterBibDTO;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.reactivestreams.Publisher;

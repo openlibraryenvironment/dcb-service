@@ -114,6 +114,12 @@ public class BibRecordService {
 		return Flux.fromIterable(source.getIdentifiers()).map(id -> ingestRecordIdentifierToModel(id, savedBib))
 				.flatMap(this::saveOrUpdateIdentifier).then(Mono.just(savedBib));
 	}
+	
+	@Transactional
+	protected Mono<Long> deleteBibIdentifers( BibRecord bib ) {
+		
+		return Mono.from( bibIdentifierRepo.deleteAllByOwner(bib) );
+	}
 
 	protected Mono<BibRecord> updateStatistics(BibRecord savedBib, IngestRecord source, long start_time) {
 
@@ -154,9 +160,12 @@ public class BibRecordService {
 	@Transactional
 	public Mono<Void> delete(@NonNull BibRecord bib) {
 		
-		return Mono.justOrEmpty(bib.getId())
-			.map(bibRepo::delete)
-			.flatMap(Mono::from);
+		return Mono.justOrEmpty(bib)
+			.zipWhen(this::deleteBibIdentifers)
+			.flatMap(TupleUtils.function(( theBib, identifierDeletedCount ) -> {
+				log.debug("Removed {} identifiers for bib", identifierDeletedCount );
+				return Mono.from(bibRepo.delete( theBib.getId() ));
+			}));
 	}
 	
 	@SingleResult
