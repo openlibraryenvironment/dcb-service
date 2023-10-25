@@ -344,12 +344,6 @@ public interface MarcIngestSource<T> extends IngestSource {
 			        setIfSubfieldPresent(publisher2,'c',canonical_metadata,"dateOfPublication");
                         }
 		}
-                else {
-                        DataField pubdate1 = (DataField) marcRecord.getVariableField("264");
-                        if ( pubdate1 != null) {
-		                setIfSubfieldPresent(pubdate1,'c',canonical_metadata,"dateOfPublication");
-                        }
-                }
 
 		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("500") ) {
                         addToCanonicalMetadata("notes", vf, "a", canonical_metadata);
