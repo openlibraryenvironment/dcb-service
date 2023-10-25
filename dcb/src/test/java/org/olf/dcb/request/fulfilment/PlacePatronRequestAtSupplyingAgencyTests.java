@@ -1,4 +1,5 @@
 package org.olf.dcb.request.fulfilment;
+
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -19,7 +20,6 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtSupplyingAgencyStateTransition;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -34,6 +34,7 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PlacePatronRequestAtSupplyingAgencyTests {
@@ -284,10 +285,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		referenceValueMappingFixture.definePatronTypeMapping(
 			"DCB", "-", "supplying-agency-service-tests", "15");
 
-		final var pul = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("PickupLocation")
-			.fromContext("DCB").fromValue("ABC123").toCategory("AGENCY").toContext("DCB").toValue("ab6")
-			.build();
-		referenceValueMappingFixture.saveReferenceValueMapping(pul);
+		referenceValueMappingFixture.definePickupLocationToAgencyMapping("ABC123", "ab6");
 	}
 
 	private void saveHomeLibraryMappings() {
