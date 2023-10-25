@@ -484,11 +484,12 @@ class PatronRequestApiTests {
 	}
 
 	private static String getAccessToken(BlockingHttpClient blockingClient) {
-		final var creds = new UsernamePasswordCredentials("admin", "password");
-		final var loginRequest = HttpRequest.POST("/login", creds);
+		final var credentials = new UsernamePasswordCredentials("admin", "password");
+
+		final var loginRequest = HttpRequest.POST("/login", credentials);
 		final var loginResponse = blockingClient.exchange(loginRequest, BearerAccessRefreshToken.class);
 		final var bearerAccessRefreshToken = loginResponse.body();
-		final var accessToken = bearerAccessRefreshToken.getAccessToken();
-		return accessToken;
+
+		return bearerAccessRefreshToken.getAccessToken();
 	}
 }
