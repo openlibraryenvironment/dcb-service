@@ -24,7 +24,6 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.ShelvingLocation;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtBorrowingAgencyStateTransition;
 import org.olf.dcb.storage.AgencyRepository;
