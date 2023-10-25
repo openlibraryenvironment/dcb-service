@@ -81,7 +81,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.patronHoldRequestResponse("1000003");
 		// add patron type mappings
 		savePatronTypeMappings();
-		saveHomeLibraryMappings(d1, agency_ab6);
+		saveHomeLibraryMappings();
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the unexpected patron type")
@@ -290,12 +290,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		referenceValueMappingFixture.saveReferenceValueMapping(pul);
 	}
 
-	private void saveHomeLibraryMappings(DataHostLms d1, DataAgency dataAgency) {
+	private void saveHomeLibraryMappings() {
 		// Tell systems how to convert supplying-agency-service-tests:123456 to ab6
-		final var rvm = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("location")
-			.fromContext("supplying-agency-service-tests").fromValue("123456").toCategory("agency").toContext("dcb").toValue("ab6")
-			.build();
-
-		referenceValueMappingFixture.saveReferenceValueMapping(rvm);
+		referenceValueMappingFixture.defineLocationToAgencyMapping("supplying-agency-service-tests", "123456", "ab6");
 	}
 }
