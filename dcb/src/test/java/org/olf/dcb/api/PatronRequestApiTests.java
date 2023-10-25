@@ -185,7 +185,7 @@ class PatronRequestApiTests {
 		DataAgency dataAgency = Mono.from(agencyRepository.save(
 				DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(dataHostLms2).build()))
 			.doOnSuccess(da -> log.debug("Created ab6"))
-			.doOnError(err -> log.error("Failure to create ab6 data agency {}", err))
+			.doOnError(err -> log.error("Failure to create ab6 data agency", err))
 			.block();
 
 		ShelvingLocation shelvingLocation = ShelvingLocation.builder().id(randomUUID()).code("ab6").name("name")
