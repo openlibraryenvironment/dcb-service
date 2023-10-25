@@ -22,9 +22,6 @@ import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import java.util.List;
 import java.util.UUID;
 
-import io.micronaut.http.client.BlockingHttpClient;
-import io.micronaut.security.authentication.UsernamePasswordCredentials;
-import io.micronaut.security.token.render.BearerAccessRefreshToken;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -49,15 +46,17 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.client.BlockingHttpClient;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.security.authentication.UsernamePasswordCredentials;
+import io.micronaut.security.token.render.BearerAccessRefreshToken;
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONObject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
@@ -66,9 +65,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Slf4j
 class PatronRequestApiTests {
-	private final Logger log = LoggerFactory.getLogger(PatronRequestApiTests.class);
-
 	private static final String HOST_LMS_CODE = "patron-request-api-tests";
 
 	@Inject
