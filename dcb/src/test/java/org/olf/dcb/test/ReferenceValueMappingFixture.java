@@ -20,10 +20,6 @@ public class ReferenceValueMappingFixture {
 		this.repository = repository;
 	}
 
-	public void saveReferenceValueMapping(ReferenceValueMapping mapping) {
-		singleValueFrom(repository.save(mapping));
-	}
-
 	public void deleteAll() {
 		dataAccess.deleteAll(repository.queryAll(),
 			mapping -> repository.delete(mapping.getId()));
@@ -96,5 +92,9 @@ public class ReferenceValueMappingFixture {
 				.toValue(toPatronType)
 				.reciprocal(true)
 				.build());
+	}
+
+	private void saveReferenceValueMapping(ReferenceValueMapping mapping) {
+		singleValueFrom(repository.save(mapping));
 	}
 }
