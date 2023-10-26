@@ -94,6 +94,8 @@ class PatronRequestApiTests {
 	private PatronRequestApiClient patronRequestApiClient;
 	@Inject
 	private AdminApiClient adminApiClient;
+	@Inject
+	private LoginClient loginClient;
 
 	@Inject
 	@Client("/")
@@ -427,7 +429,7 @@ class PatronRequestApiTests {
 		};
 
 		final var blockingClient = client.toBlocking();
-		final var accessToken = LoginClient.getAccessToken(blockingClient);
+		final var accessToken = loginClient.getAccessToken();
 		final var request = HttpRequest.POST("/patrons/requests/place", requestBody).bearerAuth(accessToken);
 
 		// When placing a request for a patron at an unknown local system
