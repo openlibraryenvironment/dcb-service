@@ -30,6 +30,7 @@ import services.k_int.interaction.sierra.items.Params;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
+import services.k_int.interaction.sierra.patrons.PatronValidation;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
@@ -107,6 +108,14 @@ public interface SierraApiClient extends BasicAuthClient {
 
 	@SingleResult
 	Publisher<String> validatePatronCredentials(final InternalPatronValidation body);
+
+	/** Validate a patron in a way that has parity with the local sierra discovery system.
+	 *  This method exposes the sierra /patrons/validate endpoint which uses configuration to
+	 *  validate a user based on system settings for the primary user ID attribute (E.G. barcode, uniqueId, patronId)
+	 *  And user verification method (PIN, first n characters of username, etc)
+	 */
+	@SingleResult
+	Publisher<Boolean> validatePatron(final PatronValidation body);
 
 	@SingleResult
 	Publisher<BranchResultSet> branches(@Nullable Integer limit, @Nullable final Integer offset,
