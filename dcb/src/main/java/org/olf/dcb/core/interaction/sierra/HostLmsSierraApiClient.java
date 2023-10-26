@@ -211,6 +211,18 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				.flatMap(req -> doRetrieve(req, Argument.of(String.class)));
 	}
 
+        @SingleResult
+        public Publisher<Boolean> validatePatron(final PatronValidation body) {
+		return postRequest("patrons/validate").map(req -> req.body(body)).flatMap(this::ensureToken)
+				.flatMap(req -> doExchange(req, Object.class))
+				.doOnNext(res -> log.debug("Result of validate {} {}",res,res.getStatus()))
+				.flatMap(res -> {
+                                	return Mono.just(Boolean.TRUE);
+                                })
+				.onErrorResume(throwable -> Mono.just(Boolean.FALSE));
+	}
+
+
 	@SingleResult
 	public Publisher<SierraPatronHoldResultSet> patronHolds(String patronId) {
 		log.debug("patronHolds({})", patronId);

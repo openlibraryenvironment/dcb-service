@@ -76,6 +76,7 @@ import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
 import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
+import services.k_int.interaction.sierra.patrons.PatronValidation;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
@@ -388,14 +389,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	private Mono<Patron> validatePatronByUniqueIdAndSecret(String uniqueId, String credentials) {
 
-                final var internalPatronValidation = InternalPatronValidation.builder().authMethod("native").patronId(uniqueId).patronSecret(credentials).build();
+                final var patronValidation = PatronValidation.builder().barcode(uniqueId).pin(credentials).build();
 
-                log.debug("Attempt client patron validation : {}", internalPatronValidation);
+                log.debug("Attempt client patron validation : {}", patronValidation);
 
-                return Mono.from(client.validatePatronCredentials(internalPatronValidation))
-                                .doOnError(
-                                                resp -> log.debug("response of validatePatronCredentials for {} : {}", internalPatronValidation, resp))
-                                .flatMap(patronId -> patronFind("u", uniqueId) );
+                return patronFind("u", uniqueId)
+				.doOnSuccess(patron -> log.debug("Testing {}/{} to see if {} is present", patron, patron.getLocalNames(), credentials))
+				.filter( patron -> patron.getLocalNames().stream().anyMatch(s -> s.toLowerCase().startsWith(credentials.toLowerCase())));
+
         }
 
 	// The correct URL for validating patrons in sierra is
@@ -411,8 +412,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// client
 		return patronFind("b", barcode)
 				.doOnSuccess(patron -> log.debug("Testing {}/{} to see if {} is present", patron, patron.getLocalNames(), name))
-				.filter(
-						patron -> patron.getLocalNames().stream().anyMatch(s -> s.toLowerCase().startsWith(name.toLowerCase())));
+				.filter( patron -> patron.getLocalNames().stream().anyMatch(s -> s.toLowerCase().startsWith(name.toLowerCase())));
 	}
 
 	@Override
