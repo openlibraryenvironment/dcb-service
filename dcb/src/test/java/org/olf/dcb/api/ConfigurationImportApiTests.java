@@ -1,7 +1,5 @@
 package org.olf.dcb.api;
 
-import static io.micronaut.http.HttpStatus.OK;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 
@@ -12,6 +10,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.test.clients.LoginClient;
 import org.olf.dcb.utils.DCBConfigurationService.ConfigImportResult;
 
 import io.micronaut.core.io.ResourceLoader;
@@ -20,8 +19,6 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
-import io.micronaut.security.authentication.UsernamePasswordCredentials;
-import io.micronaut.security.token.render.BearerAccessRefreshToken;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +35,9 @@ class ConfigurationImportApiTests {
 	@Inject
 	@Client("/")
 	private HttpClient client;
+
+	@Inject
+	private LoginClient loginClient;
 
 	private String itemTypeMappings = null;
 
@@ -65,14 +65,12 @@ class ConfigurationImportApiTests {
 		log.debug("Admin Login..");
 		// See ./dcb/src/main/java/org/olf/dcb/security/DcbAuthenticationProvider.java
 		// https://guides.micronaut.io/latest/micronaut-security-jwt-gradle-groovy.html
-		UsernamePasswordCredentials creds = new UsernamePasswordCredentials("admin", "password");
-		HttpRequest<?> request = HttpRequest.POST("/login", creds);
-		HttpResponse<BearerAccessRefreshToken> rsp = client.toBlocking().exchange(request, BearerAccessRefreshToken.class);
-		assertEquals(OK, rsp.getStatus());
+		final var loginResponse = loginClient.login("admin", "password").body();
 
-		BearerAccessRefreshToken bearerAccessRefreshToken = rsp.body();
-	 	String accessToken = bearerAccessRefreshToken.getAccessToken();
-		log.debug("Got login response: {} {} {}",accessToken,bearerAccessRefreshToken.getUsername(),bearerAccessRefreshToken.getRoles());
+		final var accessToken = loginResponse.getAccessToken();
+
+		log.debug("Got login response: {} {} {}", accessToken,
+			loginResponse.getUsername(), loginResponse.getRoles());
 
 		HttpRequest<?> requestWithAuthorization = HttpRequest.GET("/secured").accept(MediaType.TEXT_PLAIN).bearerAuth(accessToken);
 		HttpResponse<String> response = client.toBlocking().exchange(requestWithAuthorization, String.class);
