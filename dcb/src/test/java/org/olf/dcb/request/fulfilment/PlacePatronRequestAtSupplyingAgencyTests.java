@@ -1,4 +1,5 @@
 package org.olf.dcb.request.fulfilment;
+
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -19,7 +20,6 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtSupplyingAgencyStateTransition;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -34,6 +34,7 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PlacePatronRequestAtSupplyingAgencyTests {
@@ -54,16 +55,14 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private PlacePatronRequestAtSupplyingAgencyStateTransition placePatronRequestAtSupplyingAgencyStateTransition;
-        @Inject
-        private AgencyFixture agencyFixture;
-        @Inject
-        private PatronService patronService;
-
-
-        private DataAgency agency_ab6 = null;
+	@Inject
+	private AgencyFixture agencyFixture;
+	@Inject
+	private PatronService patronService;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
+	private DataAgency agency_ab6 = null;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mock) {
@@ -83,7 +82,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.patronHoldRequestResponse("1000003");
 		// add patron type mappings
 		savePatronTypeMappings();
-                saveHomeLibraryMappings(d1,agency_ab6);
+		saveHomeLibraryMappings();
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the unexpected patron type")
@@ -91,14 +90,12 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithAnUnexpectedPtype() {
 		// Arrange
 		final var localId = "872321";
-		final var homeLibraryCode = "123456";
 		final var patronRequestId = randomUUID();
 		final var clusterRecordId = createClusterRecord();
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var patron = createPatron(localId, hostLms);
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
-		// sierraPatronsAPIFixture.patronResponseForUniqueId("872321@123456");
 		sierraPatronsAPIFixture.patronResponseForUniqueId("u", "872321@ab6");
 
 		// The unexpected Ptype will use this mock to update the virtual patron
@@ -106,41 +103,47 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.patronHoldResponse("1000002",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
 			"Consortial Hold. tno="+patronRequest.getId());
+
 		// Act
 		final var pr = placePatronRequestAtSupplyingAgencyStateTransition
 			.attempt(patronRequest)
 			.block();
+
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
 		assertThat("Status wasn't expected.", pr.getStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 		assertSuccessfulTransitionAudit(pr);
 	}
+
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
 	@Test
 	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithTheExpectedPtype() {
 		// Arrange
 		final var localId = "32453";
-		final var homeLibraryCode = "123456";
 		final var patronRequestId = randomUUID();
 		final var clusterRecordId = createClusterRecord();
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var patron = createPatron(localId, hostLms);
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
-		// sierraPatronsAPIFixture.patronResponseForUniqueIdExpectedPtype("32453@123456");
+
 		sierraPatronsAPIFixture.patronResponseForUniqueIdExpectedPtype("u", "32453@ab6");
 		sierraPatronsAPIFixture.patronHoldResponse("1000002",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
 			"Consortial Hold. tno="+patronRequest.getId());
+
 		// Act
 		final var pr = placePatronRequestAtSupplyingAgencyStateTransition
 			.attempt(patronRequest)
 			.block();
+
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
 		assertThat("Status wasn't expected.", pr.getStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+
 		assertSuccessfulTransitionAudit(pr);
 	}
+
 	@DisplayName("patron is not known to supplier and places patron request")
 	@Test
 	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsNotKnownToSupplier() {
@@ -159,16 +162,17 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.patronHoldResponse("1000003",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864905",
 			"Consortial Hold. tno="+patronRequest.getId());
+
 		// Act
 		final var pr = placePatronRequestAtSupplyingAgencyStateTransition
 			.attempt(patronRequest)
 			.block();
+
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
 		assertThat("Status wasn't expected.", pr.getStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 		assertSuccessfulTransitionAudit(pr);
 	}
-
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")
 	@Test
@@ -183,9 +187,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
 
-		// sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("931824@123456");
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "931824@ab6");
-		// sierraPatronsAPIFixture.postPatronResponse("931824@123456", 1000001);
 		sierraPatronsAPIFixture.postPatronResponse("931824@ab6", 1000001);
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001");
 
@@ -219,6 +221,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertThat("Patron Request audit should have to state",
 			fetchedAudit.getToStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 	}
+
 	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
 		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
 		assertThat("Patron Request audit should have brief description",
@@ -229,15 +232,17 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertThat("Patron Request audit should have to state",
 			fetchedAudit.getToStatus(), is(ERROR));
 	}
+
 	private UUID createClusterRecord() {
 		final UUID clusterRecordId = randomUUID();
 		clusterRecordFixture.createClusterRecord(clusterRecordId);
 		return clusterRecordId;
 	}
-	private Patron createPatron(String localId, DataHostLms hostLms) {
 
-                if ( agency_ab6 == null )
-                        throw new RuntimeException("Fixtures have not properly initialised data agency ab6");
+	private Patron createPatron(String localId, DataHostLms hostLms) {
+		if (agency_ab6 == null) {
+			throw new RuntimeException("Fixtures have not properly initialised data agency ab6");
+		}
 
 		final Patron patron = patronFixture.savePatron("123456");
 		patronFixture.saveIdentity(patron, hostLms, localId, true, "-", "123456", agency_ab6);
@@ -245,8 +250,10 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		patron.setPatronIdentities(patronService.findAllPatronIdentitiesByPatron(patron).collectList().block());
 		return patron;
 	}
+
 	private PatronRequest savePatronRequest(UUID patronRequestId, Patron patron,
 		UUID clusterRecordId) {
+
 		final var requestingIdentity = patron.getPatronIdentities().get(1);
 		var patronRequest = PatronRequest.builder()
 			.id(patronRequestId)
@@ -254,12 +261,12 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			.requestingIdentity(requestingIdentity)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
-			// .status(Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
 			.status(Status.RESOLVED)
 			.build();
 		patronRequestsFixture.savePatronRequest(patronRequest);
 		return patronRequest;
 	}
+
 	private void saveSupplierRequest(PatronRequest patronRequest, String hostLmsCode) {
 		supplierRequestsFixture.saveSupplierRequest(
 			randomUUID(),
@@ -270,29 +277,19 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			hostLmsCode
 		);
 	}
+
 	private void savePatronTypeMappings() {
+		referenceValueMappingFixture.definePatronTypeMapping(
+			"supplying-agency-service-tests", "-", "DCB", "-");
 
-		referenceValueMappingFixture.saveReferenceValueMapping(
-			patronFixture.createPatronTypeMapping(
-				"supplying-agency-service-tests", "-", "DCB", "-"));
+		referenceValueMappingFixture.definePatronTypeMapping(
+			"DCB", "-", "supplying-agency-service-tests", "15");
 
-		referenceValueMappingFixture.saveReferenceValueMapping(
-			patronFixture.createPatronTypeMapping(
-				"DCB", "-", "supplying-agency-service-tests", "15"));
-
-                ReferenceValueMapping pul = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("PickupLocation")
-                                .fromContext("DCB").fromValue("ABC123").toCategory("AGENCY").toContext("DCB").toValue("ab6")
-                                .build();
-                referenceValueMappingFixture.saveReferenceValueMapping(pul);
-
+		referenceValueMappingFixture.definePickupLocationToAgencyMapping("ABC123", "ab6");
 	}
-        private void saveHomeLibraryMappings(DataHostLms d1, DataAgency dataAgency) {
 
-                // Tell systems how to convert supplying-agency-service-tests:123456 to ab6
-                ReferenceValueMapping rvm = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("location")
-                                .fromContext("supplying-agency-service-tests").fromValue("123456").toCategory("agency").toContext("dcb").toValue("ab6")
-                                .build();
-
-                referenceValueMappingFixture.saveReferenceValueMapping(rvm);
-        }
+	private void saveHomeLibraryMappings() {
+		// Tell systems how to convert supplying-agency-service-tests:123456 to ab6
+		referenceValueMappingFixture.defineLocationToAgencyMapping("supplying-agency-service-tests", "123456", "ab6");
+	}
 }

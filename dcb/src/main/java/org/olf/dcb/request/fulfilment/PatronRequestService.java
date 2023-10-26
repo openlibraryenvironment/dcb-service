@@ -1,6 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
 import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
+import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 import java.util.UUID;
@@ -9,8 +10,9 @@ import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
-import org.olf.dcb.storage.PatronRequestAuditRepository;
+import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand.Requestor;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
+import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +20,8 @@ import org.slf4j.LoggerFactory;
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 @Prototype
 public class PatronRequestService {
@@ -46,21 +50,25 @@ public class PatronRequestService {
 
 		log.debug("placePatronRequest({})", command);
 
-		return Mono.just(command)
-			.flatMap(this::findOrCreatePatron)
-			.map(patron -> mapToPatronRequest(patron, command))
+		return this.findOrCreatePatron(command)
+			.map(function(this::mapToPatronRequest))
 			.flatMap(this::savePatronRequest)
 			.doOnSuccess(requestWorkflow::initiate);
 	}
 
-	private Mono<Patron> findOrCreatePatron(PlacePatronRequestCommand command) {
-		final var requestor = command.requestor();
+	private Mono<Tuple2<Patron, PlacePatronRequestCommand>> findOrCreatePatron(
+		PlacePatronRequestCommand command) {
 
+		return findOrCreatePatron(command.requestor())
+			.map(patron -> Tuples.of(patron, command));
+	}
+
+	private Mono<Patron> findOrCreatePatron(Requestor requestor) {
 		return findOrCreatePatronService.findOrCreatePatron(requestor.localSystemCode(),
 			requestor.localId(), requestor.homeLibraryCode());
 	}
 
-	private static PatronRequest mapToPatronRequest(Patron patron,
+	private PatronRequest mapToPatronRequest(Patron patron,
 		PlacePatronRequestCommand command) {
 
 		final var id = UUID.randomUUID();

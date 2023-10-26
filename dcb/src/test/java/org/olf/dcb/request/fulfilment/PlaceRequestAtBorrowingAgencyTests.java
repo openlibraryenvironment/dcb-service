@@ -24,7 +24,6 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.ShelvingLocation;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtBorrowingAgencyStateTransition;
 import org.olf.dcb.storage.AgencyRepository;
@@ -140,17 +139,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		singleValueFrom(shelvingLocationRepository.save(shelvingLocation));
 
-		final var rvm = ReferenceValueMapping.builder()
-			.id(randomUUID())
-			.fromCategory("ShelvingLocation")
-			.fromContext("borrowing-agency-service-tests")
-			.fromValue("ab6")
-			.toCategory("AGENCY")
-			.toContext("DCB")
-			.toValue("ab6")
-			.build();
-
-		referenceValueMappingFixture.saveReferenceValueMapping(rvm);
+		referenceValueMappingFixture.defineShelvingLocationToAgencyMapping(
+			"borrowing-agency-service-tests", "ab6", "ab6");
 	}
 
 	@AfterAll

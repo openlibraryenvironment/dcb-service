@@ -10,7 +10,6 @@ import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -21,7 +20,6 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.ingest.IngestService;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
@@ -92,11 +90,9 @@ public class HostLmsPAPIClientTests {
 	@Test
 	public void getItemsByBibIdTest() throws IOException {
 		// Arrange
-		referenceValueMappingFixture.saveReferenceValueMapping(
-			ReferenceValueMapping.builder().id(UUID.randomUUID())
-				.fromCategory("ShelvingLocation").fromContext("polaris-hostlms-tests").fromValue("15")
-				.toCategory("AGENCY").toContext("DCB").toValue("345test").reciprocal(false)
-				.build() );
+		referenceValueMappingFixture.defineShelvingLocationToAgencyMapping(
+			"polaris-hostlms-tests", "15", "345test");
+
 		agencyFixture.saveAgency(DataAgency.builder().id(randomUUID()).code("345test").name("Test College").build());
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
 		final var bibRecordId = randomUUID();

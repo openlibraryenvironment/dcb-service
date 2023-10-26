@@ -19,7 +19,6 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.request.workflow.ValidatePatronTransition;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -90,7 +89,8 @@ public class ValidatePatronTests {
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var patron = createPatron(localId, hostLms);
 
-                referenceValueMappingFixture.saveReferenceValueMapping( createLocationToAgencyMapping( "validate-patron-transition-tests","testccc","DCB","AGENCY1" ) );
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			"validate-patron-transition-tests", "testccc", "AGENCY1");
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
@@ -203,9 +203,7 @@ public class ValidatePatronTests {
 
 		patronFixture.saveIdentity(patron, hostLms, localId, true, "-", "123456", null);
 
-		// patron.setPatronIdentities(patronFixture.findIdentities(patron));
-                patron.setPatronIdentities(patronService.findAllPatronIdentitiesByPatron(patron).collectList().block());
-
+		patron.setPatronIdentities(patronService.findAllPatronIdentitiesByPatron(patron).collectList().block());
 
 		return patron;
 	}
@@ -221,22 +219,4 @@ public class ValidatePatronTests {
 
 		return patronRequest;
 	}
-
-        private ReferenceValueMapping createLocationToAgencyMapping(
-                String fromContext,
-                String fromValue,
-                String toContext,
-                String toValue ) {
-                return ReferenceValueMapping.builder()
-                        .id(UUID.randomUUID())
-                        .fromCategory("Location")
-                        .fromContext(fromContext)
-                        .fromValue(fromValue)
-                        .toCategory("AGENCY")
-                        .toContext(toContext)
-                        .toValue(toValue)
-                        .reciprocal(false)
-                        .build();
-        }
-
 }

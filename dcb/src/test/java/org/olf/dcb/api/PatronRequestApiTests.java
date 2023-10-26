@@ -22,9 +22,6 @@ import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import java.util.List;
 import java.util.UUID;
 
-import io.micronaut.http.client.BlockingHttpClient;
-import io.micronaut.security.authentication.UsernamePasswordCredentials;
-import io.micronaut.security.token.render.BearerAccessRefreshToken;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -38,7 +35,6 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.ShelvingLocation;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
@@ -49,8 +45,7 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.olf.dcb.test.clients.LoginClient;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.HttpRequest;
@@ -58,6 +53,7 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONObject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
@@ -66,13 +62,13 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Slf4j
 class PatronRequestApiTests {
-	private final Logger log = LoggerFactory.getLogger(PatronRequestApiTests.class);
-
 	private static final String HOST_LMS_CODE = "patron-request-api-tests";
 
 	@Inject
 	ResourceLoader loader;
+
 	@Inject
 	private PatronRequestsFixture patronRequestsFixture;
 	@Inject
@@ -84,19 +80,22 @@ class PatronRequestApiTests {
 	@Inject
 	private BibRecordFixture bibRecordFixture;
 	@Inject
-	private PatronRequestApiClient patronRequestApiClient;
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
+	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+
 	@Inject
 	private ShelvingLocationRepository shelvingLocationRepository;
 	@Inject
 	private AgencyRepository agencyRepository;
+
+	@Inject
+	private PatronRequestApiClient patronRequestApiClient;
 	@Inject
 	private AdminApiClient adminApiClient;
 	@Inject
-	private ReferenceValueMappingFixture referenceValueMappingFixture;
-	@Inject
-	private AgencyFixture agencyFixture;
-
-	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+	private LoginClient loginClient;
 
 	@Inject
 	@Client("/")
@@ -113,8 +112,9 @@ class PatronRequestApiTests {
 
 		hostLmsFixture.deleteAll();
 
-		DataHostLms h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
-                log.debug("Created dataHostLms {}",h1);
+		final var h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+
+		log.debug("Created dataHostLms {}", h1);
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 		// Moved to class level var so we can install fixtures elsewhere
@@ -127,11 +127,9 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");
 
 		// patron service
-//		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("872321@home-library");
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "872321@ab6");
 
-//		sierraPatronsAPIFixture.postPatronResponse("872321@home-library", 2745326);
-		 sierraPatronsAPIFixture.postPatronResponse("872321@ab6", 2745326);
+		sierraPatronsAPIFixture.postPatronResponse("872321@ab6", 2745326);
 
 		// supplying agency service
 		sierraPatronsAPIFixture.patronHoldRequestResponse("2745326");
@@ -157,7 +155,7 @@ class PatronRequestApiTests {
 			.hostLms(h1)
 			.build());
 
-                log.debug("Create dataAgency {}",da);
+		log.debug("Create dataAgency {}", da);
 
 		sierraPatronsAPIFixture.addPatronGetExpectation("43546");
 		sierraPatronsAPIFixture.addPatronGetExpectation("872321");
@@ -174,8 +172,8 @@ class PatronRequestApiTests {
 
 		referenceValueMappingFixture.deleteAll();
 
+		log.debug("Creating dataHostLms records for codeAA and codeBB");
 
-                log.debug("Creating dataHostLms records for codeAA and codeBB");
 		// add shelving location
 		UUID id1 = randomUUID();
 		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms(id1, "codeAA");
@@ -183,40 +181,28 @@ class PatronRequestApiTests {
 		UUID id = randomUUID();
 		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "codeBB");
 
-                log.debug("Creating dataAgency record for ab6");
+		log.debug("Creating dataAgency record for ab6");
+
 		DataAgency dataAgency = Mono.from(agencyRepository.save(
-			DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(dataHostLms2).build()))
-                        .doOnSuccess(da -> log.debug("Created ab6"))
-                        .doOnError(err -> log.error("Failure to create ab6 data agency {}",err))
+				DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(dataHostLms2).build()))
+			.doOnSuccess(da -> log.debug("Created ab6"))
+			.doOnError(err -> log.error("Failure to create ab6 data agency", err))
 			.block();
 
 		ShelvingLocation shelvingLocation = ShelvingLocation.builder().id(randomUUID()).code("ab6").name("name")
-				.hostSystem(dataHostLms1).agency(dataAgency).build();
+			.hostSystem(dataHostLms1).agency(dataAgency).build();
 
 		Mono.from(shelvingLocationRepository.save(shelvingLocation)).block();
 
-		ReferenceValueMapping pul = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("PickupLocation")
-				.fromContext("DCB").fromValue("ABC123").toCategory("AGENCY").toContext("DCB").toValue("AGENCY1")
-				.build();
-		referenceValueMappingFixture.saveReferenceValueMapping(pul);
-        
-		ReferenceValueMapping rvm = ReferenceValueMapping.builder().id(randomUUID()).fromCategory("ShelvingLocation")
-				.fromContext("patron-request-api-tests").fromValue("ab6").toCategory("AGENCY").toContext("DCB").toValue("ab6")
-				.build();
-		referenceValueMappingFixture.saveReferenceValueMapping(rvm);
+		referenceValueMappingFixture.definePickupLocationToAgencyMapping("ABC123", "AGENCY1");
+		referenceValueMappingFixture.defineShelvingLocationToAgencyMapping(
+			"patron-request-api-tests", "ab6", "ab6");
 
-                ReferenceValueMapping rvm2= ReferenceValueMapping.builder().id(randomUUID()).fromCategory("Location")
-                                .fromContext("patron-request-api-tests").fromValue("tstce").toCategory("AGENCY").toContext("DCB").toValue("ab6")
-                                .build();
-                referenceValueMappingFixture.saveReferenceValueMapping(rvm2);
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			"patron-request-api-tests", "tstce", "ab6");
 
-                ReferenceValueMapping rvm3= ReferenceValueMapping.builder().id(randomUUID()).fromCategory("Location")
-                                .fromContext("patron-request-api-tests").fromValue("tstr").toCategory("AGENCY").toContext("DCB").toValue("ab6")
-                                .build();
-                referenceValueMappingFixture.saveReferenceValueMapping(rvm3);
-		// Mono.from(referenceValueMappingRepository.save(rvm))
-		// .block();
-
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			"patron-request-api-tests", "tstr", "ab6");
 	}
 
 	@AfterAll
@@ -228,7 +214,7 @@ class PatronRequestApiTests {
 
 	@Test
 	@DisplayName("should be able to place patron request for new patron")
-	void shouldBeAbleToPlacePatronForNewPatron() {
+	void shouldBeAbleToPlaceRequestForNewPatron() {
 		log.info("\n\nshouldBeAbleToPlacePatronForNewPatron\n\n");
 		// Arrange
 		final var clusterRecordId = randomUUID();
@@ -263,7 +249,7 @@ class PatronRequestApiTests {
 				"Consortial Hold. tno=" + placedPatronRequest.id());
 
 		// We need to take the placedRequestResponse and somehow inject it's ID into the
-		// patronHolds respons message as note="Consortial Hold. tno=UUID"
+		// patronHolds response message as note="Consortial Hold. tno=UUID"
 		// This will ensure that the subsequent lookup can correlate the hold with the
 		// request
 		// maybe something like sierraPatronsAPIFixture.patronHoldResponse("872321",
@@ -303,8 +289,8 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.requestor().identities(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(2));
 
-                // The order can change depending upon access, so force the order so that the get(n) below work as expected
-                // Collections.sort(fetchedPatronRequest.requestor().identities(), (i1, i2) -> { return i1.localId().compareTo(i2.localId()); });
+		// The order can change depending upon access, so force the order so that the get(n) below work as expected
+		// Collections.sort(fetchedPatronRequest.requestor().identities(), (i1, i2) -> { return i1.localId().compareTo(i2.localId()); });
 
 		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(1);
 
@@ -443,7 +429,7 @@ class PatronRequestApiTests {
 		};
 
 		final var blockingClient = client.toBlocking();
-		final var accessToken = getAccessToken(blockingClient);
+		final var accessToken = loginClient.getAccessToken();
 		final var request = HttpRequest.POST("/patrons/requests/place", requestBody).bearerAuth(accessToken);
 
 		// When placing a request for a patron at an unknown local system
@@ -482,19 +468,8 @@ class PatronRequestApiTests {
 	}
 
 	private void savePatronTypeMappings() {
-		referenceValueMappingFixture.saveReferenceValueMapping(
-				patronFixture.createPatronTypeMapping("patron-request-api-tests", "15", "DCB", "15"));
-
-		referenceValueMappingFixture.saveReferenceValueMapping(
-				patronFixture.createPatronTypeMapping("DCB", "15", "patron-request-api-tests", "15"));
-	}
-
-	private static String getAccessToken(BlockingHttpClient blockingClient) {
-		final var creds = new UsernamePasswordCredentials("admin", "password");
-		final var loginRequest = HttpRequest.POST("/login", creds);
-		final var loginResponse = blockingClient.exchange(loginRequest, BearerAccessRefreshToken.class);
-		final var bearerAccessRefreshToken = loginResponse.body();
-		final var accessToken = bearerAccessRefreshToken.getAccessToken();
-		return accessToken;
+		// These seem to be reciprocal, however removing one of the mappings leads to failures
+		referenceValueMappingFixture.definePatronTypeMapping("patron-request-api-tests", "15", "DCB", "15");
+		referenceValueMappingFixture.definePatronTypeMapping("DCB", "15", "patron-request-api-tests", "15");
 	}
 }

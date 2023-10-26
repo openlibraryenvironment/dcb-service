@@ -4,18 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.text.ParseException;
-
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.test.DcbTest;
+import org.olf.dcb.test.clients.LoginClient;
 
 import com.nimbusds.jwt.JWTParser;
 import com.nimbusds.jwt.SignedJWT;
 
-import io.micronaut.security.authentication.UsernamePasswordCredentials;
-import io.micronaut.security.token.render.BearerAccessRefreshToken;
-
 import jakarta.inject.Inject;
+import lombok.SneakyThrows;
 
 @DcbTest
 class DeclarativeHttpClientWithJwtTest {
@@ -23,12 +20,13 @@ class DeclarativeHttpClientWithJwtTest {
 	@Inject
 	AppClient appClient;
 
+	@Inject
+	LoginClient loginClient;
+
+	@SneakyThrows
 	@Test
-	void verifyJwtAuthenticationWorksWithDeclarativeClient()
-		throws ParseException {
-		UsernamePasswordCredentials creds = new UsernamePasswordCredentials("user",
-			"password");
-		BearerAccessRefreshToken loginRsp = appClient.login(creds);
+	void verifyJwtAuthenticationWorksWithDeclarativeClient() {
+		final var loginRsp = loginClient.login("user", "password");
 
 		assertNotNull(loginRsp);
 		assertNotNull(loginRsp.getAccessToken());

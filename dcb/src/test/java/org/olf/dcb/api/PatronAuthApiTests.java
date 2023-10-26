@@ -1,35 +1,5 @@
 package org.olf.dcb.api;
 
-import io.micronaut.context.annotation.Property;
-import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.core.type.Argument;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.client.BlockingHttpClient;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
-import io.micronaut.security.authentication.UsernamePasswordCredentials;
-import io.micronaut.security.token.render.BearerAccessRefreshToken;
-import io.micronaut.serde.annotation.Serdeable;
-import jakarta.inject.Inject;
-import lombok.Builder;
-import lombok.Data;
-import org.junit.jupiter.api.*;
-import org.mockserver.client.MockServerClient;
-import org.mockserver.model.HttpResponse;
-import org.olf.dcb.core.api.serde.AgencyDTO;
-import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
-import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.PatronFixture;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import services.k_int.interaction.sierra.SierraTestUtils;
-import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
-import services.k_int.test.mockserver.MockServerMicronautTest;
-import java.io.IOException;
-import java.util.List;
-import io.micronaut.core.annotation.Nullable;
-
 import static io.micronaut.http.HttpStatus.OK;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -37,29 +7,63 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockserver.model.JsonBody.json;
 
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.mockserver.client.MockServerClient;
+import org.mockserver.model.HttpResponse;
+import org.olf.dcb.core.api.serde.AgencyDTO;
+import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.clients.LoginClient;
+
+import io.micronaut.context.annotation.Property;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.core.type.Argument;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.annotation.Client;
+import io.micronaut.serde.annotation.Serdeable;
+import jakarta.inject.Inject;
+import lombok.Builder;
+import lombok.Data;
+import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
+import services.k_int.test.mockserver.MockServerMicronautTest;
+
 @MockServerMicronautTest
 @Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
 @Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class PatronAuthApiTests {
-	private final Logger log = LoggerFactory.getLogger(PatronAuthApiTests.class);
 	private static final String HOST_LMS_CODE = "patron-auth-api-tests";
+
 	@Inject
 	private ResourceLoader loader;
+
 	@Inject
 	@Client("/")
 	private HttpClient client;
+
 	@Inject
 	private PostgresAgencyRepository agencyRepository;
+
 	@Inject
 	private HostLmsFixture hostLmsFixture;
-	@Inject
-	private PatronFixture patronFixture;
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
-	SierraTestUtils.MockSierraV6Host mockSierra;
+
+	private SierraTestUtils.MockSierraV6Host mockSierra;
+
+	@Inject
+	private LoginClient loginClient;
 
 	@BeforeAll
-	public void addFakeSierraApis(MockServerClient mock) throws IOException {
+	public void addFakeSierraApis(MockServerClient mock) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://patron-auth-tests.com";
 		final String KEY = "patron-auth-key";
@@ -79,11 +83,11 @@ public class PatronAuthApiTests {
 	void shouldReturnValidStatusWhenUsingBasicBarcodeAndPinValidation() {
 		// Arrange
 		final var blockingClient = client.toBlocking();
-		final var accessToken = getAccessToken(blockingClient);
+		final var accessToken = loginClient.getAccessToken();
 		final var agencyDTO = AgencyDTO.builder().id(randomUUID()).code("ab7").name("agencyName")
 			.authProfile("BASIC/BARCODE+PIN").idpUrl("idpUrl").hostLMSCode(HOST_LMS_CODE).build();
 		final var agencyRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(accessToken);
-		final var agency = blockingClient.exchange(agencyRequest, AgencyDTO.class);
+		blockingClient.exchange(agencyRequest, AgencyDTO.class);
 		final var patronCredentials = PatronCredentials.builder().agencyCode("ab7")
 			.patronPrinciple("3100222227777").secret("76trombones").build();
 		final var postPatronAuthRequest = HttpRequest.POST("/patron/auth", patronCredentials).bearerAuth(accessToken);
@@ -94,8 +98,10 @@ public class PatronAuthApiTests {
 					.patronId("3100222227777").patronSecret("76trombones").build())))
 			.respond(HttpResponse.response("23945734234"));
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("23945734234");
+
 		// Act
 		final var response = blockingClient.exchange(postPatronAuthRequest, Argument.of(VerificationResponse.class));
+
 		// Assert
 		assertThat(response.getStatus(), is(OK));
 		assertThat(response.getBody().isPresent(), is(true));
@@ -111,17 +117,19 @@ public class PatronAuthApiTests {
 	@DisplayName("basic barcode and name patron auth test")
 	void shouldReturnValidStatusWhenUsingBasicBarcodeAndNameValidation() {
 		final var blockingClient = client.toBlocking();
-		final var accessToken = getAccessToken(blockingClient);
+		final var accessToken = loginClient.getAccessToken();
 		final var agencyDTO = AgencyDTO.builder().id(randomUUID()).code("ab6").name("agencyName")
 			.authProfile("BASIC/BARCODE+NAME").idpUrl("idpUrl").hostLMSCode(HOST_LMS_CODE).build();
 		final var agencyRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(accessToken);
-		final var agency = blockingClient.exchange(agencyRequest, AgencyDTO.class);
+		blockingClient.exchange(agencyRequest, AgencyDTO.class);
 		final var patronCredentials = PatronCredentials.builder().agencyCode("ab6")
 			.patronPrinciple("3100222227777").secret("Joe Bloggs").build();
 		final var postPatronAuthRequest = HttpRequest.POST("/patron/auth", patronCredentials).bearerAuth(accessToken);
 		sierraPatronsAPIFixture.patronResponseForUniqueId("b", "3100222227777");
+
 		// Act
 		final var response = blockingClient.exchange(postPatronAuthRequest, Argument.of(VerificationResponse.class));
+
 		// Assert
 		assertThat(response.getStatus(), is(OK));
 		assertThat(response.getBody().isPresent(), is(true));
@@ -137,16 +145,18 @@ public class PatronAuthApiTests {
 	@DisplayName("Unknown auth method test")
 	void shouldReturnInvalidStatusWhenUnknownAuthMethod() {
 		final var blockingClient = client.toBlocking();
-		final var accessToken = getAccessToken(blockingClient);
+		final var accessToken = loginClient.getAccessToken();
 		final var agencyDTO = AgencyDTO.builder().id(randomUUID()).code("ab8").name("agencyName")
 			.authProfile("UNKNOWN").hostLMSCode(HOST_LMS_CODE).build();
 		final var agencyRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(accessToken);
-		final var agency = blockingClient.exchange(agencyRequest, AgencyDTO.class);
+		blockingClient.exchange(agencyRequest, AgencyDTO.class);
 		final var patronCredentials = PatronCredentials.builder().agencyCode("ab8")
 			.patronPrinciple("4239058490").secret("10398473").build();
 		final var postPatronAuthRequest = HttpRequest.POST("/patron/auth", patronCredentials).bearerAuth(accessToken);
+
 		// Act
 		final var response = blockingClient.exchange(postPatronAuthRequest, Argument.of(VerificationResponse.class));
+
 		// Assert
 		assertThat(response.getStatus(), is(OK));
 		assertThat(response.getBody().isPresent(), is(true));
@@ -156,15 +166,6 @@ public class PatronAuthApiTests {
 		assertThat(verificationResponse.agencyCode, is(nullValue()));
 		assertThat(verificationResponse.systemCode, is(nullValue()));
 		assertThat(verificationResponse.homeLocationCode, is(nullValue()));
-	}
-
-	private static String getAccessToken(BlockingHttpClient blockingClient) {
-		final var creds = new UsernamePasswordCredentials("admin", "password");
-		final var loginRequest = HttpRequest.POST("/login", creds);
-		final var loginResponse = blockingClient.exchange(loginRequest, BearerAccessRefreshToken.class);
-		final var bearerAccessRefreshToken = loginResponse.body();
-		final var accessToken = bearerAccessRefreshToken.getAccessToken();
-		return accessToken;
 	}
 
 	@Builder
