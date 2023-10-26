@@ -45,15 +45,13 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.clients.LoginClient;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.HttpRequest;
-import io.micronaut.http.client.BlockingHttpClient;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.security.authentication.UsernamePasswordCredentials;
-import io.micronaut.security.token.render.BearerAccessRefreshToken;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONObject;
@@ -427,7 +425,7 @@ class PatronRequestApiTests {
 		};
 
 		final var blockingClient = client.toBlocking();
-		final var accessToken = getAccessToken(blockingClient);
+		final var accessToken = LoginClient.getAccessToken(blockingClient);
 		final var request = HttpRequest.POST("/patrons/requests/place", requestBody).bearerAuth(accessToken);
 
 		// When placing a request for a patron at an unknown local system
@@ -469,15 +467,5 @@ class PatronRequestApiTests {
 		// These seem to be reciprocal, however removing one of the mappings leads to failures
 		referenceValueMappingFixture.definePatronTypeMapping("patron-request-api-tests", "15", "DCB", "15");
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", "15", "patron-request-api-tests", "15");
-	}
-
-	private static String getAccessToken(BlockingHttpClient blockingClient) {
-		final var credentials = new UsernamePasswordCredentials("admin", "password");
-
-		final var loginRequest = HttpRequest.POST("/login", credentials);
-		final var loginResponse = blockingClient.exchange(loginRequest, BearerAccessRefreshToken.class);
-		final var bearerAccessRefreshToken = loginResponse.body();
-
-		return bearerAccessRefreshToken.getAccessToken();
 	}
 }
