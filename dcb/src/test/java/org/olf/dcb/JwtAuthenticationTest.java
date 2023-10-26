@@ -8,10 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.text.ParseException;
-
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.test.DcbTest;
+import org.olf.dcb.test.clients.LoginClient;
 
 import com.nimbusds.jwt.JWTParser;
 import com.nimbusds.jwt.SignedJWT;
@@ -21,10 +20,9 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.security.authentication.UsernamePasswordCredentials;
 import io.micronaut.security.token.render.BearerAccessRefreshToken;
-
 import jakarta.inject.Inject;
+import lombok.SneakyThrows;
 
 @DcbTest
 class JwtAuthenticationTest {
@@ -32,6 +30,9 @@ class JwtAuthenticationTest {
 	@Inject
 	@Client("/")
 	HttpClient client;
+
+	@Inject
+	LoginClient loginClient;
 
 	@Test
 	void accessingASecuredUrlWithoutAuthenticatingReturnsUnauthorized() {
@@ -43,17 +44,14 @@ class JwtAuthenticationTest {
 		assertEquals(BAD_REQUEST, e.getStatus());
 	}
 
+	@SneakyThrows
 	@Test
-	void uponSuccessfulAuthenticationAJsonWebTokenIsIssuedToTheUser()
-		throws ParseException {
-		UsernamePasswordCredentials creds = new UsernamePasswordCredentials("user",
-			"password");
-		HttpRequest<?> request = HttpRequest.POST("/login", creds);
-		HttpResponse<BearerAccessRefreshToken> rsp = client.toBlocking()
-			.exchange(request, BearerAccessRefreshToken.class);
-		assertEquals(OK, rsp.getStatus());
+	void uponSuccessfulAuthenticationAJsonWebTokenIsIssuedToTheUser() {
+		final var loginResponse = loginClient.login("user", "password");
 
-		BearerAccessRefreshToken bearerAccessRefreshToken = rsp.body();
+		assertEquals(OK, loginResponse.getStatus());
+
+		BearerAccessRefreshToken bearerAccessRefreshToken = loginResponse.body();
 		assertEquals("user", bearerAccessRefreshToken.getUsername());
 		assertNotNull(bearerAccessRefreshToken.getAccessToken());
 		assertTrue(JWTParser
@@ -65,7 +63,7 @@ class JwtAuthenticationTest {
 		HttpResponse<String> response = client.toBlocking()
 			.exchange(requestWithAuthorization, String.class);
 
-		assertEquals(OK, rsp.getStatus());
+		assertEquals(OK, response.getStatus());
 		assertEquals("user", response.body());
 	}
 }
