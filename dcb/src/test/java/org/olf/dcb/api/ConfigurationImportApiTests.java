@@ -65,7 +65,7 @@ class ConfigurationImportApiTests {
 		log.debug("Admin Login..");
 		// See ./dcb/src/main/java/org/olf/dcb/security/DcbAuthenticationProvider.java
 		// https://guides.micronaut.io/latest/micronaut-security-jwt-gradle-groovy.html
-		final var loginResponse = loginClient.login("admin", "password").body();
+		final var loginResponse = loginClient.login("admin", "password");
 
 		final var accessToken = loginResponse.getAccessToken();
 

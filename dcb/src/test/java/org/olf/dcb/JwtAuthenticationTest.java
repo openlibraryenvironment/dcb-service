@@ -20,7 +20,6 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.security.token.render.BearerAccessRefreshToken;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 
@@ -47,11 +46,8 @@ class JwtAuthenticationTest {
 	@SneakyThrows
 	@Test
 	void uponSuccessfulAuthenticationAJsonWebTokenIsIssuedToTheUser() {
-		final var loginResponse = loginClient.login("user", "password");
+		final var bearerAccessRefreshToken = loginClient.login("user", "password");
 
-		assertEquals(OK, loginResponse.getStatus());
-
-		BearerAccessRefreshToken bearerAccessRefreshToken = loginResponse.body();
 		assertEquals("user", bearerAccessRefreshToken.getUsername());
 		assertNotNull(bearerAccessRefreshToken.getAccessToken());
 		assertTrue(JWTParser
