@@ -68,6 +68,7 @@ class PatronRequestApiTests {
 
 	@Inject
 	ResourceLoader loader;
+
 	@Inject
 	private PatronRequestsFixture patronRequestsFixture;
 	@Inject
@@ -79,19 +80,20 @@ class PatronRequestApiTests {
 	@Inject
 	private BibRecordFixture bibRecordFixture;
 	@Inject
-	private PatronRequestApiClient patronRequestApiClient;
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
+	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+
 	@Inject
 	private ShelvingLocationRepository shelvingLocationRepository;
 	@Inject
 	private AgencyRepository agencyRepository;
+
+	@Inject
+	private PatronRequestApiClient patronRequestApiClient;
 	@Inject
 	private AdminApiClient adminApiClient;
-	@Inject
-	private ReferenceValueMappingFixture referenceValueMappingFixture;
-	@Inject
-	private AgencyFixture agencyFixture;
-
-	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
 	@Inject
 	@Client("/")
