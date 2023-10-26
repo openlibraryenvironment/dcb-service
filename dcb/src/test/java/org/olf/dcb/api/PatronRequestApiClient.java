@@ -1,5 +1,7 @@
 package org.olf.dcb.api;
 
+import java.util.UUID;
+
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -9,19 +11,21 @@ import io.micronaut.http.client.annotation.Client;
 import io.micronaut.security.authentication.UsernamePasswordCredentials;
 import io.micronaut.security.token.render.BearerAccessRefreshToken;
 import io.micronaut.serde.annotation.Serdeable;
-import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import net.minidev.json.JSONObject;
 
-import java.util.UUID;
-
+@Singleton
 class PatronRequestApiClient {
-	@Inject
-	@Client("/")
-	HttpClient client;
+	private final HttpClient httpClient;
+
+	public PatronRequestApiClient(@Client("/") HttpClient client) {
+		this.httpClient = client;
+	}
 
 	HttpResponse<PlacedPatronRequest> placePatronRequest(JSONObject json) {
-		final var blockingClient = client.toBlocking();
+		final var blockingClient = httpClient.toBlocking();
 		final var accessToken = getAccessToken(blockingClient);
+
 		return blockingClient.exchange(
 			HttpRequest.POST("/patrons/requests/place", json).bearerAuth(accessToken),
 			PlacedPatronRequest.class);
