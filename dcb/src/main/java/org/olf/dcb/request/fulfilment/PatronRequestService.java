@@ -4,7 +4,6 @@ import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 import static reactor.function.TupleUtils.function;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Patron;
@@ -28,17 +27,20 @@ public class PatronRequestService {
 	private final PatronRequestWorkflowService requestWorkflow;
 	private final PatronService patronService;
 	private final FindOrCreatePatronService findOrCreatePatronService;
+	private final PatronRequestPreflightChecksService preflightChecksService;
 	private final PatronRequestAuditRepository patronRequestAuditRepository;
 
 	public PatronRequestService(PatronRequestRepository patronRequestRepository,
 		PatronRequestWorkflowService requestWorkflow, PatronService patronService,
 		FindOrCreatePatronService findOrCreatePatronService,
+		PatronRequestPreflightChecksService preflightChecksService,
 		PatronRequestAuditRepository patronRequestAuditRepository) {
 		
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflow = requestWorkflow;
 		this.patronService = patronService;
 		this.findOrCreatePatronService = findOrCreatePatronService;
+		this.preflightChecksService = preflightChecksService;
 		this.patronRequestAuditRepository = patronRequestAuditRepository;
 	}
 
@@ -47,25 +49,11 @@ public class PatronRequestService {
 
 		log.debug("placePatronRequest({})", command);
 
-		return check(command)
+		return preflightChecksService.check(command)
 			.zipWhen(this::findOrCreatePatron)
 			.map(function(this::mapToPatronRequest))
 			.flatMap(this::savePatronRequest)
 			.doOnSuccess(requestWorkflow::initiate);
-	}
-
-	private static Mono<PlacePatronRequestCommand> check(PlacePatronRequestCommand command) {
-		final var pickupLocationCode = command.getPickupLocation().getCode();
-
-		if (Objects.equals(pickupLocationCode, "unknown-pickup-location")) {
-			throw CheckFailedException.builder()
-				.failedChecks(List.of(Check.builder()
-					.failureDescription("\"" + command.getPickupLocation().getCode() + "\" is not a recognised pickup location code")
-					.build()))
-				.build();
-		}
-
-		return Mono.just(command);
 	}
 
 	private Mono<Patron> findOrCreatePatron(PlacePatronRequestCommand command) {
