@@ -7,31 +7,46 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 
 import io.micronaut.serde.annotation.Serdeable;
+import lombok.Value;
 
 @Serdeable
-public record PatronRequestView(UUID id, Citation citation, PickupLocation pickupLocation,
-	Requestor requestor) {
+@Value
+public class PatronRequestView {
+	UUID id;
+	Citation citation;
+	PickupLocation pickupLocation;
+	Requestor requestor;
 
 	static PatronRequestView from(PatronRequest patronRequest) {
 		final var identity = Identity.fromList(patronRequest.getPatron().getPatronIdentities());
 
 		return new PatronRequestView(patronRequest.getId(),
-			new Citation(patronRequest.getBibClusterId()),
-			new PickupLocation(patronRequest.getPickupLocationCode()),
-			new Requestor(identity.localId, identity.localSystemCode,
-				patronRequest.getPatron().getHomeLibraryCode()));
+				new Citation(patronRequest.getBibClusterId()),
+				new PickupLocation(patronRequest.getPickupLocationCode()),
+				new Requestor(identity.getLocalId(), identity.getLocalSystemCode(),
+					patronRequest.getPatron().getHomeLibraryCode()));
 	}
 
 	@Serdeable
-	public record PickupLocation(String code) { }
+	@Value
+	public static class PickupLocation {
+		String code;
+	}
 
 	@Serdeable
-	public record Citation(UUID bibClusterId) { }
+	@Value
+	public static class Citation {
+		UUID bibClusterId;
+	}
 
 	@Serdeable
-	public record Identity(String localId, String localSystemCode) {
+	@Value
+	public static class Identity {
+		String localId;
+		String localSystemCode;
+
 		private static Identity from(PatronIdentity patronIdentity) {
-			return new Identity(patronIdentity.getLocalId(), patronIdentity.getHostLms().code);
+			return new Identity(patronIdentity.getLocalId(), patronIdentity.getHostLms().getCode());
 		}
 
 		public static Identity fromList(List<PatronIdentity> patronIdentities) {
@@ -44,5 +59,10 @@ public record PatronRequestView(UUID id, Citation citation, PickupLocation picku
 	}
 
 	@Serdeable
-	public record Requestor(String localId, String localSystemCode, String homeLibraryCode) { }
+	@Value
+	public static class Requestor {
+		String localId;
+		String localSystemCode;
+		String homeLibraryCode;
+	}
 }
