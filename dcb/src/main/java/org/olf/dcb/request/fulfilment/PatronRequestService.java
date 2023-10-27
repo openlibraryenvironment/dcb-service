@@ -51,7 +51,17 @@ public class PatronRequestService {
 
 		log.debug("placePatronRequest({})", command);
 
-		if (Objects.equals(command.getPickupLocation().getCode(), "unknown-pickup-location")) {
+		return check(command)
+			.flatMap(this::findOrCreatePatron)
+			.map(function(this::mapToPatronRequest))
+			.flatMap(this::savePatronRequest)
+			.doOnSuccess(requestWorkflow::initiate);
+	}
+
+	private static Mono<PlacePatronRequestCommand> check(PlacePatronRequestCommand command) {
+		final var pickupLocationCode = command.getPickupLocation().getCode();
+
+		if (Objects.equals(pickupLocationCode, "unknown-pickup-location")) {
 			throw CheckFailedException.builder()
 				.failedChecks(List.of(Check.builder()
 					.failureDescription("\"" + command.getPickupLocation().getCode() + "\" is not a recognised pickup location code")
@@ -59,10 +69,7 @@ public class PatronRequestService {
 				.build();
 		}
 
-		return this.findOrCreatePatron(command)
-			.map(function(this::mapToPatronRequest))
-			.flatMap(this::savePatronRequest)
-			.doOnSuccess(requestWorkflow::initiate);
+		return Mono.just(command);
 	}
 
 	private Mono<Tuple2<Patron, PlacePatronRequestCommand>> findOrCreatePatron(
