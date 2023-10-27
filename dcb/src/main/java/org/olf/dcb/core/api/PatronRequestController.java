@@ -20,8 +20,6 @@ import org.slf4j.LoggerFactory;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
@@ -110,12 +108,13 @@ public class PatronRequestController {
 
 	@SingleResult
 	@Post(value = "/place", consumes = APPLICATION_JSON)
-	public Mono<MutableHttpResponse<PatronRequestView>> placePatronRequest(
+	public Mono<PatronRequestView> placePatronRequest(
 			@Body @Valid PlacePatronRequestCommand command) {
 
 		log.debug("REST, place patron request: {}", command);
 
-		return patronRequestService.placePatronRequest(command).map(PatronRequestView::from).map(HttpResponse::ok);
+		return patronRequestService.placePatronRequest(command)
+			.map(PatronRequestView::from);
 	}
 
 	@Secured(SecurityRule.IS_AUTHENTICATED)
