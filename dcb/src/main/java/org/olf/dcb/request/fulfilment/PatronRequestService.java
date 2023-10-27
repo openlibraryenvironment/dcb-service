@@ -80,11 +80,7 @@ public class PatronRequestService {
 	private PatronRequest mapToPatronRequest(PlacePatronRequestCommand command, Patron patron) {
 		final var id = UUID.randomUUID();
 
-		log.debug(String.format("create pr %s %s %s %s %s", id,
-			patron, command.getCitation().getBibClusterId(),
-			command.getPickupLocation().getCode(), SUBMITTED_TO_DCB));
-
-		log.debug("Setting request status {}", SUBMITTED_TO_DCB);
+		log.debug("mapToPatronRequest({}, {})", command, patron);
 
 		return PatronRequest.builder()
 			.id(id)
@@ -97,10 +93,8 @@ public class PatronRequestService {
 			.build();
 	}
 
-	private Mono<? extends PatronRequest> savePatronRequest(
-		PatronRequest patronRequest) {
-
-		log.debug("call save on {}", patronRequest);
+	private Mono<? extends PatronRequest> savePatronRequest(PatronRequest patronRequest) {
+		log.debug("savePatronRequest({})", patronRequest);
 
 		// Mono and publishers don't chain very well, so convert to mono
 		return Mono.from(patronRequestRepository.save(patronRequest));
