@@ -11,6 +11,8 @@ import java.util.function.Predicate;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.fulfilment.Check;
+import org.olf.dcb.request.fulfilment.CheckFailedException;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.dcb.request.workflow.CleanupPatronRequestTransition;
@@ -42,7 +44,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
-import lombok.EqualsAndHashCode;
 import lombok.Value;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -167,20 +168,6 @@ public class PatronRequestController {
 			log.debug("Missing values for patron requests");
 			return Mono.empty();
 		}
-	}
-
-	@Value
-	@Serdeable
-	@Builder
-	public static class Check {
-		String failureDescription;
-	}
-
-	@EqualsAndHashCode(callSuper = true)
-	@Value
-	@Builder
-	public static class CheckFailedException extends RuntimeException {
-		List<Check> failedChecks;
 	}
 
 	@Value
