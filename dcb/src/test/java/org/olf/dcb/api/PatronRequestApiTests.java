@@ -45,7 +45,6 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-import org.olf.dcb.test.clients.LoginClient;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.HttpRequest;
@@ -94,8 +93,6 @@ class PatronRequestApiTests {
 	private PatronRequestApiClient patronRequestApiClient;
 	@Inject
 	private AdminApiClient adminApiClient;
-	@Inject
-	private LoginClient loginClient;
 
 	@Inject
 	@Client("/")
@@ -117,10 +114,9 @@ class PatronRequestApiTests {
 		log.debug("Created dataHostLms {}", h1);
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
-		// Moved to class level var so we can install fixtures elsewhere
-		// final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock,
-		// loader);
+
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+
 		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
 
 		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
@@ -397,6 +393,7 @@ class PatronRequestApiTests {
 	@Test
 	void cannotPlaceRequestForPatronAtUnknownLocalSystem() {
 		log.info("\n\ncannotPlaceRequestForPatronAtUnknownLocalSystem\n\n");
+
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
@@ -406,34 +403,9 @@ class PatronRequestApiTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		// Act
-		final var requestBody = new JSONObject() {
-			{
-				put("citation", new JSONObject() {
-					{
-						put("bibClusterId", clusterRecordId.toString());
-					}
-				});
-				put("requestor", new JSONObject() {
-					{
-						put("localId", "73825");
-						put("localSystemCode", "unknown-system");
-						put("homeLibraryCode", "home-library-code");
-					}
-				});
-				put("pickupLocation", new JSONObject() {
-					{
-						put("code", "ABC123");
-					}
-				});
-			}
-		};
-
-		final var blockingClient = client.toBlocking();
-		final var accessToken = loginClient.getAccessToken();
-		final var request = HttpRequest.POST("/patrons/requests/place", requestBody).bearerAuth(accessToken);
-
-		// When placing a request for a patron at an unknown local system
-		final var exception = assertThrows(HttpClientResponseException.class, () -> blockingClient.exchange(request));
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
+				"73825", "ABC123", "unknown-system", "home-library-code"));
 
 		// Then a bad request response should be returned
 		final var response = exception.getResponse();

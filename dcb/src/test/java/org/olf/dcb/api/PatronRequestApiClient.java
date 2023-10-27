@@ -23,22 +23,21 @@ class PatronRequestApiClient {
 		this.loginClient = loginClient;
 	}
 
-	HttpResponse<PlacedPatronRequest> placePatronRequest(JSONObject json) {
-		final var accessToken = loginClient.getAccessToken();
-
-		final var blockingClient = httpClient.toBlocking();
-
-		return blockingClient.exchange(
-			HttpRequest.POST("/patrons/requests/place", json).bearerAuth(accessToken),
-			PlacedPatronRequest.class);
-	}
-
 	HttpResponse<PlacedPatronRequest> placePatronRequest(UUID bibClusterId,
 		String localId, String pickupLocationCode, String localSystemCode,
 		String homeLibraryCode) {
 
-		return placePatronRequest(createPlacePatronRequestCommand(bibClusterId,
-			localId, pickupLocationCode, localSystemCode, homeLibraryCode));
+		final var json = createPlacePatronRequestCommand(bibClusterId,
+			localId, pickupLocationCode, localSystemCode, homeLibraryCode);
+
+		final var accessToken = loginClient.getAccessToken();
+
+		final var blockingClient = httpClient.toBlocking();
+
+		final var request = HttpRequest.POST("/patrons/requests/place", json)
+			.bearerAuth(accessToken);
+
+		return blockingClient.exchange(request, PlacedPatronRequest.class);
 	}
 
 	private static JSONObject createPlacePatronRequestCommand(final UUID bibClusterId,
