@@ -5,20 +5,39 @@ import java.util.UUID;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.validation.constraints.NotNull;
+import lombok.Value;
 
 @Serdeable
-public record PlacePatronRequestCommand(
-	@NotNull Citation citation,
-	@NotNull PickupLocation pickupLocation,
-	@NotNull Requestor requestor,
-	@Nullable String description) {
+@Value
+public class PlacePatronRequestCommand {
+	@NotNull Citation citation;
+	@NotNull PickupLocation pickupLocation;
+	@NotNull Requestor requestor;
+	@Nullable String description;
 
 	@Serdeable
-	public record PickupLocation(String code) { }
+	@Value
+	public static class PickupLocation {
+		String code;
+	}
 
 	@Serdeable
-	public record Citation(UUID bibClusterId) { }
+	@Value
+	public static class Citation {
+		UUID bibClusterId;
+	}
 
 	@Serdeable
-	public record Requestor(String localId, String localSystemCode, String homeLibraryCode) { }
+	@Value
+	public static class Requestor {
+		String localId;
+		String localSystemCode;
+		String homeLibraryCode;
+
+		public Requestor(String localId, String localSystemCode, String homeLibraryCode) {
+			this.localId = localId;
+			this.localSystemCode = localSystemCode;
+			this.homeLibraryCode = homeLibraryCode;
+		}
+	}
 }

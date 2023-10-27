@@ -59,13 +59,13 @@ public class PatronRequestService {
 	private Mono<Tuple2<Patron, PlacePatronRequestCommand>> findOrCreatePatron(
 		PlacePatronRequestCommand command) {
 
-		return findOrCreatePatron(command.requestor())
+		return findOrCreatePatron(command.getRequestor())
 			.map(patron -> Tuples.of(patron, command));
 	}
 
 	private Mono<Patron> findOrCreatePatron(Requestor requestor) {
-		return findOrCreatePatronService.findOrCreatePatron(requestor.localSystemCode(),
-			requestor.localId(), requestor.homeLibraryCode());
+		return findOrCreatePatronService.findOrCreatePatron(requestor.getLocalSystemCode(),
+			requestor.getLocalId(), requestor.getHomeLibraryCode());
 	}
 
 	private PatronRequest mapToPatronRequest(Patron patron,
@@ -74,18 +74,18 @@ public class PatronRequestService {
 		final var id = UUID.randomUUID();
 
 		log.debug(String.format("create pr %s %s %s %s %s", id,
-			patron, command.citation().bibClusterId(),
-			command.pickupLocation().code(), SUBMITTED_TO_DCB));
+			patron, command.getCitation().getBibClusterId(),
+			command.getPickupLocation().getCode(), SUBMITTED_TO_DCB));
 
 		log.debug("Setting request status {}", SUBMITTED_TO_DCB);
 
 		return PatronRequest.builder()
 			.id(id)
 			.patron(patron)
-			.bibClusterId(command.citation().bibClusterId())
-			.pickupLocationCode(command.pickupLocation().code())
+			.bibClusterId(command.getCitation().getBibClusterId())
+			.pickupLocationCode(command.getPickupLocation().getCode())
 			.status(SUBMITTED_TO_DCB)
-			.description(command.description())
+			.description(command.getDescription())
 			.build();
 	}
 
