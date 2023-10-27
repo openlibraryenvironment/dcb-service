@@ -4,6 +4,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 import static reactor.function.TupleUtils.function;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Patron;
@@ -49,6 +50,14 @@ public class PatronRequestService {
 		PlacePatronRequestCommand command) {
 
 		log.debug("placePatronRequest({})", command);
+
+		if (Objects.equals(command.getPickupLocation().getCode(), "unknown-pickup-location")) {
+			throw CheckFailedException.builder()
+				.failedChecks(List.of(Check.builder()
+					.failureDescription("\"" + command.getPickupLocation().getCode() + "\" is not a recognised pickup location code")
+					.build()))
+				.build();
+		}
 
 		return this.findOrCreatePatron(command)
 			.map(function(this::mapToPatronRequest))

@@ -5,7 +5,6 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Predicate;
 
@@ -123,14 +122,6 @@ public class PatronRequestController {
 			@Body @Valid PlacePatronRequestCommand command) {
 
 		log.debug("REST, place patron request: {}", command);
-
-		if (Objects.equals(command.getPickupLocation().getCode(), "unknown-pickup-location")) {
-			throw CheckFailedException.builder()
-				.failedChecks(List.of(Check.builder()
-					.failureDescription("\"" + command.getPickupLocation().getCode() + "\" is not a recognised pickup location code")
-					.build()))
-				.build();
-		}
 
 		return patronRequestService.placePatronRequest(command)
 			.map(PatronRequestView::from);
