@@ -9,6 +9,6 @@ import lombok.Value;
 @EqualsAndHashCode(callSuper = true)
 @Value
 @Builder
-public class CheckFailedException extends RuntimeException {
+public class PreflightCheckFailedException extends RuntimeException {
 	List<Check> failedChecks;
 }

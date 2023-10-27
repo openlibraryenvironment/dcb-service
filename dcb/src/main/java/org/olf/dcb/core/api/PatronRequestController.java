@@ -11,7 +11,7 @@ import java.util.function.Predicate;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.Check;
-import org.olf.dcb.request.fulfilment.CheckFailedException;
+import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.dcb.request.workflow.CleanupPatronRequestTransition;
@@ -128,7 +128,7 @@ public class PatronRequestController {
 	}
 
 	@Error
-	public HttpResponse<ChecksFailure> onCheckFailure(CheckFailedException exception) {
+	public HttpResponse<ChecksFailure> onCheckFailure(PreflightCheckFailedException exception) {
 		return badRequest(ChecksFailure.builder()
 			.failedChecks(exception.getFailedChecks())
 			.build());
