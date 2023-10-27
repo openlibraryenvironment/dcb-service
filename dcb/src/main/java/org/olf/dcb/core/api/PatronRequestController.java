@@ -88,7 +88,6 @@ public class PatronRequestController {
 			
 			.flatMapMany( TupleUtils.function(workflowService::progressUsing ))
 			.last();
-//		return patronRequestService.placePatronRequest(command).map(PatronRequestView::from).map(HttpResponse::ok);
 	}
 	
 	/**
@@ -107,18 +106,8 @@ public class PatronRequestController {
 			.zipWhen( (req) -> Mono.just(new CleanupPatronRequestTransition()))
 			.flatMapMany( TupleUtils.function(workflowService::progressUsing ))
 		.last();
-//		return patronRequestService.placePatronRequest(command).map(PatronRequestView::from).map(HttpResponse::ok);
 	}
 
-	/**
-	 * ToDo: This method should be secured with IS_AUTHENTICATED as the list method
-	 * below
-	 * 
-	 * @param command - patron request view - passed in params should match claims
-	 *                in the incoming JWT to prevent a user from using their creds
-	 *                to place a request against another user acct
-	 * @return
-	 */
 	@SingleResult
 	@Post(value = "/place", consumes = APPLICATION_JSON)
 	public Mono<MutableHttpResponse<PatronRequestView>> placePatronRequest(
