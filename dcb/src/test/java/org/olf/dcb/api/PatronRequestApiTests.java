@@ -28,7 +28,6 @@ import org.hamcrest.Matcher;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -425,7 +424,6 @@ class PatronRequestApiTests {
 				is("No Host LMS found for code: unknown-system"));
 	}
 
-	@Disabled
 	@Test
 	void cannotPlaceRequestForPickupAtUnknownLocation() {
 		// Arrange

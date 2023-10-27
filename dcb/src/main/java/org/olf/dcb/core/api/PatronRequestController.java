@@ -1,8 +1,11 @@
 package org.olf.dcb.core.api;
 
+import static io.micronaut.http.HttpResponse.badRequest;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Predicate;
 
@@ -20,13 +23,16 @@ import org.slf4j.LoggerFactory;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Error;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.authentication.Authentication;
 import io.micronaut.security.rules.SecurityRule;
+import io.micronaut.serde.annotation.Serdeable;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -35,6 +41,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Value;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
@@ -106,6 +115,7 @@ public class PatronRequestController {
 		.last();
 	}
 
+
 	@SingleResult
 	@Post(value = "/place", consumes = APPLICATION_JSON)
 	public Mono<PatronRequestView> placePatronRequest(
@@ -113,8 +123,23 @@ public class PatronRequestController {
 
 		log.debug("REST, place patron request: {}", command);
 
+		if (Objects.equals(command.getPickupLocation().getCode(), "unknown-pickup-location")) {
+			throw CheckFailedException.builder()
+				.failedChecks(List.of(Check.builder()
+					.failureDescription("\"" + command.getPickupLocation().getCode() + "\" is not a recognised pickup location code")
+					.build()))
+				.build();
+		}
+
 		return patronRequestService.placePatronRequest(command)
 			.map(PatronRequestView::from);
+	}
+
+	@Error
+	public HttpResponse<ChecksFailure> onCheckFailure(CheckFailedException exception) {
+		return badRequest(ChecksFailure.builder()
+			.failedChecks(exception.getFailedChecks())
+			.build());
 	}
 
 	@Secured(SecurityRule.IS_AUTHENTICATED)
@@ -142,5 +167,26 @@ public class PatronRequestController {
 			log.debug("Missing values for patron requests");
 			return Mono.empty();
 		}
+	}
+
+	@Value
+	@Serdeable
+	@Builder
+	public static class Check {
+		String failureDescription;
+	}
+
+	@EqualsAndHashCode(callSuper = true)
+	@Value
+	@Builder
+	public static class CheckFailedException extends RuntimeException {
+		List<Check> failedChecks;
+	}
+
+	@Value
+	@Serdeable
+	@Builder
+	public static class ChecksFailure {
+		List<Check> failedChecks;
 	}
 }
