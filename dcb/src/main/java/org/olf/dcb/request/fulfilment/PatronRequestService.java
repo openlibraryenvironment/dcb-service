@@ -15,17 +15,15 @@ import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand.Requestor;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Prototype
 public class PatronRequestService {
-	private static final Logger log = LoggerFactory.getLogger(PatronRequestService.class);
-
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestWorkflowService requestWorkflow;
 	private final PatronService patronService;
