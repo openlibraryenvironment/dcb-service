@@ -28,11 +28,7 @@ class PatronRequestApiClient {
 		String localId, String pickupLocationCode, String localSystemCode,
 		String homeLibraryCode) {
 
-		final var accessToken = loginClient.getAccessToken();
-
-		final var blockingClient = httpClient.toBlocking();
-
-		final var command = PlacePatronRequestCommand.builder()
+		return placePatronRequest(PlacePatronRequestCommand.builder()
 			.requestor(Requestor.builder()
 				.localId(localId)
 				.localSystemCode(localSystemCode)
@@ -44,7 +40,13 @@ class PatronRequestApiClient {
 			.pickupLocation(PickupLocation.builder()
 				.code(pickupLocationCode)
 				.build())
-			.build();
+			.build());
+	}
+
+	HttpResponse<PlacedPatronRequest> placePatronRequest(PlacePatronRequestCommand command) {
+		final var accessToken = loginClient.getAccessToken();
+
+		final var blockingClient = httpClient.toBlocking();
 
 		final var request = HttpRequest.POST("/patrons/requests/place", command)
 			.bearerAuth(accessToken);
