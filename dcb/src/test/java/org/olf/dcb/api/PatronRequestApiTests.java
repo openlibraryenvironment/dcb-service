@@ -222,8 +222,8 @@ class PatronRequestApiTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		// Act
-		var placedRequestResponse = patronRequestApiClient.placePatronRequest(clusterRecordId, "872321", "ABC123",
-				HOST_LMS_CODE, "home-library");
+		var placedRequestResponse = patronRequestApiClient.placePatronRequest(
+			clusterRecordId, "872321", "ABC123", HOST_LMS_CODE, "home-library");
 
 		// Assert
 		assertThat(placedRequestResponse.getStatus(), is(OK));
@@ -234,15 +234,15 @@ class PatronRequestApiTests {
 
 		// Fix up the sierra mock so that it finds a hold with the right note in it
 		// 2745326 will be the identity of this patron in the supplier side system
-		log.info("Inserting hold response for patron 2745326 - placedPatronRequest.id=" + placedPatronRequest.id());
+		log.info("Inserting hold response for patron 2745326 - placedPatronRequest.id=" + placedPatronRequest.getId());
 		sierraPatronsAPIFixture.patronHoldResponse("2745326",
 				"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/407557",
-				"Consortial Hold. tno=" + placedPatronRequest.id());
+				"Consortial Hold. tno=" + placedPatronRequest.getId());
 
 		// This one is for the borrower side hold
 		sierraPatronsAPIFixture.patronHoldResponse("872321",
 				"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864902",
-				"Consortial Hold. tno=" + placedPatronRequest.id());
+				"Consortial Hold. tno=" + placedPatronRequest.getId());
 
 		// We need to take the placedRequestResponse and somehow inject it's ID into the
 		// patronHolds response message as note="Consortial Hold. tno=UUID"
@@ -251,76 +251,78 @@ class PatronRequestApiTests {
 		// maybe something like sierraPatronsAPIFixture.patronHoldResponse("872321",
 		// placedRequestResponse.id);
 
-		assertThat(placedPatronRequest.requestor(), is(notNullValue()));
-		assertThat(placedPatronRequest.requestor().homeLibraryCode(), is("home-library"));
-		assertThat(placedPatronRequest.requestor().localSystemCode(), is(HOST_LMS_CODE));
-		assertThat(placedPatronRequest.requestor().localId(), is("872321"));
+		assertThat(placedPatronRequest.getRequestor(), is(notNullValue()));
+		assertThat(placedPatronRequest.getRequestor().getHomeLibraryCode(), is("home-library"));
+		assertThat(placedPatronRequest.getRequestor().getLocalSystemCode(), is(HOST_LMS_CODE));
+		assertThat(placedPatronRequest.getRequestor().getLocalId(), is("872321"));
 
 		log.info("Waiting for placed....");
-		AdminApiClient.AdminAccessPatronRequest fetchedPatronRequest = await().atMost(8, SECONDS)
-				.until(() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.id()), isPlacedAtBorrowingAgency());
+		AdminApiClient.AdminAccessPatronRequest fetchedPatronRequest = await()
+			.atMost(8, SECONDS)
+			.until(
+				() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.getId()),
+				isPlacedAtBorrowingAgency());
 
 		assertThat(fetchedPatronRequest, is(notNullValue()));
 
-		assertThat(fetchedPatronRequest.citation(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.citation().bibClusterId(), is(clusterRecordId));
+		assertThat(fetchedPatronRequest.getCitation(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.getCitation().getBibClusterId(), is(clusterRecordId));
 
-		assertThat(fetchedPatronRequest.pickupLocation(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.pickupLocation().code(), is("ABC123"));
+		assertThat(fetchedPatronRequest.getPickupLocation(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is("ABC123"));
 
-		assertThat(fetchedPatronRequest.status(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.status().code(), is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
-		assertThat(fetchedPatronRequest.status().errorMessage(), is(nullValue()));
+		assertThat(fetchedPatronRequest.getStatus(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.getStatus().getCode(), is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
+		assertThat(fetchedPatronRequest.getStatus().getErrorMessage(), is(nullValue()));
 
-		assertThat(fetchedPatronRequest.localRequest().id(), is("864902"));
-		assertThat(fetchedPatronRequest.localRequest().status(), is("PLACED"));
-		assertThat(fetchedPatronRequest.localRequest().itemId(), is("7916922"));
-		assertThat(fetchedPatronRequest.localRequest().bibId(), is("7916920"));
+		assertThat(fetchedPatronRequest.getLocalRequest().getId(), is("864902"));
+		assertThat(fetchedPatronRequest.getLocalRequest().getStatus(), is("PLACED"));
+		assertThat(fetchedPatronRequest.getLocalRequest().getItemId(), is("7916922"));
+		assertThat(fetchedPatronRequest.getLocalRequest().getBibId(), is("7916920"));
 
-		assertThat(fetchedPatronRequest.supplierRequests(), hasSize(1));
+		assertThat(fetchedPatronRequest.getSupplierRequests(), hasSize(1));
 
-		assertThat(fetchedPatronRequest.requestor(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.requestor().homeLibraryCode(), is("home-library"));
+		assertThat(fetchedPatronRequest.getRequestor(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.getRequestor().getHomeLibraryCode(), is("home-library"));
 
-		assertThat(fetchedPatronRequest.requestor().identities(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(2));
+		assertThat(fetchedPatronRequest.getRequestor().getIdentities(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.getRequestor().getIdentities(), hasSize(2));
 
-		// The order can change depending upon access, so force the order so that the get(n) below work as expected
-		// Collections.sort(fetchedPatronRequest.requestor().identities(), (i1, i2) -> { return i1.localId().compareTo(i2.localId()); });
+		final var homeIdentity = fetchedPatronRequest.getRequestor().getIdentities().get(1);
 
-		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(1);
+		assertThat(homeIdentity.getLocalId(), is("872321"));
+		assertThat(homeIdentity.getHomeIdentity(), is(true));
+		assertThat(homeIdentity.getHostLmsCode(), is(HOST_LMS_CODE));
 
-		assertThat(homeIdentity.localId(), is("872321"));
-		assertThat(homeIdentity.homeIdentity(), is(true));
-		assertThat(homeIdentity.hostLmsCode(), is(HOST_LMS_CODE));
+		final var supplierIdentity = fetchedPatronRequest.getRequestor().getIdentities().get(0);
 
-		final var supplierIdentity = fetchedPatronRequest.requestor().identities().get(0);
+		assertThat(supplierIdentity.getLocalId(), is("2745326"));
+		assertThat(supplierIdentity.getHomeIdentity(), is(false));
+		assertThat(supplierIdentity.getHostLmsCode(), is(HOST_LMS_CODE));
 
-		assertThat(supplierIdentity.localId(), is("2745326"));
-		assertThat(supplierIdentity.homeIdentity(), is(false));
-		assertThat(supplierIdentity.hostLmsCode(), is(HOST_LMS_CODE));
+		final var supplierRequest = fetchedPatronRequest.getSupplierRequests().get(0);
 
-		final var supplierRequest = fetchedPatronRequest.supplierRequests().get(0);
+		assertThat(supplierRequest.getId(), is(notNullValue()));
+		assertThat(supplierRequest.getHostLmsCode(), is(HOST_LMS_CODE));
+		assertThat(supplierRequest.getStatus(), is("PLACED"));
+		assertThat(supplierRequest.getLocalHoldId(), is("407557"));
+		assertThat(supplierRequest.getLocalHoldStatus(), is("PLACED"));
 
-		assertThat(supplierRequest.id(), is(notNullValue()));
-		assertThat(supplierRequest.hostLmsCode(), is(HOST_LMS_CODE));
-		assertThat(supplierRequest.status(), is("PLACED"));
-		assertThat(supplierRequest.localHoldId(), is("407557"));
-		assertThat(supplierRequest.localHoldStatus(), is("PLACED"));
-		assertThat(supplierRequest.item().id(), is("1000002"));
-		assertThat(supplierRequest.item().localItemBarcode(), is("6565750674"));
-		assertThat(supplierRequest.item().localItemLocationCode(), is("ab6"));
+		assertThat(supplierRequest.getItem(), is(notNullValue()));
+		assertThat(supplierRequest.getItem().getId(), is("1000002"));
+		assertThat(supplierRequest.getItem().getLocalItemBarcode(), is("6565750674"));
+		assertThat(supplierRequest.getItem().getLocalItemLocationCode(), is("ab6"));
 
-		assertThat(fetchedPatronRequest.audits(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.getAudits(), is(notNullValue()));
 
-		final var lastAuditValue = fetchedPatronRequest.audits().size();
-		final var lastAudit = fetchedPatronRequest.audits().get(lastAuditValue - 1);
+		final var lastAuditValue = fetchedPatronRequest.getAudits().size();
+		final var lastAudit = fetchedPatronRequest.getAudits().get(lastAuditValue - 1);
 
-		assertThat(lastAudit.patronRequestId(), is(fetchedPatronRequest.id().toString()));
-		assertThat(lastAudit.description(), is(nullValue()));
-		assertThat(lastAudit.fromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
-		assertThat(lastAudit.toStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
-		assertThat(lastAudit.date(), is(notNullValue()));
+		assertThat(lastAudit.getPatronRequestId(), is(fetchedPatronRequest.getId().toString()));
+		assertThat(lastAudit.getDescription(), is(nullValue()));
+		assertThat(lastAudit.getFromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		assertThat(lastAudit.getToStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
+		assertThat(lastAudit.getDate(), is(notNullValue()));
 	}
 
 	@Test
@@ -335,44 +337,53 @@ class PatronRequestApiTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "565382", clusterRecord);
 
 		// Act
-		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(clusterRecordId, "43546", "ABC123",
-				HOST_LMS_CODE, "homeLibraryCode");
+		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
+			clusterRecordId, "43546", "ABC123", HOST_LMS_CODE, "homeLibraryCode");
+
+		assertThat(placedRequestResponse.getStatus(), is(OK));
 
 		// Need a longer timeout because retrying the Sierra API,
 		// which happens when the zero items 404 response is received,
 		// takes longer than success
-		final var fetchedPatronRequest = await().atMost(12, SECONDS).until(
-				() -> adminApiClient.getPatronRequestViaAdminApi(requireNonNull(placedRequestResponse.body()).id()),
+		final var fetchedPatronRequest = await()
+			.atMost(12, SECONDS)
+			.until(
+				() -> adminApiClient.getPatronRequestViaAdminApi(requireNonNull(placedRequestResponse.body()).getId()),
 				isNotAvailableToRequest());
 
 		// Assert
-		assertThat(placedRequestResponse.getStatus(), is(OK));
-
 		assertThat(fetchedPatronRequest, is(notNullValue()));
-		assertThat(fetchedPatronRequest.citation().bibClusterId(), is(clusterRecordId));
-		assertThat(fetchedPatronRequest.pickupLocation().code(), is("ABC123"));
-		assertThat(fetchedPatronRequest.status().code(), is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY"));
-		assertThat(fetchedPatronRequest.status().errorMessage(), is(nullValue()));
-		assertThat(fetchedPatronRequest.requestor().identities(), hasSize(1));
+		assertThat(fetchedPatronRequest.getCitation(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.getCitation().getBibClusterId(), is(clusterRecordId));
 
-		final var homeIdentity = fetchedPatronRequest.requestor().identities().get(0);
-		assertThat(homeIdentity.homeIdentity(), is(true));
-		assertThat(homeIdentity.hostLmsCode(), is(HOST_LMS_CODE));
-		assertThat(homeIdentity.localId(), is("43546"));
+		assertThat(fetchedPatronRequest.getPickupLocation(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is("ABC123"));
+
+		assertThat(fetchedPatronRequest.getStatus(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.getStatus().getCode(), is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY"));
+		assertThat(fetchedPatronRequest.getStatus().getErrorMessage(), is(nullValue()));
+
+		assertThat(fetchedPatronRequest.getRequestor(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.getRequestor().getIdentities(), hasSize(1));
+
+		final var homeIdentity = fetchedPatronRequest.getRequestor().getIdentities().get(0);
+		assertThat(homeIdentity.getHomeIdentity(), is(true));
+		assertThat(homeIdentity.getHostLmsCode(), is(HOST_LMS_CODE));
+		assertThat(homeIdentity.getLocalId(), is("43546"));
 
 		// No supplier request
-		assertThat(fetchedPatronRequest.supplierRequests(), is(nullValue()));
+		assertThat(fetchedPatronRequest.getSupplierRequests(), is(nullValue()));
 
-		assertThat(fetchedPatronRequest.audits(), is(notNullValue()));
+		assertThat(fetchedPatronRequest.getAudits(), is(notNullValue()));
 
-		final var lastAuditValue = fetchedPatronRequest.audits().size();
-		final var lastAudit = fetchedPatronRequest.audits().get(lastAuditValue - 1);
+		final var lastAuditValue = fetchedPatronRequest.getAudits().size();
+		final var lastAudit = fetchedPatronRequest.getAudits().get(lastAuditValue - 1);
 
-		assertThat(lastAudit.patronRequestId(), is(fetchedPatronRequest.id().toString()));
-		assertThat(lastAudit.description(), is(nullValue()));
-		assertThat(lastAudit.fromStatus(), is(PATRON_VERIFIED));
-		assertThat(lastAudit.toStatus(), is(RESOLVED));
-		assertThat(lastAudit.date(), is(notNullValue()));
+		assertThat(lastAudit.getPatronRequestId(), is(fetchedPatronRequest.getId().toString()));
+		assertThat(lastAudit.getDescription(), is(nullValue()));
+		assertThat(lastAudit.getFromStatus(), is(PATRON_VERIFIED));
+		assertThat(lastAudit.getToStatus(), is(RESOLVED));
+		assertThat(lastAudit.getDate(), is(notNullValue()));
 	}
 
 	@Test

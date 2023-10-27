@@ -11,6 +11,7 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Singleton;
+import lombok.Value;
 import net.minidev.json.JSONObject;
 
 @Singleton
@@ -56,21 +57,47 @@ class PatronRequestApiClient {
 	}
 
 	@Serdeable
-	record PlacedPatronRequest(@Nullable UUID id, @Nullable Citation citation,
-		@Nullable Requestor requestor, @Nullable PickupLocation pickupLocation,
-		@Nullable Status status, @Nullable LocalRequest localRequest) {
+	@Value
+	static class PlacedPatronRequest {
+		@Nullable UUID id;
+		@Nullable Citation citation;
+		@Nullable Requestor requestor;
+		@Nullable PickupLocation pickupLocation;
+		@Nullable Status status;
+		@Nullable LocalRequest localRequest;
 
 		@Serdeable
-		record Citation(@Nullable UUID bibClusterId) { }
-		@Serdeable
-		record Requestor(@Nullable String localId, @Nullable String localSystemCode,
-			@Nullable String homeLibraryCode) { }
+		@Value
+		static class Citation {
+			@Nullable UUID bibClusterId;
+		}
 
 		@Serdeable
-		record PickupLocation(@Nullable String code) { }
+		@Value
+		static  class Requestor {
+			@Nullable String localId;
+			@Nullable String localSystemCode;
+			@Nullable String homeLibraryCode;
+		}
+
 		@Serdeable
-		record Status(@Nullable String code, @Nullable String errorMessage) { }
+		@Value
+		static class PickupLocation {
+			@Nullable String code;
+		}
+
 		@Serdeable
-		record LocalRequest(@Nullable String id, @Nullable String status) { }
+		@Value
+		static class Status {
+			@Nullable String code;
+			@Nullable String errorMessage;
+		}
+
+		@Serdeable
+		@Value
+		static class LocalRequest {
+			@Nullable String id;
+			@Nullable String status;
+		}
 	}
 }
