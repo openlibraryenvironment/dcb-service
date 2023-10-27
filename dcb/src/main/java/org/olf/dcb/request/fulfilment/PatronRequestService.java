@@ -21,8 +21,6 @@ import org.slf4j.LoggerFactory;
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
-import reactor.util.function.Tuples;
 
 @Prototype
 public class PatronRequestService {
@@ -52,7 +50,7 @@ public class PatronRequestService {
 		log.debug("placePatronRequest({})", command);
 
 		return check(command)
-			.flatMap(this::findOrCreatePatron)
+			.zipWhen(this::findOrCreatePatron)
 			.map(function(this::mapToPatronRequest))
 			.flatMap(this::savePatronRequest)
 			.doOnSuccess(requestWorkflow::initiate);
@@ -72,11 +70,8 @@ public class PatronRequestService {
 		return Mono.just(command);
 	}
 
-	private Mono<Tuple2<Patron, PlacePatronRequestCommand>> findOrCreatePatron(
-		PlacePatronRequestCommand command) {
-
-		return findOrCreatePatron(command.getRequestor())
-			.map(patron -> Tuples.of(patron, command));
+	private Mono<Patron> findOrCreatePatron(PlacePatronRequestCommand command) {
+		return findOrCreatePatron(command.getRequestor());
 	}
 
 	private Mono<Patron> findOrCreatePatron(Requestor requestor) {
@@ -84,9 +79,7 @@ public class PatronRequestService {
 			requestor.getLocalId(), requestor.getHomeLibraryCode());
 	}
 
-	private PatronRequest mapToPatronRequest(Patron patron,
-		PlacePatronRequestCommand command) {
-
+	private PatronRequest mapToPatronRequest(PlacePatronRequestCommand command, Patron patron) {
 		final var id = UUID.randomUUID();
 
 		log.debug(String.format("create pr %s %s %s %s %s", id,
