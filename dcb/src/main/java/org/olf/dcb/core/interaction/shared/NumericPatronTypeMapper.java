@@ -1,0 +1,38 @@
+package org.olf.dcb.core.interaction.shared;
+
+import org.olf.dcb.storage.NumericRangeMappingRepository;
+
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
+
+@Slf4j
+@Singleton
+public class NumericPatronTypeMapper {
+	private final NumericRangeMappingRepository numericRangeMappingRepository;
+
+	public NumericPatronTypeMapper(NumericRangeMappingRepository numericRangeMappingRepository) {
+		this.numericRangeMappingRepository = numericRangeMappingRepository;
+	}
+
+	public Mono<String> getCanonicalItemType(String system, String localPatronTypeCode) {
+		log.debug("map({},{})", system, localPatronTypeCode);
+
+		// Sierra item types are integers. They are usually mapped by a range
+		// I have a feeling that creating a static cache of system->localItemType mappings will have solid performance
+		// benefits
+		if (localPatronTypeCode != null) {
+			try {
+				Long l = Long.valueOf(localPatronTypeCode);
+				log.debug("Look up patron type {}", l);
+				return Mono.from(numericRangeMappingRepository.findMappedValueFor(system, "patronType", "DCB", l))
+					.doOnNext(nrm -> log.debug("nrm: {}", nrm))
+					.defaultIfEmpty("UNKNOWN");
+			} catch (Exception e) {
+				log.warn("Problem trying to convert {} into  long value", localPatronTypeCode);
+			}
+		}
+		log.warn("No localPatronTypeCode provided - returning UNKNOWN");
+		return Mono.just("UNKNOWN");
+	}
+}

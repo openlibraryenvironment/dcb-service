@@ -28,13 +28,13 @@ import services.k_int.interaction.sierra.items.Status;
 public class ItemResultToItemMapper {
 	private static final Logger log = LoggerFactory.getLogger(ItemResultToItemMapper.class);
 	private final ItemStatusMapper itemStatusMapper;
-	private final ItemTypeMapper itemTypeMapper;
+	private final NumericItemTypeMapper itemTypeMapper;
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 	private final AgencyRepository agencyRepository;
 	private static final Integer FIXED_FIELD_61 = Integer.valueOf(61);
 
 	ItemResultToItemMapper(ItemStatusMapper itemStatusMapper,
-		ItemTypeMapper itemTypeMapper,
+		NumericItemTypeMapper itemTypeMapper,
 		ReferenceValueMappingRepository referenceValueMappingRepository,
 		AgencyRepository agencyRepository)
 	{
