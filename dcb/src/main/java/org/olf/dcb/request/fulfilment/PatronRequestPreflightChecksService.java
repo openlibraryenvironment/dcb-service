@@ -13,8 +13,9 @@ public class PatronRequestPreflightChecksService {
 
 		if (Objects.equals(pickupLocationCode, "unknown-pickup-location")) {
 			throw PreflightCheckFailedException.builder()
-				.failedChecks(List.of(Check.builder()
-					.failureDescription("\"" + pickupLocationCode + "\" is not a recognised pickup location code")
+				.failedChecks(List.of(
+					FailedPreflightCheck.builder()
+						.failureDescription("\"" + pickupLocationCode + "\" is not a recognised pickup location code")
 					.build()))
 				.build();
 		}

@@ -10,5 +10,5 @@ import lombok.Value;
 @Value
 @Builder
 public class PreflightCheckFailedException extends RuntimeException {
-	List<Check> failedChecks;
+	List<FailedPreflightCheck> failedChecks;
 }

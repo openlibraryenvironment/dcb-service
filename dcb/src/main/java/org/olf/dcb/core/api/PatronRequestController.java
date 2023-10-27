@@ -10,7 +10,7 @@ import java.util.function.Predicate;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.request.fulfilment.Check;
+import org.olf.dcb.request.fulfilment.FailedPreflightCheck;
 import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
@@ -165,6 +165,6 @@ public class PatronRequestController {
 	@Serdeable
 	@Builder
 	public static class ChecksFailure {
-		List<Check> failedChecks;
+		List<FailedPreflightCheck> failedChecks;
 	}
 }

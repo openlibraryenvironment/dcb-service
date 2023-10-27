@@ -7,6 +7,6 @@ import lombok.Value;
 @Value
 @Serdeable
 @Builder
-public class Check {
+public class FailedPreflightCheck {
 	String failureDescription;
 }
