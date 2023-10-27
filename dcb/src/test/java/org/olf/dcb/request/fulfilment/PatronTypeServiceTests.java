@@ -30,7 +30,9 @@ class PatronTypeServiceTests {
 		// Arrange
 
 		// We set up a mapping HOSTA.1 -> DCB.DCB_UG -> 15
-		referenceValueMappingFixture.definePatronTypeMapping("HOSTA", "1", "DCB", "DCB_UG");
+		// referenceValueMappingFixture.definePatronTypeMapping("HOSTA", "1", "DCB", "DCB_UG");
+                referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("HOSTA", 1, 1, "DCB", "DCB_UG");
+
 
 		// Mapping from DCB::DCB_UG to EXAMPLE-CODE:15
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", "DCB_UG", "EXAMPLE-CODE", "15");
@@ -61,7 +63,8 @@ class PatronTypeServiceTests {
 	@Test
 	void shouldThrowExceptionWhenNoMappingFromSpinePatronTypeToBorrowingPatronType() {
 		// Arrange
-		referenceValueMappingFixture.definePatronTypeMapping("HOSTA", "1", "DCB", "DCB_UG");
+		// referenceValueMappingFixture.definePatronTypeMapping("HOSTA", "1", "DCB", "DCB_UG");
+                referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("HOSTA", 1, 1, "DCB", "DCB_UG");
 
 		// Act
 		final var exception = assertThrows(PatronTypeMappingNotFound.class,

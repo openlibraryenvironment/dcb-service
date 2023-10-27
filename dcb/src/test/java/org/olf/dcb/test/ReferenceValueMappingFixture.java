@@ -6,7 +6,9 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.model.NumericRangeMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
+import org.olf.dcb.storage.NumericRangeMappingRepository;
 
 import io.micronaut.context.annotation.Prototype;
 
@@ -15,9 +17,12 @@ public class ReferenceValueMappingFixture {
 	private final DataAccess dataAccess = new DataAccess();
 
 	private final ReferenceValueMappingRepository repository;
+	private final NumericRangeMappingRepository numericRangeMappingRepository;
 
-	public ReferenceValueMappingFixture(ReferenceValueMappingRepository repository) {
+	public ReferenceValueMappingFixture(ReferenceValueMappingRepository repository,
+		NumericRangeMappingRepository numericRangeMappingRepository) {
 		this.repository = repository;
+		this.numericRangeMappingRepository = numericRangeMappingRepository;
 	}
 
 	public void deleteAll() {
@@ -97,4 +102,25 @@ public class ReferenceValueMappingFixture {
 	private void saveReferenceValueMapping(ReferenceValueMapping mapping) {
 		singleValueFrom(repository.save(mapping));
 	}
+
+	public void defineNumericPatronTypeRangeMapping(String fromContext,
+		long lowerBound,
+		long upperBound,
+		String targetContext,
+		String targetValue) { 
+		singleValueFrom(
+			numericRangeMappingRepository.save(
+				NumericRangeMapping.builder()
+					.id(UUID.randomUUID())
+					.context(fromContext)
+					.domain("patronType")
+					.lowerBound(lowerBound)
+					.upperBound(upperBound)
+					.targetContext(targetContext)
+					.mappedValue(targetValue)
+					.build()
+			)
+		);
+	}
+
 }
