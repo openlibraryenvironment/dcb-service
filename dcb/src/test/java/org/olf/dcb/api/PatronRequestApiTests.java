@@ -47,13 +47,9 @@ import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import net.minidev.json.JSONObject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
@@ -66,7 +62,7 @@ class PatronRequestApiTests {
 	private static final String HOST_LMS_CODE = "patron-request-api-tests";
 
 	@Inject
-	ResourceLoader loader;
+	private ResourceLoader loader;
 
 	@Inject
 	private PatronRequestsFixture patronRequestsFixture;
@@ -93,10 +89,6 @@ class PatronRequestApiTests {
 	private PatronRequestApiClient patronRequestApiClient;
 	@Inject
 	private AdminApiClient adminApiClient;
-
-	@Inject
-	@Client("/")
-	private HttpClient client;
 
 	@BeforeAll
 	void beforeAll(MockServerClient mock) {
@@ -389,12 +381,10 @@ class PatronRequestApiTests {
 	@Test
 	void cannotPlaceRequestWhenNoInformationIsProvided() {
 		log.info("\n\ncannotPlaceRequestWhenNoInformationIsProvided\n\n");
-		// Given an empty request body
-		final var requestBody = new JSONObject();
-		final var request = HttpRequest.POST("/patrons/requests/place", requestBody);
 
-		// When placing a request without providing any information
-		final var exception = assertThrows(HttpClientResponseException.class, () -> client.toBlocking().exchange(request));
+		// When placing a request with an empty body
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> patronRequestApiClient.placePatronRequest(null));
 
 		// Then a bad request response should be returned
 		final var response = exception.getResponse();
