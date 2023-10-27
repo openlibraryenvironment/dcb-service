@@ -11,8 +11,8 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Singleton;
+import lombok.Builder;
 import lombok.Value;
-import net.minidev.json.JSONObject;
 
 @Singleton
 class PatronRequestApiClient {
@@ -28,32 +28,37 @@ class PatronRequestApiClient {
 		String localId, String pickupLocationCode, String localSystemCode,
 		String homeLibraryCode) {
 
-		final var json = createPlacePatronRequestCommand(bibClusterId,
-			localId, pickupLocationCode, localSystemCode, homeLibraryCode);
-
 		final var accessToken = loginClient.getAccessToken();
 
 		final var blockingClient = httpClient.toBlocking();
 
-		final var request = HttpRequest.POST("/patrons/requests/place", json)
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localId(localId)
+				.localSystemCode(localSystemCode)
+				.homeLibraryCode(homeLibraryCode)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(bibClusterId)
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(pickupLocationCode)
+				.build())
+			.build();
+
+		final var request = HttpRequest.POST("/patrons/requests/place", command)
 			.bearerAuth(accessToken);
 
 		return blockingClient.exchange(request, PlacedPatronRequest.class);
 	}
 
-	private static JSONObject createPlacePatronRequestCommand(final UUID bibClusterId,
-		final String localId, final String pickupLocationCode, final String localSystemCode,
-		String homeLibraryCode) {
-
-		return new JSONObject() {{
-			put("citation", new JSONObject() {{ put("bibClusterId", bibClusterId.toString()); }} );
-			put("requestor", new JSONObject() {{
-				put("localId", localId);
-				put("localSystemCode", localSystemCode);
-				put("homeLibraryCode", homeLibraryCode);
-			}});
-			put("pickupLocation", new JSONObject() {{ put("code", pickupLocationCode); }} );
-		}};
+	@Serdeable
+	@Value
+	@Builder
+	public static class PlacePatronRequestCommand {
+		@Nullable Citation citation;
+		@Nullable Requestor requestor;
+		@Nullable PickupLocation pickupLocation;
 	}
 
 	@Serdeable
@@ -68,26 +73,6 @@ class PatronRequestApiClient {
 
 		@Serdeable
 		@Value
-		public static class Citation {
-			@Nullable UUID bibClusterId;
-		}
-
-		@Serdeable
-		@Value
-		public static class Requestor {
-			@Nullable String localId;
-			@Nullable String localSystemCode;
-			@Nullable String homeLibraryCode;
-		}
-
-		@Serdeable
-		@Value
-		public static class PickupLocation {
-			@Nullable String code;
-		}
-
-		@Serdeable
-		@Value
 		public static class Status {
 			@Nullable String code;
 			@Nullable String errorMessage;
@@ -99,5 +84,28 @@ class PatronRequestApiClient {
 			@Nullable String id;
 			@Nullable String status;
 		}
+	}
+
+	@Serdeable
+	@Value
+	@Builder
+	public static class Citation {
+		@Nullable UUID bibClusterId;
+	}
+
+	@Serdeable
+	@Value
+	@Builder
+	public static class Requestor {
+		@Nullable String localId;
+		@Nullable String localSystemCode;
+		@Nullable String homeLibraryCode;
+	}
+
+	@Serdeable
+	@Value
+	@Builder
+	public static class PickupLocation {
+		@Nullable String code;
 	}
 }
