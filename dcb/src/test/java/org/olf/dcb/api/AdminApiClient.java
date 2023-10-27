@@ -37,24 +37,15 @@ class AdminApiClient {
 		LocalRequest localRequest;
 		@Nullable List<Audit> audits;
 
-		// Workaround: records do not support been style properties
-		public String getStatusCode() {
-			if (getStatus() == null) {
-				return null;
-			}
-
-			return getStatus().getCode();
-		}
-
 		@Serdeable
 		@Value
-		static class Citation {
+		public static class Citation {
 			@Nullable UUID bibClusterId;
 		}
 
 		@Serdeable
 		@Value
-		static class Requestor {
+		public static class Requestor {
 			@Nullable String id;
 			@Nullable String homeLibraryCode;
 			@Nullable List<Identity> identities;
@@ -62,7 +53,7 @@ class AdminApiClient {
 
 		@Serdeable
 		@Value
-		static class Identity {
+		public static class Identity {
 			@Nullable String localId;
 			@Nullable String hostLmsCode;
 			@Nullable Boolean homeIdentity;
@@ -70,13 +61,13 @@ class AdminApiClient {
 
 		@Serdeable
 		@Value
-		static class PickupLocation {
+		public static class PickupLocation {
 			@Nullable String code;
 		}
 
 		@Serdeable
 		@Value
-		static class SupplierRequest {
+		public static class SupplierRequest {
 			@Nullable UUID id;
 			@Nullable Item item;
 			@Nullable String hostLmsCode;
@@ -87,7 +78,7 @@ class AdminApiClient {
 
 		@Serdeable
 		@Value
-		static class Item {
+		public static class Item {
 			@Nullable String id;
 			@Nullable String localItemBarcode;
 			@Nullable String localItemLocationCode;
@@ -95,14 +86,14 @@ class AdminApiClient {
 
 		@Serdeable
 		@Value
-		static class Status {
+		public static class Status {
 			@Nullable String code;
 			@Nullable String errorMessage;
 		}
 
 		@Serdeable
 		@Value
-		static class LocalRequest {
+		public static class LocalRequest {
 			@Nullable String id;
 			@Nullable String status;
 			@Nullable String itemId;
@@ -111,13 +102,13 @@ class AdminApiClient {
 
 		@Serdeable
 		@Value
-		static class Audit {
+		public static class Audit {
 			@Nullable String id;
 			@Nullable String patronRequestId;
 			@Nullable String date;
 			@Nullable String description;
-			PatronRequest.@Nullable Status fromStatus;
-			PatronRequest.@Nullable Status toStatus;
+			@Nullable PatronRequest.Status fromStatus;
+			@Nullable PatronRequest.Status toStatus;
 			@Nullable Map<String, Object> data;
 		}
 	}

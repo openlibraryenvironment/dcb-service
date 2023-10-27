@@ -443,11 +443,15 @@ class PatronRequestApiTests {
 	}
 
 	private static Matcher<Object> isPlacedAtBorrowingAgency() {
-		return hasProperty("statusCode", is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
+		return hasProperty("status",
+			hasProperty("code", is("REQUEST_PLACED_AT_BORROWING_AGENCY")
+		));
 	}
 
 	private static Matcher<Object> isNotAvailableToRequest() {
-		return hasProperty("statusCode", is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY"));
+		return hasProperty("status",
+			hasProperty("code", is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY")
+		));
 	}
 
 	private void savePatronTypeMappings() {

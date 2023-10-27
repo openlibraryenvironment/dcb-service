@@ -58,7 +58,7 @@ class PatronRequestApiClient {
 
 	@Serdeable
 	@Value
-	static class PlacedPatronRequest {
+	public static class PlacedPatronRequest {
 		@Nullable UUID id;
 		@Nullable Citation citation;
 		@Nullable Requestor requestor;
@@ -68,13 +68,13 @@ class PatronRequestApiClient {
 
 		@Serdeable
 		@Value
-		static class Citation {
+		public static class Citation {
 			@Nullable UUID bibClusterId;
 		}
 
 		@Serdeable
 		@Value
-		static  class Requestor {
+		public static class Requestor {
 			@Nullable String localId;
 			@Nullable String localSystemCode;
 			@Nullable String homeLibraryCode;
@@ -82,20 +82,20 @@ class PatronRequestApiClient {
 
 		@Serdeable
 		@Value
-		static class PickupLocation {
+		public static class PickupLocation {
 			@Nullable String code;
 		}
 
 		@Serdeable
 		@Value
-		static class Status {
+		public static class Status {
 			@Nullable String code;
 			@Nullable String errorMessage;
 		}
 
 		@Serdeable
 		@Value
-		static class LocalRequest {
+		public static class LocalRequest {
 			@Nullable String id;
 			@Nullable String status;
 		}
