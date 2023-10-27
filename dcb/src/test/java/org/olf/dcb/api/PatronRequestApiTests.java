@@ -7,9 +7,11 @@ import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
@@ -26,6 +28,7 @@ import org.hamcrest.Matcher;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -46,9 +49,12 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
+import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
@@ -419,6 +425,41 @@ class PatronRequestApiTests {
 				is("No Host LMS found for code: unknown-system"));
 	}
 
+	@Disabled
+	@Test
+	void cannotPlaceRequestForPickupAtUnknownLocation() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var sourceSystemId = hostLms.getId();
+
+		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+
+		// Act
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
+				"73825", "unknown-pickup-location", HOST_LMS_CODE, "home-library-code"));
+
+		// Assert
+		final var response = exception.getResponse();
+
+		assertThat("Should respond with a bad request status",
+			response.getStatus(), is(BAD_REQUEST));
+
+		final var optionalBody = response.getBody(ChecksFailure.class);
+
+		assertThat("Response should have a body", optionalBody.isPresent(), is(true));
+
+		assertThat("Body should report unknown pickup location failed check", optionalBody.get(),
+			hasProperty("failedChecks", containsInAnyOrder(
+				allOf(
+					hasProperty("failureDescription",
+						is("\"unknown-pickup-location\" is not a recognised pickup location code"))
+				)
+			)));
+	}
+
 	@Test
 	void cannotFindPatronRequestForUnknownId() {
 		log.info("\n\ncannotFindPatronRequestForUnknownId\n\n");
@@ -454,5 +495,17 @@ class PatronRequestApiTests {
 
 		// Define a mapping from the spine reference DCB:15 to a TARGET vocal (patron-request-api-tests) value 15
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", "15", "patron-request-api-tests", "15");
+	}
+
+	@Value
+	@Serdeable
+	public static class ChecksFailure {
+		@Nullable List<Check> failedChecks;
+
+		@Value
+		@Serdeable
+		public static class Check {
+			@Nullable String failureDescription;
+		}
 	}
 }
