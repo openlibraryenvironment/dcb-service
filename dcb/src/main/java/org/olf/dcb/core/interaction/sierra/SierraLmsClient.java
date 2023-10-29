@@ -171,6 +171,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					log.info("Fetched a chunk of {} records for {}", bibs.size(), lms.getName());
 
 					state.storred_state.put("lastRequestHRTS", new Date().toString());
+					state.storred_state.put("status", "RUNNING");
 
 					log.info("got page {} of data, containing {} results", state.page_counter++, bibs.size());
 					state.possiblyMore = bibs.size() == pageSize;
@@ -189,6 +190,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						state.storred_state.put("cursor", "deltaSince:" + state.request_start_time);
 						state.storred_state.put("name", lms.getName());
 						state.storred_state.put("lastCompletedHRTS", new Date().toString());
+						state.storred_state.put("status", "COMPLETED");
 
 						log.info("No more results to fetch from {}", lms.getName());
 						return Mono.empty();
