@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.Date;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.BranchRecord;
@@ -169,7 +170,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					var bibs = results.entries();
 					log.info("Fetched a chunk of {} records for {}", bibs.size(), lms.getName());
 
-//				state.current_page = bibs;
+					state.storred_state.put("lastRequestHRTS", new Date().toString());
 
 					log.info("got page {} of data, containing {} results", state.page_counter++, bibs.size());
 					state.possiblyMore = bibs.size() == pageSize;
@@ -187,6 +188,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						// to pick up from next time
 						state.storred_state.put("cursor", "deltaSince:" + state.request_start_time);
 						state.storred_state.put("name", lms.getName());
+						state.storred_state.put("lastCompletedHRTS", new Date().toString());
 
 						log.info("No more results to fetch from {}", lms.getName());
 						return Mono.empty();
@@ -196,6 +198,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						// We have finished consuming a page of data, but there is more to come.
 						// Remember where we got up to and stash it in the DB
 						if (state.since != null) {
+							state.storred_state.put("deltaHRTS", new Date(state.sinceMillis).toString());
 							state.storred_state.put("cursor", "deltaSince:" + state.sinceMillis + ":" + state.offset);
 						} else {
 							state.storred_state.put("cursor", "bootstrap:" + state.offset);
