@@ -1,7 +1,5 @@
 package org.olf.dcb.request.fulfilment;
 
-import java.util.List;
-
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
@@ -15,18 +13,21 @@ public class PatronRequestPreflightChecksService {
 
 	public Mono<PlacePatronRequestCommand> check(PlacePatronRequestCommand command) {
 		return pickupLocationPreflightCheck.check(command)
-			.flatMap(result -> {
-				if (result.getPassed()) {
+			.flatMap(results -> {
+				if (results.stream().allMatch(CheckResult::getPassed)) {
 					return Mono.just(command);
 				}
-				else {
-					return Mono.error(PreflightCheckFailedException.builder()
-						.failedChecks(List.of(
-							FailedPreflightCheck.builder()
-								.failureDescription(result.getFailureDescription())
-								.build()))
-						.build());
-				}
+
+				final var failedChecks = results.stream()
+					.filter(result -> !result.getPassed())
+					.map(result -> FailedPreflightCheck.builder()
+						.failureDescription(result.getFailureDescription())
+						.build())
+					.toList();
+
+				return Mono.error(PreflightCheckFailedException.builder()
+					.failedChecks(failedChecks)
+					.build());
 			});
 	}
 }
