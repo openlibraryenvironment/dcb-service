@@ -35,7 +35,8 @@ import org.slf4j.LoggerFactory;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.util.StringUtils;
-import jakarta.transaction.Transactional;
+import io.micronaut.transaction.TransactionDefinition.Propagation;
+import io.micronaut.transaction.annotation.Transactional;
 import jakarta.validation.constraints.NotEmpty;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -241,7 +242,8 @@ public interface MarcIngestSource<T> extends IngestSource {
 
 		log.info("Read from the marc source and publish a stream of IngestRecords");
 
-		return Flux.from(getResources(since)).flatMap(this::saveRawAndContinue)
+		return Flux.from(getResources(since))
+				.concatMap(this::saveRawAndContinue)
 				.doOnError(throwable -> log.warn("ONERROR saving raw record", throwable))
 				.flatMap(resource -> {
 					return Mono.just(initIngestRecordBuilder(resource))
@@ -253,15 +255,17 @@ public interface MarcIngestSource<T> extends IngestSource {
 				});
 	}
 
+	@NonNull
 	RawSourceRepository getRawSourceRepository();
 
-	@Transactional
-	public default Mono<T> saveRawAndContinue(T resource) {
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public default Mono<T> saveRawAndContinue(final T resource) {
 		log.debug("Save raw {}", resource);
-		return Mono.just(resource).zipWhen(res -> Mono.just(resourceToRawSource(res)))
-				.flatMap(TupleUtils.function((res, raw) -> {
-					return Mono.from(getRawSourceRepository().saveOrUpdate(raw)).thenReturn(res);
-				}));
+		
+		return Mono.from( getRawSourceRepository().saveOrUpdate(
+				resourceToRawSource(resource)))
+				.doOnError( t -> log.debug("Error saving Raw", t) )
+				.then(Mono.just(resource));
 	}
 
 	RawSource resourceToRawSource(T resource);

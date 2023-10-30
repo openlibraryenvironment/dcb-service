@@ -62,7 +62,8 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	public void onApplicationEvent(StartupEvent event) {
 		log.info("Bootstrapping DCB - onApplicationEvent");
 
-		if ( environment.getProperty(REACTOR_DEBUG_VAR, String.class).orElse("false").equalsIgnoreCase("true") ) {
+		if ( environment.getProperty(REACTOR_DEBUG_VAR, String.class)
+				.orElse("false").equalsIgnoreCase("true") ) {
 			log.info("Switching on operator debug mode");
 			Hooks.onOperatorDebug();
 		}

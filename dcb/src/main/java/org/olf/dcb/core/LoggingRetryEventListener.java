@@ -32,14 +32,35 @@ public class LoggingRetryEventListener implements RetryEventListener {
 			.map(o -> Objects.toString(o, null))
 			.collect(Collectors.joining(", "));
 
-		log.info("Retry #{} for \"{}\" {}::{}( {} )",
-			retryState.currentAttempt(),
-			retry.getThrowable().getMessage(),
-			source.getDeclaringType().getSimpleName(),
-			source.getName(), args);
+
 		
 		if (retryState.currentAttempt() == retryState.getMaxAttempts()) {
 			retry.getThrowable().printStackTrace();
+		}
+		
+		if (log.isDebugEnabled()) {
+			log.atDebug().log("Retry #{} for \"{}\" {}::{}( {} )",
+				retryState.currentAttempt(),
+				retry.getThrowable().getMessage(),
+				source.getDeclaringType().getSimpleName(),
+				source.getName(), args);
+			
+		} else if (log.isInfoEnabled()) {
+			log.atInfo().log("Retry #{} for \"{}\" {}::{}",
+				retryState.currentAttempt(),
+				retry.getThrowable().getMessage(),
+				source.getDeclaringType().getSimpleName(),
+				source.getName());
+		}
+		
+		if (retryState.currentAttempt() == retryState.getMaxAttempts()) {			
+			log.atError()
+				.setCause(retry.getThrowable())
+			  .log("Exhausted retry count ({}), for {}::{}", 
+					retryState.currentAttempt(),
+					source.getDeclaringType().getSimpleName(),
+					source.getName());
+			
 		}
 	}
 }
