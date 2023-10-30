@@ -7,7 +7,6 @@ import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
-import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -16,6 +15,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.api.PatronRequestApiTests.ChecksFailure.Check.hasDescription;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
@@ -464,10 +464,7 @@ class PatronRequestApiTests {
 
 		assertThat("Body should report unknown pickup location failed check", optionalBody.get(),
 			hasProperty("failedChecks", containsInAnyOrder(
-				allOf(
-					hasProperty("failureDescription",
-						is("\"unknown-pickup-location\" is not a recognised pickup location code"))
-				)
+				hasDescription("\"unknown-pickup-location\" is not a recognised pickup location code")
 			)));
 	}
 
@@ -517,6 +514,10 @@ class PatronRequestApiTests {
 		@Serdeable
 		public static class Check {
 			@Nullable String failureDescription;
+
+			public static Matcher<Check> hasDescription(String expectedDescription) {
+				return hasProperty("failureDescription", is(expectedDescription));
+			}
 		}
 	}
 }
