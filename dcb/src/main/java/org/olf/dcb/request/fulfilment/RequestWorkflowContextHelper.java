@@ -2,14 +2,13 @@ package org.olf.dcb.request.fulfilment;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +21,8 @@ public class RequestWorkflowContextHelper {
 	private static final Logger log = LoggerFactory.getLogger(RequestWorkflowContextHelper.class);
 
 	private final SupplierRequestService supplierRequestService;
-	private final ReferenceValueMappingRepository referenceValueMappingRepository;
+	private final ReferenceValueMappingService referenceValueMappingService;
+
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronIdentityRepository patronIdentityRepository;
@@ -30,8 +30,8 @@ public class RequestWorkflowContextHelper {
 	private final HostLmsRepository hostLmsRepository;
 
 	public RequestWorkflowContextHelper(
-		ReferenceValueMappingRepository referenceValueMappingRepository,
 		SupplierRequestService supplierRequestService,
+		ReferenceValueMappingService referenceValueMappingService,
 		HostLmsRepository hostLmsRepository,
 		SupplierRequestRepository supplierRequestRepository,
 		PatronRequestRepository patronRequestRepository,
@@ -39,7 +39,7 @@ public class RequestWorkflowContextHelper {
 		AgencyRepository agencyRepository) {
 
 		this.supplierRequestService = supplierRequestService;
-		this.referenceValueMappingRepository = referenceValueMappingRepository;
+		this.referenceValueMappingService = referenceValueMappingService;
 		this.hostLmsRepository = hostLmsRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.patronRequestRepository = patronRequestRepository;
@@ -189,21 +189,12 @@ public class RequestWorkflowContextHelper {
 	private Mono<RequestWorkflowContext> resolvePickupLocationAgency(RequestWorkflowContext ctx) {
 		log.debug("resolvePickupLocationAgency");
 
-		return findPickupLocationToAgencyMapping(ctx.getPatronRequest().getPickupLocationCode())
+		return referenceValueMappingService.findPickupLocationToAgencyMapping(ctx.getPatronRequest().getPickupLocationCode())
 			.switchIfEmpty(Mono.error(new RuntimeException("No mapping found for pickup location \""+ctx.getPatronRequest().getPickupLocationCode()+"\"")))
 			.flatMap(rvm -> Mono.from(getDataAgencyWithHostLms(rvm.getToValue())))
 			.flatMap(pickupAgency -> Mono.just(ctx.setPickupAgency(pickupAgency)))
 			.flatMap(ctx2 -> Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())))
 			.flatMap(ctx2 -> Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())));
-	}
-
-	private Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(String pickupLocationCode) {
-		return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-			"PickupLocation",
-			"DCB",
-			pickupLocationCode,
-			"AGENCY",
-			"DCB"));
 	}
 
 	// Get the agency and get the related HostLMS
