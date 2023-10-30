@@ -2,6 +2,7 @@ package org.olf.dcb.request.fulfilment;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.AgencyRepository;
@@ -188,17 +189,21 @@ public class RequestWorkflowContextHelper {
 	private Mono<RequestWorkflowContext> resolvePickupLocationAgency(RequestWorkflowContext ctx) {
 		log.debug("resolvePickupLocationAgency");
 
-		return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-				"PickupLocation",
-				"DCB",
-				ctx.getPatronRequest().getPickupLocationCode(),
-				"AGENCY",
-				"DCB"))
+		return findPickupLocationToAgencyMapping(ctx.getPatronRequest().getPickupLocationCode())
 			.switchIfEmpty(Mono.error(new RuntimeException("No mapping found for pickup location \""+ctx.getPatronRequest().getPickupLocationCode()+"\"")))
 			.flatMap(rvm -> Mono.from(getDataAgencyWithHostLms(rvm.getToValue())))
 			.flatMap(pickupAgency -> Mono.just(ctx.setPickupAgency(pickupAgency)))
 			.flatMap(ctx2 -> Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())))
 			.flatMap(ctx2 -> Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())));
+	}
+
+	private Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(String pickupLocationCode) {
+		return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+			"PickupLocation",
+			"DCB",
+			pickupLocationCode,
+			"AGENCY",
+			"DCB"));
 	}
 
 	// Get the agency and get the related HostLMS
