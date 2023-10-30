@@ -8,10 +8,10 @@ import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
-public class ItemTypeMapper {
+public class NumericItemTypeMapper {
 	private final NumericRangeMappingRepository numericRangeMappingRepository;
 
-	public ItemTypeMapper(NumericRangeMappingRepository numericRangeMappingRepository) {
+	public NumericItemTypeMapper(NumericRangeMappingRepository numericRangeMappingRepository) {
 		this.numericRangeMappingRepository = numericRangeMappingRepository;
 	}
 

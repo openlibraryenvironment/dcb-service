@@ -7,6 +7,7 @@ type Query {
     agencyGroups(query: String, pageno:Int, pagesize: Int): AgencyGroupPage!
     instanceClusters(query: String, pageno: Int, pagesize: Int): ClusterRecordPage!
     sourceBibs(query: String, pageno:Int, pagesize: Int): BibRecordPage!
+    processStates(query: String, pageno:Int, pagesize: Int): ProcessStatePage!
 }
 
 type Mutation {
@@ -28,6 +29,13 @@ input AgencyGroupInput {
     id: ID
     code: String!
     name: String!
+}
+
+type ProcessState {
+  id: ID
+  context: ID
+  processName: String
+  processState: String
 }
 
 type HostLms {
@@ -130,8 +138,14 @@ type Pageable {
   offset: Int
 }
 
-type ClusterRecordPage {
-  content: [ClusterRecord]
+type AgencyPage {
+  content: [Agency]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type AgencyGroupPage {
+  content: [AgencyGroup]
   totalSize: Int
   pageable: Pageable
 }
@@ -142,14 +156,14 @@ type BibRecordPage {
   pageable: Pageable
 }
 
-type HostLmsPage {
-  content: [HostLms]
+type ClusterRecordPage {
+  content: [ClusterRecord]
   totalSize: Int
   pageable: Pageable
 }
 
-type AgencyPage {
-  content: [Agency]
+type HostLmsPage {
+  content: [HostLms]
   totalSize: Int
   pageable: Pageable
 }
@@ -166,14 +180,14 @@ type PatronRequestPage {
   pageable: Pageable
 }
 
-type SupplierRequestPage {
-  content: [SupplierRequest]
+type ProcessStatePage {
+  content: [ProcessState]
   totalSize: Int
   pageable: Pageable
 }
 
-type AgencyGroupPage {
-  content: [AgencyGroup]
+type SupplierRequestPage {
+  content: [SupplierRequest]
   totalSize: Int
   pageable: Pageable
 }

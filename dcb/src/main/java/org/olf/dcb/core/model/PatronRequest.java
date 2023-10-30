@@ -101,6 +101,10 @@ public class PatronRequest {
 
 	@Nullable
 	@Size(max = 200)
+	private String pickupLocationContext;
+
+	@Nullable
+	@Size(max = 200)
 	private String pickupLocationCode;
 
 	// We may need to create a virtual patron at the pickup library as the item

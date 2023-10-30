@@ -446,8 +446,16 @@ class PatronRequestApiTests {
 	}
 
 	private void savePatronTypeMappings() {
-		// These seem to be reciprocal, however removing one of the mappings leads to failures
-		referenceValueMappingFixture.definePatronTypeMapping("patron-request-api-tests", "15", "DCB", "15");
+
+		// We map into and out of patron-request-api-tests here because the tests are naive and not like the real world
+		// In a more realistic scenario we go from one context to a different context
+
+		// Define a mapping from patron-request-api-tests:[10-20] to DCB:15 - so any value between 10 and 20 can be mapped
+		// to our canonical DCB:15 type
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("patron-request-api-tests", 10, 20, "DCB", "15");
+		// was referenceValueMappingFixture.definePatronTypeMapping("patron-request-api-tests", "15", "DCB", "15");
+
+		// Define a mapping from the spine reference DCB:15 to a TARGET vocal (patron-request-api-tests) value 15
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", "15", "patron-request-api-tests", "15");
 	}
 }

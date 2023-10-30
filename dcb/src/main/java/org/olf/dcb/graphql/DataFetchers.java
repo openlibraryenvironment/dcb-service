@@ -11,6 +11,7 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.AgencyGroup;
+import org.olf.dcb.core.model.ProcessState;
 import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
 import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
@@ -21,6 +22,7 @@ import org.olf.dcb.storage.postgres.PostgresRawSourceRepository;
 import org.olf.dcb.storage.postgres.PostgresHostLmsRepository;
 import org.olf.dcb.storage.postgres.PostgresLocationRepository;
 import org.olf.dcb.storage.postgres.PostgresAgencyGroupRepository;
+import org.olf.dcb.storage.postgres.PostgresProcessStateRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.reactivestreams.Publisher;
@@ -53,6 +55,7 @@ public class DataFetchers {
         private final PostgresHostLmsRepository postgresHostLmsRepository;
         private final PostgresLocationRepository postgresLocationRepository;
         private final PostgresAgencyGroupRepository postgresAgencyGroupRepository;
+        private final PostgresProcessStateRepository postgresProcessStateRepository;
 	private final QueryService qs;
 
 	public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
@@ -64,6 +67,7 @@ public class DataFetchers {
                         PostgresHostLmsRepository postgresHostLmsRepository,
                         PostgresLocationRepository postgresLocationRepository,
                         PostgresAgencyGroupRepository postgresAgencyGroupRepository,
+			PostgresProcessStateRepository postgresProcessStateRepository,
                         QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
@@ -75,6 +79,7 @@ public class DataFetchers {
                 this.postgresHostLmsRepository = postgresHostLmsRepository;
                 this.postgresLocationRepository = postgresLocationRepository;
                 this.postgresAgencyGroupRepository = postgresAgencyGroupRepository;
+                this.postgresProcessStateRepository = postgresProcessStateRepository;
 	}
 
 
@@ -234,4 +239,27 @@ public class DataFetchers {
                         return Mono.from(postgresHostLmsRepository.findAll(pageable)).toFuture();
                 };
         }
+
+	public DataFetcher<CompletableFuture<Page<ProcessState>>> getProcessStateDataFetcher() {
+                return env -> {
+                        Integer pageno = env.getArgument("pageno");
+                        Integer pagesize = env.getArgument("pagesize");
+                        String query = env.getArgument("query");
+
+                        if ( pageno == null ) pageno = Integer.valueOf(0);
+                        if ( pagesize == null ) pagesize = Integer.valueOf(10);
+
+                        log.debug("ProcessStateDataFetcher::get({},{},{})", pageno,pagesize,query);
+                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
+
+                        if ((query != null) && (query.length() > 0)) {
+                                var spec = qs.evaluate(query, ProcessState.class);
+                                return Mono.from(postgresProcessStateRepository.findAll(spec, pageable)).toFuture();
+                        }
+
+                        log.debug("Returning simple processState list");
+
+                        return Mono.from(postgresProcessStateRepository.findAll(pageable)).toFuture();
+                };
+	}
 }

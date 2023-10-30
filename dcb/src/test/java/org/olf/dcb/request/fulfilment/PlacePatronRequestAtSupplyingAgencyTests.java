@@ -245,8 +245,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		}
 
 		final Patron patron = patronFixture.savePatron("123456");
-		patronFixture.saveIdentity(patron, hostLms, localId, true, "-", "123456", agency_ab6);
-		patronFixture.saveIdentity(patron, hostLms, localId, false, "-", null, null);
+		patronFixture.saveIdentity(patron, hostLms, localId, true, "1", "123456", agency_ab6);
+		patronFixture.saveIdentity(patron, hostLms, localId, false, "1", null, null);
 		patron.setPatronIdentities(patronService.findAllPatronIdentitiesByPatron(patron).collectList().block());
 		return patron;
 	}
@@ -279,11 +279,12 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	}
 
 	private void savePatronTypeMappings() {
-		referenceValueMappingFixture.definePatronTypeMapping(
-			"supplying-agency-service-tests", "-", "DCB", "-");
+
+		// referenceValueMappingFixture.definePatronTypeMapping( "supplying-agency-service-tests", "-", "DCB", "-");
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("supplying-agency-service-tests", 1, 1, "DCB", "SQUIGGLE");
 
 		referenceValueMappingFixture.definePatronTypeMapping(
-			"DCB", "-", "supplying-agency-service-tests", "15");
+			"DCB", "SQUIGGLE", "supplying-agency-service-tests", "15");
 
 		referenceValueMappingFixture.definePickupLocationToAgencyMapping("ABC123", "ab6");
 	}

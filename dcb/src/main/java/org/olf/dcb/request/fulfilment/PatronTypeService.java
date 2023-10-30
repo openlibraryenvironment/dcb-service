@@ -7,15 +7,19 @@ import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
+import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 
 @Prototype
 public class PatronTypeService {
 	private static final Logger log = LoggerFactory.getLogger(PatronTypeService.class);
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
+	private final NumericPatronTypeMapper numericPatronTypeMapper;
 
-	public PatronTypeService(ReferenceValueMappingRepository referenceValueMappingRepository) {
+	public PatronTypeService(ReferenceValueMappingRepository referenceValueMappingRepository,
+		NumericPatronTypeMapper numericPatronTypeMapper) {
 
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
+		this.numericPatronTypeMapper = numericPatronTypeMapper;
 	}
 
 	/**
@@ -28,9 +32,9 @@ public class PatronTypeService {
 		String requesterPatronType) {
 		log.debug("determinePatronType supplier={} requester={} ptype={}",supplierHostLmsCode,requesterHostLmsCode,requesterPatronType);
 		// Get the "Spine" mapping
-		return findMapping("DCB",requesterHostLmsCode, requesterPatronType)
+		return numericPatronTypeMapper.getCanonicalItemType(requesterHostLmsCode,requesterPatronType)
 			.doOnNext ( spineMapping -> log.debug("Got spine mapping {}",spineMapping) )
-			.flatMap( spineMapping -> findMapping( supplierHostLmsCode, "DCB", spineMapping.getToValue() ) )
+			.flatMap( spineMapping -> findMapping( supplierHostLmsCode, "DCB", spineMapping ) )
 			.doOnNext ( targetMapping -> log.debug("Got target mapping {}",targetMapping) )
 			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.error(
