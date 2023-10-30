@@ -2,21 +2,19 @@ package org.olf.dcb.request.fulfilment;
 
 import java.util.List;
 
-import org.olf.dcb.storage.LocationRepository;
-
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
 @Singleton
 public class PatronRequestPreflightChecksService {
-	private final LocationRepository locationRepository;
+	private	final PickupLocationPreflightCheck pickupLocationPreflightCheck;
 
-	public PatronRequestPreflightChecksService(LocationRepository locationRepository) {
-		this.locationRepository = locationRepository;
+	public PatronRequestPreflightChecksService(PickupLocationPreflightCheck pickupLocationPreflightCheck) {
+		this.pickupLocationPreflightCheck = pickupLocationPreflightCheck;
 	}
 
 	public Mono<PlacePatronRequestCommand> check(PlacePatronRequestCommand command) {
-		return checkForPickupLocation(command)
+		return pickupLocationPreflightCheck.check(command)
 			.flatMap(result -> {
 				if (result.getPassed()) {
 					return Mono.just(command);
@@ -30,13 +28,5 @@ public class PatronRequestPreflightChecksService {
 						.build());
 				}
 			});
-	}
-
-	private Mono<CheckResult> checkForPickupLocation(PlacePatronRequestCommand command) {
-		final var pickupLocationCode = command.getPickupLocation().getCode();
-
-		return Mono.from(locationRepository.findOneByCode(pickupLocationCode))
-			.map(location -> CheckResult.passed())
-			.defaultIfEmpty(CheckResult.failed("\"" + pickupLocationCode + "\" is not a recognised pickup location code"));
 	}
 }

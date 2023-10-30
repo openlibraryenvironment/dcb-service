@@ -1,11 +1,12 @@
 package org.olf.dcb.request.fulfilment;
 
-import lombok.AccessLevel;
+import static lombok.AccessLevel.PRIVATE;
+
 import lombok.AllArgsConstructor;
 import lombok.Value;
 
 @Value
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = PRIVATE)
 class CheckResult {
 	Boolean passed;
 	String failureDescription;
