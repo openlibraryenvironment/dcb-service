@@ -18,4 +18,8 @@ public class CheckResult {
 	public static CheckResult failed(String description) {
 		return new CheckResult(false, description);
 	}
+
+	boolean getFailed() {
+		return !getPassed();
+	}
 }

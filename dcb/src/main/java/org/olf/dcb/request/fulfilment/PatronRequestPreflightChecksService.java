@@ -26,7 +26,7 @@ public class PatronRequestPreflightChecksService {
 				}
 
 				final var failedChecks = results.stream()
-					.filter(result -> !result.getPassed())
+					.filter(CheckResult::getFailed)
 					.map(result -> FailedPreflightCheck.builder()
 						.failureDescription(result.getFailureDescription())
 						.build())
