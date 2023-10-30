@@ -8,8 +8,10 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.hamcrest.Matcher;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.test.DcbTest;
+import org.olf.dcb.test.LocationFixture;
 
 import jakarta.inject.Inject;
 
@@ -17,6 +19,14 @@ import jakarta.inject.Inject;
 public class PatronRequestPreflightChecksServiceTests {
 	@Inject
 	private PatronRequestPreflightChecksService preflightChecksService;
+
+	@Inject
+	private LocationFixture locationFixture;
+
+	@BeforeEach
+	void beforeEach() {
+		locationFixture.deleteAll();
+	}
 
 	@Test
 	void shouldPassWhenPickupLocationCodeIsRecognised() {
