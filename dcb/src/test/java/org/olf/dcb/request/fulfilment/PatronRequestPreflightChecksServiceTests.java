@@ -12,6 +12,7 @@ import java.util.UUID;
 
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.LocationFixture;
@@ -31,32 +32,35 @@ public class PatronRequestPreflightChecksServiceTests {
 		locationFixture.deleteAll();
 	}
 
-	@Test
-	void shouldPassWhenPickupLocationCodeIsRecognised() {
-		// Arrange
-		locationFixture.createPickupLocation("Known Location", "known-pickup-location");
+	@Nested
+	class RecognisedPickupLocation {
+		@Test
+		void shouldPassWhenPickupLocationCodeIsRecognised() {
+			// Arrange
+			locationFixture.createPickupLocation("Known Location", "known-pickup-location");
 
-		// Act
-		final var command = placeRequestCommand("known-pickup-location");
+			// Act
+			final var command = placeRequestCommand("known-pickup-location");
 
-		// Assert
+			// Assert
 
-		// Should return the command used as input to allow for easy chaining
-		assertThat(check(command), is(command));
-	}
+			// Should return the command used as input to allow for easy chaining
+			assertThat(check(command), is(command));
+		}
 
-	@Test
-	void shouldFailWhenPickupLocationCodeIsNotRecognised() {
-		// Act
-		final var command = placeRequestCommand("unknown-pickup-location");
+		@Test
+		void shouldFailWhenPickupLocationCodeIsNotRecognised() {
+			// Act
+			final var command = placeRequestCommand("unknown-pickup-location");
 
-		final var exception = assertThrows(PreflightCheckFailedException.class,
-			() -> check(command));
+			final var exception = assertThrows(PreflightCheckFailedException.class,
+				() -> check(command));
 
-		// Assert
-		assertThat(exception, hasProperty("failedChecks", containsInAnyOrder(
-			hasFailedCheck("\"unknown-pickup-location\" is not a recognised pickup location code")
-		)));
+			// Assert
+			assertThat(exception, hasProperty("failedChecks", containsInAnyOrder(
+				hasFailedCheck("\"unknown-pickup-location\" is not a recognised pickup location code")
+			)));
+		}
 	}
 
 	private PlacePatronRequestCommand check(PlacePatronRequestCommand command) {
