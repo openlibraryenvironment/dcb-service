@@ -58,7 +58,7 @@ public class ReferenceValueMappingFixture {
 	public void definePickupLocationToAgencyMapping(String pickupLocationCode, String agencyCode) {
 		saveReferenceValueMapping(ReferenceValueMapping.builder()
 			.id(randomUUID())
-			.fromCategory("PickupLocation")
+			.fromCategory("Location")
 			.fromContext("DCB")
 			.fromValue(pickupLocationCode)
 			.toCategory("AGENCY")

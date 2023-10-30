@@ -1,6 +1,5 @@
 package org.olf.dcb.request.fulfilment;
 
-import java.util.Collections;
 import java.util.List;
 
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
@@ -18,6 +17,11 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
-		return Mono.just(Collections.emptyList());
+		final var pickupLocationCode = command.getPickupLocation().getCode();
+
+		return Mono.from(referenceValueMappingService.findLocationToAgencyMapping(pickupLocationCode))
+			.map(location -> CheckResult.passed())
+			.defaultIfEmpty(CheckResult.failed("\"" + pickupLocationCode + "\" is not mapped to an agency"))
+			.map(List::of);
 	}
 }

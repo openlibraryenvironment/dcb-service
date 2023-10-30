@@ -464,8 +464,9 @@ class PatronRequestApiTests {
 
 		assertThat("Body should report unknown pickup location failed check", optionalBody.get(),
 			hasProperty("failedChecks", containsInAnyOrder(
-				hasDescription("\"unknown-pickup-location\" is not a recognised pickup location code")
-			)));
+				hasDescription("\"unknown-pickup-location\" is not a recognised pickup location code"),
+				hasDescription("\"unknown-pickup-location\" is not mapped to an agency"))
+			));
 	}
 
 	@Test

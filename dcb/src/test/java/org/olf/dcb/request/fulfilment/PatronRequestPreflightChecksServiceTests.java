@@ -43,6 +43,8 @@ public class PatronRequestPreflightChecksServiceTests {
 			// Arrange
 			locationFixture.createPickupLocation("Known Location", "known-pickup-location");
 
+			referenceValueMappingFixture.definePickupLocationToAgencyMapping("known-pickup-location", "any-agency");
+
 			// Act
 			final var command = placeRequestCommand("known-pickup-location");
 
@@ -54,6 +56,9 @@ public class PatronRequestPreflightChecksServiceTests {
 
 		@Test
 		void shouldFailWhenPickupLocationCodeIsNotRecognised() {
+			// Arrange
+			referenceValueMappingFixture.definePickupLocationToAgencyMapping("unknown-pickup-location", "any-agency");
+
 			// Act
 			final var command = placeRequestCommand("unknown-pickup-location");
 
@@ -63,6 +68,41 @@ public class PatronRequestPreflightChecksServiceTests {
 			// Assert
 			assertThat(exception, hasProperty("failedChecks", containsInAnyOrder(
 				hasFailedCheck("\"unknown-pickup-location\" is not a recognised pickup location code")
+			)));
+		}
+	}
+
+	@Nested
+	class PickupLocationToAgencyMapping {
+		@Test
+		void shouldPassWhenPickupLocationIsMappedToAnAgency() {
+			// Arrange
+			locationFixture.createPickupLocation("Known Location", "known-pickup-location");
+
+			referenceValueMappingFixture.definePickupLocationToAgencyMapping("known-pickup-location", "any-agency");
+
+			// Act
+			final var command = placeRequestCommand("known-pickup-location");
+
+			// Assert
+
+			// Should return the command used as input to allow for easy chaining
+			assertThat(check(command), is(command));
+		}
+
+		@Test
+		void shouldFailWhenPickupLocationCodeIsNotMappedToAnAgency() {
+			// Act
+			locationFixture.createPickupLocation("Known Location", "known-pickup-location");
+
+			final var command = placeRequestCommand("known-pickup-location");
+
+			final var exception = assertThrows(PreflightCheckFailedException.class,
+				() -> check(command));
+
+			// Assert
+			assertThat(exception, hasProperty("failedChecks", containsInAnyOrder(
+				hasFailedCheck("\"known-pickup-location\" is not mapped to an agency")
 			)));
 		}
 	}
