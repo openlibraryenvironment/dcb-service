@@ -7,13 +7,18 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.UUID;
+
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.model.Location;
+import org.olf.dcb.storage.LocationRepository;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.LocationFixture;
 
 import jakarta.inject.Inject;
+import reactor.core.publisher.Mono;
 
 @DcbTest
 public class PatronRequestPreflightChecksServiceTests {
@@ -23,6 +28,9 @@ public class PatronRequestPreflightChecksServiceTests {
 	@Inject
 	private LocationFixture locationFixture;
 
+	@Inject
+	private LocationRepository locationRepository;
+
 	@BeforeEach
 	void beforeEach() {
 		locationFixture.deleteAll();
@@ -30,7 +38,19 @@ public class PatronRequestPreflightChecksServiceTests {
 
 	@Test
 	void shouldPassWhenPickupLocationCodeIsRecognised() {
+		// Arrange
+		Mono.from(locationRepository.save(Location.builder()
+				.id(UUID.randomUUID())
+				.name("Known Location")
+				.code("known-pickup-location")
+				.type("PICKUP")
+				.build()))
+			.block();
+
+		// Act
 		final var command = placeRequestCommand("known-pickup-location");
+
+		// Assert
 
 		// Should return the command used as input to allow for easy chaining
 		assertThat(check(command), is(command));
@@ -38,11 +58,13 @@ public class PatronRequestPreflightChecksServiceTests {
 
 	@Test
 	void shouldFailWhenPickupLocationCodeIsNotRecognised() {
+		// Act
 		final var command = placeRequestCommand("unknown-pickup-location");
 
 		final var exception = assertThrows(PreflightCheckFailedException.class,
 			() -> check(command));
 
+		// Assert
 		assertThat(exception, hasProperty("failedChecks", containsInAnyOrder(
 			hasFailedCheck("\"unknown-pickup-location\" is not a recognised pickup location code")
 		)));
