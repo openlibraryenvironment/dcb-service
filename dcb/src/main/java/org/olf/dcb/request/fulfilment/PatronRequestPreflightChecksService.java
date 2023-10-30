@@ -1,5 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
+import java.util.Collection;
 import java.util.List;
 
 import graphql.com.google.common.collect.Streams;
@@ -9,15 +10,13 @@ import reactor.core.publisher.Mono;
 
 @Singleton
 public class PatronRequestPreflightChecksService {
-	private	final PreflightCheck preflightCheck;
+	private	final Collection<PreflightCheck> checks;
 
-	public PatronRequestPreflightChecksService(PreflightCheck preflightCheck) {
-		this.preflightCheck = preflightCheck;
+	public PatronRequestPreflightChecksService(Collection<PreflightCheck> checks) {
+		this.checks = checks;
 	}
 
 	public Mono<PlacePatronRequestCommand> check(PlacePatronRequestCommand command) {
-		final var checks = List.of(preflightCheck);
-
 		return Flux.fromIterable(checks)
 			.concatMap(check -> check.check(command))
 			.reduce(PatronRequestPreflightChecksService::concatenateChecks)
