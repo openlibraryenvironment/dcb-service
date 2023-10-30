@@ -34,6 +34,7 @@ import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.ingest.marc.MarcIngestSource;
@@ -103,11 +104,16 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final RawSourceRepository rawSourceRepository;
 	private final ItemResultToItemMapper itemResultToItemMapper;
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
+	private final NumericPatronTypeMapper numericPatronTypeMapper;
 
-	public SierraLmsClient(@Parameter HostLms lms, HostLmsSierraApiClientFactory clientFactory,
-			RawSourceRepository rawSourceRepository, ProcessStateService processStateService,
-			ReferenceValueMappingRepository referenceValueMappingRepository, ConversionService conversionService,
-			ItemResultToItemMapper itemResultToItemMapper) {
+	public SierraLmsClient(@Parameter HostLms lms, 
+		HostLmsSierraApiClientFactory clientFactory,
+		RawSourceRepository rawSourceRepository, 
+		ProcessStateService processStateService,
+		ReferenceValueMappingRepository referenceValueMappingRepository, 
+		ConversionService conversionService,
+		ItemResultToItemMapper itemResultToItemMapper,
+		NumericPatronTypeMapper numericPatronTypeMapper) {
 
 		this.lms = lms;
 		this.itemResultToItemMapper = itemResultToItemMapper;
@@ -118,6 +124,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		this.processStateService = processStateService;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.conversionService = conversionService;
+		this.numericPatronTypeMapper = numericPatronTypeMapper;
 	}
 
 	@Override
@@ -361,7 +368,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.from(client.patronFind(varFieldTag, varFieldContent))
 				// .doOnSuccess(result -> log.debug("the result of patronFind({})", result))
 				.filter(result -> nonNull(result.getId()) && nonNull(result.getPatronType()))
-				.map(this::sierraPatronToHostLmsPatron).onErrorResume(NullPointerException.class, error -> {
+				.flatMap(this::sierraPatronToHostLmsPatron)
+				.onErrorResume(NullPointerException.class, error -> {
 					log.debug("NullPointerException occurred when finding Patron: {}", error.getMessage());
 					return Mono.empty();
 				});
@@ -717,7 +725,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				});
 	}
 
-	private Patron sierraPatronToHostLmsPatron(SierraPatronRecord spr) {
+	private Mono<Patron> sierraPatronToHostLmsPatron(SierraPatronRecord spr) {
 		log.debug("sierraPatronToHostLmsPatron({})", spr);
 		String patronLocalAgency = null;
 
@@ -727,16 +735,29 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			patronLocalAgency = spr.getFixedFields().get(FIXED_FIELD_158).getValue().toString();
 		}
 
-		return Patron.builder().localId(singletonList(valueOf(spr.getId()))).localPatronType(valueOf(spr.getPatronType()))
-				.localBarcodes(spr.getBarcodes()).localNames(spr.getNames()).localHomeLibraryCode(spr.getHomeLibraryCode())
-				.build();
+
+		return Mono.just(Patron.builder()
+			.localId(singletonList(valueOf(spr.getId())))
+			.localPatronType(valueOf(spr.getPatronType()))
+			.localBarcodes(spr.getBarcodes())
+			.localNames(spr.getNames())
+			.localHomeLibraryCode(spr.getHomeLibraryCode())
+			.build())
+			.flatMap(this::enrichWithCanonicalPatronType);
+	}
+
+	private Mono<Patron> enrichWithCanonicalPatronType(Patron p) {
+		return numericPatronTypeMapper.getCanonicalItemType(lms.getCode(), p.getLocalPatronType())
+			.map( pt -> p.setCanonicalPatronType(pt) )
+			.defaultIfEmpty(p);
 	}
 
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		log.debug("getPatronByLocalId({})", localPatronId);
 
-		return Mono.from(client.getPatron(Long.valueOf(localPatronId))).map(this::sierraPatronToHostLmsPatron)
-				.switchIfEmpty(Mono.error(new RuntimeException("No patron found")));
+		return Mono.from(client.getPatron(Long.valueOf(localPatronId)))
+			.flatMap(this::sierraPatronToHostLmsPatron)
+			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")));
 	}
 
 	@Override
@@ -746,7 +767,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		final var patronPatch = PatronPatch.builder().patronType(parseInt(patronType)).build();
 
 		return Mono.from(client.updatePatron(Long.valueOf(localPatronId), patronPatch))
-				.map(this::sierraPatronToHostLmsPatron).switchIfEmpty(Mono.error(new RuntimeException("No patron found")));
+			.flatMap(this::sierraPatronToHostLmsPatron)
+			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")));
 	}
 
 	public HostLmsHold sierraPatronHoldToHostLmsHold(SierraPatronHold sierraHold) {

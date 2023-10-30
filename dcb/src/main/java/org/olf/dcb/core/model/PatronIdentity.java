@@ -84,6 +84,10 @@ public class PatronIdentity {
 	@Nullable
 	private String localPtype;
 
+	@ToString.Include
+	@Nullable
+	private String canonicalPtype;
+
 	@Nullable
 	private String localHomeLibraryCode;
 
