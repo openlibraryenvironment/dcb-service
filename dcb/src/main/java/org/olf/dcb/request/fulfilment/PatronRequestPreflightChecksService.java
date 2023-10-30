@@ -16,7 +16,9 @@ public class PatronRequestPreflightChecksService {
 	}
 
 	public Mono<PlacePatronRequestCommand> check(PlacePatronRequestCommand command) {
-		return Flux.just(preflightCheck)
+		final var checks = List.of(preflightCheck);
+
+		return Flux.fromIterable(checks)
 			.concatMap(check -> check.check(command))
 			.reduce(PatronRequestPreflightChecksService::concatenateChecks)
 			.flatMap(results -> {
