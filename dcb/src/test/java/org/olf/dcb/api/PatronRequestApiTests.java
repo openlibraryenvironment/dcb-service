@@ -15,7 +15,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.api.PatronRequestApiTests.ChecksFailure.Check.hasDescription;
+import static org.olf.dcb.test.clients.ChecksFailure.Check.hasDescription;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
@@ -48,13 +48,11 @@ import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.clients.ChecksFailure;
 
-import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
-import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
@@ -504,21 +502,5 @@ class PatronRequestApiTests {
 
 		// Define a mapping from the spine reference DCB:15 to a TARGET vocal (patron-request-api-tests) value 15
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", "15", "patron-request-api-tests", "15");
-	}
-
-	@Value
-	@Serdeable
-	public static class ChecksFailure {
-		@Nullable List<Check> failedChecks;
-
-		@Value
-		@Serdeable
-		public static class Check {
-			@Nullable String failureDescription;
-
-			public static Matcher<Check> hasDescription(String expectedDescription) {
-				return hasProperty("failureDescription", is(expectedDescription));
-			}
-		}
 	}
 }
