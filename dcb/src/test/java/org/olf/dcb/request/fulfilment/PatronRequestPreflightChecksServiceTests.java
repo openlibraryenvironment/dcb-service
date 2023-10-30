@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.LocationFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import jakarta.inject.Inject;
 
@@ -26,9 +27,12 @@ public class PatronRequestPreflightChecksServiceTests {
 
 	@Inject
 	private LocationFixture locationFixture;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
 	@BeforeEach
 	void beforeEach() {
+		referenceValueMappingFixture.deleteAll();
 		locationFixture.deleteAll();
 	}
 
