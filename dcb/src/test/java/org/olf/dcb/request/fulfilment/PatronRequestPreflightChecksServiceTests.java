@@ -13,12 +13,9 @@ import java.util.UUID;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.olf.dcb.core.model.Location;
-import org.olf.dcb.storage.LocationRepository;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.LocationFixture;
 
-import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
 
 @DcbTest
@@ -29,9 +26,6 @@ public class PatronRequestPreflightChecksServiceTests {
 	@Inject
 	private LocationFixture locationFixture;
 
-	@Inject
-	private LocationRepository locationRepository;
-
 	@BeforeEach
 	void beforeEach() {
 		locationFixture.deleteAll();
@@ -40,7 +34,7 @@ public class PatronRequestPreflightChecksServiceTests {
 	@Test
 	void shouldPassWhenPickupLocationCodeIsRecognised() {
 		// Arrange
-		createPickupLocation("Known Location", "known-pickup-location");
+		locationFixture.createPickupLocation("Known Location", "known-pickup-location");
 
 		// Act
 		final var command = placeRequestCommand("known-pickup-location");
@@ -81,15 +75,5 @@ public class PatronRequestPreflightChecksServiceTests {
 		String expectedFailureDescription) {
 
 		return allOf(hasProperty("failureDescription", is(expectedFailureDescription)));
-	}
-
-	@Nullable
-	private Location createPickupLocation(String name, String code) {
-		return singleValueFrom(locationRepository.save(Location.builder()
-				.id(UUID.randomUUID())
-				.name(name)
-				.code(code)
-				.type("PICKUP")
-				.build()));
 	}
 }
