@@ -5,9 +5,11 @@ import java.util.UUID;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
 import lombok.Value;
 
 @Serdeable
+@Builder
 @Value
 public class PlacePatronRequestCommand {
 	@NotNull Citation citation;
@@ -16,6 +18,7 @@ public class PlacePatronRequestCommand {
 	@Nullable String description;
 
 	@Serdeable
+	@Builder
 	@Value
 	public static class PickupLocation {
                 String context;
@@ -23,22 +26,18 @@ public class PlacePatronRequestCommand {
 	}
 
 	@Serdeable
+	@Builder
 	@Value
 	public static class Citation {
 		UUID bibClusterId;
 	}
 
 	@Serdeable
+	@Builder
 	@Value
 	public static class Requestor {
 		String localId;
 		String localSystemCode;
 		String homeLibraryCode;
-
-		public Requestor(String localId, String localSystemCode, String homeLibraryCode) {
-			this.localId = localId;
-			this.localSystemCode = localSystemCode;
-			this.homeLibraryCode = homeLibraryCode;
-		}
 	}
 }
