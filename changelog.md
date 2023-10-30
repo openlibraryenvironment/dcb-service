@@ -1,236 +1,78 @@
 # Changelog
 
+## Version 1.8.0
+
+### Additions
+* [Auth]
+	* Implement validatePatronByUniqueIdAndSecret option for patron auth
+* [General]
+	* Add DcbInfoSource
+
+### Changes
+* [Chore]
+	* tidy
+	* Bit of a messy merge :(
+	* Replace spaces with tabs in workflow context helper DCB-519
+	* ingest - Add status to ingest state to make it clear when a process is RUNNING or COMPLETE
+	* Remove erroneous comment in patron request controller DCB-519
+	* Fix formatting in place patron request command DCB-519
+* [Feature]
+	* Flexible handling of pickup location context - allow the place request command to optionally specify a context for the pickup location, if not provided default to the patron home context
+	* Add canonicalPType field to interaction Patron and set this coming out of the Sierra host LMS adapter
+	* graphql - Add ProcessStatus query to graphql endpoint
+	* ingest - Add human readable timestamps HRTS to process state for sierra to make it eaiser to diagnose harvesting issues
+	* Change patron type lookups to range mapping
+	* Add pickup location code context to data model
+	* auth - Implement UniqueID+Name validation method
+* [Refactor]
+	* Move method for finding pickup location to agency mapping to service DCB-519
+	* Extract method for finding pickup location to agency mapping DCB-519
+	* Use value object instead of record for response from place patron request API DCB-519
+	* Remove mapping to HTTP response when placing a request DCB-519
+	* Change place patron request command to value object rather than record DCB-519
+	* Use tuple when placing initial patron request DCB-519
+* [Test]
+	* Replace empty JSON object with null object for placing a request with no information DCB-519
+	* Extract method for placing a request using a command DCB-519
+	* Use serialised object instead of raw JSON when placing a request DCB-519
+	* Remove patron request status workaround DCB-519
+	* Use value objects instead of records when placing requests DCB-519
+	* Use client for placing request with unknown local system DCB-519
+	* Use login client in declarative HTTP client with JWT test DCB-519
+	* Use declarative client for login DCB-519
+	* Return body only when logging in DCB-519
+	* Use login client in configuration import API tests DCB-519
+	* Replace spaces with tabs in configuration import API tests DCB-519
+	* Use login client in patron auth API tests DCB-519
+	* Remove unused fields / variables in patron auth API tests DCB-519
+	* Use login client in JWT authentication tests DCB-519
+	* Use login client in agency API tests DCB-519
+	* Use login client in patron request API client DCB-519
+	* Use constructor injection for patron request API client DCB-519
+	* Use dedicated HTTP client for login client DCB-519
+	* Reorganise fields in patron request API tests DCB-519
+	* Move method for getting an access token to login client class DCB-519
+	* Make saving mapping method private in fixture DCB-519
+	* Use fixture to define shelving location to agency mapping when getting items from Polaris DCB-519
+	* Use fixture to define location to agency mapping when validating a patron DCB-519
+	* Use fixture to define shelving location to agency mapping when placing request at borrowing agency DCB-519
+	* Use fixture to define shelving location to agency mapping when checking live availability DCB-519
+	* Remove duplicate reciprocal patron type mappings DCB-519
+	* Use fixture to define pickup location to agency mapping when placing request at borrowing agency DCB-519
+	* Use fixture to define location to agency mapping when placing request at borrowing agency DCB-519
+	* Replace spaces with tabs in place request at supplying agency tests DCB-519
+	* Extract method for defining patron type mapping DCB-519
+	* Rename place patron request API test DCB-519
+	* Extract method for defining location to agency mapping DCB-519
+	* Extract method for defining shelving location to agency mapping DCB-519
+	* Extract method for defining pickup location to agency mapping DCB-519
+	* Remove unused log message parameter in place patron request API tests DCB-519
+	* Replace spaces with tabs in place patron request API tests DCB-519
+	* Inline access token variable in place patron request API tests DCB-519
+	* Remove commented out code in place patron request API tests DCB-519
+	* Use annotation for log in patron request API tests DCB-519
+
 ## Version 1.7.3
-
-### Changes
-* [Feature]
-	* Rollup beta for weekly release
-
-## Version 1.7.2
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* When setting page size for polaris, limit the value to 100
-* [Refactor]
-	* Move BibRecordService to svc package
-
-### Fixes
-* [Harvesting]
-	* Sierra date ranges require the time zone signifier Z
-* [Ingest]
-	* Syntax error caused by previous merge
-* [Marc   Ingest]
-	* DCB-504 DCB-521 - check 264 for publication info before 260
-* [General]
-	* Ignore resumption initially if we have a since.
-	* Save removed resumption token
-	* Remove related bib identifiers before the bib
-
-## Version 1.7.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [Ingest]
-	* In sierra - deleted=true means ONLY deleted records, suppressed=true means ONLY suppressed records. The default is to return all and thats what we want
-
-## Version 1.7.0
-
-### Additions
-* [General]
-	* Re-elect selected bib on cluster if current is deleted
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* docs - Added state model json
-
-### Fixes
-* [Harvesting]
-	* Send suppressed=true and deleted=true when harvesting from Sierra
-* [Security]
-	* remove anon auth from rest endpoints
-* [General]
-	* Query for page then expand in separate query
-
-## Version 1.6.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-* [Refactor]
-	* Move record clustering service into package.
-* [Rework]
-	* Cluster controller to use service and improve response time
-
-### Fixes
-* [Polaris]
-	* Overrid the isEnabled method to honour settings from config
-
-## Version 1.6.0
-
-### Additions
-* [General]
-	* Soft delete of ClusterRecords
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* release - updated Release build instructions
-	* ingest - Tone down logging on papi ingest - was filling logs with every marc record
-	* Use existing delete all method for mappings DCB-479
-	* Move item status mapper tests to same package as production code DCB-479
-	* Use only Available for Polaris fallback item status mapping DCB-479
-	* Use only hyphen for Sierra fallback item status mapping DCB-479
-	* Extract method for determining local item type code DCB-479
-	* Reformat code in item mapper DCB-479
-* [Feature]
-	* graphql - Add paginated supplier requests and agency groups. Leave old groups api intact for now
-	* graphql - DCB-501 add paginated patron requests query to graphql endpoint
-	* graphql - DCB-500 add locations query to graphql endpoint
-	* graphql - Added agencies and hostLms
-	* graphql - Graphql query methods for clusterRecords and sourceRecords with associated navigation
-* [Refactor]
-	* Rename map status method to indicate use of Sierra fallback DCB-479
-	* Extract method for defining mappings in status mapping tests DCB-479
-	* Extract constant for host LMS code in status mapping tests DCB-479
-	* Rename delete all reference value mappings method DCB-479
-	* Move defining item status mapping to fixture DCB-479
-	* Extract method for mapping item status in tests DCB-479
-	* Extract param array overload for defining fallback mapper DCB-479
-	* Expose default status fallback mapper DCB-479
-	* Introduce parameter for fallback mapper DCB-479
-	* Introduce functional interface for fallback mapper DCB-479
-	* Extract method for mapping item status to code DCB-479
-	* Use empty instead of zero length when fallback mapping DCB-479
-* [Test]
-	* Use unknown status fallback when testing reference value status mappings DCB-479
-	* Move reference value status mapping tests to nested class DCB-479
-	* Move Sierra specific status mapping tests to nested class DCB-479
-	* Use Sierra item status fallback mapper in tests DCB-479
-
-### Fixes
-* [Graphql]
-	* AgencyGroups data fetcher is now reactive
-* [Mappings]
-	* DCB-502 patch marc leader item type mappings
-* [General]
-	* Properly implement touch
-
-### References
-* [Fixes]
-	* Issue #DCB-478
-
-## Version 1.5.0
-
-### Additions
-* [General]
-	* turn on authentication on the place request API [DCB-322]
-	* authenticate patrons registered at libraries on polaris systems [DCB-476]
-
-### Changes
-* [Chore]
-	* Reformat item type mapper
-	* updated the logging around the tracking service
-* [Feature]
-	* graphql - Use Pageable in InstanceClusterDataFetcher and add page vars to schema
-	* graphql - Add instanceCluster and SourceBib data fetchers
-* [Refactor]
-	* Rename item bib ID field DCB-479
-	* Rename create numeric range mapping method DCB-479
-	* Rename delete all host LMS method DCB-479
-	* Move numeric range mapping methods to fixture DCB-479
-	* Move duplicated resolve method from host LMS clients to separate class DCB-479
-	* Rename get items by bib ID method DCB-479
-	* Use annotation for log in shared index service DCB-479
-	* Use builder when creating resolution bib record DCB-479
-	* Rename resolution bib record ID to source record ID DCB-479
-	* Remove host LMS code parameter from get items method DCB-479
-	* Use code from host LMS instead of parameter when getting items in Sierra client DCB-479
-	* Use code from host LMS instead of parameter when getting items in Polaris client DCB-479
-	* Use code from host LMS instead of parameter when getting items in dummy client DCB-479
-* [Test]
-	* Check local bib ID for supplier request after resolution DCB-479
-	* Remove reliance on order in shared index service tests
-
-### Fixes
-* [Graphql]
-	* Declare a page type in the schema for the reactive page
-
-## Version 1.4.0
-
-### Additions
-* [General]
-	* provide live availability results from polaris hosts [DCB-402]
-	* Added Folio OAI PMH as a source.
-
-### Changes
-* [Chore]
-	* Additional logging as a part of ingest - logging source, title, sourceId, deleted and suppression flags
-	* tidy readme
-* [Refactor]
-	* Item result to item mapper [DCB-402]
-
-### Fixes
-* [General]
-	* remove polaris ingest limiter
-
-## Version 1.3.0
-
-### Additions
-* [General]
-	* populate shared index from polaris [DCB-282]
-
-### Changes
-* [Chore]
-	* correct Computer File type mapping for Marc records
-
-### Fixes
-* [General]
-	* duplicate key value violates unique constraint raw source pkey [DCB-282]
-
-## Version 1.1.0
-
-### Additions
-* [General]
-	* default search property can now be chosen per type.
-	* generate dummy titles
-
-### Changes
-* [Chore]
-	* Add type hints for lucene
-	* Refactor dummy client for DCB-324
-	* refactor dummy record source to use same kind of reactive paging as normal clients
-	* constrain native image to xeon-v2 optimisations for now
-	* constrain native exes to xeon-v2 optimisations.. for now
-	* Take notice of num-records-to-generate parameter in dummy HostLMSClient
-	* Added a release.md to describe the release process
-* [Feature]
-	* Convert ResolutionStrategy choose item to a reactive method
-	* Add type filter to locations
-
-### Fixes
-* [General]
-	* Clustering null values
-
-## Version 1.0.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Build - Updated tag matching for GH Actions
-	* Diable the AOT capabilities for now
-	* Optimization settings.
-
-### Fixes
-* [General]
-	* Broke the Optimisation layer.
-	* Native logging.
-
-## Version 1.0.0
 
 ### Additions
 * [Build]
@@ -252,6 +94,15 @@
 * [Locations]
 	* Added list method with temporary, static data
 * [General]
+	* Re-elect selected bib on cluster if current is deleted
+	* Soft delete of ClusterRecords
+	* turn on authentication on the place request API [DCB-322]
+	* authenticate patrons registered at libraries on polaris systems [DCB-476]
+	* provide live availability results from polaris hosts [DCB-402]
+	* Added Folio OAI PMH as a source.
+	* populate shared index from polaris [DCB-282]
+	* default search property can now be chosen per type.
+	* generate dummy titles
 	* provide instance holdings display details [DCB-273]
 	* add swagger annotations [DCB-229]
 	* provide a dcb api endpoint to allow locate to validate a patron login [DCB-229]
@@ -341,6 +192,32 @@
 	* GitHub - Add token to increase rate-limit
 	* Github - Build native too.
 * [Chore]
+	* Changelog - Generate the changelog
+	* When setting page size for polaris, limit the value to 100
+	* docs - Added state model json
+	* release - updated Release build instructions
+	* ingest - Tone down logging on papi ingest - was filling logs with every marc record
+	* Use existing delete all method for mappings DCB-479
+	* Move item status mapper tests to same package as production code DCB-479
+	* Use only Available for Polaris fallback item status mapping DCB-479
+	* Use only hyphen for Sierra fallback item status mapping DCB-479
+	* Extract method for determining local item type code DCB-479
+	* Reformat code in item mapper DCB-479
+	* Reformat item type mapper
+	* updated the logging around the tracking service
+	* Additional logging as a part of ingest - logging source, title, sourceId, deleted and suppression flags
+	* tidy readme
+	* correct Computer File type mapping for Marc records
+	* Add type hints for lucene
+	* Refactor dummy client for DCB-324
+	* refactor dummy record source to use same kind of reactive paging as normal clients
+	* constrain native image to xeon-v2 optimisations for now
+	* constrain native exes to xeon-v2 optimisations.. for now
+	* Take notice of num-records-to-generate parameter in dummy HostLMSClient
+	* Added a release.md to describe the release process
+	* Build - Updated tag matching for GH Actions
+	* Diable the AOT capabilities for now
+	* Optimization settings.
 	* Pin junit for now.
 	* tidy accessors when working out which workflow model should be in force
 	* patron barcode is not propagating to virtual identity, which prevents checkout at supplying org.
@@ -481,6 +358,16 @@
 * [Core]
 	* extend bib data in cluster response
 * [Feature]
+	* Rollup beta for weekly release
+	* graphql - Add paginated supplier requests and agency groups. Leave old groups api intact for now
+	* graphql - DCB-501 add paginated patron requests query to graphql endpoint
+	* graphql - DCB-500 add locations query to graphql endpoint
+	* graphql - Added agencies and hostLms
+	* graphql - Graphql query methods for clusterRecords and sourceRecords with associated navigation
+	* graphql - Use Pageable in InstanceClusterDataFetcher and add page vars to schema
+	* graphql - Add instanceCluster and SourceBib data fetchers
+	* Convert ResolutionStrategy choose item to a reactive method
+	* Add type filter to locations
 	* framework for adding members to agency group in graphql
 	* Make a HostLMSClient know about what properties it will accept in it's settings block
 	* Use item type mapping when placing a request, allow an administrator to upload a file of item type mappings
@@ -511,6 +398,34 @@
 	* Can delay task execution DCB-123
 	* trigger patron request workflow asynchronously (DCB-119)
 * [Refactor]
+	* Move BibRecordService to svc package
+	* Move record clustering service into package.
+	* Rename map status method to indicate use of Sierra fallback DCB-479
+	* Extract method for defining mappings in status mapping tests DCB-479
+	* Extract constant for host LMS code in status mapping tests DCB-479
+	* Rename delete all reference value mappings method DCB-479
+	* Move defining item status mapping to fixture DCB-479
+	* Extract method for mapping item status in tests DCB-479
+	* Extract param array overload for defining fallback mapper DCB-479
+	* Expose default status fallback mapper DCB-479
+	* Introduce parameter for fallback mapper DCB-479
+	* Introduce functional interface for fallback mapper DCB-479
+	* Extract method for mapping item status to code DCB-479
+	* Use empty instead of zero length when fallback mapping DCB-479
+	* Rename item bib ID field DCB-479
+	* Rename create numeric range mapping method DCB-479
+	* Rename delete all host LMS method DCB-479
+	* Move numeric range mapping methods to fixture DCB-479
+	* Move duplicated resolve method from host LMS clients to separate class DCB-479
+	* Rename get items by bib ID method DCB-479
+	* Use annotation for log in shared index service DCB-479
+	* Use builder when creating resolution bib record DCB-479
+	* Rename resolution bib record ID to source record ID DCB-479
+	* Remove host LMS code parameter from get items method DCB-479
+	* Use code from host LMS instead of parameter when getting items in Sierra client DCB-479
+	* Use code from host LMS instead of parameter when getting items in Polaris client DCB-479
+	* Use code from host LMS instead of parameter when getting items in dummy client DCB-479
+	* Item result to item mapper [DCB-402]
 	* SHARED static is still a thing.
 	* Remove side effect mutation.
 	* use bib object for passing of parameters to create bib
@@ -547,7 +462,15 @@
 	* Store incoming request: citation id, patron id, location code/id
 	* POJOs added for request body's
 	* Tidy imports.
+* [Rework]
+	* Cluster controller to use service and improve response time
 * [Test]
+	* Use unknown status fallback when testing reference value status mappings DCB-479
+	* Move reference value status mapping tests to nested class DCB-479
+	* Move Sierra specific status mapping tests to nested class DCB-479
+	* Use Sierra item status fallback mapper in tests DCB-479
+	* Check local bib ID for supplier request after resolution DCB-479
+	* Remove reliance on order in shared index service tests
 	* write tests for cluster api [DCB-201]
 	* Remove sierra text error (use JSON based errors instead)
 	* Use transitions instead of services as starting point for tests
@@ -622,7 +545,34 @@
 	* API docs published
 * [Docs]
 	* Tweak redoc lib path
+* [Graphql]
+	* AgencyGroups data fetcher is now reactive
+	* Declare a page type in the schema for the reactive page
+* [Harvesting]
+	* Sierra date ranges require the time zone signifier Z
+	* Send suppressed=true and deleted=true when harvesting from Sierra
+* [Ingest]
+	* Syntax error caused by previous merge
+	* In sierra - deleted=true means ONLY deleted records, suppressed=true means ONLY suppressed records. The default is to return all and thats what we want
+* [Mappings]
+	* DCB-502 patch marc leader item type mappings
+* [Marc   Ingest]
+	* DCB-504 DCB-521 - check 264 for publication info before 260
+* [Polaris]
+	* Overrid the isEnabled method to honour settings from config
+* [Security]
+	* remove anon auth from rest endpoints
 * [General]
+	* Ignore resumption initially if we have a since.
+	* Save removed resumption token
+	* Remove related bib identifiers before the bib
+	* Query for page then expand in separate query
+	* Properly implement touch
+	* remove polaris ingest limiter
+	* duplicate key value violates unique constraint raw source pkey [DCB-282]
+	* Clustering null values
+	* Broke the Optimisation layer.
+	* Native logging.
 	* Conversion of author
 	* Should be orElse not orElseGet
 	* Test phase in Gradle needs lombok defining explicitly.
@@ -685,6 +635,7 @@
 
 ### References
 * [Fixes]
+	* Issue #DCB-478
 	* Issue #DCB-194
 	* Issue #DCB-226
 * [Provides]
