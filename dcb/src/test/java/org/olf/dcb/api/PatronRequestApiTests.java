@@ -44,6 +44,7 @@ import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -83,6 +84,9 @@ class PatronRequestApiTests {
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
+	@Inject
+	private LocationFixture locationFixture;
+
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
 	@Inject
@@ -182,8 +186,13 @@ class PatronRequestApiTests {
 			.doOnError(err -> log.error("Failure to create ab6 data agency", err))
 			.block();
 
-		ShelvingLocation shelvingLocation = ShelvingLocation.builder().id(randomUUID()).code("ab6").name("name")
-			.hostSystem(dataHostLms1).agency(dataAgency).build();
+		final var shelvingLocation = ShelvingLocation.builder()
+			.id(randomUUID())
+			.code("ab6")
+			.name("name")
+			.hostSystem(dataHostLms1)
+			.agency(dataAgency)
+			.build();
 
 		Mono.from(shelvingLocationRepository.save(shelvingLocation)).block();
 
@@ -191,9 +200,13 @@ class PatronRequestApiTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ABC123", "AGENCY1");
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab6", "AGENCY1");
 
-		referenceValueMappingFixture.defineShelvingLocationToAgencyMapping( "patron-request-api-tests", "ab6", "ab6");
+		referenceValueMappingFixture.defineShelvingLocationToAgencyMapping("patron-request-api-tests", "ab6", "ab6");
 		referenceValueMappingFixture.defineLocationToAgencyMapping( "patron-request-api-tests", "tstce", "ab6");
 		referenceValueMappingFixture.defineLocationToAgencyMapping( "patron-request-api-tests", "tstr", "ab6");
+
+		locationFixture.createPickupLocation("ABC123", "ABC123");
+
+		referenceValueMappingFixture.definePickupLocationToAgencyMapping("ABC123", "AGENCY1");
 	}
 
 	@AfterAll
