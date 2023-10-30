@@ -1,12 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasProperty;
-
-import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,7 +11,7 @@ import org.olf.dcb.test.ReferenceValueMappingFixture;
 import jakarta.inject.Inject;
 
 @DcbTest
-public class PickupLocationToAgencyMappingPreflightCheckTests {
+public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Inject
 	private PickupLocationToAgencyMappingPreflightCheck check;
 
@@ -36,9 +31,10 @@ public class PickupLocationToAgencyMappingPreflightCheckTests {
 		// Act
 		final var command = placeRequestCommand("known-pickup-location");
 
+		final var results = check.check(command).block();
+
 		// Assert
-		assertThat(check(command), containsInAnyOrder(
-			hasProperty("passed", is(true))));
+		assertThat(results, containsInAnyOrder(passedCheck()));
 	}
 
 	@Test
@@ -46,22 +42,10 @@ public class PickupLocationToAgencyMappingPreflightCheckTests {
 		// Act
 		final var command = placeRequestCommand("known-pickup-location");
 
+		final var results = check.check(command).block();
+
 		// Assert
-		assertThat(check(command), containsInAnyOrder(allOf(
-			hasProperty("passed", is(false)),
-			hasProperty("failureDescription", is("\"known-pickup-location\" is not mapped to an agency"))
-		)));
-	}
-
-	private List<CheckResult> check(PlacePatronRequestCommand command) {
-		return check.check(command).block();
-	}
-
-	private static PlacePatronRequestCommand placeRequestCommand(String pickupLocationCode) {
-		return PlacePatronRequestCommand.builder()
-			.pickupLocation(PlacePatronRequestCommand.PickupLocation.builder()
-				.code(pickupLocationCode)
-				.build())
-			.build();
+		assertThat(results, containsInAnyOrder(
+			failedCheck("\"known-pickup-location\" is not mapped to an agency")));
 	}
 }
