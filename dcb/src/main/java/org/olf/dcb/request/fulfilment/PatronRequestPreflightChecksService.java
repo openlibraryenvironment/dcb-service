@@ -21,7 +21,7 @@ public class PatronRequestPreflightChecksService {
 			.concatMap(check -> check.check(command))
 			.reduce(PatronRequestPreflightChecksService::concatenateChecks)
 			.flatMap(results -> {
-				if (results.stream().allMatch(CheckResult::getPassed)) {
+				if (allPassed(results)) {
 					return Mono.just(command);
 				}
 
@@ -42,5 +42,9 @@ public class PatronRequestPreflightChecksService {
 		List<CheckResult> secondChecks) {
 
 		return Streams.concat(firstChecks.stream(), secondChecks.stream()).toList();
+	}
+
+	private static boolean allPassed(List<CheckResult> results) {
+		return results.stream().allMatch(CheckResult::getPassed);
 	}
 }
