@@ -11,4 +11,15 @@ import lombok.Value;
 @Builder
 public class PreflightCheckFailedException extends RuntimeException {
 	List<FailedPreflightCheck> failedChecks;
+
+	static PreflightCheckFailedException from(List<CheckResult> results) {
+		final var failedChecks = results.stream()
+			.filter(CheckResult::getFailed)
+			.map(FailedPreflightCheck::fromResult)
+			.toList();
+
+		return builder()
+			.failedChecks(failedChecks)
+			.build();
+	}
 }

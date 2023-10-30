@@ -25,14 +25,7 @@ public class PatronRequestPreflightChecksService {
 					return Mono.just(command);
 				}
 
-				final var failedChecks = results.stream()
-					.filter(CheckResult::getFailed)
-					.map(FailedPreflightCheck::fromResult)
-					.toList();
-
-				return Mono.error(PreflightCheckFailedException.builder()
-					.failedChecks(failedChecks)
-					.build());
+				return Mono.error(PreflightCheckFailedException.from(results));
 			});
 	}
 
