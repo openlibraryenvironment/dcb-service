@@ -17,9 +17,7 @@ public class PatronRequestPreflightChecksService {
 	}
 
 	public Mono<PlacePatronRequestCommand> check(PlacePatronRequestCommand command) {
-		return Flux.fromIterable(checks)
-			.concatMap(check -> check.check(command))
-			.reduce(PatronRequestPreflightChecksService::concatenateChecks)
+		return performChecks(command)
 			.flatMap(results -> {
 				if (allPassed(results)) {
 					return Mono.just(command);
@@ -27,6 +25,12 @@ public class PatronRequestPreflightChecksService {
 
 				return Mono.error(PreflightCheckFailedException.from(results));
 			});
+	}
+
+	private Mono<List<CheckResult>> performChecks(PlacePatronRequestCommand command) {
+		return Flux.fromIterable(checks)
+			.concatMap(check -> check.check(command))
+			.reduce(PatronRequestPreflightChecksService::concatenateChecks);
 	}
 
 	private static List<CheckResult> concatenateChecks(List<CheckResult> firstChecks,
