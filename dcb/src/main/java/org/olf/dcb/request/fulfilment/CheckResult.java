@@ -7,7 +7,7 @@ import lombok.Value;
 
 @Value
 @AllArgsConstructor(access = PRIVATE)
-class CheckResult {
+public class CheckResult {
 	Boolean passed;
 	String failureDescription;
 

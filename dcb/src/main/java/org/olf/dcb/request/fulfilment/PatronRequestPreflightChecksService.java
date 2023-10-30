@@ -9,14 +9,14 @@ import reactor.core.publisher.Mono;
 
 @Singleton
 public class PatronRequestPreflightChecksService {
-	private	final PickupLocationPreflightCheck pickupLocationPreflightCheck;
+	private	final PreflightCheck preflightCheck;
 
-	public PatronRequestPreflightChecksService(PickupLocationPreflightCheck pickupLocationPreflightCheck) {
-		this.pickupLocationPreflightCheck = pickupLocationPreflightCheck;
+	public PatronRequestPreflightChecksService(PreflightCheck preflightCheck) {
+		this.preflightCheck = preflightCheck;
 	}
 
 	public Mono<PlacePatronRequestCommand> check(PlacePatronRequestCommand command) {
-		return Flux.just(pickupLocationPreflightCheck)
+		return Flux.just(preflightCheck)
 			.concatMap(check -> check.check(command))
 			.reduce(PatronRequestPreflightChecksService::concatenateChecks)
 			.flatMap(results -> {

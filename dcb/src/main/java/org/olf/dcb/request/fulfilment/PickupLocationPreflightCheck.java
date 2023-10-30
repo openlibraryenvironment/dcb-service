@@ -8,14 +8,15 @@ import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
 @Singleton
-public class PickupLocationPreflightCheck {
+public class PickupLocationPreflightCheck implements PreflightCheck {
 	private final LocationRepository locationRepository;
 
 	public PickupLocationPreflightCheck(LocationRepository locationRepository) {
 		this.locationRepository = locationRepository;
 	}
 
-	Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
+	@Override
+	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
 		final var pickupLocationCode = command.getPickupLocation().getCode();
 
 		return Mono.from(locationRepository.findOneByCode(pickupLocationCode))
