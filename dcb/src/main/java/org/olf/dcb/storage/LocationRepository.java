@@ -46,5 +46,4 @@ public interface LocationRepository {
 	Publisher<Location> findOneByCode(String code);
 
 	Publisher<Void> delete(UUID id);
-
 }

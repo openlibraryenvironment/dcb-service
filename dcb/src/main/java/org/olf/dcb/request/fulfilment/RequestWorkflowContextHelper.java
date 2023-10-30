@@ -4,6 +4,7 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import reactor.core.publisher.Mono;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
@@ -193,18 +194,63 @@ public class RequestWorkflowContextHelper {
 	// this is problematic due to the semantic difference. Please think carefully before attempting this (Desireable) consolidation
         private Mono<RequestWorkflowContext> resolvePickupLocationAgency(RequestWorkflowContext ctx) {
 		log.debug("resolvePickupLocationAgency");
-                return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-                        "PickupLocation",
-                        "DCB",
-                        ctx.getPatronRequest().getPickupLocationCode(),
-                        "AGENCY",
-                        "DCB"))
+
+                // ToDo: WARNING - this is a short term bridge - for the "2-legged" scenario - we default the context of the pickup location code to the
+                // System of the patron - assuming the patron will pick up from one of their "Local" libraries. This will NOT work for PUA requests
+                // We set pickupSymbolContext to the explicit code in the patron request - if it's not there we fall back to the patrons home system code
+                String pickupSymbolContext = ctx.getPatronRequest().getPickupLocationCodeContext();
+                if ( pickupSymbolContext == null )
+                        pickupSymbolContext = ctx.getPatronRequest().getPatronHostlmsCode();
+
+                String pickupSymbol = ctx.getPatronRequest().getPickupLocationCode();
+
+                return agencyForPickupLocationSymbol(pickupSymbolContext, pickupSymbol)
                         .switchIfEmpty(Mono.error(new RuntimeException("No mapping found for pickup location \""+ctx.getPatronRequest().getPickupLocationCode()+"\""))) 
                         .flatMap(rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } )
                         .flatMap(pickupAgency -> { return Mono.just(ctx.setPickupAgency(pickupAgency)); } )
                         .flatMap(ctx2 -> { return Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())); } )
                         .flatMap(ctx2 -> { return Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())); } )
                         ;
+        }
+
+        private Mono<ReferenceValueMapping> agencyForPickupLocationSymbol(String pickupSymbolNamespace, String symbol) {
+                if ( ( pickupSymbolNamespace != null ) && ( symbol != null ) ) {
+                        return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+                                "PickupLocation",
+                                pickupSymbolNamespace,
+                                symbol,
+                                "AGENCY",
+                                "DCB"));
+                }
+                else if ( symbol != null ) {
+                        return agencyForPickupLocationSymbol(symbol);
+                }
+
+                return Mono.error(new RuntimeException("No pickup location code present"));
+        }
+
+        private Mono<ReferenceValueMapping> agencyForPickupLocationSymbol(String symbol) {
+                String[] symbol_components = symbol.split(":");
+                if ( symbol_components.length == 1 ) {
+                        // We have an unscoped pickup location - see if we can hit a uniqie value
+                        log.debug("Attempting unscoped location lookup for {}",symbol);
+                        return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromValueAndToCategoryAndToContext(
+                                "PickupLocation",
+                                symbol_components[0],
+                                "AGENCY", 
+                                "DCB"));
+                }
+                else if ( symbol_components.length == 2 ) {
+                        log.debug("Attempting scoped location lookup for {}",symbol);
+                        return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+                                "PickupLocation",
+                                symbol_components[0],
+                                symbol_components[1],
+                                "AGENCY",
+                                "DCB"));
+                }
+
+                return Mono.error(new RuntimeException("Unable to resolve agency for pickup location code"+symbol));
         }
 
         // Get the agency and get the related HostLMS

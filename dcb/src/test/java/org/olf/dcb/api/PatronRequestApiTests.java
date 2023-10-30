@@ -182,7 +182,8 @@ class PatronRequestApiTests {
 
 		Mono.from(shelvingLocationRepository.save(shelvingLocation)).block();
 
-		referenceValueMappingFixture.definePickupLocationToAgencyMapping("ABC123", "AGENCY1");
+		referenceValueMappingFixture.definePickupLocationToAgencyMapping(HOST_LMS_CODE, "ABC123", "AGENCY1");
+
 		referenceValueMappingFixture.defineShelvingLocationToAgencyMapping(
 			"patron-request-api-tests", "ab6", "ab6");
 

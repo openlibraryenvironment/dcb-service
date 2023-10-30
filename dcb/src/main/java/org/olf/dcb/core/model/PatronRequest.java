@@ -93,6 +93,12 @@ public class PatronRequest {
 	@TypeDef(type = DataType.UUID)
 	private UUID bibClusterId;
 
+        // The naming authority which disambiguates the pickupLocationCode - most commonly at the moment
+        // the HostLMS system ID, but feasibly ISIL identifiers or other globally scoped unique values
+	@Nullable
+	@Size(max = 200)
+	private String pickupLocationCodeContext;
+
 	@Nullable
 	@Size(max = 200)
 	private String pickupLocationCode;

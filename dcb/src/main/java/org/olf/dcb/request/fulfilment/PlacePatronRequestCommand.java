@@ -18,6 +18,7 @@ public class PlacePatronRequestCommand {
 	@Serdeable
 	@Value
 	public static class PickupLocation {
+                String context;
 		String code;
 	}
 
