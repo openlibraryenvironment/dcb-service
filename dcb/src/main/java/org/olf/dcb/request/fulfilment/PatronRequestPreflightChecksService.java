@@ -16,15 +16,27 @@ public class PatronRequestPreflightChecksService {
 	}
 
 	public Mono<PlacePatronRequestCommand> check(PlacePatronRequestCommand command) {
+		return checkForPickupLocation(command)
+			.flatMap(result -> {
+				if (result.getPassed()) {
+					return Mono.just(command);
+				}
+				else {
+					return Mono.error(PreflightCheckFailedException.builder()
+						.failedChecks(List.of(
+							FailedPreflightCheck.builder()
+								.failureDescription(result.getFailureDescription())
+								.build()))
+						.build());
+				}
+			});
+	}
+
+	private Mono<CheckResult> checkForPickupLocation(PlacePatronRequestCommand command) {
 		final var pickupLocationCode = command.getPickupLocation().getCode();
 
 		return Mono.from(locationRepository.findOneByCode(pickupLocationCode))
-			.switchIfEmpty(Mono.error(PreflightCheckFailedException.builder()
-			.failedChecks(List.of(
-				FailedPreflightCheck.builder()
-					.failureDescription("\"" + pickupLocationCode + "\" is not a recognised pickup location code")
-					.build()))
-			.build()))
-			.map(location -> command);
+			.map(location -> CheckResult.passed())
+			.defaultIfEmpty(CheckResult.failed("\"" + pickupLocationCode + "\" is not a recognised pickup location code"));
 	}
 }
