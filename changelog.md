@@ -1,5 +1,20 @@
 # Changelog
 
+## Version 1.8.1
+
+### Changes
+* [Chore]
+	* Add script for fetching info from UAT environment
+* [Feature]
+	* info - Add ingest and tracking intervals to info endpoint
+* [Test]
+	* Rename delete all agencies method DCB-519
+
+### Fixes
+* [General]
+	* PickupLocation mappings are a legacy thing now - we just have Location code mappings and put everything into one pot. At some point a merge had reverted a curried value of Location back to PickupLocation which was causing a lookup failure now that we no longer need PickupLocation mappings
+	* Cleanup on finish, not just cancellation or error.
+
 ## Version 1.8.0
 
 ### Additions
@@ -10,6 +25,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* tidy
 	* Bit of a messy merge :(
 	* Replace spaces with tabs in workflow context helper DCB-519
