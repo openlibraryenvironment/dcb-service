@@ -464,11 +464,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		log.debug("create bib using Bib patch {}", bibPatch);
 
-		return Mono.from(client.bibs(bibPatch)).doOnSuccess(result -> log.debug("the result of createBib({})", result))
-				.map(bibResult -> deRestify(bibResult.getLink())).onErrorResume(NullPointerException.class, error -> {
+		return Mono.from(client.bibs(bibPatch))
+				.doOnSuccess(result -> log.debug("the result of createBib({})", result))
+				.map(bibResult -> deRestify(bibResult.getLink()))
+				.onErrorResume(NullPointerException.class, error -> {
 					log.debug("NullPointerException occurred when creating Bib: {}", error.getMessage());
 					return Mono.error(new RuntimeException("Error occurred when creating Bib"));
-				});
+				})
+				.switchIfEmpty(Mono.error(new RuntimeException("Failed to create bib record at "+lms.getCode())));
 	}
 
 	@Override

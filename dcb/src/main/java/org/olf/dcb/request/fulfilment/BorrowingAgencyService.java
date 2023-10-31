@@ -11,6 +11,7 @@ import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -93,6 +94,7 @@ public class BorrowingAgencyService {
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest>> createVirtualBib(
 			PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 			SupplierRequest supplierRequest) {
+
 		final UUID bibClusterId = patronRequest.getBibClusterId();
 
                 if ( hostLmsClient == null ) {
@@ -101,13 +103,23 @@ public class BorrowingAgencyService {
                 }
 
 		log.debug("createVirtualBib for cluster {}", bibClusterId);
-		return Mono.from(clusterRecordRepository.findById(bibClusterId))
-				.flatMap(clusterRecord -> Mono.from(bibRepository.findById(clusterRecord.getSelectedBib())))
+		return getClusterRecord(bibClusterId)
+				.flatMap(this::getSelectedBib)
 				.map(this::extractBibData)
                                 .flatMap(hostLmsClient::createBib)
                                 .map(patronRequest::setLocalBibId)
-				.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual bib.")))
+				.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual bib at "+hostLmsClient.getHostLms().getCode()+" for cluster "+bibClusterId)))
 				.map(pr -> Tuples.of(pr, patronIdentity, hostLmsClient, supplierRequest));
+	}
+
+	private Mono<ClusterRecord> getClusterRecord(UUID clusterId) {
+		return Mono.from(clusterRecordRepository.findById(clusterId))
+			.switchIfEmpty(Mono.error(new RuntimeException("Unable to locate cluster record "+clusterId)));
+	}
+
+	private Mono<BibRecord> getSelectedBib(ClusterRecord cr) {
+		return Mono.from(bibRepository.findById(cr.getSelectedBib()))
+			.switchIfEmpty(Mono.error(new RuntimeException("Unable to locate selected bib "+cr.getSelectedBib()+" for cluster "+cr.getId())));
 	}
 
 	private Bib extractBibData(BibRecord bibRecord) {
@@ -119,8 +131,7 @@ public class BorrowingAgencyService {
 		}
 
 		return Bib.builder().title(bibRecord.getTitle())
-				.author(
-						bibRecord.getAuthor() != null ? bibRecord.getAuthor().getName() : null)
+				.author( bibRecord.getAuthor() != null ? bibRecord.getAuthor().getName() : null)
 				.build();
 	}
 
