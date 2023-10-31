@@ -6,6 +6,9 @@ import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuple3;
+import reactor.util.function.Tuples;
 
 @Singleton
 public class PickupLocationToAgencyMappingPreflightCheck implements PreflightCheck {
@@ -21,13 +24,14 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
 		final var pickupLocationCode = command.getPickupLocation().getCode();
 
-		return checkMapping(pickupLocationCode);
+		return checkMapping(pickupLocationCode)
+			.map(Tuple2::getT1)
+			.map(List::of);
 	}
 
-	private Mono<List<CheckResult>> checkMapping(String pickupLocationCode) {
+	private Mono<Tuple3<CheckResult, String, String>> checkMapping(String pickupLocationCode) {
 		return Mono.from(referenceValueMappingService.findLocationToAgencyMapping(pickupLocationCode))
-			.map(location -> CheckResult.passed())
-			.defaultIfEmpty(CheckResult.failed("\"" + pickupLocationCode + "\" is not mapped to an agency"))
-			.map(List::of);
+			.map(mapping -> Tuples.of(CheckResult.passed(), mapping.getToValue(), pickupLocationCode))
+			.defaultIfEmpty(Tuples.of(CheckResult.failed("\"" + pickupLocationCode + "\" is not mapped to an agency"), "", pickupLocationCode));
 	}
 }
