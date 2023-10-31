@@ -9,7 +9,6 @@ import io.micronaut.context.annotation.Prototype;
 
 @Prototype
 public class AgencyFixture {
-
 	private final DataAccess dataAccess = new DataAccess();
 
 	private final AgencyRepository agencyRepository;
@@ -23,7 +22,7 @@ public class AgencyFixture {
                 return agency;
 	}
 
-	public void deleteAllAgencies() {
+	public void deleteAll() {
 		dataAccess.deleteAll(agencyRepository.queryAll(),
 			mapping -> agencyRepository.delete(mapping.getId()));
 	}

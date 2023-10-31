@@ -135,7 +135,7 @@ class PatronRequestApiTests {
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
 
-		agencyFixture.deleteAllAgencies();
+		agencyFixture.deleteAll();
 		DataAgency da = agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
 			.code("AGENCY1")

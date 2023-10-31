@@ -72,7 +72,7 @@ public class ValidatePatronTests {
 
 		referenceValueMappingFixture.deleteAll();
 
-		agencyFixture.deleteAllAgencies();
+		agencyFixture.deleteAll();
 		agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
 			.code("AGENCY1")
