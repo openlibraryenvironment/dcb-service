@@ -32,7 +32,7 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 		// Arrange
 		agencyFixture.defineAgency("known-agency");
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping("DCB", "known-pickup-location", "known-agency");
+		definePickupLocationToAgencyMapping("DCB", "known-pickup-location", "known-agency");
 
 		// Act
 		final var command = placeRequestCommand("known-pickup-location");
@@ -58,7 +58,7 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 	@Test
 	void shouldFailWhenPickupLocationIsMappedToUnrecognisedAgency() {
 		// Arrange
-		referenceValueMappingFixture.defineLocationToAgencyMapping("DCB", "pickup-location", "unknown-agency");
+		definePickupLocationToAgencyMapping("DCB", "pickup-location", "unknown-agency");
 
 		// Act
 		final var command = placeRequestCommand("pickup-location");
@@ -68,5 +68,9 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("\"pickup-location\" is mapped to \"unknown-agency\" which is not a recognised agency")));
+	}
+
+	private void definePickupLocationToAgencyMapping(String fromContext, String locationCode, String agencyCode) {
+		referenceValueMappingFixture.defineLocationToAgencyMapping(fromContext, locationCode, agencyCode);
 	}
 }
