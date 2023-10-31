@@ -32,7 +32,7 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 		// Arrange
 		agencyFixture.defineAgency("known-agency");
 
-		referenceValueMappingFixture.definePickupLocationToAgencyMapping("known-pickup-location", "any-agency");
+		referenceValueMappingFixture.definePickupLocationToAgencyMapping("known-pickup-location", "known-agency");
 
 		// Act
 		final var command = placeRequestCommand("known-pickup-location");
@@ -44,7 +44,7 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 	}
 
 	@Test
-	void shouldFailWhenPickupLocationCodeIsNotMappedToAnAgency() {
+	void shouldFailWhenPickupLocationIsNotMappedToAnAgency() {
 		// Act
 		final var command = placeRequestCommand("known-pickup-location");
 
@@ -53,5 +53,20 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("\"known-pickup-location\" is not mapped to an agency")));
+	}
+
+	@Test
+	void shouldFailWhenPickupLocationIsMappedToUnrecognisedAgency() {
+		// Arrange
+		referenceValueMappingFixture.definePickupLocationToAgencyMapping("pickup-location", "unknown-agency");
+
+		// Act
+		final var command = placeRequestCommand("pickup-location");
+
+		final var results = check.check(command).block();
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("\"pickup-location\" is mapped to \"unknown-agency\" which is not a recognised agency")));
 	}
 }

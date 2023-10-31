@@ -37,12 +37,23 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 	private Mono<Tuple3<CheckResult, String, String>> checkMapping(String pickupLocationCode) {
 		return Mono.from(referenceValueMappingService.findLocationToAgencyMapping(pickupLocationCode))
 			.map(mapping -> Tuples.of(CheckResult.passed(), mapping.getToValue(), pickupLocationCode))
-			.defaultIfEmpty(Tuples.of(CheckResult.failed("\"" + pickupLocationCode + "\" is not mapped to an agency"), "", pickupLocationCode));
+			.defaultIfEmpty(Tuples.of(CheckResult.failed(
+				"\"" + pickupLocationCode + "\" is not mapped to an agency"), "", pickupLocationCode));
 	}
 
 	private Mono<CheckResult> checkAgency(CheckResult previousCheck,
 		String agencyCode, String pickupLocationCode) {
-		
-		return Mono.just(previousCheck);
+
+		return Mono.just(previousCheck)
+			.flatMap(check -> {
+				if (previousCheck.getFailed()) {
+					return Mono.just(previousCheck);
+				}
+
+				return Mono.from(agencyRepository.findOneByCode(agencyCode))
+					.map(mapping -> CheckResult.passed())
+					.defaultIfEmpty(CheckResult.failed(
+						"\"" + pickupLocationCode + "\" is mapped to \"" + agencyCode + "\" which is not a recognised agency"));
+			});
 	}
 }
