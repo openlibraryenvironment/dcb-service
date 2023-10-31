@@ -44,16 +44,16 @@ public class ReferenceValueMappingFixture {
 	}
 
 	public void defineLocationToAgencyMapping(String pickupLocationCode, String agencyCode) {
-                saveReferenceValueMapping(ReferenceValueMapping.builder()
-                        .id(randomUUID())
-                        .fromCategory("Location")
-                        .fromContext("DCB")
-                        .fromValue(pickupLocationCode)
-                        .toCategory("AGENCY")
-                        .toContext("DCB")
-                        .toValue(agencyCode)
-                        .build());
-        }
+		saveReferenceValueMapping(ReferenceValueMapping.builder()
+			.id(randomUUID())
+			.fromCategory("Location")
+			.fromContext("DCB")
+			.fromValue(pickupLocationCode)
+			.toCategory("AGENCY")
+			.toContext("DCB")
+			.toValue(agencyCode)
+			.build());
+	}
 
 	public void definePickupLocationToAgencyMapping(String pickupLocationCode, String agencyCode) {
 		saveReferenceValueMapping(ReferenceValueMapping.builder()
@@ -67,29 +67,29 @@ public class ReferenceValueMappingFixture {
 			.build());
 	}
 
-        public void defineLocationToAgencyMapping(String pickupLocationCodeContext, String pickupLocationCode, String agencyCode) {
-                saveReferenceValueMapping(ReferenceValueMapping.builder()
-                        .id(randomUUID())
-                        .fromCategory("Location")
-                        .fromContext(pickupLocationCodeContext)
-                        .fromValue(pickupLocationCode)
-                        .toCategory("AGENCY")
-                        .toContext("DCB")
-                        .toValue(agencyCode)
-                        .build());
-        }
+	public void defineLocationToAgencyMapping(String pickupLocationCodeContext, String pickupLocationCode, String agencyCode) {
+		saveReferenceValueMapping(ReferenceValueMapping.builder()
+			.id(randomUUID())
+			.fromCategory("Location")
+			.fromContext(pickupLocationCodeContext)
+			.fromValue(pickupLocationCode)
+			.toCategory("AGENCY")
+			.toContext("DCB")
+			.toValue(agencyCode)
+			.build());
+	}
 
-        public void definePickupLocationToAgencyMapping(String pickupLocationCodeContext, String pickupLocationCode, String agencyCode) {
-                saveReferenceValueMapping(ReferenceValueMapping.builder()
-                        .id(randomUUID())
-                        .fromCategory("PickupLocation")
-                        .fromContext(pickupLocationCodeContext)
-                        .fromValue(pickupLocationCode)
-                        .toCategory("AGENCY")
-                        .toContext("DCB")
-                        .toValue(agencyCode)
-                        .build());
-        }
+	public void definePickupLocationToAgencyMapping(String pickupLocationCodeContext, String pickupLocationCode, String agencyCode) {
+		saveReferenceValueMapping(ReferenceValueMapping.builder()
+			.id(randomUUID())
+			.fromCategory("PickupLocation")
+			.fromContext(pickupLocationCodeContext)
+			.fromValue(pickupLocationCode)
+			.toCategory("AGENCY")
+			.toContext("DCB")
+			.toValue(agencyCode)
+			.build());
+	}
 
 
 	public void defineShelvingLocationToAgencyMapping(String fromContext,
@@ -145,5 +145,4 @@ public class ReferenceValueMappingFixture {
 			)
 		);
 	}
-
 }
