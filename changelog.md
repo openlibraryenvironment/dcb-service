@@ -1,9 +1,20 @@
 # Changelog
 
+## Version 1.8.2
+
+### Changes
+* [Chore]
+	* More deliberate failure and exception reporting when unable to map a patron type
+
+### Fixes
+* [General]
+	* Ensure we remove the related match-points before the bib
+
 ## Version 1.8.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add script for fetching info from UAT environment
 * [Feature]
 	* info - Add ingest and tracking intervals to info endpoint
