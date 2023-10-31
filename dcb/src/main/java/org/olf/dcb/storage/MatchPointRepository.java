@@ -12,7 +12,7 @@ public interface MatchPointRepository {
 	
 	Publisher<MatchPoint> queryAll();
 	
-	Publisher<Void> deleteAllByBibId(UUID bib);
+	Publisher<Long> deleteAllByBibId(UUID bib);
 	
 	Publisher<Void> delete (UUID id);
 }
