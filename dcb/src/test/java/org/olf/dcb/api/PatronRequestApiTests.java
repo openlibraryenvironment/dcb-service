@@ -184,15 +184,11 @@ class PatronRequestApiTests {
 
 		referenceValueMappingFixture.definePickupLocationToAgencyMapping(HOST_LMS_CODE, "ABC123", "AGENCY1");
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ABC123", "AGENCY1");
+		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab6", "AGENCY1");
 
-		referenceValueMappingFixture.defineShelvingLocationToAgencyMapping(
-			"patron-request-api-tests", "ab6", "ab6");
-
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			"patron-request-api-tests", "tstce", "ab6");
-
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			"patron-request-api-tests", "tstr", "ab6");
+		referenceValueMappingFixture.defineShelvingLocationToAgencyMapping( "patron-request-api-tests", "ab6", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping( "patron-request-api-tests", "tstce", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping( "patron-request-api-tests", "tstr", "ab6");
 	}
 
 	@AfterAll

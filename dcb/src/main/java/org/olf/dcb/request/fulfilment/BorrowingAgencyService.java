@@ -15,6 +15,7 @@ import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.BibRepository;
@@ -148,11 +149,7 @@ public class BorrowingAgencyService {
 		log.debug("slToAgency:{} {} {} {} {}", "ShelvingLocation", supplierRequest.getHostLmsCode(),
 				supplierRequest.getLocalItemLocationCode(), "AGENCY", "DCB");
 
-		return Mono
-				.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-						"ShelvingLocation", supplierRequest.getHostLmsCode(), supplierRequest.getLocalItemLocationCode(), "AGENCY",
-						"DCB"))
-				.doOnSuccess(mapping -> log.debug("Result from getting agency for shelving location: {}", mapping))
+		return getAgencyForShelvingLocation(supplierRequest.getHostLmsCode(), supplierRequest.getLocalItemLocationCode())
 				.flatMap(mapping -> {
 					String agencyCode = mapping.getToValue();
 					supplierRequest.setLocalAgency(agencyCode);
@@ -164,6 +161,12 @@ public class BorrowingAgencyService {
 					patronRequest.setLocalItemId(localItemId);
 					return Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId);
 				}).switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));
+	}
+
+	private Mono<ReferenceValueMapping> getAgencyForShelvingLocation(String context, String code) {
+		return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+                	"ShelvingLocation", context, code, "AGENCY", "DCB"))
+			.switchIfEmpty(Mono.error(new RuntimeException("Failed to resolve shelving loc "+context+":"+code+" to agency")));
 	}
 
 	private Mono<Tuple2<String, String>> placeHoldRequest(PatronRequest patronRequest, PatronIdentity patronIdentity,
