@@ -20,6 +20,7 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.clients.LoginClient;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.annotation.Nullable;
@@ -57,6 +58,10 @@ public class PatronAuthApiTests {
 	private HostLmsFixture hostLmsFixture;
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
+        @Inject
+        private ReferenceValueMappingFixture referenceValueMappingFixture;
+
+
 	private SierraTestUtils.MockSierraV6Host mockSierra;
 
 	@Inject
@@ -81,6 +86,8 @@ public class PatronAuthApiTests {
 	@Test
 	@DisplayName("basic barcode and pin patron auth test")
 	void shouldReturnValidStatusWhenUsingBasicBarcodeAndPinValidation() {
+
+
 		// Arrange
 		final var blockingClient = client.toBlocking();
 		final var accessToken = loginClient.getAccessToken();
@@ -98,6 +105,7 @@ public class PatronAuthApiTests {
 					.patronId("3100222227777").patronSecret("76trombones").build())))
 			.respond(HttpResponse.response("23945734234"));
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("23945734234");
+                savePatronTypeMappings();
 
 		// Act
 		final var response = blockingClient.exchange(postPatronAuthRequest, Argument.of(VerificationResponse.class));
@@ -126,6 +134,7 @@ public class PatronAuthApiTests {
 			.patronPrinciple("3100222227777").secret("Joe Bloggs").build();
 		final var postPatronAuthRequest = HttpRequest.POST("/patron/auth", patronCredentials).bearerAuth(accessToken);
 		sierraPatronsAPIFixture.patronResponseForUniqueId("b", "3100222227777");
+                savePatronTypeMappings();
 
 		// Act
 		final var response = blockingClient.exchange(postPatronAuthRequest, Argument.of(VerificationResponse.class));
@@ -153,6 +162,7 @@ public class PatronAuthApiTests {
 		final var patronCredentials = PatronCredentials.builder().agencyCode("ab8")
 			.patronPrinciple("4239058490").secret("10398473").build();
 		final var postPatronAuthRequest = HttpRequest.POST("/patron/auth", patronCredentials).bearerAuth(accessToken);
+                savePatronTypeMappings();
 
 		// Act
 		final var response = blockingClient.exchange(postPatronAuthRequest, Argument.of(VerificationResponse.class));
@@ -187,4 +197,10 @@ public class PatronAuthApiTests {
 		@Nullable String systemCode;
 		@Nullable String homeLocationCode;
 	}
+
+        private void savePatronTypeMappings() {
+                referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("patron-auth-api-tests", 10, 25, "DCB", "15");
+                referenceValueMappingFixture.definePatronTypeMapping("DCB", "15", "patron-auth-api-tests", "15");
+        }
+
 }

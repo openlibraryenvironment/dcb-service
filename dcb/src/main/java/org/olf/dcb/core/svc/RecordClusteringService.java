@@ -260,7 +260,7 @@ public class RecordClusteringService {
 
 		// Generate MatchPoints
 		return Mono.justOrEmpty( bib )
-			.flatMap( theBib -> Mono.fromDirect( matchPointRepository.deleteAllByBibId( theBib.getId()))
+			.flatMap( theBib -> Mono.fromDirect( matchPointRepository.deleteAllByBibId( theBib.getId() ))
 					.thenReturn( theBib ) )
 			.map( this::collectMatchPoints )
 			.flatMap( matchPointPub -> collectClusterRecords(bib.getDerivedType(), matchPointPub) )

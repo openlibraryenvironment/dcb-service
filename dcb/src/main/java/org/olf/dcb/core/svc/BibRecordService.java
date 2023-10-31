@@ -18,6 +18,7 @@ import org.olf.dcb.processing.ProcessingStep;
 import org.olf.dcb.stats.StatsService;
 import org.olf.dcb.storage.BibIdentifierRepository;
 import org.olf.dcb.storage.BibRepository;
+import org.olf.dcb.storage.MatchPointRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,15 +48,18 @@ public class BibRecordService {
 	
 	private final StatsService statsService;
 
+	private final MatchPointRepository matchPointRepository;
+
 
 	public BibRecordService(
 	  BibRepository bibRepo,
 	  BibIdentifierRepository bibIdentifierRepository,
-		StatsService statsService, BeanProvider<RecordClusteringService> recordClusteringServiceProvider) {
+		StatsService statsService, BeanProvider<RecordClusteringService> recordClusteringServiceProvider, MatchPointRepository matchPointRepository) {
 		this.bibRepo = bibRepo;
 		this.bibIdentifierRepo = bibIdentifierRepository;
 		this.recordClusteringServiceProvider = recordClusteringServiceProvider;
 		this.statsService = statsService;
+		this.matchPointRepository = matchPointRepository;
 	}
 
 	private BibRecord step1(final BibRecord bib, final IngestRecord imported) {
@@ -114,12 +118,6 @@ public class BibRecordService {
 		return Flux.fromIterable(source.getIdentifiers()).map(id -> ingestRecordIdentifierToModel(id, savedBib))
 				.flatMap(this::saveOrUpdateIdentifier).then(Mono.just(savedBib));
 	}
-	
-	@Transactional
-	protected Mono<Long> deleteBibIdentifers( BibRecord bib ) {
-		
-		return Mono.from( bibIdentifierRepo.deleteAllByOwner(bib) );
-	}
 
 	protected Mono<BibRecord> updateStatistics(BibRecord savedBib, IngestRecord source, long start_time) {
 
@@ -157,15 +155,35 @@ public class BibRecordService {
 		return Mono.fromDirect(bibRepo.updateByContributesToInList(fromAll, to)).thenReturn(to);
 	}
 	
+	@Transactional(propagation = Propagation.MANDATORY)
+	protected Mono<Long> deleteBibIdentifers( BibRecord bib ) {
+		
+		return Mono.from( bibIdentifierRepo.deleteAllByOwner(bib) );
+	}
+	
+	@Transactional(propagation = Propagation.MANDATORY)
+	protected Mono<Long> deleteBibMatchPoints( BibRecord bib ) {
+		
+		return Mono.from( matchPointRepository.deleteAllByBibId(bib.getId()) );
+	}
+	
+	@Transactional(propagation = Propagation.MANDATORY)
+	protected Mono<BibRecord> deleteRelatedItems( @NonNull final BibRecord bib ) {
+		
+		return Mono.zip( deleteBibIdentifers( bib ), deleteBibMatchPoints( bib ) )
+			.map(TupleUtils.function( ( idCount, matchPointCount ) -> {
+				log.debug("Removed {} identifiers and {} match-points for bib", idCount, matchPointCount );
+				return idCount + matchPointCount;
+			}))
+			.thenReturn(bib);
+	}
+	
 	@Transactional
 	public Mono<Void> delete(@NonNull BibRecord bib) {
-		
-		return Mono.justOrEmpty(bib)
-			.zipWhen(this::deleteBibIdentifers)
-			.flatMap(TupleUtils.function(( theBib, identifierDeletedCount ) -> {
-				log.debug("Removed {} identifiers for bib", identifierDeletedCount );
-				return Mono.from(bibRepo.delete( theBib.getId() ));
-			}));
+		return deleteRelatedItems( bib )
+			.map(BibRecord::getId)
+			.map(bibRepo::delete)
+			.flatMap(Mono::from);
 	}
 	
 	@SingleResult

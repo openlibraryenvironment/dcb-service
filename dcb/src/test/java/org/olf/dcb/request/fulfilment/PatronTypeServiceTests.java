@@ -56,8 +56,8 @@ class PatronTypeServiceTests {
 
 		// Assert
 		assertNotNull(exception);
-		assertThat(exception.getMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE"));
-		assertThat(exception.getLocalizedMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE"));
+		assertThat(exception.getMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE because Unable to convert DCB_UG into number For input string: \"DCB_UG\""));
+		assertThat(exception.getLocalizedMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE because Unable to convert DCB_UG into number For input string: \"DCB_UG\""));
 	}
 
 	@Test
@@ -73,8 +73,8 @@ class PatronTypeServiceTests {
 
 		// Assert
 		assertNotNull(exception);
-		assertThat(exception.getMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE"));
-		assertThat(exception.getLocalizedMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE"));
+		assertThat(exception.getMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE because Unable to convert DCB_UG into number For input string: \"DCB_UG\""));
+		assertThat(exception.getLocalizedMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE because Unable to convert DCB_UG into number For input string: \"DCB_UG\""));
 	}
 
 	@Test
@@ -87,7 +87,7 @@ class PatronTypeServiceTests {
 
 		// Assert
 		assertNotNull(exception);
-		assertThat(exception.getMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE"));
-		assertThat(exception.getLocalizedMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE"));
+		assertThat(exception.getMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE because Unable to convert DCB_UG into number For input string: \"DCB_UG\""));
+		assertThat(exception.getLocalizedMessage(), is("No mapping found from ptype DCB:DCB_UG to EXAMPLE-CODE because Unable to convert DCB_UG into number For input string: \"DCB_UG\""));
 	}
 }
