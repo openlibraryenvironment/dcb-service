@@ -310,17 +310,20 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// We start by working out what the right item type is for the target system.
 		// E.g. DCB Item Type "STD" is a standard
 		// circulating item, and for the "ARTHUR" system, the target iType is "209"
-		return getMappedItemType(lms.getCode(), cic.getCanonicalItemType()).flatMap(itemType -> {
-			log.debug("createItem in SierraLmsClient - itemType will be {}", itemType);
+		return getMappedItemType(lms.getCode(), cic.getCanonicalItemType())
+                        .flatMap(itemType -> {
+			        log.debug("createItem in SierraLmsClient - itemType will be {}", itemType);
 
-			// https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
-			final var fixedFields = Map.of(61, FixedField.builder().label("DCB-" + itemType).value(itemType).build(), 88,
+			        // https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
+			        final var fixedFields = Map.of(61, FixedField.builder().label("DCB-" + itemType).value(itemType).build(), 88,
 					FixedField.builder().label("REQUEST").value("&").build());
 
-			return Mono.from(client.createItem(ItemPatch.builder().bibIds(List.of(Integer.parseInt(cic.getBibId())))
+			        return Mono.from(client.createItem(ItemPatch.builder().bibIds(List.of(Integer.parseInt(cic.getBibId())))
 					.location(cic.getLocationCode()).barcodes(List.of(cic.getBarcode())).fixedFields(fixedFields).build()));
-		}).doOnSuccess(result -> log.debug("the result of createItem({})", result))
-				.map(result -> deRestify(result.getLink())).map(localId -> HostLmsItem.builder().localId(localId).build());
+		        })
+                        .doOnSuccess(result -> log.debug("the result of createItem({})", result))
+			.map(result -> deRestify(result.getLink())).map(localId -> HostLmsItem.builder().localId(localId).build())
+                        .switchIfEmpty(Mono.error(new RuntimeException("Unable to map canonical item type "+cic.getCanonicalItemType()+" for "+lms.getCode()+" context")));
 	}
 
 	// The item type passed with the item is our canonical system item type, we need
