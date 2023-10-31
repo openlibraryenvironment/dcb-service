@@ -65,6 +65,12 @@ endpoints:
     enabled: true
     sensitive: false
 
+info:
+  harvest:
+    interval: ${dcb.ingest.interval:1h}
+  tracking:
+    interval: ${dcb.tracking.interval:5m}
+
 flyway:
   enabled: true
   datasources:
