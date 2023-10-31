@@ -14,18 +14,18 @@ public class ReferenceValueMappingService {
 		this.repository = repository;
 	}
 
-	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(String pickupLocationCode) {
+	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String pickupLocationCode) {
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-			"PickupLocation",
+			"Location",
 			"DCB",
 			pickupLocationCode,
 			"AGENCY",
 			"DCB"));
 	}
 
-        public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(String context, String pickupLocationCode) {
+        public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String context, String pickupLocationCode) {
                 return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-                        "PickupLocation",
+                        "Location",
                         context,
                         pickupLocationCode,
                         "AGENCY",

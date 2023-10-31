@@ -287,6 +287,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			"DCB", "SQUIGGLE", "supplying-agency-service-tests", "15");
 
 		referenceValueMappingFixture.definePickupLocationToAgencyMapping("ABC123", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", "ab6");
 	}
 
 	private void saveHomeLibraryMappings() {

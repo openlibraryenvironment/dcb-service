@@ -200,7 +200,7 @@ public class RequestWorkflowContextHelper {
                 String pickupSymbol = ctx.getPatronRequest().getPickupLocationCode();
 
                 return agencyForPickupLocationSymbol(pickupSymbolContext, pickupSymbol)
-                        .switchIfEmpty(Mono.error(new RuntimeException("No mapping found for pickup location \""+ctx.getPatronRequest().getPickupLocationCode()+"\""))) 
+                        .switchIfEmpty(Mono.error(new RuntimeException("RWCH No mapping found for pickup location \""+pickupSymbolContext+":"+pickupSymbol+"\""))) 
                         .flatMap(rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } )
                         .flatMap(pickupAgency -> { return Mono.just(ctx.setPickupAgency(pickupAgency)); } )
                         .flatMap(ctx2 -> { return Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())); } )
@@ -210,7 +210,7 @@ public class RequestWorkflowContextHelper {
 
         private Mono<ReferenceValueMapping> agencyForPickupLocationSymbol(String pickupSymbolNamespace, String symbol) {
                 if ( ( pickupSymbolNamespace != null ) && ( symbol != null ) ) {
-                        return referenceValueMappingService.findPickupLocationToAgencyMapping(pickupSymbolNamespace,symbol);
+                        return referenceValueMappingService.findLocationToAgencyMapping(pickupSymbolNamespace,symbol);
                 }
                 else if ( symbol != null ) {
                         return agencyForPickupLocationSymbol(symbol);
@@ -224,11 +224,11 @@ public class RequestWorkflowContextHelper {
                 if ( symbol_components.length == 1 ) {
                         // We have an unscoped pickup location - see if we can hit a uniqie value
                         log.debug("Attempting unscoped location lookup for {}",symbol);
-                        return referenceValueMappingService.findPickupLocationToAgencyMapping(symbol_components[0]);
+                        return referenceValueMappingService.findLocationToAgencyMapping(symbol_components[0]);
                 }
                 else if ( symbol_components.length == 2 ) {
                         log.debug("Attempting scoped location lookup for {}",symbol);
-                        return referenceValueMappingService.findPickupLocationToAgencyMapping(symbol_components[0], symbol_components[1]);
+                        return referenceValueMappingService.findLocationToAgencyMapping(symbol_components[0], symbol_components[1]);
                 }
 
                 return Mono.error(new RuntimeException("Unable to resolve agency for pickup location code"+symbol));
