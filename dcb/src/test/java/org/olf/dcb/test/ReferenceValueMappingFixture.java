@@ -43,6 +43,18 @@ public class ReferenceValueMappingFixture {
 			.build());
 	}
 
+	public void defineLocationToAgencyMapping(String pickupLocationCode, String agencyCode) {
+                saveReferenceValueMapping(ReferenceValueMapping.builder()
+                        .id(randomUUID())
+                        .fromCategory("Location")
+                        .fromContext("DCB")
+                        .fromValue(pickupLocationCode)
+                        .toCategory("AGENCY")
+                        .toContext("DCB")
+                        .toValue(agencyCode)
+                        .build());
+        }
+
 	public void definePickupLocationToAgencyMapping(String pickupLocationCode, String agencyCode) {
 		saveReferenceValueMapping(ReferenceValueMapping.builder()
 			.id(randomUUID())
@@ -54,6 +66,18 @@ public class ReferenceValueMappingFixture {
 			.toValue(agencyCode)
 			.build());
 	}
+
+        public void defineLocationToAgencyMapping(String pickupLocationCodeContext, String pickupLocationCode, String agencyCode) {
+                saveReferenceValueMapping(ReferenceValueMapping.builder()
+                        .id(randomUUID())
+                        .fromCategory("Location")
+                        .fromContext(pickupLocationCodeContext)
+                        .fromValue(pickupLocationCode)
+                        .toCategory("AGENCY")
+                        .toContext("DCB")
+                        .toValue(agencyCode)
+                        .build());
+        }
 
         public void definePickupLocationToAgencyMapping(String pickupLocationCodeContext, String pickupLocationCode, String agencyCode) {
                 saveReferenceValueMapping(ReferenceValueMapping.builder()
@@ -76,20 +100,6 @@ public class ReferenceValueMappingFixture {
 			.fromCategory("ShelvingLocation")
 			.fromContext(fromContext)
 			.fromValue(shelvingLocationCode)
-			.toCategory("AGENCY")
-			.toContext("DCB")
-			.toValue(agencyCode)
-			.build());
-	}
-
-	public void defineLocationToAgencyMapping(String fromContext,
-		String locationCode, String agencyCode) {
-
-		saveReferenceValueMapping(ReferenceValueMapping.builder()
-			.id(randomUUID())
-			.fromCategory("Location")
-			.fromContext(fromContext)
-			.fromValue(locationCode)
 			.toCategory("AGENCY")
 			.toContext("DCB")
 			.toValue(agencyCode)
