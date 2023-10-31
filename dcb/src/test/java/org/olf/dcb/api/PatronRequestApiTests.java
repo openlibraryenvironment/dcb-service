@@ -15,11 +15,11 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.test.clients.ChecksFailure.Check.hasDescription;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.test.clients.ChecksFailure.Check.hasDescription;
 
 import java.util.List;
 import java.util.UUID;
@@ -194,7 +194,6 @@ class PatronRequestApiTests {
 
 		Mono.from(shelvingLocationRepository.save(shelvingLocation)).block();
 
-		referenceValueMappingFixture.definePickupLocationToAgencyMapping(HOST_LMS_CODE, "ABC123", "AGENCY1");
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ABC123", "AGENCY1");
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab6", "AGENCY1");
 
@@ -204,7 +203,7 @@ class PatronRequestApiTests {
 
 		locationFixture.createPickupLocation("ABC123", "ABC123");
 
-		referenceValueMappingFixture.definePickupLocationToAgencyMapping("ABC123", "AGENCY1");
+		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", "AGENCY1");
 	}
 
 	@AfterAll

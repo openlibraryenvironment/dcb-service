@@ -279,7 +279,6 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	}
 
 	private void savePatronTypeMappings() {
-		// referenceValueMappingFixture.definePatronTypeMapping( "supplying-agency-service-tests", "-", "DCB", "-");
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("supplying-agency-service-tests", 1, 1, "DCB", "SQUIGGLE");
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("supplying-agency-service-tests",10,15, "DCB", "SQUIGGLE");
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("supplying-agency-service-tests",20,25, "DCB", "SQUIGGLE");
@@ -287,7 +286,6 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		referenceValueMappingFixture.definePatronTypeMapping(
 			"DCB", "SQUIGGLE", "supplying-agency-service-tests", "15");
 
-		referenceValueMappingFixture.definePickupLocationToAgencyMapping("ABC123", "ab6");
 		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", "ab6");
 	}
 
