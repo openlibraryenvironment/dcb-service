@@ -1,9 +1,16 @@
 # Changelog
 
+## Version 1.8.4
+
+### Fixes
+* [General]
+	* return for UUID based pickup location codes
+
 ## Version 1.8.3
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add supplier request scalar fields to graphql schema
 
 ### Fixes
