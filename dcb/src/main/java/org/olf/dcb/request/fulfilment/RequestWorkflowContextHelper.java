@@ -12,11 +12,13 @@ import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
+import org.olf.dcb.storage.LocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
+import java.util.UUID;
 
 @Singleton
 public class RequestWorkflowContextHelper {
@@ -29,6 +31,7 @@ public class RequestWorkflowContextHelper {
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final AgencyRepository agencyRepository;
+	private final LocationRepository locationRepository;
 	private final HostLmsRepository hostLmsRepository;
 
 	public RequestWorkflowContextHelper(
@@ -38,6 +41,7 @@ public class RequestWorkflowContextHelper {
 		SupplierRequestRepository supplierRequestRepository,
 		PatronRequestRepository patronRequestRepository,
 		PatronIdentityRepository patronIdentityRepository,
+		LocationRepository locationRepository,
 		AgencyRepository agencyRepository) {
 
 		this.supplierRequestService = supplierRequestService;
@@ -46,6 +50,7 @@ public class RequestWorkflowContextHelper {
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.patronRequestRepository = patronRequestRepository;
 		this.patronIdentityRepository = patronIdentityRepository;
+		this.locationRepository = locationRepository;
 		this.agencyRepository = agencyRepository;
 	}
 
@@ -198,6 +203,19 @@ public class RequestWorkflowContextHelper {
                         pickupSymbolContext = ctx.getPatronRequest().getPatronHostlmsCode();
 
                 String pickupSymbol = ctx.getPatronRequest().getPickupLocationCode();
+
+		if ( pickupSymbol.length() == 36 ) {
+			final String pcs2 = pickupSymbolContext;
+			// We've been passed a UUID in the pickup location symbol... try to unpick that
+			// Convert the location UUID into a location, extract the code, find the agency for that code and context
+			Mono.from(locationRepository.findById(UUID.fromString(pickupSymbol)))
+				.flatMap( loc -> { return Mono.from(agencyForPickupLocationSymbol(pcs2, loc.getCode())); } )
+				.flatMap( rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } )
+                        	.flatMap(pickupAgency -> { return Mono.just(ctx.setPickupAgency(pickupAgency)); } )
+                        	.flatMap(ctx2 -> { return Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())); } )
+                        	.flatMap(ctx2 -> { return Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())); } )
+                        	;
+		}
 
                 return agencyForPickupLocationSymbol(pickupSymbolContext, pickupSymbol)
                         .switchIfEmpty(Mono.error(new RuntimeException("RWCH No mapping found for pickup location \""+pickupSymbolContext+":"+pickupSymbol+"\""))) 
