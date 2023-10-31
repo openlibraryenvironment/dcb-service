@@ -107,6 +107,20 @@ type PatronRequest {
 type SupplierRequest {
   id: ID!
   hostLmsCode: String
+  dateCreated: String
+  dateUpdated: String
+  localItemId: String
+  localBibId: String
+  localItemBarcode: String
+  localItemLocationCode: String
+  localItemStatus: String
+  localItemType: String
+  canonicalItemType: String
+  hostLmsCode: String
+  localId: String
+  localStatus: String
+  localAgency: String
+  isActive: Boolean
 }
 
 type Patron {
