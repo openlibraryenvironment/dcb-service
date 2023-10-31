@@ -2,6 +2,8 @@ package org.olf.dcb.test;
 
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import java.util.UUID;
+
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.storage.AgencyRepository;
 
@@ -17,13 +19,19 @@ public class AgencyFixture {
 		this.agencyRepository = agencyRepository;
 	}
 
-	public DataAgency saveAgency(DataAgency agency) {
-		singleValueFrom(agencyRepository.save(agency));
-                return agency;
-	}
-
 	public void deleteAll() {
 		dataAccess.deleteAll(agencyRepository.queryAll(),
 			mapping -> agencyRepository.delete(mapping.getId()));
+	}
+
+	public DataAgency saveAgency(DataAgency agency) {
+		return singleValueFrom(agencyRepository.save(agency));
+	}
+
+	public void defineAgency(String code) {
+		saveAgency(DataAgency.builder()
+			.id(UUID.randomUUID())
+			.code(code)
+			.build());
 	}
 }

@@ -30,6 +30,8 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 	@Test
 	void shouldPassWhenPickupLocationIsMappedToAnAgency() {
 		// Arrange
+		agencyFixture.defineAgency("known-agency");
+
 		referenceValueMappingFixture.definePickupLocationToAgencyMapping("known-pickup-location", "any-agency");
 
 		// Act
