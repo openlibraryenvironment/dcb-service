@@ -11,7 +11,9 @@ import reactor.core.publisher.Mono;
 public class PickupLocationToAgencyMappingPreflightCheck implements PreflightCheck {
 	private final ReferenceValueMappingService referenceValueMappingService;
 
-	public PickupLocationToAgencyMappingPreflightCheck(ReferenceValueMappingService referenceValueMappingService) {
+	public PickupLocationToAgencyMappingPreflightCheck(
+		ReferenceValueMappingService referenceValueMappingService) {
+
 		this.referenceValueMappingService = referenceValueMappingService;
 	}
 
@@ -19,6 +21,10 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
 		final var pickupLocationCode = command.getPickupLocation().getCode();
 
+		return checkMapping(pickupLocationCode);
+	}
+
+	private Mono<List<CheckResult>> checkMapping(String pickupLocationCode) {
 		return Mono.from(referenceValueMappingService.findLocationToAgencyMapping(pickupLocationCode))
 			.map(location -> CheckResult.passed())
 			.defaultIfEmpty(CheckResult.failed("\"" + pickupLocationCode + "\" is not mapped to an agency"))
