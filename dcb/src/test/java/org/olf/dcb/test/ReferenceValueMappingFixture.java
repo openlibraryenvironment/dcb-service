@@ -43,24 +43,24 @@ public class ReferenceValueMappingFixture {
 			.build());
 	}
 
-	public void defineLocationToAgencyMapping(String pickupLocationCode, String agencyCode) {
+	public void defineLocationToAgencyMapping(String locationCode, String agencyCode) {
 		saveReferenceValueMapping(ReferenceValueMapping.builder()
 			.id(randomUUID())
 			.fromCategory("Location")
 			.fromContext("DCB")
-			.fromValue(pickupLocationCode)
+			.fromValue(locationCode)
 			.toCategory("AGENCY")
 			.toContext("DCB")
 			.toValue(agencyCode)
 			.build());
 	}
 
-	public void defineLocationToAgencyMapping(String pickupLocationCodeContext, String pickupLocationCode, String agencyCode) {
+	public void defineLocationToAgencyMapping(String fromContext, String locationCode, String agencyCode) {
 		saveReferenceValueMapping(ReferenceValueMapping.builder()
 			.id(randomUUID())
 			.fromCategory("Location")
-			.fromContext(pickupLocationCodeContext)
-			.fromValue(pickupLocationCode)
+			.fromContext(fromContext)
+			.fromValue(locationCode)
 			.toCategory("AGENCY")
 			.toContext("DCB")
 			.toValue(agencyCode)
