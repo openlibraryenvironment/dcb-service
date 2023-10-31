@@ -1,9 +1,20 @@
 # Changelog
 
+## Version 1.8.3
+
+### Changes
+* [Chore]
+	* Add supplier request scalar fields to graphql schema
+
+### Fixes
+* [General]
+	* interpret pickup location strings of 36 chars as a UUID
+
 ## Version 1.8.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* More deliberate failure and exception reporting when unable to map a patron type
 
 ### Fixes
