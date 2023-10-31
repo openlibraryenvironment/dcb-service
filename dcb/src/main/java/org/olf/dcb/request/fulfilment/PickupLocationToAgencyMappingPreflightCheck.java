@@ -4,6 +4,7 @@ import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.storage.AgencyRepository;
 
@@ -35,10 +36,14 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 	}
 
 	private Mono<Tuple3<CheckResult, String, String>> checkMapping(String pickupLocationCode) {
-		return Mono.from(referenceValueMappingService.findLocationToAgencyMapping(pickupLocationCode))
+		return findAgencyMapping(pickupLocationCode)
 			.map(mapping -> Tuples.of(CheckResult.passed(), mapping.getToValue(), pickupLocationCode))
 			.defaultIfEmpty(Tuples.of(CheckResult.failed(
 				"\"" + pickupLocationCode + "\" is not mapped to an agency"), "", pickupLocationCode));
+	}
+
+	private Mono<ReferenceValueMapping> findAgencyMapping(String pickupLocationCode) {
+		return Mono.from(referenceValueMappingService.findLocationToAgencyMapping(pickupLocationCode));
 	}
 
 	private Mono<CheckResult> checkAgency(CheckResult previousCheck,
