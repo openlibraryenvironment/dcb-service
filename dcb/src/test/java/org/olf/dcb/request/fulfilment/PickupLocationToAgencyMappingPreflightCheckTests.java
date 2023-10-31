@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
@@ -17,10 +18,13 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 
 	@BeforeEach
 	void beforeEach() {
 		referenceValueMappingFixture.deleteAll();
+		agencyFixture.deleteAll();
 	}
 
 	@Test
