@@ -27,12 +27,13 @@ public class NumericPatronTypeMapper {
 				log.debug("Look up patron type {}", l);
 				return Mono.from(numericRangeMappingRepository.findMappedValueFor(system, "patronType", "DCB", l))
 					.doOnNext(nrm -> log.debug("nrm: {}", nrm))
-					.defaultIfEmpty("UNKNOWN");
+					.switchIfEmpty(Mono.error(new RuntimeException("Unable to map patronType "+system+":"+l+" To DCB context")));
 			} catch (Exception e) {
-				log.warn("Problem trying to convert {} into  long value", localPatronTypeCode);
+                                return Mono.error(new RuntimeException("Unable to convert "+localPatronTypeCode+" into number "+e.getMessage()));
 			}
 		}
-		log.warn("No localPatronTypeCode provided - returning UNKNOWN");
-		return Mono.just("UNKNOWN");
+
+		log.warn("No localPatronTypeCode provided");
+                return Mono.error(new RuntimeException("No localPatronTypeCode provided for range mapping"));
 	}
 }

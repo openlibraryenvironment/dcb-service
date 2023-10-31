@@ -39,7 +39,9 @@ public class PatronTypeService {
 			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.error(
 				new PatronTypeMappingNotFound("No mapping found from ptype " +
-					requesterHostLmsCode+":" +requesterPatronType+" to "+supplierHostLmsCode)));
+					requesterHostLmsCode+":" +requesterPatronType+" to "+supplierHostLmsCode)))
+                        .onErrorMap( cause -> new PatronTypeMappingNotFound("No mapping found from ptype " +
+                                        requesterHostLmsCode+":" +requesterPatronType+" to "+supplierHostLmsCode+" because "+cause.getMessage()));
 	}
 
 	private Mono<ReferenceValueMapping> findMapping(String targetContext, String sourceContext, String sourceValue) {
