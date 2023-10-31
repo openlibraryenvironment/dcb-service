@@ -31,7 +31,7 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 		final var pickupLocationCode = command.getPickupLocation().getCode();
 
 		return checkMapping(pickupLocationCode)
-			.flatMap(function(this::checkAgency))
+			.flatMap(function(this::checkAgencyWhenPreviousCheckPassed))
 			.map(List::of);
 	}
 
@@ -46,7 +46,7 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 		return Mono.from(referenceValueMappingService.findLocationToAgencyMapping(pickupLocationCode));
 	}
 
-	private Mono<CheckResult> checkAgency(CheckResult previousCheck,
+	private Mono<CheckResult> checkAgencyWhenPreviousCheckPassed(CheckResult previousCheck,
 		String agencyCode, String pickupLocationCode) {
 
 		return Mono.just(previousCheck)
@@ -55,10 +55,14 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 					return Mono.just(previousCheck);
 				}
 
-				return Mono.from(agencyRepository.findOneByCode(agencyCode))
-					.map(mapping -> CheckResult.passed())
-					.defaultIfEmpty(CheckResult.failed(
-						"\"" + pickupLocationCode + "\" is mapped to \"" + agencyCode + "\" which is not a recognised agency"));
+				return checkAgency(agencyCode, pickupLocationCode);
 			});
+	}
+
+	private Mono<CheckResult> checkAgency(String agencyCode, String pickupLocationCode) {
+		return Mono.from(agencyRepository.findOneByCode(agencyCode))
+			.map(mapping -> CheckResult.passed())
+			.defaultIfEmpty(CheckResult.failed(
+				"\"" + pickupLocationCode + "\" is mapped to \"" + agencyCode + "\" which is not a recognised agency"));
 	}
 }
