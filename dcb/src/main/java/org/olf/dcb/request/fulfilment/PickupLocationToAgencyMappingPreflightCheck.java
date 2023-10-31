@@ -1,5 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
+import static reactor.function.TupleUtils.function;
+
 import java.util.List;
 
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
@@ -7,7 +9,6 @@ import org.olf.dcb.storage.AgencyRepository;
 
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
 import reactor.util.function.Tuples;
 
@@ -29,7 +30,7 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 		final var pickupLocationCode = command.getPickupLocation().getCode();
 
 		return checkMapping(pickupLocationCode)
-			.map(Tuple2::getT1)
+			.flatMap(function(this::checkAgency))
 			.map(List::of);
 	}
 
@@ -37,5 +38,11 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 		return Mono.from(referenceValueMappingService.findLocationToAgencyMapping(pickupLocationCode))
 			.map(mapping -> Tuples.of(CheckResult.passed(), mapping.getToValue(), pickupLocationCode))
 			.defaultIfEmpty(Tuples.of(CheckResult.failed("\"" + pickupLocationCode + "\" is not mapped to an agency"), "", pickupLocationCode));
+	}
+
+	private Mono<CheckResult> checkAgency(CheckResult previousCheck,
+		String agencyCode, String pickupLocationCode) {
+		
+		return Mono.just(previousCheck);
 	}
 }
