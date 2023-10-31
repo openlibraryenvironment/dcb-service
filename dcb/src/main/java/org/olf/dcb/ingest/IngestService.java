@@ -86,7 +86,6 @@ public class IngestService implements Runnable {
 					t.printStackTrace();
 					return Mono.empty();
 				}))
-			.doOnComplete(() -> log.debug(""))
 
 				.limitRate(8000, 6000) // Prefetch 
 				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_RECORDS)) // Apply any hooks for "ingest-records"
@@ -131,6 +130,10 @@ public class IngestService implements Runnable {
 
 				return Mono.empty();
 
+			})
+			.doOnComplete(() -> {
+				// Ensure we do this lazily to avoid incorrect timestamps.
+				cleanUp(Instant.now()).run();
 			})
 
 			.count()
