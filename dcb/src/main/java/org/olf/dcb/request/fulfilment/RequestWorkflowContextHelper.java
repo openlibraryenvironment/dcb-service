@@ -208,7 +208,7 @@ public class RequestWorkflowContextHelper {
 			final String pcs2 = pickupSymbolContext;
 			// We've been passed a UUID in the pickup location symbol... try to unpick that
 			// Convert the location UUID into a location, extract the code, find the agency for that code and context
-			Mono.from(locationRepository.findById(UUID.fromString(pickupSymbol)))
+			return Mono.from(locationRepository.findById(UUID.fromString(pickupSymbol)))
 				.flatMap( loc -> { return Mono.from(agencyForPickupLocationSymbol(pcs2, loc.getCode())); } )
 				.flatMap( rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } )
                         	.flatMap(pickupAgency -> { return Mono.just(ctx.setPickupAgency(pickupAgency)); } )
