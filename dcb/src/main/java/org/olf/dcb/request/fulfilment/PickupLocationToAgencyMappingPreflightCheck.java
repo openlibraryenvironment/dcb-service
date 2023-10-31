@@ -44,6 +44,10 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 	}
 
 	private Mono<ReferenceValueMapping> findAgencyMapping(String pickupLocationCode) {
+		return findDcbContextAgencyMapping(pickupLocationCode);
+	}
+
+	private Mono<ReferenceValueMapping> findDcbContextAgencyMapping(String pickupLocationCode) {
 		return Mono.from(referenceValueMappingService.findLocationToAgencyMapping(pickupLocationCode));
 	}
 

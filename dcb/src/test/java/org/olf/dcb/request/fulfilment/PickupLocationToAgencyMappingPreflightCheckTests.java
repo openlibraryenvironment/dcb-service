@@ -28,7 +28,7 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 	}
 
 	@Test
-	void shouldPassWhenPickupLocationIsMappedToAnAgency() {
+	void shouldPassWhenPickupLocationIsMappedToAnAgencyInDcbContext() {
 		// Arrange
 		agencyFixture.defineAgency("known-agency");
 
