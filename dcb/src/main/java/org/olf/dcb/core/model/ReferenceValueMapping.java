@@ -70,4 +70,12 @@ public class ReferenceValueMapping {
 
     @Nullable
     private Boolean reciprocal;
+
+		// The below values were added to the DB in V1_0_1_010__extendReferenceValueMapping.sql
+
+		@Nullable
+		private String label;
+
+		@Nullable
+		private String last_imported;
 }
