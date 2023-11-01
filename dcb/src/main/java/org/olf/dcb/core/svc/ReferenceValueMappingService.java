@@ -23,12 +23,12 @@ public class ReferenceValueMappingService {
 			"DCB"));
 	}
 
-        public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String context, String pickupLocationCode) {
-                return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-                        "Location",
-                        context,
-                        pickupLocationCode,
-                        "AGENCY",
-                        "DCB"));
-        }
+	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String context, String pickupLocationCode) {
+		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+			"Location",
+			context,
+			pickupLocationCode,
+			"AGENCY",
+			"DCB"));
+	}
 }
