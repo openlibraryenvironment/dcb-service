@@ -37,14 +37,14 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 	private Mono<Tuple3<CheckResult, String, String>> checkMapping(PlacePatronRequestCommand command) {
 		final var pickupLocationCode = command.getPickupLocationCode();
 
-		return findAgencyMapping(pickupLocationCode)
+		return findAgencyMapping(command)
 			.map(mapping -> Tuples.of(CheckResult.passed(), mapping.getToValue(), pickupLocationCode))
 			.defaultIfEmpty(Tuples.of(CheckResult.failed(
 				"\"" + pickupLocationCode + "\" is not mapped to an agency"), "", pickupLocationCode));
 	}
 
-	private Mono<ReferenceValueMapping> findAgencyMapping(String pickupLocationCode) {
-		return findDcbContextAgencyMapping(pickupLocationCode);
+	private Mono<ReferenceValueMapping> findAgencyMapping(PlacePatronRequestCommand command) {
+		return findDcbContextAgencyMapping(command.getPickupLocationCode());
 	}
 
 	private Mono<ReferenceValueMapping> findDcbContextAgencyMapping(String pickupLocationCode) {
