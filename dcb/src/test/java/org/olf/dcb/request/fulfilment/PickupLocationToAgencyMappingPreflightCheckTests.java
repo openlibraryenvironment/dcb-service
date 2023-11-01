@@ -35,7 +35,8 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 		definePickupLocationToAgencyMapping("DCB", "known-pickup-location", "known-agency");
 
 		// Act
-		final var command = placeRequestCommand("known-pickup-location", "pickup-context");
+		final var command = placeRequestCommand("known-pickup-location",
+			"pickup-context", "requester-host-lms-code");
 
 		final var results = check.check(command).block();
 
@@ -51,7 +52,8 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 		definePickupLocationToAgencyMapping("pickup-context", "known-pickup-location", "known-agency");
 
 		// Act
-		final var command = placeRequestCommand("known-pickup-location", "pickup-context");
+		final var command = placeRequestCommand("known-pickup-location",
+			"pickup-context", "requester-host-lms-code");
 
 		final var results = check.check(command).block();
 
@@ -62,7 +64,8 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 	@Test
 	void shouldFailWhenPickupLocationIsNotMappedToAnAgency() {
 		// Act
-		final var command = placeRequestCommand("known-pickup-location", "pickup-context");
+		final var command = placeRequestCommand("known-pickup-location",
+			"pickup-context", "requester-host-lms-code");
 
 		final var results = check.check(command).block();
 
@@ -77,7 +80,8 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 		definePickupLocationToAgencyMapping("DCB", "pickup-location", "unknown-agency");
 
 		// Act
-		final var command = placeRequestCommand("pickup-location", "pickup-context");
+		final var command = placeRequestCommand("pickup-location",
+			"pickup-context", "requester-host-lms-code");
 
 		final var results = check.check(command).block();
 

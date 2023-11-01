@@ -29,7 +29,8 @@ public class PickupLocationPreflightCheckTests extends AbstractPreflightCheckTes
 		locationFixture.createPickupLocation("Known Location", "known-pickup-location");
 
 		// Act
-		final var command = placeRequestCommand("known-pickup-location", "pickup-context");
+		final var command = placeRequestCommand("known-pickup-location",
+			"pickup-context", "requester-host-lms-code");
 
 		final var results = check.check(command).block();
 
@@ -40,7 +41,8 @@ public class PickupLocationPreflightCheckTests extends AbstractPreflightCheckTes
 	@Test
 	void shouldFailWhenPickupLocationCodeIsNotRecognised() {
 		// Act
-		final var command = placeRequestCommand("unknown-pickup-location", "pickup-context");
+		final var command = placeRequestCommand("unknown-pickup-location",
+			"pickup-context", "requester-host-lms-code");
 
 		final var results = check.check(command).block();
 
