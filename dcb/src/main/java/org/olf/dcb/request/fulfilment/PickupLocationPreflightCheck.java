@@ -26,7 +26,7 @@ public class PickupLocationPreflightCheck implements PreflightCheck {
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
 		final var pickupLocationCode = command.getPickupLocationCode();
 
-		return findByCode(pickupLocationCode)
+		return locationService.findByCode(pickupLocationCode)
 			.switchIfEmpty(findById(pickupLocationCode))
 			.map(location -> CheckResult.passed())
 			.defaultIfEmpty(CheckResult.failed("\"" + pickupLocationCode + "\" is not a recognised pickup location code"))
@@ -49,9 +49,5 @@ public class PickupLocationPreflightCheck implements PreflightCheck {
 		catch (IllegalArgumentException e) {
 			return Mono.empty();
 		}
-	}
-
-	private Mono<Location> findByCode(String pickupLocationCode) {
-		return Mono.from(locationRepository.findOneByCode(pickupLocationCode));
 	}
 }

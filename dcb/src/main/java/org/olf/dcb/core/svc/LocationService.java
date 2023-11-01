@@ -19,4 +19,8 @@ public class LocationService {
 	public Mono<Location> findById(UUID id) {
 		return Mono.from(locationRepository.findById(id));
 	}
+
+	public Mono<Location> findByCode(String pickupLocationCode) {
+		return Mono.from(locationRepository.findOneByCode(pickupLocationCode));
+	}
 }
