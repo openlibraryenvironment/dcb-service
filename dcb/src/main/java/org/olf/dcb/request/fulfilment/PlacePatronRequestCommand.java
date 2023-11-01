@@ -21,6 +21,10 @@ public class PlacePatronRequestCommand {
 		return getPickupLocation().getCode();
 	}
 
+	String getPickupLocationContext() {
+		return getPickupLocation().getContext();
+	}
+
 	@Serdeable
 	@Builder
 	@Value
