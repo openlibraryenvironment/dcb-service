@@ -44,6 +44,22 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 	}
 
 	@Test
+	void shouldPassWhenPickupLocationIsMappedToAnAgencyInExplicitContext() {
+		// Arrange
+		agencyFixture.defineAgency("known-agency");
+
+		definePickupLocationToAgencyMapping("pickup-context", "known-pickup-location", "known-agency");
+
+		// Act
+		final var command = placeRequestCommand("known-pickup-location", "pickup-context");
+
+		final var results = check.check(command).block();
+
+		// Assert
+		assertThat(results, containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
 	void shouldFailWhenPickupLocationIsNotMappedToAnAgency() {
 		// Act
 		final var command = placeRequestCommand("known-pickup-location", "pickup-context");
