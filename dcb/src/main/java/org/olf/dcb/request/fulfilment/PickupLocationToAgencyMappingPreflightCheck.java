@@ -4,11 +4,9 @@ import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 
-import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
-import org.olf.dcb.storage.AgencyRepository;
 
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
@@ -18,15 +16,12 @@ import reactor.util.function.Tuples;
 @Singleton
 public class PickupLocationToAgencyMappingPreflightCheck implements PreflightCheck {
 	private final ReferenceValueMappingService referenceValueMappingService;
-	private final AgencyRepository agencyRepository;
 	private final AgencyService agencyService;
 
 	public PickupLocationToAgencyMappingPreflightCheck(
-		ReferenceValueMappingService referenceValueMappingService,
-		AgencyRepository agencyRepository, AgencyService agencyService) {
+		ReferenceValueMappingService referenceValueMappingService, AgencyService agencyService) {
 
 		this.referenceValueMappingService = referenceValueMappingService;
-		this.agencyRepository = agencyRepository;
 		this.agencyService = agencyService;
 	}
 
@@ -77,13 +72,9 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 	}
 
 	private Mono<CheckResult> checkAgency(String agencyCode, String pickupLocationCode) {
-		return findAgency(agencyCode)
+		return agencyService.findByCode(agencyCode)
 			.map(mapping -> CheckResult.passed())
 			.defaultIfEmpty(CheckResult.failed(
 				"\"" + pickupLocationCode + "\" is mapped to \"" + agencyCode + "\" which is not a recognised agency"));
-	}
-
-	private Mono<DataAgency> findAgency(String agencyCode) {
-		return Mono.from(agencyRepository.findOneByCode(agencyCode));
 	}
 }
