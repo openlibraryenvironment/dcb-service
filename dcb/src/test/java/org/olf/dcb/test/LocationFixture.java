@@ -24,8 +24,8 @@ public class LocationFixture {
 			mapping -> locationRepository.delete(mapping.getId()));
 	}
 
-	public void createPickupLocation(String name, String code) {
-		singleValueFrom(locationRepository.save(Location.builder()
+	public Location createPickupLocation(String name, String code) {
+		return singleValueFrom(locationRepository.save(Location.builder()
 				.id(UUID.randomUUID())
 				.name(name)
 				.code(code)

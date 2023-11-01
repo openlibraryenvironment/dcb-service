@@ -38,7 +38,7 @@ public class PickupLocationPreflightCheck implements PreflightCheck {
 		try {
 			final var id = UUID.fromString(pickupLocationCode);
 
-			return Mono.empty();
+			return Mono.from(locationRepository.findById(id));
 		}
 		// Code is not a UUID
 		catch (IllegalArgumentException e) {

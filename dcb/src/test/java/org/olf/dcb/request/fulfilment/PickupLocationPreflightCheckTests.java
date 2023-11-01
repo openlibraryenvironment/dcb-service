@@ -39,6 +39,21 @@ public class PickupLocationPreflightCheckTests extends AbstractPreflightCheckTes
 	}
 
 	@Test
+	void shouldPassWhenPickupLocationCodeIsRecognisedAsAnID() {
+		// Arrange
+		final var location = locationFixture.createPickupLocation("Known Location", "known-pickup-location");
+
+		// Act
+		final var command = placeRequestCommand(location.getId().toString(),
+			"pickup-context", "requester-host-lms-code");
+
+		final var results = check.check(command).block();
+
+		// Assert
+		assertThat(results, containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
 	void shouldFailWhenPickupLocationCodeIsNotRecognised() {
 		// Act
 		final var command = placeRequestCommand("unknown-pickup-location",
