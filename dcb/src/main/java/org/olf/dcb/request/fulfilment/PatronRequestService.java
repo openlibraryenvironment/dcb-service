@@ -75,7 +75,7 @@ public class PatronRequestService {
 			.patron(patron)
 			.bibClusterId(command.getCitation().getBibClusterId())
 			.pickupLocationCodeContext(command.getPickupLocation().getContext())
-			.pickupLocationCode(command.getPickupLocation().getCode())
+			.pickupLocationCode(command.getPickupLocationCode())
 			.status(SUBMITTED_TO_DCB)
 			.description(command.getDescription())
 			.build();

@@ -17,11 +17,15 @@ public class PlacePatronRequestCommand {
 	@NotNull Requestor requestor;
 	@Nullable String description;
 
+	String getPickupLocationCode() {
+		return getPickupLocation().getCode();
+	}
+
 	@Serdeable
 	@Builder
 	@Value
 	public static class PickupLocation {
-                String context;
+		String context;
 		String code;
 	}
 

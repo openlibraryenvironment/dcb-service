@@ -17,7 +17,7 @@ public class PickupLocationPreflightCheck implements PreflightCheck {
 
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
-		final var pickupLocationCode = command.getPickupLocation().getCode();
+		final var pickupLocationCode = command.getPickupLocationCode();
 
 		return Mono.from(locationRepository.findOneByCode(pickupLocationCode))
 			.map(location -> CheckResult.passed())
