@@ -29,14 +29,14 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
-		final var pickupLocationCode = command.getPickupLocationCode();
-
-		return checkMapping(pickupLocationCode)
+		return checkMapping(command)
 			.flatMap(function(this::checkAgencyWhenPreviousCheckPassed))
 			.map(List::of);
 	}
 
-	private Mono<Tuple3<CheckResult, String, String>> checkMapping(String pickupLocationCode) {
+	private Mono<Tuple3<CheckResult, String, String>> checkMapping(PlacePatronRequestCommand command) {
+		final var pickupLocationCode = command.getPickupLocationCode();
+
 		return findAgencyMapping(pickupLocationCode)
 			.map(mapping -> Tuples.of(CheckResult.passed(), mapping.getToValue(), pickupLocationCode))
 			.defaultIfEmpty(Tuples.of(CheckResult.failed(
