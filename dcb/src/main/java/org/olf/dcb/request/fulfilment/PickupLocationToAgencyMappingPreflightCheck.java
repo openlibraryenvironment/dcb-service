@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.storage.AgencyRepository;
 
@@ -18,13 +19,15 @@ import reactor.util.function.Tuples;
 public class PickupLocationToAgencyMappingPreflightCheck implements PreflightCheck {
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final AgencyRepository agencyRepository;
+	private final AgencyService agencyService;
 
 	public PickupLocationToAgencyMappingPreflightCheck(
 		ReferenceValueMappingService referenceValueMappingService,
-		AgencyRepository agencyRepository) {
+		AgencyRepository agencyRepository, AgencyService agencyService) {
 
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.agencyRepository = agencyRepository;
+		this.agencyService = agencyService;
 	}
 
 	@Override
