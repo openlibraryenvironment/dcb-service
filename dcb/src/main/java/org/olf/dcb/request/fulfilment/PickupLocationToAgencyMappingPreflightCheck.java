@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.AgencyService;
+import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
 import jakarta.inject.Singleton;
@@ -17,12 +18,15 @@ import reactor.util.function.Tuples;
 public class PickupLocationToAgencyMappingPreflightCheck implements PreflightCheck {
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final AgencyService agencyService;
+	private final LocationService locationService;
 
 	public PickupLocationToAgencyMappingPreflightCheck(
-		ReferenceValueMappingService referenceValueMappingService, AgencyService agencyService) {
+			ReferenceValueMappingService referenceValueMappingService,
+			AgencyService agencyService, LocationService locationService) {
 
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.agencyService = agencyService;
+		this.locationService = locationService;
 	}
 
 	@Override
