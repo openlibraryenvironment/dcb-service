@@ -2,6 +2,7 @@ package org.olf.dcb.request.fulfilment;
 
 import java.util.List;
 
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.storage.LocationRepository;
 
 import jakarta.inject.Singleton;
@@ -19,9 +20,13 @@ public class PickupLocationPreflightCheck implements PreflightCheck {
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
 		final var pickupLocationCode = command.getPickupLocationCode();
 
-		return Mono.from(locationRepository.findOneByCode(pickupLocationCode))
+		return findByCode(pickupLocationCode)
 			.map(location -> CheckResult.passed())
 			.defaultIfEmpty(CheckResult.failed("\"" + pickupLocationCode + "\" is not a recognised pickup location code"))
 			.map(List::of);
+	}
+
+	private Mono<Location> findByCode(String pickupLocationCode) {
+		return Mono.from(locationRepository.findOneByCode(pickupLocationCode));
 	}
 }
