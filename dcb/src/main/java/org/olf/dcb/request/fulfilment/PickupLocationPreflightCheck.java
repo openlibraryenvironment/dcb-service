@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.storage.LocationRepository;
 
 import jakarta.inject.Singleton;
@@ -12,9 +13,13 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class PickupLocationPreflightCheck implements PreflightCheck {
 	private final LocationRepository locationRepository;
+	private final LocationService locationService;
 
-	public PickupLocationPreflightCheck(LocationRepository locationRepository) {
+	public PickupLocationPreflightCheck(LocationRepository locationRepository,
+		LocationService locationService) {
+
 		this.locationRepository = locationRepository;
+		this.locationService = locationService;
 	}
 
 	@Override
