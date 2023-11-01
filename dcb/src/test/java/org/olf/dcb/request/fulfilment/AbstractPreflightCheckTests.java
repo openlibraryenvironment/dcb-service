@@ -7,10 +7,12 @@ import static org.hamcrest.Matchers.hasProperty;
 import org.hamcrest.Matcher;
 
 public abstract class AbstractPreflightCheckTests {
+	protected static PlacePatronRequestCommand placeRequestCommand(
+		String pickupLocationCode, String pickupLocationContext) {
 
-	static PlacePatronRequestCommand placeRequestCommand(String pickupLocationCode) {
 		return PlacePatronRequestCommand.builder()
 			.pickupLocation(PlacePatronRequestCommand.PickupLocation.builder()
+				.context(pickupLocationContext)
 				.code(pickupLocationCode)
 				.build())
 			.build();
