@@ -21,9 +21,20 @@ public class PickupLocationPreflightCheck implements PreflightCheck {
 		final var pickupLocationCode = command.getPickupLocationCode();
 
 		return findByCode(pickupLocationCode)
+			.switchIfEmpty(findById(pickupLocationCode))
 			.map(location -> CheckResult.passed())
 			.defaultIfEmpty(CheckResult.failed("\"" + pickupLocationCode + "\" is not a recognised pickup location code"))
 			.map(List::of);
+	}
+
+	/**
+	 * Use the pickup location code which can sometimes be an ID to find a location record
+	 *
+	 * @param pickupLocationCode the code might actually be an ID
+	 * @return empty if the code is not a UUID, otherwise the result of finding a location by ID
+	 */
+	private Mono<Location> findById(String pickupLocationCode) {
+		return Mono.empty();
 	}
 
 	private Mono<Location> findByCode(String pickupLocationCode) {
