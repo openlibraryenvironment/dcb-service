@@ -25,6 +25,10 @@ public class PlacePatronRequestCommand {
 		return getPickupLocation().getContext();
 	}
 
+	String getRequestorLocalSystemCode() {
+		return getRequestor().getLocalSystemCode();
+	}
+
 	@Serdeable
 	@Builder
 	@Value
