@@ -1,6 +1,117 @@
 # Changelog
 
+## Version 1.9.0
+
+### Additions
+* [General]
+	* Find location by ID when code is a UUID during agency mapping preflight check DCB-519
+	* Find location by ID when code is a UUID during preflight pickup location check DCB-519
+	* Find agency mapping in requestor host LMS context during preflight check DCB-519
+	* Find agency mapping in explicit pickup location context during preflight check DCB-519
+	* Fail preflight checks when pickup location is mapped to an unrecognised agency DCB-519
+	* Fail preflight checks when pickup location is not mapped to an agency DCB-519
+	* Fail preflight checks when pickup location is not recognised DCB-519
+
+### Changes
+* [Chore]
+	* Do not attempt to find pickup location by ID when code is not a UUID DCB-519
+	* Replace spaces with tabs in reference value mapping service DCB-519
+	* Do not attempt to find mapping when pickup location context is null or empty DCB-519
+	* Replace spaces with tabs in reference value mapping fixture DCB-519
+	* Add agency repository dependency to agency mapping preflight check DCB-519
+	* Introduce pickup location to agency mapping check DCB-519
+	* Add dependency on location repository to preflight checks service DCB-519
+	* Consistent debug log messages in patron request service DCB-519
+	* Use annotation for patron request service log DCB-519
+	* Hard code failure for unknown pickup location code DCB-519
+	* Extract shelving location lookup for more fine grained exception reporting
+	* Decompose create bib to throw more granualr exceptions
+* [Refactor]
+	* Introduce method for possibly mapping a location ID to a code DCB-519
+	* Extract method for finding agency mapping by code and context or host LMS code DCB-519
+	* Add location service dependency to agency mapping preflight check DCB-519
+	* Move find by code method to agency service DCB-519
+	* Introduce agency service dependency for agency mapping preflight check DCB-519
+	* Move find by ID string overload to location service DCB-519
+	* Move find by code method to location service DCB-519
+	* Move find by ID method to location service DCB-519
+	* Add location service dependency for pickup location preflight check DCB-519
+	* Introduce method for finding a location by ID during pickup location preflight check DCB-519
+	* Extract method for finding pickup location by Code DCB-519
+	* Move empty or null from context check to reference value mapping service DCB-519
+	* Reduce duplication when finding a location to agency mapping DCB-519
+	* Extract method for getting requestor's local system code DCB-519
+	* Introduce method for finding agency mapping by context DCB-519
+	* Extract method for getting pickup location context from command DCB-519
+	* Pass command instead of pickup location code only when finding mapping DCB-519
+	* pass command instead of pickup location code when checking mapping DCB-519
+	* Extract method for getting pickup location code from command DCB-519
+	* Extract method for finding a pickup location to agency mapping in DCB context DCB-519
+	* Extract method for finding an agency by code DCB-519
+	* Extract method for checking agency without assessing previous check result DCB-519
+	* Extract method for finding agency mapping DCB-519
+	* Introduce method for checking whether agency exists during preflight check DCB-519
+	* Return tuple of result and agency code during agency mapping check DCB-519
+	* Extract method for checking pickup location to agency mapping DCB-519
+	* Extract method for performing preflight checks DCB-519
+	* Extract method for creating failed checks exception from results DCB-519
+	* Extract method for mapping failed check result to failure DCB-519
+	* Extract method for checking whether a check has failed DCB-519
+	* Extract method for checking whether all checks have passed DCB-519
+	* Add reference value mapping service dependency to pickup location to agency mapping check DCB-519
+	* Inject collection of preflight checks DCB-519
+	* Define flux from list of checks DCB-519
+	* Extract interface for preflight check DCB-519
+	* Reduce flux of preflight checks DCB-519
+	* Return list of check results from each check DCB-519
+	* Move pickup location preflight check to separate class DCB-519
+	* Return result when checking for recognised pickup location DCB-519
+	* Rename preflight check class DCB-519
+	* Rename preflight check exception DCB-519
+	* Move hard coded pre-flight check to separate service DCB-519
+	* Use zip to find or create a patron when placing a request DCB-519
+	* Add hard coded check into reactive chain for placing a patron request DCB-519
+	* Move hard coded failure to service DCB-519
+	* Move check failed exception to request fulfilment package DCB-519
+* [Test]
+	* Delete locations for pickup location to agency mapping preflight check tests DCB-519
+	* Provide requestor local system code in preflight tests DCB-519
+	* Provide pickup location context in preflight tests DCB-519
+	* Extract method for defining pickup location to agency mapping in preflight check tests DCB-519
+	* Remove duplicated code for defining location to agency mappings DCB-519
+	* Rename parameters for defining location to agency mappings DCB-519
+	* Remove pickup location to agency mappings in patron request API tests DCB-519
+	* Explicit DCB context in mappings for preflight tests DCB-519
+	* Define an agency during succesful preflight agency mapping test DCB-519
+	* Delete all agencies before agency mapping preflight checks DCB-519
+	* Move preflight checks common code to abstract base class DCB-519
+	* Remove preflight checks service tests DCB-519
+	* Split out pickup location to agency mapping preflight tests DCB-519
+	* Split out pickup location preflight tests DCB-519
+	* Move checks failure response class to clients package DCB-519
+	* Extract matcher for preflight check failure description in API tests DCB-519
+	* Delete all reference value mappings during preflight tests DCB-519
+	* Move recognised pickup location check tests to nested class DCB-519
+	* Define pickup location in patron request API tests DCB-519
+	* Move method for creating a pickup location to fixture DCB-519
+	* Extract method for creating a pickup location DCB-519
+	* Create location in known location preflight check test DCB-519
+	* Delete all locations prior to preflight check tests DCB-519
+	* Tests for hard coded pickup location check DCB-519
+	* Disabled test for placing a request with unknown pickup location DCB-519
+	* Reduce maximum PostgreSQL connections to one
+
+### Fixes
+* [Graphql]
+	* Remove duplicated field in SupplierRequest
+* [Workflow]
+	* When the resolver was not able to choose an item because all the options are electronic, resove to no items available
+
 ## Version 1.8.4
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
