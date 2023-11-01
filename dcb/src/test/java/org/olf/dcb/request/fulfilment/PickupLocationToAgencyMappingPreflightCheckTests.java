@@ -62,6 +62,23 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 	}
 
 	@Test
+	void shouldPassWhenPickupLocationIsMappedToAnAgencyInRequestorHostLmsContext() {
+		// Arrange
+		agencyFixture.defineAgency("known-agency");
+
+		definePickupLocationToAgencyMapping("requester-host-lms-code", "known-pickup-location", "known-agency");
+
+		// Act
+		final var command = placeRequestCommand("known-pickup-location",
+			null, "requester-host-lms-code");
+
+		final var results = check.check(command).block();
+
+		// Assert
+		assertThat(results, containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
 	void shouldFailWhenPickupLocationIsNotMappedToAnAgency() {
 		// Act
 		final var command = placeRequestCommand("known-pickup-location",
