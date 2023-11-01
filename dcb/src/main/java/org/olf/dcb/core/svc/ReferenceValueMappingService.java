@@ -1,5 +1,7 @@
 package org.olf.dcb.core.svc;
 
+import static io.micronaut.core.util.StringUtils.isEmpty;
+
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 
@@ -19,6 +21,10 @@ public class ReferenceValueMappingService {
 	}
 
 	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String context, String pickupLocationCode) {
+		if (isEmpty(context)) {
+			return Mono.empty();
+		}
+
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
 			"Location",
 			context,

@@ -9,7 +9,6 @@ import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.storage.AgencyRepository;
 
-import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple3;
@@ -52,10 +51,6 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 
 	private Mono<ReferenceValueMapping> findAgencyMapping(
 		String pickupLocationContext, String pickupLocationCode) {
-
-		if (StringUtils.isEmpty(pickupLocationContext)) {
-			return Mono.empty();
-		}
 
 		return referenceValueMappingService.findLocationToAgencyMapping(
 			pickupLocationContext, pickupLocationCode);
