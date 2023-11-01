@@ -81,7 +81,9 @@ public class PatronRequestResolutionService {
 			.doOnNext(item -> log.debug("Selected item {}",item))
 			.flatMap(item -> createSupplierRequest(item, patronRequest))
 			.map(PatronRequestResolutionService::mapToResolution)
-			.onErrorReturn(NoItemsRequestableAtAnyAgency.class, resolveToNoItemsAvailable(patronRequest));
+			.onErrorReturn(NoItemsRequestableAtAnyAgency.class, resolveToNoItemsAvailable(patronRequest))
+			.switchIfEmpty(Mono.just(resolveToNoItemsAvailable(patronRequest)))
+                        ;
 	}
 
 	private Mono<ClusteredBib> findClusterRecord(UUID clusterRecordId) {
