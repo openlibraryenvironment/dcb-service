@@ -4,6 +4,7 @@ import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationService;
@@ -59,8 +60,17 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 			.switchIfEmpty(findAgencyMapping(requestorLocalSystemCode, pickupLocationCode));
 	}
 
+	/**
+	 * // The code might be an ID, when it is find the location and use that code
+	 *
+	 * @param pickupLocationCode code to try to interpret as an ID
+	 * @return the code of the location found by ID if the code is an ID,
+	 * otherwise return the original code
+	 */
 	private Mono<String> mapPossibleIdToCode(String pickupLocationCode) {
-		return Mono.just(pickupLocationCode);
+		return locationService.findById(pickupLocationCode)
+			.map(Location::getCode)
+			.defaultIfEmpty(pickupLocationCode);
 	}
 
 	private Mono<ReferenceValueMapping> findAgencyMapping(
