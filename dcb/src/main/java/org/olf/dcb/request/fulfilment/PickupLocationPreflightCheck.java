@@ -1,6 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.storage.LocationRepository;
@@ -34,7 +35,15 @@ public class PickupLocationPreflightCheck implements PreflightCheck {
 	 * @return empty if the code is not a UUID, otherwise the result of finding a location by ID
 	 */
 	private Mono<Location> findById(String pickupLocationCode) {
-		return Mono.empty();
+		try {
+			final var id = UUID.fromString(pickupLocationCode);
+
+			return Mono.empty();
+		}
+		// Code is not a UUID
+		catch (IllegalArgumentException e) {
+			return Mono.empty();
+		}
 	}
 
 	private Mono<Location> findByCode(String pickupLocationCode) {
