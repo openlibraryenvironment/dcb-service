@@ -65,16 +65,18 @@ public class GraphQLFactory {
 						.dataFetcher("processStates", dataFetchers.getProcessStateDataFetcher())
 				)
 				.type("Mutation",
-						typeWiring -> typeWiring.dataFetcher("createAgencyGroup", createAgencyGroupDataFetcher)
+					typeWiring -> typeWiring.dataFetcher("createAgencyGroup", createAgencyGroupDataFetcher)
 								.dataFetcher("addAgencyToGroup", addAgencyToGroupDataFetcher))
 				.type("AgencyGroup",
-						typeWiring -> typeWiring.dataFetcher("members", dataFetchers.getAgencyGroupMembersDataFetcher()))
+					typeWiring -> typeWiring.dataFetcher("members", dataFetchers.getAgencyGroupMembersDataFetcher()))
 				.type("AgencyGroupMember",
-						typeWiring -> typeWiring.dataFetcher("agency", dataFetchers.getAgencyDataFetcherForGroupMember()))
+					typeWiring -> typeWiring.dataFetcher("agency", dataFetchers.getAgencyDataFetcherForGroupMember()))
 				.type("ClusterRecord",
-						typeWiring -> typeWiring.dataFetcher("members", dataFetchers.getClusterMembersDataFetcher()))
+					typeWiring -> typeWiring.dataFetcher("members", dataFetchers.getClusterMembersDataFetcher()))
                                 .type("BibRecord",
                                         typeWiring -> typeWiring.dataFetcher("sourceRecord", dataFetchers.getSourceRecordForBibDataFetcher()))
+                                .type("PatronRequst",
+					typeWiring -> typeWiring.dataFetcher("supplierRequests", dataFetchers.getSupplierRequestsForPR()))
 				.build();
 
 		// Create the executable schema.

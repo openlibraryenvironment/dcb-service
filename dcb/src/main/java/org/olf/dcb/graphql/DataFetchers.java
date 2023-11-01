@@ -23,6 +23,7 @@ import org.olf.dcb.storage.postgres.PostgresHostLmsRepository;
 import org.olf.dcb.storage.postgres.PostgresLocationRepository;
 import org.olf.dcb.storage.postgres.PostgresAgencyGroupRepository;
 import org.olf.dcb.storage.postgres.PostgresProcessStateRepository;
+import org.olf.dcb.storage.postgres.PostgresSupplierRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.reactivestreams.Publisher;
@@ -262,4 +263,11 @@ public class DataFetchers {
                         return Mono.from(postgresProcessStateRepository.findAll(pageable)).toFuture();
                 };
 	}
+
+        public DataFetcher<CompletableFuture<List<SupplierRequest>>> getSupplierRequestsForPR() {
+                return env -> {
+                        return Flux.from(postgresSupplierRequestRepository.findAllByPatronRequest(env.getSource())).collectList().toFuture();
+                };
+        }
+
 }
