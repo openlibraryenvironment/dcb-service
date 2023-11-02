@@ -91,8 +91,7 @@ class LiveAvailabilityApiTests {
 		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId,
 			"798472", clusterRecord);
 
-		referenceValueMappingFixture.defineShelvingLocationToAgencyMapping(
-			"live-availability-api-tests", "ab6", "345test");
+		referenceValueMappingFixture.defineLocationToAgencyMapping( "live-availability-api-tests", "ab6", "345test");
 
 		agencyFixture.saveAgency(
 			DataAgency.builder()

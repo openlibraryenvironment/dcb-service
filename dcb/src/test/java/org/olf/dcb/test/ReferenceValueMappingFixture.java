@@ -59,6 +59,7 @@ public class ReferenceValueMappingFixture {
 			.build());
 	}
 
+/*
 	public void defineShelvingLocationToAgencyMapping(String fromContext,
 		String shelvingLocationCode, String agencyCode) {
 
@@ -72,6 +73,7 @@ public class ReferenceValueMappingFixture {
 			.toValue(agencyCode)
 			.build());
 	}
+*/
 
 	public void definePatronTypeMapping(String fromContext, String fromPatronType,
 		String toContext, String toPatronType) {

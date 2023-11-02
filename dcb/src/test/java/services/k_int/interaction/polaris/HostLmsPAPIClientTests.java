@@ -90,8 +90,7 @@ public class HostLmsPAPIClientTests {
 	@Test
 	public void getItemsByBibIdTest() throws IOException {
 		// Arrange
-		referenceValueMappingFixture.defineShelvingLocationToAgencyMapping(
-			"polaris-hostlms-tests", "15", "345test");
+		referenceValueMappingFixture.defineLocationToAgencyMapping( "polaris-hostlms-tests", "15", "345test");
 
 		agencyFixture.saveAgency(DataAgency.builder().id(randomUUID()).code("345test").name("Test College").build());
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());

@@ -127,7 +127,7 @@ public class PatronRequestResolutionService {
                 log.debug("Attempting to resolveSupplyingAgency(hostSystem={},shelvingLocation={})",host_lms_code, shelving_location);
 
                 return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-                                                                        "ShelvingLocation", host_lms_code, shelving_location, "AGENCY", "DCB"))
+                                                                        "Location", host_lms_code, shelving_location, "AGENCY", "DCB"))
                                                                         .flatMap(rvm -> Mono.from(agencyRepository.findOneByCode( rvm.getToValue() )));
 	}
 

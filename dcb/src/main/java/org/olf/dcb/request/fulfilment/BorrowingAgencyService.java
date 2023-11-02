@@ -146,7 +146,7 @@ public class BorrowingAgencyService {
 		Objects.requireNonNull(localBibId, "Local bib ID not set on Patron Request");
 
 		log.debug("createVirtualItem for localBibId {}/{}", localBibId, supplierRequest.getLocalItemLocationCode());
-		log.debug("slToAgency:{} {} {} {} {}", "ShelvingLocation", supplierRequest.getHostLmsCode(),
+		log.debug("slToAgency:{} {} {} {} {}", "Location", supplierRequest.getHostLmsCode(),
 				supplierRequest.getLocalItemLocationCode(), "AGENCY", "DCB");
 
 		return getAgencyForShelvingLocation(supplierRequest.getHostLmsCode(), supplierRequest.getLocalItemLocationCode())
@@ -165,7 +165,8 @@ public class BorrowingAgencyService {
 
 	private Mono<ReferenceValueMapping> getAgencyForShelvingLocation(String context, String code) {
 		return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-                	"ShelvingLocation", context, code, "AGENCY", "DCB"))
+                	"Location", context, code, "AGENCY", "DCB"))
+			.doOnSuccess(rvm -> log.debug("looked up "+rvm.getToValue()+" for "+context+":"+code))
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to resolve shelving loc "+context+":"+code+" to agency")));
 	}
 

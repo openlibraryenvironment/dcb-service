@@ -364,7 +364,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		// {}:\"{}\"",hostSystem,itemShelvingLocation);
 		return Mono
 				.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-						"ShelvingLocation", hostSystem, itemShelvingLocation, "AGENCY", "DCB"))
+						"Location", hostSystem, itemShelvingLocation, "AGENCY", "DCB"))
 				.flatMap(rvm -> Mono.from(agencyRepository.findOneByCode(rvm.getToValue()))).map(dataAgency -> {
 					item.setAgencyCode(dataAgency.getCode());
 					item.setAgencyDescription(dataAgency.getName());

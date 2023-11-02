@@ -139,8 +139,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		singleValueFrom(shelvingLocationRepository.save(shelvingLocation));
 
-		referenceValueMappingFixture.defineShelvingLocationToAgencyMapping(
-			"borrowing-agency-service-tests", "ab6", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping("borrowing-agency-service-tests", "ab6", "ab6");
 	}
 
 	@AfterAll
