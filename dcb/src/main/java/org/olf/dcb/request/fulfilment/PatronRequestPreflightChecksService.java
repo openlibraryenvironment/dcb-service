@@ -3,6 +3,8 @@ package org.olf.dcb.request.fulfilment;
 import java.util.Collection;
 import java.util.List;
 
+import org.olf.dcb.storage.EventLogRepository;
+
 import graphql.com.google.common.collect.Streams;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
@@ -12,8 +14,13 @@ import reactor.core.publisher.Mono;
 public class PatronRequestPreflightChecksService {
 	private	final Collection<PreflightCheck> checks;
 
-	public PatronRequestPreflightChecksService(Collection<PreflightCheck> checks) {
+	private final EventLogRepository eventLogRepository;
+
+	public PatronRequestPreflightChecksService(Collection<PreflightCheck> checks,
+		EventLogRepository eventLogRepository) {
+
 		this.checks = checks;
+		this.eventLogRepository = eventLogRepository;
 	}
 
 	public Mono<PlacePatronRequestCommand> check(PlacePatronRequestCommand command) {
