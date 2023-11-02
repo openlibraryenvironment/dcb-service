@@ -1,5 +1,34 @@
 # Changelog
 
+## Version 1.10.0
+
+### Additions
+* [General]
+	* Report failed preflight checks in event log DCB-532
+
+### Changes
+* [Chore]
+	* scripts - fix graphql_hostlms script - hostlms doesn't have dates
+	* graphql - Add created and modified dates to patron request
+* [Feature]
+	* graphql - Add PatronRequestAudit into graphql model and attach to PatronRequest object
+	* graphql - Add supplierRequests to patronRequest
+* [Refactor]
+	* Define event as a value object DCB-532
+	* Extract method for creating an event from a failed check result DCB-532
+	* Define event type as a enum DCB-532
+	* Introduce method for reporting failed checks in the event log DCB-532
+	* Add event log repository dependency to preflight checks service DCB-532
+* [Test]
+	* Extract method for checking failed check event in log DCB-532
+	* Check that successfully placed patron request generates no events in the log DCB-532
+	* Demonstrate failed preflight check for mapping only DCB-532
+	* Delete all event log entries before each patron request API test DCB-532
+
+### Fixes
+* [Mappings]
+	* Expunge residual ShelvingLocation references - we're now just on a flat list of Locations
+
 ## Version 1.9.0
 
 ### Additions
@@ -14,6 +43,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Do not attempt to find pickup location by ID when code is not a UUID DCB-519
 	* Replace spaces with tabs in reference value mapping service DCB-519
 	* Do not attempt to find mapping when pickup location context is null or empty DCB-519
