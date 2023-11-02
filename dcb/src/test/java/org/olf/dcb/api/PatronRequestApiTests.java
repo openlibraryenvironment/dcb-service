@@ -16,6 +16,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.model.EventType.FAILED_CHECK;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
@@ -478,13 +479,13 @@ class PatronRequestApiTests {
 			allOf(
 				hasProperty("id", is(notNullValue())),
 				hasProperty("dateCreated", is(notNullValue())),
-				hasProperty("type", is("FAILED_CHECK")),
+				hasProperty("type", is(FAILED_CHECK)),
 				hasProperty("summary", is("\"unknown-pickup-location\" is not a recognised pickup location code"))
 			),
 			allOf(
 				hasProperty("id", is(notNullValue())),
 				hasProperty("dateCreated", is(notNullValue())),
-				hasProperty("type", is("FAILED_CHECK")),
+				hasProperty("type", is(FAILED_CHECK)),
 				hasProperty("summary", is("\"unknown-pickup-location\" is not mapped to an agency"))
 			)
 		));
@@ -526,7 +527,7 @@ class PatronRequestApiTests {
 			allOf(
 				hasProperty("id", is(notNullValue())),
 				hasProperty("dateCreated", is(notNullValue())),
-				hasProperty("type", is("FAILED_CHECK")),
+				hasProperty("type", is(FAILED_CHECK)),
 				hasProperty("summary", is("\"unmapped-pickup-location\" is not mapped to an agency"))
 			)
 		));

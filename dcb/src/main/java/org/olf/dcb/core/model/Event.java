@@ -38,7 +38,8 @@ public class Event {
 
 	@Nullable
 	@Column(name = "event_type")
-	String type;
+	@TypeDef(type = DataType.STRING)
+	EventType type;
 
 	@Nullable
 	@Column(name = "event_summary")
