@@ -39,6 +39,7 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Event;
 import org.olf.dcb.core.model.ShelvingLocation;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
@@ -476,18 +477,8 @@ class PatronRequestApiTests {
 			));
 
 		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
-			allOf(
-				hasProperty("id", is(notNullValue())),
-				hasProperty("dateCreated", is(notNullValue())),
-				hasProperty("type", is(FAILED_CHECK)),
-				hasProperty("summary", is("\"unknown-pickup-location\" is not a recognised pickup location code"))
-			),
-			allOf(
-				hasProperty("id", is(notNullValue())),
-				hasProperty("dateCreated", is(notNullValue())),
-				hasProperty("type", is(FAILED_CHECK)),
-				hasProperty("summary", is("\"unknown-pickup-location\" is not mapped to an agency"))
-			)
+			isFailedCheckEvent("\"unknown-pickup-location\" is not a recognised pickup location code"),
+			isFailedCheckEvent("\"unknown-pickup-location\" is not mapped to an agency")
 		));
 	}
 
@@ -524,13 +515,7 @@ class PatronRequestApiTests {
 			));
 
 		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
-			allOf(
-				hasProperty("id", is(notNullValue())),
-				hasProperty("dateCreated", is(notNullValue())),
-				hasProperty("type", is(FAILED_CHECK)),
-				hasProperty("summary", is("\"unmapped-pickup-location\" is not mapped to an agency"))
-			)
-		));
+			isFailedCheckEvent("\"unmapped-pickup-location\" is not mapped to an agency")));
 	}
 
 	@Test
@@ -554,6 +539,15 @@ class PatronRequestApiTests {
 		return hasProperty("status",
 			hasProperty("code", is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY")
 		));
+	}
+
+	private static Matcher<Event> isFailedCheckEvent(String expectedSummary) {
+		return allOf(
+			hasProperty("id", is(notNullValue())),
+			hasProperty("dateCreated", is(notNullValue())),
+			hasProperty("type", is(FAILED_CHECK)),
+			hasProperty("summary", is(expectedSummary))
+		);
 	}
 
 	private void savePatronTypeMappings() {
