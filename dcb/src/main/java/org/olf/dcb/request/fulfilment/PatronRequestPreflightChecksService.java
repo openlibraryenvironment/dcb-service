@@ -30,7 +30,9 @@ public class PatronRequestPreflightChecksService {
 					return Mono.just(command);
 				}
 
-				return Mono.error(PreflightCheckFailedException.from(results));
+				return reportFailedChecksInEventLog(results)
+					.flatMap(reportedResults ->
+						Mono.error(PreflightCheckFailedException.from(reportedResults)));
 			});
 	}
 
@@ -48,5 +50,9 @@ public class PatronRequestPreflightChecksService {
 
 	private static boolean allPassed(List<CheckResult> results) {
 		return results.stream().allMatch(CheckResult::getPassed);
+	}
+
+	private Mono<List<CheckResult>> reportFailedChecksInEventLog(List<CheckResult> results) {
+		return Mono.just(results);
 	}
 }
