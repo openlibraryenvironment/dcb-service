@@ -7,6 +7,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -472,6 +473,21 @@ class PatronRequestApiTests {
 				hasDescription("\"unknown-pickup-location\" is not a recognised pickup location code"),
 				hasDescription("\"unknown-pickup-location\" is not mapped to an agency"))
 			));
+
+		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
+			allOf(
+				hasProperty("id", is(notNullValue())),
+				hasProperty("dateCreated", is(notNullValue())),
+				hasProperty("type", is("FAILED_CHECK")),
+				hasProperty("summary", is("\"unknown-pickup-location\" is not a recognised pickup location code"))
+			),
+			allOf(
+				hasProperty("id", is(notNullValue())),
+				hasProperty("dateCreated", is(notNullValue())),
+				hasProperty("type", is("FAILED_CHECK")),
+				hasProperty("summary", is("\"unknown-pickup-location\" is not mapped to an agency"))
+			)
+		));
 	}
 
 	@Test
@@ -505,6 +521,15 @@ class PatronRequestApiTests {
 			hasProperty("failedChecks", containsInAnyOrder(
 				hasDescription("\"unmapped-pickup-location\" is not mapped to an agency"))
 			));
+
+		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
+			allOf(
+				hasProperty("id", is(notNullValue())),
+				hasProperty("dateCreated", is(notNullValue())),
+				hasProperty("type", is("FAILED_CHECK")),
+				hasProperty("summary", is("\"unmapped-pickup-location\" is not mapped to an agency"))
+			)
+		));
 	}
 
 	@Test

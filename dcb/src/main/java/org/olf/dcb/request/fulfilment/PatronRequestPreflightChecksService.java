@@ -2,7 +2,9 @@ package org.olf.dcb.request.fulfilment;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 
+import org.olf.dcb.core.model.Event;
 import org.olf.dcb.storage.EventLogRepository;
 
 import graphql.com.google.common.collect.Streams;
@@ -53,6 +55,13 @@ public class PatronRequestPreflightChecksService {
 	}
 
 	private Mono<List<CheckResult>> reportFailedChecksInEventLog(List<CheckResult> results) {
-		return Mono.just(results);
+		return Flux.fromIterable(results)
+			.filter(CheckResult::getFailed)
+			.concatMap(result -> eventLogRepository.save(Event.builder()
+				.id(UUID.randomUUID())
+				.type("FAILED_CHECK")
+				.summary(result.getFailureDescription())
+				.build()))
+			.then(Mono.just(results));
 	}
 }
