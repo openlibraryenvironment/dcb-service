@@ -472,6 +472,39 @@ class PatronRequestApiTests {
 	}
 
 	@Test
+	void cannotPlaceRequestForPickupAtUnmappedLocation() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var sourceSystemId = hostLms.getId();
+
+		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+
+		locationFixture.createPickupLocation("Unmapped pickup location", "unmapped-pickup-location");
+
+		// Act
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
+				"73825", "unmapped-pickup-location", HOST_LMS_CODE, "home-library-code"));
+
+		// Assert
+		final var response = exception.getResponse();
+
+		assertThat("Should respond with a bad request status",
+			response.getStatus(), is(BAD_REQUEST));
+
+		final var optionalBody = response.getBody(ChecksFailure.class);
+
+		assertThat("Response should have a body", optionalBody.isPresent(), is(true));
+
+		assertThat("Body should report unmapped pickup location failed check", optionalBody.get(),
+			hasProperty("failedChecks", containsInAnyOrder(
+				hasDescription("\"unmapped-pickup-location\" is not mapped to an agency"))
+			));
+	}
+
+	@Test
 	void cannotFindPatronRequestForUnknownId() {
 		log.info("\n\ncannotFindPatronRequestForUnknownId\n\n");
 		final var exception = assertThrows(HttpClientResponseException.class,
