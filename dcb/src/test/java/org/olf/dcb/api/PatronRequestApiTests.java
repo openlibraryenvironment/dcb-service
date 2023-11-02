@@ -43,6 +43,7 @@ import org.olf.dcb.storage.ShelvingLocationRepository;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.EventLogFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.PatronFixture;
@@ -84,6 +85,8 @@ class PatronRequestApiTests {
 	private AgencyFixture agencyFixture;
 	@Inject
 	private LocationFixture locationFixture;
+	@Inject
+	private EventLogFixture eventLogFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
@@ -166,6 +169,8 @@ class PatronRequestApiTests {
 		clusterRecordFixture.deleteAllClusterRecords();
 
 		referenceValueMappingFixture.deleteAll();
+
+		eventLogFixture.deleteAll();
 
 		log.debug("Creating dataHostLms records for codeAA and codeBB");
 
