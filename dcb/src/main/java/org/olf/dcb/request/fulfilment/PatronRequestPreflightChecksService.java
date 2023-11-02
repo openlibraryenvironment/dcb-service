@@ -59,11 +59,15 @@ public class PatronRequestPreflightChecksService {
 	private Mono<List<CheckResult>> reportFailedChecksInEventLog(List<CheckResult> results) {
 		return Flux.fromIterable(results)
 			.filter(CheckResult::getFailed)
-			.concatMap(result -> eventLogRepository.save(Event.builder()
-				.id(UUID.randomUUID())
-				.type(FAILED_CHECK)
-				.summary(result.getFailureDescription())
-				.build()))
+			.concatMap(result -> eventLogRepository.save(eventFrom(result)))
 			.then(Mono.just(results));
+	}
+
+	private static Event eventFrom(CheckResult result) {
+		return Event.builder()
+			.id(UUID.randomUUID())
+			.type(FAILED_CHECK)
+			.summary(result.getFailureDescription())
+			.build();
 	}
 }
