@@ -103,6 +103,15 @@ type PatronRequest {
   errorMessage: String
   activeWorkflow: String
   supplierRequests: [SupplierRequest]
+  auditMessages: [PatronRequestAudit]
+}
+
+type PatronRequestAudit {
+  id: ID!
+  briefDescription: String
+  fromStatus: String
+  toStatus: String
+  auditData: String
 }
 
 type SupplierRequest {

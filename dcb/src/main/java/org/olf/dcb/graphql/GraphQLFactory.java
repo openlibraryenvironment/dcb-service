@@ -76,7 +76,10 @@ public class GraphQLFactory {
                                 .type("BibRecord",
                                         typeWiring -> typeWiring.dataFetcher("sourceRecord", dataFetchers.getSourceRecordForBibDataFetcher()))
                                 .type("PatronRequst",
-					typeWiring -> typeWiring.dataFetcher("supplierRequests", dataFetchers.getSupplierRequestsForPR()))
+					typeWiring -> typeWiring
+                                                .dataFetcher("supplierRequests", dataFetchers.getSupplierRequestsForPR())
+                                                .dataFetcher("auditMessages", dataFetchers.getAuditMessagesForPR())
+                                )
 				.build();
 
 		// Create the executable schema.

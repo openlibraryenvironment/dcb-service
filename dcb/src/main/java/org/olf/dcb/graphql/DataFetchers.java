@@ -5,6 +5,7 @@ import java.util.concurrent.CompletableFuture;
 import org.olf.dcb.core.model.AgencyGroupMember;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.model.BibRecord;
@@ -24,6 +25,7 @@ import org.olf.dcb.storage.postgres.PostgresLocationRepository;
 import org.olf.dcb.storage.postgres.PostgresAgencyGroupRepository;
 import org.olf.dcb.storage.postgres.PostgresProcessStateRepository;
 import org.olf.dcb.storage.postgres.PostgresSupplierRequestRepository;
+import org.olf.dcb.storage.postgres.PostgresPatronRequestAuditRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.reactivestreams.Publisher;
@@ -57,6 +59,7 @@ public class DataFetchers {
         private final PostgresLocationRepository postgresLocationRepository;
         private final PostgresAgencyGroupRepository postgresAgencyGroupRepository;
         private final PostgresProcessStateRepository postgresProcessStateRepository;
+        private final PostgresPatronRequestAuditRepository postgresPatronRequestAuditRepository;
 	private final QueryService qs;
 
 	public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
@@ -69,6 +72,7 @@ public class DataFetchers {
                         PostgresLocationRepository postgresLocationRepository,
                         PostgresAgencyGroupRepository postgresAgencyGroupRepository,
 			PostgresProcessStateRepository postgresProcessStateRepository,
+                        PostgresPatronRequestAuditRepository postgresPatronRequestAuditRepository,
                         QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
@@ -81,6 +85,7 @@ public class DataFetchers {
                 this.postgresLocationRepository = postgresLocationRepository;
                 this.postgresAgencyGroupRepository = postgresAgencyGroupRepository;
                 this.postgresProcessStateRepository = postgresProcessStateRepository;
+                this.postgresPatronRequestAuditRepository = postgresPatronRequestAuditRepository;
 	}
 
 
@@ -270,4 +275,9 @@ public class DataFetchers {
                 };
         }
 
+        public DataFetcher<CompletableFuture<List<PatronRequestAudit>>> getAuditMessagesForPR() {
+                return env -> {
+                        return Flux.from(postgresPatronRequestAuditRepository.findAllByPatronRequest(env.getSource())).collectList().toFuture();
+                };
+        }
 }

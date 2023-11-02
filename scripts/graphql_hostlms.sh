@@ -9,7 +9,7 @@ echo List hostlms
 echo
 # lq=shorthand for lucene query
 curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "$TARGET/graphql" -d '{ 
-  "query": "query($lq: String) { hostLms(query: $lq) { totalSize, pageable { number, offset }, content { id, name, code, lmsClientClass, clientConfig } } }",
+  "query": "query($lq: String) { hostLms(query: $lq) { totalSize, pageable { number, offset }, content { id, name, code, lmsClientClass, clientConfig,  dateCreated, dateUpdated} } }",
   "variables": {
     "lq" : "code:*"
   }
