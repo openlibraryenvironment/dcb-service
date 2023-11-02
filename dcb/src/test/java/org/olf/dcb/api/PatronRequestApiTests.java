@@ -333,6 +333,9 @@ class PatronRequestApiTests {
 		assertThat(lastAudit.getFromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 		assertThat(lastAudit.getToStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
 		assertThat(lastAudit.getDate(), is(notNullValue()));
+
+		assertThat("Should not record any failed check event log entries",
+			eventLogFixture.findAll(), hasSize(0));
 	}
 
 	@Test
