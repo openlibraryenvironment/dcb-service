@@ -3,18 +3,19 @@ package org.olf.dcb.request.fulfilment;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNoBriefDescription;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasLocalPatronType;
 
 import java.util.UUID;
 
-import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -24,7 +25,6 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.workflow.ValidatePatronTransition;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -216,21 +216,5 @@ public class ValidatePatronTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		return patronRequest;
-	}
-
-	private static Matcher<PatronRequestAudit> hasNoBriefDescription() {
-		return hasProperty("briefDescription", is(nullValue()));
-	}
-
-	private static Matcher<PatronRequestAudit> hasToStatus(PatronRequest.Status expectedStatus) {
-		return hasProperty("toStatus", is(expectedStatus));
-	}
-
-	private static Matcher<PatronRequestAudit> hasFromStatus(PatronRequest.Status expectedStatus) {
-		return hasProperty("fromStatus", is(expectedStatus));
-	}
-
-	private static Matcher<PatronRequestAudit> hasBriefDescription(String expectedDescription) {
-		return hasProperty("briefDescription", is(expectedDescription));
 	}
 }
