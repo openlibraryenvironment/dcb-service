@@ -13,10 +13,10 @@ import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.reactivestreams.Publisher;
 
-import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
-@Prototype
+@Singleton
 public class PatronRequestsFixture {
 	private final DataAccess dataAccess = new DataAccess();
 
