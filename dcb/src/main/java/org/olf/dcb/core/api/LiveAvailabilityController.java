@@ -54,7 +54,7 @@ public class LiveAvailabilityController {
 	public Mono<HttpResponse<AvailabilityResponseView>> getLiveAvailability(
 		@NotNull @QueryValue("clusteredBibId") final UUID clusteredBibId) {
 
-		log.debug("REST, getLiveAvailability: {}", clusteredBibId);
+		log.info("REST, getLiveAvailability: {}", clusteredBibId);
 
 		return sharedIndexService.findClusteredBib(clusteredBibId)
 			.flatMap(this::getAvailabilityReport)
@@ -63,8 +63,6 @@ public class LiveAvailabilityController {
 	}
 
 	private Mono<AvailabilityReport> getAvailabilityReport(ClusteredBib clusteredBib) {
-		log.debug("getAvailabilityReport: {}", clusteredBib);
-
 		return Mono.just(clusteredBib)
 			// don't call service if bibs empty
 			.flatMap(clusteredRecord -> isEmpty(clusteredRecord.getBibs())

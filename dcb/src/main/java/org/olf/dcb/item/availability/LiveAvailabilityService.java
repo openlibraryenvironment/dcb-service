@@ -19,8 +19,7 @@ public class LiveAvailabilityService {
 	private final HostLmsService hostLmsService;
 	private final RequestableItemService requestableItemService;
 
-	public LiveAvailabilityService(HostLmsService hostLmsService,
-		RequestableItemService requestableItemService) {
+	public LiveAvailabilityService(HostLmsService hostLmsService, RequestableItemService requestableItemService) {
 
 		this.hostLmsService = hostLmsService;
 		this.requestableItemService = requestableItemService;
@@ -33,7 +32,8 @@ public class LiveAvailabilityService {
 			.flatMap(this::getItems)
 			.map(this::determineRequestability)
 			.reduce(emptyReport(), AvailabilityReport::combineReports)
-			.map(AvailabilityReport::sortItems);
+			.map(AvailabilityReport::sortItems)
+			.switchIfEmpty(Mono.error(new RuntimeException("Failed to resolve items for cluster record "+clusteredBib)));
 	}
 
 	private Flux<Bib> getBibs(ClusteredBib clusteredBib) {
@@ -74,6 +74,9 @@ public class LiveAvailabilityService {
 	}
 
 	private static AvailabilityReport.Error mapToError(Bib bib) {
+
+		log.error("Failed to fetch items for bib: %s from host: %s", bib.getSourceRecordId(), bib.getHostLms().getCode());
+
 		return AvailabilityReport.Error.builder().message(String.format(
 			"Failed to fetch items for bib: %s from host: %s",
 			bib.getSourceRecordId(), bib.getHostLms().getCode())).build();
