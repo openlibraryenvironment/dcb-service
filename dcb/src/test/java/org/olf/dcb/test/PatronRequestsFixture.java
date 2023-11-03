@@ -32,13 +32,9 @@ public class PatronRequestsFixture {
 		this.supplierRequestsFixture = supplierRequestsFixture;
 		this.patronRequestAuditRepository = patronRequestAuditRepository;
 	}
-
-	public PatronRequest findById(UUID id) {
-		return Mono.from(patronRequestRepository.findById(id)).block();
-	}
-
-	public void savePatronRequest(PatronRequest patronRequest){
-		Mono.from(patronRequestRepository.save(patronRequest)).block();
+	
+	public void deleteAll() {
+		patronRequestAuditRepository.deleteAll();
 	}
 
 	public void deleteAllPatronRequests() {
@@ -48,6 +44,14 @@ public class PatronRequestsFixture {
 
 	private Publisher<Void> deletePatronRequest(PatronRequest patronRequest) {
 		return patronRequestRepository.delete(patronRequest.getId());
+	}
+
+	public PatronRequest findById(UUID id) {
+		return Mono.from(patronRequestRepository.findById(id)).block();
+	}
+
+	public void savePatronRequest(PatronRequest patronRequest){
+		Mono.from(patronRequestRepository.save(patronRequest)).block();
 	}
 
 	public PatronRequestAudit findOnlyAuditEntry(PatronRequest patronRequest) {
@@ -61,9 +65,5 @@ public class PatronRequestsFixture {
 	private List<PatronRequestAudit> findAuditEntries(PatronRequest patronRequest) {
 		return manyValuesFrom(patronRequestAuditRepository
 			.findByPatronRequest(patronRequest));
-	}
-
-	public void deleteAll() {
-		patronRequestAuditRepository.deleteAll();
 	}
 }
