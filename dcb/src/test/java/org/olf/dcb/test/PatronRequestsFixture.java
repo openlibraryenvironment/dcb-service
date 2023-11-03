@@ -4,6 +4,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.PatronRequest;
@@ -50,12 +51,16 @@ public class PatronRequestsFixture {
 	}
 
 	public PatronRequestAudit findOnlyAuditEntry(PatronRequest patronRequest) {
-		final var fetchedAudits = manyValuesFrom(patronRequestAuditRepository
+		final var entries = findAuditEntries(patronRequest);
+
+		assertThat("Should only have single audit entry", entries, hasSize(1));
+
+		return entries.get(0);
+	}
+
+	private List<PatronRequestAudit> findAuditEntries(PatronRequest patronRequest) {
+		return manyValuesFrom(patronRequestAuditRepository
 			.findByPatronRequest(patronRequest));
-
-		assertThat("Should only have single audit entry", fetchedAudits, hasSize(1));
-
-		return fetchedAudits.get(0);
 	}
 
 	public void deleteAll() {
