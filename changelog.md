@@ -1,5 +1,36 @@
 # Changelog
 
+## Version 1.10.1
+
+### Changes
+* [Chore]
+	* clean up logging
+* [Test]
+	* Check for audit entry when patron validation fails when host LMS responds with an error DCB-531
+	* Move audit assertion methods to bottom of validate patron tests DCB-531
+	* Move audit entry matchers to separate class DCB-531
+	* Extract methods for audit entry matchers DCB-531
+	* Use matchers for checking audit entries when validating a patron DCB-531
+	* Import patron request statuses in validate patron tests DCB-531
+	* Move local patron type matcher to separate class DCB-531
+	* Use matcher for checking validated patron local type DCB-531
+	* Make patron requests fixture a singletion DCB-531
+	* Consolidate use of delete all patron requests methods DCB-531
+	* Replace delete all audit entries with delete all patron requests DCB-531
+	* Introduce delete all method in patron requests fixture DCB-531
+	* Use query all and delete by ID when deleting audit entries DCB-531
+	* Rename delete all audit entries method DCB-531
+	* Group delete methods together in patron request fixture DCB-531
+	* Use only audit entry method in other tests DCB-531
+	* Check for single audit entry DCB-531
+	* Use publisher to list conversion instead of flux when fetching audit entry DCB-531
+	* Extract method for finding only audit entry DCB-531
+	* Replace spaces with tabs in validate patron tests DCB-531
+
+### Fixes
+* [Polaris]
+	* Return Mono.empty rather than null for methods not yet implemented
+
 ## Version 1.10.0
 
 ### Additions
@@ -8,6 +39,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* scripts - fix graphql_hostlms script - hostlms doesn't have dates
 	* graphql - Add created and modified dates to patron request
 * [Feature]
