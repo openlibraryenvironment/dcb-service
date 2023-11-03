@@ -74,7 +74,7 @@ class PatronRequestResolutionTests {
 			.setValidCredentials(HOST_LMS_KEY, HOST_LMS_SECRET, HOST_LMS_TOKEN, 60);
 
 		supplierRequestsFixture.deleteAll();
-		patronRequestsFixture.deleteAllPatronRequests();
+		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
 
 		hostLmsFixture.deleteAll();

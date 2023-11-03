@@ -164,7 +164,7 @@ class PatronRequestApiTests {
 
 	@BeforeEach
 	void beforeEach() {
-		patronRequestsFixture.deleteAllPatronRequests();
+		patronRequestsFixture.deleteAll();
 
 		patronFixture.deleteAllPatrons();
 

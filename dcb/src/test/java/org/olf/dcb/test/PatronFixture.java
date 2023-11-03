@@ -70,7 +70,7 @@ public class PatronFixture {
 	}
 
 	public void deleteAllPatrons() {
-		patronRequestsFixture.deleteAllPatronRequests();
+		patronRequestsFixture.deleteAll();
 
 		deleteAllPatronIdentities();
 
