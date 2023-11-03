@@ -1,9 +1,11 @@
 package org.olf.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
@@ -143,29 +145,21 @@ public class ValidatePatronTests {
 	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
 		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
-		assertThat("Patron Request audit should NOT have brief description",
-			fetchedAudit.getBriefDescription(),
-			is(nullValue()));
-
-		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(SUBMITTED_TO_DCB));
-
-		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(PATRON_VERIFIED));
+		assertThat(fetchedAudit, allOf(
+			hasProperty("briefDescription", is(nullValue())),
+			hasProperty("fromStatus", is(SUBMITTED_TO_DCB)),
+			hasProperty("toStatus", is(PATRON_VERIFIED))
+		));
 	}
 
 	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
 		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
-		assertThat("Patron Request audit should have brief description",
-			fetchedAudit.getBriefDescription(),
-			is(description));
-
-		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(PATRON_VERIFIED));
-
-		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(ERROR));
+		assertThat(fetchedAudit, allOf(
+			hasProperty("briefDescription", is(description)),
+			hasProperty("fromStatus", is(PATRON_VERIFIED)),
+			hasProperty("toStatus", is(ERROR))
+		));
 	}
 
 	@Test
