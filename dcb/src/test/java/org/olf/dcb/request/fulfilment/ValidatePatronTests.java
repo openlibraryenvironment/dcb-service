@@ -144,26 +144,6 @@ public class ValidatePatronTests {
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, "No patron found");
 	}
 
-	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
-		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
-
-		assertThat(fetchedAudit, allOf(
-			hasNoBriefDescription(),
-			hasFromStatus(SUBMITTED_TO_DCB),
-			hasToStatus(PATRON_VERIFIED)
-		));
-	}
-
-	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
-		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
-
-		assertThat(fetchedAudit, allOf(
-			hasBriefDescription(description),
-			hasFromStatus(PATRON_VERIFIED),
-			hasToStatus(ERROR)
-		));
-	}
-
 	@Test
 	void shouldFailWhenSierraRespondsWithServerError(MockServerClient mockServerClient) {
 		// Arrange
@@ -216,5 +196,25 @@ public class ValidatePatronTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		return patronRequest;
+	}
+
+	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
+		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
+
+		assertThat(fetchedAudit, allOf(
+			hasNoBriefDescription(),
+			hasFromStatus(SUBMITTED_TO_DCB),
+			hasToStatus(PATRON_VERIFIED)
+		));
+	}
+
+	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
+		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
+
+		assertThat(fetchedAudit, allOf(
+			hasBriefDescription(description),
+			hasFromStatus(PATRON_VERIFIED),
+			hasToStatus(ERROR)
+		));
 	}
 }
