@@ -212,7 +212,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	}
 
 	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
-		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
+
 		assertThat("Patron Request audit should NOT have brief description",
 			fetchedAudit.getBriefDescription(),
 			is(nullValue()));
@@ -223,7 +224,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	}
 
 	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
-		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
+
 		assertThat("Patron Request audit should have brief description",
 			fetchedAudit.getBriefDescription(),
 			is(description));

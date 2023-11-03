@@ -13,7 +13,6 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Prototype;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Prototype
@@ -48,10 +47,6 @@ public class PatronRequestsFixture {
 
 	private Publisher<Void> deletePatronRequest(PatronRequest patronRequest) {
 		return patronRequestRepository.delete(patronRequest.getId());
-	}
-
-	public Flux<PatronRequestAudit> findAuditByPatronRequest(PatronRequest patronRequest) {
-		return Flux.from(patronRequestAuditRepository.findByPatronRequest(patronRequest));
 	}
 
 	public PatronRequestAudit findOnlyAuditEntry(PatronRequest patronRequest) {

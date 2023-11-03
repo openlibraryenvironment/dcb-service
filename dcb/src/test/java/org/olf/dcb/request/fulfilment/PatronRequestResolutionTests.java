@@ -6,7 +6,6 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
@@ -271,8 +270,7 @@ class PatronRequestResolutionTests {
 	}
 
 	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
-
-		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
+		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
 		assertThat("Patron Request audit should NOT have brief description",
 			fetchedAudit.getBriefDescription(),
@@ -286,10 +284,7 @@ class PatronRequestResolutionTests {
 	}
 
 	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
-
-		final var fetchedAudit = patronRequestsFixture.findAuditByPatronRequest(patronRequest).blockFirst();
-
-		assertNotNull(fetchedAudit);
+		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 		
 		assertThat("Patron Request audit should have brief description",
 			fetchedAudit.getBriefDescription(),
