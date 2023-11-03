@@ -14,6 +14,7 @@ import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasLocalPatronType
 
 import java.util.UUID;
 
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -23,6 +24,7 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.workflow.ValidatePatronTransition;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -146,9 +148,9 @@ public class ValidatePatronTests {
 		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
 		assertThat(fetchedAudit, allOf(
-			hasProperty("briefDescription", is(nullValue())),
-			hasProperty("fromStatus", is(SUBMITTED_TO_DCB)),
-			hasProperty("toStatus", is(PATRON_VERIFIED))
+			hasNoBriefDescription(),
+			hasFromStatus(SUBMITTED_TO_DCB),
+			hasToStatus(PATRON_VERIFIED)
 		));
 	}
 
@@ -156,9 +158,9 @@ public class ValidatePatronTests {
 		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
 		assertThat(fetchedAudit, allOf(
-			hasProperty("briefDescription", is(description)),
-			hasProperty("fromStatus", is(PATRON_VERIFIED)),
-			hasProperty("toStatus", is(ERROR))
+			hasBriefDescription(description),
+			hasFromStatus(PATRON_VERIFIED),
+			hasToStatus(ERROR)
 		));
 	}
 
@@ -214,5 +216,21 @@ public class ValidatePatronTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		return patronRequest;
+	}
+
+	private static Matcher<PatronRequestAudit> hasNoBriefDescription() {
+		return hasProperty("briefDescription", is(nullValue()));
+	}
+
+	private static Matcher<PatronRequestAudit> hasToStatus(PatronRequest.Status expectedStatus) {
+		return hasProperty("toStatus", is(expectedStatus));
+	}
+
+	private static Matcher<PatronRequestAudit> hasFromStatus(PatronRequest.Status expectedStatus) {
+		return hasProperty("fromStatus", is(expectedStatus));
+	}
+
+	private static Matcher<PatronRequestAudit> hasBriefDescription(String expectedDescription) {
+		return hasProperty("briefDescription", is(expectedDescription));
 	}
 }
