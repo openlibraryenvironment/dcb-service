@@ -147,7 +147,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		Mono.from(shelvingLocationRepository.deleteByCode("ab6")).block();
 		Mono.from(agencyRepository.deleteByCode("ab6")).block();
 		hostLmsFixture.deleteAll();
-		patronRequestsFixture.deleteAll();
+		patronRequestsFixture.deleteAllAuditEntries();
 	}
 
 	@Test

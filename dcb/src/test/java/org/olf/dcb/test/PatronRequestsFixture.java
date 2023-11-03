@@ -32,8 +32,8 @@ public class PatronRequestsFixture {
 		this.supplierRequestsFixture = supplierRequestsFixture;
 		this.patronRequestAuditRepository = patronRequestAuditRepository;
 	}
-	
-	public void deleteAll() {
+
+	public void deleteAllAuditEntries() {
 		patronRequestAuditRepository.deleteAll();
 	}
 
