@@ -4,11 +4,13 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 
 import java.util.UUID;
 
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -101,10 +103,14 @@ public class ValidatePatronTests {
 		final var validatedPatron = validatePatronTransition.attempt(patronRequest).block();
 
 		// Assert
-		final var patronType = validatedPatron.getRequestingIdentity().getLocalPtype();
+		assertThat(validatedPatron, hasLocalPatronType("15"));
 
-		assertThat(patronType, is("15"));
 		assertSuccessfulTransitionAudit(patronRequest);
+	}
+
+	private static Matcher<PatronRequest> hasLocalPatronType(String expectedLocalPatronType) {
+		return hasProperty("requestingIdentity",
+			hasProperty("localPtype", is(expectedLocalPatronType)));
 	}
 
 	@Test
