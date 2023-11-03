@@ -1,16 +1,17 @@
 package org.olf.dcb.test;
 
-import io.micronaut.context.annotation.Prototype;
+import java.util.UUID;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.reactivestreams.Publisher;
+
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.annotation.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.util.UUID;
 
 @Prototype
 public class PatronRequestsFixture {
@@ -48,6 +49,11 @@ public class PatronRequestsFixture {
 
 	public Flux<PatronRequestAudit> findAuditByPatronRequest(PatronRequest patronRequest) {
 		return Flux.from(patronRequestAuditRepository.findByPatronRequest(patronRequest));
+	}
+
+	@Nullable
+	public PatronRequestAudit findOnlyAuditEntry(PatronRequest patronRequest) {
+		return findAuditByPatronRequest(patronRequest).blockFirst();
 	}
 
 	public void deleteAll() {
