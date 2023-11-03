@@ -6,6 +6,8 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
+import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasLocalPatronType;
 
 import java.util.UUID;
@@ -19,7 +21,6 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.workflow.ValidatePatronTransition;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -147,10 +148,10 @@ public class ValidatePatronTests {
 			is(nullValue()));
 
 		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(Status.SUBMITTED_TO_DCB));
+			fetchedAudit.getFromStatus(), is(SUBMITTED_TO_DCB));
 
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(Status.PATRON_VERIFIED));
+			fetchedAudit.getToStatus(), is(PATRON_VERIFIED));
 	}
 
 	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
@@ -161,7 +162,7 @@ public class ValidatePatronTests {
 			is(description));
 
 		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(Status.PATRON_VERIFIED));
+			fetchedAudit.getFromStatus(), is(PATRON_VERIFIED));
 
 		assertThat("Patron Request audit should have to state",
 			fetchedAudit.getToStatus(), is(ERROR));
@@ -213,7 +214,7 @@ public class ValidatePatronTests {
 		var patronRequest = PatronRequest.builder()
 			.id(patronRequestId)
 			.patron(patron)
-			.status(Status.SUBMITTED_TO_DCB)
+			.status(SUBMITTED_TO_DCB)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
