@@ -89,7 +89,8 @@ public class ValidatePatronTests {
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var patron = createPatron(localId, hostLms);
 
-                referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("validate-patron-transition-tests", 10, 25, "DCB", "15");
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			"validate-patron-transition-tests", 10, 25, "DCB", "15");
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			"validate-patron-transition-tests", "testccc", "AGENCY1");
