@@ -48,7 +48,9 @@ public class HostLmsService implements IngestSourcesProvider {
                 log.debug("findHostLmsByCode {}",code);
 		return getAllHostLms()
 			.collectList()
-			.map(list -> findFirstByCode(code, list));
+			.map(list -> findFirstByCode(code, list))
+			.switchIfEmpty(Mono.error(new UnknownHostLmsException("code",code)));
+
 	}
 
 	private static DataHostLms findFirstByCode(String code, List<DataHostLms> list) {

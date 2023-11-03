@@ -19,6 +19,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -232,7 +233,7 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 
 	@Override
 	public @NonNull String getName() {
-		return null;
+		return lms.getName();
 	}
 
 	@Override
@@ -240,72 +241,72 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 
 	@Override
 	public Flux<Map<String, ?>> getAllBibData() {
-		return null;
+		return Flux.empty();
 	}
 
 	@Override
 	public List<HostLmsPropertyDefinition> getSettings() {
-		return null;
+		return new ArrayList();
 	}
 
 	@Override
 	public Mono<String> createPatron(Patron patron) {
-		return null;
+		return Mono.empty();
 	}
 
 	@Override
 	public Mono<String> createBib(Bib bib) {
-		return null;
+		return Mono.empty();
 	}
 
 	@Override
 	public Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType, String recordNumber, String pickupLocation, String note, String patronRequestId) {
-		return null;
+		return Mono.empty();
 	}
 
 	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
-		return null;
+		return Mono.empty();
 	}
 
 	@Override
 	public Mono<Patron> updatePatron(String localId, String patronType) {
-		return null;
+		return Mono.empty();
 	}
 
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand) {
-		return null;
+		return Mono.empty();
 	}
 
 	@Override
 	public Mono<HostLmsHold> getHold(String holdId) {
-		return null;
+		return Mono.empty();
 	}
 
 	@Override
 	public Mono<HostLmsItem> getItem(String itemId) {
-		return null;
+		return Mono.empty();
 	}
 
 	@Override
 	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
-		return null;
+		return Mono.empty();
 	}
 
 	@Override
 	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
-		return null;
+		return Mono.empty();
 	}
 
 	@Override
 	public Mono<String> deleteItem(String id) {
-		return null;
+		return Mono.empty();
 	}
 
 	@Override
 	public Mono<String> deleteBib(String id) {
-		return null;
+		return Mono.empty();
 	}
 
 	@Override
