@@ -34,7 +34,11 @@ public class PatronRequestsFixture {
 	}
 
 	public void deleteAllAuditEntries() {
-		patronRequestAuditRepository.deleteAll();
+		dataAccess.deleteAll(patronRequestAuditRepository.queryAll(), this::deleteAuditEntry);
+	}
+
+	private Publisher<Void> deleteAuditEntry(PatronRequestAudit auditEntry) {
+		return patronRequestAuditRepository.delete(auditEntry.getId());
 	}
 
 	public void deleteAllPatronRequests() {
