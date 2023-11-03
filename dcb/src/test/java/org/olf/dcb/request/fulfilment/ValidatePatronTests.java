@@ -174,6 +174,8 @@ public class ValidatePatronTests {
 
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is(expectedMessage));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedMessage);
 	}
 
 	private Patron createPatron(String localId, DataHostLms hostLms) {
