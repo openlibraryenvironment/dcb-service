@@ -1,5 +1,7 @@
 package org.olf.dcb.test;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 
 import java.util.UUID;
@@ -11,7 +13,6 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Prototype;
-import io.micronaut.core.annotation.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -53,9 +54,13 @@ public class PatronRequestsFixture {
 		return Flux.from(patronRequestAuditRepository.findByPatronRequest(patronRequest));
 	}
 
-	@Nullable
 	public PatronRequestAudit findOnlyAuditEntry(PatronRequest patronRequest) {
-		return manyValuesFrom(patronRequestAuditRepository.findByPatronRequest(patronRequest)).get(0);
+		final var fetchedAudits = manyValuesFrom(patronRequestAuditRepository
+			.findByPatronRequest(patronRequest));
+
+		assertThat("Should only have single audit entry", fetchedAudits, hasSize(1));
+
+		return fetchedAudits.get(0);
 	}
 
 	public void deleteAll() {
