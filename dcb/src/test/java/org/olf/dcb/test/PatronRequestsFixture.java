@@ -1,5 +1,7 @@
 package org.olf.dcb.test;
 
+import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
+
 import java.util.UUID;
 
 import org.olf.dcb.core.model.PatronRequest;
@@ -53,7 +55,7 @@ public class PatronRequestsFixture {
 
 	@Nullable
 	public PatronRequestAudit findOnlyAuditEntry(PatronRequest patronRequest) {
-		return findAuditByPatronRequest(patronRequest).blockFirst();
+		return manyValuesFrom(patronRequestAuditRepository.findByPatronRequest(patronRequest)).get(0);
 	}
 
 	public void deleteAll() {
