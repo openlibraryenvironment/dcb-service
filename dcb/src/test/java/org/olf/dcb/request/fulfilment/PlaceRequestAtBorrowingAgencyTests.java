@@ -112,7 +112,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 	@BeforeEach
 	void beforeEach() {
-		patronRequestsFixture.deleteAllPatronRequests();
+		patronRequestsFixture.deleteAll();
 
 		patronFixture.deleteAllPatrons();
 
@@ -147,7 +147,6 @@ class PlaceRequestAtBorrowingAgencyTests {
 		Mono.from(shelvingLocationRepository.deleteByCode("ab6")).block();
 		Mono.from(agencyRepository.deleteByCode("ab6")).block();
 		hostLmsFixture.deleteAll();
-		patronRequestsFixture.deleteAllAuditEntries();
 	}
 
 	@Test
