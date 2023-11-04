@@ -62,7 +62,7 @@ public class LiveAvailabilityService {
 			return hostLmsService.getClientFor(bib.getHostLms())
 				.flatMap(hostLmsClient -> hostLmsClient
 					.getItems(bib.getSourceRecordId()))
-				.doOnError(error -> log.debug("Error occurred fetching items: ", error))
+				.doOnError(error -> log.error("Error occurred fetching items: ", error))
 				.map(AvailabilityReport::ofItems)
 				.onErrorReturn(AvailabilityReport.ofErrors(mapToError(bib)));
 		}
@@ -75,7 +75,7 @@ public class LiveAvailabilityService {
 
 	private static AvailabilityReport.Error mapToError(Bib bib) {
 
-		log.error("Failed to fetch items for bib: %s from host: %s", bib.getSourceRecordId(), bib.getHostLms().getCode());
+		log.error("Failed to fetch items for bib: {} from host: {}", bib.getSourceRecordId(), bib.getHostLms().getCode());
 
 		return AvailabilityReport.Error.builder().message(String.format(
 			"Failed to fetch items for bib: %s from host: %s",
