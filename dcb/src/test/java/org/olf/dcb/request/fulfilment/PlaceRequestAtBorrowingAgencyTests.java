@@ -33,6 +33,7 @@ import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 
@@ -62,6 +63,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 	private ClusterRecordFixture clusterRecordFixture;
 	@Inject
 	private BibRecordFixture bibRecordFixture;
+        @Inject
+        private AgencyFixture agencyFixture;
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
 	@Inject
@@ -88,8 +91,16 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		hostLmsFixture.deleteAll();
+                agencyFixture.deleteAll();
 
-		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+		var h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+
+                DataAgency da = agencyFixture.saveAgency(DataAgency.builder()
+                        .id(UUID.randomUUID())
+                        .code("ab6")
+                        .name("Test AB6")
+                        .hostLms(h1)
+                        .build());
 
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 
@@ -123,21 +134,21 @@ class PlaceRequestAtBorrowingAgencyTests {
 		UUID id1 = randomUUID();
 		final var dataHostLms1 = hostLmsFixture.createHostLms(id1, "code");
 
-		UUID id = randomUUID();
-		final var dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
+		// UUID id = randomUUID();
+		// final var dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
 
-		final var dataAgency = singleValueFrom(
-			agencyRepository.save(DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(dataHostLms2).build()));
+		// final var dataAgency = singleValueFrom(
+	// 		agencyRepository.save(DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(dataHostLms1).build()));
 
-		final var shelvingLocation = ShelvingLocation.builder()
-			.id(randomUUID())
-			.code("ab6")
-			.name("name")
-			.hostSystem(dataHostLms1)
-			.agency(dataAgency)
-			.build();
+		// final var shelvingLocation = ShelvingLocation.builder()
+		// 	.id(randomUUID())
+		// 	.code("ab6")
+		// 	.name("name")
+		// 	.hostSystem(dataHostLms1)
+		// 	.agency(dataAgency)
+		// 	.build();
 
-		singleValueFrom(shelvingLocationRepository.save(shelvingLocation));
+		// singleValueFrom(shelvingLocationRepository.save(shelvingLocation));
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping("borrowing-agency-service-tests", "ab6", "ab6");
 	}
