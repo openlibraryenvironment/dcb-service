@@ -187,7 +187,7 @@ public class DataFetchers {
         public DataFetcher<CompletableFuture<List<BibRecord>>> getClusterMembersDataFetcher() {
                 return env -> {
                         log.debug("getClusterMembersDataFetcher args={}/ctx={}/root={}/src={}", env.getArguments(), env.getGraphQlContext(), env.getRoot(), env.getSource());
-                        return Flux.from(postgresBibRepository.findAllByContributesTo(env.getSource())).collectList().toFuture();
+                        return Flux.from(postgresBibRepository.findByContributesTo(env.getSource())).collectList().toFuture();
                 };
         }
 
@@ -271,13 +271,14 @@ public class DataFetchers {
 
         public DataFetcher<CompletableFuture<List<SupplierRequest>>> getSupplierRequestsForPR() {
                 return env -> {
-                        return Flux.from(postgresSupplierRequestRepository.findAllByPatronRequest(env.getSource())).collectList().toFuture();
+                        return Flux.from(postgresSupplierRequestRepository.findByPatronRequest(env.getSource())).collectList().toFuture();
                 };
         }
 
         public DataFetcher<CompletableFuture<List<PatronRequestAudit>>> getAuditMessagesForPR() {
                 return env -> {
-                        return Flux.from(postgresPatronRequestAuditRepository.findAllByPatronRequest(env.getSource())).collectList().toFuture();
+			PatronRequest parent = env.getSource();
+                        return Flux.from(postgresPatronRequestAuditRepository.findByPatronRequest(parent)).collectList().toFuture();
                 };
         }
 }
