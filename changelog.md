@@ -1,9 +1,21 @@
 # Changelog
 
+## Version 1.10.2
+
+### Changes
+* [Chore]
+	* db - Add missing unique constraint to host lms, date fields for agency, protocol fields for paronRequest and supplierRequest
+	* Improve logging on item fetch failure
+
+### Fixes
+* [Graphql]
+	* nested fetchers should use findBy and not findAllBy
+
 ## Version 1.10.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* clean up logging
 * [Test]
 	* Check for audit entry when patron validation fails when host LMS responds with an error DCB-531
