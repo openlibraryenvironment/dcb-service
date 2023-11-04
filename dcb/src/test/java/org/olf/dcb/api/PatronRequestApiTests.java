@@ -115,8 +115,12 @@ class PatronRequestApiTests {
 		hostLmsFixture.deleteAll();
 
 		final var h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
-
 		log.debug("Created dataHostLms {}", h1);
+		final var h2 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, "codeAA");
+		log.debug("Created dataHostLms {}", h2);
+		final var h3 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, "codeBB");
+		log.debug("Created dataHostLms {}", h3);
+
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 
@@ -155,11 +159,29 @@ class PatronRequestApiTests {
 			.name("Test AGENCY1")
 			.hostLms(h1)
 			.build());
-
 		log.debug("Create dataAgency {}", da);
+
+                DataAgency da2 = agencyFixture.saveAgency(DataAgency.builder()
+                        .id(UUID.randomUUID())
+                        .code("ab6")
+                        .name("AB6")
+                        .hostLms(h3)
+                        .build());
+
 
 		sierraPatronsAPIFixture.addPatronGetExpectation("43546");
 		sierraPatronsAPIFixture.addPatronGetExpectation("872321");
+
+		final var shelvingLocation = ShelvingLocation.builder()
+			.id(randomUUID())
+			.code("ab6")
+			.name("name")
+			.hostSystem(h3)
+			.agency(da2)
+			.build();
+
+		Mono.from(shelvingLocationRepository.save(shelvingLocation)).block();
+
 	}
 
 	@BeforeEach
@@ -174,33 +196,6 @@ class PatronRequestApiTests {
 		referenceValueMappingFixture.deleteAll();
 
 		eventLogFixture.deleteAll();
-
-		log.debug("Creating dataHostLms records for codeAA and codeBB");
-
-		// add shelving location
-		UUID id1 = randomUUID();
-		DataHostLms dataHostLms1 = hostLmsFixture.createHostLms(id1, "codeAA");
-
-		UUID id = randomUUID();
-		DataHostLms dataHostLms2 = hostLmsFixture.createHostLms(id, "codeBB");
-
-		log.debug("Creating dataAgency record for ab6");
-
-		DataAgency dataAgency = Mono.from(agencyRepository.save(
-				DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(dataHostLms2).build()))
-			.doOnSuccess(da -> log.debug("Created ab6"))
-			.doOnError(err -> log.error("Failure to create ab6 data agency", err))
-			.block();
-
-		final var shelvingLocation = ShelvingLocation.builder()
-			.id(randomUUID())
-			.code("ab6")
-			.name("name")
-			.hostSystem(dataHostLms1)
-			.agency(dataAgency)
-			.build();
-
-		Mono.from(shelvingLocationRepository.save(shelvingLocation)).block();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ABC123", "AGENCY1");
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab6", "ab6");

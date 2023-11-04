@@ -10,6 +10,8 @@ import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
+import io.micronaut.data.annotation.DateCreated;
+import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
 import io.micronaut.core.annotation.Nullable;
@@ -21,6 +23,7 @@ import lombok.experimental.Accessors;
 import services.k_int.data.querying.DefaultQueryField;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import lombok.ToString;
+import java.time.Instant;
 
 @Data
 @Serdeable
@@ -41,6 +44,14 @@ public class DataAgency implements Agency {
 	@Id
 	@TypeDef(type = DataType.UUID)
 	private UUID id;
+
+        @Nullable
+        @DateCreated
+        private Instant dateCreated;
+
+        @Nullable
+        @DateUpdated
+        private Instant dateUpdated;
 
 	@ToString.Include
 	@NonNull

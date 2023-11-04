@@ -126,6 +126,9 @@ public class SupplierRequest {
 	@Nullable
 	private Boolean isActive;
 
+        @Nullable
+        private String protocol;
+
 	public SupplierRequest placed(String localId, String localStatus) {
 		setLocalId(localId);
 		setLocalStatus(localStatus);

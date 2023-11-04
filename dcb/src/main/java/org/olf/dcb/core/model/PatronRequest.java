@@ -176,6 +176,9 @@ public class PatronRequest {
 	@Nullable
 	private String errorMessage;
 	
+	@Nullable
+	private String protocol;
+	
 	@JsonProperty("status")
 	public Status getStatus() {
 		return this.status;
