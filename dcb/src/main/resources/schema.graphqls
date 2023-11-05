@@ -253,5 +253,5 @@ type RawSource {
   id: ID!
   hostLmsId: ID!
   remoteId: String
-  rawRecord: String
+  json: String
 }
