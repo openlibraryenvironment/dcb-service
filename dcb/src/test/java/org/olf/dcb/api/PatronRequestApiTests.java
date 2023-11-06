@@ -38,7 +38,6 @@ import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Event;
 import org.olf.dcb.core.model.ShelvingLocation;
 import org.olf.dcb.storage.AgencyRepository;
@@ -224,6 +223,7 @@ class PatronRequestApiTests {
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
+
 		savePatronTypeMappings();
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
@@ -345,6 +345,8 @@ class PatronRequestApiTests {
 		final var sourceSystemId = hostLms.getId();
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "565382", clusterRecord);
+
+		savePatronTypeMappings();
 
 		// Act
 		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
