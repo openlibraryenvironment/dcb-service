@@ -3,12 +3,15 @@ package org.olf.dcb.request.fulfilment;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
+import org.apache.velocity.runtime.directive.Define;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
+import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -20,6 +23,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 	@Inject
 	private ResolvePatronPreflightCheck check;
+
+	@Inject
+	private ResourceLoader loader;
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
@@ -39,12 +45,19 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
-	void shouldPassWhenHostLmsIsRecognised() {
+	void shouldPassWhenHostLmsIsRecognised(MockServerClient mockServerClient) {
+		// Arrange
+		final var LOCAL_ID = "345358";
+
+		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(LOCAL_ID);
+
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
 			.requestor(PlacePatronRequestCommand.Requestor.builder()
 				.localSystemCode(HOST_LMS_CODE)
-				.localId("345358")
+				.localId(LOCAL_ID)
 				.build())
 			.build();
 
