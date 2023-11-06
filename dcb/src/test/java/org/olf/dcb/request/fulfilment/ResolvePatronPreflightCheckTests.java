@@ -57,6 +57,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(LOCAL_ID);
 
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			HOST_LMS_CODE, 10, 25, "DCB", "15");
+
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
 			.requestor(PlacePatronRequestCommand.Requestor.builder()
