@@ -153,7 +153,7 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
 
 		agencyFixture.deleteAll();
-		DataAgency da = agencyFixture.saveAgency(DataAgency.builder()
+		final var da = agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
 			.code("AGENCY1")
 			.name("Test AGENCY1")
@@ -161,13 +161,12 @@ class PatronRequestApiTests {
 			.build());
 		log.debug("Create dataAgency {}", da);
 
-                DataAgency da2 = agencyFixture.saveAgency(DataAgency.builder()
-                        .id(UUID.randomUUID())
-                        .code("ab6")
-                        .name("AB6")
-                        .hostLms(h3)
-                        .build());
-
+		final var da2 = agencyFixture.saveAgency(DataAgency.builder()
+			.id(UUID.randomUUID())
+			.code("ab6")
+			.name("AB6")
+			.hostLms(h3)
+			.build());
 
 		sierraPatronsAPIFixture.addPatronGetExpectation("43546");
 		sierraPatronsAPIFixture.addPatronGetExpectation(KNOWN_PATRON_LOCAL_ID);
