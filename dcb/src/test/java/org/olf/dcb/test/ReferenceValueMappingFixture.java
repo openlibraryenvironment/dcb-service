@@ -16,18 +16,20 @@ import io.micronaut.context.annotation.Prototype;
 public class ReferenceValueMappingFixture {
 	private final DataAccess dataAccess = new DataAccess();
 
-	private final ReferenceValueMappingRepository repository;
+	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 	private final NumericRangeMappingRepository numericRangeMappingRepository;
 
-	public ReferenceValueMappingFixture(ReferenceValueMappingRepository repository,
+	public ReferenceValueMappingFixture(
+		ReferenceValueMappingRepository referenceValueMappingRepository,
 		NumericRangeMappingRepository numericRangeMappingRepository) {
-		this.repository = repository;
+
+		this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.numericRangeMappingRepository = numericRangeMappingRepository;
 	}
 
 	public void deleteAll() {
-		dataAccess.deleteAll(repository.queryAll(),
-			mapping -> repository.delete(mapping.getId()));
+		dataAccess.deleteAll(referenceValueMappingRepository.queryAll(),
+			mapping -> referenceValueMappingRepository.delete(mapping.getId()));
 	}
 
 	public void defineItemStatusMapping(String fromHostLmsCode, String fromValue, String toValue) {
@@ -92,7 +94,7 @@ public class ReferenceValueMappingFixture {
 	}
 
 	private void saveReferenceValueMapping(ReferenceValueMapping mapping) {
-		singleValueFrom(repository.save(mapping));
+		singleValueFrom(referenceValueMappingRepository.save(mapping));
 	}
 
 	public void defineNumericPatronTypeRangeMapping(String fromContext,
