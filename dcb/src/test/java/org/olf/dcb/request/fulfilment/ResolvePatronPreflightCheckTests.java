@@ -10,6 +10,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
@@ -29,6 +30,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
@@ -39,6 +42,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, "test-token", 60);
 
+		referenceValueMappingFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
