@@ -2,9 +2,9 @@ package org.olf.dcb.request.fulfilment;
 
 import static reactor.function.TupleUtils.function;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Arrays;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -12,7 +12,6 @@ import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
@@ -24,7 +23,6 @@ import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
-import reactor.util.function.Tuple3;
 import reactor.util.function.Tuples;
 
 // import lombok.experimental.Accessors;
@@ -93,18 +91,6 @@ public class SupplyingAgencyService {
 	public Mono<PatronRequest> cleanUp(PatronRequest patronRequest) {
                 return Mono.just(patronRequest);
         }
-
-	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
-
-		log.debug("createAuditEntry {}", patronRequest.getStatus());
-
-		
-		if (patronRequest.getStatus() == Status.ERROR) return Mono.just(patronRequest);
-		
-		return patronRequestAuditService
-			.addAuditEntry(patronRequest, Status.RESOLVED, Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
-			.thenReturn(patronRequest);
-	}
 
 	private Mono<RequestWorkflowContext> checkAndCreatePatronAtSupplier(RequestWorkflowContext psrc) {
 		log.debug("checkAndCreatePatronAtSupplier");
