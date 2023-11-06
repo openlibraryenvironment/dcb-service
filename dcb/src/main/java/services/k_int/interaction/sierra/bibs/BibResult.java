@@ -13,6 +13,9 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 
+import java.util.Map;
+import services.k_int.interaction.sierra.FixedField;
+
 @Serdeable
 public record BibResult(
 	@NotEmpty String id,
@@ -30,6 +33,8 @@ public record BibResult(
 
 	@Nullable Boolean suppressed,
 
-	@Nullable Record marc) {
+	@Nullable Record marc,
+
+	@Nullable Map<Integer, FixedField> fixedFields) {
 
 }

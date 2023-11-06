@@ -60,5 +60,5 @@ public class ClusterRecord {
 	private UUID selectedBib;
 
 	@Nullable
-  private Boolean isDeleted;
+	private Boolean isDeleted;
 }
