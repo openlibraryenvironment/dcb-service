@@ -434,12 +434,18 @@ class PatronRequestApiTests {
 
 		assertThat("Should return a bad request status", response.getStatus(), is(BAD_REQUEST));
 
-		final var optionalBody = response.getBody(String.class);
+		final var optionalBody = response.getBody(ChecksFailure.class);
 
 		assertThat("Response should have a body", optionalBody.isPresent(), is(true));
 
-		assertThat("Body should report no Host LMS found error", optionalBody.get(),
-				is("No Host LMS found for code: unknown-system"));
+		assertThat("Body should report unknown pickup location failed check", optionalBody.get(),
+			hasProperty("failedChecks", containsInAnyOrder(
+				hasDescription("\"unknown-system\" is not a recognised host LMS"))
+			));
+
+		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
+			isFailedCheckEvent("\"unknown-system\" is not a recognised host LMS")
+		));
 	}
 
 	@Test

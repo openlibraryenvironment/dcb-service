@@ -34,11 +34,11 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
-	void shouldPass() {
+	void shouldPassWhenHostLmsIsRecognised() {
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
 			.requestor(PlacePatronRequestCommand.Requestor.builder()
-				.localSystemCode("host-lms")
+				.localSystemCode(HOST_LMS_CODE)
 				.localId("345358")
 				.build())
 			.build();
@@ -47,5 +47,21 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		// Assert
 		assertThat(results, containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldFailWhenHostLmsIsNotRecognised() {
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode("unknown-host-lms")
+				.build())
+			.build();
+
+		final var results = check.check(command).block();
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("\"unknown-host-lms\" is not a recognised host LMS")));
 	}
 }
