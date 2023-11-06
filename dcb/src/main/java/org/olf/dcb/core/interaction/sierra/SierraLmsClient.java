@@ -25,6 +25,7 @@ import org.olf.dcb.configuration.LocationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
 import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
@@ -763,7 +764,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return Mono.from(client.getPatron(Long.valueOf(localPatronId)))
 			.flatMap(this::sierraPatronToHostLmsPatron)
-			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")));
+			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLms().getCode())));
 	}
 
 	@Override
@@ -774,7 +775,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return Mono.from(client.updatePatron(Long.valueOf(localPatronId), patronPatch))
 			.flatMap(this::sierraPatronToHostLmsPatron)
-			.switchIfEmpty(Mono.error(new RuntimeException("No patron found")));
+			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLms().getCode())));
 	}
 
 	public HostLmsHold sierraPatronHoldToHostLmsHold(SierraPatronHold sierraHold) {
@@ -800,6 +801,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	//
 	// II: We need to talk about this in a review session
 	//
+
 	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
 		log.debug("updateItemStatus({},{})", itemId, crs);
 		// See
@@ -825,7 +827,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			return Mono.just("OK");
 		}
 	}
-
 	public HostLmsItem sierraItemToHostLmsItem(SierraItem si) {
 		log.debug("convert {} to HostLmsItem", si);
 		return HostLmsItem.builder().localId(si.getId()).barcode(si.getBarcode())
@@ -841,11 +842,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	// WARNING We might need to make this accept a patronIdentity - as different
 	// systems might take different ways to identify the patron
+
 	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
 		log.debug("checkOutItemToPatron({},{})", itemId, patronBarcode);
 		return Mono.from(client.checkOutItemToPatron(itemId, patronBarcode)).thenReturn("OK").defaultIfEmpty("ERROR");
 	}
-
 	public Mono<String> deleteItem(String id) {
 		log.debug("deleteItem({})", id);
 		return Mono.from(client.deleteItem(id)).thenReturn("OK").defaultIfEmpty("ERROR");
@@ -903,4 +904,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return generator_state;
 	}
 
+	private static RuntimeException patronNotFound(String localId, String hostLmsCode) {
+		return new PatronNotFoundInHostLmsException(localId, hostLmsCode);
+	}
 }

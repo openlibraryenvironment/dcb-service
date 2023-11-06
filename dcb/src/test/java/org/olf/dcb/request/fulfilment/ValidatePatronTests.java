@@ -115,10 +115,11 @@ public class ValidatePatronTests {
 	@Test
 	void shouldFailWhenSierraRespondsWithNotFound(MockServerClient mockServerClient) {
 		// Arrange
+		final var LOCAL_ID = "672954";
 		final var patronRequestId = randomUUID();
-		final var localId = "672954";
+
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
-		final var patron = createPatron(localId, hostLms);
+		final var patron = createPatron(LOCAL_ID, hostLms);
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
@@ -131,7 +132,9 @@ public class ValidatePatronTests {
 			() -> validatePatronTransition.attempt(patronRequest).block());
 
 		// Assert
-		assertThat(exception.getMessage(), is("No patron found"));
+		final var expectedMessage = "Patron \"" + LOCAL_ID + "\" is not recognised in \"" + HOST_LMS_CODE + "\"";
+
+		assertThat(exception.getMessage(), is(expectedMessage));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
@@ -139,9 +142,9 @@ public class ValidatePatronTests {
 			fetchedPatronRequest.getStatus(), is(ERROR));
 
 		assertThat("Request should have error message afterwards",
-			fetchedPatronRequest.getErrorMessage(), is("No patron found"));
+			fetchedPatronRequest.getErrorMessage(), is(expectedMessage));
 
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, "No patron found");
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedMessage);
 	}
 
 	@Test
@@ -176,6 +179,42 @@ public class ValidatePatronTests {
 			fetchedPatronRequest.getErrorMessage(), is(expectedMessage));
 
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedMessage);
+	}
+
+	@Test
+	void shouldFailWhenNoPatronTypeMappingIsDefined(MockServerClient mockServerClient) {
+		// Arrange
+		final var patronRequestId = randomUUID();
+		final var localId = "783742";
+
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+
+		final var patron = createPatron(localId, hostLms);
+
+		var patronRequest = savePatronRequest(patronRequestId, patron);
+
+		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localId);
+
+		// Act
+		final var exception = assertThrows(RuntimeException.class,
+			() -> validatePatronTransition.attempt(patronRequest).block());
+
+		// Assert
+		final var expectedError = "Unable to map patronType validate-patron-transition-tests:15 To DCB context";
+
+		assertThat(exception.getMessage(), is(expectedError));
+
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat("Request should have error status afterwards",
+			fetchedPatronRequest.getStatus(), is(ERROR));
+
+		assertThat("Request should have error message afterwards",
+			fetchedPatronRequest.getErrorMessage(), is(expectedError));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedError);
 	}
 
 	private Patron createPatron(String localId, DataHostLms hostLms) {
