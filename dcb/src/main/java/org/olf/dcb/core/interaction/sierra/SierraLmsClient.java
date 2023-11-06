@@ -25,6 +25,7 @@ import org.olf.dcb.configuration.LocationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
 import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
@@ -763,7 +764,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return Mono.from(client.getPatron(Long.valueOf(localPatronId)))
 			.flatMap(this::sierraPatronToHostLmsPatron)
-			.switchIfEmpty(Mono.error(patronNotFound()));
+			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLms().getCode())));
 	}
 
 	@Override
@@ -774,7 +775,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return Mono.from(client.updatePatron(Long.valueOf(localPatronId), patronPatch))
 			.flatMap(this::sierraPatronToHostLmsPatron)
-			.switchIfEmpty(Mono.error(patronNotFound()));
+			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLms().getCode())));
 	}
 
 	public HostLmsHold sierraPatronHoldToHostLmsHold(SierraPatronHold sierraHold) {
@@ -903,7 +904,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return generator_state;
 	}
 
-	private static RuntimeException patronNotFound() {
-		return new RuntimeException("No patron found");
+	private static RuntimeException patronNotFound(String localId, String hostLmsCode) {
+		return new PatronNotFoundInHostLmsException(localId, hostLmsCode);
 	}
 }
