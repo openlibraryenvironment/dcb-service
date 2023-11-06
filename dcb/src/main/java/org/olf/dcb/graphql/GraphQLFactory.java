@@ -20,6 +20,11 @@ import java.io.InputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// https://github.com/graphql-java/graphql-java-extended-scalars
+import graphql.schema.GraphQLScalarType;
+import graphql.scalars.ExtendedScalars;
+
+
 // See : https://lifeinide.com/post/2019-04-15-micronaut-graphql-with-transaction-and-security-support/
 
 @Factory
@@ -80,6 +85,7 @@ public class GraphQLFactory {
                                                 .dataFetcher("supplierRequests", dataFetchers.getSupplierRequestsForPR())
                                                 .dataFetcher("auditMessages", dataFetchers.getAuditMessagesForPR())
                                 )
+				.scalar(ExtendedScalars.Json)
 				.build();
 
 		// Create the executable schema.

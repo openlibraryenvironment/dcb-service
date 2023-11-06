@@ -149,6 +149,8 @@ dependencies {
 	testRuntimeOnly("org.testcontainers:postgresql")
 
 	implementation("io.micronaut.graphql:micronaut-graphql")
+	implementation("com.graphql-java:graphql-java-extended-scalars:21.0");
+	
 	implementation("jakarta.persistence:jakarta.persistence-api")
 	implementation("org.apache.lucene:lucene-queryparser")
 

@@ -1,3 +1,5 @@
+scalar JSON
+
 type Query {
     agencies(query: String, pageno: Int, pagesize: Int): AgencyPage!
     hostLms(query: String, pageno:Int, pagesize: Int): HostLmsPage!
@@ -253,5 +255,5 @@ type RawSource {
   id: ID!
   hostLmsId: ID!
   remoteId: String
-  json: String
+  json: JSON
 }
