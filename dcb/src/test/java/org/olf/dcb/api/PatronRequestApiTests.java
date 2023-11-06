@@ -67,6 +67,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @Slf4j
 class PatronRequestApiTests {
 	private static final String HOST_LMS_CODE = "patron-request-api-tests";
+	private static final String KNOWN_PATRON_LOCAL_ID = "872321";
 
 	@Inject
 	private ResourceLoader loader;
@@ -146,7 +147,7 @@ class PatronRequestApiTests {
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916920, "ab6", "6565750674");
-		sierraPatronsAPIFixture.patronHoldRequestResponse("872321");
+		sierraPatronsAPIFixture.patronHoldRequestResponse(KNOWN_PATRON_LOCAL_ID);
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
@@ -169,7 +170,7 @@ class PatronRequestApiTests {
 
 
 		sierraPatronsAPIFixture.addPatronGetExpectation("43546");
-		sierraPatronsAPIFixture.addPatronGetExpectation("872321");
+		sierraPatronsAPIFixture.addPatronGetExpectation(KNOWN_PATRON_LOCAL_ID);
 
 		final var shelvingLocation = ShelvingLocation.builder()
 			.id(randomUUID())
@@ -230,7 +231,7 @@ class PatronRequestApiTests {
 
 		// Act
 		var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, "872321", "ABC123", HOST_LMS_CODE, "home-library");
+			clusterRecordId, KNOWN_PATRON_LOCAL_ID, "ABC123", HOST_LMS_CODE, "home-library");
 
 		// Assert
 		assertThat(placedRequestResponse.getStatus(), is(OK));
@@ -247,7 +248,7 @@ class PatronRequestApiTests {
 				"Consortial Hold. tno=" + placedPatronRequest.getId());
 
 		// This one is for the borrower side hold
-		sierraPatronsAPIFixture.patronHoldResponse("872321",
+		sierraPatronsAPIFixture.patronHoldResponse(KNOWN_PATRON_LOCAL_ID,
 				"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864902",
 				"Consortial Hold. tno=" + placedPatronRequest.getId());
 
@@ -261,7 +262,7 @@ class PatronRequestApiTests {
 		assertThat(placedPatronRequest.getRequestor(), is(notNullValue()));
 		assertThat(placedPatronRequest.getRequestor().getHomeLibraryCode(), is("home-library"));
 		assertThat(placedPatronRequest.getRequestor().getLocalSystemCode(), is(HOST_LMS_CODE));
-		assertThat(placedPatronRequest.getRequestor().getLocalId(), is("872321"));
+		assertThat(placedPatronRequest.getRequestor().getLocalId(), is(KNOWN_PATRON_LOCAL_ID));
 
 		log.info("Waiting for placed....");
 		AdminApiClient.AdminAccessPatronRequest fetchedPatronRequest = await()
@@ -297,7 +298,7 @@ class PatronRequestApiTests {
 
 		final var homeIdentity = fetchedPatronRequest.getRequestor().getIdentities().get(1);
 
-		assertThat(homeIdentity.getLocalId(), is("872321"));
+		assertThat(homeIdentity.getLocalId(), is(KNOWN_PATRON_LOCAL_ID));
 		assertThat(homeIdentity.getHomeIdentity(), is(true));
 		assertThat(homeIdentity.getHostLmsCode(), is(HOST_LMS_CODE));
 
@@ -451,10 +452,12 @@ class PatronRequestApiTests {
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
+		savePatronTypeMappings();
+
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
-				"73825", "unknown-pickup-location", HOST_LMS_CODE, "home-library-code"));
+				KNOWN_PATRON_LOCAL_ID, "unknown-pickup-location", HOST_LMS_CODE, "home-library-code"));
 
 		// Assert
 		final var response = exception.getResponse();
@@ -490,10 +493,12 @@ class PatronRequestApiTests {
 
 		locationFixture.createPickupLocation("Unmapped pickup location", "unmapped-pickup-location");
 
+		savePatronTypeMappings();
+
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
-				"73825", "unmapped-pickup-location", HOST_LMS_CODE, "home-library-code"));
+				KNOWN_PATRON_LOCAL_ID, "unmapped-pickup-location", HOST_LMS_CODE, "home-library-code"));
 
 		// Assert
 		final var response = exception.getResponse();
