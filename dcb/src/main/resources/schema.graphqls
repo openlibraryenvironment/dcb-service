@@ -45,7 +45,7 @@ type HostLms {
   code: String
   name: String
   lmsClientClass: String
-  clientConfig: String
+  clientConfig: JSON
 }
 
 """
@@ -115,7 +115,7 @@ type PatronRequestAudit {
   briefDescription: String
   fromStatus: String
   toStatus: String
-  auditData: String
+  auditData: JSON
 }
 
 type SupplierRequest {
@@ -242,7 +242,7 @@ type BibRecord {
   isLargePrint: Boolean
   clusterReason: String
   typeOfRecord: String
-  canonicalMetadata: String
+  canonicalMetadata: JSON
   metadataScore: Int
   processVersion: Int
   contributesTo: ClusterRecord
