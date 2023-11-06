@@ -1,31 +1,29 @@
 package org.olf.dcb.request.fulfilment;
 
-import io.micronaut.context.annotation.Prototype;
-import lombok.RequiredArgsConstructor;
-import lombok.Value;
-
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.core.model.Agency;
-import org.olf.dcb.core.model.Patron;
-import org.olf.dcb.core.model.PatronIdentity;
-import org.olf.dcb.storage.PatronIdentityRepository;
-import org.olf.dcb.storage.PatronRepository;
-import org.olf.dcb.storage.AgencyRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import static java.util.UUID.randomUUID;
+import static lombok.AccessLevel.PACKAGE;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import reactor.function.TupleUtils;
 
-import static java.util.UUID.randomUUID;
-import static lombok.AccessLevel.PACKAGE;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Patron;
+import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.storage.PatronIdentityRepository;
+import org.olf.dcb.storage.PatronRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.micronaut.context.annotation.Prototype;
+import lombok.RequiredArgsConstructor;
+import lombok.Value;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Prototype
 public class PatronService {
@@ -139,10 +137,6 @@ public class PatronService {
 
 	private Mono<DataHostLms> fetchDataHostLmsByLocalSystemCode(String localSystemCode) {
 		return Mono.from(hostLmsService.findByCode(localSystemCode));
-	}
-
-	private Mono<DataHostLms> fetchDataHostLmsByHostLmsId(UUID hostLmsId) {
-		return Mono.from(hostLmsService.findById(hostLmsId));
 	}
 
 	private Mono<PatronIdentity> savePatronIdentity(Patron patron, String localSystemCode, String localId) {
