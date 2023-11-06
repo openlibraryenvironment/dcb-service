@@ -15,7 +15,6 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
-import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,9 +24,6 @@ import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
-// import lombok.experimental.Accessors;
-// import lombok.Data;
-
 @Prototype
 public class SupplyingAgencyService {
 	private static final Logger log = LoggerFactory.getLogger(SupplyingAgencyService.class);
@@ -36,73 +32,67 @@ public class SupplyingAgencyService {
 	private final SupplierRequestService supplierRequestService;
 	private final PatronService patronService;
 	private final PatronTypeService patronTypeService;
-        private final RequestWorkflowContextHelper requestWorkflowContextHelper;
-	
+	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
+
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
-	private final PatronRequestAuditService patronRequestAuditService;
 
 	public SupplyingAgencyService(
 		HostLmsService hostLmsService, SupplierRequestService supplierRequestService,
 		PatronService patronService, PatronTypeService patronTypeService,
-		PatronRequestRepository patronRequestRepository,
-		PatronRequestAuditService patronRequestAuditService, BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
-                RequestWorkflowContextHelper requestWorkflowContextHelper) {
+		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
+		RequestWorkflowContextHelper requestWorkflowContextHelper) {
 
 		this.hostLmsService = hostLmsService;
 		this.supplierRequestService = supplierRequestService;
 		this.patronService = patronService;
 		this.patronTypeService = patronTypeService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
-		this.patronRequestAuditService = patronRequestAuditService;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtSupplyingAgency(PatronRequest patronRequest) {
 		log.debug("placePatronRequestAtSupplyingAgency... {}", patronRequest.getId());
 
-                // In order to place a request at the supplying agency we need to know
-                // The agency-code and system-code of the patron, 
-                // the agency-code and system-code of the supplier
-                // The agency-code and system code of the pickup location
-                //
-                // If all three are in the same system this is a local hold - variant 1
-                // If the pickup system and the borrower system are the same then this is a simple 2 party loan
-                // psrc If the loan system and the pickup system are the same it's also a simple (Ish) 2 party loan
-                // If the pickup system and the borrower system and the lending system are all different it's a three-party loan 
-                //
-                // 1. Local - lender, pickup and borrower are same system
-                // 2. Pickup at lender - Patron will pick item up from lender system, but borrower system is different
-                // 3. Pickup at borrower - Patron will pick item up from one of their home libraries, borrower system is different
-                // 4. PUA - Lender, Pickup and Borrower systems are all different.
+		// In order to place a request at the supplying agency we need to know
+		// The agency-code and system-code of the patron,
+		// the agency-code and system-code of the supplier
+		// The agency-code and system code of the pickup location
+		//
+		// If all three are in the same system this is a local hold - variant 1
+		// If the pickup system and the borrower system are the same then this is a simple 2 party loan
+		// psrc If the loan system and the pickup system are the same it's also a simple (Ish) 2 party loan
+		// If the pickup system and the borrower system and the lending system are all different it's a three-party loan
+		//
+		// 1. Local - lender, pickup and borrower are same system
+		// 2. Pickup at lender - Patron will pick item up from lender system, but borrower system is different
+		// 3. Pickup at borrower - Patron will pick item up from one of their home libraries, borrower system is different
+		// 4. PUA - Lender, Pickup and Borrower systems are all different.
 
-                return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-                        .flatMap(this::checkAndCreatePatronAtSupplier)
-                        .flatMap(this::placeRequestAtSupplier)
-                        .flatMap(this::setPatronRequestWorkflow)
-                        .flatMap(this::updateSupplierRequest)
-                        .map(PatronRequest::placedAtSupplyingAgency)
-                        // We do this work a level up at PlacePatronRequestAtSupplyingAgencyStateTransition.createAuditEntry
-                        // commenting out as of 2023-08-16. If audit log looks good will remove entirely.
-			// .flatMap(this::createAuditEntry)
+		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+			.flatMap(this::checkAndCreatePatronAtSupplier)
+			.flatMap(this::placeRequestAtSupplier)
+			.flatMap(this::setPatronRequestWorkflow)
+			.flatMap(this::updateSupplierRequest)
+			.map(PatronRequest::placedAtSupplyingAgency)
+			// We do this work a level up at PlacePatronRequestAtSupplyingAgencyStateTransition.createAuditEntry
+			// commenting out as of 2023-08-16. If audit log looks good will remove entirely.
 			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
 
 	public Mono<PatronRequest> cleanUp(PatronRequest patronRequest) {
-                return Mono.just(patronRequest);
-        }
+		return Mono.just(patronRequest);
+	}
 
 	private Mono<RequestWorkflowContext> checkAndCreatePatronAtSupplier(RequestWorkflowContext psrc) {
 		log.debug("checkAndCreatePatronAtSupplier");
-		PatronRequest patronRequest = psrc.getPatronRequest();
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 
-		// return upsertPatronIdentityAtSupplier(patronRequest,supplierRequest)
 		return upsertPatronIdentityAtSupplier(psrc)
-			.map(patronIdentity -> { 
-				psrc.setPatronVirtualIdentity(patronIdentity); 
+			.map(patronIdentity -> {
+				psrc.setPatronVirtualIdentity(patronIdentity);
 				supplierRequest.setVirtualIdentity(patronIdentity);
-				return psrc; 
+				return psrc;
 			});
 	}
 
@@ -114,12 +104,12 @@ public class SupplyingAgencyService {
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 		PatronIdentity patronIdentityAtSupplier = psrc.getPatronVirtualIdentity();
 
-                // Validate that the context contains all the information we need to execute this step
-		if ( ( patronRequest == null ) ||
-                     ( supplierRequest == null ) ||
-                     ( patronIdentityAtSupplier == null ) ||
-                     ( psrc.getPickupAgencyCode() == null ) )
-                        throw new RuntimeException("Invalid RequestWorkflowContext "+psrc.toString());
+		// Validate that the context contains all the information we need to execute this step
+		if ((patronRequest == null) ||
+			(supplierRequest == null) ||
+			(patronIdentityAtSupplier == null) ||
+			(psrc.getPickupAgencyCode() == null))
+			throw new RuntimeException("Invalid RequestWorkflowContext " + psrc);
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
 			.flatMap(client -> this.placeHoldRequest(client, psrc) )
@@ -128,9 +118,9 @@ public class SupplyingAgencyService {
 			.thenReturn(psrc);
 	}
 
-        private Mono<Tuple2<String, String>> placeHoldRequest(
-                HostLmsClient client,
-                RequestWorkflowContext psrc) {
+	private Mono<Tuple2<String, String>> placeHoldRequest(
+		HostLmsClient client,
+		RequestWorkflowContext psrc) {
 
 		log.debug("placeHoldRequest");
 
@@ -138,31 +128,29 @@ public class SupplyingAgencyService {
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 		PatronIdentity patronIdentityAtSupplier = psrc.getPatronVirtualIdentity();
 
-                String requestedThingType = "i"; // Default requst an item
-                String requestedThingId = supplierRequest.getLocalItemId(); // Default item ID
+		String requestedThingType = "i"; // Default requst an item
+		String requestedThingId = supplierRequest.getLocalItemId(); // Default item ID
 
-                Map<String, Object> cfg = client.getHostLms().getClientConfig();
-                if ( ( cfg != null ) && ( cfg.get("holdPolicy") != null ) && ( cfg.get("holdPolicy").equals("title")  ) ) {
-                        log.info("Client is configured for title level hold policy - switching");
+		Map<String, Object> cfg = client.getHostLms().getClientConfig();
+		if ((cfg != null) && (cfg.get("holdPolicy") != null) && (cfg.get("holdPolicy").equals("title"))) {
+			log.info("Client is configured for title level hold policy - switching");
 			requestedThingType = "b";
 			requestedThingId = supplierRequest.getLocalBibId();
-                }
+		}
 
 		String note = "Consortial Hold. tno="+patronRequest.getId();
 
-                // Depending upon client configuration, we may need to place an item or a title level hold
+		// Depending upon client configuration, we may need to place an item or a title level hold
 		// log.debug("Call client.placeHoldRequest");
-                return client.placeHoldRequest(patronIdentityAtSupplier.getLocalId(), 
-                        requestedThingType, 
-                        requestedThingId, 
-                        psrc.getPickupAgencyCode(),      // patronRequest.getPickupLocationCode(), 
-                        note,
+		return client.placeHoldRequest(patronIdentityAtSupplier.getLocalId(),
+			requestedThingType,
+			requestedThingId,
+			psrc.getPickupAgencyCode(),
+			note,
 			patronRequest.getId().toString());
-        }
-                
+	}
 
 	private Mono<PatronRequest> updateSupplierRequest(RequestWorkflowContext psrc) {
-
 		log.debug("updateSupplierRequest");
 
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
@@ -173,44 +161,40 @@ public class SupplyingAgencyService {
 	}
 
 
-        // Depending upon the particular setup (1, 2 or three parties) we need to take different actions in different scenarios.
-        // Here we work out which particular workflow is in force and set a value on the patron request for easy reference.
-        // This can change as we select different suppliers, so we recalculate for each new supplier.
+	// Depending upon the particular setup (1, 2 or three parties) we need to take different actions in different scenarios.
+	// Here we work out which particular workflow is in force and set a value on the patron request for easy reference.
+	// This can change as we select different suppliers, so we recalculate for each new supplier.
 	private Mono<RequestWorkflowContext> setPatronRequestWorkflow(RequestWorkflowContext psrc) {
-                log.debug("setPatronRequestWorkflow for {}",psrc);
-                if ( ( psrc.getPatronAgencyCode().equals(psrc.getLenderAgencyCode()) ) && 
-                     ( psrc.getPatronAgencyCode().equals(psrc.getPickupAgencyCode()) ) ) {
-                        // Case 1 : Purely local request
-                        psrc.getPatronRequest().setActiveWorkflow("RET-LOCAL");
-                }
-                else if ( psrc.getPatronAgencyCode().equals(psrc.getPickupAgencyCode())) {
-                        // Case 2 : Remote lender, patron picking up from a a library in their home system
-                        psrc.getPatronRequest().setActiveWorkflow("RET-STD");
-                }
-                else {
-                        psrc.getPatronRequest().setActiveWorkflow("RET-PUA");
-                }
+		log.debug("setPatronRequestWorkflow for {}", psrc);
+		if ((psrc.getPatronAgencyCode().equals(psrc.getLenderAgencyCode())) &&
+			(psrc.getPatronAgencyCode().equals(psrc.getPickupAgencyCode()))) {
+			// Case 1 : Purely local request
+			psrc.getPatronRequest().setActiveWorkflow("RET-LOCAL");
+		} else if (psrc.getPatronAgencyCode().equals(psrc.getPickupAgencyCode())) {
+			// Case 2 : Remote lender, patron picking up from a a library in their home system
+			psrc.getPatronRequest().setActiveWorkflow("RET-STD");
+		} else {
+			psrc.getPatronRequest().setActiveWorkflow("RET-PUA");
+		}
 
-                return Mono.just(psrc);
-        }
+		return Mono.just(psrc);
+	}
 
 	private Mono<PatronIdentity> upsertPatronIdentityAtSupplier(RequestWorkflowContext psrc) {
-
 		log.debug("upsertPatronIdentityAtSupplier");
 
-                PatronRequest patronRequest = psrc.getPatronRequest();
-                SupplierRequest supplierRequest = psrc.getSupplierRequest();
+		PatronRequest patronRequest = psrc.getPatronRequest();
+		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 
 		return checkIfPatronExistsAtSupplier(psrc)
-                        .switchIfEmpty(Mono.defer(() -> createPatronAtSupplier(patronRequest, supplierRequest)));
+			.switchIfEmpty(Mono.defer(() -> createPatronAtSupplier(patronRequest, supplierRequest)));
 	}
 
 	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(RequestWorkflowContext psrc) {
-
 		log.debug("checkIfPatronExistsAtSupplier");
 
-                PatronRequest patronRequest = psrc.getPatronRequest();
-                SupplierRequest supplierRequest = psrc.getSupplierRequest();
+		PatronRequest patronRequest = psrc.getPatronRequest();
+		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 		// log.debug("checkIfPatronExistsAtSupplier req={}, supplierSystemCode={}", patronRequest.getId(), supplierRequest.getHostLmsCode());
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
@@ -243,8 +227,8 @@ public class SupplyingAgencyService {
 
 	private Mono<PatronIdentity> getRequestingIdentity(PatronRequest patronRequest) {
 		// log.debug("getRequestingIdentity was called with: {}", patronRequest.getPatron());
-		if ( ( patronRequest != null ) &&
-			( patronRequest.getRequestingIdentity() != null ) ) {
+		if ((patronRequest != null) &&
+			(patronRequest.getRequestingIdentity() != null)) {
 				// log.debug("Attempting to locate patron identity for {}",patronRequest.getRequestingIdentity().getId());
 				return patronService.getPatronIdentityById(patronRequest.getRequestingIdentity().getId());
 		}
@@ -255,7 +239,6 @@ public class SupplyingAgencyService {
 	}
 
 	private Mono<PatronIdentity> createPatronAtSupplier(PatronRequest patronRequest, SupplierRequest supplierRequest) {
-
 		final var hostLmsCode = supplierRequest.getHostLmsCode();
 
 		log.debug("createPatronAtSupplier prid={}, srid={} supplierCode={}", patronRequest.getId(), supplierRequest.getId(),hostLmsCode);
@@ -269,20 +252,18 @@ public class SupplyingAgencyService {
 	}
 
 	private Mono<Tuple2<String, String>> createPatronAtSupplier(
-                        PatronRequest patronRequest,
-		        HostLmsClient client, 
-                        PatronIdentity requestingPatronIdentity,
-                        String supplierHostLmsCode) {
-                // Using the patron type from the patrons "Home" patronIdentity, look up what the equivalent patron type is at
-                // the supplying system. Then create a patron in the supplying system using that type value.
+		PatronRequest patronRequest, HostLmsClient client,
+		PatronIdentity requestingPatronIdentity, String supplierHostLmsCode) {
+		// Using the patron type from the patrons "Home" patronIdentity, look up what the equivalent patron type is at
+		// the supplying system. Then create a patron in the supplying system using that type value.
 
 		log.debug("createPatronAtSupplier2");
 
-                // Patrons can have multiple barcodes. To keep the domain model sane(ish) we store [b1, b2, b3] (As the result of Objects.toString()
-                // in the field. Here we unpack that structure back into an array of barcodes that the HostLMS can do with as it pleases
-                final List<String> patron_barcodes = ( requestingPatronIdentity.getLocalBarcode() != null ) ?
-                        Arrays.asList(requestingPatronIdentity.getLocalBarcode()
-                                .substring(1, requestingPatronIdentity.getLocalBarcode().length() - 1).split(", ")) : null;
+		// Patrons can have multiple barcodes. To keep the domain model sane(ish) we store [b1, b2, b3] (As the result of Objects.toString()
+		// in the field. Here we unpack that structure back into an array of barcodes that the HostLMS can do with as it pleases
+		final List<String> patron_barcodes = (requestingPatronIdentity.getLocalBarcode()!=null) ?
+			Arrays.asList(requestingPatronIdentity.getLocalBarcode()
+				.substring(1, requestingPatronIdentity.getLocalBarcode().length() - 1).split(", ")):null;
 
 		return determinePatronType(supplierHostLmsCode, requestingPatronIdentity)
 			.flatMap(patronType -> client.createPatron(
@@ -296,32 +277,33 @@ public class SupplyingAgencyService {
 
 	private List<String> stringToList(String string) {
 		log.debug("stringToList {}",string);
-                return string != null ? List.of(string) : null;
-        }
+		return string!=null ? List.of(string):null;
+	}
 
 	private Mono<PatronIdentity> checkForPatronIdentity(PatronRequest patronRequest,
 		String hostLmsCode, String localId, String localPType) {
 
 		return patronService.checkForPatronIdentity(patronRequest.getPatron(),
-				hostLmsCode, localId, localPType);
+			hostLmsCode, localId, localPType);
 	}
 
 	private Mono<String> determinePatronType(String supplyingHostLmsCode, PatronIdentity requestingIdentity) {
 
-                log.debug("determinePatronType");
+		log.debug("determinePatronType");
 
-                if ( supplyingHostLmsCode == null || requestingIdentity == null || requestingIdentity.getHostLms() == null || 
-                        requestingIdentity.getHostLms().getCode() == null ) {
-                        throw new RuntimeException("Missing patron data - unable to determine patron type at supplier:"+supplyingHostLmsCode);
-                }
+		if (supplyingHostLmsCode == null || requestingIdentity == null || requestingIdentity.getHostLms() == null ||
+			requestingIdentity.getHostLms().getCode() == null) {
 
-                // log.debug("determinePatronType {} {} {} requesting identity present",supplyingHostLmsCode, requestingIdentity.getHostLms().getCode(),
-                //        requestingIdentity.getLocalPtype());
-                
-                // We need to look up the requestingHostLmsCode and not pass supplyingHostLmsCode
-		return patronTypeService.determinePatronType(supplyingHostLmsCode, 
-                        requestingIdentity.getHostLms().getCode(),
-                        requestingIdentity.getLocalPtype());
+			throw new RuntimeException("Missing patron data - unable to determine patron type at supplier:" + supplyingHostLmsCode);
+		}
+
+		// log.debug("determinePatronType {} {} {} requesting identity present",supplyingHostLmsCode, requestingIdentity.getHostLms().getCode(),
+		//	requestingIdentity.getLocalPtype());
+
+		// We need to look up the requestingHostLmsCode and not pass supplyingHostLmsCode
+		return patronTypeService.determinePatronType(supplyingHostLmsCode,
+			requestingIdentity.getHostLms().getCode(),
+			requestingIdentity.getLocalPtype());
 	}
 
 	public Mono<HostLmsHold> getHold(String hostLmsCode, String holdId) {
