@@ -181,6 +181,42 @@ public class ValidatePatronTests {
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedMessage);
 	}
 
+	@Test
+	void shouldFailWhenNoPatronTypeMappingIsDefined(MockServerClient mockServerClient) {
+		// Arrange
+		final var patronRequestId = randomUUID();
+		final var localId = "783742";
+
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+
+		final var patron = createPatron(localId, hostLms);
+
+		var patronRequest = savePatronRequest(patronRequestId, patron);
+
+		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localId);
+
+		// Act
+		final var exception = assertThrows(RuntimeException.class,
+			() -> validatePatronTransition.attempt(patronRequest).block());
+
+		// Assert
+		final var expectedError = "Unable to map patronType validate-patron-transition-tests:15 To DCB context";
+
+		assertThat(exception.getMessage(), is(expectedError));
+
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat("Request should have error status afterwards",
+			fetchedPatronRequest.getStatus(), is(ERROR));
+
+		assertThat("Request should have error message afterwards",
+			fetchedPatronRequest.getErrorMessage(), is(expectedError));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedError);
+	}
+
 	private Patron createPatron(String localId, DataHostLms hostLms) {
 		final Patron patron = patronFixture.savePatron("123456");
 
