@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.HostLmsService.UnknownHostLmsException;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
@@ -21,7 +22,11 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		final var localSystemCode = command.getRequestorLocalSystemCode();
 
 		return hostLmsService.findByCode(localSystemCode)
-			.map(hostLms -> CheckResult.passed())
+			.flatMap(hostLmsService::getClientFor)
+			.flatMap(client -> client.getPatronByLocalId(command.getRequestor().getLocalId()))
+			.map(localPatron -> CheckResult.passed())
+			.onErrorResume(PatronNotFoundInHostLmsException.class,
+				error -> Mono.just(CheckResult.failed(error.getMessage())))
 			.onErrorReturn(UnknownHostLmsException.class,
 				CheckResult.failed("\"" + localSystemCode + "\" is not a recognised host LMS"))
 			.map(List::of);

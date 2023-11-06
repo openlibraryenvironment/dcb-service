@@ -49,7 +49,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
-	void shouldPassWhenHostLmsIsRecognised(MockServerClient mockServerClient) {
+	void shouldPassWhenPatronCanBeFoundInHostLms(MockServerClient mockServerClient) {
 		// Arrange
 		final var LOCAL_ID = "345358";
 
@@ -72,6 +72,29 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		// Assert
 		assertThat(results, containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldFailWhenPatronCannotBeFoundInHostLms(MockServerClient mockServerClient) {
+		final var LOCAL_ID = "673825";
+
+		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+
+		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(LOCAL_ID);
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(HOST_LMS_CODE)
+				.localId(LOCAL_ID)
+				.build())
+			.build();
+
+		final var results = check.check(command).block();
+
+		// Assert
+		assertThat(results, containsInAnyOrder(failedCheck(
+			"Patron \"" + LOCAL_ID + "\" is not recognised in \"" + HOST_LMS_CODE + "\"")));
 	}
 
 	@Test
