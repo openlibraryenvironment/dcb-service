@@ -6,12 +6,14 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.olf.dcb.test.DcbTest;
+import org.mockserver.client.MockServerClient;
 import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
+import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.test.mockserver.MockServerMicronautTest;
 
-@DcbTest
+@MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	private static final String HOST_LMS_CODE = "host-lms";
@@ -23,10 +25,13 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	private HostLmsFixture hostLmsFixture;
 
 	@BeforeAll
-	void beforeAll() {
+	void beforeAll(MockServerClient mockServerClient) {
 		final String BASE_URL = "https://resolve-patron-tests.com";
 		final String KEY = "resolve-patron-key";
 		final String SECRET = "resolve-patron-secret";
+
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
+			.setValidCredentials(KEY, SECRET, "test-token", 60);
 
 		hostLmsFixture.deleteAll();
 
