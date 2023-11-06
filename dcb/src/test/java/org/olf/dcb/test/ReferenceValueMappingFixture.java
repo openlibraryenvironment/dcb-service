@@ -30,6 +30,9 @@ public class ReferenceValueMappingFixture {
 	public void deleteAll() {
 		dataAccess.deleteAll(referenceValueMappingRepository.queryAll(),
 			mapping -> referenceValueMappingRepository.delete(mapping.getId()));
+
+		dataAccess.deleteAll(numericRangeMappingRepository.queryAll(),
+			mapping -> numericRangeMappingRepository.delete(mapping.getId()));
 	}
 
 	public void defineItemStatusMapping(String fromHostLmsCode, String fromValue, String toValue) {
