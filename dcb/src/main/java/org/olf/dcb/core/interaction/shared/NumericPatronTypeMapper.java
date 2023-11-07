@@ -32,7 +32,8 @@ public class NumericPatronTypeMapper {
 						localPatronTypeCode)));
 			} catch (Exception e) {
 				return Mono.error(new UnableToConvertLocalPatronTypeException(
-					"Unable to convert " + localPatronTypeCode + " into number " + e.getMessage()));
+					"Unable to convert " + localPatronTypeCode + " into number " + e.getMessage(),
+					localId, system, localPatronTypeCode));
 			}
 		}
 
