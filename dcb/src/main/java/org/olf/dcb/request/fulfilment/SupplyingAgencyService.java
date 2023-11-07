@@ -303,7 +303,7 @@ public class SupplyingAgencyService {
 		// We need to look up the requestingHostLmsCode and not pass supplyingHostLmsCode
 		return patronTypeService.determinePatronType(supplyingHostLmsCode,
 			requestingIdentity.getHostLms().getCode(),
-			requestingIdentity.getLocalPtype());
+			requestingIdentity.getLocalPtype(), requestingIdentity.getLocalId());
 	}
 
 	public Mono<HostLmsHold> getHold(String hostLmsCode, String holdId) {

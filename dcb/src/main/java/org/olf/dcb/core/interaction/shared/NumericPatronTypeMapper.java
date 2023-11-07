@@ -15,7 +15,7 @@ public class NumericPatronTypeMapper {
 		this.numericRangeMappingRepository = numericRangeMappingRepository;
 	}
 
-	public Mono<String> mapLocalPatronTypeToCanonical(String system, String localPatronTypeCode) {
+	public Mono<String> mapLocalPatronTypeToCanonical(String system, String localPatronTypeCode, String localId) {
 		log.debug("mapLocalPatronTypeToCanonical({}, {})", system, localPatronTypeCode);
 
 		// Sierra item types are integers. They are usually mapped by a range

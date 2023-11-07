@@ -38,7 +38,7 @@ class PatronTypeServiceTests {
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", "DCB_UG", "EXAMPLE-CODE", "15");
 
 		// Act
-		final var patronType = patronTypeService.determinePatronType("EXAMPLE-CODE","HOSTA","1").block();
+		final var patronType = patronTypeService.determinePatronType("EXAMPLE-CODE","HOSTA","1", null).block();
 
 		// Assert
 		assertThat(patronType, is("15"));
@@ -52,7 +52,7 @@ class PatronTypeServiceTests {
 		// Act
 		final var exception = assertThrows(PatronTypeMappingNotFound.class,
 			() -> patronTypeService.determinePatronType(
-				"EXAMPLE-CODE", "DCB","DCB_UG").block());
+				"EXAMPLE-CODE", "DCB","DCB_UG", null).block());
 
 		// Assert
 		assertNotNull(exception);
@@ -69,7 +69,7 @@ class PatronTypeServiceTests {
 		// Act
 		final var exception = assertThrows(PatronTypeMappingNotFound.class,
 			() -> patronTypeService.determinePatronType(
-				"EXAMPLE-CODE", "DCB","DCB_UG").block());
+				"EXAMPLE-CODE", "DCB","DCB_UG", null).block());
 
 		// Assert
 		assertNotNull(exception);
@@ -83,7 +83,7 @@ class PatronTypeServiceTests {
 		// Act
 		final var exception = assertThrows(PatronTypeMappingNotFound.class,
 			() -> patronTypeService.determinePatronType(
-				"EXAMPLE-CODE", "DCB","DCB_UG").block());
+				"EXAMPLE-CODE", "DCB","DCB_UG", null).block());
 
 		// Assert
 		assertNotNull(exception);

@@ -1,13 +1,13 @@
 package org.olf.dcb.request.fulfilment;
 
-import io.micronaut.context.annotation.Prototype;
-
+import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
-import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 
 @Prototype
 public class PatronTypeService {
@@ -29,10 +29,11 @@ public class PatronTypeService {
 	 * context over the DCB system.
 	 */
 	public Mono<String> determinePatronType(String supplierHostLmsCode, String requesterHostLmsCode,
-		String requesterPatronType) {
+		String requesterPatronType, String requesterLocalId) {
+
 		log.debug("determinePatronType supplier={} requester={} ptype={}",supplierHostLmsCode,requesterHostLmsCode,requesterPatronType);
 		// Get the "Spine" mapping
-		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(requesterHostLmsCode,requesterPatronType)
+		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(requesterHostLmsCode,requesterPatronType, requesterLocalId)
 			.doOnNext ( spineMapping -> log.debug("Got spine mapping {}",spineMapping) )
 			.flatMap( spineMapping -> findMapping( supplierHostLmsCode, "DCB", spineMapping ) )
 			.doOnNext ( targetMapping -> log.debug("Got target mapping {}",targetMapping) )
@@ -40,8 +41,8 @@ public class PatronTypeService {
 			.switchIfEmpty(Mono.error(
 				new PatronTypeMappingNotFound("No mapping found from ptype " +
 					requesterHostLmsCode+":" +requesterPatronType+" to "+supplierHostLmsCode)))
-                        .onErrorMap( cause -> new PatronTypeMappingNotFound("No mapping found from ptype " +
-                                        requesterHostLmsCode+":" +requesterPatronType+" to "+supplierHostLmsCode+" because "+cause.getMessage()));
+			.onErrorMap(cause -> new PatronTypeMappingNotFound("No mapping found from ptype " +
+				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode + " because " + cause.getMessage()));
 	}
 
 	private Mono<ReferenceValueMapping> findMapping(String targetContext, String sourceContext, String sourceValue) {
