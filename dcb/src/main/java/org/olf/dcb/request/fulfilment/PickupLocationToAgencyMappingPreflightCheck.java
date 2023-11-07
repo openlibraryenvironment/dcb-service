@@ -56,8 +56,8 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 		String pickupLocationContext, String requestorLocalSystemCode) {
 		
 		return findDcbContextAgencyMapping(pickupLocationCode)
-			.switchIfEmpty(findAgencyMapping(pickupLocationContext, pickupLocationCode))
-			.switchIfEmpty(findAgencyMapping(requestorLocalSystemCode, pickupLocationCode));
+			.switchIfEmpty(Mono.defer(() -> findAgencyMapping(pickupLocationContext, pickupLocationCode)))
+			.switchIfEmpty(Mono.defer(() -> findAgencyMapping(requestorLocalSystemCode, pickupLocationCode)));
 	}
 
 	/**
