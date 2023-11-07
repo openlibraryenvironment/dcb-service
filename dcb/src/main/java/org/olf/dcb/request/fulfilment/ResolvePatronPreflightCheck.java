@@ -6,6 +6,7 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.HostLmsService.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
+import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
 
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
@@ -32,6 +33,11 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 				error -> Mono.just(CheckResult.failed(
 					"Local patron type \"" + error.getLocalPatronTypeCode()
 						+ "\" from \"" + error.getHostLmsCode() + "\" is not mapped to a DCB canonical patron type")))
+			.onErrorResume(UnableToConvertLocalPatronTypeException.class,
+				error -> Mono.just(CheckResult.failed(
+						"Local patron \"" + error.getLocalId() + "\" from \""
+							+ error.getLocalSystemCode() + "\" has non-numeric patron type \"" + error.getLocalPatronTypeCode() + "\""
+					)))
 			.onErrorReturn(UnknownHostLmsException.class,
 				CheckResult.failed("\"" + localSystemCode + "\" is not a recognised host LMS"))
 			.map(List::of);

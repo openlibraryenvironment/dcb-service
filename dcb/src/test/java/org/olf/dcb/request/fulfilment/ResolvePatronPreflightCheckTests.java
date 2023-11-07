@@ -126,6 +126,30 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
+	void shouldFailWhenNoLocalPatronTypeIsDefined(MockServerClient mockServerClient) {
+		// Arrange
+		final var LOCAL_ID = "683945";
+
+		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+
+		sierraPatronsAPIFixture.getPatronByLocalIdWithoutPatronTypeSuccessResponse(LOCAL_ID);
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(HOST_LMS_CODE)
+				.localId(LOCAL_ID)
+				.build())
+			.build();
+
+		final var results = check.check(command).block();
+
+		// Assert
+		assertThat(results, containsInAnyOrder(failedCheck(
+			"Local patron \"" + LOCAL_ID + "\" from \"host-lms\" has non-numeric patron type \"null\"")));
+	}
+
+	@Test
 	void shouldFailWhenHostLmsIsNotRecognised() {
 		// Act
 		final var command = PlacePatronRequestCommand.builder()

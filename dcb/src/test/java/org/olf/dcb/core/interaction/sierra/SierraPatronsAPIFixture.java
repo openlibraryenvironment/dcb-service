@@ -61,6 +61,19 @@ public class SierraPatronsAPIFixture {
 			.respond(successfulPatron());
 	}
 
+	public void getPatronByLocalIdWithoutPatronTypeSuccessResponse(String id) {
+		mockServer
+			.when(getPatron(id))
+			.respond(sierraMockServerResponses.jsonSuccess(json(
+				Patron.builder()
+					.id(Integer.parseInt(id))
+					.patronType(null)
+					.homeLibraryCode("testccc")
+					.barcodes(List.of("647647746"))
+					.names(List.of("Bob"))
+					.build())));
+	}
+
 	public void noRecordsFoundWhenGettingPatronByLocalId(String patronId) {
 		mockServer
 			.when(getPatron(patronId))
