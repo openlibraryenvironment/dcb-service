@@ -29,11 +29,11 @@ public class NumericPatronTypeMapper {
 					.doOnNext(nrm -> log.debug("nrm: {}", nrm))
 					.switchIfEmpty(Mono.error(new RuntimeException("Unable to map patronType "+system+":"+l+" To DCB context")));
 			} catch (Exception e) {
-                                return Mono.error(new RuntimeException("Unable to convert "+localPatronTypeCode+" into number "+e.getMessage()));
+				return Mono.error(new RuntimeException("Unable to convert " + localPatronTypeCode + " into number " + e.getMessage()));
 			}
 		}
 
 		log.warn("No localPatronTypeCode provided");
-                return Mono.error(new RuntimeException("No localPatronTypeCode provided for range mapping"));
+		return Mono.error(new RuntimeException("No localPatronTypeCode provided for range mapping"));
 	}
 }
