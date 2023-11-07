@@ -3,8 +3,8 @@ package org.olf.dcb.request.fulfilment;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
-import org.apache.velocity.runtime.directive.Define;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
@@ -42,10 +42,14 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, "test-token", 60);
 
-		referenceValueMappingFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+	}
+
+	@BeforeEach
+	void beforeEach() {
+		referenceValueMappingFixture.deleteAll();
 	}
 
 	@Test
