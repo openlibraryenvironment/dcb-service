@@ -4,8 +4,7 @@ import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.time.Instant;
 
 import io.micronaut.http.multipart.CompletedFileUpload;
 import io.micronaut.serde.annotation.Serdeable;
@@ -136,11 +135,10 @@ public class DCBConfigurationService {
 				.collectList()
 				.map(mappings -> UploadedConfigImport.builder()
 					.message(mappings.size() + " mappings have been imported successfully.")
-					.lastImported(LocalDateTime.now().format(DateTimeFormatter.ofPattern( "uuuu.MM.dd.HH.mm.ss" )))
+					.lastImported(Instant.now())
 					.recordsImported(Long.valueOf(mappings.size()))
 					.build());
 		} catch (IOException e) {
-			// Handle any exceptions - flesh this out
 			throw new FileUploadValidationException("Error reading file.");
 		}
 	}
@@ -197,7 +195,7 @@ public class DCBConfigurationService {
 			.toCategory("Host LMS")
 			.toValue(dcbCode.toUpperCase())
 			.label(rvm[1])
-			.last_imported(LocalDateTime.now().format(DateTimeFormatter.ofPattern("MM/dd/yy hh.mm a")))
+			.lastImported(Instant.now())
 			.build();
 		return Mono.from(referenceValueMappingRepository.saveOrUpdate(rvmd));
 	}
@@ -293,6 +291,6 @@ public class DCBConfigurationService {
 	public static class UploadedConfigImport {
 			String message;
 			Long recordsImported;
-			String lastImported;
+			Instant lastImported;
 	}
 }

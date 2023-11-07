@@ -1,5 +1,6 @@
 package org.olf.dcb.core.model;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.validation.constraints.NotNull;
@@ -77,5 +78,5 @@ public class ReferenceValueMapping {
 		private String label;
 
 		@Nullable
-		private String last_imported;
+		private Instant lastImported;
 }
