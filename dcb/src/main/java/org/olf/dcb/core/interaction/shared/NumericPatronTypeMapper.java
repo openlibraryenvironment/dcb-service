@@ -31,7 +31,8 @@ public class NumericPatronTypeMapper {
 						"Unable to map patronType "+system+":"+l+" To DCB context", system,
 						localPatronTypeCode)));
 			} catch (Exception e) {
-				return Mono.error(new RuntimeException("Unable to convert " + localPatronTypeCode + " into number " + e.getMessage()));
+				return Mono.error(new UnableToConvertLocalPatronTypeException(
+					"Unable to convert " + localPatronTypeCode + " into number " + e.getMessage()));
 			}
 		}
 
