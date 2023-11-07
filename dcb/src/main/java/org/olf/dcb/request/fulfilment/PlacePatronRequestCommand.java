@@ -29,6 +29,10 @@ public class PlacePatronRequestCommand {
 		return getRequestor().getLocalSystemCode();
 	}
 
+	String getRequestorLocalId() {
+		return getRequestor().getLocalId();
+	}
+
 	@Serdeable
 	@Builder
 	@Value
