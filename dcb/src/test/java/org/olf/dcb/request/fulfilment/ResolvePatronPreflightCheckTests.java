@@ -1,7 +1,10 @@
 package org.olf.dcb.request.fulfilment;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -99,6 +102,30 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Assert
 		assertThat(results, containsInAnyOrder(failedCheck(
 			"Patron \"" + LOCAL_ID + "\" is not recognised in \"" + HOST_LMS_CODE + "\"")));
+	}
+
+	@Test
+	void shouldFailWhenLocalPatronTypeIsNotMappedToCanonicalPatronType(MockServerClient mockServerClient) {
+		// Arrange
+		final var LOCAL_ID = "578374";
+
+		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(LOCAL_ID);
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(HOST_LMS_CODE)
+				.localId(LOCAL_ID)
+				.build())
+			.build();
+
+		final var exception = assertThrows(RuntimeException.class, () -> check.check(command).block());
+
+		// Assert
+		assertThat(exception, hasProperty("message",
+			is("Unable to map patronType host-lms:15 To DCB context")));
 	}
 
 	@Test
