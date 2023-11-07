@@ -754,7 +754,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private Mono<Patron> enrichWithCanonicalPatronType(Patron p) {
-		return numericPatronTypeMapper.getCanonicalItemType(lms.getCode(), p.getLocalPatronType())
+		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(lms.getCode(), p.getLocalPatronType())
 			.map( pt -> p.setCanonicalPatronType(pt) )
 			.defaultIfEmpty(p);
 	}

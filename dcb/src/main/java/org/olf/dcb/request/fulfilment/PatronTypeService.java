@@ -32,7 +32,7 @@ public class PatronTypeService {
 		String requesterPatronType) {
 		log.debug("determinePatronType supplier={} requester={} ptype={}",supplierHostLmsCode,requesterHostLmsCode,requesterPatronType);
 		// Get the "Spine" mapping
-		return numericPatronTypeMapper.getCanonicalItemType(requesterHostLmsCode,requesterPatronType)
+		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(requesterHostLmsCode,requesterPatronType)
 			.doOnNext ( spineMapping -> log.debug("Got spine mapping {}",spineMapping) )
 			.flatMap( spineMapping -> findMapping( supplierHostLmsCode, "DCB", spineMapping ) )
 			.doOnNext ( targetMapping -> log.debug("Got target mapping {}",targetMapping) )

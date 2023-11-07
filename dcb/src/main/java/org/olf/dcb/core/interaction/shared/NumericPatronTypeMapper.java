@@ -15,8 +15,8 @@ public class NumericPatronTypeMapper {
 		this.numericRangeMappingRepository = numericRangeMappingRepository;
 	}
 
-	public Mono<String> getCanonicalItemType(String system, String localPatronTypeCode) {
-		log.debug("map({},{})", system, localPatronTypeCode);
+	public Mono<String> mapLocalPatronTypeToCanonical(String system, String localPatronTypeCode) {
+		log.debug("mapLocalPatronTypeToCanonical({}, {})", system, localPatronTypeCode);
 
 		// Sierra item types are integers. They are usually mapped by a range
 		// I have a feeling that creating a static cache of system->localItemType mappings will have solid performance
