@@ -28,7 +28,8 @@ public class NumericPatronTypeMapper {
 				return Mono.from(numericRangeMappingRepository.findMappedValueFor(system, "patronType", "DCB", l))
 					.doOnNext(nrm -> log.debug("nrm: {}", nrm))
 					.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
-						"Unable to map patronType "+system+":"+l+" To DCB context")));
+						"Unable to map patronType "+system+":"+l+" To DCB context", system,
+						localPatronTypeCode)));
 			} catch (Exception e) {
 				return Mono.error(new RuntimeException("Unable to convert " + localPatronTypeCode + " into number " + e.getMessage()));
 			}

@@ -1,10 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasProperty;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -121,11 +118,11 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.build())
 			.build();
 
-		final var exception = assertThrows(RuntimeException.class, () -> check.check(command).block());
+		final var results = check.check(command).block();
 
 		// Assert
-		assertThat(exception, hasProperty("message",
-			is("Unable to map patronType host-lms:15 To DCB context")));
+		assertThat(results, containsInAnyOrder(failedCheck(
+			"Local patron type \"15\" from \"host-lms\" is not mapped to a DCB canonical patron type")));
 	}
 
 	@Test
