@@ -6,8 +6,10 @@ import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 
 import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Singleton
 public class ReferenceValueMappingService {
 	private final ReferenceValueMappingRepository repository;
@@ -20,16 +22,20 @@ public class ReferenceValueMappingService {
 		return findLocationToAgencyMapping("DCB", pickupLocationCode);
 	}
 
-	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String context, String pickupLocationCode) {
-		if (isEmpty(context)) {
+	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String fromContext, String pickupLocationCode) {
+		if (isEmpty(fromContext)) {
 			return Mono.empty();
 		}
 
+		final var fromCategory = "Location";
+		final var toCategory = "AGENCY";
+		final var toContext = "DCB";
+
+		log.debug("Attempting to find mapping from category: {}, from context: {}, pickup location code: {}, to category: {}, to context: {}",
+			fromCategory, fromContext, pickupLocationCode, toCategory, toContext);
+
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-			"Location",
-			context,
-			pickupLocationCode,
-			"AGENCY",
-			"DCB"));
+			fromCategory, fromContext, pickupLocationCode, toCategory, toContext))
+			.doOnSuccess(mapping -> log.debug("Found mapping: {}", mapping));
 	}
 }

@@ -11,7 +11,9 @@ import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.storage.NumericRangeMappingRepository;
 
 import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Prototype
 public class ReferenceValueMappingFixture {
 	private final DataAccess dataAccess = new DataAccess();
@@ -53,7 +55,10 @@ public class ReferenceValueMappingFixture {
 	}
 
 	public void defineLocationToAgencyMapping(String fromContext, String locationCode, String agencyCode) {
-		saveReferenceValueMapping(ReferenceValueMapping.builder()
+		log.debug("Define location mapping in tests with from context: {}, location code: {}, agency code: {}",
+			fromContext, locationCode, agencyCode);
+
+		final var mappingToSave = ReferenceValueMapping.builder()
 			.id(randomUUID())
 			.fromCategory("Location")
 			.fromContext(fromContext)
@@ -61,7 +66,11 @@ public class ReferenceValueMappingFixture {
 			.toCategory("AGENCY")
 			.toContext("DCB")
 			.toValue(agencyCode)
-			.build());
+			.build();
+
+		log.debug("Saving reference value mapping for tests: {}", mappingToSave);
+
+		saveReferenceValueMapping(mappingToSave);
 	}
 
 /*
