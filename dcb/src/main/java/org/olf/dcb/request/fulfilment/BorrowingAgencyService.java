@@ -66,10 +66,12 @@ public class BorrowingAgencyService {
 	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(PatronRequest patronRequest) {
 		log.debug("placePatronRequestAtBorrowingAgency {}", patronRequest.getId());
 
-		return getHoldRequestData(patronRequest).flatMap(function(this::createVirtualBib))
-				.flatMap(function(this::createVirtualItem)).flatMap(function(this::placeHoldRequest))
-				.map(function(patronRequest::placedAtBorrowingAgency))
-				.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
+		return getHoldRequestData(patronRequest)
+			.flatMap(function(this::createVirtualBib))
+			.flatMap(function(this::createVirtualItem))
+			.flatMap(function(this::placeHoldRequest))
+			.map(function(patronRequest::placedAtBorrowingAgency))
+			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
 
 	public Mono<String> cleanUp(PatronRequest patronRequest) {
