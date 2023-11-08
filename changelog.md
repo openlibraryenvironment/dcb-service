@@ -1,9 +1,83 @@
 # Changelog
 
+## Version 1.11.0
+
+### Additions
+* [General]
+	* Choose between placing title or item level request in borrowing agency DCB-613
+	* Optionally disable preflight all checks DCB-612
+	* Check requesting patron's local patron type is mapped to canonical DCB-530
+	* Check requesting patron is recognised in host LMS DCB-531
+	* Check requesting patron's host LMS is recognised DCB-531
+
+### Changes
+* [Chore]
+	* Reformat reactive chain when placing request at borrowing agency DCB-613
+	* Replace spaces with tabs in place request at borrowing agency service DCB-613
+	* Remove unused dependencies from place patron request at borrowing agency service DCB-613
+	* Change case of host LMS in preflight check failure description DCB-531
+	* Label the pickup location in agency mapping preflight check failure messages DCB-519
+	* Add debug logging for finding pickup location to agency mappings DCB-519
+	* Map failure to find patron mapping to failed check DCB-530
+	* Replace spaces with tabs in numeric range mapping DCB-530
+	* Replace spaces with tabs in supplying agency service
+	* Remove unused dependencies from supplying agency service
+	* Replace spaces with tabs in patron request API tests
+	* Inline always null local barcode in patron service
+	* Remove unused method from patron service
+	* Add resolve patron preflight check class DCB-531
+* [Feature]
+	* graphql - Convert hostLms props, PatronRequestAudiy props and canonical record to JSON scalar type
+	* enable graphql scalar type and use it for raw record
+	* sierra - Add Fixed Fields when pulling bibs from Sierra in anticipation of involving 031-BCODE3 in the decision to suppress or not. There is a do not submit to central flag we need to observe
+* [Refactor]
+	* Return virtual bib ID in tuple when creating virtual bib in borrowing host LMS DCB-613
+	* Extract variables for record type and number when placing request at borrowing agency DCB-613
+	* Defer finding alternative pickup location to agency mappings during preflight checks DCB-519
+	* Carry local patron information in unable to convert type exception DCB-530
+	* Provide local ID when attempting to map local patron type DCB-530
+	* Return specific error when attempting to map non-numeric local patron type DCB-530
+	* Rename method in patron type mapper to refer to patron type DCB-530
+	* Return specific error when no patron type mapping could be found DCB-530
+	* Extract method for getting requesting patron's local ID DCB-530
+	* Include host LMS service dependency for resolve patron preflight check DCB-531
+	* Return specific error when patron cannot be found in Sierra host LMS DCB-531
+	* Extract method for creating a patron not found error in Sierra client DCB-531
+* [Test]
+	* test: Expect virtual item ID as record number when placing borrowing Sierra hold DCB-613
+	* Replace spaces with tabs in place request at borrowing agency tests DCB-613
+	* Expect local bib ID as record number when placing supplying Sierra hold DCB-613
+	* Introduce parameter for expected record number when placing Sierra hold DCB-613
+	* Place title level requests at supplying agency DCB-613
+	* Define local bib ID when placing Sierra requests DCB-613
+	* Introduce parameter for Sierra host LMS client hold policy DCB-613
+	* Configure Sierra host LMS to use item requests DCB-613
+	* Introduce parameter for expected record type for Sierra patron request DCB-613
+	* Expect item record type when placing requests in Sierra DCB-613
+	* Delete all check related state prior to preflight checks service tests DCB-612
+	* Add preflight checks service test class DCB-612
+	* Demonstrate preflight check failure when no patron type mapping is defined DCB-530
+	* Delete mappings before each resolve patron preflight check test DCB-530
+	* Define patron type mapping before attempting to successfully resolve patron DCB-531
+	* Delete all reference value mappings before attempting to resolve patron DCB-531
+	* Define successful response for mock Sierra before resolving patron DCB-531
+	* Define credentials for mock Sierra before resolving patron DCB-531
+	* Define a host LMS before resolving a patron DCB-531
+	* Delete all numeric range mappings during tests DCB-531
+	* Rename reference value mapping repository field in fixture DCB-531
+	* Add example for failed patron type mapping when validating patron DCB-531
+	* Define patron type mappings in unsuccesful place request API tests DCB-531
+	* Define patron type mappings in unresolvable request API test DCB-531
+
+### Fixes
+* [General]
+	* Field for raw source record is json not rawSource
+
 ## Version 1.10.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* db - Add missing unique constraint to host lms, date fields for agency, protocol fields for paronRequest and supplierRequest
 	* Improve logging on item fetch failure
 
