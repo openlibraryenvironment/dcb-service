@@ -173,12 +173,23 @@ public class BorrowingAgencyService {
 	}
 
 	private Mono<Tuple2<String, String>> placeHoldRequest(PatronRequest patronRequest,
-		PatronIdentity patronIdentity, HostLmsClient hostLmsClient, String localItemId) {
+		PatronIdentity patronIdentity, HostLmsClient hostLmsClient, String localItemId, String localBibId) {
 
-		log.debug("placeHoldRequest for localItemId {} {}", localItemId, patronIdentity);
+		final String recordNumber;
+		final String recordType;
 
-		final var recordType = "i";
-		final var recordNumber = localItemId;
+		final var cfg = hostLmsClient.getHostLms().getClientConfig();
+
+		if ((cfg != null) && (cfg.get("holdPolicy") != null) && (cfg.get("holdPolicy").equals("title"))) {
+			log.debug("place title level request for ID {} {}", localBibId, patronIdentity);
+			recordType = "b";
+			recordNumber = localBibId;
+		}
+		else {
+			log.debug("place item level request for ID {} {}", localItemId, patronIdentity);
+			recordType = "i";
+			recordNumber = localItemId;
+		}
 
 		String note = "Consortial Hold. tno=" + patronRequest.getId();
 

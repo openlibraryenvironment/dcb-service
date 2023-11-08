@@ -91,7 +91,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		hostLmsFixture.deleteAll();
 		agencyFixture.deleteAll();
 
-		var h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "item");
+		var h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "title");
 
 		agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
@@ -109,9 +109,6 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.authors(List.of("Stafford Beer"))
 			.titles(List.of("Brain of the Firm"))
 			.build();
-
-		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
-		sierraItemsAPIFixture.successResponseForCreateItem(7916920, "ab6", "9849123490");
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
@@ -167,7 +164,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
 			"ab6", "9849123490", hostLms.code);
 
-		sierraPatronsAPIFixture.patronHoldRequestResponse("872321", "i", 7916922);
+		sierraPatronsAPIFixture.patronHoldRequestResponse("872321", "b", 7916921);
 
 		// This one is for the borrower side hold - we now match a hold using the note instead of the itemid - so we have to fix up a hold with the
 		// correct note containing the patronRequestId
@@ -215,7 +212,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "647245", "localItemId",
 			"ab6", "9849123490", hostLms.code);
 
-		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("972321", "i");
+		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("972321", "b");
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
@@ -263,7 +260,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "35365", "localItemId",
 			"ab6", "9849123490", hostLms.code);
 
-		sierraPatronsAPIFixture.patronHoldRequestResponse("785843", "i", 7916922);
+		sierraPatronsAPIFixture.patronHoldRequestResponse("785843", "b", 7916921);
 
 		sierraPatronsAPIFixture.notFoundWhenGettingPatronRequests("785843");
 
