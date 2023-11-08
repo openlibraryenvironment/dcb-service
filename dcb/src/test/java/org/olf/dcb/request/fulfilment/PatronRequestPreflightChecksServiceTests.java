@@ -12,10 +12,11 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
+import io.micronaut.context.annotation.Property;
 import jakarta.inject.Inject;
 
-@DcbTest
-class PatronRequestPreflightChecksServiceTests {
+@DcbTest()
+class PatronRequestPreflightChecksServiceTests extends AbstractPreflightCheckTests {
 	@Inject
 	private PatronRequestPreflightChecksService preflightChecksService;
 
@@ -39,7 +40,15 @@ class PatronRequestPreflightChecksServiceTests {
 	}
 
 	@Test
-	void shouldBeInstantiated() {
+	@Property(name = "dcb.requests.preflight-checks.enabled", value = "false")
+	void noChecksShouldBeExecutedWhenDisabled() {
 		assertThat("Service instance should not be null", preflightChecksService, is(notNullValue()));
+
+		final var command = placeRequestCommand("any-location-code", "any-context", "any-host-lms-code");
+
+		// Existing checks require state to pass,
+		// if they were executed they would fail and this would throw an exception
+		assertThat("No checks should be made",
+			preflightChecksService.check(command).block(), is(command));
 	}
 }

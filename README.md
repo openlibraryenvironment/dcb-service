@@ -45,6 +45,7 @@ Additional optional configuration values. These may be set in configuration file
 | dcb.requestability.location.filtering       | Whether items should be filtered by location code when determining requestability | Boolean                                                                              | false   |
 | dcb.request-workflow.state-transition-delay | Delay between transitions in the request workflow                                 | [ISO-8601 format](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html) | PT0.0S  |
 | dcb.requests.supplying.patron-type          | Fixed patron type for supplying agency virtual patrons                            | Integer                                                                              | 210     |
+| dcb.requests.preflight-checks.enabled       | Whether preflight checks for placing patron requests are enabled                  | Boolean                                                                              | true    |
 
 
 # API Documentation
