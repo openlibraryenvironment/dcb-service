@@ -61,7 +61,7 @@ class SierraApiPatronTests {
 
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "item");
 	}
 
 	@Test

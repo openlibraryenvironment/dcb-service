@@ -70,7 +70,7 @@ public class ValidatePatronTests {
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		hostLmsFixture.deleteAll();
-		DataHostLms s1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+		DataHostLms s1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "item");
 
 		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 

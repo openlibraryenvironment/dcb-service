@@ -28,7 +28,6 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
-import static org.olf.dcb.core.model.PatronRequest.Status.COMPLETED;
 import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
 import static services.k_int.utils.UUIDUtils.nameUUIDFromNamespaceAndString;
 
@@ -61,7 +60,7 @@ public class PatronRequestTrackingTests {
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 		this.sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 
-		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "item");
 	}
 
 	@Test

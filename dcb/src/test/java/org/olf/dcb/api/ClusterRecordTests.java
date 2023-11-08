@@ -64,7 +64,7 @@ class ClusterRecordTests {
 
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "item");
 
 		var mockSierra = SierraTestUtils.mockFor(mock, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);

@@ -54,7 +54,7 @@ public class HostLmsFixture {
 	}
 
 	public DataHostLms createSierraHostLms(String username, String password,
-		String host, String code) {
+		String host, String code, String holdPolicy) {
 
 		DataHostLms result = createHostLms(
 			DataHostLms.builder()
@@ -66,7 +66,7 @@ public class HostLmsFixture {
 					"key", username,
 					"secret", password,
 					"base-url", host,
-					"holdPolicy", "item"))
+					"holdPolicy", holdPolicy))
 				.build());
 
 		log.debug("Creating numeric range mapping");

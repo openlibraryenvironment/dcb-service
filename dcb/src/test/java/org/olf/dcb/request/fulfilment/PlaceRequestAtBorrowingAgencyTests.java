@@ -91,7 +91,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		hostLmsFixture.deleteAll();
                 agencyFixture.deleteAll();
 
-		var h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
+		var h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "item");
 
                 DataAgency da = agencyFixture.saveAgency(DataAgency.builder()
                         .id(UUID.randomUUID())

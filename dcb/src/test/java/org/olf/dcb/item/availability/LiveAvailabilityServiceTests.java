@@ -71,10 +71,10 @@ class LiveAvailabilityServiceTests {
 		hostLmsFixture.deleteAll();
 
 		firstHostLms = hostLmsFixture.createSierraHostLms(FIRST_HOST_LMS_KEY,
-			FIRST_HOST_LMS_SECRET, FIRST_HOST_LMS_BASE_URL, FIRST_HOST_LMS_CODE);
+			FIRST_HOST_LMS_SECRET, FIRST_HOST_LMS_BASE_URL, FIRST_HOST_LMS_CODE, "item");
 
 		secondHostLms = hostLmsFixture.createSierraHostLms(SECOND_SYSTEM_KEY,
-			SECOND_SYSTEM_SECRET, SECOND_HOST_LMS_BASE_URL, SECOND_HOST_LMS_CODE);
+			SECOND_SYSTEM_SECRET, SECOND_HOST_LMS_BASE_URL, SECOND_HOST_LMS_CODE, "item");
 	}
 
 	@BeforeEach
