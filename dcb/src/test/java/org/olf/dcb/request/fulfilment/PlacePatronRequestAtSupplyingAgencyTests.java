@@ -78,8 +78,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		referenceValueMappingFixture.deleteAll();
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 		// patron hold requests success
-		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002");
-		sierraPatronsAPIFixture.patronHoldRequestResponse("1000003");
+		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002", "i");
+		sierraPatronsAPIFixture.patronHoldRequestResponse("1000003", "i");
 		// add patron type mappings
 		savePatronTypeMappings();
 		saveHomeLibraryMappings();
@@ -189,7 +189,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "931824@ab6");
 		sierraPatronsAPIFixture.postPatronResponse("931824@ab6", 1000001);
-		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001");
+		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", "i");
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,

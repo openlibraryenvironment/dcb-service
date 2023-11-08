@@ -217,7 +217,7 @@ class SierraApiPatronTests {
 	void testPlacePatronHoldRequest() {
 		// Arrange
 		final var patronLocalId = "1341234";
-		sierraPatronsAPIFixture.patronHoldRequestResponse(patronLocalId);
+		sierraPatronsAPIFixture.patronHoldRequestResponse(patronLocalId, "i");
 
 		PatronHoldPost patronHoldPost = new PatronHoldPost();
 		patronHoldPost.setRecordNumber(32897458);
@@ -237,7 +237,7 @@ class SierraApiPatronTests {
 	void testPlacePatronHoldRequestErrorResponse() {
 		// Arrange
 		final var patronLocalId = "4325435";
-		sierraPatronsAPIFixture.patronHoldRequestErrorResponse(patronLocalId);
+		sierraPatronsAPIFixture.patronHoldRequestErrorResponse(patronLocalId, "i");
 
 		PatronHoldPost patronHoldPost = new PatronHoldPost();
 		patronHoldPost.setRecordNumber(423543254);

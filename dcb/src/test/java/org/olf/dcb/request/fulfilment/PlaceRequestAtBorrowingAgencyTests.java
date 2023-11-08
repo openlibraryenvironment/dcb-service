@@ -7,7 +7,6 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
 import java.util.UUID;
@@ -24,7 +23,6 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.model.ShelvingLocation;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtBorrowingAgencyStateTransition;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
@@ -189,7 +187,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "localItemId",
 			"ab6", "9849123490", hostLms.code);
 
-		sierraPatronsAPIFixture.patronHoldRequestResponse("872321");
+		sierraPatronsAPIFixture.patronHoldRequestResponse("872321", "i");
 
 		// This one is for the borrower side hold - we now match a hold using the note instead of the itemid - so we have to fix up a hold with the
 		// correct note containing the patronRequestId
@@ -237,7 +235,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "localItemId",
 			"ab6", "9849123490", hostLms.code);
 
-		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("972321");
+		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("972321", "i");
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
@@ -285,7 +283,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "localItemId",
 			"ab6", "9849123490", hostLms.code);
 
-		sierraPatronsAPIFixture.patronHoldRequestResponse("785843");
+		sierraPatronsAPIFixture.patronHoldRequestResponse("785843", "i");
 
 		sierraPatronsAPIFixture.notFoundWhenGettingPatronRequests("785843");
 
