@@ -110,15 +110,17 @@ public class SierraPatronsAPIFixture {
 			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
-	public void patronHoldRequestResponse(String patronId, String expectedRecordType) {
+	public void patronHoldRequestResponse(String patronId,
+		String expectedRecordType, Integer expectedRecordNumber) {
+
 		mockServer
-			.when(postPatronHoldRequest(patronId, expectedRecordType))
+			.when(postPatronHoldRequest(patronId, expectedRecordType, expectedRecordNumber))
 			.respond(sierraMockServerResponses.noContent());
 	}
 
 	public void patronHoldRequestErrorResponse(String patronId, String expectedRecordType) {
 		mockServer
-			.when(postPatronHoldRequest(patronId, expectedRecordType))
+			.when(postPatronHoldRequest(patronId, expectedRecordType, null))
 			.respond(sierraMockServerResponses.serverError());
 	}
 
@@ -210,9 +212,14 @@ public class SierraPatronsAPIFixture {
 			.withQueryStringParameter("varFieldContent", content);
 	}
 
-	private HttpRequest postPatronHoldRequest(String patronId, String expectedRecordType) {
+	private HttpRequest postPatronHoldRequest(String patronId,
+		String expectedRecordType, Integer expectedRecordNumber) {
+
 		return sierraMockServerRequests.post("/" + patronId + "/holds/requests")
-			.withBody(json(PatronHoldPost.builder().recordType(expectedRecordType).build()));
+			.withBody(json(PatronHoldPost.builder()
+				.recordType(expectedRecordType)
+				.recordNumber(expectedRecordNumber)
+				.build()));
 	}
 
 	private HttpRequest getPatronHolds(String patronId) {

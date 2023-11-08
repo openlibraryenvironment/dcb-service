@@ -78,8 +78,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		referenceValueMappingFixture.deleteAll();
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 		// patron hold requests success
-		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002", "b");
-		sierraPatronsAPIFixture.patronHoldRequestResponse("1000003", "b");
+		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002", "b", null);
+		sierraPatronsAPIFixture.patronHoldRequestResponse("1000003", "b", null);
 		// add patron type mappings
 		savePatronTypeMappings();
 		saveHomeLibraryMappings();

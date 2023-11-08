@@ -14,7 +14,6 @@ import static org.olf.dcb.test.matchers.SierraErrorMatchers.isServerError;
 
 import java.util.List;
 
-import io.micronaut.context.annotation.Property;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -22,6 +21,7 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
+import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -217,7 +217,7 @@ class SierraApiPatronTests {
 	void testPlacePatronHoldRequest() {
 		// Arrange
 		final var patronLocalId = "1341234";
-		sierraPatronsAPIFixture.patronHoldRequestResponse(patronLocalId, "i");
+		sierraPatronsAPIFixture.patronHoldRequestResponse(patronLocalId, "i", null);
 
 		PatronHoldPost patronHoldPost = new PatronHoldPost();
 		patronHoldPost.setRecordNumber(32897458);
