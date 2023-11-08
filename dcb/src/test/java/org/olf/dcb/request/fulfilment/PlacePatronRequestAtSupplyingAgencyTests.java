@@ -72,14 +72,14 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final String SECRET = "supplying-agency-service-secret";
 		SierraTestUtils.mockFor(mock, BASE_URL) .setValidCredentials(KEY, SECRET, TOKEN, 60);
 		hostLmsFixture.deleteAll();
-		DataHostLms d1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "item");
+		DataHostLms d1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "title");
 		this.agency_ab6 = agencyFixture.saveAgency(
 			DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(d1).build());
 		referenceValueMappingFixture.deleteAll();
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 		// patron hold requests success
-		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002", "i");
-		sierraPatronsAPIFixture.patronHoldRequestResponse("1000003", "i");
+		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002", "b");
+		sierraPatronsAPIFixture.patronHoldRequestResponse("1000003", "b");
 		// add patron type mappings
 		savePatronTypeMappings();
 		saveHomeLibraryMappings();
@@ -189,7 +189,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "931824@ab6");
 		sierraPatronsAPIFixture.postPatronResponse("931824@ab6", 1000001);
-		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", "i");
+		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", "b");
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
