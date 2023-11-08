@@ -61,8 +61,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 	private ClusterRecordFixture clusterRecordFixture;
 	@Inject
 	private BibRecordFixture bibRecordFixture;
-        @Inject
-        private AgencyFixture agencyFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
 	@Inject
@@ -89,16 +89,16 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		hostLmsFixture.deleteAll();
-                agencyFixture.deleteAll();
+		agencyFixture.deleteAll();
 
 		var h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "item");
 
-                DataAgency da = agencyFixture.saveAgency(DataAgency.builder()
-                        .id(UUID.randomUUID())
-                        .code("ab6")
-                        .name("Test AB6")
-                        .hostLms(h1)
-                        .build());
+		agencyFixture.saveAgency(DataAgency.builder()
+			.id(UUID.randomUUID())
+			.code("ab6")
+			.name("Test AB6")
+			.hostLms(h1)
+			.build());
 
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 
@@ -127,26 +127,6 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		bibRecordFixture.deleteAllBibRecords();
 		clusterRecordFixture.deleteAllClusterRecords();
-
-		// add shelving location
-		UUID id1 = randomUUID();
-		final var dataHostLms1 = hostLmsFixture.createHostLms(id1, "code");
-
-		// UUID id = randomUUID();
-		// final var dataHostLms2 = hostLmsFixture.createHostLms(id, "code");
-
-		// final var dataAgency = singleValueFrom(
-	// 		agencyRepository.save(DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(dataHostLms1).build()));
-
-		// final var shelvingLocation = ShelvingLocation.builder()
-		// 	.id(randomUUID())
-		// 	.code("ab6")
-		// 	.name("name")
-		// 	.hostSystem(dataHostLms1)
-		// 	.agency(dataAgency)
-		// 	.build();
-
-		// singleValueFrom(shelvingLocationRepository.save(shelvingLocation));
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping("borrowing-agency-service-tests", "ab6", "ab6");
 	}
