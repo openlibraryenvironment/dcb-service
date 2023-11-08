@@ -477,12 +477,12 @@ class PatronRequestApiTests {
 		assertThat("Body should report unknown pickup location failed check", optionalBody.get(),
 			hasProperty("failedChecks", containsInAnyOrder(
 				hasDescription("\"unknown-pickup-location\" is not a recognised pickup location code"),
-				hasDescription("\"unknown-pickup-location\" is not mapped to an agency"))
+				hasDescription("Pickup location \"unknown-pickup-location\" is not mapped to an agency"))
 			));
 
 		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
 			isFailedCheckEvent("\"unknown-pickup-location\" is not a recognised pickup location code"),
-			isFailedCheckEvent("\"unknown-pickup-location\" is not mapped to an agency")
+			isFailedCheckEvent("Pickup location \"unknown-pickup-location\" is not mapped to an agency")
 		));
 	}
 
@@ -517,11 +517,11 @@ class PatronRequestApiTests {
 
 		assertThat("Body should report unmapped pickup location failed check", optionalBody.get(),
 			hasProperty("failedChecks", containsInAnyOrder(
-				hasDescription("\"unmapped-pickup-location\" is not mapped to an agency"))
+				hasDescription("Pickup location \"unmapped-pickup-location\" is not mapped to an agency"))
 			));
 
 		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
-			isFailedCheckEvent("\"unmapped-pickup-location\" is not mapped to an agency")));
+			isFailedCheckEvent("Pickup location \"unmapped-pickup-location\" is not mapped to an agency")));
 	}
 
 	@Test

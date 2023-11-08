@@ -112,7 +112,7 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 
 		// Assert
 		assertThat(results, containsInAnyOrder(
-			failedCheck("\"known-pickup-location\" is not mapped to an agency")));
+			failedCheck("Pickup location \"known-pickup-location\" is not mapped to an agency")));
 	}
 
 	@Test
@@ -128,7 +128,7 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 
 		// Assert
 		assertThat(results, containsInAnyOrder(
-			failedCheck("\"pickup-location\" is mapped to \"unknown-agency\" which is not a recognised agency")));
+			failedCheck("Pickup location \"pickup-location\" is mapped to \"unknown-agency\" which is not a recognised agency")));
 	}
 
 	private void definePickupLocationToAgencyMapping(String fromContext, String locationCode, String agencyCode) {

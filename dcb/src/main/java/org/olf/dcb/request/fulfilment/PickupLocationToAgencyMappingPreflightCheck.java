@@ -43,7 +43,7 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 		return findAgencyMapping(command)
 			.map(mapping -> Tuples.of(CheckResult.passed(), mapping.getToValue(), pickupLocationCode))
 			.defaultIfEmpty(Tuples.of(CheckResult.failed(
-				"\"" + pickupLocationCode + "\" is not mapped to an agency"), "", pickupLocationCode));
+				"Pickup location \"" + pickupLocationCode + "\" is not mapped to an agency"), "", pickupLocationCode));
 	}
 
 	private Mono<ReferenceValueMapping> findAgencyMapping(PlacePatronRequestCommand command) {
@@ -101,6 +101,6 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 		return agencyService.findByCode(agencyCode)
 			.map(mapping -> CheckResult.passed())
 			.defaultIfEmpty(CheckResult.failed(
-				"\"" + pickupLocationCode + "\" is mapped to \"" + agencyCode + "\" which is not a recognised agency"));
+				"Pickup location \"" + pickupLocationCode + "\" is mapped to \"" + agencyCode + "\" which is not a recognised agency"));
 	}
 }
