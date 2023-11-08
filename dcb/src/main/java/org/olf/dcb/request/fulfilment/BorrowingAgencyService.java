@@ -30,6 +30,7 @@ import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple4;
+import reactor.util.function.Tuple5;
 import reactor.util.function.Tuples;
 
 @Prototype
@@ -138,7 +139,7 @@ public class BorrowingAgencyService {
 			.build();
 	}
 
-	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, String>> createVirtualItem(
+	private Mono<Tuple5<PatronRequest, PatronIdentity, HostLmsClient, String, String>> createVirtualItem(
 			PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 			SupplierRequest supplierRequest) {
 
@@ -160,7 +161,7 @@ public class BorrowingAgencyService {
 				}).map(HostLmsItem::getLocalId)
 				.map(localItemId -> {
 					patronRequest.setLocalItemId(localItemId);
-					return Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId);
+					return Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId, localBibId);
 				}).switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));
 	}
 
