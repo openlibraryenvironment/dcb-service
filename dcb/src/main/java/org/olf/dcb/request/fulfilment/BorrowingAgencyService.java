@@ -174,9 +174,13 @@ public class BorrowingAgencyService {
 
 		log.debug("placeHoldRequest for localItemId {} {}", localItemId, patronIdentity);
 
+		final var recordType = "i";
+		final var recordNumber = localItemId;
+
 		String note = "Consortial Hold. tno=" + patronRequest.getId();
+
 		return hostLmsClient
-			.placeHoldRequest(patronIdentity.getLocalId(), "i", localItemId, patronRequest.getPickupLocationCode(), note,
+			.placeHoldRequest(patronIdentity.getLocalId(), recordType, recordNumber, patronRequest.getPickupLocationCode(), note,
 				patronRequest.getId().toString())
 			.map(response -> Tuples.of(response.getT1(), response.getT2()))
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to place hold request.")));
