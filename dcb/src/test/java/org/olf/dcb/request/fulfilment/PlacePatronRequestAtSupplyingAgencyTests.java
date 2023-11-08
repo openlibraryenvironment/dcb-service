@@ -273,7 +273,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		supplierRequestsFixture.saveSupplierRequest(
 			randomUUID(),
 			patronRequest,
-			"7916922",
+			"563653", "7916922",
 			"ab6",
 			"9849123490",
 			hostLmsCode

@@ -1,19 +1,19 @@
 package org.olf.dcb.test;
 
-import io.micronaut.context.annotation.Prototype;
+import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+
+import java.util.List;
+import java.util.UUID;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.reactivestreams.Publisher;
+
+import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
-
-import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-
-import java.util.List;
-import java.util.UUID;
 
 @Prototype
 public class SupplierRequestsFixture {
@@ -30,13 +30,16 @@ public class SupplierRequestsFixture {
 	}
 
 	public void saveSupplierRequest(UUID supplierRequestId, PatronRequest patronRequest,
-		String localItemId, String localLocationCode, String localItemBarcode, String hostLmsCode) {
+		String localBibId, String localItemId, String localLocationCode, String localItemBarcode,
+		String hostLmsCode) {
+
 		Mono.from(supplierRequestRepository.save(
 				SupplierRequest
 					.builder()
 					.id(supplierRequestId)
 					.patronRequest(patronRequest)
 					.localItemId(localItemId)
+					.localBibId(localBibId)
 					.localItemLocationCode(localLocationCode)
 					.localItemBarcode(localItemBarcode)
 					.hostLmsCode(hostLmsCode)

@@ -184,7 +184,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "localItemId",
+		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
 			"ab6", "9849123490", hostLms.code);
 
 		sierraPatronsAPIFixture.patronHoldRequestResponse("872321", "i");
@@ -232,7 +232,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "localItemId",
+		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "647245", "localItemId",
 			"ab6", "9849123490", hostLms.code);
 
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("972321", "i");
@@ -280,7 +280,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "localItemId",
+		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "35365", "localItemId",
 			"ab6", "9849123490", hostLms.code);
 
 		sierraPatronsAPIFixture.patronHoldRequestResponse("785843", "i");
