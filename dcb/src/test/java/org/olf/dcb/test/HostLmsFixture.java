@@ -65,7 +65,8 @@ public class HostLmsFixture {
 				.clientConfig(Map.of(
 					"key", username,
 					"secret", password,
-					"base-url", host))
+					"base-url", host,
+					"holdPolicy", "item"))
 				.build());
 
 		log.debug("Creating numeric range mapping");
