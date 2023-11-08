@@ -211,7 +211,8 @@ public class SierraPatronsAPIFixture {
 	}
 
 	private HttpRequest postPatronHoldRequest(String patronId) {
-		return sierraMockServerRequests.post("/" + patronId + "/holds/requests");
+		return sierraMockServerRequests.post("/" + patronId + "/holds/requests")
+			.withBody(json(PatronHoldPost.builder().recordType("i").build()));
 	}
 
 	private HttpRequest getPatronHolds(String patronId) {
