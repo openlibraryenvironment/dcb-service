@@ -11,19 +11,17 @@ import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.ClusterRecordRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
-import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
-import org.olf.dcb.storage.ShelvingLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,11 +47,12 @@ public class BorrowingAgencyService {
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
-	public BorrowingAgencyService(HostLmsService hostLmsService, PatronIdentityRepository patronIdentityRepository,
-			SupplierRequestService supplierRequestService, BibRepository bibRepository,
-			ClusterRecordRepository clusterRecordRepository, ShelvingLocationRepository shelvingLocationRepository,
-			PatronRequestRepository patronRequestRepository, ReferenceValueMappingRepository referenceValueMappingRepository,
-			BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
+	public BorrowingAgencyService(HostLmsService hostLmsService,
+		PatronIdentityRepository patronIdentityRepository,
+		SupplierRequestService supplierRequestService, BibRepository bibRepository,
+		ClusterRecordRepository clusterRecordRepository,
+		ReferenceValueMappingRepository referenceValueMappingRepository,
+		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
 
 		this.hostLmsService = hostLmsService;
 		this.patronIdentityRepository = patronIdentityRepository;
