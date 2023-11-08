@@ -439,11 +439,11 @@ class PatronRequestApiTests {
 
 		assertThat("Body should report unknown pickup location failed check", optionalBody.get(),
 			hasProperty("failedChecks", containsInAnyOrder(
-				hasDescription("\"unknown-system\" is not a recognised host LMS"))
+				hasDescription("\"unknown-system\" is not a recognised Host LMS"))
 			));
 
 		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
-			isFailedCheckEvent("\"unknown-system\" is not a recognised host LMS")
+			isFailedCheckEvent("\"unknown-system\" is not a recognised Host LMS")
 		));
 	}
 

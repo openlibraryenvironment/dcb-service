@@ -39,7 +39,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 							+ error.getLocalSystemCode() + "\" has non-numeric patron type \"" + error.getLocalPatronTypeCode() + "\""
 					)))
 			.onErrorReturn(UnknownHostLmsException.class,
-				CheckResult.failed("\"" + localSystemCode + "\" is not a recognised host LMS"))
+				CheckResult.failed("\"" + localSystemCode + "\" is not a recognised Host LMS"))
 			.map(List::of);
 	}
 }

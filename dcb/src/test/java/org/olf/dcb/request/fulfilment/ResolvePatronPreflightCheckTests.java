@@ -162,6 +162,6 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		// Assert
 		assertThat(results, containsInAnyOrder(
-			failedCheck("\"unknown-host-lms\" is not a recognised host LMS")));
+			failedCheck("\"unknown-host-lms\" is not a recognised Host LMS")));
 	}
 }
