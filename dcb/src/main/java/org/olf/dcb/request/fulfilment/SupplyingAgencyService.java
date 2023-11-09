@@ -4,7 +4,6 @@ import static reactor.function.TupleUtils.function;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -128,13 +127,22 @@ public class SupplyingAgencyService {
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 		PatronIdentity patronIdentityAtSupplier = psrc.getPatronVirtualIdentity();
 
-		String requestedThingType = "i"; // Default requst an item
-		String requestedThingId = supplierRequest.getLocalItemId(); // Default item ID
+		final String requestedThingType;
+		final String requestedThingId;
 
 		if (client.useTitleLevelRequest()) {
-			log.info("Client is configured for title level hold policy - switching");
+			log.debug("place title level request for ID {}", supplierRequest.getLocalBibId());
 			requestedThingType = "b";
 			requestedThingId = supplierRequest.getLocalBibId();
+		}
+		else if (client.useItemLevelRequest()) {
+			log.debug("place item level request for ID {}", supplierRequest.getLocalItemId());
+			requestedThingType = "i";
+			requestedThingId = supplierRequest.getLocalItemId();
+		}
+		else {
+			return Mono.error(new RuntimeException("Invalid hold policy for Host LMS \""
+				+ client.getHostLms().getCode() + "\""));
 		}
 
 		String note = "Consortial Hold. tno="+patronRequest.getId();

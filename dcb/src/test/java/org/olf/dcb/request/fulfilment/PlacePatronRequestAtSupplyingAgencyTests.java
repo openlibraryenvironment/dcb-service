@@ -39,6 +39,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PlacePatronRequestAtSupplyingAgencyTests {
 	private static final String HOST_LMS_CODE = "supplying-agency-service-tests";
+	private static final String INVALID_HOLD_POLICY_HOST_LMS_CODE = "invalid-hold-policy";
+
 	@Inject
 	ResourceLoader loader;
 	@Inject
@@ -72,9 +74,15 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final String SECRET = "supplying-agency-service-secret";
 		SierraTestUtils.mockFor(mock, BASE_URL) .setValidCredentials(KEY, SECRET, TOKEN, 60);
 		hostLmsFixture.deleteAll();
-		DataHostLms d1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "title");
+
+		DataHostLms sierraHostLms = hostLmsFixture.createSierraHostLms(KEY, SECRET,
+			BASE_URL, HOST_LMS_CODE, "title");
+
+		hostLmsFixture.createSierraHostLms(KEY, SECRET,
+			BASE_URL, INVALID_HOLD_POLICY_HOST_LMS_CODE, "invalid");
+
 		this.agency_ab6 = agencyFixture.saveAgency(
-			DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(d1).build());
+			DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(sierraHostLms).build());
 		referenceValueMappingFixture.deleteAll();
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 		// patron hold requests success
@@ -211,6 +219,42 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedMessage);
 	}
 
+	@Test
+	void shouldFailWhenSierraHostLmsHasInvalidHoldPolicyConfiguration() {
+		// Arrange
+		final var localId = "872321";
+		final var patronRequestId = randomUUID();
+		final var clusterRecordId = createClusterRecord();
+		final var hostLms = hostLmsFixture.findByCode(INVALID_HOLD_POLICY_HOST_LMS_CODE);
+		final var patron = createPatron(localId, hostLms);
+		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
+		saveSupplierRequest(patronRequest, INVALID_HOLD_POLICY_HOST_LMS_CODE);
+
+		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
+			"ab6", "9849123490", INVALID_HOLD_POLICY_HOST_LMS_CODE);
+
+		// Act
+		final var exception = assertThrows(RuntimeException.class,
+			() -> placePatronRequestAtSupplyingAgencyStateTransition.attempt(patronRequest).block());
+
+		// Assert
+		final var expectedErrorMessage = "Invalid hold policy for Host LMS \""
+			+ INVALID_HOLD_POLICY_HOST_LMS_CODE + "\"";
+
+		assertThat("Should have invalid hold policy message",
+			exception.getMessage(), is(expectedErrorMessage));
+
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat("Request should have error status afterwards",
+			fetchedPatronRequest.getStatus(), is(ERROR));
+
+		assertThat("Request should have error message afterwards",
+			fetchedPatronRequest.getErrorMessage(), is(expectedErrorMessage));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
+	}
+
 	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
 		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
@@ -286,8 +330,14 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("supplying-agency-service-tests",10,15, "DCB", "SQUIGGLE");
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("supplying-agency-service-tests",20,25, "DCB", "SQUIGGLE");
 
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(INVALID_HOLD_POLICY_HOST_LMS_CODE, 1, 1, "DCB", "SQUIGGLE");
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(INVALID_HOLD_POLICY_HOST_LMS_CODE,10,15, "DCB", "SQUIGGLE");
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(INVALID_HOLD_POLICY_HOST_LMS_CODE,20,25, "DCB", "SQUIGGLE");
+
 		referenceValueMappingFixture.definePatronTypeMapping(
 			"DCB", "SQUIGGLE", "supplying-agency-service-tests", "15");
+		referenceValueMappingFixture.definePatronTypeMapping(
+			"DCB", "SQUIGGLE", INVALID_HOLD_POLICY_HOST_LMS_CODE, "15");
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", "ab6");
 	}
