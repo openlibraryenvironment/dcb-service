@@ -131,8 +131,9 @@ class PlaceRequestAtBorrowingAgencyTests {
 		bibRecordFixture.deleteAllBibRecords();
 		clusterRecordFixture.deleteAllClusterRecords();
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping("borrowing-agency-service-tests", "ab6", "ab6");
-		referenceValueMappingFixture.defineLocationToAgencyMapping("invalid-hold-policy", "ab6", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab6", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			INVALID_HOLD_POLICY_HOST_LMS_CODE, "ab6", "ab6");
 	}
 
 	@AfterAll
