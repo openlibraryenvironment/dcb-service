@@ -270,6 +270,11 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 	}
 
 	@Override
+	public boolean useItemLevelRequest() {
+		return true;
+	}
+
+	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		return Mono.empty();
 	}

@@ -326,6 +326,11 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return false;
 	}
 
+	@Override
+	public boolean useItemLevelRequest() {
+		return true;
+	}
+
 	private String generateTitle(String recordId) {
 		StringWriter sw = new StringWriter();
 

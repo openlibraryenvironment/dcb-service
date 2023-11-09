@@ -44,6 +44,8 @@ public interface HostLmsClient {
 
 	boolean useTitleLevelRequest();
 
+	boolean useItemLevelRequest();
+
 	Mono<Patron> getPatronByLocalId(String localPatronId);
 
 	Mono<Patron> updatePatron(String localId, String patronType);
