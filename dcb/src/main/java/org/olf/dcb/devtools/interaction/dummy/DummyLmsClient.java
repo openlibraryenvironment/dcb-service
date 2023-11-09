@@ -321,6 +321,11 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return Mono.just(Tuples.of(UUID.randomUUID().toString(), "HELD"));
 	}
 
+	@Override
+	public boolean useTitleHold() {
+		return false;
+	}
+
 	private String generateTitle(String recordId) {
 		StringWriter sw = new StringWriter();
 
@@ -389,5 +394,4 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		// TODO Auto-generated method stub
 		return null;
 	}
-
 }

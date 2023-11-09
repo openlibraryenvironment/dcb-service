@@ -265,6 +265,11 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 	}
 
 	@Override
+	public boolean useTitleHold() {
+		return false;
+	}
+
+	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		return Mono.empty();
 	}

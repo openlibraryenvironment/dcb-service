@@ -42,11 +42,7 @@ public interface HostLmsClient {
 	Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType, String recordNumber,
 			String pickupLocation, String note, String patronRequestId);
 
-	default boolean useTitleHold() {
-		final var cfg = getHostLms().getClientConfig();
-
-		return (cfg != null) && (cfg.get("holdPolicy") != null) && (cfg.get("holdPolicy").equals("title"));
-	}
+	boolean useTitleHold();
 
 	Mono<Patron> getPatronByLocalId(String localPatronId);
 

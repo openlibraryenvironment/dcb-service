@@ -77,10 +77,15 @@ public class FolioLmsClient implements HostLmsClient {
 	}
 
 	@Override
+	public boolean useTitleHold() {
+		return false;
+	}
+
+	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		return Mono.empty();
 	}
-	
+
 
 	public UUID uuid5ForOAIResult(@NotNull final OaiRecord result) {
 		final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":" + result.header().identifier();
@@ -125,9 +130,9 @@ public class FolioLmsClient implements HostLmsClient {
 	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
 		return Mono.just("Dummy");
 	}
-
 	// WARNING We might need to make this accept a patronIdentity - as different
 	// systems might take different ways to identify the patron
+
 	@Override
 	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
 		return Mono.just("DUMMY");
@@ -142,5 +147,4 @@ public class FolioLmsClient implements HostLmsClient {
 	public Mono<String> deleteBib(String id) {
 		return Mono.just("DUMMY");
 	}
-
 }

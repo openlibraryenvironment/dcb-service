@@ -587,6 +587,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
+	public boolean useTitleHold() {
+		final var cfg = getHostLms().getClientConfig();
+
+		return (cfg != null) && (cfg.get("holdPolicy") != null) && (cfg.get("holdPolicy").equals("title"));
+	}
+
+	@Override
 	public String getName() {
 		return lms.getName();
 	}
@@ -798,11 +805,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.from(client.getHold(Long.valueOf(holdId))).flatMap(sh -> Mono.just(sierraPatronHoldToHostLmsHold(sh)))
 				.defaultIfEmpty(new HostLmsHold(holdId, "MISSING"));
 	}
-
 	//
 	// II: We need to talk about this in a review session
-	//
 
+	//
 	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
 		log.debug("updateItemStatus({},{})", itemId, crs);
 		// See
@@ -828,6 +834,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			return Mono.just("OK");
 		}
 	}
+
 	public HostLmsItem sierraItemToHostLmsItem(SierraItem si) {
 		log.debug("convert {} to HostLmsItem", si);
 		return HostLmsItem.builder().localId(si.getId()).barcode(si.getBarcode())
@@ -840,14 +847,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.flatMap(sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)))
 			.defaultIfEmpty(HostLmsItem.builder().localId(itemId).status("MISSING").build());
 	}
-
 	// WARNING We might need to make this accept a patronIdentity - as different
-	// systems might take different ways to identify the patron
 
+	// systems might take different ways to identify the patron
 	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
 		log.debug("checkOutItemToPatron({},{})", itemId, patronBarcode);
 		return Mono.from(client.checkOutItemToPatron(itemId, patronBarcode)).thenReturn("OK").defaultIfEmpty("ERROR");
 	}
+
 	public Mono<String> deleteItem(String id) {
 		log.debug("deleteItem({})", id);
 		return Mono.from(client.deleteItem(id)).thenReturn("OK").defaultIfEmpty("ERROR");
