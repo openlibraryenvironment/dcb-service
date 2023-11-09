@@ -131,8 +131,7 @@ public class SupplyingAgencyService {
 		String requestedThingType = "i"; // Default requst an item
 		String requestedThingId = supplierRequest.getLocalItemId(); // Default item ID
 
-		Map<String, Object> cfg = client.getHostLms().getClientConfig();
-		if ((cfg != null) && (cfg.get("holdPolicy") != null) && (cfg.get("holdPolicy").equals("title"))) {
+		if (client.useTitleLevelRequest()) {
 			log.info("Client is configured for title level hold policy - switching");
 			requestedThingType = "b";
 			requestedThingId = supplierRequest.getLocalBibId();
