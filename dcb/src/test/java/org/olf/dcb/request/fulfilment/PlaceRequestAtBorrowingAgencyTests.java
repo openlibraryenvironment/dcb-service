@@ -7,6 +7,7 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 
 import java.util.List;
 import java.util.UUID;
@@ -161,7 +162,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.id(patronRequestId)
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
-			.status(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.pickupLocationCode("ABC123")
 			.build();
 
@@ -210,7 +211,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
-			.status(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -258,7 +259,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
-			.status(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -311,7 +312,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.id(patronRequestId)
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
-			.status(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.pickupLocationCode("ABC123")
 			.build();
 
@@ -349,7 +350,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			fetchedAudit.getBriefDescription(), is(nullValue()));
 
 		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+			fetchedAudit.getFromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 
 		assertThat("Patron Request audit should have to state",
 			fetchedAudit.getToStatus(), is(Status.REQUEST_PLACED_AT_BORROWING_AGENCY));
@@ -362,7 +363,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			fetchedAudit.getBriefDescription(), is(description));
 
 		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+			fetchedAudit.getFromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 
 		assertThat("Patron Request audit should have to state",
 			fetchedAudit.getToStatus(), is(ERROR));
