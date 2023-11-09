@@ -315,27 +315,25 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 	private void saveSupplierRequest(PatronRequest patronRequest, String hostLmsCode) {
 		supplierRequestsFixture.saveSupplierRequest(
-			randomUUID(),
-			patronRequest,
-			"563653",
-			"7916922",
-			"ab6",
-			"9849123490",
-			hostLmsCode
-		);
+			randomUUID(), patronRequest, "563653", "7916922",
+			"ab6", "9849123490", hostLmsCode);
 	}
 
 	private void savePatronTypeMappings() {
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("supplying-agency-service-tests", 1, 1, "DCB", "SQUIGGLE");
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("supplying-agency-service-tests",10,15, "DCB", "SQUIGGLE");
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("supplying-agency-service-tests",20,25, "DCB", "SQUIGGLE");
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE, 1, 1, "DCB", "SQUIGGLE");
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,10,15, "DCB", "SQUIGGLE");
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,20,25, "DCB", "SQUIGGLE");
 
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(INVALID_HOLD_POLICY_HOST_LMS_CODE, 1, 1, "DCB", "SQUIGGLE");
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(INVALID_HOLD_POLICY_HOST_LMS_CODE,10,15, "DCB", "SQUIGGLE");
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(INVALID_HOLD_POLICY_HOST_LMS_CODE,20,25, "DCB", "SQUIGGLE");
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			INVALID_HOLD_POLICY_HOST_LMS_CODE, 1, 1, "DCB", "SQUIGGLE");
 
-		referenceValueMappingFixture.definePatronTypeMapping(
-			"DCB", "SQUIGGLE", "supplying-agency-service-tests", "15");
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			INVALID_HOLD_POLICY_HOST_LMS_CODE, 10,15, "DCB", "SQUIGGLE");
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			INVALID_HOLD_POLICY_HOST_LMS_CODE, 20,25, "DCB", "SQUIGGLE");
+
+		referenceValueMappingFixture.definePatronTypeMapping("DCB", "SQUIGGLE", HOST_LMS_CODE, "15");
 		referenceValueMappingFixture.definePatronTypeMapping(
 			"DCB", "SQUIGGLE", INVALID_HOLD_POLICY_HOST_LMS_CODE, "15");
 
@@ -344,6 +342,6 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 	private void saveHomeLibraryMappings() {
 		// Tell systems how to convert supplying-agency-service-tests:123456 to ab6
-		referenceValueMappingFixture.defineLocationToAgencyMapping("supplying-agency-service-tests", "123456", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "123456", "ab6");
 	}
 }
