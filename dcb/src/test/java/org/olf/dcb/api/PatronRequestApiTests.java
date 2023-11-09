@@ -114,13 +114,12 @@ class PatronRequestApiTests {
 
 		hostLmsFixture.deleteAll();
 
-		final var h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "item");
+		final var h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE);
 		log.debug("Created dataHostLms {}", h1);
-		final var h2 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, "codeAA", "item");
+		final var h2 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, "codeAA");
 		log.debug("Created dataHostLms {}", h2);
-		final var h3 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, "codeBB", "item");
+		final var h3 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, "codeBB");
 		log.debug("Created dataHostLms {}", h3);
-
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 

@@ -54,6 +54,27 @@ public class HostLmsFixture {
 	}
 
 	public DataHostLms createSierraHostLms(String username, String password,
+		String host, String code) {
+
+		DataHostLms result = createHostLms(
+			DataHostLms.builder()
+				.id(randomUUID())
+				.code(code)
+				.name(code)
+				.lmsClientClass(SierraLmsClient.class.getCanonicalName())
+				.clientConfig(Map.of(
+					"key", username,
+					"secret", password,
+					"base-url", host))
+				.build());
+
+		log.debug("Creating numeric range mapping");
+		numericRangeMappingFixture.createMapping(code, "ItemType", 998L, 1001L, "DCB", "BKM");
+
+		return result;
+	}
+
+	public DataHostLms createSierraHostLms(String username, String password,
 		String host, String code, String holdPolicy) {
 
 		DataHostLms result = createHostLms(
