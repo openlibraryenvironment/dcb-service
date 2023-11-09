@@ -588,16 +588,18 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public boolean useTitleLevelRequest() {
-		final var cfg = getHostLms().getClientConfig();
-
-		return (cfg != null) && (cfg.get("holdPolicy") != null) && (cfg.get("holdPolicy").equals("title"));
+		return holdPolicyIs("title");
 	}
 
 	@Override
 	public boolean useItemLevelRequest() {
+		return holdPolicyIs("item");
+	}
+
+	private boolean holdPolicyIs(String holdPolicy) {
 		final var cfg = getHostLms().getClientConfig();
 
-		return (cfg != null) && (cfg.get("holdPolicy") != null) && (cfg.get("holdPolicy").equals("item"));
+		return (cfg != null) && (cfg.get("holdPolicy") != null) && (cfg.get("holdPolicy").equals(holdPolicy));
 	}
 
 	@Override
