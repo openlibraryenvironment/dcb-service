@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.Date;
 
@@ -596,10 +597,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return holdPolicyIs("item");
 	}
 
-	private boolean holdPolicyIs(String holdPolicy) {
-		final var cfg = getHostLms().getClientConfig();
-
-		return (cfg != null) && (cfg.get("holdPolicy") != null) && (cfg.get("holdPolicy").equals(holdPolicy));
+	private boolean holdPolicyIs(String expectedHoldPolicy) {
+		return Optional.ofNullable(getHostLms().getClientConfig())
+			.map(config -> config.get("holdPolicy"))
+			.map(policy -> policy.equals(expectedHoldPolicy))
+			.orElse(false);
 	}
 
 	@Override
