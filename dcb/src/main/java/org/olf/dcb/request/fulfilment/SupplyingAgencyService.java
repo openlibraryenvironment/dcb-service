@@ -140,8 +140,9 @@ public class SupplyingAgencyService {
 			recordNumber = supplierRequest.getLocalItemId();
 		}
 		else {
-			return Mono.error(new RuntimeException("Invalid hold policy for Host LMS \""
-				+ client.getHostLms().getCode() + "\""));
+			// Using runtime error until this logic is moved behind the host LMS client boundary
+			return Mono.error(new RuntimeException(
+				"Invalid hold policy for Host LMS \"" + client.getHostLms().getCode() + "\""));
 		}
 
 		String note = "Consortial Hold. tno="+patronRequest.getId();

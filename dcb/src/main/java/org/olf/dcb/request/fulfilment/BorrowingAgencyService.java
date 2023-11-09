@@ -173,7 +173,8 @@ public class BorrowingAgencyService {
 	}
 
 	private Mono<Tuple2<String, String>> placeHoldRequest(PatronRequest patronRequest,
-		PatronIdentity patronIdentity, HostLmsClient hostLmsClient, String localItemId, String localBibId) {
+		PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
+		String localItemId, String localBibId) {
 
 		final String recordNumber;
 		final String recordType;
@@ -189,14 +190,16 @@ public class BorrowingAgencyService {
 			recordNumber = localItemId;
 		}
 		else {
-			return Mono.error(new RuntimeException("Invalid hold policy for Host LMS \"" + hostLmsClient.getHostLms().getCode() + "\""));
+			// Using runtime error until this logic is moved behind the host LMS client boundary
+			return Mono.error(new RuntimeException(
+				"Invalid hold policy for Host LMS \"" + hostLmsClient.getHostLms().getCode() + "\""));
 		}
 
 		String note = "Consortial Hold. tno=" + patronRequest.getId();
 
 		return hostLmsClient
-			.placeHoldRequest(patronIdentity.getLocalId(), recordType, recordNumber, patronRequest.getPickupLocationCode(), note,
-				patronRequest.getId().toString())
+			.placeHoldRequest(patronIdentity.getLocalId(), recordType, recordNumber,
+				patronRequest.getPickupLocationCode(), note, patronRequest.getId().toString())
 			.map(response -> Tuples.of(response.getT1(), response.getT2()))
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to place hold request.")));
 	}
