@@ -117,28 +117,27 @@ public class SupplyingAgencyService {
 			.thenReturn(psrc);
 	}
 
-	private Mono<Tuple2<String, String>> placeHoldRequest(
-		HostLmsClient client,
-		RequestWorkflowContext psrc) {
+	private Mono<Tuple2<String, String>> placeHoldRequest(HostLmsClient client,
+		RequestWorkflowContext context) {
 
 		log.debug("placeHoldRequest");
 
-		PatronRequest patronRequest = psrc.getPatronRequest();
-		SupplierRequest supplierRequest = psrc.getSupplierRequest();
-		PatronIdentity patronIdentityAtSupplier = psrc.getPatronVirtualIdentity();
+		PatronRequest patronRequest = context.getPatronRequest();
+		SupplierRequest supplierRequest = context.getSupplierRequest();
+		PatronIdentity patronIdentityAtSupplier = context.getPatronVirtualIdentity();
 
-		final String requestedThingType;
-		final String requestedThingId;
+		final String recordNumber;
+		final String recordType;
 
 		if (client.useTitleLevelRequest()) {
 			log.debug("place title level request for ID {}", supplierRequest.getLocalBibId());
-			requestedThingType = "b";
-			requestedThingId = supplierRequest.getLocalBibId();
+			recordType = "b";
+			recordNumber = supplierRequest.getLocalBibId();
 		}
 		else if (client.useItemLevelRequest()) {
 			log.debug("place item level request for ID {}", supplierRequest.getLocalItemId());
-			requestedThingType = "i";
-			requestedThingId = supplierRequest.getLocalItemId();
+			recordType = "i";
+			recordNumber = supplierRequest.getLocalItemId();
 		}
 		else {
 			return Mono.error(new RuntimeException("Invalid hold policy for Host LMS \""
@@ -147,14 +146,9 @@ public class SupplyingAgencyService {
 
 		String note = "Consortial Hold. tno="+patronRequest.getId();
 
-		// Depending upon client configuration, we may need to place an item or a title level hold
-		// log.debug("Call client.placeHoldRequest");
 		return client.placeHoldRequest(patronIdentityAtSupplier.getLocalId(),
-			requestedThingType,
-			requestedThingId,
-			psrc.getPickupAgencyCode(),
-			note,
-			patronRequest.getId().toString());
+			recordType, recordNumber, context.getPickupAgencyCode(),
+			note, patronRequest.getId().toString());
 	}
 
 	private Mono<PatronRequest> updateSupplierRequest(RequestWorkflowContext psrc) {
