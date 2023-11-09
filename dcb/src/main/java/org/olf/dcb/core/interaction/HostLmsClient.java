@@ -12,17 +12,19 @@ import reactor.util.function.Tuple2;
 
 public interface HostLmsClient {
 
+
+
 	// All implementations must understand these states and be able to translate
 	// them to
 	// local values when encountered via updateRequestStatus
 	enum CanonicalRequestState {
-		PLACED, TRANSIT
+		PLACED, TRANSIT;
 	}
+
 
 	enum CanonicalItemState {
-		AVAILABLE, TRANSIT, OFFSITE
+		AVAILABLE, TRANSIT, OFFSITE;
 	}
-
 	HostLms getHostLms();
 
 	Flux<Map<String, ?>> getAllBibData();
@@ -36,10 +38,16 @@ public interface HostLmsClient {
 	Mono<String> createBib(Bib bib);
 
 	// (localHoldId, localHoldStatus)
+
 	Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType, String recordNumber,
 			String pickupLocation, String note, String patronRequestId);
 
-	// Flux<?> getAllAgencies();
+	default boolean useTitleHold() {
+		final var cfg = getHostLms().getClientConfig();
+
+		return (cfg != null) && (cfg.get("holdPolicy") != null) && (cfg.get("holdPolicy").equals("title"));
+	}
+
 	Mono<Patron> getPatronByLocalId(String localPatronId);
 
 	Mono<Patron> updatePatron(String localId, String patronType);
