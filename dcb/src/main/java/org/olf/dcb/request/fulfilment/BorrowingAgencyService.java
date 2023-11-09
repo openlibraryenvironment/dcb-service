@@ -178,7 +178,7 @@ public class BorrowingAgencyService {
 		final String recordNumber;
 		final String recordType;
 
-		if (hostLmsClient.useTitleHold()) {
+		if (hostLmsClient.useTitleLevelRequest()) {
 			log.debug("place title level request for ID {} {}", localBibId, patronIdentity);
 			recordType = "b";
 			recordNumber = localBibId;

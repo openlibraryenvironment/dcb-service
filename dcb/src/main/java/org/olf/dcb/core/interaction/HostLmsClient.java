@@ -42,7 +42,7 @@ public interface HostLmsClient {
 	Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType, String recordNumber,
 			String pickupLocation, String note, String patronRequestId);
 
-	boolean useTitleHold();
+	boolean useTitleLevelRequest();
 
 	Mono<Patron> getPatronByLocalId(String localPatronId);
 

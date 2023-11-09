@@ -322,7 +322,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	@Override
-	public boolean useTitleHold() {
+	public boolean useTitleLevelRequest() {
 		return false;
 	}
 

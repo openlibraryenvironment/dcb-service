@@ -587,7 +587,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public boolean useTitleHold() {
+	public boolean useTitleLevelRequest() {
 		final var cfg = getHostLms().getClientConfig();
 
 		return (cfg != null) && (cfg.get("holdPolicy") != null) && (cfg.get("holdPolicy").equals("title"));

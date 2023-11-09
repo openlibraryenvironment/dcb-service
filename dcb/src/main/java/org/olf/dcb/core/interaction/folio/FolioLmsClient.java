@@ -77,7 +77,7 @@ public class FolioLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public boolean useTitleHold() {
+	public boolean useTitleLevelRequest() {
 		return false;
 	}
 

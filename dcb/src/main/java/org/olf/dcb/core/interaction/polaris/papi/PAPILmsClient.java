@@ -265,7 +265,7 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 	}
 
 	@Override
-	public boolean useTitleHold() {
+	public boolean useTitleLevelRequest() {
 		return false;
 	}
 
