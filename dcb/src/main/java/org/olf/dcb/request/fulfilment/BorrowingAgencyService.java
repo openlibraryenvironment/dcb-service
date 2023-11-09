@@ -183,10 +183,13 @@ public class BorrowingAgencyService {
 			recordType = "b";
 			recordNumber = localBibId;
 		}
-		else {
+		else if (hostLmsClient.useItemLevelRequest()) {
 			log.debug("place item level request for ID {} {}", localItemId, patronIdentity);
 			recordType = "i";
 			recordNumber = localItemId;
+		}
+		else {
+			return Mono.error(new RuntimeException("Invalid hold policy for Host LMS \"" + hostLmsClient.getHostLms().getCode() + "\""));
 		}
 
 		String note = "Consortial Hold. tno=" + patronRequest.getId();

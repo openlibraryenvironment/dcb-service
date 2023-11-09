@@ -47,6 +47,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PlaceRequestAtBorrowingAgencyTests {
 	private static final String HOST_LMS_CODE = "borrowing-agency-service-tests";
+	private static final String INVALID_HOLD_POLICY_HOST_LMS_CODE = "invalid-hold-policy";
 
 	@Inject
 	private ResourceLoader loader;
@@ -91,13 +92,17 @@ class PlaceRequestAtBorrowingAgencyTests {
 		hostLmsFixture.deleteAll();
 		agencyFixture.deleteAll();
 
-		var h1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "title");
+		var sierraHostLms = hostLmsFixture.createSierraHostLms(KEY, SECRET,
+			BASE_URL, HOST_LMS_CODE, "title");
+
+		hostLmsFixture.createSierraHostLms(KEY, SECRET,
+			BASE_URL, INVALID_HOLD_POLICY_HOST_LMS_CODE, "invalid");
 
 		agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
 			.code("ab6")
 			.name("Test AB6")
-			.hostLms(h1)
+			.hostLms(sierraHostLms)
 			.build());
 
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
@@ -126,6 +131,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		clusterRecordFixture.deleteAllClusterRecords();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping("borrowing-agency-service-tests", "ab6", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping("invalid-hold-policy", "ab6", "ab6");
 	}
 
 	@AfterAll
@@ -283,6 +289,57 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest,
 			"No hold request found for the given note: Consortial Hold. tno=" + patronRequestId);
+	}
+
+	@Test
+	void shouldFailWhenSierraHostLmsHasInvalidHoldPolicyConfiguration() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+
+		final var invalidHoldPolicyHostLms = hostLmsFixture.findByCode(INVALID_HOLD_POLICY_HOST_LMS_CODE);
+		final var sourceSystemId = invalidHoldPolicyHostLms.getId();
+
+		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+
+		final var patron = patronFixture.savePatron("872321");
+
+		patronFixture.saveIdentity(patron, invalidHoldPolicyHostLms, "872321", true, "-", "872321", null);
+
+		final var patronRequestId = randomUUID();
+		var patronRequest = PatronRequest.builder()
+			.id(patronRequestId)
+			.patron(patron)
+			.bibClusterId(clusterRecordId)
+			.status(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.pickupLocationCode("ABC123")
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
+			"ab6", "9849123490", invalidHoldPolicyHostLms.code);
+
+		// Act
+		final var exception = assertThrows(RuntimeException.class,
+			() -> placeRequestAtBorrowingAgency(patronRequest));
+
+		// Assert
+		final var expectedErrorMessage = "Invalid hold policy for Host LMS \""
+			+ INVALID_HOLD_POLICY_HOST_LMS_CODE + "\"";
+
+		assertThat("Should have invalid hold policy message",
+			exception.getMessage(), is(expectedErrorMessage));
+
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat("Request should have error status afterwards",
+			fetchedPatronRequest.getStatus(), is(ERROR));
+
+		assertThat("Request should have error message afterwards",
+			fetchedPatronRequest.getErrorMessage(), is(expectedErrorMessage));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
 	}
 
 	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
