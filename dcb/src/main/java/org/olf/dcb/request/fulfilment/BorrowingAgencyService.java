@@ -2,6 +2,7 @@ package org.olf.dcb.request.fulfilment;
 
 import static reactor.function.TupleUtils.function;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -180,7 +181,7 @@ public class BorrowingAgencyService {
 
 		final var cfg = hostLmsClient.getHostLms().getClientConfig();
 
-		if ((cfg != null) && (cfg.get("holdPolicy") != null) && (cfg.get("holdPolicy").equals("title"))) {
+		if (useTitleHold(cfg)) {
 			log.debug("place title level request for ID {} {}", localBibId, patronIdentity);
 			recordType = "b";
 			recordNumber = localBibId;
@@ -198,6 +199,10 @@ public class BorrowingAgencyService {
 				patronRequest.getId().toString())
 			.map(response -> Tuples.of(response.getT1(), response.getT2()))
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to place hold request.")));
+	}
+
+	private static boolean useTitleHold(Map<String, Object> cfg) {
+		return (cfg != null) && (cfg.get("holdPolicy") != null) && (cfg.get("holdPolicy").equals("title"));
 	}
 
 	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest>> getHoldRequestData(
