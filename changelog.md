@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 2.0.1
+
+### Fixes
+* [General]
+	* revert DCB: change as the likely culprit for failure to place hold at lending site
+
 ## Version 2.0.0
 
 ### Additions
@@ -14,6 +20,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Reformat production of invalid hold policy error DCB-613
 	* Rename variables for record number and type when placing request at supplying agency DCB-613
 	* Add method for item level request policy to host LMS client interface DCB-613
