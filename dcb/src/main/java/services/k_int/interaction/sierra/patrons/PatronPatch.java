@@ -18,4 +18,5 @@ public class PatronPatch {
 	List<String> uniqueIds;
 	String homeLibraryCode;
 	List<String> barcodes;
+	String expirationDate;
 }

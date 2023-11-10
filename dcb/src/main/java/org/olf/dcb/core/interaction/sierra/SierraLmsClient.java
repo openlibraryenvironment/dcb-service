@@ -19,6 +19,12 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.Date;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.TimeZone;
+import java.util.Date;
+import java.text.DateFormat;
+
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.BranchRecord;
 import org.olf.dcb.configuration.ConfigurationRecord;
@@ -437,12 +443,28 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<String> createPatron(Patron patron) {
 		log.debug("postPatron({})", patron);
 
+		if ( patron.getExpiryDate() == null ) {
+			// No patron expiry - default to 10 years hence
+			Calendar c = Calendar.getInstance();
+			c.setTime(new Date());
+        		c.add(Calendar.YEAR, 10);
+			patron.setExpiryDate(c.getTime());
+		}
+
+		DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+		TimeZone tz = TimeZone.getTimeZone("UTC");
+		df.setTimeZone(tz);
+
+		final String patronExpirationDate = df.format(patron.getExpiryDate());
+
 		final var patronPatch = PatronPatch.builder().patronType(parseInt(patron.getLocalPatronType()))
 				.uniqueIds(Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList))
 				// Unique IDs are used for names to avoid transmission of personally
 				// identifiable information
 				.names(Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList))
-				.barcodes(Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList)).build();
+				.barcodes(Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList))
+				.expirationDate(patronExpirationDate)
+				.build();
 
 		return Mono.from(client.patrons(patronPatch))
 				.doOnSuccess(result -> log.debug("the result of createPatron({})", result))

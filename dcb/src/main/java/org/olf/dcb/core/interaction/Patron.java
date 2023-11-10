@@ -10,6 +10,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import lombok.experimental.Accessors;
 import lombok.Data;
 import java.util.List;
+import java.util.Date;
 
 /**
  *
@@ -34,4 +35,5 @@ public class Patron {
 	// details of how we convert a local patron type to a canonical type in the HostILS implementation
 	// and pass back the mapped type here, rather than forcing the caller to know how to convert.
 	private String canonicalPatronType;
+	private Date expiryDate; // To be formatted as needed by any system
 }
