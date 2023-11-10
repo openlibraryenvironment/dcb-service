@@ -38,15 +38,16 @@ DB connection effectively, 2 different connections - with JDBC only being used f
 
 Additional optional configuration values. These may be set in configuration files or using environment variables.
 
-| Name                                                  | Description                                                                       | Format                                                                               | Default |
-|-------------------------------------------------------|-----------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|---------|
-| dcb.demo.ingest.limit                                 | Maximum number of records to ingest when running in demo environment              | Integer value                                                                        | 1000    |
-| dcb.requestability.location.codes.allowed             | Location codes allow list for item requestability                                 | List                                                                                 | None    |
-| dcb.requestability.location.filtering                 | Whether items should be filtered by location code when determining requestability | Boolean                                                                              | false   |
-| dcb.request-workflow.state-transition-delay           | Delay between transitions in the request workflow                                 | [ISO-8601 format](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html) | PT0.0S  |
-| dcb.requests.supplying.patron-type                    | Fixed patron type for supplying agency virtual patrons                            | Integer                                                                              | 210     |
-| dcb.requests.preflight-checks.enabled                 | Whether preflight checks for placing patron requests are enabled                  | Boolean                                                                              | true    |
-| dcb.requests.preflight-checks.pickup-location.enabled | Whether pickup location preflight checks are enabled                              | Boolean                                                                              | true    |
+| Name                                                                    | Description                                                                       | Format                                                                               | Default |
+|-------------------------------------------------------------------------|-----------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|---------|
+| dcb.demo.ingest.limit                                                   | Maximum number of records to ingest when running in demo environment              | Integer value                                                                        | 1000    |
+| dcb.requestability.location.codes.allowed                               | Location codes allow list for item requestability                                 | List                                                                                 | None    |
+| dcb.requestability.location.filtering                                   | Whether items should be filtered by location code when determining requestability | Boolean                                                                              | false   |
+| dcb.request-workflow.state-transition-delay                             | Delay between transitions in the request workflow                                 | [ISO-8601 format](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html) | PT0.0S  |
+| dcb.requests.supplying.patron-type                                      | Fixed patron type for supplying agency virtual patrons                            | Integer                                                                              | 210     |
+| dcb.requests.preflight-checks.enabled                                   | Whether preflight checks for placing patron requests are enabled                  | Boolean                                                                              | true    |
+| dcb.requests.preflight-checks.pickup-location.enabled                   | Whether pickup location preflight checks are enabled                              | Boolean                                                                              | true    |
+| dcb.requests.preflight-checks.pickup-location-to-agency-mapping.enabled | Whether pickup location to agency mapping preflight checks are enabled            | Boolean                                                                              | true    |
 
 
 # API Documentation

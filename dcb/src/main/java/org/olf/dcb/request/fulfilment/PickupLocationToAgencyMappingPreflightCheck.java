@@ -10,12 +10,14 @@ import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple3;
 import reactor.util.function.Tuples;
 
 @Singleton
+@Requires(property = "dcb.requests.preflight-checks.pickup-location-to-agency-mapping.enabled", defaultValue = "true", notEquals = "false")
 public class PickupLocationToAgencyMappingPreflightCheck implements PreflightCheck {
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final AgencyService agencyService;
