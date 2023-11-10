@@ -4,10 +4,12 @@ import java.util.List;
 
 import org.olf.dcb.core.svc.LocationService;
 
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
 @Singleton
+@Requires(property = "dcb.requests.preflight-checks.pickup-location.enabled", defaultValue = "true", notEquals = "false")
 public class PickupLocationPreflightCheck implements PreflightCheck {
 	private final LocationService locationService;
 
