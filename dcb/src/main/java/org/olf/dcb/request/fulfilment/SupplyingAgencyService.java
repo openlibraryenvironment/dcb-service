@@ -176,6 +176,7 @@ public class SupplyingAgencyService {
 			// Case 2 : Remote lender, patron picking up from a a library in their home system
 			psrc.getPatronRequest().setActiveWorkflow("RET-STD");
 		} else {
+			// Case 3 : Three legged transaction - Lender, Pickup, Borrower
 			psrc.getPatronRequest().setActiveWorkflow("RET-PUA");
 		}
 
@@ -189,7 +190,10 @@ public class SupplyingAgencyService {
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 
 		return checkIfPatronExistsAtSupplier(psrc)
-			.switchIfEmpty(Mono.defer(() -> createPatronAtSupplier(patronRequest, supplierRequest)));
+			.switchIfEmpty(Mono.defer(() -> {
+				log.warn("checkIfPatronExistsAtSupplier {} false, creating new patron record", psrc);
+				return createPatronAtSupplier(patronRequest, supplierRequest);
+			}));
 	}
 
 	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(RequestWorkflowContext psrc) {

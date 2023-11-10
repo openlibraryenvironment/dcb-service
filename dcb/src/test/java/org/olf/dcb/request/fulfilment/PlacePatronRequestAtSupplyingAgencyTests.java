@@ -105,7 +105,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
 		// sierraPatronsAPIFixture.patronResponseForUniqueId("872321@123456");
-		sierraPatronsAPIFixture.patronResponseForUniqueId("u", "DCB:872321@ab6");
+		// sierraPatronsAPIFixture.patronResponseForUniqueId("u", "DCB:872321@ab6");
+		sierraPatronsAPIFixture.patronResponseForUniqueId("u", "872321@ab6");
 
 
 		// The unexpected Ptype will use this mock to update the virtual patron
@@ -137,7 +138,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
 		// sierraPatronsAPIFixture.patronResponseForUniqueIdExpectedPtype("32453@123456");
-		sierraPatronsAPIFixture.patronResponseForUniqueIdExpectedPtype("u", "DCB:32453@ab6");
+		// sierraPatronsAPIFixture.patronResponseForUniqueIdExpectedPtype("u", "DCB:32453@ab6");
+		sierraPatronsAPIFixture.patronResponseForUniqueIdExpectedPtype("u", "32453@ab6");
 
 		sierraPatronsAPIFixture.patronHoldResponse("1000002",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
@@ -167,9 +169,11 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
 		// sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("546730@123456");
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "DCB:546730@ab6");
+		// sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "DCB:546730@ab6");
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "546730@ab6");
 		// sierraPatronsAPIFixture.postPatronResponse("546730@123456", 1000003);
-		sierraPatronsAPIFixture.postPatronResponse("DCB:546730@ab6", 1000003);
+		// sierraPatronsAPIFixture.postPatronResponse("DCB:546730@ab6", 1000003);
+		sierraPatronsAPIFixture.postPatronResponse("546730@ab6", 1000003);
 		sierraPatronsAPIFixture.patronHoldResponse("1000003",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864905",
 			"Consortial Hold. tno="+patronRequest.getId());
@@ -198,8 +202,10 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.code);
 
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "DCB:931824@ab6");
-		sierraPatronsAPIFixture.postPatronResponse("DCB:931824@ab6", 1000001);
+		// sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "DCB:931824@ab6");
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "931824@ab6");
+		// sierraPatronsAPIFixture.postPatronResponse("DCB:931824@ab6", 1000001);
+		sierraPatronsAPIFixture.postPatronResponse("931824@ab6", 1000001);
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", "b");
 
 		// Act
