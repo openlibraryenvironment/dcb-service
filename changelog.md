@@ -1,6 +1,16 @@
 # Changelog
 
+## Version 2.0.2
+
+### Fixes
+* [General]
+	* align tests with reverted patron id change
+
 ## Version 2.0.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
