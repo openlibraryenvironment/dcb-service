@@ -1,5 +1,49 @@
 # Changelog
 
+## Version 2.0.0
+
+### Additions
+* [General]
+	* **BREAKING** -  Disallow unknown hold policy for Sierra host LMS when placing request at supplying agency DCB-613
+	* **BREAKING** -  Disallow unknown hold policy for Sierra host LMS during placing request at borrowing agency DCB-613
+* [General]
+	* Optionally disable patron resolution preflight check DCB-612
+	* Optionally disable pickup location to agency preflight check DCB-612
+	* Optionally disable pickup location preflight check DCB-612
+	* Default hold policy for Sierra client to item DCB-613
+
+### Changes
+* [Chore]
+	* Reformat production of invalid hold policy error DCB-613
+	* Rename variables for record number and type when placing request at supplying agency DCB-613
+	* Add method for item level request policy to host LMS client interface DCB-613
+* [Feature]
+	* Create endpoint to import uploaded mappings [DCB-527]
+* [Refactor]
+	* add DCB prefix to unique id generation
+	* Use optional when checking hold policy DCB-613
+	* Extract method for checking hold policy in Sierra host LMS client DCB-613
+	* Use common policy for title level requests when placing at supplying agency DCB-613
+	* Rename method for checking title level request policy when placing requests DCB-613
+	* Move implementation of title hold policy to host LMS client implementations DCB-613
+	* Move title hold policy decision to host LMS client interface DCB-613
+	* Move getting hold policy from config to extracted method DCB-613
+	* Extract method for whether policy is to place title hold DCB-613
+* [Test]
+	* Remove separate tests for disabling individual preflight checks DCB-612
+	* Remove redundant preparation in preflight checks service tests DCB-612
+	* Only include always failing check during preflight checks service tests DCB-612
+	* Define test only preflight check DCB-612
+	* Check all indidual checks are enabled DCB-612
+	* Extract method for creating Sierra host LMS client with client config DCB-613
+	* Use host LMS code constants for defining mappings when placing requests at borrowing agency DCB-613
+	* statically import request statuses when placing request at borrowing agency DCB-613
+	* Use host LMS code constant for defining mappings when placing requests at supplying agency DCB-613
+
+### Fixes
+* [General]
+	* Switch lastImported to use Instant [DCB-527]
+
 ## Version 1.11.0
 
 ### Additions
@@ -12,6 +56,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Reformat reactive chain when placing request at borrowing agency DCB-613
 	* Replace spaces with tabs in place request at borrowing agency service DCB-613
 	* Remove unused dependencies from place patron request at borrowing agency service DCB-613
