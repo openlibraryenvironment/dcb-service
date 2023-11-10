@@ -131,9 +131,9 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");
 
 		// patron service
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "872321@ab6");
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "DCB:872321@ab6");
 
-		sierraPatronsAPIFixture.postPatronResponse("872321@ab6", 2745326);
+		sierraPatronsAPIFixture.postPatronResponse("DCB:872321@ab6", 2745326);
 
 		// supplying agency service
 		sierraPatronsAPIFixture.patronHoldRequestResponse("2745326", "i", null);
