@@ -1,6 +1,16 @@
 # Changelog
 
+## Version 2.0.3
+
+### Changes
+* [Feature]
+	* When creating a (vpatron) in sierra, allow the caller to specify an expiryDate or default it to 10 years from now
+
 ## Version 2.0.2
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
