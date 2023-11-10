@@ -1,9 +1,9 @@
 package org.olf.dcb.request.fulfilment;
 
-import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.notNullValue;
 
 import java.util.Collection;
@@ -19,14 +19,15 @@ import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.context.annotation.Requires;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
 @Property(name = "dcb.requests.preflight-checks.enabled", value = "false")
+@Property(name = "dcb.requests.preflight-checks.pickup-location.enabled", value = "false")
+@Property(name = "dcb.requests.preflight-checks.pickup-location-to-agency-mapping.enabled", value = "false")
+@Property(name = "dcb.requests.preflight-checks.resolve-patron.enabled", value = "false")
 @Property(name = "include-test-only-check", value = "true")
-@MicronautTest(transactional = false, rebuildContext = true)
 @DcbTest()
 class PatronRequestPreflightChecksServiceTests extends AbstractPreflightCheckTests {
 	@Inject
@@ -67,18 +68,10 @@ class PatronRequestPreflightChecksServiceTests extends AbstractPreflightCheckTes
 	}
 
 	@Test
-	void allIndividualChecksShouldBeEnabled() {
-		assertThat("Pickup location check should be enabled",
-			preflightChecks, hasItem(instanceOf(PickupLocationPreflightCheck.class)));
-
-		assertThat("Pickup location to agency mapping check should be enabled",
-			preflightChecks, hasItem(instanceOf(PickupLocationToAgencyMappingPreflightCheck.class)));
-
-		assertThat("Patron resolution check should be enabled",
-			preflightChecks, hasItem(instanceOf(ResolvePatronPreflightCheck.class)));
-
-		assertThat("Always failing check should be enabled",
-			preflightChecks, hasItem(instanceOf(AlwaysFailingCheck.class)));
+	void shouldOnlyIncludeAlwaysFailingCheck() {
+		// Property annotations for class disable the other checks individually
+		assertThat("Always failing check should be only enabled check",
+			preflightChecks, containsInAnyOrder(instanceOf(AlwaysFailingCheck.class)));
 	}
 
 	@Singleton
