@@ -48,7 +48,7 @@ Additional optional configuration values. These may be set in configuration file
 | dcb.requests.preflight-checks.enabled                                   | Whether preflight checks for placing patron requests are enabled                  | Boolean                                                                              | true    |
 | dcb.requests.preflight-checks.pickup-location.enabled                   | Whether pickup location preflight checks are enabled                              | Boolean                                                                              | true    |
 | dcb.requests.preflight-checks.pickup-location-to-agency-mapping.enabled | Whether pickup location to agency mapping preflight checks are enabled            | Boolean                                                                              | true    |
-
+| dcb.requests.preflight-checks.resolve-patron.enabled                    | Whether patron resolution preflight checks are enabled                            | Boolean                                                                              | true    |
 
 # API Documentation
 

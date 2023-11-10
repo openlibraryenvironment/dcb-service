@@ -16,6 +16,7 @@ import jakarta.inject.Inject;
 @DcbTest
 @Property(name = "dcb.requests.preflight-checks.pickup-location.enabled", value = "false")
 @Property(name = "dcb.requests.preflight-checks.pickup-location-to-agency-mapping.enabled", value = "false")
+@Property(name = "dcb.requests.preflight-checks.resolve-patron.enabled", value = "false")
 class DisablingPreflightCheckTests {
 	@Inject
 	private Collection<PreflightCheck> preflightChecks;
@@ -30,5 +31,11 @@ class DisablingPreflightCheckTests {
 	void pickupLocationToAgencyMappingPreflightChecksShouldBeDisabled() {
 		assertThat("Should not be in collection", preflightChecks,
 			not(hasItem(instanceOf(PickupLocationToAgencyMappingPreflightCheck.class))));
+	}
+
+	@Test
+	void resolvePatronPreflightChecksShouldBeDisabled() {
+		assertThat("Should not be in collection", preflightChecks,
+			not(hasItem(instanceOf(ResolvePatronPreflightCheck.class))));
 	}
 }
