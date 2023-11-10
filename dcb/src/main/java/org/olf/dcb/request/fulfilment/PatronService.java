@@ -183,7 +183,7 @@ public class PatronService {
 		return patron.getPatronIdentities().stream().filter(PatronIdentity::getHomeIdentity).map(pi -> {
 			if (pi.getResolvedAgency() == null)
 				throw new RuntimeException("No resolved agency for patron " + patron.getId() + "homeLibraryCode was "+patron.getHomeLibraryCode());
-			return pi.getLocalId() + "@" + pi.getResolvedAgency().getCode();
+			return "DCB:" + pi.getLocalId() + "@" + pi.getResolvedAgency().getCode();
 		}).collect(Collectors.joining());
 	}
 
