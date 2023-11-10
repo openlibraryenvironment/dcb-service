@@ -7,6 +7,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 
 import java.util.Collection;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,9 +18,14 @@ import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.context.annotation.Property;
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+import reactor.core.publisher.Mono;
 
+@Property(name = "dcb.requests.preflight-checks.enabled", value = "false")
+@Property(name = "include-test-only-check", value = "true")
 @MicronautTest(transactional = false, rebuildContext = true)
 @DcbTest()
 class PatronRequestPreflightChecksServiceTests extends AbstractPreflightCheckTests {
@@ -49,7 +55,6 @@ class PatronRequestPreflightChecksServiceTests extends AbstractPreflightCheckTes
 	}
 
 	@Test
-	@Property(name = "dcb.requests.preflight-checks.enabled", value = "false")
 	void noChecksShouldBeExecutedWhenDisabled() {
 		assertThat("Service instance should not be null", preflightChecksService, is(notNullValue()));
 
@@ -71,5 +76,17 @@ class PatronRequestPreflightChecksServiceTests extends AbstractPreflightCheckTes
 
 		assertThat("Patron resolution check should be enabled",
 			preflightChecks, hasItem(instanceOf(ResolvePatronPreflightCheck.class)));
+
+		assertThat("Always failing check should be enabled",
+			preflightChecks, hasItem(instanceOf(AlwaysFailingCheck.class)));
+	}
+
+	@Singleton
+	@Requires(property = "include-test-only-check")
+	static class AlwaysFailingCheck implements PreflightCheck {
+		@Override
+		public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
+			return Mono.just(List.of(CheckResult.failed("Always fail")));
+		}
 	}
 }
