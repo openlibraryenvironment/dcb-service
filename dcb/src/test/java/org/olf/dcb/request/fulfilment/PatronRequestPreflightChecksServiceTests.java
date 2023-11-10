@@ -1,8 +1,12 @@
 package org.olf.dcb.request.fulfilment;
 
+import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
+
+import java.util.Collection;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,8 +17,10 @@ import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.context.annotation.Property;
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 
+@MicronautTest(transactional = false, rebuildContext = true)
 @DcbTest()
 class PatronRequestPreflightChecksServiceTests extends AbstractPreflightCheckTests {
 	@Inject
@@ -28,6 +34,9 @@ class PatronRequestPreflightChecksServiceTests extends AbstractPreflightCheckTes
 	private LocationFixture locationFixture;
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+
+	@Inject
+	private Collection<PreflightCheck> preflightChecks;
 
 	@BeforeEach
 	void beforeEach() {
@@ -50,5 +59,17 @@ class PatronRequestPreflightChecksServiceTests extends AbstractPreflightCheckTes
 		// if they were executed they would fail and this would throw an exception
 		assertThat("No checks should be made",
 			preflightChecksService.check(command).block(), is(command));
+	}
+
+	@Test
+	void allIndividualChecksShouldBeEnabled() {
+		assertThat("Pickup location check should be enabled",
+			preflightChecks, hasItem(instanceOf(PickupLocationPreflightCheck.class)));
+
+		assertThat("Pickup location to agency mapping check should be enabled",
+			preflightChecks, hasItem(instanceOf(PickupLocationToAgencyMappingPreflightCheck.class)));
+
+		assertThat("Patron resolution check should be enabled",
+			preflightChecks, hasItem(instanceOf(ResolvePatronPreflightCheck.class)));
 	}
 }
