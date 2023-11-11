@@ -271,13 +271,16 @@ public class DataFetchers {
 
         public DataFetcher<CompletableFuture<List<SupplierRequest>>> getSupplierRequestsForPR() {
                 return env -> {
-                        return Flux.from(postgresSupplierRequestRepository.findByPatronRequest(env.getSource())).collectList().toFuture();
+			PatronRequest parent = env.getSource();
+                        log.debug("getSupplierRequestsForPR {}",parent);
+                        return Flux.from(postgresSupplierRequestRepository.findByPatronRequest(parent)).collectList().toFuture();
                 };
         }
 
         public DataFetcher<CompletableFuture<List<PatronRequestAudit>>> getAuditMessagesForPR() {
                 return env -> {
 			PatronRequest parent = env.getSource();
+                        log.debug("getAuditMessagesForPR {}",parent);
                         return Flux.from(postgresPatronRequestAuditRepository.findByPatronRequest(parent)).collectList().toFuture();
                 };
         }
