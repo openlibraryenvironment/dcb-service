@@ -18,6 +18,7 @@ import java.util.UUID;
 import org.olf.dcb.core.HostLmsService;
 
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 
 
 @Singleton
@@ -28,16 +29,17 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
         private RequestWorkflowContextHelper requestWorkflowContextHelper;
         private PatronRequestRepository patronRequestRepository;
         private HostLmsService hostLmsService;
-
-
+	private PatronRequestAuditService patronRequestAuditService;
 
         public HandleBorrowerItemLoaned(
                 PatronRequestRepository patronRequestRepository,
                 HostLmsService hostLmsService,
-                RequestWorkflowContextHelper requestWorkflowContextHelper) {
+                RequestWorkflowContextHelper requestWorkflowContextHelper,
+		PatronRequestAuditService patronRequestAuditService) {
                 this.patronRequestRepository = patronRequestRepository;
                 this.hostLmsService = hostLmsService;
                 this.requestWorkflowContextHelper = requestWorkflowContextHelper;
+                this.patronRequestAuditService = patronRequestAuditService;
         }
         
         @Transactional
@@ -63,6 +65,7 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
 
 
         public Mono<RequestWorkflowContext> checkHomeItemOutToVirtualPatron(RequestWorkflowContext rwc) {
+
                 if ( ( rwc.getSupplierRequest() != null ) && 
                      ( rwc.getSupplierRequest().getLocalItemId() != null ) &&
                      ( rwc.getLenderSystemCode() != null ) &&
@@ -84,13 +87,19 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
                                       .thenReturn(rwc);
                         }
                         else {
-                                log.warn("NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT {}",rwc.getPatronVirtualIdentity().getLocalBarcode());
-                                return Mono.just(rwc);
+                                log.error("NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT {}",rwc.getPatronVirtualIdentity().getLocalBarcode());
+
+				return patronRequestAuditService.addErrorAuditEntry(rwc.getPatronRequest(),
+					"NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT") 
+					.thenReturn(rwc);
                         }
                 }
                 else { 
                         log.error("Missing data attempting to set home item off campus {} {} {}",rwc,rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity());
-                        return Mono.just(rwc);
+			return patronRequestAuditService.addErrorAuditEntry(rwc.getPatronRequest(),
+				String.format("Missing data attempting to set home item off campus {} {} {}",
+				rwc,rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity()))
+                        	.thenReturn(rwc);
                 }       
         }
 

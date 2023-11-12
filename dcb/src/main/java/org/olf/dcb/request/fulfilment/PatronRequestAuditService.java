@@ -53,7 +53,14 @@ public class PatronRequestAuditService {
 				.doOnSuccess(this::log);
 	}
 
+	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, String message) {
+		return addAuditEntry(patronRequest, patronRequest.getStatus(), Status.ERROR, Optional.ofNullable(message));
+	}
 	
+	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, Throwable error) {
+		return addErrorAuditEntry(patronRequest, patronRequest.getStatus(), error);
+	}
+
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, Status from, Throwable error) {
 		log.debug("addErrorAuditEntry");
 		return addAuditEntry(patronRequest, from, Status.ERROR, Optional.ofNullable(error.getMessage()));
