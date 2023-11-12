@@ -67,7 +67,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	private final AgencyRepository agencyRepository;
 
 	private static final String[] titleWords = { "Science", "Philosophy", "Music", "Art", "Nonsense", "Dialectic",
-			"Curiosity", "Reading", "Numeracy", "Literacy" };
+			"FlipDeBoop", "FlopLehoop", "Affdgerandunique", "Literacy" };
 
 	public DummyLmsClient(@Parameter HostLms lms,
 			ProcessStateService processStateService,
