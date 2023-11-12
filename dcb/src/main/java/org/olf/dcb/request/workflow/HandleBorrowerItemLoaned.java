@@ -71,13 +71,16 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
                      ( rwc.getLenderSystemCode() != null ) &&
                      ( rwc.getPatronVirtualIdentity() != null ) ) {
 
+
+			// When shown in the UI, sierra patron barcodes are "bnnnnnnnC" where C is a check-diget
+			// That kind of tomfoolery belongs in the adapter and not here, removing the code to strip the first and last chars.
+                        // WAS: .substring(1, rwc.getPatronVirtualIdentity().getLocalBarcode().length() - 1).split(", ") : null;
                         final String[] patron_barcodes = ( rwc.getPatronVirtualIdentity().getLocalBarcode() != null ) ?
-                                rwc.getPatronVirtualIdentity().getLocalBarcode()
-                                        .substring(1, rwc.getPatronVirtualIdentity().getLocalBarcode().length() - 1).split(", ") : null;
+                                rwc.getPatronVirtualIdentity().getLocalBarcode().split(", ") : null;
 
                         if ( ( patron_barcodes != null ) && ( patron_barcodes.length > 0 ) ) {
 
-                                log.debug("Update check home item out : {} to {} at {}",
+                                log.info("Update check home item out : {} to {} at {}",
                                         rwc.getSupplierRequest().getLocalItemBarcode(), patron_barcodes[0],rwc.getLenderSystemCode());
 
                                 return hostLmsService.getClientFor(rwc.getLenderSystemCode())
