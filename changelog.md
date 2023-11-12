@@ -1,8 +1,20 @@
 # Changelog
 
+## Version 2.0.4
+
+### Changes
+* [Chore]
+	* Add some more unique words to test data generators
+
+### Fixes
+* [General]
+	* Don't trim patron barcode when attempting to check out
+
 ## Version 2.0.3
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Feature]
 	* When creating a (vpatron) in sierra, allow the caller to specify an expiryDate or default it to 10 years from now
 
