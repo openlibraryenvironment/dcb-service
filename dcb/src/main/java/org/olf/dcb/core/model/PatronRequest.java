@@ -52,10 +52,10 @@ public class PatronRequest {
 		NO_ITEMS_AVAILABLE_AT_ANY_AGENCY, 
 		REQUEST_PLACED_AT_SUPPLYING_AGENCY,
 		REQUEST_PLACED_AT_BORROWING_AGENCY, 
-		READY_FOR_PICKUP,
-		LOANED,
-		PICKUP_TRANSIT,
-		RETURN_TRANSIT,
+		READY_FOR_PICKUP, // 
+		LOANED,         // Currently onloan
+		PICKUP_TRANSIT, // In transit to pickup location
+		RETURN_TRANSIT, // In transit back to owning location from lender
 		CANCELLED,
 		COMPLETED,    // Everything is finished, regardless and ready to be finalised
 		FINALISED,    // We've cleaned up everything and this is the end of the line
@@ -200,8 +200,11 @@ public class PatronRequest {
 	@Nullable
 	private String activeWorkflow;
 
-	@OneToMany(mappedBy = "patronRequestAuditId")
+	@OneToMany(mappedBy = "patronRequest")
 	private List<PatronRequestAudit> patronRequestAudits;
+
+	@OneToMany(mappedBy = "patronRequest")
+	private List<SupplierRequest> supplierRequests;
 
 	public PatronRequest resolve() {
 		return setStatus(Status.RESOLVED);
