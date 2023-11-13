@@ -1,9 +1,26 @@
 # Changelog
 
+## Version 2.0.5
+
+### Changes
+* [Chore]
+	* Split out parsing of patron barcode, add comment explaining what the string manipulation is about
+	* Remove unused code from FOLIO LMS client DCB-479
+	* Use annotation for log in host LMS fixture DCB-479
+	* Remove get all bib data method from host LMS client interface
+* [Refactor]
+	* Rename save host LMS method in fixture DCB-479
+	* Reduce access to methods in host LMS fixture DCB-479
+
+### Fixes
+* [General]
+	* store barcode when creating or updating patron identity records relating to virtual patron records in supplying systems
+
 ## Version 2.0.4
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add some more unique words to test data generators
 
 ### Fixes
