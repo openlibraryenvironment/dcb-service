@@ -338,10 +338,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			// Map from the canonical DCB item type to the appropriate type for the target
 			// system
 			return Mono
-					.from(
-							referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-									"ItemType", "DCB", itemTypeCode, "ItemType", targetSystemCode))
-					.map(rvm -> rvm.getToValue()).defaultIfEmpty("UNKNOWN");
+				.from( referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+					"ItemType", "DCB", itemTypeCode, "ItemType", targetSystemCode))
+				.map(rvm -> rvm.getToValue())
+	                        .switchIfEmpty(Mono.defer(() -> {
+					log.warn("Unable to map item type {} for target system {} to canonical DCB value",itemTypeCode,targetSystemCode);
+					return Mono.just("UNKNOWN");
+				}));
 		}
 
 		log.warn("Request to map item type was missing required parameters");
