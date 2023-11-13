@@ -36,9 +36,11 @@ import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.uri.UriBuilder;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Prototype
 public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	// These are the same config keys as from FolioOaiPmhIngestSource
@@ -94,7 +96,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<List<Item>> getItems(BibRecord bib) {
 		return getHoldings(bib.getSourceRecordId())
-			.flatMapIterable(OuterHoldings::getHoldings)
+			.mapNotNull(OuterHoldings::getHoldings)
+			// RTAC returns no outer holdings (instances) when the API key is invalid
+			.switchIfEmpty(Mono.error(new LikelyInvalidApiKeyException(bib.getSourceRecordId())))
+			.flatMapMany(Flux::fromIterable)
 			.flatMap(this::mapHoldingsToItems)
 			.collectList();
 	}

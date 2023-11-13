@@ -3,7 +3,7 @@ package org.olf.dcb.core.interaction.folio;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.olf.dcb.core.interaction.folio.FolioLmsClient.folioFallback;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient.folioFallback;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;

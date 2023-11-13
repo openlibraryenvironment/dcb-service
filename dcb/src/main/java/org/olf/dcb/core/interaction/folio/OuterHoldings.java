@@ -10,5 +10,5 @@ import lombok.Data;
 @Builder
 @Data
 public class OuterHoldings {
-	List<OuterHolding> holdings;
+	 List<OuterHolding> holdings;
 }

@@ -3,12 +3,14 @@ package org.olf.dcb.core.interaction.folio;
 import static java.util.Collections.emptyList;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
@@ -209,10 +211,31 @@ class ConsortialFolioHostLmsClientItemTests {
 		mockFolioFixture.mockHoldingsByInstanceId(instanceId, emptyList());
 
 		// Act
-		final var items = client.getItems(instanceId).block();
+		final var items = getItems(instanceId);
 
 		// Assert
 		assertThat("Should have zero items", items, hasSize(0));
+	}
+
+	@Test
+	void shouldFailWhenLikelyInvalidApiKeyResponseIsReceived() {
+		// Arrange
+		final var instanceId = UUID.randomUUID().toString();
+		
+		// An invalid API key results in a response with no outer holdings
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId, OuterHoldings.builder()
+			.holdings(emptyList())
+			.build());
+
+		// Act
+		final var exception = assertThrows(LikelyInvalidApiKeyException.class,
+			() -> getItems(instanceId));
+
+		// Assert
+		assertThat("Error should not be null", exception, is(notNullValue()));
+		assertThat(exception, hasProperty("message",
+			is("No outer holdings (instances) returned from RTAC for instance ID: \""
+				+ instanceId + "\". Likely caused by invalid API key")));
 	}
 
 	@Test
