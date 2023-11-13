@@ -771,14 +771,18 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			patronLocalAgency = spr.getFixedFields().get(FIXED_FIELD_158).getValue().toString();
 		}
 
+		Patron result = Patron.builder()
+                        .localId(singletonList(valueOf(spr.getId())))
+                        .localPatronType(valueOf(spr.getPatronType()))
+                        .localBarcodes(spr.getBarcodes())
+                        .localNames(spr.getNames())
+                        .localHomeLibraryCode(spr.getHomeLibraryCode())
+                        .build();
 
-		return Mono.just(Patron.builder()
-			.localId(singletonList(valueOf(spr.getId())))
-			.localPatronType(valueOf(spr.getPatronType()))
-			.localBarcodes(spr.getBarcodes())
-			.localNames(spr.getNames())
-			.localHomeLibraryCode(spr.getHomeLibraryCode())
-			.build())
+		if ( ( result.getLocalBarcodes() == null ) || ( result.getLocalBarcodes().size() == 0 ) )
+			log.warn("Returned patron has NO BARCODES : {} -> {}",spr, result);
+
+		return Mono.just(result)
 			.flatMap(this::enrichWithCanonicalPatronType);
 	}
 

@@ -203,13 +203,25 @@ public class SupplyingAgencyService {
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 		// log.debug("checkIfPatronExistsAtSupplier req={}, supplierSystemCode={}", patronRequest.getId(), supplierRequest.getHostLmsCode());
 
+		// Get supplier system interface
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
+			// Look up virtual patron using generated unique ID string
 			.flatMap(hostLmsClient ->
-					hostLmsClient.patronAuth("UNIQUE-ID", patronService.getUniqueIdStringFor(patronRequest.getPatron()), null))
-			.flatMap(patron -> checkPatronType( patron.getLocalId().get(0),
-				patron.getLocalPatronType(), patronRequest, supplierRequest.getHostLmsCode()))
+				hostLmsClient.patronAuth("UNIQUE-ID", patronService.getUniqueIdStringFor(patronRequest.getPatron()), null))
+			.flatMap(patron -> checkIfPatronExistsAtSupplier(patron, patronRequest, supplierRequest));
+	}
+
+	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(Patron patron, PatronRequest patronRequest, SupplierRequest supplierRequest) {
+
+		String barcodes_as_string = ( ( patron.getLocalBarcodes() != null ) && ( patron.getLocalBarcodes().size() > 0 ) ) ? patron.getLocalBarcodes().toString() : null;
+
+		if ( barcodes_as_string == null ) {
+			log.warn("VPatron will have no barcodes {}/{}",patronRequest,patron);
+		}
+
+		return checkPatronType( patron.getLocalId().get(0), patron.getLocalPatronType(), patronRequest, supplierRequest.getHostLmsCode())
 			.flatMap(function((localId, patronType) ->
-				checkForPatronIdentity(patronRequest, supplierRequest.getHostLmsCode(), localId, patronType)));
+                                checkForPatronIdentity(patronRequest, supplierRequest.getHostLmsCode(), localId, patronType, barcodes_as_string)));
 	}
 
 	private Mono<Tuple2<String, String>> checkPatronType(String localId, String patronType,
@@ -217,10 +229,15 @@ public class SupplyingAgencyService {
 
 		log.debug("checkPatronType {}, {}", localId, patronType);
 
+		// Work out what the global patronId is we are using for this real patron
 		return getRequestingIdentity(patronRequest)
+			// Work out the ???
 			.flatMap(requestingIdentity -> determinePatronType(supplierHostLmsCode, requestingIdentity))
+			// don't continue the stream if the local type matches what we have storred
 			.filter(dcbPatronType -> dcbPatronType.equals(patronType))
+			// if the the returned value and the storred value were different, we have an empty stream, update the vpatron
 			.switchIfEmpty(Mono.defer(() -> updateVirtualPatron(supplierHostLmsCode, localId, patronType)))
+			// Construct return tuple
 			.map(updatedPatronType -> Tuples.of(localId, updatedPatronType));
 	}
 
@@ -251,10 +268,20 @@ public class SupplyingAgencyService {
 
 		return hostLmsService.getClientFor(hostLmsCode)
 			.zipWhen(client -> getRequestingIdentity(patronRequest), Tuples::of)
-			.flatMap(function((client,requestingIdentity) ->
-				createPatronAtSupplier(patronRequest, client, requestingIdentity, hostLmsCode)))
-			.flatMap(function((localId, patronType) ->
-				checkForPatronIdentity(patronRequest, hostLmsCode, localId, patronType)));
+			.flatMap(function((client,requestingIdentity) -> createVPatronAndSaveIdentity(client,requestingIdentity,patronRequest,hostLmsCode)));
+	}
+
+	/**
+	 * Create a virtual patron at the supplying library and then store the details of that record in a patron identity record, returning the patronIdentity
+	 */
+	private Mono<PatronIdentity> createVPatronAndSaveIdentity(
+		HostLmsClient client, 
+		PatronIdentity requestingIdentity, 
+		PatronRequest patronRequest, 
+		String hostLmsCode) {
+
+		return createPatronAtSupplier(patronRequest, client, requestingIdentity, hostLmsCode)
+			.flatMap(function((localId, patronType) -> checkForPatronIdentity(patronRequest, hostLmsCode, localId, patronType, requestingIdentity.getLocalBarcode())));
 	}
 
 	private Mono<Tuple2<String, String>> createPatronAtSupplier(
@@ -270,6 +297,11 @@ public class SupplyingAgencyService {
 		final List<String> patron_barcodes = (requestingPatronIdentity.getLocalBarcode()!=null) ?
 			Arrays.asList(requestingPatronIdentity.getLocalBarcode()
 				.substring(1, requestingPatronIdentity.getLocalBarcode().length() - 1).split(", ")):null;
+
+		if ( ( patron_barcodes == null ) || ( patron_barcodes.size() == 0 ) ) {
+			log.warn("Virtual patron has no barcodes. Source identity {}. Will be unable to check out to this patron",
+				requestingPatronIdentity);
+		}
 
 		return determinePatronType(supplierHostLmsCode, requestingPatronIdentity)
 			.flatMap(patronType -> client.createPatron(
@@ -287,10 +319,10 @@ public class SupplyingAgencyService {
 	}
 
 	private Mono<PatronIdentity> checkForPatronIdentity(PatronRequest patronRequest,
-		String hostLmsCode, String localId, String localPType) {
+		String hostLmsCode, String localId, String localPType, String barcode) {
 
 		return patronService.checkForPatronIdentity(patronRequest.getPatron(),
-			hostLmsCode, localId, localPType);
+			hostLmsCode, localId, localPType, barcode);
 	}
 
 	private Mono<String> determinePatronType(String supplyingHostLmsCode, PatronIdentity requestingIdentity) {

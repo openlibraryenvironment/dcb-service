@@ -68,7 +68,7 @@ public class HostLmsReactions {
 					case "TRANSIT" -> handler = "SupplierRequestInTransit";
 					case "MISSING" -> handler = "SupplierRequestMissing";
 					case "PLACED" -> handler = "SupplierRequestPlaced";
-					default -> log.error("Unhandled SupplierRequest ToState:{}", sc.getToState());
+					default -> log.error("Unhandled SupplierRequest ToState:{}", sc);
 				}
 			}
 			else if ( sc.getResourceType().equals("PatronRequest") ) {

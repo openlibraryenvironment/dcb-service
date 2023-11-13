@@ -55,7 +55,7 @@ public class ItemStatusMapper {
 			.flatMap(code -> fetchReferenceValueMap(code, hostLmsCode))
 			.map(ReferenceValueMapping::getToValue)
 			.map(ItemStatusCode::valueOf)
-			.defaultIfEmpty(fallbackMapper.map(statusCode));
+			.defaultIfEmpty( fallbackMapper.map(statusCode));
 	}
 
 	private Mono<ReferenceValueMapping> fetchReferenceValueMap(String statusCode, String hostLmsCode) {
@@ -89,10 +89,15 @@ public class ItemStatusMapper {
 			List<String> availableStatusCodes) {
 
 			return statusCode -> (statusCode == null || (statusCode.isEmpty()))
-				? UNKNOWN
+				? handleUnknown(statusCode)
 				: availableStatusCodes.contains(statusCode)
 					? AVAILABLE
 					: UNAVAILABLE;
+		}
+
+		static org.olf.dcb.core.model.ItemStatusCode handleUnknown(String statusCode) {
+			log.warn("Fallback Mapper :: Unhandled status code {}",statusCode);
+			return UNKNOWN;
 		}
 
 		ItemStatusCode map(String statusCode);

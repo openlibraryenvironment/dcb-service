@@ -58,11 +58,11 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 		// We have a patron id from elsewhere, call the patrons home system to get a record which describes
 		// the patron.
-		log.debug("validatePatronIdentity by calling out to host LMS - PI is {} host lms client is {}", pi, pi.getHostLms());
+		log.info("CIRC validatePatronIdentity by calling out to host LMS - PI is {} host lms client is {}", pi, pi.getHostLms());
 
 		return hostLmsService.getClientFor(pi.getHostLms()).flatMap(client -> client.getPatronByLocalId(pi.getLocalId()))
 				.flatMap(hostLmsPatron -> {
-					log.debug("update patron identity with latest info from host {}", hostLmsPatron);
+					log.info("CIRC update patron identity with latest info from host {}", hostLmsPatron);
 
 					// Update the patron identity with the current patron type and set the last
 					// validated date to now()
@@ -74,6 +74,9 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 					log.debug("setLocalHomeLibraryCode({})", hostLmsPatron.getLocalHomeLibraryCode());
 					pi.setLocalHomeLibraryCode(hostLmsPatron.getLocalHomeLibraryCode());
+
+					if ( hostLmsPatron.getLocalBarcodes() == null )
+						log.warn("Patron does not have barcodes.. Will not be able to circulate items");
 
 					// pi.setResolvedAgency(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(),
 					// hostLmsPatron.getLocalHomeLibraryCode()));
