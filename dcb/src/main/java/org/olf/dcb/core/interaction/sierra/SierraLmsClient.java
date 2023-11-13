@@ -863,6 +863,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	public HostLmsItem sierraItemToHostLmsItem(SierraItem si) {
 		log.debug("convert {} to HostLmsItem", si);
+
+		if ( ( si.getStatus() == null ) || ( si.getBarcode() == null ) || ( si.getId() == null ) ) {
+			log.warn("Detected a sierra item with null status: {}",si);
+		}
+
 		return HostLmsItem.builder().localId(si.getId()).barcode(si.getBarcode())
 				.status(si.getStatus() != null ? mapSierraItemStatusToDCBHoldStatus(si.getStatus()) : "UNKNOWN").build();
 	}
