@@ -87,10 +87,6 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return List.of(new HostLmsPropertyDefinition("base-url", "Base URL Of Dummy System", Boolean.TRUE, "URL"));
 	}
 
-	public Flux<Map<String, ?>> getAllBibData() {
-		return Flux.empty();
-	}
-
 	public Mono<List<Item>> getItems(String localBibId) {
 		// All Dummy systems return holdings for each shelving location
 		log.debug("getItemsByBibId({},{})", localBibId, lms.getCode());

@@ -240,11 +240,6 @@ public class PAPILmsClient implements MarcIngestSource<PAPILmsClient.BibsPagedRo
 	public HostLms getHostLms() { return lms; }
 
 	@Override
-	public Flux<Map<String, ?>> getAllBibData() {
-		return Flux.empty();
-	}
-
-	@Override
 	public List<HostLmsPropertyDefinition> getSettings() {
 		return new ArrayList();
 	}

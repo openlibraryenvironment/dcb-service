@@ -3,7 +3,6 @@ package org.olf.dcb.core.interaction.folio;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.interaction.Bib;
@@ -20,7 +19,6 @@ import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Parameter;
 import jakarta.validation.constraints.NotNull;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import services.k_int.interaction.oaipmh.OaiRecord;
@@ -49,11 +47,6 @@ public class FolioLmsClient implements HostLmsClient {
 	@Override
 	public List<HostLmsPropertyDefinition> getSettings() {
 		return List.of(new HostLmsPropertyDefinition("base-url", "Base URL Of FOLIO System", Boolean.TRUE, "URL"));
-	}
-
-	@Override
-	public Flux<Map<String, ?>> getAllBibData() {
-		return Flux.empty();
 	}
 
 	@Override

@@ -11,7 +11,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -22,7 +21,6 @@ import java.util.Date;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.TimeZone;
-import java.util.Date;
 import java.text.DateFormat;
 
 import org.marc4j.marc.Record;
@@ -300,16 +298,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	public Record resourceToMarc(BibResult resource) {
 		return resource.marc();
-	}
-
-	@Override
-	public Flux<Map<String, ?>> getAllBibData() {
-		return Flux.from(client.bibs(params -> params.deleted(false)))
-				.flatMap(results -> Flux.fromIterable(results.entries())).map(bibRes -> {
-					Map<String, Object> map = new HashMap<>();
-					map.put("id", bibRes.id());
-					return map;
-				});
 	}
 
 	@Override

@@ -1,12 +1,10 @@
 package org.olf.dcb.core.interaction;
 
 import java.util.List;
-import java.util.Map;
 
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 
@@ -26,8 +24,6 @@ public interface HostLmsClient {
 		AVAILABLE, TRANSIT, OFFSITE;
 	}
 	HostLms getHostLms();
-
-	Flux<Map<String, ?>> getAllBibData();
 
 	List<HostLmsPropertyDefinition> getSettings();
 
