@@ -72,11 +72,9 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
                      ( rwc.getPatronVirtualIdentity() != null ) ) {
 
 
-			// When shown in the UI, sierra patron barcodes are "bnnnnnnnC" where C is a check-diget
-			// That kind of tomfoolery belongs in the adapter and not here, removing the code to strip the first and last chars.
-                        // WAS: .substring(1, rwc.getPatronVirtualIdentity().getLocalBarcode().length() - 1).split(", ") : null;
-                        final String[] patron_barcodes = ( rwc.getPatronVirtualIdentity().getLocalBarcode() != null ) ?
-                                rwc.getPatronVirtualIdentity().getLocalBarcode().split(", ") : null;
+                        // In some systems a patron can have multiple barcodes. In those systems getLocalBarcode will be encoded as [value, value, value]
+                        // So we trim the opening and closing [] and split on the ", " Otherwise just split on ", " just in case
+                        final String[] patron_barcodes = extractPatronBarcodes(rwc.getPatronVirtualIdentity().getLocalBarcode());
 
                         if ( ( patron_barcodes != null ) && ( patron_barcodes.length > 0 ) ) {
 
@@ -104,6 +102,19 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
 				rwc,rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity()))
                         	.thenReturn(rwc);
                 }       
+        }
+
+        private String[] extractPatronBarcodes(String inputstr) {
+                String[] result = null;
+                if ( inputstr != null ) {
+                        if ( inputstr.startsWith("[") ) {
+                                result = inputstr.substring(1, inputstr.length() - 1).split(", ");
+                        }
+                        else {
+                                return inputstr.split(", ");
+                        }
+                }
+                return result;
         }
 
 }
