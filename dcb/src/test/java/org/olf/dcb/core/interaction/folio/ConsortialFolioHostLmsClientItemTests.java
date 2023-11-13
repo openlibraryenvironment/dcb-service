@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static java.util.Collections.emptyList;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -198,6 +199,20 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasStatus(UNAVAILABLE)
 				)
 			));
+	}
+
+	@Test
+	void shouldBeAbleToHandleZeroInnerHoldings() {
+		// Arrange
+		final var instanceId = UUID.randomUUID().toString();
+
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId, emptyList());
+
+		// Act
+		final var items = client.getItems(instanceId).block();
+
+		// Assert
+		assertThat("Should have zero items", items, hasSize(0));
 	}
 
 	@Test

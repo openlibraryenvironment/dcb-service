@@ -117,6 +117,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Flux<Item> mapHoldingsToItems(OuterHolding outerHoldings) {
+		if (outerHoldings.getHoldings() == null) {
+			return Flux.empty();
+		}
+
 		return Flux.fromStream(outerHoldings.getHoldings().stream())
 			.flatMap(holding -> mapHoldingToItem(holding, outerHoldings.getInstanceId()));
 	}
