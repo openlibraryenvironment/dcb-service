@@ -1,0 +1,132 @@
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "default": {
+          "tokenizer": "whitespace",
+          "filter": [ "dcb_stopwords_filter" ]
+        }
+      },
+      "filter": {
+        "dcb_stopwords_filter": {
+          "type": "stop",
+          "ignore_case": true
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "title": {
+        "type":  "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256   
+          }
+        }
+      },
+      "primaryAuthor":{
+        "type":  "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256   
+          }
+        }
+      },
+      "yearOfPublication":{
+        "type": "long"
+      },
+      "bibClusterId":{
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256   
+          }
+        }
+      },
+      "members": {
+        "properties": {
+          "bibId": {
+            "type": "keyword"
+          },
+          "sourceSystem": {
+            "type": "text",
+            "fields": {
+              "keyword": {
+                "type": "keyword",
+                "ignore_above": 256   
+              }
+            }
+          }
+        }
+      },
+      "isbn":{
+        "type":  "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256   
+          }
+        }
+      },
+      "issn":{
+        "type":  "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256   
+          }
+        }
+      },
+      "metadata": {
+        "properties": {
+          "agents":{
+            "properties":{
+              "label":{
+                "type":"text",
+                "fields": {
+                  "keyword": {
+                    "type": "keyword",
+                    "ignore_above": 256   
+                  }
+                }
+              },
+              "subtype":{
+                "type":"keyword"
+              }
+            }
+          },
+          "subjects":{
+            "properties":{
+              "label":{
+                "type": "text",
+                "fields": {
+                  "keyword": {
+                    "type": "keyword",
+                    "ignore_above": 256   
+                  }
+                }
+              },
+              "subtype":{
+                "type": "keyword"
+              }
+            }
+          },
+          "identifiers":{
+            "properties":{
+              "value":{
+                "type": "keyword"
+              },
+              "namespace":{
+                "type": "keyword"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

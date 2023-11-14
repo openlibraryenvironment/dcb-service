@@ -257,10 +257,10 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 				// operation.
 				return Flux.fromIterable(response.records())
 					.concatWith(Mono.defer(() -> saveState(lms.getId(), "ingest", state))
-					.flatMap(_s -> {
-						log.debug("Updating state...");
-						return Mono.empty();
-					}))
+						.flatMap(_s -> {
+							log.debug("Updating state...");
+							return Mono.empty();
+						}))
 
 				.doOnComplete(() -> log.debug("Consumed {} items", response.records().size()));
 			}));

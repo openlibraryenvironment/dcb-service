@@ -16,7 +16,6 @@ public interface RawSourceRepository {
 	@NonNull
 	@SingleResult
 	Publisher<? extends RawSource> save(@Valid @NotNull @NonNull RawSource rawSource);
-	
 
 	@NonNull
 	@SingleResult
@@ -24,14 +23,18 @@ public interface RawSourceRepository {
 	
 	@NonNull
 	@SingleResult
-	Publisher<RawSource> findOneByHostLmsIdAndRemoteId(UUID hostLmsID, String remoteId);
+	Publisher<RawSource> findOneByHostLmsIdAndRemoteId(@NonNull UUID hostLmsID, @NonNull String remoteId);
 
 	@SingleResult
 	@NonNull
 	default Publisher<RawSource> saveOrUpdate(@Valid @NotNull RawSource rawSource) {
-		return Mono.from(this.existsById(rawSource.getId()))
-			.flatMap( update -> Mono.from(update ? this.update(rawSource) : this.save(rawSource)) )
-		;
+		
+		return Mono.deferContextual( context -> {
+			return Mono.from(this.existsById(rawSource.getId()))
+				.map( update -> update ? this.update(rawSource) : this.save(rawSource) )
+				.flatMap(Mono::from);
+		})
+		.thenReturn(rawSource);
 	}
 	
 	@NonNull

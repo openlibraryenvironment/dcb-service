@@ -104,6 +104,10 @@ public class BibRecordService {
 	public Flux<BibRecord> findAllByContributesTo(final ClusterRecord clusterRecord) {
 		return Flux.from(bibRepo.findAllByContributesTo(clusterRecord));
 	}
+	
+	public Flux<BibRecord> findAllByContributesToInList(final Collection<ClusterRecord> contributesTo) {
+		return Flux.from(bibRepo.findAllByContributesToInList(contributesTo));
+	}
 
 	public Mono<ClusterRecord> getClusterRecordForBib(UUID bibId) {
 		return Mono.from(bibRepo.findContributesToById(bibId));
