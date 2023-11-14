@@ -137,7 +137,9 @@ public class DataFetchers {
                         if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
 
-                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
+                        Pageable pageable = Pageable
+                                .from(pageno.intValue(), pagesize.intValue())
+                                .order("dateCreated");
                 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, PatronRequest.class);
@@ -199,7 +201,9 @@ public class DataFetchers {
                         if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
 
-                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
+                        Pageable pageable = Pageable
+                                .from(pageno.intValue(), pagesize.intValue())
+                                .order("dateCreated");
                 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, SupplierRequest.class);
@@ -280,7 +284,10 @@ public class DataFetchers {
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
 
                         log.debug("InstanceClusterDataFetcher::get({},{},{})", pageno,pagesize,query);
-                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
+                        Pageable pageable = Pageable
+                                .from(pageno.intValue(), pagesize.intValue())
+                                .order("code")
+                                ;
 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, DataHostLms.class);

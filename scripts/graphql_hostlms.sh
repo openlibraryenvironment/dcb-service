@@ -13,5 +13,5 @@ curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X P
   "variables": {
     "lq" : "code:*"
   }
-}'
+}' | jq
 echo
