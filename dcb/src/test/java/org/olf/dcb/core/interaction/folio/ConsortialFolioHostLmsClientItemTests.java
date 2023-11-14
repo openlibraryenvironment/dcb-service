@@ -262,6 +262,28 @@ class ConsortialFolioHostLmsClientItemTests {
 	}
 
 	@Test
+	void shouldFailWhenHoldingsNotFoundErrorReceived() {
+		// Arrange
+		final var instanceId = UUID.randomUUID().toString();
+
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId, OuterHoldings.builder()
+			.errors(List.of(
+				RtacError.builder()
+					.code("404")
+					.message("Holdings not found for instance " + instanceId)
+					.build()))
+			.build());
+
+		// Act
+		final var exception = assertThrows(FailedToGetItemsException.class,
+			() -> getItems(instanceId));
+
+		// Assert
+		assertThat("Error should not be null", exception, is(notNullValue()));
+		assertThat(exception, hasProperty("localBibId", is(instanceId)));
+	}
+
+	@Test
 	void shouldDefineAvailableSettings() {
 		final var settings = client.getSettings();
 
