@@ -7,6 +7,7 @@ import static org.mockserver.model.JsonBody.json;
 import java.util.List;
 
 import org.mockserver.client.MockServerClient;
+import org.mockserver.model.JsonBody;
 
 public class MockFolioFixture {
 	private final MockServerClient mockServerClient;
@@ -35,6 +36,10 @@ public class MockFolioFixture {
 	}
 
 	void mockHoldingsByInstanceId(String instanceId, OuterHoldings holdings) {
+		mockHoldingsByInstanceId(instanceId, json(holdings));
+	}
+
+	void mockHoldingsByInstanceId(String instanceId, JsonBody json) {
 		mockServerClient
 			.when(org.mockserver.model.HttpRequest.request()
 				.withHeader("Accept", APPLICATION_JSON)
@@ -42,11 +47,9 @@ public class MockFolioFixture {
 				.withHeader("Authorization", apiKey)
 				.withQueryStringParameter("fullPeriodicals", "true")
 				.withQueryStringParameter("instanceIds", instanceId)
-				.withPath("/rtac")
-			)
+				.withPath("/rtac"))
 			.respond(response()
 				.withStatusCode(200)
-				.withBody(json(holdings))
-			);
+				.withBody(json));
 	}
 }
