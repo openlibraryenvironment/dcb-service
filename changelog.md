@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 2.1.1
+
+### Fixes
+* [Flyway]
+	* Add out-of-order:true to allow branches to merge with migrations out of sequence
+* [General]
+	* set PR state to READY_FOR_PICKUP when appropriate
+
 ## Version 2.1.0
 
 ### Additions
@@ -8,6 +16,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Refactor supplier checkout so we can set the item state before attempting the checkout
 	* graphql - Add default sort order to hostlmss, patronrequest and supplierrequest
 	* rename patronIdentity upsert method to clarify what it's doing
