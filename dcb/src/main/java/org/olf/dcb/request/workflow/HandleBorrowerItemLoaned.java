@@ -82,10 +82,8 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
                                         rwc.getSupplierRequest().getLocalItemBarcode(), patron_barcodes[0],rwc.getLenderSystemCode());
 
                                 return hostLmsService.getClientFor(rwc.getLenderSystemCode())
-                                         .flatMap(hostLmsClient -> hostLmsClient.checkOutItemToPatron(
-                                                rwc.getSupplierRequest().getLocalItemBarcode(),
-                                                patron_barcodes[0]))
-                                      .thenReturn(rwc);
+                                        .flatMap(hostLmsClient -> updateThenCheckoutItem(rwc, hostLmsClient, patron_barcodes))
+                                        .thenReturn(rwc);
                         }
                         else {
                                 log.error("NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT {}",rwc.getPatronVirtualIdentity().getLocalBarcode());
@@ -102,6 +100,13 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
 				rwc,rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity()))
                         	.thenReturn(rwc);
                 }       
+        }
+
+        private Mono<RequestWorkflowContext> updateThenCheckoutItem(RequestWorkflowContext rwc, HostLmsClient hostLmsClient, String[] patronBarcode) {
+
+                return hostLmsClient.checkOutItemToPatron( rwc.getSupplierRequest().getLocalItemBarcode(), patronBarcode[0])
+                        .thenReturn(rwc);
+
         }
 
         private String[] extractPatronBarcodes(String inputstr) {
