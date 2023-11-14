@@ -206,12 +206,12 @@ public class SupplyingAgencyService {
 		// Get supplier system interface
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
 			// Look up virtual patron using generated unique ID string
-			.flatMap(hostLmsClient ->
-				hostLmsClient.patronAuth("UNIQUE-ID", patronService.getUniqueIdStringFor(patronRequest.getPatron()), null))
-			.flatMap(patron -> checkIfPatronExistsAtSupplier(patron, patronRequest, supplierRequest));
+			.flatMap(hostLmsClient -> hostLmsClient.patronAuth("UNIQUE-ID", patronService.getUniqueIdStringFor(patronRequest.getPatron()), null))
+                        // Ensure that we have a local patronIdentity record to track the patron in the supplying ILS
+			.flatMap(patron -> updateLocalPatronIdentityForLmsPatron(patron, patronRequest, supplierRequest));
 	}
 
-	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(Patron patron, PatronRequest patronRequest, SupplierRequest supplierRequest) {
+	private Mono<PatronIdentity> updateLocalPatronIdentityForLmsPatron(Patron patron, PatronRequest patronRequest, SupplierRequest supplierRequest) {
 
 		String barcodes_as_string = ( ( patron.getLocalBarcodes() != null ) && ( patron.getLocalBarcodes().size() > 0 ) ) ? patron.getLocalBarcodes().toString() : null;
 
