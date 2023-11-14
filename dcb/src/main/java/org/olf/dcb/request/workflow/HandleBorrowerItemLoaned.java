@@ -18,7 +18,9 @@ import java.util.UUID;
 import org.olf.dcb.core.HostLmsService;
 
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import java.time.Duration;
 
 
 @Singleton
@@ -104,7 +106,9 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
 
         private Mono<RequestWorkflowContext> updateThenCheckoutItem(RequestWorkflowContext rwc, HostLmsClient hostLmsClient, String[] patronBarcode) {
 
-                return hostLmsClient.checkOutItemToPatron( rwc.getSupplierRequest().getLocalItemBarcode(), patronBarcode[0])
+                return  hostLmsClient.updateItemStatus(rwc.getSupplierRequest().getLocalItemId(), CanonicalItemState.RECEIVED)
+                        // Give the ILS chance to process this
+                        .then( hostLmsClient.checkOutItemToPatron( rwc.getSupplierRequest().getLocalItemBarcode(), patronBarcode[0]) )
                         .thenReturn(rwc);
 
         }

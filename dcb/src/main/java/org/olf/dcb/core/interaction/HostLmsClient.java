@@ -21,7 +21,7 @@ public interface HostLmsClient {
 
 
 	enum CanonicalItemState {
-		AVAILABLE, TRANSIT, OFFSITE;
+		AVAILABLE, TRANSIT, OFFSITE, RECEIVED, MISSING, ONHOLDSHELF;
 	}
 	HostLms getHostLms();
 

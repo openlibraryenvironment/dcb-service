@@ -844,6 +844,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html#Standard
 		// In Sierra "-" == AVAILABLE, !=ON_HOLDSHELF, $=BILLED PAID, m=MISSING,
 		// n=BILLED NOT PAID, z=CL RETURNED, o=Lib Use Only, t=In Transit
+                // # - RECEIVED
 		String status = null;
 
 		switch (crs) {
@@ -853,13 +854,18 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			case OFFSITE:
 				status = "@";
 				break;
+			case RECEIVED:
+				status = "#";
+				break;
 		}
 
 		if (status != null) {
 			ItemPatch ip = ItemPatch.builder().status(status).build();
-			return Mono.from(client.updateItem(itemId, ip)).thenReturn("OK");
+			return Mono.from(client.updateItem(itemId, ip))
+                                .thenReturn("OK");
 
 		} else {
+                        log.warn("Update item status requested for {} and we don't have a sierra translation for that",crs);
 			return Mono.just("OK");
 		}
 	}
