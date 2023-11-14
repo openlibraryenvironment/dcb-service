@@ -76,6 +76,7 @@ flyway:
   datasources:
     default:
       enabled: true
+      out-of-order: true
       # locations:
       #   - classpath:db/migrations
       # default-schema: r2dbc-poc
