@@ -9,6 +9,11 @@ import org.olf.dcb.tracking.model.StateChange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
+
 
 import jakarta.transaction.Transactional;
 import java.util.Map;
@@ -19,12 +24,14 @@ public class HandleBorrowerItemOnHoldShelf implements WorkflowAction {
         private static final Logger log = LoggerFactory.getLogger(HandleSupplierInTransit.class);
         private RequestWorkflowContextHelper requestWorkflowContextHelper;
         private PatronRequestRepository patronRequestRepository;
+        private HostLmsService hostLmsService;
 
         public HandleBorrowerItemOnHoldShelf(
                 PatronRequestRepository patronRequestRepository,
                 RequestWorkflowContextHelper requestWorkflowContextHelper) {
                 this.patronRequestRepository = patronRequestRepository;
                 this.requestWorkflowContextHelper = requestWorkflowContextHelper;
+                this.hostLmsService = hostLmsService;
         }
         
         @Transactional
@@ -33,15 +40,30 @@ public class HandleBorrowerItemOnHoldShelf implements WorkflowAction {
                 log.debug("HandleBorrowerItemOnHoldShelf {}",sc);
                 PatronRequest pr = (PatronRequest) sc.getResource();
                 if ( pr != null ) {
-                        pr.setLocalItemStatus("ON_HOLD_SHELF");
-                        log.debug("Set local status to ON_HOLD_SHELF and save {}",pr);
-                        return Mono.from(patronRequestRepository.saveOrUpdate(pr))
+                        pr.setLocalItemStatus("READY_FOR_PICKUP");
+                        log.debug("Set local status to READY_FOR_PICKUP and save {}",pr);
+                        return requestWorkflowContextHelper.fromPatronRequest(pr)
+                                .flatMap( this::updateSupplierItemToReceived )
+                                .flatMap(rwc -> Mono.from(patronRequestRepository.saveOrUpdate(pr)))
                                 .doOnNext(spr -> log.debug("Saved {}",spr))
                                 .thenReturn(context);
+
                 }
                 else {
                         log.warn("Unable to locate patron request to mark hostlms item status to ON_HOLD_SHELF");
                         return Mono.just(context);
                 }
         }
+
+        public Mono<RequestWorkflowContext> updateSupplierItemToReceived(RequestWorkflowContext rwc) {
+                if ( ( rwc.getSupplierRequest() != null ) &&
+                     ( rwc.getSupplierRequest().getLocalItemId() != null ) &&
+                     ( rwc.getLenderSystemCode() != null ) ) {
+			return hostLmsService.getClientFor(rwc.getLenderSystemCode())
+                		.flatMap( hostLmsClient ->  hostLmsClient.updateItemStatus(rwc.getSupplierRequest().getLocalItemId(), CanonicalItemState.RECEIVED))
+                                .thenReturn(rwc);
+		}
+
+		return Mono.just(rwc);
+	}
 }
