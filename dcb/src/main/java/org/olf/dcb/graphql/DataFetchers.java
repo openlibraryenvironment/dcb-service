@@ -238,7 +238,7 @@ public class DataFetchers {
         public DataFetcher<CompletableFuture<List<BibRecord>>> getClusterMembersDataFetcher() {
                 return env -> {
                         log.debug("getClusterMembersDataFetcher args={}/ctx={}/root={}/src={}", env.getArguments(), env.getGraphQlContext(), env.getRoot(), env.getSource());
-                        return Flux.from(postgresBibRepository.findByContributesTo(env.getSource())).collectList().toFuture();
+                        return Flux.from(postgresBibRepository.findAllByContributesTo(env.getSource())).collectList().toFuture();
                 };
         }
 

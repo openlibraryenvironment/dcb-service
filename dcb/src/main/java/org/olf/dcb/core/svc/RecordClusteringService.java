@@ -36,7 +36,6 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
-import services.k_int.utils.Predicates;
 
 @Singleton
 public class RecordClusteringService {
@@ -66,7 +65,7 @@ public class RecordClusteringService {
 	// Get cluster record by id
 	public Mono<ClusterRecord> findById(UUID id) {
 		return Mono.from(clusterRecords.findOneById(id));
-	}
+	}	
 
 	// Add Bib to cluster record
 //	public Mono<BibRecord> addBibToClusterRecord(BibRecord bib, ClusterRecord clusterRecord) {
@@ -81,10 +80,18 @@ public class RecordClusteringService {
 	
 	private boolean completeIdentifiersPredicate ( BibIdentifier bibId ) {
 		
-		return Stream.of( bibId.getNamespace(), bibId.getValue())
+		boolean value = Stream.of( bibId.getNamespace(), bibId.getValue())
 			.map( StringUtils::trimToNull )
 			.filter( Objects::nonNull )
 			.count() == 2;
+		
+
+		if ( !value ) {
+			log.atInfo()
+				.log("Blank match point skipped for bib: {}", bibId.getOwner().getId());
+		}
+
+		return value;
 	}
 	
 	@Transactional
@@ -121,9 +128,19 @@ public class RecordClusteringService {
 	
 	@Transactional
 	public Mono<Void> softDeleteByIdInList(Collection<UUID> ids) {
-		return Flux.from(clusterRecords.findAllByIdInList(ids))
+		return findAllByIdInList(ids)
 			.flatMap( this::softDelete )
 			.then();
+	}
+	
+	@Transactional
+	public Flux<ClusterRecord> findAllByIdInList(Collection<UUID> ids) {
+		return Flux.from(clusterRecords.findAllByIdInList(ids));
+	}
+	
+	@Transactional
+	public Flux<ClusterRecord> findAllByIdInListWithBibs(Collection<UUID> ids) {
+		return Flux.from(clusterRecords.findByIdInListWithBibs(ids));
 	}
 	
 	// Remove the items in a new transaction.
@@ -200,8 +217,7 @@ public class RecordClusteringService {
 	@Transactional
 	public Flux<MatchPoint> idMatchPoints( BibRecord bib ) {
 		return bibRecords.findAllIdentifiersForBib( bib )
-				.filter( Predicates.failureLoggingPredicate(
-						this::completeIdentifiersPredicate, log::info, "Blank match point skipped for bib: {}", bib.getId()))
+				.filter( this::completeIdentifiersPredicate )
 				
 				.map( id -> String.format("%s:%s:%s", MATCHPOINT_ID, id.getNamespace(), id.getValue()) )
 				.map( MatchPoint::buildFromString ) ;

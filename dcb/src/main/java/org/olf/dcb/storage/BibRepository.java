@@ -40,7 +40,7 @@ public interface BibRepository {
 	Publisher<BibRecord> findAllByContributesTo(ClusterRecord clusterRecord);
 	
 	@NonNull
-	Publisher<BibRecord> findByContributesTo(ClusterRecord clusterRecord);
+	Publisher<BibRecord> findAllByContributesToInList(@NonNull Collection<ClusterRecord> contributesToList);
 	
 	@NonNull
 	Publisher<BibRecord> findTop2ByContributesToOrderByMetadataScoreDesc (ClusterRecord clusterRecord);

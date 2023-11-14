@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.util.Toggleable;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.scheduling.annotation.Scheduled;
@@ -105,7 +106,7 @@ public class IngestService implements Runnable {
 	}
 
 	@Override
-	@Scheduled(initialDelay = "20s", fixedDelay = "${dcb.ingest.interval:1h}")
+	@Scheduled(initialDelay = "20s", fixedDelay = "${dcb.ingest.interval:2m}")
 	@AppTask
 	public void run() {
 

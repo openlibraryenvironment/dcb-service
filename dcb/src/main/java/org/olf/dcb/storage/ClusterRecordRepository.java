@@ -9,7 +9,6 @@ import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
-import io.micronaut.data.annotation.QueryHint;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
@@ -18,8 +17,6 @@ import reactor.core.publisher.Mono;
 
 
 public interface ClusterRecordRepository {
-
-	@QueryHint(name="javax.persistence.FlushModeType", value="AUTO")
 	@NonNull
 	@SingleResult
 	Publisher<? extends ClusterRecord> findOneById(@NonNull UUID id);
@@ -73,4 +70,7 @@ public interface ClusterRecordRepository {
 
 	@NonNull
 	Publisher<ClusterRecord> findAllByIdInList(@NonNull Collection<UUID> id);
+
+	@NonNull
+	Publisher<ClusterRecord> findByIdInListWithBibs(@NonNull Collection<UUID> id);
 }

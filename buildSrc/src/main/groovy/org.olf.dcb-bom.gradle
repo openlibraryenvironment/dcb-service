@@ -4,12 +4,18 @@ dependencies {
 	  
 		implementation 'org.marc4j:marc4j:2.9.5'
 		implementation 'info.debatty:java-string-similarity:2.0.0'
+		implementation 'org.opensearch.client:opensearch-java:2.6.0'
+		implementation 'org.opensearch.client:opensearch-rest-client:2.11.0'
+		implementation 'org.apache.http:httpcore:4.2'
 		
 		
 		implementation("jakarta.persistence:jakarta.persistence-api:3.1.0")
 		implementation("org.apache.lucene:lucene-queryparser:9.7.0")
 
 		// Tests
+		
+		testImplementation "org.junit:junit-bom:5.10.0"
+//		testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
 		testImplementation 'org.mock-server:mockserver-junit-jupiter:5.14.0'
 		testImplementation('org.awaitility:awaitility:4.2.0')
 	}

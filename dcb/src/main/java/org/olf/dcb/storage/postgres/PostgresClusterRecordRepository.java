@@ -13,6 +13,7 @@ import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.annotation.Join;
 import io.micronaut.data.annotation.Join.Type;
 import io.micronaut.data.annotation.Query;
+import io.micronaut.data.annotation.QueryHint;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.model.query.builder.sql.Dialect;
@@ -89,6 +90,21 @@ public interface PostgresClusterRecordRepository extends
 	default Publisher<Long> touch( @NonNull UUID id ) {
 		return this.updateById(id);
 	}
+	
+	@Override
+	@QueryHint(name="javax.persistence.FlushModeType", value="AUTO")
+	@NonNull
+	@SingleResult
+	Publisher<? extends ClusterRecord> findOneById(@NonNull UUID id);
 
+	@NonNull
+	@Join(value = "bibs", type = Type.LEFT_FETCH)
+	Publisher<ClusterRecord> getAllByIdInList(@NonNull Collection<UUID> id);
+
+	@NonNull
+	@Override
+	default Publisher<ClusterRecord> findByIdInListWithBibs(@NonNull Collection<UUID> id) {
+		return getAllByIdInList(id);
+	}
 }
 
