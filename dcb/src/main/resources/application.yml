@@ -19,7 +19,7 @@ micronaut:
         mapping: /openapi/redoc/**
   data:
     pageable:
-      max-page-size: 1000
+      max-page-size: 2500
 
   security:
     authentication: idtoken
