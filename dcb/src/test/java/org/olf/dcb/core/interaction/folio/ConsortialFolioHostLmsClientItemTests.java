@@ -28,7 +28,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.mockserver.model.JsonBody;
 import org.olf.dcb.core.interaction.FailedToGetItemsException;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.BibRecord;
@@ -243,18 +242,15 @@ class ConsortialFolioHostLmsClientItemTests {
 	@Test
 	void shouldFailWhenInstanceNotFoundErrorReceived() {
 		// Arrange
-		final var instanceId = "25d705a8-358e-58bc-9370-3be697e9a0d2";
+		final var instanceId = UUID.randomUUID().toString();
 
-		mockFolioFixture.mockHoldingsByInstanceId(instanceId, JsonBody.json("""
-			{
-					"holdings": [],
-					"errors": [
-							{
-									"message": "Instance 25d705a8-358e-58bc-9370-3be697e9a0d2 can not be retrieved",
-									"code": "404"
-							}
-					]
-			}"""));
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId, OuterHoldings.builder()
+			.errors(List.of(
+				RtacError.builder()
+					.code("404")
+					.message("Instance " + instanceId + " can not be retrieved")
+				.build()))
+			.build());
 
 		// Act
 		final var exception = assertThrows(FailedToGetItemsException.class,
