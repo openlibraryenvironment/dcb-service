@@ -143,6 +143,28 @@ public class DataFetchers {
                 };
         }
 
+        public DataFetcher<CompletableFuture<Page<PatronRequestAudit>>> getAuditsDataFetcher() {
+                return env -> {
+                        log.debug("getAuditsDataFetcher {}",env);
+                        Integer pageno = env.getArgument("pageno");
+                        Integer pagesize = env.getArgument("pagesize");
+                        String query = env.getArgument("query");
+
+                        if ( pageno == null ) pageno = Integer.valueOf(0);
+                        if ( pagesize == null ) pagesize = Integer.valueOf(10);
+
+                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
+
+                        if ((query != null) && (query.length() > 0)) {
+                                var spec = qs.evaluate(query, PatronRequestAudit.class);
+                                return Mono.from(postgresPatronRequestAuditRepository.findAll(spec, pageable)).toFuture();
+                        }
+
+                        return Mono.from(postgresPatronRequestAuditRepository.findAll(pageable)).toFuture();
+                };
+        }
+
+
         public DataFetcher<CompletableFuture<Page<SupplierRequest>>> getSupplierRequestsDataFetcher() {
                 return env -> {
                         Integer pageno = env.getArgument("pageno");

@@ -10,6 +10,7 @@ type Query {
     instanceClusters(query: String, pageno: Int, pagesize: Int): ClusterRecordPage!
     sourceBibs(query: String, pageno:Int, pagesize: Int): BibRecordPage!
     processStates(query: String, pageno:Int, pagesize: Int): ProcessStatePage!
+    audits(query: String, pageno:Int, pagesize: Int): PatronRequestAuditPage!
 }
 
 type Mutation {
@@ -217,6 +218,12 @@ type PatronRequestPage {
 
 type ProcessStatePage {
   content: [ProcessState]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type PatronRequestAuditPage {
+  content: [PatronRequestAudit]
   totalSize: Int
   pageable: Pageable
 }
