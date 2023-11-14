@@ -4,6 +4,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.olf.dcb.core.model.AgencyGroupMember;
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -26,6 +27,7 @@ import org.olf.dcb.storage.postgres.PostgresAgencyGroupRepository;
 import org.olf.dcb.storage.postgres.PostgresProcessStateRepository;
 import org.olf.dcb.storage.postgres.PostgresSupplierRequestRepository;
 import org.olf.dcb.storage.postgres.PostgresPatronRequestAuditRepository;
+import org.olf.dcb.storage.postgres.PostgresPatronIdentityRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.reactivestreams.Publisher;
@@ -60,6 +62,7 @@ public class DataFetchers {
         private final PostgresAgencyGroupRepository postgresAgencyGroupRepository;
         private final PostgresProcessStateRepository postgresProcessStateRepository;
         private final PostgresPatronRequestAuditRepository postgresPatronRequestAuditRepository;
+        private final PostgresPatronIdentityRepository postgresPatronIdentityRepository;
 	private final QueryService qs;
 
 	public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
@@ -73,6 +76,7 @@ public class DataFetchers {
                         PostgresAgencyGroupRepository postgresAgencyGroupRepository,
 			PostgresProcessStateRepository postgresProcessStateRepository,
                         PostgresPatronRequestAuditRepository postgresPatronRequestAuditRepository,
+                        PostgresPatronIdentityRepository postgresPatronIdentityRepository,
                         QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
@@ -86,6 +90,7 @@ public class DataFetchers {
                 this.postgresAgencyGroupRepository = postgresAgencyGroupRepository;
                 this.postgresProcessStateRepository = postgresProcessStateRepository;
                 this.postgresPatronRequestAuditRepository = postgresPatronRequestAuditRepository;
+                this.postgresPatronIdentityRepository = postgresPatronIdentityRepository;
 	}
 
 
@@ -164,6 +169,26 @@ public class DataFetchers {
                 };
         }
 
+
+        public DataFetcher<CompletableFuture<Page<PatronIdentity>>> getPatronIdentitiesDataFetcher() {
+                return env -> {
+                        Integer pageno = env.getArgument("pageno");
+                        Integer pagesize = env.getArgument("pagesize");
+                        String query = env.getArgument("query");
+                        
+                        if ( pageno == null ) pageno = Integer.valueOf(0);
+                        if ( pagesize == null ) pagesize = Integer.valueOf(10);
+
+                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
+                
+                        if ((query != null) && (query.length() > 0)) {
+                                var spec = qs.evaluate(query, PatronIdentity.class);
+                                return Mono.from(postgresPatronIdentityRepository.findAll(spec, pageable)).toFuture();
+                        }
+                        
+                        return Mono.from(postgresPatronIdentityRepository.findAll(pageable)).toFuture();
+                };
+        }
 
         public DataFetcher<CompletableFuture<Page<SupplierRequest>>> getSupplierRequestsDataFetcher() {
                 return env -> {

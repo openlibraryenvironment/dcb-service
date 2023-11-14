@@ -69,6 +69,7 @@ public class GraphQLFactory {
 						.dataFetcher("sourceBibs", sourceBibDataFetcher)
 						.dataFetcher("processStates", dataFetchers.getProcessStateDataFetcher())
 						.dataFetcher("audits", dataFetchers.getAuditsDataFetcher())
+						.dataFetcher("patronIdentities", dataFetchers.getPatronIdentitiesDataFetcher())
 				)
 				.type("Mutation",
 					typeWiring -> typeWiring.dataFetcher("createAgencyGroup", createAgencyGroupDataFetcher)

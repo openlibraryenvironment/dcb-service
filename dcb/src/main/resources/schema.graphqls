@@ -11,6 +11,7 @@ type Query {
     sourceBibs(query: String, pageno:Int, pagesize: Int): BibRecordPage!
     processStates(query: String, pageno:Int, pagesize: Int): ProcessStatePage!
     audits(query: String, pageno:Int, pagesize: Int): PatronRequestAuditPage!
+    patronIdentities(query: String, pageno:Int, pagesize: Int): PatronIdentityPage!
 }
 
 type Mutation {
@@ -224,6 +225,12 @@ type ProcessStatePage {
 
 type PatronRequestAuditPage {
   content: [PatronRequestAudit]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type PatronIdentityPage {
+  content: [PatronIdentity]
   totalSize: Int
   pageable: Pageable
 }
