@@ -1,9 +1,28 @@
 # Changelog
 
+## Version 2.1.0
+
+### Additions
+* [General]
+	* Shared index service
+
+### Changes
+* [Chore]
+	* Refactor supplier checkout so we can set the item state before attempting the checkout
+	* graphql - Add default sort order to hostlmss, patronrequest and supplierrequest
+	* rename patronIdentity upsert method to clarify what it's doing
+	* improve error trapping in sierra checkOut
+	* more warn logging in unexpected conversion scenarios
+	* warn when we try and convert an item record which is missing key properties
+* [Feature]
+	* Set a supplier item status to RECEIVED before attempting to check it out
+	* graphql - Add audit query to graphql
+
 ## Version 2.0.5
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Split out parsing of patron barcode, add comment explaining what the string manipulation is about
 	* Remove unused code from FOLIO LMS client DCB-479
 	* Use annotation for log in host LMS fixture DCB-479
