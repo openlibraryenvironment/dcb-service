@@ -15,6 +15,7 @@ import java.util.Map;
 
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.FailedToGetItemsException;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
@@ -96,6 +97,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<List<Item>> getItems(BibRecord bib) {
 		return getHoldings(bib.getSourceRecordId())
+			.flatMap(outerHoldings -> failWhenReceiveError(outerHoldings, bib.getSourceRecordId()))
 			.mapNotNull(OuterHoldings::getHoldings)
 			// RTAC returns no outer holdings (instances) when the API key is invalid
 			.switchIfEmpty(Mono.error(new LikelyInvalidApiKeyException(bib.getSourceRecordId())))
@@ -119,6 +121,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.accept(APPLICATION_JSON);
 
 		return Mono.from(this.httpClient.retrieve(request, Argument.of(OuterHoldings.class)));
+	}
+
+	private static Mono<OuterHoldings> failWhenReceiveError(OuterHoldings outerHoldings, String instanceId) {
+		if (outerHoldings.getErrors() == null || outerHoldings.getErrors().isEmpty()) {
+			return Mono.just(outerHoldings);
+		}
+
+		log.error("Failed to get items for instance ID: {}, errors: {}",
+			instanceId, outerHoldings.getErrors());
+
+		return Mono.error(new FailedToGetItemsException(instanceId));
 	}
 
 	private Flux<Item> mapHoldingsToItems(OuterHolding outerHoldings) {

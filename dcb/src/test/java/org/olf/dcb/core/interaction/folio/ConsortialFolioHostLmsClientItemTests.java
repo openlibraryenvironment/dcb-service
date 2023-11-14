@@ -28,6 +28,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.mockserver.model.JsonBody;
+import org.olf.dcb.core.interaction.FailedToGetItemsException;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Item;
@@ -236,6 +238,31 @@ class ConsortialFolioHostLmsClientItemTests {
 		assertThat(exception, hasProperty("message",
 			is("No outer holdings (instances) returned from RTAC for instance ID: \""
 				+ instanceId + "\". Likely caused by invalid API key")));
+	}
+
+	@Test
+	void shouldFailWhenInstanceNotFoundErrorReceived() {
+		// Arrange
+		final var instanceId = "25d705a8-358e-58bc-9370-3be697e9a0d2";
+
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId, JsonBody.json("""
+			{
+					"holdings": [],
+					"errors": [
+							{
+									"message": "Instance 25d705a8-358e-58bc-9370-3be697e9a0d2 can not be retrieved",
+									"code": "404"
+							}
+					]
+			}"""));
+
+		// Act
+		final var exception = assertThrows(FailedToGetItemsException.class,
+			() -> getItems(instanceId));
+
+		// Assert
+		assertThat("Error should not be null", exception, is(notNullValue()));
+		assertThat(exception, hasProperty("localBibId", is(instanceId)));
 	}
 
 	@Test
