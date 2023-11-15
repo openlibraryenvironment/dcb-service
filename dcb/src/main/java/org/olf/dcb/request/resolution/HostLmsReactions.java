@@ -93,8 +93,11 @@ public class HostLmsReactions {
 				else if ( sc.getToState().equals("LOANED") ) {
 					handler="BorrowerRequestLoaned";
 				}
-				else if ( sc.getToState().equals("ON_HOLD_SHELF") ) {
+				else if ( sc.getToState().equals("HOLDSHELF") ) {
 					handler="BorrowerRequestItemOnHoldShelf";
+				}
+				else if ( sc.getToState().equals("RECEIVED") ) {
+					handler="BorrowerRequestItemReceived";
 				}
 				else {
 					log.warn("Unhandled BorrowerVirtualItem ToState:{}",sc.getToState());

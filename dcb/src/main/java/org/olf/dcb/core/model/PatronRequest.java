@@ -52,6 +52,7 @@ public class PatronRequest {
 		NO_ITEMS_AVAILABLE_AT_ANY_AGENCY, 
 		REQUEST_PLACED_AT_SUPPLYING_AGENCY,
 		REQUEST_PLACED_AT_BORROWING_AGENCY, 
+		RECEIVED_AT_PICKUP,
 		READY_FOR_PICKUP, // 
 		LOANED,         // Currently onloan
 		PICKUP_TRANSIT, // In transit to pickup location
