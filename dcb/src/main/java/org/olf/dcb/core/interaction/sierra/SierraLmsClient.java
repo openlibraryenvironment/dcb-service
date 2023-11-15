@@ -860,6 +860,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			case OFFSITE:
 				status = "@";
 				break;
+			case AVAILABLE:
+				status = "-";
+				break;
 			case RECEIVED:
 				status = "#";
 				break;
