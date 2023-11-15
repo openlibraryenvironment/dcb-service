@@ -126,6 +126,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			.flatMap( v -> { return Mono.from(saveOrUpdateStatusCode("VirtualItem", "LOANED", Boolean.TRUE)); } )
 			.flatMap( v -> { return Mono.from(saveOrUpdateStatusCode("VirtualItem", "PICKUP_TRANSIT", Boolean.TRUE)); } )
 			.flatMap( v -> { return Mono.from(saveOrUpdateStatusCode("VirtualItem", "HOLDSHELF", Boolean.TRUE)); } )
+			.flatMap( v -> { return Mono.from(saveOrUpdateStatusCode("VirtualItem", "MISSING", Boolean.FALSE)); } )
                         // Grant all permissions on everything to anyone with the ADMIN role (And allow them to pass on grants)
 			.flatMap( v -> { return Mono.from(saveOrUpdateGrant("%", "%", "%", "%", "role", "ADMIN", Boolean.TRUE)); } )
 			.subscribe();

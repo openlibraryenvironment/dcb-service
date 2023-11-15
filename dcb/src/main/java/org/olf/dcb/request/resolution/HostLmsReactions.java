@@ -106,6 +106,9 @@ public class HostLmsReactions {
 				else if ( sc.getToState().equals("RECEIVED") ) {
 					handler="BorrowerRequestItemReceived";
 				}
+				else if ( sc.getToState().equals("MISSING") ) {
+					handler="BorrowerRequestItemMissing";
+				}
 				else {
 					handler="BorrowerItemUnhandledState";
 				}
