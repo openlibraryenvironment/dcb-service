@@ -124,7 +124,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private static Mono<OuterHoldings> checkResponse(OuterHoldings outerHoldings, String instanceId) {
-		if (outerHoldings.getErrors() == null || outerHoldings.getErrors().isEmpty()) {
+		if (hasNoErrors(outerHoldings)) {
 			return Mono.just(outerHoldings);
 		}
 
@@ -132,6 +132,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			instanceId, outerHoldings.getErrors());
 
 		return Mono.error(new FailedToGetItemsException(instanceId));
+	}
+
+	private static boolean hasNoErrors(OuterHoldings outerHoldings) {
+		return outerHoldings.getErrors() == null || outerHoldings.getErrors().isEmpty();
 	}
 
 	private Flux<Item> mapHoldingsToItems(OuterHolding outerHoldings) {
