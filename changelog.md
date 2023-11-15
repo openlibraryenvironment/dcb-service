@@ -1,6 +1,16 @@
 # Changelog
 
+## Version 2.2.2
+
+### Fixes
+* [General]
+	* Add missing AVAILABLE status to updateItem impletation in sierra adapter
+
 ## Version 2.2.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
