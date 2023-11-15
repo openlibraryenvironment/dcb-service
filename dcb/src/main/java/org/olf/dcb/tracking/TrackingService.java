@@ -97,7 +97,7 @@ public class TrackingService implements Runnable {
 
         private Mono<PatronRequest> checkPatronRequest(PatronRequest pr) {
 
-		log.debug("TRACKING Check patron request {}", pr);
+		log.info("TRACKING Check patron request {}", pr);
 
 		return hostLmsService.getClientFor( pr.getPatronHostlmsCode() )
 			.flatMap(client -> client.getHold( pr.getLocalRequestId() ))
@@ -119,7 +119,7 @@ public class TrackingService implements Runnable {
 	}
 
 	public Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
-		log.debug("TRACKING Check (local) virtualItem from patron request {} {} {}",pr.getLocalItemId(),pr.getLocalItemStatus(),pr.getPatronHostlmsCode());
+		log.info("TRACKING Check (local) virtualItem from patron request {} {} {}",pr.getLocalItemId(),pr.getLocalItemStatus(),pr.getPatronHostlmsCode());
                 if ( ( pr.getPatronHostlmsCode() != null ) && ( pr.getLocalItemId() != null ) ) {
                         return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
                                 .flatMap( client -> Mono.from(client.getItem(pr.getLocalItemId())) )
@@ -146,7 +146,7 @@ public class TrackingService implements Runnable {
                 }
         }
 	public Mono<SupplierRequest> checkSupplierItem(SupplierRequest sr) {
-		log.debug("TRACKING Check (hostlms) supplierItem from supplier request item={} status={} code={}",sr.getLocalItemId(),sr.getLocalItemStatus(),sr.getHostLmsCode());
+		log.info("TRACKING Check (hostlms) supplierItem from supplier request item={} status={} code={}",sr.getLocalItemId(),sr.getLocalItemStatus(),sr.getHostLmsCode());
 		if ( ( sr.getHostLmsCode() != null ) && ( sr.getLocalItemId() != null ) ) {
                         log.debug("hostLms code and itemId present.. continue");
 			return hostLmsService.getClientFor(sr.getHostLmsCode())

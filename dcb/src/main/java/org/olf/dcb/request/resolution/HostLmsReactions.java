@@ -19,6 +19,7 @@ import java.util.HashMap;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import jakarta.transaction.Transactional;
 import java.util.List;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 
 /**
  * This class gathers together the code which detects that an object in a remote system has
@@ -31,6 +32,7 @@ public class HostLmsReactions {
 	private static final Logger log = LoggerFactory.getLogger(HostLmsReactions.class);
 	private final ApplicationContext appContext;
 	private final R2dbcOperations r2dbcOperations;
+	private final PatronRequestAuditService patronRequestAuditService;
 
 	// Ensure that we have loaded and initialised all workflow actions
 	private final List<WorkflowAction> allWorkflowActions;
@@ -38,10 +40,12 @@ public class HostLmsReactions {
 
 	public HostLmsReactions(ApplicationContext appContext,
 		R2dbcOperations r2dbcOperations,
-		List<WorkflowAction> allWorkflowActions) {
+		List<WorkflowAction> allWorkflowActions,
+		PatronRequestAuditService patronRequestAuditService) {
 		this.appContext = appContext;
 		this.r2dbcOperations = r2dbcOperations;
 		this.allWorkflowActions = allWorkflowActions;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	@jakarta.annotation.PostConstruct
@@ -132,6 +136,7 @@ public class HostLmsReactions {
 				log.debug("Invoke {}",action.getClass().getName());
 				return action.execute(context)
 					.doOnNext(ctx -> log.debug("Action completed:"+ctx))
+					.doOnError(error -> log.error("Problem in reaction",error))
 					.thenReturn(context);
 			}
 			else {
