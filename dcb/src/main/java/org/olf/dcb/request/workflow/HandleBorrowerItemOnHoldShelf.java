@@ -28,6 +28,7 @@ public class HandleBorrowerItemOnHoldShelf implements WorkflowAction {
 
         public HandleBorrowerItemOnHoldShelf(
                 PatronRequestRepository patronRequestRepository,
+		HostLmsService hostLmsService,
                 RequestWorkflowContextHelper requestWorkflowContextHelper) {
                 this.patronRequestRepository = patronRequestRepository;
                 this.requestWorkflowContextHelper = requestWorkflowContextHelper;
