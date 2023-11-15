@@ -86,6 +86,7 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
 
                                 return hostLmsService.getClientFor(rwc.getLenderSystemCode())
                                         .flatMap(hostLmsClient -> updateThenCheckoutItem(rwc, hostLmsClient, patron_barcodes))
+					.doOnError(error -> log.error("Unable to issue item to vpatron at lender",error))
                                         .thenReturn(rwc);
                         }
                         else {
@@ -107,8 +108,7 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
 
         private Mono<RequestWorkflowContext> updateThenCheckoutItem(RequestWorkflowContext rwc, HostLmsClient hostLmsClient, String[] patronBarcode) {
 
-                return  hostLmsClient.updateItemStatus(rwc.getSupplierRequest().getLocalItemId(), CanonicalItemState.RECEIVED)
-                        // Give the ILS chance to process this
+                return  hostLmsClient.updateItemStatus(rwc.getSupplierRequest().getLocalItemId(), CanonicalItemState.AVAILABLE)
                         .then( hostLmsClient.checkOutItemToPatron( rwc.getSupplierRequest().getLocalItemBarcode(), patronBarcode[0]) )
                         .thenReturn(rwc);
 

@@ -575,6 +575,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				case "o" -> result = HostLmsItem.LIBRARY_USE_ONLY;
 				case "%" -> result = HostLmsItem.ITEM_RETURNED;
 				case "m" -> result = HostLmsItem.ITEM_MISSING;
+				case "&" -> result = HostLmsItem.ITEM_REQUESTED;
 				default -> result = status.getCode();
 			}
 		}

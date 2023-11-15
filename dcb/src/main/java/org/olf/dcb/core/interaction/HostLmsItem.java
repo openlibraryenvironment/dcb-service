@@ -35,6 +35,7 @@ public class HostLmsItem {
         public static final String ITEM_RECEIVED="RECEIVED"; 
         public static final String LIBRARY_USE_ONLY="LIBRARY_USE_ONLY";
         public static final String ITEM_RETURNED="RETURNED";
+        public static final String ITEM_RETURNED="REQUESTED";
 
         // Item is off-site
         public static final String ITEM_LOANED="LOANED";
