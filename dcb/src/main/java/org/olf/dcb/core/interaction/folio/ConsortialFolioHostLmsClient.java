@@ -99,8 +99,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return getHoldings(bib.getSourceRecordId())
 			.flatMap(outerHoldings -> checkResponse(outerHoldings, bib.getSourceRecordId()))
 			.mapNotNull(OuterHoldings::getHoldings)
-			// RTAC returns no outer holdings (instances) when the API key is invalid
-			.switchIfEmpty(Mono.error(new LikelyInvalidApiKeyException(bib.getSourceRecordId())))
 			.flatMapMany(Flux::fromIterable)
 			.flatMap(this::mapHoldingsToItems)
 			.collectList();
@@ -125,13 +123,20 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private static Mono<OuterHoldings> checkResponse(OuterHoldings outerHoldings, String instanceId) {
 		if (hasNoErrors(outerHoldings)) {
-			return Mono.just(outerHoldings);
+			if (outerHoldings.getHoldings() == null || outerHoldings.getHoldings().isEmpty()) {
+				// RTAC returns no outer holdings (instances) when the API key is invalid
+				return Mono.error(new LikelyInvalidApiKeyException(instanceId));
+			}
+			else {
+				return Mono.just(outerHoldings);
+			}
 		}
+		else {
+			log.error("Failed to get items for instance ID: {}, errors: {}",
+				instanceId, outerHoldings.getErrors());
 
-		log.error("Failed to get items for instance ID: {}, errors: {}",
-			instanceId, outerHoldings.getErrors());
-
-		return Mono.error(new FailedToGetItemsException(instanceId));
+			return Mono.error(new FailedToGetItemsException(instanceId));
+		}
 	}
 
 	private static boolean hasNoErrors(OuterHoldings outerHoldings) {
