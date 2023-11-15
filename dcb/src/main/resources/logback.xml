@@ -14,7 +14,7 @@
     <appender-ref ref="STDOUT_SYNC" />
   </appender>
 
-	<logger name="io.micronaut.http.client" level="DEBUG"/>
+	<logger name="io.micronaut.http.client" level="WARN"/>
 	<logger name="services.k_int.interaction" level="DEBUG"/>
 	
 	<logger name="io.r2dbc.postgresql.QUERY" level="ERROR"/>
@@ -27,21 +27,21 @@
 	<logger name="io.micronaut.data.query" level="DEBUG"/>
 	-->
 
-	<logger name="org.flywaydb" level="DEBUG"/>
-	<logger name="org.flyway" level="DEBUG"/>
-	<logger name="io.micronaut.flyway" level="DEBUG"/>
+	<logger name="org.flywaydb" level="WARN"/>
+	<logger name="org.flyway" level="WARN"/>
+	<logger name="io.micronaut.flyway" level="WARN"/>
 	<logger name="org.olf.dcb" level="DEBUG"/>
 	
 	<logger name="org.olf.dcb.core.error" level="INFO"/>
 	
-	<logger name="org.olf.dcb.indexing" level="TRACE"/>
+	<logger name="org.olf.dcb.indexing" level="WARN"/>
 	<logger name="services.k_int" level="DEBUG"/>
 	<logger name="org.olf.dcb.ingest.marc.MarcIngestSource" level="WARN"/>
-	<logger name="io.micronaut.security.authentication" level="DEBUG" />
-	<logger name="io.r2dbc" level="INFO" />
+	<logger name="io.micronaut.security.authentication" level="WARN" />
+	<logger name="io.r2dbc" level="WARN" />
 	<logger name="io.r2dbc.postgresql.PARAM" level="WARN" />
 	<logger name="io.r2dbc.postgresql.client.ReactorNettyClient" level="WARN" />
-	<logger name="io.micronaut.security" level="INFO" />
+	<logger name="io.micronaut.security" level="WARN" />
 
 	<root level="info">
 		<appender-ref ref="STDOUT"/>
