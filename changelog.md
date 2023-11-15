@@ -1,9 +1,23 @@
 # Changelog
 
+## Version 2.1.3
+
+### Changes
+* [Chore]
+	* More tuning for logging
+	* refine logging
+	* turn down logging
+	* Use toState() rather than strings when updating local reflections of remote states
+
+### Fixes
+* [Graphql]
+	* Add PatronRequest to PatronRequestAudit object
+
 ## Version 2.1.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Extend Item mappings for sierra
 
 ## Version 2.1.1
