@@ -123,7 +123,11 @@ public class TrackingService implements Runnable {
                 if ( ( pr.getPatronHostlmsCode() != null ) && ( pr.getLocalItemId() != null ) ) {
                         return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
                                 .flatMap( client -> Mono.from(client.getItem(pr.getLocalItemId())) )
-                                .filter ( item -> !item.getStatus().equals(pr.getLocalItemStatus()) )
+                                .filter ( item -> ( 
+						    ( ( item.getStatus() == null ) && ( pr.getLocalItemStatus() != null ) ) ||
+						    ( ( item.getStatus() != null ) && ( pr.getLocalItemStatus() == null ) ) ||
+						    ( !item.getStatus().equals(pr.getLocalItemStatus()) ) 
+				) )
                                 .flatMap ( item -> {
                                         log.debug("Detected borrowing system - virtual item status change {} to {}",pr.getLocalItemStatus(),item.getStatus());
                                         StateChange sc = StateChange.builder()

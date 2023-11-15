@@ -37,7 +37,7 @@ public class HandleBorrowerItemOnHoldShelf implements WorkflowAction {
         @Transactional
         public Mono<Map<String,Object>> execute(Map<String,Object> context) {
                 StateChange sc = (StateChange) context.get("StateChange");
-                log.debug("HandleBorrowerItemOnHoldShelf {}",sc);
+                log.info("HandleBorrowerItemOnHoldShelf {}",sc);
                 PatronRequest pr = (PatronRequest) sc.getResource();
                 if ( pr != null ) {
                         pr.setStatus(PatronRequest.Status.READY_FOR_PICKUP);
