@@ -119,7 +119,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			// MUST explicitly accept JSON otherwise XML will be returned
 			.accept(APPLICATION_JSON);
 
-		return Mono.from(this.httpClient.retrieve(request, Argument.of(OuterHoldings.class)));
+		return Mono.from(httpClient.retrieve(request, Argument.of(OuterHoldings.class)));
 	}
 
 	private static Mono<OuterHoldings> checkResponse(OuterHoldings outerHoldings, String instanceId) {
@@ -136,14 +136,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		} else {
 			log.debug("Errors received from RTAC: {}", outerHoldings.getErrors());
 
-			final var allHoldingsNotFoundErrors = outerHoldings.getErrors()
-				.stream()
-				.filter(error -> isNotEmpty(error.getMessage()))
-				.allMatch(error -> error.getMessage().contains("Holdings not found for instance"));
-
 			// DCB cannot know in advance whether an instance has any associated holdings / items
 			// Holdings not being found for an instance is a false negative
-			if (allHoldingsNotFoundErrors) {
+			if (allErrorsAreHoldingsNotFound(outerHoldings)) {
 				return Mono.just(outerHoldings);
 			}
 			else {
@@ -155,12 +150,19 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		}
 	}
 
+	private static boolean hasNoErrors(OuterHoldings outerHoldings) {
+		return outerHoldings.getErrors() == null || outerHoldings.getErrors().isEmpty();
+	}
+
 	private static boolean hasNoOuterHoldings(OuterHoldings outerHoldings) {
 		return outerHoldings.getHoldings() == null || outerHoldings.getHoldings().isEmpty();
 	}
 
-	private static boolean hasNoErrors(OuterHoldings outerHoldings) {
-		return outerHoldings.getErrors() == null || outerHoldings.getErrors().isEmpty();
+	private static boolean allErrorsAreHoldingsNotFound(OuterHoldings outerHoldings) {
+		return outerHoldings.getErrors()
+			.stream()
+			.filter(error -> isNotEmpty(error.getMessage()))
+			.allMatch(error -> error.getMessage().contains("Holdings not found for instance"));
 	}
 
 	private Flux<Item> mapHoldingsToItems(OuterHolding outerHoldings) {
