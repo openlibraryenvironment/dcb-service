@@ -97,7 +97,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<List<Item>> getItems(BibRecord bib) {
 		return getHoldings(bib.getSourceRecordId())
-			.flatMap(outerHoldings -> failWhenReceiveError(outerHoldings, bib.getSourceRecordId()))
+			.flatMap(outerHoldings -> checkResponse(outerHoldings, bib.getSourceRecordId()))
 			.mapNotNull(OuterHoldings::getHoldings)
 			// RTAC returns no outer holdings (instances) when the API key is invalid
 			.switchIfEmpty(Mono.error(new LikelyInvalidApiKeyException(bib.getSourceRecordId())))
@@ -123,7 +123,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return Mono.from(this.httpClient.retrieve(request, Argument.of(OuterHoldings.class)));
 	}
 
-	private static Mono<OuterHoldings> failWhenReceiveError(OuterHoldings outerHoldings, String instanceId) {
+	private static Mono<OuterHoldings> checkResponse(OuterHoldings outerHoldings, String instanceId) {
 		if (outerHoldings.getErrors() == null || outerHoldings.getErrors().isEmpty()) {
 			return Mono.just(outerHoldings);
 		}
