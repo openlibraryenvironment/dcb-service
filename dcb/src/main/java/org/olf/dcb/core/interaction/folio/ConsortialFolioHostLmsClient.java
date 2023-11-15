@@ -123,20 +123,23 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private static Mono<OuterHoldings> checkResponse(OuterHoldings outerHoldings, String instanceId) {
 		if (hasNoErrors(outerHoldings)) {
-			if (outerHoldings.getHoldings() == null || outerHoldings.getHoldings().isEmpty()) {
+			if (hasNoOuterHoldings(outerHoldings)) {
 				// RTAC returns no outer holdings (instances) when the API key is invalid
 				return Mono.error(new LikelyInvalidApiKeyException(instanceId));
 			}
 			else {
 				return Mono.just(outerHoldings);
 			}
-		}
-		else {
+		} else {
 			log.error("Failed to get items for instance ID: {}, errors: {}",
 				instanceId, outerHoldings.getErrors());
 
 			return Mono.error(new FailedToGetItemsException(instanceId));
 		}
+	}
+
+	private static boolean hasNoOuterHoldings(OuterHoldings outerHoldings) {
+		return outerHoldings.getHoldings()==null || outerHoldings.getHoldings().isEmpty();
 	}
 
 	private static boolean hasNoErrors(OuterHoldings outerHoldings) {
