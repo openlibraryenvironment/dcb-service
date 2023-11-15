@@ -235,7 +235,7 @@ class ConsortialFolioHostLmsClientItemTests {
 		// Assert
 		assertThat("Error should not be null", exception, is(notNullValue()));
 		assertThat(exception, hasProperty("message",
-			is("No outer holdings (instances) returned from RTAC for instance ID: \""
+			is("No errors or outer holdings (instances) returned from RTAC for instance ID: \""
 				+ instanceId + "\". Likely caused by invalid API key")));
 	}
 

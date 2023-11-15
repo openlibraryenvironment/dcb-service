@@ -124,6 +124,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private static Mono<OuterHoldings> checkResponse(OuterHoldings outerHoldings, String instanceId) {
 		if (hasNoErrors(outerHoldings)) {
 			if (hasNoOuterHoldings(outerHoldings)) {
+				log.error("No errors or outer holdings returned from RTAC for instance ID: {}, response: {}, likely to be invalid API key",
+					instanceId, outerHoldings);
+
 				// RTAC returns no outer holdings (instances) when the API key is invalid
 				return Mono.error(new LikelyInvalidApiKeyException(instanceId));
 			}
