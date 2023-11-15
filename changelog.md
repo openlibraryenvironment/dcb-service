@@ -1,6 +1,16 @@
 # Changelog
 
+## Version 2.1.2
+
+### Changes
+* [Chore]
+	* Extend Item mappings for sierra
+
 ## Version 2.1.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [Flyway]
