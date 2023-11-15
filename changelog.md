@@ -2,6 +2,10 @@
 
 ## Version 2.1.5
 
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
 ### Fixes
 * [General]
 	* Error getting deleted flag for items
