@@ -1,5 +1,17 @@
 # Changelog
 
+## Version 2.2.1
+
+### Fixes
+* [General]
+	* corrected static item status code mapping
+
+## Version 2.2.0
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
 ## Version 2.1.5
 
 ### Changes
