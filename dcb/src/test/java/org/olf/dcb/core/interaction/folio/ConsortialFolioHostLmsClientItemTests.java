@@ -283,6 +283,37 @@ class ConsortialFolioHostLmsClientItemTests {
 	}
 
 	@Test
+	void shouldFailWhenMultipleOuterHoldingsAreReceived() {
+		// DCB only asks for holdings for a single instance at a time
+		// RTAC should never respond with multiple outer holdings (instances)
+
+		// Arrange
+		final var requestedInstanceId = UUID.randomUUID().toString();
+		final var otherInstanceId = UUID.randomUUID().toString();
+
+		mockFolioFixture.mockHoldingsByInstanceId(requestedInstanceId, OuterHoldings.builder()
+			.holdings(List.of(
+				OuterHolding.builder()
+					.instanceId(requestedInstanceId)
+					.holdings(List.of(exampleHolding().build()))
+					.build(),
+				OuterHolding.builder()
+					.instanceId(otherInstanceId)
+					.holdings(List.of(exampleHolding().build()))
+					.build()
+			))
+			.build());
+
+		// Act
+		final var exception = assertThrows(UnexpectedOuterHoldingException.class,
+			() -> client.getItems(requestedInstanceId).block());
+
+		// Assert
+		assertThat("Error should not be null", exception, is(notNullValue()));
+		assertThat(exception, hasProperty("localBibId", is(requestedInstanceId)));
+	}
+
+	@Test
 	void shouldDefineAvailableSettings() {
 		final var settings = client.getSettings();
 

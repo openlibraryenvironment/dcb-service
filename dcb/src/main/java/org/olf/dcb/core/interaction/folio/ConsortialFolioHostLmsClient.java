@@ -131,7 +131,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				// RTAC returns no outer holdings (instances) when the API key is invalid
 				return Mono.error(new LikelyInvalidApiKeyException(instanceId));
 			} else {
-				return Mono.just(outerHoldings);
+				if (outerHoldings.getHoldings().size() > 1) {
+					log.error("Unexpected outer holdings (instances) received from RTAC for instance ID: {}, response: {}",
+						instanceId, outerHoldings);
+
+					// DCB only asks for holdings for a single instance at a time
+					// RTAC should never respond with multiple outer holdings (instances)
+					return Mono.error(new UnexpectedOuterHoldingException(instanceId));
+				}
+				else {
+					return Mono.just(outerHoldings);
+				}
 			}
 		} else {
 			log.debug("Errors received from RTAC: {}", outerHoldings.getErrors());
