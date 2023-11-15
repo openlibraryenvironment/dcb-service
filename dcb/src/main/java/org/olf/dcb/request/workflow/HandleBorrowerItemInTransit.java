@@ -44,11 +44,12 @@ public class HandleBorrowerItemInTransit implements WorkflowAction {
                 log.debug("HandleBorrowerItemInTransit {}",sc);
                 PatronRequest pr = (PatronRequest) sc.getResource();
                 if ( pr != null ) {
-                        pr.setLocalItemStatus("TRANSIT");
+                        pr.setLocalItemStatus(sc.getToState());
                         pr.setStatus(PatronRequest.Status.PICKUP_TRANSIT);
                         log.debug("Set local status to TRANSIT and save {}",pr);
                         return Mono.from(patronRequestRepository.saveOrUpdate(pr))
                                 .doOnNext(spr -> log.debug("Saved {}",spr))
+				.doOnError(error -> log.error("Error occurred in handle item in transit: ", error))
                                 .thenReturn(context);
                 }
                 else {

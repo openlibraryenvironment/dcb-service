@@ -42,7 +42,7 @@ public class HandleBorrowerItemReceived implements WorkflowAction {
                 log.debug("HandleBorrowerItemReceived {}",sc);
                 PatronRequest pr = (PatronRequest) sc.getResource();
                 if ( pr != null ) {
-                        pr.setLocalItemStatus("RECEIVED");
+                        pr.setLocalItemStatus(sc.getToState());
                         pr.setStatus(PatronRequest.Status.RECEIVED_AT_PICKUP);
                         log.debug("Set local status to RECEIVED and save {}",pr);
                         return Mono.from(patronRequestRepository.saveOrUpdate(pr))

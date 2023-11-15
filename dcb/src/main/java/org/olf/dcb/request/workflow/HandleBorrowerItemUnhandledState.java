@@ -22,14 +22,15 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 
 
 @Singleton
-@Named("BorrowerRequestReturnTransit")
-public class HandleBorrowerRequestReturnTransit implements WorkflowAction {
+@Named("BorrowerItemUnhandledState")
+public class HandleBorrowerItemUnhandledState implements WorkflowAction {
 
-        private static final Logger log = LoggerFactory.getLogger(HandleBorrowerRequestReturnTransit.class);
+
+        private static final Logger log = LoggerFactory.getLogger(HandleBorrowerItemReceived.class);
         private RequestWorkflowContextHelper requestWorkflowContextHelper;
         private PatronRequestRepository patronRequestRepository;
 
-        public HandleBorrowerRequestReturnTransit(
+        public HandleBorrowerItemUnhandledState(
                 PatronRequestRepository patronRequestRepository,
                 RequestWorkflowContextHelper requestWorkflowContextHelper) {
                 this.patronRequestRepository = patronRequestRepository;
@@ -39,17 +40,17 @@ public class HandleBorrowerRequestReturnTransit implements WorkflowAction {
         @Transactional
         public Mono<Map<String,Object>> execute(Map<String,Object> context) {
                 StateChange sc = (StateChange) context.get("StateChange");
-                log.debug("HandleBorrowerRequestReturnTransit {}",sc);
+
+                log.warn("Unhandled BorrowerVirtualItem ToState: {}",sc.getToState());
+
                 PatronRequest pr = (PatronRequest) sc.getResource();
                 if ( pr != null ) {
-			pr.setLocalItemStatus(sc.getToState());
-                        pr.setStatus(PatronRequest.Status.RETURN_TRANSIT);
-                        log.debug("Set local status to RET-TRANSIT and save {}",pr);
+                        pr.setErrorMessage("Virtual item set to "+sc.getToState()+" (was "+sc.getFromState()+") - Unhandled");
                         return Mono.from(patronRequestRepository.saveOrUpdate(pr))
                                 .thenReturn(context);
                 }
                 else {
-                        log.warn("Unable to locate patron request to mark as missing");
+                        log.warn("Unable to locate patron request for state change {}",sc);
                         return Mono.just(context);
                 }
         }

@@ -80,8 +80,11 @@ public class HostLmsReactions {
 				}
 			}
 			else if ( sc.getResourceType().equals("BorrowerVirtualItem") ) {
+				// See org.olf.dcb.core.interaction.HostLmsItem :
+				// MISSING AVAILABLE TRANSIT OFFSITE HOLDSHELF RECEIVED LIBRARY_USE_ONLY RETURNED LOANED
 				if ( sc.getFromState() != null && sc.getFromState().equals("LOANED") && 
                                      sc.getToState() != null && sc.getToState().equals("TRANSIT") ) {
+					// If we had a prior state, then this is return transit
 					handler="BorrowerRequestReturnTransit";
 				}
 				else if ( sc.getToState().equals("TRANSIT") ) {
@@ -100,7 +103,7 @@ public class HostLmsReactions {
 					handler="BorrowerRequestItemReceived";
 				}
 				else {
-					log.warn("Unhandled BorrowerVirtualItem ToState:{}",sc.getToState());
+					handler="BorrowerItemUnhandledState";
 				}
 			}
 			else if ( sc.getResourceType().equals("SupplierItem") ) {

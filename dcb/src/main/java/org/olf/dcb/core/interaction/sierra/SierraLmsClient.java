@@ -567,15 +567,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			result = HostLmsItem.ITEM_LOANED;
 		} else {
 			switch (status.getCode()) {
-			case "-" -> result = HostLmsItem.ITEM_AVAILABLE;
-			case "t" -> result = HostLmsItem.ITEM_TRANSIT; // IN Transit
-			case "@" -> result = HostLmsItem.ITEM_OFFSITE;
-			case "#" -> result = HostLmsItem.ITEM_RECEIVED;
-			case "!" -> result = HostLmsItem.ITEM_ON_HOLDSHELF;
-			case "o" -> result = HostLmsItem.LIBRARY_USE_ONLY;
-			case "%" -> result = HostLmsItem.ITEM_RETURNED;
-			case "m" -> result = HostLmsItem.ITEM_MISSING;
-			default -> result = status.getCode();
+				case "-" -> result = HostLmsItem.ITEM_AVAILABLE;
+				case "t" -> result = HostLmsItem.ITEM_TRANSIT; // IN Transit
+				case "@" -> result = HostLmsItem.ITEM_OFFSITE;
+				case "#" -> result = HostLmsItem.ITEM_RECEIVED;
+				case "!" -> result = HostLmsItem.ITEM_ON_HOLDSHELF;
+				case "o" -> result = HostLmsItem.LIBRARY_USE_ONLY;
+				case "%" -> result = HostLmsItem.ITEM_RETURNED;
+				case "m" -> result = HostLmsItem.ITEM_MISSING;
+				default -> result = status.getCode();
 			}
 		}
 

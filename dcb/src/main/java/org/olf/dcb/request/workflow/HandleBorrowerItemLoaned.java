@@ -51,12 +51,13 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
                 PatronRequest pr = (PatronRequest) sc.getResource();
                 if ( pr != null ) {
                         pr.setStatus(PatronRequest.Status.LOANED);
-                        pr.setLocalItemStatus("LOANED");
+                        pr.setLocalItemStatus(sc.getToState());
 
                         return requestWorkflowContextHelper.fromPatronRequest(pr)
                                 .flatMap( this::checkHomeItemOutToVirtualPatron )
                                 .flatMap(rwc -> Mono.from(patronRequestRepository.saveOrUpdate(pr)))
                                 .doOnNext(spr -> log.debug("Saved {}",spr))
+                                .doOnError(error -> log.error("Error occurred in handle item Loaned: ", error))
                                 .thenReturn(context);
                 }
                 else {

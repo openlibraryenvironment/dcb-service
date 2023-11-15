@@ -40,12 +40,14 @@ public class HandleBorrowerItemOnHoldShelf implements WorkflowAction {
                 log.debug("HandleBorrowerItemOnHoldShelf {}",sc);
                 PatronRequest pr = (PatronRequest) sc.getResource();
                 if ( pr != null ) {
-                        pr.setLocalItemStatus("READY_FOR_PICKUP");
+                        pr.setStatus(PatronRequest.Status.READY_FOR_PICKUP);
+                        pr.setLocalItemStatus(sc.getToState());
                         log.debug("Set local status to READY_FOR_PICKUP and save {}",pr);
                         return requestWorkflowContextHelper.fromPatronRequest(pr)
                                 .flatMap( this::updateSupplierItemToReceived )
                                 .flatMap(rwc -> Mono.from(patronRequestRepository.saveOrUpdate(pr)))
                                 .doOnNext(spr -> log.debug("Saved {}",spr))
+				.doOnError(error -> log.error("Error occurred in handle item on hold shelf: ", error))
                                 .thenReturn(context);
 
                 }

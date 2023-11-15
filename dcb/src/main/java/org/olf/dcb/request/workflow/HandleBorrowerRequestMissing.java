@@ -50,6 +50,7 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 		PatronRequest pr = (PatronRequest) sc.getResource();
 
 		if (pr != null) {
+			pr.setLocalItemStatus(sc.getToState());
 			return Mono.from(supplierRequestRepository.findByPatronRequest(pr))
 				.map(sr -> {
 					// Patron cancels request, sierra deletes request

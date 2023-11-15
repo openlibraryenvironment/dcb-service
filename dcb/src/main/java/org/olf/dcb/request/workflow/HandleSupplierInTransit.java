@@ -51,7 +51,7 @@ public class HandleSupplierInTransit implements WorkflowAction {
 
                 SupplierRequest sr = (SupplierRequest) sc.getResource();
                 if ( sr != null ) {
-                        sr.setLocalStatus("TRANSIT");
+                        sr.setLocalStatus(sc.getToState());
                         log.debug("Setting local status to TRANSIT and saving...{}",sr);
                         return requestWorkflowContextHelper.fromSupplierRequest(sr)
                                 .flatMap( this::updateUpstreamSystems )
