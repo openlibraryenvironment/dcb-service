@@ -118,6 +118,7 @@ type PatronRequestAudit {
   fromStatus: String
   toStatus: String
   auditData: JSON
+  patronRequest: PatronRequest
 }
 
 type SupplierRequest {
