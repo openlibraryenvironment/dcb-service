@@ -1,9 +1,16 @@
 # Changelog
 
+## Version 2.1.4
+
+### Fixes
+* [Workflow]
+	* More Gracefully handle deletion of a virtual item
+
 ## Version 2.1.3
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* More tuning for logging
 	* refine logging
 	* turn down logging
