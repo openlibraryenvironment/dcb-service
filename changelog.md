@@ -1,6 +1,16 @@
 # Changelog
 
+## Version 2.1.5
+
+### Fixes
+* [General]
+	* Error getting deleted flag for items
+
 ## Version 2.1.4
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [Workflow]
