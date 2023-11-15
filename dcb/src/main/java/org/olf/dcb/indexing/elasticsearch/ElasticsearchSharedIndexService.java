@@ -13,6 +13,7 @@ import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.svc.RecordClusteringService;
 import org.olf.dcb.indexing.bulk.BulkSharedIndexService;
 import org.olf.dcb.indexing.model.ClusterRecordIndexDoc;
+import org.olf.dcb.indexing.storage.SharedIndexQueueRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,8 +53,8 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	@io.micronaut.context.annotation.Property(name="dcb.index.name")
 	private String indexName; 
 	
-	public ElasticsearchSharedIndexService(ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService) {
-		super(recordClusteringService);
+	public ElasticsearchSharedIndexService(ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, SharedIndexQueueRepository sharedIndexQueueRepository) {
+		super(recordClusteringService, sharedIndexQueueRepository);
 		this.client = client;
 		this.conversionService = conversionService;
 	}

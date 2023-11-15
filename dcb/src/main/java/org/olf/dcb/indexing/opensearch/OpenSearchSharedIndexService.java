@@ -13,6 +13,7 @@ import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.svc.RecordClusteringService;
 import org.olf.dcb.indexing.bulk.BulkSharedIndexService;
 import org.olf.dcb.indexing.model.ClusterRecordIndexDoc;
+import org.olf.dcb.indexing.storage.SharedIndexQueueRepository;
 import org.opensearch.client.opensearch.OpenSearchAsyncClient;
 import org.opensearch.client.opensearch._types.analysis.Analyzer;
 import org.opensearch.client.opensearch._types.analysis.TokenFilter;
@@ -56,8 +57,8 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	@io.micronaut.context.annotation.Property(name="dcb.index.name")
 	private String indexName; 
 	
-	public OpenSearchSharedIndexService(OpenSearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService) {
-		super(recordClusteringService);
+	public OpenSearchSharedIndexService(OpenSearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, SharedIndexQueueRepository sharedIndexQueueRepository) {
+		super(recordClusteringService, sharedIndexQueueRepository);
 		this.client = client;
 		this.conversionService = conversionService;
 	}

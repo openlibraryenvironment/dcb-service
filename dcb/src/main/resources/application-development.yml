@@ -46,12 +46,12 @@ micronaut:
 dcb:
   itemresolver:
     code: Geo
-  index:
-    name: mobius-si
+#  index:
+#    name: mobius-si
   
 #opensearch:
 #  httpHosts: "http://localhost:9200"
 
-elasticsearch:
-  httpHosts: "http://localhost:9200"
+#elasticsearch:
+#  httpHosts: "http://localhost:9200"
 
