@@ -882,8 +882,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			log.warn("Detected a sierra item with null status: {}",si);
 		}
 
-		return HostLmsItem.builder().localId(si.getId()).barcode(si.getBarcode())
-				.status(si.getStatus() != null ? mapSierraItemStatusToDCBHoldStatus(si.getStatus()) : "UNKNOWN").build();
+		String resolved_status = si.getStatus() != null 
+			? mapSierraItemStatusToDCBHoldStatus(si.getStatus()) 
+			: ( si.deleted() == true ? "MISSING" : "UNKNOWN" );
+
+		return HostLmsItem.builder()
+			.localId(si.getId())
+			.barcode(si.getBarcode())
+			.status(resolved_status).build();
 	}
 
 	public Mono<HostLmsItem> getItem(String itemId) {
