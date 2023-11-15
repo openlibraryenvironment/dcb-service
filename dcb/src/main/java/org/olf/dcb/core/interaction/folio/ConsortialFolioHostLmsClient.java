@@ -52,6 +52,29 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private static final HostLmsPropertyDefinition API_KEY_SETTING
 		= stringPropertyDefinition("apikey", "API key for this FOLIO tenant", TRUE);
 
+	private static final List<String> itemStatuses = List.of(
+		"Aged to lost",
+		"Available",
+		"Awaiting pickup",
+		"Awaiting delivery",
+		"Checked out",
+		"Claimed returned",
+		"Declared lost",
+		"In process",
+		"In process (non-requestable)",
+		"In transit",
+		"Intellectual item",
+		"Long missing",
+		"Lost and paid",
+		"Missing",
+		"On order",
+		"Paged",
+		"Restricted",
+		"Order closed",
+		"Unavailable",
+		"Unknown",
+		"Withdrawn");
+
 	private final HostLms hostLms;
 
 	private final HttpClient httpClient;
@@ -185,6 +208,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		}
 
 		return Flux.fromStream(outerHoldings.getHoldings().stream())
+			// When RTAC encounters a holdings record without any items
+			// it includes the holdings record in the response
+			// DCB is only interested in items and thus needs to differentiate between
+			// holdings in the response that are items and those that are only holdings
+			// For more information on the flow inside RTAC - https://github.com/folio-org/mod-rtac/blob/3e7f25445ff79b60690fa2025f3a426d9e57fd21/src/main/java/org/folio/mappers/FolioToRtacMapper.java#L112
+			.filter(holdings -> itemStatuses.contains(holdings.getStatus()))
 			.flatMap(holding -> mapHoldingToItem(holding, outerHoldings.getInstanceId()));
 	}
 
@@ -276,6 +305,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
 		return Mono.just("DUMMY");
 	}
+
 	@Override
 	public Mono<String> deleteItem(String id) {
 		return Mono.just("DUMMY");
