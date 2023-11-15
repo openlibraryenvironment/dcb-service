@@ -4,6 +4,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.polarisFallback;
 import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.sierraFallback;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.test.DcbTest;
@@ -172,6 +174,75 @@ class ItemStatusMapperTests {
 
 			assertThat(mappedStatus, is(notNullValue()));
 			assertThat(mappedStatus.getCode(), is(UNKNOWN));
+		}
+	}
+
+	/**
+	 * The codes used here come from the descriptions from
+	 * <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/itemstatuses/get_item_statuses">this API</a>
+	 */
+	@Nested
+	class PolarisFallbackMappingTests {
+		@Test
+		void statusIsAvailableWhenCodeIsAvailable() {
+			final var mappedStatus = mapPolarisStatus("In");
+
+			assertThat(mappedStatus, is(notNullValue()));
+			assertThat(mappedStatus.getCode(), is(AVAILABLE));
+		}
+
+		@ParameterizedTest
+		@ValueSource(strings = {
+			"Bindery",
+			"Claim Missing Parts",
+			"Claim Never Had",
+			"Claim Returned",
+			"EContent External Loan",
+			"Held",
+			"In-Process",
+			"In-Repair",
+			"In-Transit",
+			"Lost",
+			"Missing",
+			"Non-circulating",
+			"On-Order",
+			"Out",
+			"Out-ILL",
+			"Returned-ILL",
+			"Routed",
+			"Shelving",
+			"Transferred",
+			"Unavailable",
+			"Withdrawn"
+		})
+		void statusIsUnavailableWhenCodeAnythingElse(String statusCode) {
+			final var mappedStatus = mapPolarisStatus(statusCode);
+
+			assertThat(mappedStatus, is(notNullValue()));
+			assertThat(mappedStatus.getCode(), is(UNAVAILABLE));
+		}
+
+		@Test
+		void statusIsUnknownWhenCodeIsNull() {
+			final var mappedStatus = mapPolarisStatus(null);
+
+			assertThat(mappedStatus, is(notNullValue()));
+			assertThat(mappedStatus.getCode(), is(UNKNOWN));
+		}
+
+		@Test
+		void statusIsUnknownWhenCodeIsEmptyString() {
+			final var mappedStatus = mapPolarisStatus("");
+
+			assertThat(mappedStatus, is(notNullValue()));
+			assertThat(mappedStatus.getCode(), is(UNKNOWN));
+		}
+
+		@Nullable
+		private ItemStatus mapPolarisStatus(String statusCode) {
+			return mapper.mapStatus(Status.builder().code(statusCode).build(),
+					HOST_LMS_CODE, polarisFallback())
+				.block();
 		}
 	}
 
