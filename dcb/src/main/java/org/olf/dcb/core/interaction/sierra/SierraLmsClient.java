@@ -884,7 +884,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		String resolved_status = si.getStatus() != null 
 			? mapSierraItemStatusToDCBHoldStatus(si.getStatus()) 
-			: ( si.deleted() == true ? "MISSING" : "UNKNOWN" );
+			: ( si.getDeleted() == true ? "MISSING" : "UNKNOWN" );
 
 		return HostLmsItem.builder()
 			.localId(si.getId())
