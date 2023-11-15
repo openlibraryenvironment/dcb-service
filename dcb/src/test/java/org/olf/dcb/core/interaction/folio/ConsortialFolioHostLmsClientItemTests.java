@@ -7,6 +7,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -262,7 +263,7 @@ class ConsortialFolioHostLmsClientItemTests {
 	}
 
 	@Test
-	void shouldFailWhenHoldingsNotFoundErrorReceived() {
+	void shouldReportZeroItemsWhenHoldingsCannotBeFound() {
 		// Arrange
 		final var instanceId = UUID.randomUUID().toString();
 
@@ -275,12 +276,10 @@ class ConsortialFolioHostLmsClientItemTests {
 			.build());
 
 		// Act
-		final var exception = assertThrows(FailedToGetItemsException.class,
-			() -> getItems(instanceId));
+		final var items = getItems(instanceId);
 
 		// Assert
-		assertThat("Error should not be null", exception, is(notNullValue()));
-		assertThat(exception, hasProperty("localBibId", is(instanceId)));
+		assertThat("Should have zero items", items, empty());
 	}
 
 	@Test

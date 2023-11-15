@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
@@ -129,20 +130,33 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 				// RTAC returns no outer holdings (instances) when the API key is invalid
 				return Mono.error(new LikelyInvalidApiKeyException(instanceId));
-			}
-			else {
+			} else {
 				return Mono.just(outerHoldings);
 			}
 		} else {
-			log.error("Failed to get items for instance ID: {}, errors: {}",
-				instanceId, outerHoldings.getErrors());
+			log.debug("Errors received from RTAC: {}", outerHoldings.getErrors());
 
-			return Mono.error(new FailedToGetItemsException(instanceId));
+			final var allHoldingsNotFoundErrors = outerHoldings.getErrors()
+				.stream()
+				.filter(error -> isNotEmpty(error.getMessage()))
+				.allMatch(error -> error.getMessage().contains("Holdings not found for instance"));
+
+			// DCB cannot know in advance whether an instance has any associated holdings / items
+			// Holdings not being found for an instance is a false negative
+			if (allHoldingsNotFoundErrors) {
+				return Mono.just(outerHoldings);
+			}
+			else {
+				log.error("Failed to get items for instance ID: {}, errors: {}",
+					instanceId, outerHoldings.getErrors());
+
+				return Mono.error(new FailedToGetItemsException(instanceId));
+			}
 		}
 	}
 
 	private static boolean hasNoOuterHoldings(OuterHoldings outerHoldings) {
-		return outerHoldings.getHoldings()==null || outerHoldings.getHoldings().isEmpty();
+		return outerHoldings.getHoldings() == null || outerHoldings.getHoldings().isEmpty();
 	}
 
 	private static boolean hasNoErrors(OuterHoldings outerHoldings) {
