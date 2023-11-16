@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
@@ -7,6 +8,7 @@ import static java.util.Collections.singletonList;
 import static java.util.Objects.nonNull;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
+import static services.k_int.utils.MapUtils.getAsOptionalString;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -90,7 +92,6 @@ import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
-import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
 /**
@@ -112,8 +113,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final ItemResultToItemMapper itemResultToItemMapper;
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 	private final NumericPatronTypeMapper numericPatronTypeMapper;
+	private final Integer getHoldsRetryAttempts;
 
-	public SierraLmsClient(@Parameter HostLms lms, 
+	public SierraLmsClient(@Parameter HostLms lms,
 		HostLmsSierraApiClientFactory clientFactory,
 		RawSourceRepository rawSourceRepository, 
 		ProcessStateService processStateService,
@@ -125,6 +127,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		this.lms = lms;
 		this.itemResultToItemMapper = itemResultToItemMapper;
 
+		this.getHoldsRetryAttempts = getGetHoldsRetryAttempts(lms.getClientConfig());
+
 		// Get a sierra api client.
 		client = clientFactory.createClientFor(lms);
 		this.rawSourceRepository = rawSourceRepository;
@@ -132,6 +136,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.conversionService = conversionService;
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
+	}
+
+	private static Integer getGetHoldsRetryAttempts(Map<String, Object> clientConfig) {
+		return getAsOptionalString(clientConfig, "get-holds-retry-attempts")
+			.map(Integer::parseInt)
+			.orElse(25);
 	}
 
 	@Override
@@ -145,7 +155,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			new HostLmsPropertyDefinition("key", "Key for this system", TRUE, "String"),
 			new HostLmsPropertyDefinition("page-size", "How many items to retrieve in each page", TRUE, "String"),
 			new HostLmsPropertyDefinition("secret", "Secret for this Sierra system", TRUE, "String"),
-			new HostLmsPropertyDefinition("ingest", "Enable record harvesting for this source", TRUE, "Boolean"));
+			new HostLmsPropertyDefinition("ingest", "Enable record harvesting for this source", TRUE, "Boolean"),
+			new HostLmsPropertyDefinition("get-holds-retry-attempts", "Number of retry attempts when getting holds for a patron", FALSE, "String"));
 	}
 
 	private Mono<BibResultSet> fetchPage(Instant since, int offset, int limit) {
@@ -249,7 +260,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Publisher<BibResult> getResources(Instant since) {
 		log.info("Fetching MARC JSON from Sierra for {}", lms.getName());
 
-		final int pageSize = MapUtils.getAsOptionalString(lms.getClientConfig(), "page-size").map(Integer::parseInt)
+		final int pageSize = getAsOptionalString(lms.getClientConfig(), "page-size").map(Integer::parseInt)
 				.orElse(DEFAULT_PAGE_SIZE);
 
 		return Flux.from(pageAllResults(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
@@ -506,7 +517,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// getPatronHoldRequestId completing... Either
 		// we need retries or a delay.
 		return Mono.from(client.placeHoldRequest(id, patronHoldPost))
-				.then(Mono.defer(() -> getPatronHoldRequestId(id, recordNumber, note, patronRequestId)).retry(25))
+				.then(Mono.defer(() -> getPatronHoldRequestId(id, recordNumber, note, patronRequestId))
+					.retry(getHoldsRetryAttempts))
 				.onErrorResume(NullPointerException.class, error -> {
 					log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
 					return Mono.error(new RuntimeException("Error occurred when creating Hold"));
@@ -633,7 +645,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public boolean isEnabled() {
-		return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(TRUE);
+		return getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(TRUE);
 	}
 
 	public UUID uuid5ForBranch(@NotNull final String hostLmsCode, @NotNull final String localBranchId) {
