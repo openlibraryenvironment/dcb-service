@@ -1,13 +1,17 @@
 package org.olf.dcb.indexing.bulk;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.svc.RecordClusteringService;
 import org.olf.dcb.indexing.SharedIndexService;
+import org.olf.dcb.indexing.model.SharedIndexQueueEntry;
+import org.olf.dcb.indexing.storage.SharedIndexQueueRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,11 +20,16 @@ import com.github.javaparser.quality.NotNull;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.model.Pageable;
 import io.micronaut.retry.annotation.CircuitBreaker;
 import io.micronaut.retry.exception.CircuitOpenException;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
+import io.micronaut.scheduling.annotation.Scheduled;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.annotation.PreDestroy;
+import reactor.core.publisher.BufferOverflowStrategy;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
@@ -36,18 +45,28 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	private final RecordClusteringService clusters;
 	
 	// Maximum size of each chunk to send to the shared index.
-	final int maxSize = 200;
+	final int maxSize = 1000;
 	
 	final Duration throttleTimeout = Duration.ofSeconds(3);
+
+	private final SharedIndexQueueRepository sharedIndexQueueRepository;
 	
-	protected BulkSharedIndexService( RecordClusteringService clusters ) {
+	protected BulkSharedIndexService( RecordClusteringService clusters, SharedIndexQueueRepository sharedIndexQueueRepository ) {
 		
 		this.clusters = clusters;
+		this.sharedIndexQueueRepository = sharedIndexQueueRepository;
 		initializeQueue();
 	}
+
+	protected void overflow( UUID id ) {
 		
+		log.debug("Backpressure overflow handler");
+		saveSingleEntry(id, Optional.empty());
+	}
+	
 	protected void initializeQueue() {
 		Flux.create(this::setSink)
+			.onBackpressureBuffer( maxSize * 2, this::overflow, BufferOverflowStrategy.DROP_LATEST)
 			.windowTimeout(maxSize, throttleTimeout)
 			.concatMap( source -> source.buffer() )
 			
@@ -63,12 +82,12 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 						flagCircuitOpen();
 	
 						// Log in trace to prevent noise.
-						log.atInfo().log("Index service circuit broken temporarily to prevent network flooding.");
+						log.atInfo().log("Index service circuit broken temporarily to prevent IO flooding.");
 						log.atTrace().log("Circuit open cause: ", e.getCause() );
 					}
 					
-					return Mono.empty();
-//					return queueInBackupJob( ops );
+//					return Mono.empty();
+					return queueInBackupJob( ops );
 				}))
 
 			.doOnComplete(() -> log.info("Subscription finalised"))
@@ -80,11 +99,26 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 
 	@NonNull
 	@CircuitBreaker(reset = "2m", attempts = "3", maxDelay = "5s", throwWrappedException = true )
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	protected Flux<List<IndexOperation<UUID, ClusterRecord>>> offloadToImplementation( final List<IndexOperation<UUID, ClusterRecord>> ops ) {
 		return Flux.just(ops)
 			.flatMap( this::doOnNext )
+			.concatMap( this::afterIndex )
 			.doOnNext(_item -> this.flagCircuitClosed());
+	}
+	
+	@NonNull
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	protected Mono<List<IndexOperation<UUID, ClusterRecord>>> afterIndex( final List<IndexOperation<UUID, ClusterRecord>> ops ) {
+		List<UUID> queueEntryIds = ops.stream()
+			.map( IndexOperation::id )
+			.toList();
+		
+		return Mono.from(sharedIndexQueueRepository.deleteAllByClusterIdIn(queueEntryIds))
+			.doOnNext(count -> {
+				if (count > 0) {
+					log.debug("{} items were removed from backup queue", count);
+				}})
+			.thenReturn(ops);
 	}
 	
 	private void flagCircuitOpen() {
@@ -101,33 +135,41 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 		}
 	}
 
-//	@NonNull
-//	@SingleResult
-//	@Transactional(propagation = Propagation.REQUIRES_NEW)
-//	protected Mono<List<IndexOperation<UUID, ClusterRecord>>> queueInBackupJob( final List<IndexOperation<UUID, ClusterRecord>> ops ) {
-//		return Flux.fromIterable(ops)
-//			.map( IndexOperation::doc )
-//			.flatMap( this::saveSingleEntry )
-//			.doOnNext( entry -> log.atDebug().log("Added backup entry for cluster [{}]", entry.getClusterId()))
-//			.then( Mono.just(ops) );
-//	}
+	@NonNull
+	@SingleResult
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	protected Mono<List<IndexOperation<UUID, ClusterRecord>>> queueInBackupJob( final List<IndexOperation<UUID, ClusterRecord>> ops ) {
+		return Flux.fromIterable(ops)
+			.flatMap( op -> {
+				
+				UUID id = op.id();
+				Optional<Instant> upd = Optional.ofNullable(op.doc())
+					.flatMap( cr ->
+						Optional.ofNullable(cr.getDateUpdated())
+							.or(() -> Optional.ofNullable(cr.getDateCreated())));
+				
+				return this.saveSingleEntry(id, upd);
+			})
+			.doOnNext( entry -> log.atTrace().log("Added backup entry for cluster [{}]", entry.getClusterId()))
+			.then( Mono.just(ops) );
+	}
 
-//	@NonNull
-//	@SingleResult
-//	@Transactional(propagation = Propagation.MANDATORY)
-//	protected Publisher<SharedIndexQueueEntry> saveSingleEntry( ClusterRecord cr ) {
-//		return Mono.from(jobQueueRepository.save(
-//			SharedIndexQueueEntry.builder()
-//			 	.clusterId(cr.getId())
-//			 	.clusterDateUpdated(cr.getDateUpdated())
-//			 	.build()))
-//		.onErrorResume( ex -> {
-//		  // Log the error but move on.
-//			log.atError().log("Error adding Cluster to index queue in the database", ex);
-//			// Recover.
+	@NonNull
+	@SingleResult
+	@Transactional
+	protected Mono<SharedIndexQueueEntry> saveSingleEntry( @NotNull UUID crId, @NotNull Optional<Instant> timestamp ) {
+		return Mono.from(sharedIndexQueueRepository.save(
+			SharedIndexQueueEntry.builder()
+			 	.clusterId(crId)
+			 	.clusterDateUpdated(timestamp.orElse(Instant.now()))
+			 	.build()))
+		.doOnError( ex -> {
+		  // Log the error but move on.
+			log.atError().log("Error adding Cluster to index queue in the database", ex);
+			// Recover.
 //			return Mono.empty();
-//		});
-//	}
+		});
+	}
 
 	@NonNull
 	@SingleResult
@@ -140,7 +182,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 			.collectList();
 	}
 	
-	private IndexOperation<UUID, ClusterRecord> clusterRecordToIndexOperation( @NotNull ClusterRecord cr ) {
+	private IndexOperation<UUID, ClusterRecord> clusterRecordToIndexOperation( @NotNull final ClusterRecord cr ) {
 		if (Boolean.TRUE.equals(cr.getIsDeleted())) {
 			return IndexOperation.delete( cr.getId() );
 		}
@@ -148,49 +190,42 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 		return IndexOperation.update(cr.getId(), cr);
 	}
 
-//	@Transactional(propagation = Propagation.REQUIRES_NEW)
-//	protected Flux<UUID> getBackupQueue() {
-//
-//		// We always fetch the first page
-//		final Pageable pageable = Pageable.from(0, maxSize);
-//		
-//		return Mono.from( jobQueueRepository.findAllOrderByClusterDateUpdatedAsc(pageable) )
-//			.expand( actioned -> {
-//				if (actioned.getNumberOfElements() < 1) {
-//					return Mono.empty();
-//				}
-//				
-//				return Mono.defer(() -> this.deleteActionedAndGetNextChunk(actioned, pageable));
-//			})
-//			.concatMapIterable( page -> page.getContent().stream().map(SharedIndexQueueEntry::getClusterId).toList() )
-//			.takeUntil(_rc -> this.circuitOpen.get())
-//			;
-//	}
-	
-//	@Scheduled(fixedDelay = "30s", initialDelay = "30s")
-//	public void indexBackupQueue() {
-//		getBackupQueue()
-//			.subscribe(this::queueId, this::databaseJobError);
-//	}
-	
-//	private void databaseJobError ( Throwable error ) {
-//		log.error("Error running scheduled job {}", error);
-//	}
+	@Transactional(readOnly = true)
+	protected Flux<UUID> getBackupQueue() {
+		
+		final int pageSize = maxSize * 2; // Double page size, but stagger the elements.
+		final int staggerByMillis = 5;
 
-//	@Transactional(propagation = Propagation.REQUIRES_NEW)
-//	protected Mono<Page<SharedIndexQueueEntry>> deleteActionedAndGetNextChunk( final Page<SharedIndexQueueEntry> actioned, final Pageable chunkParams) {
-//		
-//		List<UUID> queueEntryIds = actioned
-//			.map( SharedIndexQueueEntry::getId )
-//			.getContent();
-//		
-//		return Mono.from(jobQueueRepository.deleteAllByIdIn(queueEntryIds))
-//			.doOnNext( count -> log.atDebug().log("Removed {} entries for actioned IDs", count) )
-//			.then( Mono.defer( () -> Mono.from( jobQueueRepository.findAllOrderByClusterDateUpdatedAsc(chunkParams))));
-//	}
+		// We always fetch the first page
+		final Pageable pageable = Pageable.from(0, pageSize);
+		
+		return Mono.from( sharedIndexQueueRepository.findAllOrderByClusterDateUpdatedAsc(pageable) )
+			.flatMapIterable( page -> page.map(SharedIndexQueueEntry::getClusterId) )
+			.takeUntil( _i -> this.circuitOpen.get())
+			.delayElements(Duration.ofMillis(staggerByMillis));
+	}
+	
+	@ExecuteOn(value = TaskExecutors.BLOCKING)
+	@Scheduled(fixedDelay = "2s", initialDelay = "30s")
+	public void indexBackupQueue() {
+		if (log.isTraceEnabled()) {
+			log.trace("Running backup job.");
+		}
+		
+		getBackupQueue()
+			.doOnError(this::databaseJobError)
+			.doOnNext( this::queueId )
+			.blockLast();
+		// Sadly we need this method to block, so that the "fixedDelay" works above.
+		
+	}
+	
+	private void databaseJobError ( Throwable error ) {
+		log.error("Error running scheduled job", error);
+	}
 
 	@NonNull
-	protected abstract Publisher<List<IndexOperation<UUID, ClusterRecord>>> doOnNext (List<IndexOperation<UUID, ClusterRecord>> item);
+	protected abstract Publisher<List<IndexOperation<UUID, ClusterRecord>>> doOnNext ( final List<IndexOperation<UUID, ClusterRecord>> item);
 	
 	private void setSink(FluxSink<UUID> sink) {
 		this.theSink = sink;
