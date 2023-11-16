@@ -157,7 +157,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	@NonNull
 	@SingleResult
 	@Transactional
-	protected Mono<SharedIndexQueueEntry> saveSingleEntry( @NotNull UUID crId, @NotNull Optional<Instant> timestamp ) {
+	protected Mono<? extends SharedIndexQueueEntry> saveSingleEntry( @NotNull UUID crId, @NotNull Optional<Instant> timestamp ) {
 		return Mono.from(sharedIndexQueueRepository.save(
 			SharedIndexQueueEntry.builder()
 			 	.clusterId(crId)

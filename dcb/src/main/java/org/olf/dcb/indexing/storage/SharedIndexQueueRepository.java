@@ -20,7 +20,7 @@ public interface SharedIndexQueueRepository {
 	
 	@SingleResult
 	@NonNull
-	public Publisher<SharedIndexQueueEntry> save( @Valid @NonNull SharedIndexQueueEntry entry);
+	public Publisher<? extends SharedIndexQueueEntry> save( @Valid @NonNull SharedIndexQueueEntry entry);
 
 	@SingleResult
 	@NonNull
