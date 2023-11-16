@@ -2,13 +2,11 @@ package org.olf.dcb.indexing;
 
 import java.util.UUID;
 
-import reactor.core.publisher.Mono;
-
 public interface SharedIndexService {
 	
-	Mono<Void> initialize();
+	void initialize();
 	
-	Mono<Void> deleteAll();
+	void deleteAll();
 	
 	void add( UUID clusterID );
 	

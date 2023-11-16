@@ -30,9 +30,12 @@ import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import co.elastic.clients.elasticsearch.indices.CreateIndexResponse;
 import co.elastic.clients.elasticsearch.indices.DeleteIndexResponse;
 import co.elastic.clients.elasticsearch.indices.IndexSettings;
+import co.elastic.clients.transport.endpoints.BooleanResponse;
 import co.elastic.clients.util.ObjectBuilder;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.convert.ConversionService;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Singleton;
 import lombok.Setter;
@@ -63,19 +66,57 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	void init() {
 		log.info("Using Elasticearch Indexing service");
 	}
+	
+	private Mono<Void> deleteAllAsync() {
+		return Mono.from( deleteIndex() )
+			.doOnNext(resp -> {				
+				log.atInfo().log("Delete all, by deleting index: {}", indexName);
+			})
+			.onErrorMap( handleErrors("Error deleting all from shared index") )
+			.then();
+	}
 
 	@Override
-	public Mono<Void> initialize() {
-		return Mono.from( createIndex() )
+	@ExecuteOn(TaskExecutors.BLOCKING)
+	public void deleteAll() {
+		deleteAllAsync().block();
+	}
+
+	public Mono<CreateIndexResponse> initializeAsync() {
+		
+		// Check for index.
+		// If not present then create.
+		return checkIndex()
+			.map(BooleanResponse::value)
+			.filter(Boolean.FALSE::equals)
+			.flatMap( b_ -> createIndex() )
 			.doOnNext(resp -> {
 				log.atInfo().log("Initialized index: {}", resp.index());
 			})
-			.onErrorMap( handleErrors("Error initializing shared index") )
-			.then();
+			.onErrorMap( handleErrors("Error initializing shared index") );
+	}
+	
+	@Override
+	@ExecuteOn(TaskExecutors.BLOCKING)
+	public void initialize() {
+		initializeAsync().block();
 	}
 	
 	private Function<Throwable, Throwable> handleErrors ( final String message ) {
 		return ( cause ) -> new DcbException( message, cause );
+	}
+	
+
+	private Mono<BooleanResponse> checkIndex() {
+		try {
+			return Mono.fromFuture(
+				client.indices()
+					.exists( ind -> ind
+						.index( indexName )));
+			
+		} catch (Throwable e) {
+			return Mono.error( new DcbError("Error when creating index", e) );
+		}
 	}
 	
 	private Mono<CreateIndexResponse> createIndex() {
@@ -90,17 +131,6 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 		} catch (Throwable e) {
 			return Mono.error( new DcbError("Error when creating index", e) );
 		}
-	}
-	
-	@Override
-	public Mono<Void> deleteAll() {
-
-		return Mono.from( deleteIndex() )
-			.doOnNext(resp -> {				
-				log.atInfo().log("Delete all, by deleting index: {}", indexName);
-			})
-			.onErrorMap( handleErrors("Error deleting all from shared index") )
-			.then();
 	}
 	
 	private Mono<DeleteIndexResponse> deleteIndex() {

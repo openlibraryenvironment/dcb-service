@@ -26,6 +26,7 @@ import org.opensearch.client.opensearch.core.bulk.BulkResponseItem;
 import org.opensearch.client.opensearch.indices.CreateIndexResponse;
 import org.opensearch.client.opensearch.indices.DeleteIndexResponse;
 import org.opensearch.client.opensearch.indices.IndexSettings;
+import org.opensearch.client.transport.endpoints.BooleanResponse;
 import org.opensearch.client.util.ObjectBuilder;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -34,6 +35,8 @@ import org.slf4j.LoggerFactory;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.annotation.Order;
 import io.micronaut.core.convert.ConversionService;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Singleton;
 import lombok.Setter;
@@ -47,6 +50,10 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	
+	private static final String STOPWORDS_FILTER_NAME = "dcb_stopwords_filter";
+
+	private static final String DEFAULT_STOPWORDS = "_english_";
+
 	static final int OS_INDEXER_PRIORITY = 1;
 	
 	private final Logger log = LoggerFactory.getLogger(OpenSearchSharedIndexService.class);
@@ -68,14 +75,52 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 		log.info("Using Opensearch Indexing service");
 	}
 
+	private Mono<Void> deleteAllAsync() {
+		return Mono.from( deleteIndex() )
+			.doOnNext(resp -> {				
+				log.atInfo().log("Delete all, by deleting index: {}", indexName);
+			})
+			.onErrorMap( handleErrors("Error deleting all from shared index") )
+			.then();
+	}
+	
 	@Override
-	public Mono<Void> initialize() {
-		return Mono.from( createIndex() )
+	@ExecuteOn(TaskExecutors.BLOCKING)
+	public void deleteAll() {
+		deleteAllAsync().block();
+	}
+	
+
+	private Mono<BooleanResponse> checkIndex() {
+		try {
+			return Mono.fromFuture(
+				client.indices()
+					.exists( ind -> ind
+						.index( indexName )));
+			
+		} catch (Throwable e) {
+			return Mono.error( new DcbError("Error when creating index", e) );
+		}
+	}
+
+	public Mono<CreateIndexResponse> initializeAsync() {
+		
+		// Check for index.
+		// If not present then create.
+		return checkIndex()
+			.map(BooleanResponse::value)
+			.filter(Boolean.FALSE::equals)
+			.then( createIndex() )
 			.doOnNext(resp -> {
 				log.atInfo().log("Initialized index: {}", resp.index());
 			})
-			.onErrorMap( handleErrors("Error initializing shared index") )
-			.then();
+			.onErrorMap( handleErrors("Error initializing shared index") );
+	}
+	
+	@Override
+	@ExecuteOn(TaskExecutors.BLOCKING)
+	public void initialize() {
+		initializeAsync().block();
 	}
 	
 	private Function<Throwable, Throwable> handleErrors ( final String message ) {
@@ -96,16 +141,6 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 		}
 	}
 	
-	@Override
-	public Mono<Void> deleteAll() {
-
-		return Mono.from( deleteIndex() )
-			.doOnNext(resp -> {				
-				log.atInfo().log("Delete all, by deleting index: {}", indexName);
-			})
-			.onErrorMap( handleErrors("Error deleting all from shared index") )
-			.then();
-	}
 	
 	private Mono<DeleteIndexResponse> deleteIndex() {
 		try {
@@ -132,15 +167,16 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 			"default", Analyzer.of( anb -> anb
 			  .custom(cab -> cab
 					.tokenizer("whitespace")
-					.filter(List.of("dcb_stopwords_filter")))));
+					.filter(List.of(STOPWORDS_FILTER_NAME)))));
 	}
 	
 	private static Map<String, TokenFilter> getFiltersMap() {
 		return Map.of(
-			"dcb_stopwords_filter", TokenFilter.of(tf -> tf
+			STOPWORDS_FILTER_NAME, TokenFilter.of(tf -> tf
 				.definition(def -> def
 					.stop(sb -> sb
-						.ignoreCase(true)))));
+						.ignoreCase(true)
+						.stopwords(DEFAULT_STOPWORDS)))));
 	}
 	
 	private Property buildKeyWordFieldTextProperty(final int maxKw) {

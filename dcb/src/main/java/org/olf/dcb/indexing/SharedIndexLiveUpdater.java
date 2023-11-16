@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Requires;
+import io.micronaut.context.event.ApplicationEventListener;
+import io.micronaut.context.event.StartupEvent;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.event.EntityEventContext;
 import io.micronaut.data.event.EntityEventListener;
@@ -15,7 +17,7 @@ import jakarta.inject.Singleton;
 @Requires(bean = SharedIndexService.class)
 @ExecuteOn(TaskExecutors.BLOCKING)
 @Singleton
-public class SharedIndexLiveUpdater implements EntityEventListener<ClusterRecord> {
+public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupEvent>, EntityEventListener<ClusterRecord> {
 	
 	private final SharedIndexService sharedIndexService;
 	
@@ -38,6 +40,12 @@ public class SharedIndexLiveUpdater implements EntityEventListener<ClusterRecord
 	@Override
 	public void postRemove(@NonNull EntityEventContext<ClusterRecord> context) {
 		sharedIndexService.delete(context.getEntity().getId());
+	}
+
+	@Override
+	public void onApplicationEvent(StartupEvent event) {
+		log.debug("Initializing shared index service...");
+		sharedIndexService.initialize();
 	}
 	
 }
