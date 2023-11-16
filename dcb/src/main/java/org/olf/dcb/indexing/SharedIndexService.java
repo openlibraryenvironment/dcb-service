@@ -13,4 +13,6 @@ public interface SharedIndexService {
 	void update( UUID clusterID );
 
 	void delete( UUID clusterID );
+	
+	
 }

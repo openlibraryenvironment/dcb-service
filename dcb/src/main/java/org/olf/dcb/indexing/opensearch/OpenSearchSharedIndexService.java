@@ -16,6 +16,8 @@ import org.olf.dcb.indexing.model.ClusterRecordIndexDoc;
 import org.olf.dcb.indexing.storage.SharedIndexQueueRepository;
 import org.opensearch.client.opensearch.OpenSearchAsyncClient;
 import org.opensearch.client.opensearch._types.analysis.Analyzer;
+import org.opensearch.client.opensearch._types.analysis.Normalizer;
+import org.opensearch.client.opensearch._types.analysis.NormalizerBuilders;
 import org.opensearch.client.opensearch._types.analysis.TokenFilter;
 import org.opensearch.client.opensearch._types.mapping.Property;
 import org.opensearch.client.opensearch._types.mapping.PropertyBuilders;
@@ -55,6 +57,8 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	private static final String DEFAULT_STOPWORDS = "_english_";
 
 	static final int OS_INDEXER_PRIORITY = 1;
+
+	private static final String LOWERCASE_NORMALIZER = "lowercase_normalizer";
 	
 	private final Logger log = LoggerFactory.getLogger(OpenSearchSharedIndexService.class);
 	
@@ -159,7 +163,8 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 		return settings
 			.analysis(analysis -> analysis
 				.analyzer(getAnalyzersMap())
-				.filter(getFiltersMap()));
+				.filter(getFiltersMap())
+				.normalizer(getNormalizersMap()));
 	}
 	
 	private static Map<String, Analyzer> getAnalyzersMap() {
@@ -179,12 +184,26 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 						.stopwords(DEFAULT_STOPWORDS)))));
 	}
 	
-	private Property buildKeyWordFieldTextProperty(final int maxKw) {
+
+	private static Map<String, Normalizer> getNormalizersMap() {
+		return Map.of(
+			LOWERCASE_NORMALIZER, NormalizerBuilders
+				.lowercase()
+				.build()
+					._toNormalizer());
+	}
+	
+	private Property buildKeyWordFieldTextProperty(final int maxKw, final boolean normalizeToLowercase) {
 		return Property.of(p -> p
-			.text(t -> t
-				.fields("keyword", f -> f
-					.keyword(kw -> kw
-						.ignoreAbove(maxKw)))));
+				.text(t -> t
+					.fields("keyword", f -> f
+						.keyword(kw -> {
+							if (normalizeToLowercase) {
+								kw.normalizer(LOWERCASE_NORMALIZER);
+							}
+							
+							return kw.ignoreAbove(maxKw);
+					  }))));
 	}
 	
 	private Property defaultKeywordProperty() {
@@ -194,38 +213,38 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	private ObjectBuilder<TypeMapping> getMappings(TypeMapping.Builder m) {
 		return m
 			.properties(
-				"title", buildKeyWordFieldTextProperty(256))
+				"title", buildKeyWordFieldTextProperty(256, true))
 			.properties(
-				"primaryAuthor", buildKeyWordFieldTextProperty(256))
+				"primaryAuthor", buildKeyWordFieldTextProperty(256, true))
 			.properties(
 				"yearOfPublication", new Property(PropertyBuilders.long_().build()))
 			.properties(
-				"bibClusterId", buildKeyWordFieldTextProperty(256))
+				"bibClusterId", buildKeyWordFieldTextProperty(256, false))
 			.properties(
 				"members", mem -> mem
 					.object(mo -> mo
 						.properties(
 							"bibId", defaultKeywordProperty())
 						.properties(
-							"sourceSystem", buildKeyWordFieldTextProperty(256))))
+							"sourceSystem", buildKeyWordFieldTextProperty(256, false))))
 					
 			.properties(
-				"isbn", buildKeyWordFieldTextProperty(256))
+				"isbn", buildKeyWordFieldTextProperty(256, false))
 			.properties(
-				"issn", buildKeyWordFieldTextProperty(256))
+				"issn", buildKeyWordFieldTextProperty(256, false))
 			.properties(
 				"metadata", md -> md
 					.object(mo -> mo
 						.properties(
 							"agents", a -> a
 								.object(ao -> ao
-									.properties("label", buildKeyWordFieldTextProperty(256))
+									.properties("label", buildKeyWordFieldTextProperty(256, false))
 									.properties("subtype", defaultKeywordProperty())))
 								
 						.properties(
 							"subjects", s -> s
 								.object(so -> so
-									.properties("label", buildKeyWordFieldTextProperty(256))
+									.properties("label", buildKeyWordFieldTextProperty(256, true))
 									.properties("subtype", defaultKeywordProperty())))
 						
 						.properties(

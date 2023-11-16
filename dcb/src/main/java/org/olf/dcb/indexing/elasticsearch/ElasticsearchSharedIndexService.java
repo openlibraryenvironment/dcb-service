@@ -20,6 +20,8 @@ import org.slf4j.LoggerFactory;
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
 import co.elastic.clients.elasticsearch._types.analysis.Analyzer;
+import co.elastic.clients.elasticsearch._types.analysis.Normalizer;
+import co.elastic.clients.elasticsearch._types.analysis.NormalizerBuilders;
 import co.elastic.clients.elasticsearch._types.analysis.TokenFilter;
 import co.elastic.clients.elasticsearch._types.mapping.Property;
 import co.elastic.clients.elasticsearch._types.mapping.PropertyBuilders;
@@ -48,6 +50,10 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	
+	private static final String STOPWORDS_FILTER = "dcb_stopwords_filter";
+
+	private static final String LOWERCASE_NORMALIZER = "lowercase_normalizer";
+
 	private final Logger log = LoggerFactory.getLogger(ElasticsearchSharedIndexService.class);
 	
 	private final ElasticsearchAsyncClient client;
@@ -150,7 +156,8 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 		return settings
 			.analysis(analysis -> analysis
 				.analyzer(getAnalyzersMap())
-				.filter(getFiltersMap()));
+				.filter(getFiltersMap())
+				.normalizer(getNormalizersMap()));
 	}
 	
 	private static Map<String, Analyzer> getAnalyzersMap() {
@@ -158,23 +165,37 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 			"default", Analyzer.of( anb -> anb
 			  .custom(cab -> cab
 					.tokenizer("whitespace")
-					.filter(List.of("dcb_stopwords_filter")))));
+					.filter(List.of(STOPWORDS_FILTER)))));
 	}
 	
 	private static Map<String, TokenFilter> getFiltersMap() {
 		return Map.of(
-			"dcb_stopwords_filter", TokenFilter.of(tf -> tf
+			STOPWORDS_FILTER, TokenFilter.of(tf -> tf
 				.definition(def -> def
 					.stop(sb -> sb
 						.ignoreCase(true)))));
 	}
 	
-	private Property buildKeyWordFieldTextProperty(final int maxKw) {
+	private static Map<String, Normalizer> getNormalizersMap() {
+		return Map.of(
+			LOWERCASE_NORMALIZER, NormalizerBuilders
+				.lowercase()
+				.build()
+					._toNormalizer());
+	}
+	
+	private Property buildKeyWordFieldTextProperty(final int maxKw, boolean normalizeToLowercase) {
 		return Property.of(p -> p
 			.text(t -> t
+					
 				.fields("keyword", f -> f
-					.keyword(kw -> kw
-						.ignoreAbove(maxKw)))));
+					.keyword(kw -> {
+						if (normalizeToLowercase) {
+							kw.normalizer(LOWERCASE_NORMALIZER);
+						}
+						
+						return kw.ignoreAbove(maxKw);
+				  }))));
 	}
 	
 	private Property defaultKeywordProperty() {
@@ -184,38 +205,38 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	private ObjectBuilder<TypeMapping> getMappings(TypeMapping.Builder m) {
 		return m
 			.properties(
-				"title", buildKeyWordFieldTextProperty(256))
+				"title", buildKeyWordFieldTextProperty(256, true))
 			.properties(
-				"primaryAuthor", buildKeyWordFieldTextProperty(256))
+				"primaryAuthor", buildKeyWordFieldTextProperty(256, true))
 			.properties(
 				"yearOfPublication", new Property(PropertyBuilders.long_().build()))
 			.properties(
-				"bibClusterId", buildKeyWordFieldTextProperty(256))
+				"bibClusterId", buildKeyWordFieldTextProperty(256, false))
 			.properties(
 				"members", mem -> mem
 					.object(mo -> mo
 						.properties(
 							"bibId", defaultKeywordProperty())
 						.properties(
-							"sourceSystem", buildKeyWordFieldTextProperty(256))))
+							"sourceSystem", buildKeyWordFieldTextProperty(256, false))))
 					
 			.properties(
-				"isbn", buildKeyWordFieldTextProperty(256))
+				"isbn", buildKeyWordFieldTextProperty(256, false))
 			.properties(
-				"issn", buildKeyWordFieldTextProperty(256))
+				"issn", buildKeyWordFieldTextProperty(256, false))
 			.properties(
 				"metadata", md -> md
 					.object(mo -> mo
 						.properties(
 							"agents", a -> a
 								.object(ao -> ao
-									.properties("label", buildKeyWordFieldTextProperty(256))
+									.properties("label", buildKeyWordFieldTextProperty(256, false))
 									.properties("subtype", defaultKeywordProperty())))
 								
 						.properties(
 							"subjects", s -> s
 								.object(so -> so
-									.properties("label", buildKeyWordFieldTextProperty(256))
+									.properties("label", buildKeyWordFieldTextProperty(256, true))
 									.properties("subtype", defaultKeywordProperty())))
 						
 						.properties(
