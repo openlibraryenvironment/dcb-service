@@ -63,7 +63,8 @@ public class HostLmsFixture {
 			"key", username,
 			"secret", password,
 			"base-url", host,
-			"holdPolicy", holdPolicy));
+			"holdPolicy", holdPolicy,
+			"get-holds-retry-attempts", "1"));
 	}
 
 	private DataHostLms createSierraHostLms(String code, Map<String, String> key) {
