@@ -19,10 +19,10 @@ public class HostLmsPropertyDefinition {
 	Boolean mandatory;
 	String typeCode;
 
-	public static HostLmsPropertyDefinition urlPropertyDefinition(String name,
+	public static UrlHostLmsPropertyDefinition urlPropertyDefinition(String name,
 		String description, Boolean mandatory) {
 
-		return new HostLmsPropertyDefinition(name, description, mandatory, "URL");
+		return new UrlHostLmsPropertyDefinition(name, description, mandatory);
 	}
 
 	public static HostLmsPropertyDefinition stringPropertyDefinition(String name,
@@ -52,6 +52,12 @@ public class HostLmsPropertyDefinition {
 			return getAsOptionalString(clientConfig, getName())
 				.map(Integer::parseInt)
 				.orElse(defaultValue);
+		}
+	}
+
+	public static class UrlHostLmsPropertyDefinition extends HostLmsPropertyDefinition {
+		public UrlHostLmsPropertyDefinition(String name, String description, Boolean mandatory) {
+			super(name, description, mandatory, "URL");
 		}
 	}
 }
