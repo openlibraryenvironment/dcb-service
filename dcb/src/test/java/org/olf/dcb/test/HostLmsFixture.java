@@ -43,8 +43,7 @@ public class HostLmsFixture {
 	}
 
 	public DataHostLms createHostLms(UUID id, String code) {
-		return saveHostLms(new DataHostLms(id, code, "Test Host LMS",
-			SierraLmsClient.class.getCanonicalName(), Map.of()));
+		return createHostLms(id, code, SierraLmsClient.class, Map.of());
 	}
 
 	public DataHostLms createSierraHostLms(String username, String password,
@@ -106,6 +105,13 @@ public class HostLmsFixture {
 				.lmsClientClass(PAPILmsClient.class.getCanonicalName())
 				.clientConfig(clientConfig)
 				.build());
+	}
+
+	public <T> DataHostLms createHostLms(UUID id, String code,
+		Class<T> clientClass, Map<String, Object> clientConfig) {
+
+		return saveHostLms(new DataHostLms(id, code, "Test Host LMS",
+			clientClass.getCanonicalName(), clientConfig));
 	}
 
 	private DataHostLms saveHostLms(DataHostLms hostLms) {
