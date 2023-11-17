@@ -42,6 +42,7 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition.IntegerHostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
@@ -103,10 +104,10 @@ import services.k_int.utils.UUIDUtils;
 @Prototype
 @Slf4j
 public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
-	private static final HostLmsPropertyDefinition GET_HOLDS_RETRY_ATTEMPTS_PROPERTY = integerPropertyDefinition(
+	private static final IntegerHostLmsPropertyDefinition GET_HOLDS_RETRY_ATTEMPTS_PROPERTY = integerPropertyDefinition(
 		"get-holds-retry-attempts", "Number of retry attempts when getting holds for a patron", FALSE);
 
-	private static final HostLmsPropertyDefinition PAGE_SIZE_PROPERTY = integerPropertyDefinition(
+	private static final IntegerHostLmsPropertyDefinition PAGE_SIZE_PROPERTY = integerPropertyDefinition(
 		"page-size", "How many items to retrieve in each page", FALSE);
 	
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
@@ -150,7 +151,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private static Integer getOptionalIntegerPropertyFrom(Map<String, Object> clientConfig,
-		HostLmsPropertyDefinition property, int defaultValue) {
+		IntegerHostLmsPropertyDefinition property, int defaultValue) {
 
 		return getAsOptionalString(clientConfig, property.getName())
 			.map(Integer::parseInt)
