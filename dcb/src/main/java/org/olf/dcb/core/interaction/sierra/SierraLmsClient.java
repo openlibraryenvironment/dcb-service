@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
@@ -139,15 +140,16 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	public List<HostLmsPropertyDefinition> getSettings() {
-		return List.of(new HostLmsPropertyDefinition("base-url", "Base URL Of Sierra System", Boolean.TRUE, "URL"),
-				new HostLmsPropertyDefinition("key", "Key for this system", Boolean.TRUE, "String"),
-				new HostLmsPropertyDefinition("page-size", "How many items to retrieve in each page", Boolean.TRUE, "String"),
-				new HostLmsPropertyDefinition("secret", "Secret for this Sierra system", Boolean.TRUE, "String"),
-				new HostLmsPropertyDefinition("ingest", "Enable record harvesting for this source", Boolean.TRUE, "Boolean"));
+		return List.of(
+			new HostLmsPropertyDefinition("base-url", "Base URL Of Sierra System", TRUE, "URL"),
+			new HostLmsPropertyDefinition("key", "Key for this system", TRUE, "String"),
+			new HostLmsPropertyDefinition("page-size", "How many items to retrieve in each page", TRUE, "String"),
+			new HostLmsPropertyDefinition("secret", "Secret for this Sierra system", TRUE, "String"),
+			new HostLmsPropertyDefinition("ingest", "Enable record harvesting for this source", TRUE, "Boolean"));
 	}
 
 	private Mono<BibResultSet> fetchPage(Instant since, int offset, int limit) {
-		log.info("Creating subscribeable batch;  since={} offset={} limit={}", since, offset, limit);
+		log.info("Creating subscribable batch;  since={} offset={} limit={}", since, offset, limit);
 		return Mono.from(client.bibs(params -> {
 			params.offset(offset).limit(limit)
 				.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "deleted", "marc", "suppressed", "fixedFields" ));
@@ -631,7 +633,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public boolean isEnabled() {
-		return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(Boolean.TRUE);
+		return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(TRUE);
 	}
 
 	public UUID uuid5ForBranch(@NotNull final String hostLmsCode, @NotNull final String localBranchId) {
