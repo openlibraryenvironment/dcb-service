@@ -7,6 +7,7 @@ import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.nonNull;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.booleanPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
@@ -157,7 +158,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			stringPropertyDefinition("key", "Key for this system", TRUE),
 			stringPropertyDefinition("page-size", "How many items to retrieve in each page", TRUE),
 			stringPropertyDefinition("secret", "Secret for this Sierra system", TRUE),
-			new HostLmsPropertyDefinition("ingest", "Enable record harvesting for this source", TRUE, "Boolean"),
+			booleanPropertyDefinition("ingest", "Enable record harvesting for this source", TRUE),
 			new HostLmsPropertyDefinition("get-holds-retry-attempts", "Number of retry attempts when getting holds for a patron", FALSE, "Integer"));
 	}
 

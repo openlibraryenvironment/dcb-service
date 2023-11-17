@@ -31,4 +31,10 @@ public class HostLmsPropertyDefinition {
 
 		return new HostLmsPropertyDefinition(name, description, mandatory, "String");
 	}
+
+	public static HostLmsPropertyDefinition booleanPropertyDefinition(String name,
+		String description, Boolean mandatory) {
+
+		return new HostLmsPropertyDefinition(name, description, mandatory, "Boolean");
+	}
 }
