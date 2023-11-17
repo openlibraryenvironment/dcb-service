@@ -70,7 +70,9 @@ info:
     interval: ${dcb.ingest.interval:1h}
   tracking:
     interval: ${dcb.tracking.interval:5m}
-
+  env:
+    code: ${dcb.env.code:Unknown - set DCB_ENV_CODE}
+    description: ${dcb.env.description:Unknown - set DCB_ENV_DESCRIPTION}
 flyway:
   enabled: true
   datasources:

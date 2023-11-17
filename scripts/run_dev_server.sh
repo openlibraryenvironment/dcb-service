@@ -11,6 +11,8 @@ export MICRONAUT_HTTP_CLIENT_READ_TIMEOUT="PT1M"
 export MICRONAUT_HTTP_CLIENT_MAX_CONTENT_LENGTH="20971520"
 export DCB_INGEST_INTERVAL="1m"
 export DCB_SCHEDULED_TASKS_ENABLED="true"
+export DCB_ENV_CODE="LOCAL-DEV"
+export DCB_ENV_DESCRIPTION="Local Dev"
 
 echo Access postgres with "psql -h localhost -p 49168 -U test" and the password test
 

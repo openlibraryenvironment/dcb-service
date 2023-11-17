@@ -59,14 +59,14 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 						return pr.setStatus(CANCELLED);
 					}
 					// item has been returned home from borrowing library
-					if (Objects.equals(sr.getLocalItemStatus(), ITEM_AVAILABLE)) {
+					else if (Objects.equals(sr.getLocalItemStatus(), ITEM_AVAILABLE)) {
 						log.debug("setting DCB internal status to COMPLETED because item status AVAILABLE {}",pr);
 						return pr.setStatus(COMPLETED);
 					}
 					// item has not been despatched from lending library
-					if (Objects.equals(sr.getLocalStatus(), "PLACED")) {
+					else if (Objects.equals(sr.getLocalStatus(), "PLACED")) {
 						log.debug("setting DCB internal status to COMPLETED because sr local status PLACED {}",pr);
-						return pr.setStatus(COMPLETED);
+						return pr.setStatus(CANCELLED);
 					}
 					log.debug("No matched condition for changing DCB internal status {}",pr);
 					return pr;
