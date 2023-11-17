@@ -156,7 +156,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			new HostLmsPropertyDefinition("page-size", "How many items to retrieve in each page", TRUE, "String"),
 			new HostLmsPropertyDefinition("secret", "Secret for this Sierra system", TRUE, "String"),
 			new HostLmsPropertyDefinition("ingest", "Enable record harvesting for this source", TRUE, "Boolean"),
-			new HostLmsPropertyDefinition("get-holds-retry-attempts", "Number of retry attempts when getting holds for a patron", FALSE, "String"));
+			new HostLmsPropertyDefinition("get-holds-retry-attempts", "Number of retry attempts when getting holds for a patron", FALSE, "Integer"));
 	}
 
 	private Mono<BibResultSet> fetchPage(Instant since, int offset, int limit) {
