@@ -24,6 +24,7 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -136,6 +137,11 @@ public class RecordClusteringService {
 	@Transactional
 	public Flux<ClusterRecord> findAllByIdInList(Collection<UUID> ids) {
 		return Flux.from(clusterRecords.findAllByIdInList(ids));
+	}
+	
+	@Transactional
+	public Mono<Page<UUID>> findNext1000UpdatedBefore(@NonNull Instant before, Pageable page) {
+		return Mono.from(clusterRecords.findIdByDateUpdatedLessThanEqualsOrderByDateUpdated(before, page));
 	}
 	
 	@Transactional

@@ -55,6 +55,10 @@ public interface ClusterRecordRepository {
 	@SingleResult
 	Publisher<Page<ClusterRecord>> findByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);
 	
+	@SingleResult
+	@NonNull
+	Publisher<Page<UUID>> findIdByDateUpdatedLessThanEqualsOrderByDateUpdated(Instant i, @Valid Pageable pageable);
+	
 	@NonNull
 	Publisher<ClusterRecord> findAllByMatchPoints ( Collection<UUID> points );
 	
