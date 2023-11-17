@@ -106,7 +106,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private static final HostLmsPropertyDefinition GET_HOLDS_RETRY_ATTEMPTS_PROPERTY = integerPropertyDefinition(
 		"get-holds-retry-attempts", "Number of retry attempts when getting holds for a patron", FALSE);
 
-	private static final HostLmsPropertyDefinition PAGE_SIZE_PROPERTY = stringPropertyDefinition(
+	private static final HostLmsPropertyDefinition PAGE_SIZE_PROPERTY = integerPropertyDefinition(
 		"page-size", "How many items to retrieve in each page", FALSE);
 	
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
