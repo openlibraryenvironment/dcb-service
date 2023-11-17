@@ -61,37 +61,37 @@ public class TrackingService implements Runnable {
 		log.debug("DCB Tracking Service run");
 
 		if ( ( this.mutex != null && !this.mutex.isDisposed() ) ) {
-			log.info("Tracking already running skipping. Mutex: {}", this.mutex);
+			log.warn("Tracking already running skipping. Mutex: {}", this.mutex);
 			return;
 		}
 
-		log.info("Scheduled Tracking Ingest");
+		log.info("Starting Scheduled Tracking Ingest");
 		final long start = System.currentTimeMillis();
 		trackActivePatronRequestHolds().flatMap( this::checkPatronRequest).subscribe();
 		trackSupplierItems().flatMap( this::checkSupplierItem).subscribe();
 		trackActiveSupplierHolds().flatMap( this::checkSupplierRequest).subscribe();
 		trackVirtualItems().flatMap( this::checkVirtualItem).subscribe();
-                log.debug("Completed");
+                log.info("Completed Scheduled Tracking Ingest");
 	}
 
 	public Flux<PatronRequest> trackActivePatronRequestHolds() {
-		log.debug("trackActivePatronRequestHolds()");
+		log.info("trackActivePatronRequestHolds()");
 		return Flux.from(patronRequestRepository.findTrackedPatronHolds());
 	}
 
 	// Track the state of items created in borrowing and pickup locations to track loaned (Or in transit) items
 	public Flux<PatronRequest> trackVirtualItems() {
-					log.debug("trackVirtualItems()");
-					return Flux.from(patronRequestRepository.findTrackedVirtualItems());
+		log.info("trackVirtualItems()");
+		return Flux.from(patronRequestRepository.findTrackedVirtualItems());
 	}
 
 	public Flux<SupplierRequest> trackSupplierItems() {
-		log.debug("trackSupplierItems()");
+		log.info("trackSupplierItems()");
 		return Flux.from(supplierRequestRepository.findTrackedSupplierItems());
 	}
 
 	public Flux<SupplierRequest> trackActiveSupplierHolds() {
-		log.debug("trackActiveSupplierHolds()");
+		log.info("trackActiveSupplierHolds()");
 		return Flux.from(supplierRequestRepository.findTrackedSupplierHolds());
 	}
 
@@ -102,9 +102,10 @@ public class TrackingService implements Runnable {
 		return hostLmsService.getClientFor( pr.getPatronHostlmsCode() )
 			.flatMap(client -> client.getHold( pr.getLocalRequestId() ))
 			.onErrorContinue((e, o) -> log.error("Error occurred: " + e.getMessage(),e))
+                        .doOnNext( hold -> log.info("Compare patron request {} states: {} and {}",pr.getId(), hold.getStatus(), pr.getLocalRequestStatus()) )
 			.filter ( hold -> !hold.getStatus().equals(pr.getLocalRequestStatus()) )
 			.flatMap( hold -> {
-				log.debug("current request status: {}",hold);
+				log.info("current request status: {}",hold);
 				StateChange sc = StateChange.builder()
 					.resourceType("PatronRequest")
 					.resourceId(pr.getId().toString())
@@ -112,7 +113,8 @@ public class TrackingService implements Runnable {
 					.toState(hold.getStatus())
 					.resource(pr)
 					.build();
-				log.debug("Publishing state change event {}",sc);
+
+				log.info("Publishing patron request state change event {}",sc);
 				return hostLmsReactions.onTrackingEvent(sc)
 					.thenReturn(pr);
 			});
