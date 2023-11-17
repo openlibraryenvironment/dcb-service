@@ -13,6 +13,7 @@ import io.micronaut.data.event.EntityEventListener;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Singleton;
+import reactor.core.publisher.Mono;
 
 @Requires(bean = SharedIndexService.class)
 @ExecuteOn(TaskExecutors.BLOCKING)
@@ -45,7 +46,7 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 	@Override
 	public void onApplicationEvent(StartupEvent event) {
 		log.debug("Initializing shared index service...");
-		sharedIndexService.initialize();
+		Mono.from(sharedIndexService.initialize()).block();
 	}
 	
 }

@@ -36,8 +36,6 @@ import co.elastic.clients.transport.endpoints.BooleanResponse;
 import co.elastic.clients.util.ObjectBuilder;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.convert.ConversionService;
-import io.micronaut.scheduling.TaskExecutors;
-import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Singleton;
 import lombok.Setter;
@@ -73,7 +71,8 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 		log.info("Using Elasticearch Indexing service");
 	}
 	
-	private Mono<Void> deleteAllAsync() {
+	@Override
+	public Mono<Void> deleteAll() {
 		return Mono.from( deleteIndex() )
 			.doOnNext(resp -> {				
 				log.atInfo().log("Delete all, by deleting index: {}", indexName);
@@ -81,14 +80,9 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 			.onErrorMap( handleErrors("Error deleting all from shared index") )
 			.then();
 	}
-
+	
 	@Override
-	@ExecuteOn(TaskExecutors.BLOCKING)
-	public void deleteAll() {
-		deleteAllAsync().block();
-	}
-
-	public Mono<CreateIndexResponse> initializeAsync() {
+	public Mono<Void> initialize() {
 		
 		// Check for index.
 		// If not present then create.
@@ -96,22 +90,14 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 			.map(BooleanResponse::value)
 			.filter(Boolean.FALSE::equals)
 			.flatMap( b_ -> createIndex() )
-			.doOnNext(resp -> {
-				log.atInfo().log("Initialized index: {}", resp.index());
-			})
-			.onErrorMap( handleErrors("Error initializing shared index") );
-	}
-	
-	@Override
-	@ExecuteOn(TaskExecutors.BLOCKING)
-	public void initialize() {
-		initializeAsync().block();
+			.doOnNext(resp -> log.atInfo().log("Initialized index: {}", resp.index()))
+			.onErrorMap( handleErrors("Error initializing shared index") )
+			.then();
 	}
 	
 	private Function<Throwable, Throwable> handleErrors ( final String message ) {
 		return ( cause ) -> new DcbException( message, cause );
 	}
-	
 
 	private Mono<BooleanResponse> checkIndex() {
 		try {

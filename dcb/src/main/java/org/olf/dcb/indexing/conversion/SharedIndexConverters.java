@@ -11,7 +11,6 @@ import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.convert.TypeConverter;
 
-
 @Requires(bean = BulkSharedIndexService.class)
 @Factory
 public class SharedIndexConverters {

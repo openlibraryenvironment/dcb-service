@@ -37,8 +37,6 @@ import org.slf4j.LoggerFactory;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.annotation.Order;
 import io.micronaut.core.convert.ConversionService;
-import io.micronaut.scheduling.TaskExecutors;
-import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Singleton;
 import lombok.Setter;
@@ -79,7 +77,8 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 		log.info("Using Opensearch Indexing service");
 	}
 
-	private Mono<Void> deleteAllAsync() {
+	@Override
+	public Mono<Void> deleteAll() {
 		return Mono.from( deleteIndex() )
 			.doOnNext(resp -> {				
 				log.atInfo().log("Delete all, by deleting index: {}", indexName);
@@ -87,13 +86,6 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 			.onErrorMap( handleErrors("Error deleting all from shared index") )
 			.then();
 	}
-	
-	@Override
-	@ExecuteOn(TaskExecutors.BLOCKING)
-	public void deleteAll() {
-		deleteAllAsync().block();
-	}
-	
 
 	private Mono<BooleanResponse> checkIndex() {
 		try {
@@ -107,24 +99,20 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 		}
 	}
 
-	public Mono<CreateIndexResponse> initializeAsync() {
+	@Override
+	public Mono<Void> initialize() {
 		
 		// Check for index.
 		// If not present then create.
 		return checkIndex()
 			.map(BooleanResponse::value)
 			.filter(Boolean.FALSE::equals)
-			.then( createIndex() )
+			.flatMap( b_ -> createIndex() )
 			.doOnNext(resp -> {
 				log.atInfo().log("Initialized index: {}", resp.index());
 			})
-			.onErrorMap( handleErrors("Error initializing shared index") );
-	}
-	
-	@Override
-	@ExecuteOn(TaskExecutors.BLOCKING)
-	public void initialize() {
-		initializeAsync().block();
+			.onErrorMap( handleErrors("Error initializing shared index") )
+			.then();
 	}
 	
 	private Function<Throwable, Throwable> handleErrors ( final String message ) {

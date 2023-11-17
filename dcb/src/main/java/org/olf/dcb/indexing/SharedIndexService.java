@@ -2,11 +2,20 @@ package org.olf.dcb.indexing;
 
 import java.util.UUID;
 
+import org.reactivestreams.Publisher;
+
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.async.annotation.SingleResult;
+
 public interface SharedIndexService {
 	
-	void initialize();
+	@SingleResult
+	@NonNull
+	Publisher<Void> initialize();
 	
-	void deleteAll();
+	@SingleResult
+	@NonNull
+	Publisher<Void> deleteAll();
 	
 	void add( UUID clusterID );
 	
