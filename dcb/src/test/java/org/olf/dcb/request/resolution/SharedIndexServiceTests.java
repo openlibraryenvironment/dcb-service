@@ -56,16 +56,16 @@ class SharedIndexServiceTests {
 	void canFindClusterRecordWithAssociatedBibs() {
 		final var clusterRecordId = randomUUID();
 
-		final var firstHostLmsId = randomUUID();
-		final var secondHostLmsId = randomUUID();
-
 		final var firstBibRecordId = randomUUID();
 		final var secondBibRecordId = randomUUID();
 
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 
-		hostLmsFixture.createSierraHostLms(firstHostLmsId, "FIRST-HOST-LMS");
-		hostLmsFixture.createSierraHostLms(secondHostLmsId, "SECOND-HOST-LMS");
+		final var firstHostLms = hostLmsFixture.createSierraHostLms(randomUUID(), "FIRST-HOST-LMS");
+		final var secondHostLms = hostLmsFixture.createSierraHostLms(randomUUID(), "SECOND-HOST-LMS");
+
+		final var firstHostLmsId = firstHostLms.getId();
+		final var secondHostLmsId = secondHostLms.getId();
 
 		bibRecordFixture.createBibRecord(firstBibRecordId, secondHostLmsId,
 			"798472", clusterRecord);

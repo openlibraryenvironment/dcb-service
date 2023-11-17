@@ -1,6 +1,12 @@
 package org.olf.dcb.request.fulfilment;
 
-import jakarta.inject.Inject;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,10 +15,7 @@ import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasSize;
+import jakarta.inject.Inject;
 
 @DcbTest
 class PatronServiceTests {
@@ -36,12 +39,10 @@ class PatronServiceTests {
 		// Arrange
 		final var existingPatron = patronFixture.savePatron("home-library");
 
-		final var hostLmsId = randomUUID();
-
 		final var LOCAL_SYSTEM_CODE = "local-system-code";
 		final var LOCAL_ID = "local-identity";
 
-		final var homeHostLms = hostLmsFixture.createSierraHostLms(hostLmsId, LOCAL_SYSTEM_CODE);
+		final var homeHostLms = hostLmsFixture.createSierraHostLms(randomUUID(), LOCAL_SYSTEM_CODE);
 
 		patronFixture.saveIdentity(existingPatron, homeHostLms, LOCAL_ID, true, "-", LOCAL_SYSTEM_CODE, null);
 
