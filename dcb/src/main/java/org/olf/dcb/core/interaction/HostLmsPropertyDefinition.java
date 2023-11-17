@@ -19,4 +19,10 @@ public class HostLmsPropertyDefinition {
 	private String description;
 	private Boolean mandatory;
 	private String typeCode;
+
+	public static HostLmsPropertyDefinition urlPropertyDefinition(String name,
+		String description, Boolean mandatory) {
+
+		return new HostLmsPropertyDefinition(name, description, mandatory, "URL");
+	}
 }

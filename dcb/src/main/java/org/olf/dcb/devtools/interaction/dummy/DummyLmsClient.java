@@ -1,6 +1,8 @@
 package org.olf.dcb.devtools.interaction.dummy;
 
+import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 
 import java.io.StringWriter;
 import java.time.Instant;
@@ -84,7 +86,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	public List<HostLmsPropertyDefinition> getSettings() {
-		return List.of(new HostLmsPropertyDefinition("base-url", "Base URL Of Dummy System", Boolean.TRUE, "URL"));
+		return List.of(urlPropertyDefinition("base-url", "Base URL Of Dummy System", TRUE));
 	}
 
 	public Mono<List<Item>> getItems(String localBibId) {
@@ -131,7 +133,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	@Override
 	public boolean isEnabled() {
-		return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(Boolean.TRUE);
+		return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(TRUE);
 	}
 
 	public UUID uuid5ForDummyRecord(@NotNull final String record_id) {

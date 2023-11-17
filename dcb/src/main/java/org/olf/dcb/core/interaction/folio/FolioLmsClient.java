@@ -1,5 +1,8 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+
 import java.util.List;
 
 import org.olf.dcb.core.interaction.Bib;
@@ -33,7 +36,7 @@ public class FolioLmsClient implements HostLmsClient {
 
 	@Override
 	public List<HostLmsPropertyDefinition> getSettings() {
-		return List.of(new HostLmsPropertyDefinition("base-url", "Base URL Of FOLIO System", Boolean.TRUE, "URL"));
+		return List.of(urlPropertyDefinition("base-url", "Base URL Of FOLIO System", TRUE));
 	}
 
 	@Override
