@@ -1,6 +1,5 @@
 package org.olf.dcb.request.fulfilment;
 
-import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -38,7 +37,7 @@ class FindOrCreatePatronServiceTests {
 		final var LOCAL_SYSTEM_CODE = "local-system-code";
 		final var LOCAL_ID = "local-identity";
 
-		final var hostLms = hostLmsFixture.createSierraHostLms(randomUUID(), LOCAL_SYSTEM_CODE);
+		final var hostLms = hostLmsFixture.createSierraHostLms(LOCAL_SYSTEM_CODE);
 
 		final var hostLmsId = hostLms.getId();
 
@@ -85,7 +84,7 @@ class FindOrCreatePatronServiceTests {
 		final var LOCAL_SYSTEM_CODE = "local-system-code";
 		final var LOCAL_ID = "local-identity";
 
-		final var homeHostLms = hostLmsFixture.createSierraHostLms(randomUUID(), LOCAL_SYSTEM_CODE);
+		final var homeHostLms = hostLmsFixture.createSierraHostLms(LOCAL_SYSTEM_CODE);
 
 		final var hostLmsId = homeHostLms.getId();
 

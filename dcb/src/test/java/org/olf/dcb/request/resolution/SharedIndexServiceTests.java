@@ -61,8 +61,8 @@ class SharedIndexServiceTests {
 
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 
-		final var firstHostLms = hostLmsFixture.createSierraHostLms(randomUUID(), "FIRST-HOST-LMS");
-		final var secondHostLms = hostLmsFixture.createSierraHostLms(randomUUID(), "SECOND-HOST-LMS");
+		final var firstHostLms = hostLmsFixture.createSierraHostLms("FIRST-HOST-LMS");
+		final var secondHostLms = hostLmsFixture.createSierraHostLms("SECOND-HOST-LMS");
 
 		final var firstHostLmsId = firstHostLms.getId();
 		final var secondHostLmsId = secondHostLms.getId();
