@@ -14,21 +14,20 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlProperty
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
-import java.util.Date;
-
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.TimeZone;
-import java.text.DateFormat;
+import java.util.UUID;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.BranchRecord;
@@ -37,8 +36,6 @@ import org.olf.dcb.configuration.LocationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
-import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -46,8 +43,10 @@ import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
+import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.ingest.marc.MarcIngestSource;
@@ -61,8 +60,6 @@ import org.olf.dcb.tracking.model.PatronTrackingEvent;
 import org.olf.dcb.tracking.model.PickupTrackingEvent;
 import org.olf.dcb.tracking.model.TrackingRecord;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -73,6 +70,7 @@ import io.micronaut.json.tree.JsonNode;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import jakarta.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
@@ -91,10 +89,10 @@ import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
 import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
-import services.k_int.interaction.sierra.patrons.PatronValidation;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
+import services.k_int.interaction.sierra.patrons.PatronValidation;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.utils.UUIDUtils;
 
@@ -103,8 +101,10 @@ import services.k_int.utils.UUIDUtils;
  * https://gitlab.com/knowledge-integration/libraries/dcb-service/-/raw/68fd93de0f84f928597481b16d2887bd7e58f455/dcb/src/main/java/org/olf/dcb/core/interaction/sierra/SierraLmsClient.java
  */
 @Prototype
+@Slf4j
 public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
-	private static final Logger log = LoggerFactory.getLogger(SierraLmsClient.class);
+	private static final HostLmsPropertyDefinition GET_HOLDS_RETRY_ATTEMPTS_PROPERTY = integerPropertyDefinition(
+		"get-holds-retry-attempts", "Number of retry attempts when getting holds for a patron", FALSE);
 
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
 	private static final Integer FIXED_FIELD_158 = Integer.valueOf(158);
@@ -160,7 +160,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			stringPropertyDefinition("page-size", "How many items to retrieve in each page", TRUE),
 			stringPropertyDefinition("secret", "Secret for this Sierra system", TRUE),
 			booleanPropertyDefinition("ingest", "Enable record harvesting for this source", TRUE),
-			integerPropertyDefinition("get-holds-retry-attempts", "Number of retry attempts when getting holds for a patron", FALSE));
+			GET_HOLDS_RETRY_ATTEMPTS_PROPERTY);
 	}
 
 	private Mono<BibResultSet> fetchPage(Instant since, int offset, int limit) {
