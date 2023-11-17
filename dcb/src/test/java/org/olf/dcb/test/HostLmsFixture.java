@@ -96,8 +96,13 @@ public class HostLmsFixture {
 	public <T> DataHostLms createHostLms(UUID id, String code,
 		Class<T> clientClass, Map<String, Object> clientConfig) {
 
-		return saveHostLms(new DataHostLms(id, code, "Test Host LMS",
-			clientClass.getCanonicalName(), clientConfig));
+		return saveHostLms(DataHostLms.builder()
+			.id(id)
+			.code(code)
+			.name("Test Host LMS")
+			.lmsClientClass(clientClass.getCanonicalName())
+			.clientConfig(clientConfig)
+			.build());
 	}
 
 	private DataHostLms saveHostLms(DataHostLms hostLms) {
