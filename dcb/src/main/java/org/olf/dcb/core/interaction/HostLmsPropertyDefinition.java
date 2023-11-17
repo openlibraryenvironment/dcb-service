@@ -1,5 +1,9 @@
 package org.olf.dcb.core.interaction;
 
+import static services.k_int.utils.MapUtils.getAsOptionalString;
+
+import java.util.Map;
+
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -42,6 +46,12 @@ public class HostLmsPropertyDefinition {
 	public static class IntegerHostLmsPropertyDefinition extends HostLmsPropertyDefinition {
 		public IntegerHostLmsPropertyDefinition(String name, String description, Boolean mandatory) {
 			super(name, description, mandatory, "Integer");
+		}
+
+		public Integer getOptionalValueFrom(Map<String, Object> clientConfig, int defaultValue) {
+			return getAsOptionalString(clientConfig, getName())
+				.map(Integer::parseInt)
+				.orElse(defaultValue);
 		}
 	}
 }
