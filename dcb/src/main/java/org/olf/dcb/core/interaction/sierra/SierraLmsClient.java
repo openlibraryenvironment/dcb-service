@@ -143,9 +143,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private static Integer getGetHoldsRetryAttempts(Map<String, Object> clientConfig) {
-		return getAsOptionalString(clientConfig, "get-holds-retry-attempts")
+		return getOptionalIntegerPropertyFrom("get-holds-retry-attempts", clientConfig, 25);
+	}
+
+	private static Integer getOptionalIntegerPropertyFrom(String key,
+		Map<String, Object> clientConfig, int defaultValue) {
+
+		return getAsOptionalString(clientConfig, key)
 			.map(Integer::parseInt)
-			.orElse(25);
+			.orElse(defaultValue);
 	}
 
 	@Override
@@ -264,8 +270,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Publisher<BibResult> getResources(Instant since) {
 		log.info("Fetching MARC JSON from Sierra for {}", lms.getName());
 
-		final int pageSize = getAsOptionalString(lms.getClientConfig(), "page-size").map(Integer::parseInt)
-				.orElse(DEFAULT_PAGE_SIZE);
+		final int pageSize = getOptionalIntegerPropertyFrom("page-size", lms.getClientConfig(), DEFAULT_PAGE_SIZE);
 
 		return Flux.from(pageAllResults(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
 				.onErrorResume(t -> {
