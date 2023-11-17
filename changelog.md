@@ -1,6 +1,43 @@
 # Changelog
 
+## Version 2.3.0
+
+### Additions
+* [General]
+	* Configurable number of retry attempts for getting patron holds from Sierra
+	* Background job for indexing items.
+
+### Changes
+* [Chore]
+	* Change page size to integer property DCB-739
+	* Change page size Sierra setting to optional DCB-739
+	* Change type of get holds retry attempts setting
+	* Reformat host LMS property definition DCB-479
+	* Reformat Sierra client settings
+	* Tweaks to keep the Java compiler happy.
+* [Feature]
+	* Added env code and env description to info endpoint for display
+* [Refactor]
+	* Move method for getting integer property from config to class DCB-739
+	* Introduce class for integer property definition DCB-739
+	* Extract parameter for property definition when getting optional integer config value DCB-739
+	* Use property definition for getting integer value from config DCB-739
+	* Extract field for page size property definition DCB-739
+	* Extract method for getting integer property value DCB-739
+	* Move get holds retry attempts property to field DCB-739
+	* Convert property definition to value object DCB-739
+	* Extract method for defining an integer property definition DCB-739
+	* Extract method for defining a boolean property definition DCB-739
+	* Extract method for defining a string property definition DCB-739
+	* Extract method for defining a URL property definition DCB-739
+* [Test]
+	* Only retry getting holds from Sierra once in most tests
+
 ## Version 2.2.2
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
