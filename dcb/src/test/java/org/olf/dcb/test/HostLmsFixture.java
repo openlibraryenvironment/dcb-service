@@ -90,14 +90,7 @@ public class HostLmsFixture {
 		clientConfig.put("org-id", "1");
 		clientConfig.put("page-size", 100);
 
-		return saveHostLms(
-			DataHostLms.builder()
-				.id(randomUUID())
-				.code(code)
-				.name(code)
-				.lmsClientClass(PAPILmsClient.class.getCanonicalName())
-				.clientConfig(clientConfig)
-				.build());
+		return createHostLms(randomUUID(), code, PAPILmsClient.class, clientConfig);
 	}
 
 	public <T> DataHostLms createHostLms(UUID id, String code,
