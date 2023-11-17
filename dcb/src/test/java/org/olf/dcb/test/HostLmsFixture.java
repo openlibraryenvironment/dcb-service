@@ -42,7 +42,7 @@ public class HostLmsFixture {
 		this.numericRangeMappingFixture = numericRangeMappingFixture;
 	}
 
-	public DataHostLms createHostLms(UUID id, String code) {
+	public DataHostLms createSierraHostLms(UUID id, String code) {
 		return createHostLms(id, code, SierraLmsClient.class, Map.of());
 	}
 

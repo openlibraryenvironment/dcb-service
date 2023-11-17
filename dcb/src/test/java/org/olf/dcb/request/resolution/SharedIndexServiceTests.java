@@ -64,8 +64,8 @@ class SharedIndexServiceTests {
 
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 
-		hostLmsFixture.createHostLms(firstHostLmsId, "FIRST-HOST-LMS");
-		hostLmsFixture.createHostLms(secondHostLmsId, "SECOND-HOST-LMS");
+		hostLmsFixture.createSierraHostLms(firstHostLmsId, "FIRST-HOST-LMS");
+		hostLmsFixture.createSierraHostLms(secondHostLmsId, "SECOND-HOST-LMS");
 
 		bibRecordFixture.createBibRecord(firstBibRecordId, secondHostLmsId,
 			"798472", clusterRecord);

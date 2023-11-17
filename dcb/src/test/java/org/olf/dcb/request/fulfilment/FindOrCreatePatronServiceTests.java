@@ -39,7 +39,7 @@ class FindOrCreatePatronServiceTests {
 
 		final var hostLmsId = randomUUID();
 
-		hostLmsFixture.createHostLms(hostLmsId, LOCAL_SYSTEM_CODE);
+		hostLmsFixture.createSierraHostLms(hostLmsId, LOCAL_SYSTEM_CODE);
 
 		// Act
 		findOrCreatePatronService
@@ -85,7 +85,7 @@ class FindOrCreatePatronServiceTests {
 		final var LOCAL_SYSTEM_CODE = "local-system-code";
 		final var LOCAL_ID = "local-identity";
 
-		final var homeHostLms = hostLmsFixture.createHostLms(hostLmsId, LOCAL_SYSTEM_CODE);
+		final var homeHostLms = hostLmsFixture.createSierraHostLms(hostLmsId, LOCAL_SYSTEM_CODE);
 
 		patronFixture.saveIdentity(existingPatron, homeHostLms, LOCAL_ID, true, "-", "local-system-code", null);
 
