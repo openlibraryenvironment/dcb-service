@@ -25,4 +25,10 @@ public class HostLmsPropertyDefinition {
 
 		return new HostLmsPropertyDefinition(name, description, mandatory, "URL");
 	}
+
+	public static HostLmsPropertyDefinition stringPropertyDefinition(String name,
+		String description, Boolean mandatory) {
+
+		return new HostLmsPropertyDefinition(name, description, mandatory, "String");
+	}
 }

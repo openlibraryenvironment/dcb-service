@@ -7,6 +7,7 @@ import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.nonNull;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
@@ -153,9 +154,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public List<HostLmsPropertyDefinition> getSettings() {
 		return List.of(
 			urlPropertyDefinition("base-url", "Base URL Of Sierra System", TRUE),
-			new HostLmsPropertyDefinition("key", "Key for this system", TRUE, "String"),
-			new HostLmsPropertyDefinition("page-size", "How many items to retrieve in each page", TRUE, "String"),
-			new HostLmsPropertyDefinition("secret", "Secret for this Sierra system", TRUE, "String"),
+			stringPropertyDefinition("key", "Key for this system", TRUE),
+			stringPropertyDefinition("page-size", "How many items to retrieve in each page", TRUE),
+			stringPropertyDefinition("secret", "Secret for this Sierra system", TRUE),
 			new HostLmsPropertyDefinition("ingest", "Enable record harvesting for this source", TRUE, "Boolean"),
 			new HostLmsPropertyDefinition("get-holds-retry-attempts", "Number of retry attempts when getting holds for a patron", FALSE, "Integer"));
 	}
