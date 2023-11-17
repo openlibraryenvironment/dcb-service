@@ -66,19 +66,12 @@ public class HostLmsFixture {
 			"get-holds-retry-attempts", "1"));
 	}
 
-	private DataHostLms createSierraHostLms(String code, Map<String, String> key) {
+	private DataHostLms createSierraHostLms(String code, Map<String, Object> config) {
 		log.debug("Creating numeric range mapping");
 
 		numericRangeMappingFixture.createMapping(code, "ItemType", 998L, 1001L, "DCB", "BKM");
 
-		return saveHostLms(
-			DataHostLms.builder()
-				.id(randomUUID())
-				.code(code)
-				.name(code)
-				.lmsClientClass(SierraLmsClient.class.getCanonicalName())
-				.clientConfig(key)
-				.build());
+		return createHostLms(UUID.randomUUID(), code, SierraLmsClient.class, config);
 	}
 
 	public DataHostLms createPAPIHostLms(String staffUsername, String staffPassword,
