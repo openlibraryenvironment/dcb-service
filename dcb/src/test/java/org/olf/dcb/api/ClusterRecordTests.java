@@ -8,8 +8,6 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
-import java.io.IOException;
-
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -26,6 +24,7 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
+import lombok.SneakyThrows;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -49,12 +48,8 @@ class ClusterRecordTests {
 	@Client("/")
 	private HttpClient client;
 
-	private String getResourceAsString(String resourceName) throws IOException {
-		return new String(loader.getResourceAsStream(CP_RESOURCES + resourceName).get().readAllBytes());
-	}
-
 	@BeforeAll
-	public void addFakeSierraApis(MockServerClient mock) throws IOException {
+	public void addFakeSierraApis(MockServerClient mock) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://cluster-record-tests.com";
 		final String KEY = "cluster-record-key";
@@ -125,5 +120,10 @@ class ClusterRecordTests {
 
 		assertThat(issnIdentifier, is(notNullValue()));
 		assertThat(issnIdentifier.value(), is("1234-5678"));
+	}
+
+	@SneakyThrows
+	private String getResourceAsString(String resourceName) {
+		return new String(loader.getResourceAsStream(CP_RESOURCES + resourceName).get().readAllBytes());
 	}
 }
