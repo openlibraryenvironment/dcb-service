@@ -16,8 +16,13 @@ public class ClusterRecordFixture {
 
 	private final ClusterRecordRepository clusterRecordRepository;
 
-	public ClusterRecordFixture(ClusterRecordRepository clusterRecordRepository) {
+	private final BibRecordFixture bibRecordFixture;
+
+	public ClusterRecordFixture(ClusterRecordRepository clusterRecordRepository,
+		BibRecordFixture bibRecordFixture) {
+
 		this.clusterRecordRepository = clusterRecordRepository;
+		this.bibRecordFixture = bibRecordFixture;
 	}
 
 	public ClusterRecord createClusterRecord(UUID clusterRecordId) {
@@ -27,6 +32,8 @@ public class ClusterRecordFixture {
 	}
 
 	public void deleteAllClusterRecords() {
+		bibRecordFixture.deleteAllBibRecords();
+
 		dataAccess.deleteAll(clusterRecordRepository.queryAll(),
 			clusterRecord -> clusterRecordRepository.delete(clusterRecord.getId()));
 	}
