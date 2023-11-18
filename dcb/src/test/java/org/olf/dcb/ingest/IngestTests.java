@@ -1,22 +1,21 @@
 package org.olf.dcb.ingest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
-import java.io.IOException;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.ingest.model.IngestRecord;
+import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.context.annotation.Prototype;
@@ -26,6 +25,8 @@ import io.micronaut.test.annotation.MockBean;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.micronaut.PublisherTransformation;
@@ -35,27 +36,25 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MicronautTest(transactional = false, rebuildContext = true)
 @Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
 @Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
-@TestInstance(Lifecycle.PER_CLASS)
-public class IngestTests {
-	private final Logger log = LoggerFactory.getLogger(IngestTests.class);
-
+@TestInstance(PER_CLASS)
+@Slf4j
+class IngestTests {
 	private static final String HOST_LMS_CODE = "ingest-service-service-tests";
+	private static final String CP_RESOURCES = "classpath:mock-responses/sierra/";
 
 	@Inject
 	private ResourceLoader loader;
+
 	@Inject
 	private IngestService ingestService;
+
 	@Inject
 	private HostLmsFixture hostLmsFixture;
-
-	private static final String CP_RESOURCES = "classpath:mock-responses/sierra/";
-
-	private String getResourceAsString(String resourceName) throws IOException {
-		return new String(loader.getResourceAsStream(CP_RESOURCES + resourceName).get().readAllBytes());
-	}
+	@Inject
+	private ClusterRecordFixture clusterRecordFixture;
 
 	@BeforeAll
-	public void addFakeSierraApis(MockServerClient mock) throws IOException {
+	void beforeAll(MockServerClient mock) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://ingest-service-service-tests.com";
 		final String KEY = "ingest-service-key";
@@ -78,11 +77,15 @@ public class IngestTests {
 			.respond(notFoundResponse());
 	}
 
-	@Test
-	public void ingestFromSierra() {
+	@BeforeEach
+	void beforeEach() {
+		clusterRecordFixture.deleteAll();
+	}
 
+	@Test
+	void ingestFromSierra() {
 		// Run the ingest process
-		List<BibRecord> bibs =  ingestService.getBibRecordStream().collectList().block();
+		final var bibs =  ingestService.getBibRecordStream().collectList().block();
 
 		// Assertion changed to 9 after adding filter condition to bib record processing. We now drop records
 		// with a null title on the floor. 10 input records, 1 with a null title = 9 records after ingest.
@@ -91,8 +94,7 @@ public class IngestTests {
 
 	@Test
 	@Property(name="tests.enableLimiter", value = "true")
-	public void ingestFromSierraWithLimiter() {
-
+	void ingestFromSierraWithLimiter() {
 		// Run the ingest process again, but with the limiter bean.
 		List<BibRecord> bibs =  ingestService.getBibRecordStream().collectList().block();
 
@@ -107,5 +109,10 @@ public class IngestTests {
 	PublisherTransformation<IngestRecord> testIngestLimiter() {
 		log.info("Test pipeline limiter");
 		return (pub) -> Flux.from(pub).take(5, true);
+	}
+
+	@SneakyThrows
+	private String getResourceAsString(String resourceName) {
+		return new String(loader.getResourceAsStream(CP_RESOURCES + resourceName).get().readAllBytes());
 	}
 }
