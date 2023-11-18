@@ -9,10 +9,12 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.ingest.IngestService;
+import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
 import io.micronaut.context.annotation.Property;
@@ -43,13 +45,15 @@ class ClusterRecordTests {
 	private IngestService ingestService;
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private ClusterRecordFixture clusterRecordFixture;
 
 	@Inject
 	@Client("/")
 	private HttpClient client;
 
 	@BeforeAll
-	public void addFakeSierraApis(MockServerClient mock) {
+	void addFakeSierraApis(MockServerClient mock) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://cluster-record-tests.com";
 		final String KEY = "cluster-record-key";
@@ -65,6 +69,11 @@ class ClusterRecordTests {
 		// Mock bibs returned by the sierra system for ingest.
 		mockSierra.whenRequest(req -> req.withMethod("GET").withPath("/iii/sierra-api/v6/bibs/*"))
 			.respond(okJson(getResourceAsString("bibs-slice-0-2.json")));
+	}
+
+	@BeforeEach
+	void beforeEach() {
+		clusterRecordFixture.deleteAllClusterRecords();
 	}
 
 	@Test
