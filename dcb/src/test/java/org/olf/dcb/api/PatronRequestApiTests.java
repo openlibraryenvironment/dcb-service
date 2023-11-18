@@ -190,7 +190,7 @@ class PatronRequestApiTests {
 
 		patronFixture.deleteAllPatrons();
 
-		bibRecordFixture.deleteAllBibRecords();
+		bibRecordFixture.deleteAll();
 		clusterRecordFixture.deleteAll();
 
 		referenceValueMappingFixture.deleteAll();

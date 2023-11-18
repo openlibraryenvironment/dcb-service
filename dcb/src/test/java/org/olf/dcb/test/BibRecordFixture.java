@@ -61,7 +61,7 @@ public class BibRecordFixture {
 			.block();
 	}
 
-	public void deleteAllBibRecords() {
+	public void deleteAll() {
 
 		dataAccess.deleteAll(matchPointRepository.queryAll(),
 			bibIdentifierRecord -> matchPointRepository.delete(bibIdentifierRecord.getId()));

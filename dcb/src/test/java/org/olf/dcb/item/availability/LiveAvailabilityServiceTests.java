@@ -79,7 +79,7 @@ class LiveAvailabilityServiceTests {
 
 	@BeforeEach
 	void beforeEach() {
-		bibRecordFixture.deleteAllBibRecords();
+		bibRecordFixture.deleteAll();
 		clusterRecordFixture.deleteAll();
 	}
 

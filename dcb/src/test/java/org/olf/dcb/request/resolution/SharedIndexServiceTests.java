@@ -40,14 +40,14 @@ class SharedIndexServiceTests {
 
 	@BeforeEach
 	void beforeEach() {
-		bibRecordFixture.deleteAllBibRecords();
+		bibRecordFixture.deleteAll();
 		clusterRecordFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 	}
 
 	@AfterEach
 	void afterEach() {
-		bibRecordFixture.deleteAllBibRecords();
+		bibRecordFixture.deleteAll();
 		clusterRecordFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 	}
