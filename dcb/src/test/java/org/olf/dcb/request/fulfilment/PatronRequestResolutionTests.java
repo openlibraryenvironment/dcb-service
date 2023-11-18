@@ -86,7 +86,7 @@ class PatronRequestResolutionTests {
 	@BeforeEach
 	void beforeEach() {
 		bibRecordFixture.deleteAllBibRecords();
-		clusterRecordFixture.deleteAllClusterRecords();
+		clusterRecordFixture.deleteAll();
 	}
 
 	@Test

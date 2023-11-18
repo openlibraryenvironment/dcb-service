@@ -31,7 +31,7 @@ public class ClusterRecordFixture {
 			.block();
 	}
 
-	public void deleteAllClusterRecords() {
+	public void deleteAll() {
 		bibRecordFixture.deleteAllBibRecords();
 
 		dataAccess.deleteAll(clusterRecordRepository.queryAll(),

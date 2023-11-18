@@ -73,7 +73,7 @@ class ClusterRecordTests {
 
 	@BeforeEach
 	void beforeEach() {
-		clusterRecordFixture.deleteAllClusterRecords();
+		clusterRecordFixture.deleteAll();
 	}
 
 	@Test

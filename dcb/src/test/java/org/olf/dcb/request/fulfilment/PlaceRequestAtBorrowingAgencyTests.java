@@ -129,7 +129,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		patronFixture.deleteAllPatrons();
 
 		bibRecordFixture.deleteAllBibRecords();
-		clusterRecordFixture.deleteAllClusterRecords();
+		clusterRecordFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab6", "ab6");
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
