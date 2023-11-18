@@ -1,7 +1,9 @@
 package org.olf.dcb.test;
 
+import static java.lang.Boolean.FALSE;
 import static java.time.Instant.now;
 
+import java.util.Set;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.clustering.ClusterRecord;
@@ -27,7 +29,7 @@ public class ClusterRecordFixture {
 
 	public ClusterRecord createClusterRecord(UUID clusterRecordId) {
 		return Mono.from(clusterRecordRepository.save(new ClusterRecord(clusterRecordId,
-				now(), now(), "Brain of the Firm", new java.util.HashSet(), clusterRecordId, Boolean.FALSE)))
+				now(), now(), "Brain of the Firm", Set.of(), clusterRecordId, FALSE)))
 			.block();
 	}
 
