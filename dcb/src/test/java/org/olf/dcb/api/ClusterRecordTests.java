@@ -2,27 +2,28 @@ package org.olf.dcb.api;
 
 import static io.micronaut.http.HttpStatus.OK;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
 import java.io.IOException;
 
-import io.micronaut.core.type.Argument;
-import io.micronaut.data.model.Page;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.ingest.IngestService;
 import org.olf.dcb.test.HostLmsFixture;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.core.type.Argument;
+import io.micronaut.data.model.Page;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.annotation.Client;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
@@ -32,12 +33,10 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MicronautTest(transactional = false, rebuildContext = true)
 @Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
 @Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 class ClusterRecordTests {
-
-	private final Logger log = LoggerFactory.getLogger(ClusterRecordTests.class);
-
 	private static final String HOST_LMS_CODE = "cluster-record-tests";
+	private static final String CP_RESOURCES = "classpath:mock-responses/sierra/";
 
 	@Inject
 	private ResourceLoader loader;
@@ -46,7 +45,6 @@ class ClusterRecordTests {
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 
-	private static final String CP_RESOURCES = "classpath:mock-responses/sierra/";
 	@Inject
 	@Client("/")
 	private HttpClient client;
