@@ -71,14 +71,19 @@ public class PatronRequestTrackingTests {
 		final var patronRequest = Mono.from(patronRequestRepository.save(PatronRequest.builder()
 				.id(savedPatronRequestId).localRequestId("11890").localItemId("1088431")
 				.localItemStatus("").patronHostlmsCode(HOST_LMS_CODE)
+				.localRequestStatus("PLACED")
 				.status(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY).build())).block();
+
 		Mono.from(supplierRequestRepository.save(SupplierRequest.builder()
 			.id(randomUUID()).localId("11987").localItemId("1088432").patronRequest(patronRequest)
 			.hostLmsCode(HOST_LMS_CODE).build())).block();
+
 		Mono.from(statusCodeRepository.saveOrUpdate(StatusCode.builder()
 				.id(nameUUIDFromNamespaceAndString(NAMESPACE_DCB,
 					"StatusCode:"+"PatronRequest"+":"+"REQUEST_PLACED_AT_BORROWING_AGENCY"))
-				.model("PatronRequest").code("REQUEST_PLACED_AT_BORROWING_AGENCY").tracked(Boolean.TRUE).build())).block();
+				.model("PatronRequest").code("MISSING").tracked(Boolean.TRUE).build())).block();
+				// .model("PatronRequest").code("REQUEST_PLACED_AT_BORROWING_AGENCY").tracked(Boolean.TRUE).build())).block();
+
 		sierraPatronsAPIFixture.getHoldById404("11890");
 		sierraItemsAPIFixture.getItemById("1088431");
 		// Act
@@ -96,6 +101,7 @@ public class PatronRequestTrackingTests {
 		final var patronRequest = Mono.from(patronRequestRepository.save(PatronRequest.builder()
 			.id(savedPatronRequestId).localRequestId("11890").localItemId("1088431")
 			.localItemStatus("").patronHostlmsCode(HOST_LMS_CODE)
+			.localRequestStatus("PLACED")
 			.status(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY).build())).block();
 		Mono.from(supplierRequestRepository.save(SupplierRequest.builder()
 			// local status has to be PLACED

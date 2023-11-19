@@ -42,7 +42,7 @@ public interface PatronRequestRepository {
 	@SingleResult
 	Publisher<Void> delete(UUID id);
 
-	@Query(value = "SELECT p.* from patron_request p  where p.local_status_code in ( select code from status_code where model = 'PatronRequest' and tracked = true )", nativeQuery = true)
+	@Query(value = "SELECT p.* from patron_request p  where p.local_request_status in ( select code from status_code where model = 'PatronRequest' and tracked = true )", nativeQuery = true)
 	Publisher<PatronRequest> findTrackedPatronHolds();
 
 
