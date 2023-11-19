@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 2.4.1
+
+### Fixes
+* [General]
+	* Use correct local_request_status when seeking patron requests on the borrowing side to track
+
 ## Version 2.4.0
 
 ### Additions
@@ -9,6 +15,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Create a new transaction for each of the tracking events
 	* add logger when subscribe complete for tracking calls
 	* Indexing tweaks
