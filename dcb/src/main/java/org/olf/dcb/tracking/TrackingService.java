@@ -67,11 +67,34 @@ public class TrackingService implements Runnable {
 
 		log.info("Starting Scheduled Tracking Ingest");
 		final long start = System.currentTimeMillis();
-		trackActivePatronRequestHolds().flatMap( this::checkPatronRequest).subscribe();
-		trackSupplierItems().flatMap( this::checkSupplierItem).subscribe();
-		trackActiveSupplierHolds().flatMap( this::checkSupplierRequest).subscribe();
-		trackVirtualItems().flatMap( this::checkVirtualItem).subscribe();
-                log.info("Completed Scheduled Tracking Ingest");
+
+		trackActivePatronRequestHolds()
+			.flatMap( this::checkPatronRequest)
+			.subscribe( 
+				value -> {},
+				error -> log.error("Error: " + error),
+				() -> log.info("active borrower request tracking complete") );
+
+		trackSupplierItems()
+			.flatMap( this::checkSupplierItem)
+			.subscribe( 
+				value -> {},
+				error -> log.error("Error: " + error),
+				() -> log.info("active supplier item tracking complete") );
+
+		trackActiveSupplierHolds()
+			.flatMap( this::checkSupplierRequest)
+			.subscribe( 
+				value -> {},
+				error -> log.error("Error: " + error),
+				() -> log.info("active supplier hold tracking complete") );
+
+		trackVirtualItems()
+			.flatMap( this::checkVirtualItem)
+			.subscribe( 
+				value -> {},
+				error -> log.error("Error: " + error),
+				() -> log.info("active borrower virtual item tracking complete") );
 	}
 
 	public Flux<PatronRequest> trackActivePatronRequestHolds() {
@@ -114,7 +137,7 @@ public class TrackingService implements Runnable {
 					.resource(pr)
 					.build();
 
-				log.info("Publishing patron request state change event {}",sc);
+				log.info("TRACKING Publishing patron request state change event {}",sc);
 				return hostLmsReactions.onTrackingEvent(sc)
 					.thenReturn(pr);
 			});
@@ -141,7 +164,7 @@ public class TrackingService implements Runnable {
                                                             .build();
 
 
-                                        log.debug("Publishing state change event {}",sc);
+                                        log.info("TRACKING Publishing state change event for borrower virtual item {}",sc);
 				        return hostLmsReactions.onTrackingEvent(sc)
                                                 .thenReturn(pr);
                                 });
@@ -157,7 +180,7 @@ public class TrackingService implements Runnable {
                         log.debug("hostLms code and itemId present.. continue");
 			return hostLmsService.getClientFor(sr.getHostLmsCode())
 				.flatMap( client -> Mono.from(client.getItem(sr.getLocalItemId())) )
-                                .doOnNext( item -> log.debug("Process item {}",item) )
+                                .doOnNext( item -> log.debug("Process tracking supplier request item {}",item) )
 				.filter ( item -> !item.getStatus().equals(sr.getLocalItemStatus()) )
 				.flatMap ( item -> {
 					log.debug("Detected supplying system - supplier item status change {} to {}",sr.getLocalItemStatus(),item.getStatus());
@@ -169,7 +192,7 @@ public class TrackingService implements Runnable {
 						.resource(sr)
 						.build();
 
-					log.debug("Publishing state change event {}",sc);
+					log.info("TRACKING Publishing state change event for supplier item record {}",sc);
 					return hostLmsReactions.onTrackingEvent(sc)
 						.thenReturn(sr);
 				});
@@ -182,7 +205,7 @@ public class TrackingService implements Runnable {
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	public Mono<SupplierRequest> checkSupplierRequest(SupplierRequest sr) {
-		log.debug("TRACKING Check supplier request {}",sr.getId(),sr.getLocalStatus());
+		log.info("TRACKING Check supplier request {}",sr.getId(),sr.getLocalStatus());
 
                 // We fetch the state of the hold at the supplying library. If it is different to the last state
                 // we stashed in SupplierRequest.localStatus then we have detected a change. We emit an event to let
@@ -207,7 +230,7 @@ public class TrackingService implements Runnable {
                                                             .toState(hold.getStatus())
                                                             .resource(sr)
                                                             .build();
-                                log.debug("Publishing state change event {}",sc);
+                                log.info("TRACKING Publishing state change event for supplier request {}",sc);
 				return hostLmsReactions.onTrackingEvent(sc)
                                         .thenReturn(sr);
 			});
