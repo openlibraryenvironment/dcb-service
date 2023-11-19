@@ -118,7 +118,8 @@ public class TrackingService implements Runnable {
 		return Flux.from(supplierRequestRepository.findTrackedSupplierHolds());
 	}
 
-        private Mono<PatronRequest> checkPatronRequest(PatronRequest pr) {
+	@Transactional(Transactional.TxType.REQUIRES_NEW)
+        public Mono<PatronRequest> checkPatronRequest(PatronRequest pr) {
 
 		log.info("TRACKING Check patron request {}", pr);
 
@@ -143,6 +144,7 @@ public class TrackingService implements Runnable {
 			});
 	}
 
+	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	public Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
 		log.info("TRACKING Check (local) virtualItem from patron request {} {} {}",pr.getLocalItemId(),pr.getLocalItemStatus(),pr.getPatronHostlmsCode());
                 if ( ( pr.getPatronHostlmsCode() != null ) && ( pr.getLocalItemId() != null ) ) {
@@ -174,6 +176,8 @@ public class TrackingService implements Runnable {
                         return Mono.just(pr);
                 }
         }
+
+	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	public Mono<SupplierRequest> checkSupplierItem(SupplierRequest sr) {
 		log.info("TRACKING Check (hostlms) supplierItem from supplier request item={} status={} code={}",sr.getLocalItemId(),sr.getLocalItemStatus(),sr.getHostLmsCode());
 		if ( ( sr.getHostLmsCode() != null ) && ( sr.getLocalItemId() != null ) ) {
