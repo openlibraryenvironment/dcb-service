@@ -48,8 +48,8 @@ public class HostLmsFixture {
 		return createSierraHostLms(code, Map.of());
 	}
 
-	public DataHostLms createSierraHostLms(String username, String password,
-		String host, String code) {
+	public DataHostLms createSierraHostLms(String code, String username,
+		String password, String host) {
 
 		return createSierraHostLms(code, Map.of(
 			"key", username,
@@ -57,8 +57,8 @@ public class HostLmsFixture {
 			"base-url", host));
 	}
 
-	public DataHostLms createSierraHostLms(String username, String password,
-		String host, String code, String holdPolicy) {
+	public DataHostLms createSierraHostLms(String code, String username,
+		String password, String host, String holdPolicy) {
 
 		return createSierraHostLms(code, Map.of(
 			"key", username,

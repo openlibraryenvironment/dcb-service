@@ -75,11 +75,11 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		SierraTestUtils.mockFor(mock, BASE_URL) .setValidCredentials(KEY, SECRET, TOKEN, 60);
 		hostLmsFixture.deleteAll();
 
-		DataHostLms sierraHostLms = hostLmsFixture.createSierraHostLms(KEY, SECRET,
-			BASE_URL, HOST_LMS_CODE, "title");
+		DataHostLms sierraHostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE,
+			KEY, SECRET, BASE_URL, "title");
 
-		hostLmsFixture.createSierraHostLms(KEY, SECRET,
-			BASE_URL, INVALID_HOLD_POLICY_HOST_LMS_CODE, "invalid");
+		hostLmsFixture.createSierraHostLms(INVALID_HOLD_POLICY_HOST_LMS_CODE,
+			KEY, SECRET, BASE_URL, "invalid");
 
 		this.agency_ab6 = agencyFixture.saveAgency(
 			DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(sierraHostLms).build());

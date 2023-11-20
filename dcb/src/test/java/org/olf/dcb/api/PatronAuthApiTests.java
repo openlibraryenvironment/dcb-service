@@ -77,7 +77,7 @@ public class PatronAuthApiTests {
 		hostLmsFixture.deleteAll();
 		agencyRepository.deleteAll();
 
-		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "item");
+		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 
 		mockSierra = SierraTestUtils.mockFor(mock, BASE_URL).setValidCredentials(KEY, SECRET, TOKEN, 60);
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);

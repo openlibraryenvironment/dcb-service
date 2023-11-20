@@ -67,8 +67,8 @@ class HostLmsTests {
 	@Test
 	void shouldBeAbleToCreateSierraClientFromDatabaseHostLms() {
 		// Arrange
-		hostLmsFixture.createSierraHostLms("some-username", "some-password",
-			"https://some-sierra-system", "sierra-database-host-lms");
+		hostLmsFixture.createSierraHostLms("sierra-database-host-lms", "some-username",
+			"some-password", "https://some-sierra-system");
 
 		// Act
 		final var client = hostLmsFixture.createClient("sierra-database-host-lms");
@@ -80,8 +80,8 @@ class HostLmsTests {
 	@Test
 	void shouldBeAbleToCreateSierraIngestSourceFromDatabaseHostLms() {
 		// Arrange
-		hostLmsFixture.createSierraHostLms("some-username", "some-password",
-			"https://some-sierra-system", "sierra-database-host-lms");
+		hostLmsFixture.createSierraHostLms("sierra-database-host-lms", "some-username",
+			"some-password", "https://some-sierra-system");
 
 		// Act
 		final var client = hostLmsFixture.getIngestSource("sierra-database-host-lms");

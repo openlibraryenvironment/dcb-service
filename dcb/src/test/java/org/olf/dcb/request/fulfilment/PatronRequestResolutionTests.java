@@ -79,8 +79,8 @@ class PatronRequestResolutionTests {
 
 		hostLmsFixture.deleteAll();
 
-		hostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_KEY,
-			HOST_LMS_SECRET, HOST_LMS_BASE_URL, HOST_LMS_CODE, "item");
+		hostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, HOST_LMS_KEY,
+			HOST_LMS_SECRET, HOST_LMS_BASE_URL, "item");
 	}
 
 	@BeforeEach

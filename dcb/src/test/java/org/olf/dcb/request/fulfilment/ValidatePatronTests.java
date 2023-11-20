@@ -70,7 +70,9 @@ public class ValidatePatronTests {
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		hostLmsFixture.deleteAll();
-		DataHostLms s1 = hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "item");
+
+		final var hostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY,
+			SECRET, BASE_URL, "item");
 
 		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 
@@ -83,7 +85,7 @@ public class ValidatePatronTests {
 			.id(UUID.randomUUID())
 			.code("AGENCY1")
 			.name("Test AGENCY1")
-			.hostLms(s1)
+			.hostLms(hostLms)
 			.build());
 	}
 

@@ -1,7 +1,15 @@
 package org.olf.dcb;
 
-import io.micronaut.core.io.ResourceLoader;
-import jakarta.inject.Inject;
+import static java.util.UUID.randomUUID;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
+import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
+import static services.k_int.utils.UUIDUtils.nameUUIDFromNamespaceAndString;
+
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -17,19 +25,12 @@ import org.olf.dcb.storage.StatusCodeRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.tracking.TrackingService;
+
+import io.micronaut.core.io.ResourceLoader;
+import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import static java.util.UUID.randomUUID;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.hasProperty;
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
-import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
-import static services.k_int.utils.UUIDUtils.nameUUIDFromNamespaceAndString;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -60,7 +61,7 @@ public class PatronRequestTrackingTests {
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
 		this.sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
 
-		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "item");
+		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 	}
 
 	@Test
