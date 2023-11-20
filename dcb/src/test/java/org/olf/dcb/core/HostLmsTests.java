@@ -3,6 +3,7 @@ package org.olf.dcb.core;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -63,6 +64,19 @@ class HostLmsTests {
 		assertThat(foundHost, hasType(SierraLmsClient.class));
 	}
 
+	@Test
+	void shouldBeAbleToCreateSierraClientFromDatabaseHostLms() {
+		// Arrange
+		hostLmsFixture.createSierraHostLms("some-username", "some-password",
+			"https://some-sierra-system", "sierra-database-host-lms");
+
+		// Act
+		final var client = hostLmsFixture.createClient("sierra-database-host-lms");
+
+		// Assert
+		assertThat(client, is(instanceOf(SierraLmsClient.class)));
+	}
+	
 	@Test
 	void shouldNotFindHostLmsByCodeWhenUnknown() {
 		// Arrange
