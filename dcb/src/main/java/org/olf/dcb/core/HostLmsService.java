@@ -80,6 +80,11 @@ public class HostLmsService implements IngestSourcesProvider {
 			.cast(IngestSource.class);
 	}
 
+	public Mono<IngestSource> getIngestSourceFor(String code) {
+		return findByCode(code)
+			.flatMap(this::getIngestSourceFor);
+	}
+
 	public Flux<DataHostLms> getAllHostLms() {
                 log.debug("getAllHostLms()");
 		return Flux.from(hostLmsRepository.queryAll());

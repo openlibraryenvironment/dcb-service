@@ -15,12 +15,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
-import reactor.core.publisher.Mono;
 
 @DcbTest
 class HostLmsTests {
@@ -86,8 +84,7 @@ class HostLmsTests {
 			"https://some-sierra-system", "sierra-database-host-lms");
 
 		// Act
-		final var client = getIngestSourceFor("sierra-database-host-lms")
-			.block();
+		final var client = hostLmsService.getIngestSourceFor("sierra-database-host-lms").block();
 
 		// Assert
 		assertThat(client, is(instanceOf(SierraLmsClient.class)));
@@ -147,10 +144,5 @@ class HostLmsTests {
 
 	private static Matcher<Throwable> hasMessage(String expectedMessage) {
 		return hasProperty("message", is(expectedMessage));
-	}
-
-	private Mono<IngestSource> getIngestSourceFor(String code) {
-		return hostLmsService.findByCode(code)
-			.flatMap(hostLms -> hostLmsService.getIngestSourceFor(hostLms));
 	}
 }
