@@ -134,6 +134,6 @@ public class HostLmsFixture {
 	}
 
 	public DataHostLms findByCode(String code) {
-		return hostLmsService.findByCode(code).block();
+		return singleValueFrom(hostLmsService.findByCode(code));
 	}
 }
