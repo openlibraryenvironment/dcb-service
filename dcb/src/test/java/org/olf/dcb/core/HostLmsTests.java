@@ -48,22 +48,6 @@ class HostLmsTests {
 	}
 
 	@Test
-	void shouldNotFindHostLmsByCodeWhenUnknown() {
-		// Arrange
-		// Host LMS that should not be found
-		hostLmsFixture.saveHostLms(new DataHostLms(UUID.randomUUID(), "database-host",
-			"Database Host", SierraLmsClient.class.getName(), Map.of()));
-
-		// Act
-		final var exception = assertThrows(HostLmsService.UnknownHostLmsException.class,
-			() -> hostLmsService.findByCode("unknown-host").block());
-
-		// Assert
-		assertThat(exception, is(notNullValue()));
-		assertThat(exception.getMessage(), is("No Host LMS found for code: unknown-host"));
-	}
-
-	@Test
 	void shouldFindHostLmsInDatabaseById() {
 		// Arrange
 		final var hostLmsId = UUID.randomUUID();
@@ -79,6 +63,22 @@ class HostLmsTests {
 		assertThat(foundHost.getCode(), is("database-host"));
 		assertThat(foundHost.getName(), is("Database Host"));
 		assertThat(foundHost.getType(), is(SierraLmsClient.class));
+	}
+
+	@Test
+	void shouldNotFindHostLmsByCodeWhenUnknown() {
+		// Arrange
+		// Host LMS that should not be found
+		hostLmsFixture.saveHostLms(new DataHostLms(UUID.randomUUID(), "database-host",
+			"Database Host", SierraLmsClient.class.getName(), Map.of()));
+
+		// Act
+		final var exception = assertThrows(HostLmsService.UnknownHostLmsException.class,
+			() -> hostLmsService.findByCode("unknown-host").block());
+
+		// Assert
+		assertThat(exception, is(notNullValue()));
+		assertThat(exception.getMessage(), is("No Host LMS found for code: unknown-host"));
 	}
 
 	@Test
