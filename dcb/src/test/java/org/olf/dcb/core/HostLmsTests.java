@@ -13,6 +13,7 @@ import java.util.UUID;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.test.DcbTest;
@@ -90,6 +91,20 @@ class HostLmsTests {
 		assertThat(client, is(instanceOf(SierraLmsClient.class)));
 	}
 
+	@Test
+	void shouldBeAbleToCreatePolarisClientFromDatabaseHostLms() {
+		// Arrange
+		hostLmsFixture.createPolarisHostLms("polaris-database-host-lms", "some-username",
+			"some-password", "https://some-polaris-system", "some-domain",
+			"some-access-id", "some-access-key");
+
+		// Act
+		final var client = hostLmsFixture.createClient("polaris-database-host-lms");
+
+		// Assert
+		assertThat(client, is(instanceOf(PAPILmsClient.class)));
+	}
+	
 	@Test
 	void shouldNotFindHostLmsByCodeWhenUnknown() {
 		// Arrange
