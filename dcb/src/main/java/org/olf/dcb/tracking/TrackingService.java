@@ -68,13 +68,6 @@ public class TrackingService implements Runnable {
 		log.info("Starting Scheduled Tracking Ingest");
 		final long start = System.currentTimeMillis();
 
-		trackActivePatronRequestHolds()
-			.flatMap( this::checkPatronRequest)
-			.subscribe( 
-				value -> {},
-				error -> log.error("Error: " + error),
-				() -> log.info("active borrower request tracking complete") );
-
 		trackSupplierItems()
 			.flatMap( this::checkSupplierItem)
 			.subscribe( 
@@ -95,6 +88,15 @@ public class TrackingService implements Runnable {
 				value -> {},
 				error -> log.error("Error: " + error),
 				() -> log.info("active borrower virtual item tracking complete") );
+
+		// Do this last - to advance requests before dealing with any cancellations
+		trackActivePatronRequestHolds()
+			.flatMap( this::checkPatronRequest)
+			.subscribe( 
+				value -> {},
+				error -> log.error("Error: " + error),
+				() -> log.info("active borrower request tracking complete") );
+
 	}
 
 	public Flux<PatronRequest> trackActivePatronRequestHolds() {

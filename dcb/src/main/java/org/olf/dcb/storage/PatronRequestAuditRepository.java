@@ -18,6 +18,7 @@ public interface PatronRequestAuditRepository {
 	Publisher<? extends PatronRequestAudit> save(@Valid @NotNull @NonNull PatronRequestAudit patronRequestAudit);
 
 	Publisher<PatronRequestAudit> findByPatronRequest(@NotNull @NonNull PatronRequest patronRequest);
+
 	Publisher<PatronRequestAudit> findAllByPatronRequest(@NotNull @NonNull PatronRequest patronRequest);
 
 	@NonNull
