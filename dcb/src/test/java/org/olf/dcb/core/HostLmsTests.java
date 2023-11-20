@@ -104,7 +104,21 @@ class HostLmsTests {
 		// Assert
 		assertThat(client, is(instanceOf(PAPILmsClient.class)));
 	}
-	
+
+	@Test
+	void shouldBeAbleToCreatePolarisIngestSourceFromDatabaseHostLms() {
+		// Arrange
+		hostLmsFixture.createPolarisHostLms("polaris-database-host-lms", "some-username",
+			"some-password", "https://some-polaris-system", "some-domain",
+			"some-access-id", "some-access-key");
+
+		// Act
+		final var client = hostLmsFixture.getIngestSource("polaris-database-host-lms");
+
+		// Assert
+		assertThat(client, is(instanceOf(PAPILmsClient.class)));
+	}
+
 	@Test
 	void shouldNotFindHostLmsByCodeWhenUnknown() {
 		// Arrange
