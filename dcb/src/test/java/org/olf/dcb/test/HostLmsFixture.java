@@ -76,8 +76,8 @@ public class HostLmsFixture {
 		return createHostLms(UUID.randomUUID(), code, SierraLmsClient.class, config);
 	}
 
-	public DataHostLms createPAPIHostLms(String staffUsername, String staffPassword,
-		String host, String code, String domain, String accessId, String accessKey) {
+	public DataHostLms createPolarisHostLms(String code, String staffUsername,
+		String staffPassword, String host, String domain, String accessId, String accessKey) {
 
 		Map<String, Object> clientConfig = new HashMap<>();
 		clientConfig.put("staff-username", staffUsername);

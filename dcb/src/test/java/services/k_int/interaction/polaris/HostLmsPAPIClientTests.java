@@ -79,7 +79,9 @@ public class HostLmsPAPIClientTests {
 
 		hostLmsFixture.deleteAll();
 
-		polarisHostLms = hostLmsFixture.createPAPIHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, DOMAIN, KEY, SECRET);
+		polarisHostLms = hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY,
+			SECRET, BASE_URL, DOMAIN, KEY, SECRET);
+
 		mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);
 
 		mockPolaris.whenRequest(req -> req.withMethod("POST")

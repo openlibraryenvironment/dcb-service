@@ -59,7 +59,9 @@ class PolarisIngestTests {
 
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createPAPIHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, DOMAIN, KEY, SECRET);
+		hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL,
+			DOMAIN, KEY, SECRET);
+
 		var mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);
 
 		// Mock bibs returned by the polaris system for ingest.
