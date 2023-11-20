@@ -34,7 +34,7 @@ class HostLmsTests {
 	}
 
 	@Test
-	void shouldFindHostInDatabaseByCode() {
+	void shouldFindHostLmsInDatabaseByCode() {
 		singleValueFrom(hostLmsRepository.save(new DataHostLms(UUID.randomUUID(), "database-host",
 			"Database Host", SierraLmsClient.class.getName(), Map.of())));
 
@@ -49,7 +49,7 @@ class HostLmsTests {
 	}
 
 	@Test
-	void shouldNotFindHostByCodeWhenUnknown() {
+	void shouldNotFindHostLmsByCodeWhenUnknown() {
 		singleValueFrom(hostLmsRepository.save(new DataHostLms(UUID.randomUUID(), "database-host",
 				"Database Host", SierraLmsClient.class.getName(), Map.of())));
 
@@ -61,7 +61,7 @@ class HostLmsTests {
 	}
 
 	@Test
-	void shouldFindHostInDatabaseById() {
+	void shouldFindHostLmsInDatabaseById() {
 		final var hostId = UUID.randomUUID();
 
 		singleValueFrom(hostLmsRepository.save(new DataHostLms(hostId, "database-host",
@@ -78,7 +78,7 @@ class HostLmsTests {
 	}
 
 	@Test
-	void shouldNotFindHostByIdWhenUnknown() {
+	void shouldNotFindHostLmsByIdWhenUnknown() {
 		singleValueFrom(hostLmsRepository.save(new DataHostLms(UUID.randomUUID(), "database-host",
 				"Database Host", SierraLmsClient.class.getName(), Map.of())));
 
