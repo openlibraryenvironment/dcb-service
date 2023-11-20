@@ -2,12 +2,14 @@ package org.olf.dcb.core;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Map;
 import java.util.UUID;
 
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
@@ -39,12 +41,10 @@ class HostLmsTests {
 		final var foundHost = hostLmsService.findByCode("database-host").block();
 
 		// Assert
-		assertThat(foundHost, is(notNullValue()));
-
-		assertThat(foundHost.getId(), is(notNullValue()));
-		assertThat(foundHost.getCode(), is("database-host"));
-		assertThat(foundHost.getName(), is("Database Host"));
-		assertThat(foundHost.getType(), is(SierraLmsClient.class));
+		assertThat(foundHost, hasNonNullId());
+		assertThat(foundHost, hasCode("database-host"));
+		assertThat(foundHost, hasName("Database Host"));
+		assertThat(foundHost, hasType(SierraLmsClient.class));
 	}
 
 	@Test
@@ -57,12 +57,10 @@ class HostLmsTests {
 
 		final var foundHost = hostLmsService.findById(hostLmsId).block();
 
-		assertThat(foundHost, is(notNullValue()));
-
-		assertThat(foundHost.getId(), is(hostLmsId));
-		assertThat(foundHost.getCode(), is("database-host"));
-		assertThat(foundHost.getName(), is("Database Host"));
-		assertThat(foundHost.getType(), is(SierraLmsClient.class));
+		assertThat(foundHost, hasId(hostLmsId));
+		assertThat(foundHost, hasCode("database-host"));
+		assertThat(foundHost, hasName("Database Host"));
+		assertThat(foundHost, hasType(SierraLmsClient.class));
 	}
 
 	@Test
@@ -77,8 +75,7 @@ class HostLmsTests {
 			() -> hostLmsService.findByCode("unknown-host").block());
 
 		// Assert
-		assertThat(exception, is(notNullValue()));
-		assertThat(exception.getMessage(), is("No Host LMS found for code: unknown-host"));
+		assertThat(exception, hasMessage("No Host LMS found for code: unknown-host"));
 	}
 
 	@Test
@@ -95,7 +92,30 @@ class HostLmsTests {
 			() -> hostLmsService.findById(unknownHostId).block());
 
 		// Assert
-		assertThat(exception, is(notNullValue()));
-		assertThat(exception.getMessage(), is("No Host LMS found for ID: " + unknownHostId));
+		assertThat(exception, hasMessage("No Host LMS found for ID: " + unknownHostId));
+	}
+
+	private static Matcher<DataHostLms> hasId(UUID hostLmsId) {
+		return hasProperty("id", is(hostLmsId));
+	}
+
+	private static Matcher<DataHostLms> hasNonNullId() {
+		return hasProperty("id", notNullValue());
+	}
+
+	private static Matcher<DataHostLms> hasName(String expectedName) {
+		return hasProperty("name", is(expectedName));
+	}
+
+	private static Matcher<DataHostLms> hasCode(String expectedCode) {
+		return hasProperty("code", is(expectedCode));
+	}
+
+	private static Matcher<DataHostLms> hasType(Class<SierraLmsClient> expectedType) {
+		return hasProperty("type", is(expectedType));
+	}
+
+	private static Matcher<Throwable> hasMessage(String expectedMessage) {
+		return hasProperty("message", is(expectedMessage));
 	}
 }
