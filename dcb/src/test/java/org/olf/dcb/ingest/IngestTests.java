@@ -62,7 +62,7 @@ class IngestTests {
 
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "item");
+		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 
 		var mockSierra = SierraTestUtils.mockFor(mock, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);

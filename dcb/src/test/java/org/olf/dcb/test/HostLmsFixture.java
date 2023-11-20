@@ -13,10 +13,12 @@ import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 
 import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.client.HttpClient;
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,8 +48,8 @@ public class HostLmsFixture {
 		return createSierraHostLms(code, Map.of());
 	}
 
-	public DataHostLms createSierraHostLms(String username, String password,
-		String host, String code) {
+	public DataHostLms createSierraHostLms(String code, String username,
+		String password, String host) {
 
 		return createSierraHostLms(code, Map.of(
 			"key", username,
@@ -55,8 +57,8 @@ public class HostLmsFixture {
 			"base-url", host));
 	}
 
-	public DataHostLms createSierraHostLms(String username, String password,
-		String host, String code, String holdPolicy) {
+	public DataHostLms createSierraHostLms(String code, String username,
+		String password, String host, String holdPolicy) {
 
 		return createSierraHostLms(code, Map.of(
 			"key", username,
@@ -74,8 +76,8 @@ public class HostLmsFixture {
 		return createHostLms(UUID.randomUUID(), code, SierraLmsClient.class, config);
 	}
 
-	public DataHostLms createPAPIHostLms(String staffUsername, String staffPassword,
-		String host, String code, String domain, String accessId, String accessKey) {
+	public DataHostLms createPolarisHostLms(String code, String staffUsername,
+		String staffPassword, String host, String domain, String accessId, String accessKey) {
 
 		Map<String, Object> clientConfig = new HashMap<>();
 		clientConfig.put("staff-username", staffUsername);
@@ -105,7 +107,7 @@ public class HostLmsFixture {
 			.build());
 	}
 
-	private DataHostLms saveHostLms(DataHostLms hostLms) {
+	public DataHostLms saveHostLms(DataHostLms hostLms) {
 		return singleValueFrom(hostLmsRepository.save(hostLms));
 	}
 
@@ -122,10 +124,15 @@ public class HostLmsFixture {
 	}
 
 	public HostLmsClient createClient(String code) {
-		return hostLmsService.getClientFor(code).block();
+		return singleValueFrom(hostLmsService.getClientFor(code));
 	}
 
-	public HostLmsSierraApiClient createClient(String code, HttpClient client) {
+	@Nullable
+	public IngestSource getIngestSource(String code) {
+		return singleValueFrom(hostLmsService.getIngestSourceFor(code));
+	}
+
+	public HostLmsSierraApiClient createLowLevelSierraClient(String code, HttpClient client) {
 		final var hostLms = findByCode(code);
 
 		// Need to create a client directly
@@ -134,6 +141,6 @@ public class HostLmsFixture {
 	}
 
 	public DataHostLms findByCode(String code) {
-		return hostLmsService.findByCode(code).block();
+		return singleValueFrom(hostLmsService.findByCode(code));
 	}
 }
