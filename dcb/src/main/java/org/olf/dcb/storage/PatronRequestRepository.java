@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.StatusCode;
 import org.reactivestreams.Publisher;
@@ -79,4 +80,9 @@ public interface PatronRequestRepository {
 	@NonNull
 	@SingleResult
 	Publisher<PatronIdentity> findRequestingIdentityById(UUID id);
+
+	@NotNull
+	@SingleResult
+	@Query(value = "SELECT pr.* from patron_request pr, supplier_request sr where sr.patron_request_id = pr.id and sr.id = :srid", nativeQuery = true)
+	Publisher<PatronRequest> getPRForSRID(UUID srid);
 }

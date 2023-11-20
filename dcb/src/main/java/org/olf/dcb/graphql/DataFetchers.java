@@ -342,4 +342,14 @@ public class DataFetchers {
 				.toFuture();
                 };
         }
+
+	public DataFetcher<CompletableFuture<PatronRequest>> getPatronRequestForSupplierRequestDataFetcher() {
+                return env -> {
+                        SupplierRequest sr = (SupplierRequest) env.getSource();
+                        // String sourceRecordId=br.getSourceRecordId();
+                        // UUID sourceSystemUUID=br.getSourceSystemId();
+                        // log.debug("Find raw source with ID {} from {}",sourceRecordId,sourceSystemUUID);
+                        return Mono.from(postgresPatronRequestRepository.getPRForSRID(sr.getId())).toFuture();
+                };
+	}
 }

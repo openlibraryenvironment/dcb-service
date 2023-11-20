@@ -82,6 +82,8 @@ public class GraphQLFactory {
 					typeWiring -> typeWiring.dataFetcher("members", dataFetchers.getClusterMembersDataFetcher()))
                                 .type("BibRecord",
                                         typeWiring -> typeWiring.dataFetcher("sourceRecord", dataFetchers.getSourceRecordForBibDataFetcher()))
+                                .type("SupplierRequest",
+                                        typeWiring -> typeWiring.dataFetcher("patronRequest", dataFetchers.getPatronRequestForSupplierRequestDataFetcher()))
                                 .type("PatronRequst",
 					typeWiring -> typeWiring
                                                 .dataFetcher("suppliers", dataFetchers.getSupplierRequestsForPR())
