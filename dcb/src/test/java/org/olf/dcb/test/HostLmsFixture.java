@@ -13,10 +13,12 @@ import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 
 import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.client.HttpClient;
 import lombok.extern.slf4j.Slf4j;
 
@@ -122,7 +124,12 @@ public class HostLmsFixture {
 	}
 
 	public HostLmsClient createClient(String code) {
-		return hostLmsService.getClientFor(code).block();
+		return singleValueFrom(hostLmsService.getClientFor(code));
+	}
+
+	@Nullable
+	public IngestSource getIngestSource(String code) {
+		return singleValueFrom(hostLmsService.getIngestSourceFor(code));
 	}
 
 	public HostLmsSierraApiClient createClient(String code, HttpClient client) {

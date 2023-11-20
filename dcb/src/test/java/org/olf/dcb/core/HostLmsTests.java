@@ -84,7 +84,7 @@ class HostLmsTests {
 			"https://some-sierra-system", "sierra-database-host-lms");
 
 		// Act
-		final var client = hostLmsService.getIngestSourceFor("sierra-database-host-lms").block();
+		final var client = hostLmsFixture.getIngestSource("sierra-database-host-lms");
 
 		// Assert
 		assertThat(client, is(instanceOf(SierraLmsClient.class)));
