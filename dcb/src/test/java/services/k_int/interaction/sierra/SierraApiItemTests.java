@@ -11,7 +11,6 @@ import static org.olf.dcb.test.matchers.SierraErrorMatchers.isBadJsonError;
 
 import java.util.List;
 
-import io.micronaut.context.annotation.Property;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -20,6 +19,7 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.matchers.SierraErrorMatchers;
 
+import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -69,7 +69,7 @@ class SierraApiItemTests {
 		sierraItemsAPIFixture
 			.successResponseForCreateItem(4641865, "ab1234", "68439643");
 
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act
 		final var itemPatch = ItemPatch.builder()
@@ -92,7 +92,7 @@ class SierraApiItemTests {
 		// Arrange
 		sierraItemsAPIFixture.jsonErrorResponseForCreateItem();
 
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act
 		final var itemPatch = ItemPatch.builder()
@@ -113,7 +113,7 @@ class SierraApiItemTests {
 	void sierraCanRespondWithMultipleItems() {
 		sierraItemsAPIFixture.threeItemsResponseForBibId("65423515");
 
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		var response = Mono.from(sierraApiClient.items(
 			Params.builder()
@@ -182,7 +182,7 @@ class SierraApiItemTests {
 
 		// Need to create a new client for this test
 		// because it fails when re-using the client
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		var response = Mono.from(sierraApiClient.items(
 				Params.builder()

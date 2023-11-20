@@ -11,7 +11,6 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import java.time.Instant;
 import java.util.List;
 
-import io.micronaut.context.annotation.Property;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -21,6 +20,7 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraLoginAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
+import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -107,7 +107,7 @@ class SierraApiLoginTests {
 		sierraLoginFixture.successfulLoginFor(KEY, SECRET, "login-token",
 			Times.exactly(2));
 
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		final var itemsFixture = new SierraItemsAPIFixture(mockServerClient, loader);
 
@@ -153,7 +153,7 @@ class SierraApiLoginTests {
 	}
 
 	private AuthToken login(String key, String secret) {
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		return singleValueFrom(sierraApiClient.login(key, secret));
 	}

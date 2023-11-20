@@ -132,7 +132,7 @@ public class HostLmsFixture {
 		return singleValueFrom(hostLmsService.getIngestSourceFor(code));
 	}
 
-	public HostLmsSierraApiClient createClient(String code, HttpClient client) {
+	public HostLmsSierraApiClient createLowLevelSierraClient(String code, HttpClient client) {
 		final var hostLms = findByCode(code);
 
 		// Need to create a client directly

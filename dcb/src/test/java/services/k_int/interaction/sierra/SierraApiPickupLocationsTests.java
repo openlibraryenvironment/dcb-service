@@ -9,7 +9,6 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
-import io.micronaut.context.annotation.Property;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -18,6 +17,7 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraPickupLocationsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
+import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
 import jakarta.inject.Inject;
@@ -62,7 +62,7 @@ class SierraApiPickupLocationsTests {
 		// Arrange
 		sierraPickupLocationsFixture.successfulResponseWhenGettingPickupLocations();
 
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act
 		var pickupLocations = singleValueFrom(sierraApiClient.pickupLocations());

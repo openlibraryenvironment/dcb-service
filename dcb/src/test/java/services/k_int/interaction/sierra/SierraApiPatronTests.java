@@ -73,7 +73,7 @@ class SierraApiPatronTests {
 
 		sierraPatronsAPIFixture.postPatronErrorResponse("0987654321");
 
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
@@ -97,7 +97,7 @@ class SierraApiPatronTests {
 			.build();
 
 		sierraPatronsAPIFixture.postPatronResponse("1234567890", 2745326);
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act
 		var response = Mono.from(sierraApiClient.patrons(patronPatch)).block();
@@ -114,7 +114,7 @@ class SierraApiPatronTests {
 
 		sierraPatronsAPIFixture.patronResponseForUniqueId("u", uniqueId);
 
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act
 		var response = singleValueFrom(sierraApiClient.patronFind("u", uniqueId));
@@ -135,7 +135,7 @@ class SierraApiPatronTests {
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(uniqueId);
 
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act
 		var response = singleValueFrom(sierraApiClient.getPatron(Long.valueOf(uniqueId)));
@@ -154,7 +154,7 @@ class SierraApiPatronTests {
 		// Arrange
 		final var uniqueId = "018563984";
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", uniqueId);
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act
 		final var response = singleValueFrom(sierraApiClient.patronFind("u", uniqueId));
@@ -168,7 +168,7 @@ class SierraApiPatronTests {
 		// Arrange
 		final var patronLocalId = "018563984";
 		sierraPatronsAPIFixture.patronHoldResponse(patronLocalId);
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act
 		var response = Mono.from(sierraApiClient.patronHolds(patronLocalId)).block();
@@ -187,7 +187,7 @@ class SierraApiPatronTests {
 
 		sierraPatronsAPIFixture.patronHoldNotFoundErrorResponse(patronLocalId);
 
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act
 		final var response = singleValueFrom(sierraApiClient.patronHolds(patronLocalId));
@@ -201,7 +201,7 @@ class SierraApiPatronTests {
 		// Arrange
 		final var patronLocalId = "489365810";
 		sierraPatronsAPIFixture.patronHoldErrorResponse(patronLocalId);
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
@@ -224,7 +224,7 @@ class SierraApiPatronTests {
 		patronHoldPost.setRecordType("i");
 		patronHoldPost.setPickupLocation("pickupLocation");
 
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act
 		var response = Mono.from(sierraApiClient.placeHoldRequest(patronLocalId, patronHoldPost)).block();
@@ -244,7 +244,7 @@ class SierraApiPatronTests {
 		patronHoldPost.setRecordType("i");
 		patronHoldPost.setPickupLocation("pickupLocation");
 
-		final var sierraApiClient = hostLmsFixture.createClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
