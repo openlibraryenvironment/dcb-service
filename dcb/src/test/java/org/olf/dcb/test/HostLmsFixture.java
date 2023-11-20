@@ -105,7 +105,7 @@ public class HostLmsFixture {
 			.build());
 	}
 
-	private DataHostLms saveHostLms(DataHostLms hostLms) {
+	public DataHostLms saveHostLms(DataHostLms hostLms) {
 		return singleValueFrom(hostLmsRepository.save(hostLms));
 	}
 
