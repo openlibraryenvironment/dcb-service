@@ -76,7 +76,22 @@ class HostLmsTests {
 		// Assert
 		assertThat(client, is(instanceOf(SierraLmsClient.class)));
 	}
-	
+
+	@Test
+	void shouldBeAbleToCreateSierraIngestSourceFromDatabaseHostLms() {
+		// Arrange
+		hostLmsFixture.createSierraHostLms("some-username", "some-password",
+			"https://some-sierra-system", "sierra-database-host-lms");
+
+		// Act
+		final var client = hostLmsService.findByCode("sierra-database-host-lms")
+			.flatMap(hostLms -> hostLmsService.getIngestSourceFor(hostLms))
+			.block();
+
+		// Assert
+		assertThat(client, is(instanceOf(SierraLmsClient.class)));
+	}
+
 	@Test
 	void shouldNotFindHostLmsByCodeWhenUnknown() {
 		// Arrange
