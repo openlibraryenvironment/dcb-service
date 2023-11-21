@@ -2,16 +2,18 @@ package org.olf.dcb.core;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasCode;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasId;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasName;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasNonNullId;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasType;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.Map;
 import java.util.UUID;
 
-import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -20,7 +22,6 @@ import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.matchers.ThrowableMatchers;
 
 import jakarta.inject.Inject;
 
@@ -154,25 +155,5 @@ class HostLmsTests {
 			// Assert
 			assertThat(client, is(instanceOf(PAPILmsClient.class)));
 		}
-	}
-
-	private static Matcher<DataHostLms> hasId(UUID hostLmsId) {
-		return hasProperty("id", is(hostLmsId));
-	}
-
-	private static Matcher<DataHostLms> hasNonNullId() {
-		return hasProperty("id", notNullValue());
-	}
-
-	private static Matcher<DataHostLms> hasName(String expectedName) {
-		return hasProperty("name", is(expectedName));
-	}
-
-	private static Matcher<DataHostLms> hasCode(String expectedCode) {
-		return hasProperty("code", is(expectedCode));
-	}
-
-	private static Matcher<DataHostLms> hasType(Class<SierraLmsClient> expectedType) {
-		return hasProperty("type", is(expectedType));
 	}
 }
