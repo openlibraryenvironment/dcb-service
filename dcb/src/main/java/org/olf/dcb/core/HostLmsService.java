@@ -10,20 +10,18 @@ import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.IngestSourcesProvider;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.BeanContext;
 import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Singleton
 public class HostLmsService implements IngestSourcesProvider {
-	// private final Map<UUID, HostLms> fromConfigById;
 	private final BeanContext context;
 	private final HostLmsRepository hostLmsRepository;
-        private static Logger log = LoggerFactory.getLogger(HostLmsService.class);
 
 	HostLmsService(BeanContext context, HostLmsRepository hostLmsRepository) {
 		this.hostLmsRepository = hostLmsRepository;
@@ -33,7 +31,7 @@ public class HostLmsService implements IngestSourcesProvider {
 	public Mono<DataHostLms> findById(UUID id) {
 		return getAllHostLms()
 			.collectList()
-                        .doOnNext( list -> log.debug("Got list of hostLms systems {}",list))
+			.doOnNext(list -> log.debug("Got list of hostLms systems {}", list))
 			.map(list -> findFirstById(id, list));
 	}
 
@@ -45,12 +43,12 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	public Mono<DataHostLms> findByCode(String code) {
-                log.debug("findHostLmsByCode {}",code);
+		log.debug("findHostLmsByCode {}", code);
+
 		return getAllHostLms()
 			.collectList()
 			.map(list -> findFirstByCode(code, list))
-			.switchIfEmpty(Mono.error(new UnknownHostLmsException("code",code)));
-
+			.switchIfEmpty(Mono.error(new UnknownHostLmsException("code", code)));
 	}
 
 	private static DataHostLms findFirstByCode(String code, List<DataHostLms> list) {
@@ -60,8 +58,7 @@ public class HostLmsService implements IngestSourcesProvider {
 			.orElseThrow(() -> new UnknownHostLmsException("code", code));
 	}
 
-	public Mono<HostLmsClient> getClientFor( final HostLms hostLms ) {
-		
+	public Mono<HostLmsClient> getClientFor(final HostLms hostLms) {
 		return Mono.just(hostLms.getType())
 			.filter(HostLmsClient.class::isAssignableFrom)
 			.map(type -> context.createBean(type, hostLms))
@@ -73,7 +70,7 @@ public class HostLmsService implements IngestSourcesProvider {
 			.flatMap(this::getClientFor);
 	}
 	
-	public Mono<IngestSource> getIngestSourceFor (final HostLms hostLms) {
+	public Mono<IngestSource> getIngestSourceFor(final HostLms hostLms) {
 		return Mono.just(hostLms.getType())
 			.filter(IngestSource.class::isAssignableFrom)
 			.map(type -> context.createBean(type, hostLms))
@@ -86,7 +83,8 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	public Flux<DataHostLms> getAllHostLms() {
-                log.debug("getAllHostLms()");
+		log.debug("getAllHostLms()");
+
 		return Flux.from(hostLmsRepository.queryAll());
 	}
 
