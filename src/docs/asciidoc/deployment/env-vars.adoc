@@ -8,10 +8,18 @@ Note: Today flyway does not support r2dbc datasources, so we need to configure b
 |ENV | Description |Required | Example
 
 |R2DBC_DATASOURCES_DEFAULT_URL |R2DBC Connection URL |yes |r2dbc:postgresql://localhost:5432/dcb
-|R2DBC_DATASOURCES_DEFAULT_USERNAME |R2DBC Username |yes |dcb
-|R2DBC_DATASOURCES_DEFAULT_PASSWORD |R2DBC Password |yes |dcb
+|R2DBC_DATASOURCES_DEFAULT_USERNAME |R2DBC Username  |yes |dcb
+|R2DBC_DATASOURCES_DEFAULT_PASSWORD |R2DBC Password  |yes |dcb
 
 |DATASOURCES_DEFAULT_URL |JDBC Connection URL |yes |jdbc:postgresql://localhost:5432/dcb
-|DATASOURCES_DEFAULT_USERNAME |JDBC Username |yes |dcb
-|DATASOURCES_DEFAULT_PASSWORD |JDBC Password |yes |dcb
-|=== 
+|DATASOURCES_DEFAULT_USERNAME |JDBC Username  |yes |dcb
+|DATASOURCES_DEFAULT_PASSWORD |JDBC Password  |yes |dcb
+
+|DCB_INDEX_NAME |Name of the index representing the shared index    |no |si-index
+|DCB_INDEX_USERNAME |Username to communicate with the index service |no |si-user
+|DCB_INDEX_PASSWORD |Password to communicate with the index service |no |si-pass
+
+|*Choose 1 of the below* |||
+|ELASTICSEARCH_HTTP_HOSTS |1 or more Elasticsearch hosts (Comma separated) |no (See note) |http://localhost:9200
+|OPENSEARCH_HTTP_HOSTS |1 or more OpenSearch hosts (Comma separated) |no (See note) |http://localhost:9200
+|===
