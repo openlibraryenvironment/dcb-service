@@ -1,5 +1,44 @@
 # Changelog
 
+## Version 2.4.1
+
+### Fixes
+* [General]
+	* Use correct local_request_status when seeking patron requests on the borrowing side to track
+
+## Version 2.4.0
+
+### Additions
+* [General]
+	* Added reindex job to admin controller.
+	* Create index for OS or ES on startup.
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Create a new transaction for each of the tracking events
+	* add logger when subscribe complete for tracking calls
+	* Indexing tweaks
+	* Case insensitivity
+* [Test]
+	* Remove redundant deletion of bib records separately to cluster records DCB-739
+	* Delete all cluster records before each Polaris ingest test DCB-739
+	* Delete all cluster records before each Sierra ingest test DCB-739
+	* Use empty set of bibs when creating cluster record DCB-739
+	* Rename delete all bib records method DCB-739
+	* Rename delete all cluster records method DCB-739
+	* Remove redundant ID parameter when creating a Sierra host LMS DCB-739
+	* Use ID from returned host LMS instead of defining it first DCB-739
+	* Use builder when defining host LMS DCB-739
+	* Use create host LMS method when creating Polaris host LMS DCB-739
+	* Use create host LMS method when creating Sierra host LMS DCB-739
+	* Rename Sierra specific create host LMS method DCB-739
+	* Introduce parameters for client class and config when creating host LMS DCB-739
+	* Delete all cluster records before each cluster record tests DCB-739
+	* Delete all bib records before deleting all cluster records DCB-739
+	* Use sneaky throws to avoid checked IO exception in cluster record tests DCB-739
+	* Remove unused log from cluster record tests DCB-739
+
 ## Version 2.3.0
 
 ### Additions
@@ -9,6 +48,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Change page size to integer property DCB-739
 	* Change page size Sierra setting to optional DCB-739
 	* Change type of get holds retry attempts setting

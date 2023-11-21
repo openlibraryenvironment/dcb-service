@@ -67,15 +67,12 @@ class LiveAvailabilityApiTests {
 
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createSierraHostLms(KEY, SECRET, BASE_URL, HOST_LMS_CODE, "item");
-
-                // Create Numeric Mapping for live-availability-api-tests - ItemType - 999
+		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 	}
 
 	@BeforeEach
 	void beforeEach() {
-		bibRecordFixture.deleteAllBibRecords();
-		clusterRecordFixture.deleteAllClusterRecords();
+		clusterRecordFixture.deleteAll();
 	}
 
 	@Test

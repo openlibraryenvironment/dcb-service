@@ -327,7 +327,7 @@ public class DataFetchers {
                 return env -> {
 			PatronRequest parent = env.getSource();
                         log.debug("getSupplierRequestsForPR {}",parent);
-                        return Flux.from(postgresSupplierRequestRepository.findByPatronRequest(parent))
+                        return Flux.from(postgresSupplierRequestRepository.findAllByPatronRequest(parent))
 				.collectList()
 				.toFuture();
                 };
@@ -337,9 +337,16 @@ public class DataFetchers {
                 return env -> {
 			PatronRequest parent = env.getSource();
                         log.debug("getAuditMessagesForPR {}",parent);
-                        return Flux.from(postgresPatronRequestAuditRepository.findByPatronRequest(parent))
+                        return Flux.from(postgresPatronRequestAuditRepository.findAllByPatronRequest(parent))
 				.collectList()
 				.toFuture();
                 };
         }
+
+	public DataFetcher<CompletableFuture<PatronRequest>> getPatronRequestForSupplierRequestDataFetcher() {
+                return env -> {
+                        SupplierRequest sr = (SupplierRequest) env.getSource();
+                        return Mono.from(postgresPatronRequestRepository.getPRForSRID(sr.getId())).toFuture();
+                };
+	}
 }

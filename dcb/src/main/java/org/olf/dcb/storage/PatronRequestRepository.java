@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.StatusCode;
 import org.reactivestreams.Publisher;
@@ -42,7 +43,7 @@ public interface PatronRequestRepository {
 	@SingleResult
 	Publisher<Void> delete(UUID id);
 
-	@Query(value = "SELECT p.* from patron_request p  where p.status_code in ( select code from status_code where model = 'PatronRequest' and tracked = true )", nativeQuery = true)
+	@Query(value = "SELECT p.* from patron_request p  where p.local_request_status in ( select code from status_code where model = 'PatronRequest' and tracked = true )", nativeQuery = true)
 	Publisher<PatronRequest> findTrackedPatronHolds();
 
 
@@ -79,4 +80,9 @@ public interface PatronRequestRepository {
 	@NonNull
 	@SingleResult
 	Publisher<PatronIdentity> findRequestingIdentityById(UUID id);
+
+	@NotNull
+	@SingleResult
+	@Query(value = "SELECT pr.* from patron_request pr, supplier_request sr where sr.patron_request_id = pr.id and sr.id = :srid", nativeQuery = true)
+	Publisher<PatronRequest> getPRForSRID(UUID srid);
 }

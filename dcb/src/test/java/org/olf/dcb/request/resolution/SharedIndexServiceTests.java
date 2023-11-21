@@ -40,15 +40,13 @@ class SharedIndexServiceTests {
 
 	@BeforeEach
 	void beforeEach() {
-		bibRecordFixture.deleteAllBibRecords();
-		clusterRecordFixture.deleteAllClusterRecords();
+		clusterRecordFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 	}
 
 	@AfterEach
 	void afterEach() {
-		bibRecordFixture.deleteAllBibRecords();
-		clusterRecordFixture.deleteAllClusterRecords();
+		clusterRecordFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 	}
 
@@ -56,16 +54,16 @@ class SharedIndexServiceTests {
 	void canFindClusterRecordWithAssociatedBibs() {
 		final var clusterRecordId = randomUUID();
 
-		final var firstHostLmsId = randomUUID();
-		final var secondHostLmsId = randomUUID();
-
 		final var firstBibRecordId = randomUUID();
 		final var secondBibRecordId = randomUUID();
 
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
 
-		hostLmsFixture.createHostLms(firstHostLmsId, "FIRST-HOST-LMS");
-		hostLmsFixture.createHostLms(secondHostLmsId, "SECOND-HOST-LMS");
+		final var firstHostLms = hostLmsFixture.createSierraHostLms("FIRST-HOST-LMS");
+		final var secondHostLms = hostLmsFixture.createSierraHostLms("SECOND-HOST-LMS");
+
+		final var firstHostLmsId = firstHostLms.getId();
+		final var secondHostLmsId = secondHostLms.getId();
 
 		bibRecordFixture.createBibRecord(firstBibRecordId, secondHostLmsId,
 			"798472", clusterRecord);

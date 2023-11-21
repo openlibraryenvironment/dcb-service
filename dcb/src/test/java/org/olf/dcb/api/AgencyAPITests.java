@@ -53,7 +53,7 @@ class AgencyAPITests {
 		log.info("get client");
 		log.info("create hostLmsCode");
 
-		hostLmsFixture.createHostLms(randomUUID(), "hostLmsCode");
+		hostLmsFixture.createSierraHostLms("hostLmsCode");
 
 		final var accessToken = loginClient.getAccessToken();
 

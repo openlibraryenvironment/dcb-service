@@ -93,11 +93,11 @@ class PlaceRequestAtBorrowingAgencyTests {
 		hostLmsFixture.deleteAll();
 		agencyFixture.deleteAll();
 
-		var sierraHostLms = hostLmsFixture.createSierraHostLms(KEY, SECRET,
-			BASE_URL, HOST_LMS_CODE, "title");
+		var sierraHostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY,
+			SECRET, BASE_URL, "title");
 
-		hostLmsFixture.createSierraHostLms(KEY, SECRET,
-			BASE_URL, INVALID_HOLD_POLICY_HOST_LMS_CODE, "invalid");
+		hostLmsFixture.createSierraHostLms(INVALID_HOLD_POLICY_HOST_LMS_CODE, KEY,
+			SECRET, BASE_URL, "invalid");
 
 		agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
@@ -128,8 +128,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		patronFixture.deleteAllPatrons();
 
-		bibRecordFixture.deleteAllBibRecords();
-		clusterRecordFixture.deleteAllClusterRecords();
+		clusterRecordFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab6", "ab6");
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
