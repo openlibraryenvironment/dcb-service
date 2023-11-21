@@ -29,17 +29,8 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 	
 	public Mono<DataHostLms> findById(UUID id) {
-		return getAllHostLms()
-			.collectList()
-			.doOnNext(list -> log.debug("Got list of hostLms systems {}", list))
-			.map(list -> findFirstById(id, list));
-	}
-
-	private static DataHostLms findFirstById(UUID id, List<DataHostLms> list) {
-		return list.stream()
-			.filter(hostLms -> hostLms.getId().equals(id))
-			.findFirst()
-			.orElseThrow(() -> new UnknownHostLmsException("ID", id));
+		return Mono.from(hostLmsRepository.findById(id))
+			.switchIfEmpty(Mono.error(() -> new UnknownHostLmsException("ID", id)));
 	}
 
 	public Mono<DataHostLms> findByCode(String code) {
