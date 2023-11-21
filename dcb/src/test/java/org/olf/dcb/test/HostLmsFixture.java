@@ -9,8 +9,8 @@ import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
 import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
-import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
@@ -98,13 +98,39 @@ public class HostLmsFixture {
 		clientConfig.put("domain-id", domain);
 		clientConfig.put("access-id", accessId);
 		clientConfig.put("access-key", accessKey);
-		clientConfig.put("version", "v1");
-		clientConfig.put("lang-id", "1033");
-		clientConfig.put("app-id", "100");
-		clientConfig.put("org-id", "1");
 		clientConfig.put("page-size", 100);
+		clientConfig.put("logon-branch-id", "73");
+		clientConfig.put("logon-user-id", "1");
 
-		return createHostLms(randomUUID(), code, PAPILmsClient.class, clientConfig);
+		Map<String, Object> papi = new HashMap<>();
+		papi.put("papi-version", "v1");
+		papi.put("lang-id", "1033");
+		papi.put("app-id", "100");
+		papi.put("org-id", "1");
+
+		clientConfig.put("papi", papi);
+
+		Map<String, Object> services = new HashMap<>();
+		services.put("services-version", "v1");
+		services.put("language", "eng");
+		services.put("product-id", "20");
+		services.put("site-domain", "polaris");
+		services.put("organisation-id", "73");
+		services.put("workstation-id", "1");
+
+		clientConfig.put("services", services);
+
+		Map<String, Object> item = new HashMap<>();
+		item.put("renewal-limit", "0");
+		item.put("fine-code-id", "1");
+		item.put("history-action-id", "6");
+		item.put("loan-period-code-id", "9");
+		item.put("shelving-scheme-id", "3");
+		item.put("barcode-prefix", "test");
+
+		clientConfig.put("item", item);
+
+		return createHostLms(randomUUID(), code, PolarisLmsClient.class, clientConfig);
 	}
 
 	public <T> DataHostLms createHostLms(UUID id, String code,

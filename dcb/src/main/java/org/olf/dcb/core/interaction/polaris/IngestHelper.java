@@ -1,4 +1,4 @@
-package org.olf.dcb.core.interaction.polaris.papi;
+package org.olf.dcb.core.interaction.polaris;
 
 import jakarta.transaction.Transactional;
 import org.olf.dcb.core.ProcessStateService;
@@ -17,16 +17,15 @@ import java.util.Map;
 import java.util.UUID;
 
 import static java.lang.Integer.parseInt;
-import static org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient.formatDateFrom;
 import static reactor.function.TupleUtils.function;
 
 class IngestHelper {
 	private static final Logger log = LoggerFactory.getLogger(IngestHelper.class);
-	private final PAPILmsClient client;
+	private final PolarisLmsClient client;
 	private final ProcessStateService processStateService;
 	private final HostLms lms;
 	public IngestHelper(
-		PAPILmsClient client,
+		PolarisLmsClient client,
 		HostLms lms,
 		ProcessStateService processStateService)
 	{
@@ -35,13 +34,13 @@ class IngestHelper {
 		this.processStateService = processStateService;
 	}
 
-	public Publisher<PAPILmsClient.BibsPagedRow> pageAllResults(int pageSize) {
+	Publisher<PolarisLmsClient.BibsPagedRow> pageAllResults(int pageSize) {
 		return getInitialState(lms.getId(), "ingest")
 			.flatMapMany(state -> fetchPageAndUpdateState(state, pageSize))
 			.concatMap(function(this::processPageAndSaveState));
 	}
 
-	public Mono<PublisherState> getInitialState(UUID context, String process) {
+	private Mono<PublisherState> getInitialState(UUID context, String process) {
 		return processStateService.getStateMap(context, process)
 			.defaultIfEmpty(new HashMap<>())
 			.map(currentStateMap -> {
@@ -83,7 +82,7 @@ class IngestHelper {
 			});
 	}
 
-	public PublisherState mapToPublisherState(Map<String, Object> mapData) {
+	PublisherState mapToPublisherState(Map<String, Object> mapData) {
 		PublisherState generatorState = new PublisherState(mapData);
 		log.info("backpressureAwareBibResultGenerator - state={} lmsid={} thread={}", mapData, lms.getId(),
 			Thread.currentThread().getName());
@@ -123,7 +122,7 @@ class IngestHelper {
 	}
 
 
-	private Flux<Tuple2<PublisherState, PAPILmsClient.BibsPagedResult>> fetchPageAndUpdateState(PublisherState state, int pageSize) {
+	private Flux<Tuple2<PublisherState, PolarisLmsClient.BibsPagedResult>> fetchPageAndUpdateState(PublisherState state, int pageSize) {
 		return Mono.zip(Mono.just(state.toBuilder().build()), fetchPage(state.since, state.offset, pageSize))
 			.expand(function((currentState, results) -> {
 				var bibs = results.getGetBibsPagedRows();
@@ -150,7 +149,7 @@ class IngestHelper {
 			}));
 	}
 
-	private Publisher<PAPILmsClient.BibsPagedRow> processPageAndSaveState(PublisherState state, PAPILmsClient.BibsPagedResult page) {
+	private Publisher<PolarisLmsClient.BibsPagedRow> processPageAndSaveState(PublisherState state, PolarisLmsClient.BibsPagedResult page) {
 		state.offset = page.getLastID();
 		// log.debug("page getting converted to iterable: {}", page);
 
@@ -163,12 +162,12 @@ class IngestHelper {
 			.doOnComplete(() -> log.debug("Consumed {} items", page.getGetBibsPagedRows().size()));
 	}
 
-	private Mono<PAPILmsClient.BibsPagedResult> fetchPage(Instant updatedate, Integer lastId, Integer nrecs) {
+	private Mono<PolarisLmsClient.BibsPagedResult> fetchPage(Instant updatedate, Integer lastId, Integer nrecs) {
 		log.info("Creating subscribeable batch from last id;  {}, {}", lastId, nrecs);
-		final var date = formatDateFrom(updatedate);
-		return Mono.from( client.synch_BibsPagedGet(date, lastId, nrecs) )
+		final var date = PolarisLmsClient.formatDateFrom(updatedate);
+		return Mono.from( client.getBibs(date, lastId, nrecs) )
 			//.doOnSuccess(bibsPagedResult -> log.debug("result of bibPagedResult: {}", bibsPagedResult))
-			.doOnSubscribe(_s -> log.info("Fetching batch from Sierra {} with since={} offset={} limit={}",
+			.doOnSubscribe(_s -> log.info("Fetching batch from Polaris {} with since={} offset={} limit={}",
 				lms.getName(), updatedate, lastId, nrecs));
 	}
 

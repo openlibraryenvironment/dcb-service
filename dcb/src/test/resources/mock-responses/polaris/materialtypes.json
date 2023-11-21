@@ -1,0 +1,186 @@
+[
+	{
+		"Description" : "Art Print",
+		"MaterialTypeID" : 1
+	},
+	{
+		"Description" : "Audiobook",
+		"MaterialTypeID" : 2
+	},
+	{
+		"Description" : "Book",
+		"MaterialTypeID" : 3
+	},
+	{
+		"Description" : "Book Discussion Kit",
+		"MaterialTypeID" : 4
+	},
+	{
+		"Description" : "CD Music",
+		"MaterialTypeID" : 5
+	},
+	{
+		"Description" : "CD Music Restricted",
+		"MaterialTypeID" : 6
+	},
+	{
+		"Description" : "CD ROM",
+		"MaterialTypeID" : 7
+	},
+	{
+		"Description" : "Chromebook",
+		"MaterialTypeID" : 8
+	},
+	{
+		"Description" : "Chromebook - Extended Loan",
+		"MaterialTypeID" : 10
+	},
+	{
+		"Description" : "Chromebook - In-Library Use",
+		"MaterialTypeID" : 9
+	},
+	{
+		"Description" : "Computer Accessories",
+		"MaterialTypeID" : 11
+	},
+	{
+		"Description" : "Database",
+		"MaterialTypeID" : 12
+	},
+	{
+		"Description" : "DVD / Blu-ray",
+		"MaterialTypeID" : 13
+	},
+	{
+		"Description" : "DVD / Blu-ray Restricted",
+		"MaterialTypeID" : 14
+	},
+	{
+		"Description" : "eAudiobook",
+		"MaterialTypeID" : 15
+	},
+	{
+		"Description" : "eBook",
+		"MaterialTypeID" : 16
+	},
+	{
+		"Description" : "eVideo",
+		"MaterialTypeID" : 17
+	},
+	{
+		"Description" : "Family Kit",
+		"MaterialTypeID" : 18
+	},
+	{
+		"Description" : "ILL",
+		"MaterialTypeID" : 19
+	},
+	{
+		"Description" : "Internet Device - Extended Loan",
+		"MaterialTypeID" : 20
+	},
+	{
+		"Description" : "Internet Device (hotspot)",
+		"MaterialTypeID" : 21
+	},
+	{
+		"Description" : "Internet Device Kit",
+		"MaterialTypeID" : 22
+	},
+	{
+		"Description" : "Internet Device Kit - Extended Loan",
+		"MaterialTypeID" : 23
+	},
+	{
+		"Description" : "Laptop",
+		"MaterialTypeID" : 24
+	},
+	{
+		"Description" : "Library Equipment",
+		"MaterialTypeID" : 25
+	},
+	{
+		"Description" : "Madepass",
+		"MaterialTypeID" : 26
+	},
+	{
+		"Description" : "Manuscript",
+		"MaterialTypeID" : 27
+	},
+	{
+		"Description" : "Maps",
+		"MaterialTypeID" : 28
+	},
+	{
+		"Description" : "Media Equipment Circulating",
+		"MaterialTypeID" : 29
+	},
+	{
+		"Description" : "Microform",
+		"MaterialTypeID" : 30
+	},
+	{
+		"Description" : "Music Score",
+		"MaterialTypeID" : 31
+	},
+	{
+		"Description" : "Musical Instrument",
+		"MaterialTypeID" : 32
+	},
+	{
+		"Description" : "Periodical",
+		"MaterialTypeID" : 33
+	},
+	{
+		"Description" : "Phonorecord",
+		"MaterialTypeID" : 34
+	},
+	{
+		"Description" : "Preschool Kit",
+		"MaterialTypeID" : 35
+	},
+	{
+		"Description" : "Puzzle",
+		"MaterialTypeID" : 36
+	},
+	{
+		"Description" : "Readalong",
+		"MaterialTypeID" : 37
+	},
+	{
+		"Description" : "Senior Internet Device",
+		"MaterialTypeID" : 38
+	},
+	{
+		"Description" : "Sporting and Wellness Equipment",
+		"MaterialTypeID" : 39
+	},
+	{
+		"Description" : "Staff Booking Collection",
+		"MaterialTypeID" : 40
+	},
+	{
+		"Description" : "Tablet",
+		"MaterialTypeID" : 41
+	},
+	{
+		"Description" : "Tabletop Game",
+		"MaterialTypeID" : 42
+	},
+	{
+		"Description" : "Telescope",
+		"MaterialTypeID" : 43
+	},
+	{
+		"Description" : "Toy",
+		"MaterialTypeID" : 44
+	},
+	{
+		"Description" : "Video Game",
+		"MaterialTypeID" : 45
+	},
+	{
+		"Description" : "Video Game Restricted",
+		"MaterialTypeID" : 46
+	}
+]

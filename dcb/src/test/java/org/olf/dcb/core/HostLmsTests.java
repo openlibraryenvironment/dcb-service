@@ -18,7 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
-import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
+import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.test.DcbTest;
@@ -145,7 +145,7 @@ class HostLmsTests {
 			final var client = hostLmsFixture.createClient("polaris-database-host-lms");
 
 			// Assert
-			assertThat(client, is(instanceOf(PAPILmsClient.class)));
+			assertThat(client, is(instanceOf(PolarisLmsClient.class)));
 		}
 
 		@Test
@@ -154,7 +154,7 @@ class HostLmsTests {
 			final var client = hostLmsFixture.getIngestSource("polaris-database-host-lms");
 
 			// Assert
-			assertThat(client, is(instanceOf(PAPILmsClient.class)));
+			assertThat(client, is(instanceOf(PolarisLmsClient.class)));
 		}
 	}
 

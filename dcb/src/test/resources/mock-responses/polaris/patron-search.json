@@ -1,0 +1,14 @@
+{
+	"ErrorMessage" : "",
+	"PAPIErrorCode" : 1,
+	"PatronSearchRows" : [
+		{
+			"Barcode" : "PACREG1255217",
+			"OrganizationID" : 18,
+			"PatronFirstLastName" : "testid@testagency, DCB",
+			"PatronID" : 1255217
+		}
+	],
+	"TotalRecordsFound" : 1,
+	"WordList" : "DCB testid@testagency "
+}

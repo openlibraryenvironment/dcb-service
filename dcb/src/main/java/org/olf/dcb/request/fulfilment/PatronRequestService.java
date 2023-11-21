@@ -35,7 +35,7 @@ public class PatronRequestService {
 		FindOrCreatePatronService findOrCreatePatronService,
 		PatronRequestPreflightChecksService preflightChecksService,
 		PatronRequestAuditRepository patronRequestAuditRepository) {
-		
+
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflow = requestWorkflow;
 		this.patronService = patronService;

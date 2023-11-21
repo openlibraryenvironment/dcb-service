@@ -9,7 +9,7 @@ hosts:
       ingest: false
       page-size: 100
 
-      
+
 #  FOLIO-TEST-INGEST:
 #    name: Folio Test Ingest Source
 #    type: org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource
@@ -46,9 +46,9 @@ micronaut:
 dcb:
   itemresolver:
     code: Geo
-#  index:
-#    name: mobius-si
-  
+  #  index:
+  #    name: mobius-si
+
 #opensearch:
 #  httpHosts: "http://localhost:9200"
 

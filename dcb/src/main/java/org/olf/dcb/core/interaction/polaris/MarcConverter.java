@@ -1,4 +1,4 @@
-package org.olf.dcb.core.interaction.polaris.papi;
+package org.olf.dcb.core.interaction.polaris;
 
 import org.marc4j.*;
 import org.marc4j.marc.Record;
@@ -9,8 +9,8 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 
 class MarcConverter {
-	static final Logger log = LoggerFactory.getLogger(MarcConverter.class);
-	public static Record convertToMarcRecord(String xmlString) {
+	private static final Logger log = LoggerFactory.getLogger(MarcConverter.class);
+	static Record convertToMarcRecord(String xmlString) {
 		try {
 			ByteArrayInputStream inputStream = new ByteArrayInputStream(xmlString.getBytes(StandardCharsets.UTF_8));
 			MarcReader reader = new MarcXmlReader(inputStream);
