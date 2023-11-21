@@ -128,13 +128,15 @@ class HostLmsTests {
 
 	@Nested
 	class PolarisDatabaseHostLmsTests {
-		@Test
-		void shouldBeAbleToCreatePolarisClientFromDatabaseHostLms() {
-			// Arrange
+		@BeforeEach
+		void beforeEach() {
 			hostLmsFixture.createPolarisHostLms("polaris-database-host-lms", "some-username",
 				"some-password", "https://some-polaris-system", "some-domain",
 				"some-access-id", "some-access-key");
+		}
 
+		@Test
+		void shouldBeAbleToCreatePolarisClientFromDatabaseHostLms() {
 			// Act
 			final var client = hostLmsFixture.createClient("polaris-database-host-lms");
 
@@ -144,11 +146,6 @@ class HostLmsTests {
 
 		@Test
 		void shouldBeAbleToCreatePolarisIngestSourceFromDatabaseHostLms() {
-			// Arrange
-			hostLmsFixture.createPolarisHostLms("polaris-database-host-lms", "some-username",
-				"some-password", "https://some-polaris-system", "some-domain",
-				"some-access-id", "some-access-key");
-
 			// Act
 			final var client = hostLmsFixture.getIngestSource("polaris-database-host-lms");
 
