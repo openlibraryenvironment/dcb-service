@@ -91,15 +91,8 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			.build();
 
 		// we don't want to proceed until this is done
-		upsertHostLms(db_representation).block();
+		hostLmsRepository.saveOrUpdate(db_representation).block();
 		log.debug("Save complete");
-	}
-
-	private Mono<DataHostLms> upsertHostLms(DataHostLms hostLMS) {
-		log.debug("upsertHostLms {}",hostLMS);
-
-		return Mono.from(hostLmsRepository.existsById(hostLMS.getId()))
-			.flatMap(exists -> Mono.fromDirect(exists ? hostLmsRepository.update(hostLMS) : hostLmsRepository.save(hostLMS)));
 	}
 
 	private void bootstrapStatusCodes() {
