@@ -92,7 +92,8 @@ public class PatronRequestTrackingTests {
 		// Assert
 		await().atMost(5, SECONDS)
 			.until(() -> Mono.from(patronRequestRepository.findById(savedPatronRequestId)).block(),
-				isCanceled());
+				isFinalised());
+				// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
 	}
 
 	@Test
@@ -119,7 +120,8 @@ public class PatronRequestTrackingTests {
 		// Assert
 		await().atMost(5, SECONDS)
 			.until(() -> Mono.from(patronRequestRepository.findById(savedPatronRequestId)).block(),
-				isCanceled());
+				isFinalised());
+				// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
 	}
 
 	@Test

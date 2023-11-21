@@ -21,6 +21,7 @@ import java.time.Instant;
 
 import jakarta.transaction.Transactional;
 import org.olf.dcb.request.resolution.HostLmsReactions;
+import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 
 @Refreshable
 @Singleton
@@ -36,18 +37,21 @@ public class TrackingService implements Runnable {
 	private SupplyingAgencyService supplyingAgencyService;
         private final HostLmsService hostLmsService;
 	private HostLmsReactions hostLmsReactions;
+	private PatronRequestWorkflowService patronRequestWorkflowService;
 
 	TrackingService( PatronRequestRepository patronRequestRepository,
 			 SupplierRequestRepository supplierRequestRepository,
                          SupplyingAgencyService supplyingAgencyService,
                          HostLmsService hostLmsService,
-                         HostLmsReactions hostLmsReactions
+                         HostLmsReactions hostLmsReactions,
+                         PatronRequestWorkflowService patronRequestWorkflowService
                         ) {
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplyingAgencyService = supplyingAgencyService;
 		this.hostLmsService = hostLmsService;
 		this.hostLmsReactions = hostLmsReactions;
+		this.patronRequestWorkflowService = patronRequestWorkflowService;
 	}
 
 	@jakarta.annotation.PostConstruct
