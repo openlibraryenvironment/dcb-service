@@ -1,3 +1,10 @@
+hosts:
+  config-host:
+    name: Config Host
+    type: org.olf.dcb.core.interaction.sierra.SierraLmsClient
+    client:
+      base-url: "https://some-sierra-system"
+
 micronaut:
   application:
     name: dcb
