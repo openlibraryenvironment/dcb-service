@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.velocity.runtime.directive.Define;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -26,6 +27,7 @@ import jakarta.inject.Inject;
 class HostLmsTests {
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+
 	@Inject
 	private HostLmsService hostLmsService;
 
@@ -100,24 +102,23 @@ class HostLmsTests {
 
 	@Nested
 	class SierraDatabaseHostLmsTests {
-		@Test
-		void shouldBeAbleToCreateSierraClientFromDatabaseHostLms() {
-			// Arrange
+		@BeforeEach
+		void beforeEach() {
 			hostLmsFixture.createSierraHostLms("sierra-database-host-lms", "some-username",
 				"some-password", "https://some-sierra-system");
+		}
 
+		@Test
+		void shouldBeAbleToCreateSierraClientFromDatabaseHostLms() {
 			// Act
 			final var client = hostLmsFixture.createClient("sierra-database-host-lms");
 
 			// Assert
 			assertThat(client, is(instanceOf(SierraLmsClient.class)));
 		}
+
 		@Test
 		void shouldBeAbleToCreateSierraIngestSourceFromDatabaseHostLms() {
-			// Arrange
-			hostLmsFixture.createSierraHostLms("sierra-database-host-lms", "some-username",
-				"some-password", "https://some-sierra-system");
-
 			// Act
 			final var client = hostLmsFixture.getIngestSource("sierra-database-host-lms");
 
