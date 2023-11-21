@@ -42,8 +42,13 @@ class HostLmsTests {
 	@Test
 	void shouldFindHostLmsInDatabaseByCode() {
 		// Arrange
-		hostLmsFixture.saveHostLms(new DataHostLms(UUID.randomUUID(), "database-host",
-			"Database Host", SierraLmsClient.class.getName(), Map.of()));
+		hostLmsFixture.saveHostLms(DataHostLms.builder()
+			.id(UUID.randomUUID())
+			.code("database-host")
+			.name("Database Host")
+			.lmsClientClass(SierraLmsClient.class.getName())
+			.clientConfig(Map.of())
+			.build());
 
 		// Act
 		final var foundHost = hostLmsService.findByCode("database-host").block();
@@ -60,8 +65,13 @@ class HostLmsTests {
 		// Arrange
 		final var hostLmsId = UUID.randomUUID();
 
-		hostLmsFixture.saveHostLms(new DataHostLms(hostLmsId, "database-host",
-			"Database Host", SierraLmsClient.class.getName(), Map.of()));
+		hostLmsFixture.saveHostLms(DataHostLms.builder()
+			.id(hostLmsId)
+			.code("database-host")
+			.name("Database Host")
+			.lmsClientClass(SierraLmsClient.class.getName())
+			.clientConfig(Map.of())
+			.build());
 
 		final var foundHost = hostLmsService.findById(hostLmsId).block();
 
@@ -75,8 +85,13 @@ class HostLmsTests {
 	void shouldNotFindHostLmsByIdWhenUnknown() {
 		// Arrange
 		// Host LMS that should not be found
-		hostLmsFixture.saveHostLms(new DataHostLms(UUID.randomUUID(), "database-host",
-			"Database Host", SierraLmsClient.class.getName(), Map.of()));
+		hostLmsFixture.saveHostLms(DataHostLms.builder()
+			.id(UUID.randomUUID())
+			.code("database-host")
+			.name("Database Host")
+			.lmsClientClass(SierraLmsClient.class.getName())
+			.clientConfig(Map.of())
+			.build());
 
 		// Act
 		final var unknownHostId = UUID.randomUUID();
@@ -92,8 +107,13 @@ class HostLmsTests {
 	void shouldNotFindHostLmsByCodeWhenUnknown() {
 		// Arrange
 		// Host LMS that should not be found
-		hostLmsFixture.saveHostLms(new DataHostLms(UUID.randomUUID(), "database-host",
-			"Database Host", SierraLmsClient.class.getName(), Map.of()));
+		hostLmsFixture.saveHostLms(DataHostLms.builder()
+			.id(UUID.randomUUID())
+			.code("database-host")
+			.name("Database Host")
+			.lmsClientClass(SierraLmsClient.class.getName())
+			.clientConfig(Map.of())
+			.build());
 
 		// Act
 		final var exception = assertThrows(HostLmsService.UnknownHostLmsException.class,
@@ -162,7 +182,9 @@ class HostLmsTests {
 	class FolioDatabaseHostLmsTests {
 		@BeforeEach
 		void beforeEach() {
-			hostLmsFixture.createFolioHostLms("folio-database-host-lms", "https://some-folio-system", "some-api-key", "some-record-syntax", "some-metadata-prefix");
+			hostLmsFixture.createFolioHostLms("folio-database-host-lms",
+				"https://some-folio-system", "some-api-key", "some-record-syntax",
+				"some-metadata-prefix");
 		}
 
 		@Test
