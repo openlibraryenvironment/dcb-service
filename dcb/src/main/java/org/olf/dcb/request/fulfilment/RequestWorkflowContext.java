@@ -1,10 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
-import org.olf.dcb.core.model.PatronIdentity;
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.core.model.Agency;
-import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.*;
 import lombok.experimental.Accessors;
 import lombok.Data;
 
@@ -40,8 +36,8 @@ public class RequestWorkflowContext {
 
         PatronRequest patronRequest;
         SupplierRequest supplierRequest;
-
         String supplierHoldId;
         String supplierHoldStatus;
+				Patron patron;
 }
 

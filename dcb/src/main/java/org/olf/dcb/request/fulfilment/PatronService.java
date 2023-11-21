@@ -179,14 +179,20 @@ public class PatronService {
 		return patron;
 	}
 
-	public String getUniqueIdStringFor(Patron patron) {
-		return patron.getPatronIdentities().stream().filter(PatronIdentity::getHomeIdentity).map(pi -> {
-			if (pi.getResolvedAgency() == null)
-				throw new RuntimeException("No resolved agency for patron " + patron.getId() + "homeLibraryCode was "+patron.getHomeLibraryCode());
+	public Mono<String> getUniqueIdStringFor(Patron patron) {
+		return fetchAllIdentities(patron)
+			.map(identities -> identities.stream()
+				.filter(PatronIdentity::getHomeIdentity)
+				.map(pi -> {
+					if (pi.getResolvedAgency() == null) {
+						throw new RuntimeException("No resolved agency for patron " + patron.getId() +
+							"homeLibraryCode was " + patron.getHomeLibraryCode());
+					}
 
-			// return "DCB:" + pi.getLocalId() + "@" + pi.getResolvedAgency().getCode();
-			return pi.getLocalId() + "@" + pi.getResolvedAgency().getCode();
-		}).collect(Collectors.joining());
+					// return "DCB:" + pi.getLocalId() + "@" + pi.getResolvedAgency().getCode();
+					return pi.getLocalId() + "@" + pi.getResolvedAgency().getCode();
+				})
+				.collect(Collectors.joining()));
 	}
 
 	public Optional<PatronIdentity> findIdentityByLocalId(Patron patron, String localId) {

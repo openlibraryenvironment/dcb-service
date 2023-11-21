@@ -3,16 +3,10 @@ package org.olf.dcb.request.fulfilment;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
-import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.HostLmsRepository;
-import org.olf.dcb.storage.PatronIdentityRepository;
-import org.olf.dcb.storage.PatronRequestRepository;
-import org.olf.dcb.storage.SupplierRequestRepository;
-import org.olf.dcb.storage.LocationRepository;
+import org.olf.dcb.storage.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +27,7 @@ public class RequestWorkflowContextHelper {
 	private final AgencyRepository agencyRepository;
 	private final LocationRepository locationRepository;
 	private final HostLmsRepository hostLmsRepository;
+	private final PatronRepository patronRepository;
 
 	public RequestWorkflowContextHelper(
 		SupplierRequestService supplierRequestService,
@@ -42,7 +37,7 @@ public class RequestWorkflowContextHelper {
 		PatronRequestRepository patronRequestRepository,
 		PatronIdentityRepository patronIdentityRepository,
 		LocationRepository locationRepository,
-		AgencyRepository agencyRepository) {
+		AgencyRepository agencyRepository, PatronRepository patronRepository) {
 
 		this.supplierRequestService = supplierRequestService;
 		this.referenceValueMappingService = referenceValueMappingService;
@@ -52,6 +47,7 @@ public class RequestWorkflowContextHelper {
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.locationRepository = locationRepository;
 		this.agencyRepository = agencyRepository;
+		this.patronRepository = patronRepository;
 	}
 
 	// Given a patron request, construct the patron request context containing all related objects for a workflow
@@ -60,6 +56,7 @@ public class RequestWorkflowContextHelper {
 		log.info("fromPatronRequest {}", pr.getId());
 
 		return  Mono.just(rwc.setPatronRequest(pr))
+		.flatMap(this::decorateWithPatron)
 		.flatMap(this::findSupplierRequest)
 		.flatMap(this::decorateWithPatronVirtualIdentity)
 		.flatMap(this::decorateContextWithPatronDetails)
@@ -76,11 +73,18 @@ public class RequestWorkflowContextHelper {
 		return Mono.just( rwc.setSupplierRequest(sr) )
 			.flatMap(rwcp -> Mono.from(supplierRequestRepository.findPatronRequestById(rwc.getSupplierRequest().getId())))
 			.flatMap(pr -> Mono.just(rwc.setPatronRequest(pr)))
+			.flatMap(this::decorateWithPatron)
 			.flatMap(this::decorateWithPatronVirtualIdentity)
 			.flatMap(this::decorateContextWithPatronDetails)
 			.flatMap(this::decorateContextWithLenderDetails)
 			.flatMap(this::resolvePickupLocationAgency)
 			.flatMap(this::report);
+	}
+
+	private <R> Mono<RequestWorkflowContext> decorateWithPatron(RequestWorkflowContext requestWorkflowContext) {
+		// we get the patron id but nothing else on the patron from the patron request.
+		final var patronId = requestWorkflowContext.getPatronRequest().getPatron().getId();
+		return Mono.from(patronRepository.findById(patronId)).map(requestWorkflowContext::setPatron);
 	}
 
 	private Mono<RequestWorkflowContext> decorateContextWithLenderDetails(RequestWorkflowContext ctx) {
