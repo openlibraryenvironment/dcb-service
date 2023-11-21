@@ -106,9 +106,9 @@ public class ClusterRecordIndexDoc {
 		return getIdentifier("ISSN");
 	}
 	
-  public List<OpenSearchNestedBibIndexDoc> getMembers() {
+  public List<NestedBibIndexDoc> getMembers() {
   	return Stream.concat(
-  	  getSelectedBib().stream().map( primaryBib -> new OpenSearchNestedBibIndexDoc(primaryBib, true)), // Add the selected bib first
+  	  getSelectedBib().stream().map( primaryBib -> new NestedBibIndexDoc(primaryBib, true)), // Add the selected bib first
 	  	Stream.ofNullable(cluster.getBibs())
 				.flatMap( Set::stream )
 				.filter(bib ->
@@ -116,7 +116,7 @@ public class ClusterRecordIndexDoc {
 					Optional.ofNullable(cluster.getSelectedBib())
 						.map( id -> id != bib.getId() )
 						.orElse(true))
-	  		.map( OpenSearchNestedBibIndexDoc::new ))
+	  		.map( NestedBibIndexDoc::new ))
   			.toList();
   }
   

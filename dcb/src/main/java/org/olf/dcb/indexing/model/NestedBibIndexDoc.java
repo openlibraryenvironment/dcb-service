@@ -9,17 +9,17 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
-public class OpenSearchNestedBibIndexDoc {
+public class NestedBibIndexDoc {
 
 	private final boolean primary;
 	private final BibRecord bib;
 
-	protected OpenSearchNestedBibIndexDoc(BibRecord bib, boolean primary) {
+	protected NestedBibIndexDoc(BibRecord bib, boolean primary) {
 		this.bib = bib;
 		this.primary = primary;
 	}
 
-	public OpenSearchNestedBibIndexDoc(BibRecord bib) {
+	public NestedBibIndexDoc(BibRecord bib) {
 		this(bib, false);
 	}
 

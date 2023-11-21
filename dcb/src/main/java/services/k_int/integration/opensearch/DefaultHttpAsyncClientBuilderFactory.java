@@ -1,5 +1,4 @@
 package services.k_int.integration.opensearch;
-
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.opensearch.client.RestClient;
 

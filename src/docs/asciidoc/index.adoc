@@ -40,6 +40,23 @@ include::deployment/env-vars.adoc[]
 include::deployment/docker.adoc[leveloffset=2]
 include::deployment/bare-metal-build.adoc[leveloffset=2]
 
+== Configuring the shared index synchronization
+
+DCB supports either Opensearch or Elasticsearch when maintaining a shared index.
+Start by configuring the necessary shared values below and then add the connection properties for your chosen search provider.
+
+[%autowidth.stretch]
+|===
+|ENV | Description |Required | Example
+|DCB_INDEX_NAME |Name of the index representing the shared index    |no |si-index
+|DCB_INDEX_USERNAME |Username to communicate with the index service |no |si-user
+|DCB_INDEX_PASSWORD |Password to communicate with the index service |no |si-pass
+
+|*Choose 1 of the below* |||
+|ELASTICSEARCH_HTTP_HOSTS |1 or more Elasticsearch hosts (Comma separated) |no (See note) |http://localhost:9200
+|OPENSEARCH_HTTP_HOSTS |1 or more OpenSearch hosts (Comma separated) |no (See note) |http://localhost:9200
+|===
+
 == Metrics
 
 Metrics are available from running instances of the application at `/metrics`.
