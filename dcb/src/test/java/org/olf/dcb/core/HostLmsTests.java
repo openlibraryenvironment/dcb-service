@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.Map;
 import java.util.UUID;
@@ -19,6 +20,7 @@ import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.matchers.ThrowableMatchers;
 
 import jakarta.inject.Inject;
 
@@ -172,9 +174,5 @@ class HostLmsTests {
 
 	private static Matcher<DataHostLms> hasType(Class<SierraLmsClient> expectedType) {
 		return hasProperty("type", is(expectedType));
-	}
-
-	private static Matcher<Throwable> hasMessage(String expectedMessage) {
-		return hasProperty("message", is(expectedMessage));
 	}
 }
