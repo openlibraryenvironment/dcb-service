@@ -7,8 +7,6 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Grant;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.StatusCode;
-import org.olf.dcb.storage.AgencyGroupRepository;
-import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.GrantRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.StatusCodeRepository;
@@ -27,25 +25,20 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class DCBStartupEventListener implements ApplicationEventListener<StartupEvent> {
 	private final Environment environment;
-	private final AgencyRepository agencyRepository;
 	private final HostLmsRepository hostLmsRepository;
 	private final StatusCodeRepository statusCodeRepository;
-	private final AgencyGroupRepository agencyGroupRepository;
 	private final GrantRepository grantRepository;
 	private final HostLms[] confHosts;
 
 	private static final String REACTOR_DEBUG_VAR = "REACTOR_DEBUG";
 
 	public DCBStartupEventListener(Environment environment,
-		AgencyRepository agencyRepository, HostLmsRepository hostLmsRepository,
-		StatusCodeRepository statusCodeRepository, AgencyGroupRepository agencyGroupRepository,
+		HostLmsRepository hostLmsRepository, StatusCodeRepository statusCodeRepository,
 		GrantRepository grantRepository, HostLms[] confHosts) {
 
 		this.environment = environment;
-		this.agencyRepository = agencyRepository;
 		this.statusCodeRepository = statusCodeRepository;
 		this.hostLmsRepository = hostLmsRepository;
-		this.agencyGroupRepository = agencyGroupRepository;
 		this.grantRepository = grantRepository;
 		this.confHosts = confHosts;
 	}
