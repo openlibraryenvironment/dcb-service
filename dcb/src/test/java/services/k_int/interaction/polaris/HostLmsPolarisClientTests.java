@@ -6,6 +6,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockserver.model.HttpResponse.response;
+import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
 import java.io.IOException;
@@ -82,6 +83,7 @@ public class HostLmsPolarisClientTests {
 
 		hostLmsFixture.deleteAll();
 
+
 		polarisHostLms = hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, DOMAIN, KEY, SECRET);
 
@@ -115,6 +117,10 @@ public class HostLmsPolarisClientTests {
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/materialtypes"))
 			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "materialtypes.json")));
+
+		mockPolaris.whenRequest(req -> req.withMethod("GET")
+				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses"))
+			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "itemstatuses.json")));
 
 		// Act
 		final var itemsList = hostLmsFixture.createClient(HOST_LMS_CODE)
@@ -345,12 +351,43 @@ public class HostLmsPolarisClientTests {
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/"+localItemId))
 			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "items-get.json")));
+
+		mockPolaris.whenRequest(req -> req.withMethod("GET")
+				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses"))
+			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "itemstatuses.json")));
+
 		// Act
 		final var item = hostLmsFixture.createClient(HOST_LMS_CODE).getItem(localItemId).block();
 		// Assert
 		assertThat(item, is(notNullValue()));
 		assertThat(item.getLocalId(), is("3512742"));
-		assertThat(item.getStatus(), is("Checked Out"));
+		assertThat(item.getStatus(), is("LOANED"));
 		assertThat(item.getBarcode(), is("3430470102"));
+	}
+
+	@Test
+	public void updateItemStatus() throws IOException {
+		// Arrange
+		final var localItemId = "3512742";
+		mockPolaris.whenRequest(req -> req.withMethod("GET")
+				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/"+localItemId))
+			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "items-get.json")));
+
+		mockPolaris.whenRequest(req -> req.withMethod("POST")
+				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow*"))
+			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "item-workflow-response.json")));
+
+		mockPolaris.whenRequest(req -> req.withMethod("PUT")
+				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow/0e4c9e68-785e-4a1e-9417-f9bd245cc147"))
+			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "create-item-resp.json")));
+
+		mockPolaris.whenRequest(req -> req.withMethod("GET")
+				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses"))
+			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "itemstatuses.json")));
+		// Act
+		final var string = hostLmsFixture.createClient(HOST_LMS_CODE).updateItemStatus(localItemId, TRANSIT).block();
+		// Assert
+		assertThat(string, is(notNullValue()));
+		assertThat(string, is("OK"));
 	}
 }

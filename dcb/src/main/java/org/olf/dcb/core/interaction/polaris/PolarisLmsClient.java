@@ -2,8 +2,12 @@ package org.olf.dcb.core.interaction.polaris;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+
+import static org.olf.dcb.core.interaction.polaris.Direction.HOST_LMS_TO_POLARIS;
+import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
 import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
+import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
 
 import java.net.URI;
 import java.time.Instant;
@@ -74,6 +78,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final PAPIClient papiClient;
 	private final ApplicationServicesClient appServicesClient;
 	private final List<ApplicationServicesClient.MaterialType> materialTypes = new ArrayList<>();
+	private final List<PolarisItemStatus> statuses = new ArrayList<>();
 	private final ReferenceValueMappingRepository mapping;
 
 	@Creator
@@ -144,19 +149,39 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<List<Item>> getItems(String localBibId) {
 		return papiClient.synch_ItemGetByBibID(localBibId)
 			.flatMapMany(Flux::fromIterable)
-			.flatMap(this::mapMaterialTypeCode)
+			.flatMap(this::setCircStatus)
+			.flatMap(this::setMaterialTypeCode)
 			.flatMap(result -> itemResultToItemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId))
 			.collectList();
 	}
 
 	@Override
 	public Mono<HostLmsItem> getItem(String itemId) {
-		return papiClient.synch_ItemGet(itemId).map(result ->
-			HostLmsItem.builder()
+		return papiClient.synch_ItemGet(itemId)
+			.flatMap(this::setCircStatus)
+			.map(result -> HostLmsItem.builder()
 				.localId(String.valueOf(result.getItemRecordID()))
-				.status(result.getCircStatus())
+				.status( mapItemStatus(POLARIS_TO_HOST_LMS, result.getCircStatusName()) )
 				.barcode(result.getBarcode())
 				.build());
+	}
+
+	@Override
+	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
+		log.warn("Attempting to update an item status.");
+		return switch (crs) {
+			case AVAILABLE -> getCircStatusId(AVAILABLE).map(id -> updateItem(itemId, id)).thenReturn("OK");
+			case TRANSIT -> getCircStatusId(TRANSFERRED).map(id -> updateItem(itemId, id)).thenReturn("OK");
+			default -> Mono.just("OK").doOnSuccess(ok -> log.error("CanonicalItemState: '{ "+crs+" }' cannot be updated."));
+		};
+	}
+
+	private Mono<Void> updateItem(String itemId, Integer toStatus) {
+		return getItem(itemId)
+			.map(HostLmsItem::getStatus)
+			.map(status -> mapItemStatus(HOST_LMS_TO_POLARIS, status))
+			.flatMap(this::getCircStatusId)
+			.flatMap(fromStatus -> appServicesClient.updateItemRecord(itemId, fromStatus, toStatus));
 	}
 
 	@Override
@@ -218,7 +243,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return papiClient.synch_ItemGet(recordNumber).map(PAPIClient.ItemGetRow::getBibliographicRecordID).map(String::valueOf);
 	}
 
-	private Mono<PAPIClient.ItemGetRow> mapMaterialTypeCode(PAPIClient.ItemGetRow itemGetRow) {
+	private Mono<PAPIClient.ItemGetRow> setMaterialTypeCode(PAPIClient.ItemGetRow itemGetRow) {
 		return (materialTypes.isEmpty() ? appServicesClient.listMaterialTypes().doOnNext(materialTypes::addAll)
 			: Mono.just(materialTypes))
 			.flatMapMany(Flux::fromIterable)
@@ -228,6 +253,29 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.doOnSuccess(itemGetRow::setMaterialTypeID)
 			.thenReturn(itemGetRow);
 	}
+
+	private Mono<PAPIClient.ItemGetRow> setCircStatus(PAPIClient.ItemGetRow itemGetRow) {
+		final var circStatus = itemGetRow.getCircStatus();
+		return (statuses.isEmpty() ? appServicesClient.listItemStatuses().doOnNext(statuses::addAll) : Mono.just(statuses))
+			.flatMapMany(Flux::fromIterable)
+			.filter(status -> circStatus.equals(status.getDescription()))
+			.next()
+			.map(polarisItemStatus -> {
+				itemGetRow.setCircStatusID(polarisItemStatus.getItemStatusID());
+				itemGetRow.setCircStatusName(polarisItemStatus.getName());
+				itemGetRow.setCircStatusBanner(polarisItemStatus.getBannerText());
+				return itemGetRow;
+			});
+	}
+
+	private Mono<Integer> getCircStatusId(String circStatusName) {
+		return (statuses.isEmpty() ? appServicesClient.listItemStatuses().doOnNext(statuses::addAll) : Mono.just(statuses))
+			.flatMapMany(Flux::fromIterable)
+			.filter(status -> circStatusName.equals(status.getName()))
+			.next()
+			.map(PolarisItemStatus::getItemStatusID);
+	}
+
 
 	private Mono<Patron> patronFind(String uniqueID, String barcode) {
 		return papiClient.patronSearch(barcode, uniqueID)
@@ -291,11 +339,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public List<HostLmsPropertyDefinition> getSettings() {
 		return new ArrayList();
-	}
-
-	@Override
-	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
-		return Mono.empty();
 	}
 
 	@Override
@@ -483,6 +526,21 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		log.warn("Request to map item type was missing required parameters");
 		return Mono.just("19");
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class PolarisItemStatus {
+		@JsonProperty("BannerText")
+		private String bannerText;
+		@JsonProperty("Description")
+		private String description;
+		@JsonProperty("ItemStatusID")
+		private Integer itemStatusID;
+		@JsonProperty("Name")
+		private String name;
 	}
 
 	@Builder

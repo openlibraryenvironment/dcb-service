@@ -35,4 +35,11 @@ class PolarisConstants {
 	public static final String SHELVING_SCHEME_ID = "shelving-scheme-id";
 	public static final String BARCODE_PREFIX = "barcode-prefix";
 
+	// item statuses (using name)
+	public static final String AVAILABLE = "In";
+	public static final String TRANSFERRED = "Transferred";
+	public static final String ON_HOLD_SHELF = "Held";
+	public static final String CHECKED_OUT = "Out";
+	public static final String IN_TRANSIT = "In-Transit";
+	public static final String MISSING = "Missing";
 }
