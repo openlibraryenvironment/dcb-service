@@ -12,6 +12,7 @@ import java.util.UUID;
 
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
@@ -66,29 +67,63 @@ class HostLmsTests {
 	}
 
 	@Test
-	void shouldBeAbleToCreateSierraClientFromDatabaseHostLms() {
+	void shouldNotFindHostLmsByIdWhenUnknown() {
 		// Arrange
-		hostLmsFixture.createSierraHostLms("sierra-database-host-lms", "some-username",
-			"some-password", "https://some-sierra-system");
+		// Host LMS that should not be found
+		hostLmsFixture.saveHostLms(new DataHostLms(UUID.randomUUID(), "database-host",
+			"Database Host", SierraLmsClient.class.getName(), Map.of()));
 
 		// Act
-		final var client = hostLmsFixture.createClient("sierra-database-host-lms");
+		final var unknownHostId = UUID.randomUUID();
+
+		final var exception = assertThrows(HostLmsService.UnknownHostLmsException.class,
+			() -> hostLmsService.findById(unknownHostId).block());
 
 		// Assert
-		assertThat(client, is(instanceOf(SierraLmsClient.class)));
+		assertThat(exception, hasMessage("No Host LMS found for ID: " + unknownHostId));
 	}
 
 	@Test
-	void shouldBeAbleToCreateSierraIngestSourceFromDatabaseHostLms() {
+	void shouldNotFindHostLmsByCodeWhenUnknown() {
 		// Arrange
-		hostLmsFixture.createSierraHostLms("sierra-database-host-lms", "some-username",
-			"some-password", "https://some-sierra-system");
+		// Host LMS that should not be found
+		hostLmsFixture.saveHostLms(new DataHostLms(UUID.randomUUID(), "database-host",
+			"Database Host", SierraLmsClient.class.getName(), Map.of()));
 
 		// Act
-		final var client = hostLmsFixture.getIngestSource("sierra-database-host-lms");
+		final var exception = assertThrows(HostLmsService.UnknownHostLmsException.class,
+			() -> hostLmsService.findByCode("unknown-host").block());
 
 		// Assert
-		assertThat(client, is(instanceOf(SierraLmsClient.class)));
+		assertThat(exception, hasMessage("No Host LMS found for code: unknown-host"));
+	}
+
+	@Nested
+	class SierraDatabaseHostLmsTests {
+		@Test
+		void shouldBeAbleToCreateSierraClientFromDatabaseHostLms() {
+			// Arrange
+			hostLmsFixture.createSierraHostLms("sierra-database-host-lms", "some-username",
+				"some-password", "https://some-sierra-system");
+
+			// Act
+			final var client = hostLmsFixture.createClient("sierra-database-host-lms");
+
+			// Assert
+			assertThat(client, is(instanceOf(SierraLmsClient.class)));
+		}
+		@Test
+		void shouldBeAbleToCreateSierraIngestSourceFromDatabaseHostLms() {
+			// Arrange
+			hostLmsFixture.createSierraHostLms("sierra-database-host-lms", "some-username",
+				"some-password", "https://some-sierra-system");
+
+			// Act
+			final var client = hostLmsFixture.getIngestSource("sierra-database-host-lms");
+
+			// Assert
+			assertThat(client, is(instanceOf(SierraLmsClient.class)));
+		}
 	}
 
 	@Test
@@ -117,38 +152,6 @@ class HostLmsTests {
 
 		// Assert
 		assertThat(client, is(instanceOf(PAPILmsClient.class)));
-	}
-
-	@Test
-	void shouldNotFindHostLmsByCodeWhenUnknown() {
-		// Arrange
-		// Host LMS that should not be found
-		hostLmsFixture.saveHostLms(new DataHostLms(UUID.randomUUID(), "database-host",
-			"Database Host", SierraLmsClient.class.getName(), Map.of()));
-
-		// Act
-		final var exception = assertThrows(HostLmsService.UnknownHostLmsException.class,
-			() -> hostLmsService.findByCode("unknown-host").block());
-
-		// Assert
-		assertThat(exception, hasMessage("No Host LMS found for code: unknown-host"));
-	}
-
-	@Test
-	void shouldNotFindHostLmsByIdWhenUnknown() {
-		// Arrange
-		// Host LMS that should not be found
-		hostLmsFixture.saveHostLms(new DataHostLms(UUID.randomUUID(), "database-host",
-				"Database Host", SierraLmsClient.class.getName(), Map.of()));
-
-		// Act
-		final var unknownHostId = UUID.randomUUID();
-
-		final var exception = assertThrows(HostLmsService.UnknownHostLmsException.class,
-			() -> hostLmsService.findById(unknownHostId).block());
-
-		// Assert
-		assertThat(exception, hasMessage("No Host LMS found for ID: " + unknownHostId));
 	}
 
 	private static Matcher<DataHostLms> hasId(UUID hostLmsId) {
