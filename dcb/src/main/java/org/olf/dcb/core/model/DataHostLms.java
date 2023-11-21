@@ -55,6 +55,11 @@ public class DataHostLms implements HostLms {
 	public String lmsClientClass;
 
 	@ToString.Exclude
+	@Nullable
+	@Size(max = 200)
+	public String ingestSourceClass;
+
+	@ToString.Exclude
 	@Singular("clientConfig")
 	@TypeDef(type = JSON)
 	Map<String, Object> clientConfig;

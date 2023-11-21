@@ -4,11 +4,13 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasClientClass;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasCode;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasId;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasIngestSourceClass;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasName;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasNoIngestSourceClass;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasNonNullId;
-import static org.olf.dcb.test.matchers.HostLmsMatchers.hasType;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.Map;
@@ -46,7 +48,8 @@ class HostLmsTests {
 			.id(UUID.randomUUID())
 			.code("database-host")
 			.name("Database Host")
-			.lmsClientClass(SierraLmsClient.class.getName())
+			.lmsClientClass(SierraLmsClient.class.getCanonicalName())
+			.ingestSourceClass(SierraLmsClient.class.getCanonicalName())
 			.clientConfig(Map.of())
 			.build());
 
@@ -57,7 +60,8 @@ class HostLmsTests {
 		assertThat(foundHost, hasNonNullId());
 		assertThat(foundHost, hasCode("database-host"));
 		assertThat(foundHost, hasName("Database Host"));
-		assertThat(foundHost, hasType(SierraLmsClient.class));
+		assertThat(foundHost, hasClientClass(SierraLmsClient.class.getCanonicalName()));
+		assertThat(foundHost, hasIngestSourceClass(SierraLmsClient.class.getCanonicalName()));
 	}
 
 	@Test
@@ -69,7 +73,7 @@ class HostLmsTests {
 			.id(hostLmsId)
 			.code("database-host")
 			.name("Database Host")
-			.lmsClientClass(SierraLmsClient.class.getName())
+			.lmsClientClass(SierraLmsClient.class.getCanonicalName())
 			.clientConfig(Map.of())
 			.build());
 
@@ -78,7 +82,8 @@ class HostLmsTests {
 		assertThat(foundHost, hasId(hostLmsId));
 		assertThat(foundHost, hasCode("database-host"));
 		assertThat(foundHost, hasName("Database Host"));
-		assertThat(foundHost, hasType(SierraLmsClient.class));
+		assertThat(foundHost, hasClientClass(SierraLmsClient.class.getCanonicalName()));
+		assertThat(foundHost, hasNoIngestSourceClass());
 	}
 
 	@Test

@@ -10,10 +10,11 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasClientClass;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasCode;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasId;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasName;
-import static org.olf.dcb.test.matchers.HostLmsMatchers.hasType;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasNoIngestSourceClass;
 import static services.k_int.utils.UUIDUtils.nameUUIDFromNamespaceAndString;
 
 import org.hamcrest.Matcher;
@@ -49,7 +50,8 @@ class DCBStartupEventListenerTests {
 		assertThat(foundHost, hasCode("config-host"));
 		// The name in the config is ignored and the code is used for the name too
 		assertThat(foundHost, hasName("config-host"));
-		assertThat(foundHost, hasType(SierraLmsClient.class));
+		assertThat(foundHost, hasClientClass(SierraLmsClient.class.getCanonicalName()));
+		assertThat(foundHost, hasNoIngestSourceClass());
 		assertThat(foundHost, hasProperty("clientConfig",
 			hasEntry("base-url", "https://some-sierra-system")));
 	}

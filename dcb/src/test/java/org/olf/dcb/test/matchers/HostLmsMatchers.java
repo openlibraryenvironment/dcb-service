@@ -1,13 +1,13 @@
 package org.olf.dcb.test.matchers;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.notNullValue;
 
 import java.util.UUID;
 
 import org.hamcrest.Matcher;
-import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 
 public class HostLmsMatchers {
@@ -31,7 +31,15 @@ public class HostLmsMatchers {
 		return hasProperty("code", is(expectedCode));
 	}
 
-	public static Matcher<DataHostLms> hasType(Class<SierraLmsClient> expectedType) {
-		return hasProperty("type", is(expectedType));
+	public static Matcher<DataHostLms> hasClientClass(String expectedClientClass) {
+		return hasProperty("lmsClientClass", is(expectedClientClass));
+	}
+
+	public static Matcher<DataHostLms> hasIngestSourceClass(String expectedIngestSourceClass) {
+		return hasProperty("ingestSourceClass", is(expectedIngestSourceClass));
+	}
+
+	public static Matcher<DataHostLms> hasNoIngestSourceClass() {
+		return hasProperty("ingestSourceClass", is(nullValue()));
 	}
 }
