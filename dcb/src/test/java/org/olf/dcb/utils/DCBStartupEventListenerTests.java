@@ -1,8 +1,13 @@
 package org.olf.dcb.utils;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasCode;
@@ -16,6 +21,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.test.DcbTest;
+import org.olf.dcb.test.GrantFixture;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
@@ -29,6 +35,9 @@ import jakarta.inject.Inject;
 class DCBStartupEventListenerTests {
 	@Inject
 	private HostLmsService hostLmsService;
+
+	@Inject
+	private GrantFixture grantFixture;
 
 	@Test
 	void shouldFindHostLmsInConfigByCode() {
@@ -44,5 +53,23 @@ class DCBStartupEventListenerTests {
 		assertThat(foundHost, hasType(SierraLmsClient.class));
 		assertThat(foundHost, hasProperty("clientConfig",
 			hasEntry("base-url", "https://some-sierra-system")));
+	}
+
+	@Test
+	void shouldFindGrantCreatedAtStartup() {
+		final var grants = grantFixture.findAll();
+
+		assertThat("Single grant created at startup", grants, hasSize(1));
+
+		assertThat(grants, containsInAnyOrder(allOf(
+			hasProperty("id", is(notNullValue())),
+			hasProperty("grantResourceOwner", is("%")),
+			hasProperty("grantResourceType", is("%")),
+			hasProperty("grantResourceId", is("%")),
+			hasProperty("grantedPerm", is("%")),
+			hasProperty("granteeType", is("role")),
+			hasProperty("grantee", is("ADMIN")),
+			hasProperty("grantOption", is(true))
+		)));
 	}
 }
