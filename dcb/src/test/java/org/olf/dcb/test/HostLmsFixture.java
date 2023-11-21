@@ -5,10 +5,12 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
@@ -47,7 +49,8 @@ public class HostLmsFixture {
 	public <T> void createFolioHostLms(String code, Class<T> type,
 		String baseUrl, String apiKey, String recordSyntax, String metadataPrefix) {
 
-		createHostLms(randomUUID(), code, type, Map.of(
+		createHostLms(randomUUID(), code, type, Optional.empty(),
+			Map.of(
 			"base-url", baseUrl,
 			"apikey", apiKey,
 			"record-syntax", recordSyntax,
@@ -84,7 +87,8 @@ public class HostLmsFixture {
 
 		numericRangeMappingFixture.createMapping(code, "ItemType", 998L, 1001L, "DCB", "BKM");
 
-		return createHostLms(UUID.randomUUID(), code, SierraLmsClient.class, config);
+		return createHostLms(UUID.randomUUID(), code, SierraLmsClient.class,
+			Optional.empty(), config);
 	}
 
 	public DataHostLms createPolarisHostLms(String code, String staffUsername,
@@ -129,17 +133,22 @@ public class HostLmsFixture {
 
 		clientConfig.put("item", item);
 
-		return createHostLms(randomUUID(), code, PolarisLmsClient.class, clientConfig);
+		return createHostLms(randomUUID(), code, PolarisLmsClient.class,
+			Optional.empty(), clientConfig);
 	}
 
-	public <T> DataHostLms createHostLms(UUID id, String code,
-		Class<T> clientClass, Map<String, Object> clientConfig) {
+	public <T, R> DataHostLms createHostLms(UUID id, String code,
+		Class<T> clientClass, Optional<Class<R>> ingestSourceClass,
+		Map<String, Object> clientConfig) {
 
 		return saveHostLms(DataHostLms.builder()
 			.id(id)
 			.code(code)
 			.name("Test Host LMS")
 			.lmsClientClass(clientClass.getCanonicalName())
+			.ingestSourceClass(ingestSourceClass
+				.map(Class::getCanonicalName)
+				.orElse(null))
 			.clientConfig(clientConfig)
 			.build());
 	}
