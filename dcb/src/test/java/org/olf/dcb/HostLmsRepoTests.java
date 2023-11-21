@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.test.DcbTest;
+import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
@@ -22,8 +23,12 @@ class HostLmsRepoTests {
 	@Inject
 	HostLmsRepository hostLmsRepository;
 
+	@Inject
+	HostLmsFixture hostLmsFixture;
+
 	@BeforeEach
 	void beforeEach() {
+		hostLmsFixture.deleteAll();
 	}
 
 	@Test
