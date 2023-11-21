@@ -13,18 +13,12 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.test.DcbTest;
 
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 
 
 @DcbTest
 class HostLmsRepoTests {
-	@Inject
-	@Client("/")
-	HttpClient client;
-
 	@Inject
 	HostLmsRepository hostLmsRepository;
 
