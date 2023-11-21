@@ -12,11 +12,15 @@ import org.olf.dcb.core.model.DataHostLms;
 
 public class HostLmsMatchers {
 	public static Matcher<DataHostLms> hasId(UUID hostLmsId) {
-		return hasProperty("id", is(hostLmsId));
+		return hasId(is(hostLmsId));
 	}
 
 	public static Matcher<DataHostLms> hasNonNullId() {
-		return hasProperty("id", notNullValue());
+		return hasId(notNullValue());
+	}
+
+	public static Matcher<DataHostLms> hasId(Matcher<Object> matcher) {
+		return hasProperty("id", matcher);
 	}
 
 	public static Matcher<DataHostLms> hasName(String expectedName) {
