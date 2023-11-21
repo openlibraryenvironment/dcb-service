@@ -12,12 +12,13 @@ import io.micronaut.context.annotation.EachProperty;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.serde.annotation.Serdeable;
+import lombok.Getter;
 import services.k_int.utils.UUIDUtils;
 
 @Serdeable
+@Getter
 @EachProperty("hosts")
 public class ConfigHostLms implements HostLms {
-
 	private Map<String, Object> clientConfig;
 	private final UUID id;
 	private final String name;
@@ -30,31 +31,6 @@ public class ConfigHostLms implements HostLms {
 		
 		final String concat = String.format("config:lms:%s", code);
 		id =  UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
-	}
-
-	@Override
-	public Map<String, Object> getClientConfig() {
-		return clientConfig;
-	}
-
-	@Override
-	public UUID getId() {
-		return id;
-	}
-
-	@Override
-	public String getCode() {
-		return code;
-	}
-
-	@Override
-	public String getName() {
-		return name;
-	}
-
-	@Override
-	public Class<? extends HostLmsClient> getType() {
-		return type;
 	}
 
 	public void setClient(Map<String, Object> clientConfig) {
