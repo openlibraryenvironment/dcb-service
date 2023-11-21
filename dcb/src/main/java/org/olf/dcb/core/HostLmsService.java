@@ -63,16 +63,16 @@ public class HostLmsService implements IngestSourcesProvider {
 			.flatMap(this::getIngestSourceFor);
 	}
 
-	public Flux<DataHostLms> getAllHostLms() {
-		log.debug("getAllHostLms()");
-
-		return Flux.from(hostLmsRepository.queryAll());
-	}
-
 	@Override
 	public Publisher<IngestSource> getIngestSources() {
 		return getAllHostLms()
 			.flatMap(this::getIngestSourceFor);
+	}
+
+	private Flux<DataHostLms> getAllHostLms() {
+		log.debug("getAllHostLms()");
+
+		return Flux.from(hostLmsRepository.queryAll());
 	}
 
 	public static class UnknownHostLmsException extends RuntimeException {
