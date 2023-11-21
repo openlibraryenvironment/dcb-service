@@ -63,6 +63,7 @@ public class HandleBorrowerItemOnHoldShelf implements WorkflowAction {
                      ( rwc.getSupplierRequest().getLocalItemId() != null ) &&
                      ( rwc.getLenderSystemCode() != null ) ) {
 			return hostLmsService.getClientFor(rwc.getLenderSystemCode())
+                                // updateItemStatus here should be clearing the m-flag (Message)
                 		.flatMap( hostLmsClient ->  hostLmsClient.updateItemStatus(rwc.getSupplierRequest().getLocalItemId(), CanonicalItemState.RECEIVED))
                                 .thenReturn(rwc);
 		}

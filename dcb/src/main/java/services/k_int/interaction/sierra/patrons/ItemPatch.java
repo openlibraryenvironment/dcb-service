@@ -15,6 +15,8 @@ public class ItemPatch {
 	Integer itemType;
 	String location;
 	String status;
+        String itemMessage;
+	List<String> messages;
 	List<String> barcodes;
         Map<Integer, FixedField> fixedFields;
 }

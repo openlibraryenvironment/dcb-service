@@ -889,7 +889,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		}
 
 		if (status != null) {
-			ItemPatch ip = ItemPatch.builder().status(status).build();
+			ItemPatch ip = ItemPatch.builder()
+                                .status(status)
+                                .itemMessage("-")
+                                .messages(new ArrayList())
+                                .build();
 			return Mono.from(client.updateItem(itemId, ip))
                                 .thenReturn("OK");
 
