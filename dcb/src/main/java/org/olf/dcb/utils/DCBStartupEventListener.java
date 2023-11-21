@@ -138,11 +138,15 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	}
 
 	private Publisher<StatusCode> saveOrUpdateStatusCode(String model, String code, Boolean tracked) {
-		StatusCode sc = new StatusCode(
-			nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "StatusCode:"+model+":"+code),
-			model, code, null, tracked);
+		final var statusCode = StatusCode.builder()
+			.id(nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "StatusCode:" + model + ":" + code))
+			.model(model)
+			.code(code)
+			.tracked(tracked)
+			.build();
 
-		log.debug("upsert {}",sc);
-		return statusCodeRepository.saveOrUpdate(sc);
+		log.debug("upsert {}", statusCode);
+
+		return statusCodeRepository.saveOrUpdate(statusCode);
 	}
 }
