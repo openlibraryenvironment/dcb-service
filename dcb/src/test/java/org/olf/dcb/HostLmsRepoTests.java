@@ -2,8 +2,8 @@ package org.olf.dcb;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -33,18 +33,18 @@ class HostLmsRepoTests {
 
 	@Test
 	void createHostLmsViaRepository() {
-		Map<String, Object> cfg = new HashMap<String, Object>();
-		DataHostLms new_host_lms = new DataHostLms(UUID.randomUUID(),
-			"TCODE1",
-			"Test HostLMS1",
-			"org.olf.dcb.core.interaction.sierra.SierraLmsClient",
-			cfg);
+		final var new_host_lms = DataHostLms.builder()
+			.id(UUID.randomUUID())
+			.code("TCODE1")
+			.name("Test HostLMS1")
+			.lmsClientClass("org.olf.dcb.core.interaction.sierra.SierraLmsClient")
+			.clientConfig(Map.of())
+			.build();
 
-		Mono.from(hostLmsRepository.save(new_host_lms))
-			.block();
+		singleValueFrom(hostLmsRepository.save(new_host_lms));
 
 		Boolean exists = Mono.from(hostLmsRepository.existsById(new_host_lms.getId())).block();
 
-		assertThat(exists, is(Boolean.TRUE));
+		assertThat(exists, is(true));
 	}
 }
