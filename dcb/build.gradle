@@ -104,8 +104,9 @@ dependencies {
 
 	implementation("io.micronaut.flyway:micronaut-flyway")
 
+        // II: These were commented out but unsure why - needed for observability on prod systems
 	// Metrics (Prometheus)
-	// implementation "io.micronaut.micrometer:micronaut-micrometer-registry-prometheus"
+	implementation "io.micronaut.micrometer:micronaut-micrometer-registry-prometheus"
 	
 	// Also required to enable endpoint
 	implementation "io.micronaut:micronaut-management"

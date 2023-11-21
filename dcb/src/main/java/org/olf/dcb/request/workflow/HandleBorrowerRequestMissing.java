@@ -70,6 +70,8 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 						patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), COMPLETED, 
 							Optional.ofNullable("Missing borrower request when local local status was AVAILABLE"));
 						log.debug("setting DCB internal status to COMPLETED because item status AVAILABLE {}",pr);
+                                                // ToDo - Consider if this should be BORROWER-COMPLETED to indicate that the return
+                                                // part of the transaction is still to be completed
 						return pr.setStatus(COMPLETED);
 					}
 					// item has not been despatched from lending library
@@ -90,9 +92,14 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 				.doOnNext(patronRequest -> log.debug("setLocalRequestStatus to MISSING {}", patronRequest))
 				.flatMap(request -> Mono.from(patronRequestRepository.saveOrUpdate(request)))
 				.doOnNext(spr -> log.debug("Saved {} - check if we need to do any cleanup", spr))
+
+
                                 // Call the workflow service to see if we can advance the state of the request at all - in particular
-                                // to clean up any completed requests
+                                // to clean up any completed requests. ToDo: Consider if this shold be moved higher up the chain to see
+                                // if there are progressions after any tracking notification
                                 .flatMap( spr -> Mono.from(patronRequestWorkflowServiceProvider.get().progressAll(spr)) )
+
+
 				.thenReturn(context);
 		}
 		else {
