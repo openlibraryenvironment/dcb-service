@@ -11,6 +11,7 @@ import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.error.DcbException;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.svc.RecordClusteringService;
+import org.olf.dcb.indexing.SharedIndexConfiguration;
 import org.olf.dcb.indexing.bulk.BulkSharedIndexService;
 import org.olf.dcb.indexing.model.ClusterRecordIndexDoc;
 import org.olf.dcb.indexing.storage.SharedIndexQueueRepository;
@@ -44,7 +45,7 @@ import reactor.core.publisher.Mono;
 
 @Setter
 @Requires(bean = ElasticsearchAsyncClient.class)
-@Requires(property = "dcb.index.name")
+@Requires(bean = SharedIndexConfiguration.class)
 @Singleton
 public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	
@@ -57,13 +58,13 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	private final ElasticsearchAsyncClient client;
 	private final ConversionService conversionService;
 	
-	@io.micronaut.context.annotation.Property(name="dcb.index.name")
-	private String indexName; 
+	private final String indexName; 
 	
-	public ElasticsearchSharedIndexService(ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, SharedIndexQueueRepository sharedIndexQueueRepository) {
+	public ElasticsearchSharedIndexService(SharedIndexConfiguration conf, ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, SharedIndexQueueRepository sharedIndexQueueRepository) {
 		super(recordClusteringService, sharedIndexQueueRepository);
 		this.client = client;
 		this.conversionService = conversionService;
+		this.indexName = conf.name();
 	}
 	
 	@PostConstruct
