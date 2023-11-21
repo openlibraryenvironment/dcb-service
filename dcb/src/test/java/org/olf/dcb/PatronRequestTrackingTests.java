@@ -17,6 +17,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.StatusCode;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -24,6 +25,7 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.StatusCodeRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.tracking.TrackingService;
 
 import io.micronaut.core.io.ResourceLoader;
@@ -47,6 +49,8 @@ public class PatronRequestTrackingTests {
 	StatusCodeRepository statusCodeRepository;
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private PatronFixture patronFixture;
 	private static final String HOST_LMS_CODE = "patron-request-tracking-tests";
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
@@ -67,13 +71,17 @@ public class PatronRequestTrackingTests {
 	@Test
 	void shouldCancelRequestWhenHoldDoesNotExistAndNotOnHoldShelf() {
 		// Arrange
+		final var patron = patronFixture.savePatron("homeLibraryCode");
+
 		final var savedPatronRequestId = randomUUID();
+
 		// hostlms item status can not be on hold shelf
 		final var patronRequest = Mono.from(patronRequestRepository.save(PatronRequest.builder()
 				.id(savedPatronRequestId).localRequestId("11890").localItemId("1088431")
 				.localItemStatus("").patronHostlmsCode(HOST_LMS_CODE)
 				.localRequestStatus("PLACED")
-				.status(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY).build())).block();
+				.status(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
+				.patron(patron).build())).block();
 
 		Mono.from(supplierRequestRepository.save(SupplierRequest.builder()
 			.id(randomUUID()).localId("11987").localItemId("1088432").patronRequest(patronRequest)
@@ -99,12 +107,14 @@ public class PatronRequestTrackingTests {
 	@Test
 	void shouldFinaliseRequestWhenSupplierHostlmsHoldIsPLACED() {
 		// Arrange
+		final var patron = patronFixture.savePatron("homeLibraryCode");
 		final var savedPatronRequestId = randomUUID();
 		final var patronRequest = Mono.from(patronRequestRepository.save(PatronRequest.builder()
 			.id(savedPatronRequestId).localRequestId("11890").localItemId("1088431")
 			.localItemStatus("").patronHostlmsCode(HOST_LMS_CODE)
 			.localRequestStatus("PLACED")
-			.status(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY).build())).block();
+			.status(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
+			.patron(patron).build())).block();
 		Mono.from(supplierRequestRepository.save(SupplierRequest.builder()
 			// local status has to be PLACED
 			.id(randomUUID()).localId("11987").localItemId("1088432").localStatus("PLACED").patronRequest(patronRequest)
@@ -127,11 +137,12 @@ public class PatronRequestTrackingTests {
 	@Test
 	void shouldFinaliseRequestWhenSupplierItemAvailable() {
 		// Arrange
+		final var patron = patronFixture.savePatron("homeLibraryCode");
 		final var savedPatronRequestId = randomUUID();
 		final var patronRequest = Mono.from(patronRequestRepository.save(PatronRequest.builder()
 			.id(savedPatronRequestId).localRequestId("11890")
 			.localItemId("108843").patronHostlmsCode(HOST_LMS_CODE)
-			.status(CANCELLED).build())).block();
+			.status(CANCELLED).patron(patron).build())).block();
 		// the supplier item id has to match with the mock for state change to AVAILABLE
 		Mono.from(supplierRequestRepository.save(SupplierRequest.builder()
 				.id(randomUUID()).localId("11987").localItemId("1088431").patronRequest(patronRequest)

@@ -2,6 +2,7 @@ package org.olf.dcb.storage;
 
 import java.util.UUID;
 
+import io.micronaut.data.annotation.Join;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 

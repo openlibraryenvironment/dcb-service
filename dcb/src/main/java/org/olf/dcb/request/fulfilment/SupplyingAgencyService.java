@@ -205,9 +205,14 @@ public class SupplyingAgencyService {
 
 		// Get supplier system interface
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
+			.zipWith(patronService.getUniqueIdStringFor(psrc.getPatron()))
 			// Look up virtual patron using generated unique ID string
-			.flatMap(hostLmsClient -> hostLmsClient.patronAuth("UNIQUE-ID", patronService.getUniqueIdStringFor(patronRequest.getPatron()), null))
-                        // Ensure that we have a local patronIdentity record to track the patron in the supplying ILS
+			.flatMap(tuple -> {
+				final var hostlmsclient = tuple.getT1();
+				final var uniqueid = tuple.getT2();
+				return hostlmsclient.patronAuth("UNIQUE-ID", uniqueid, null);
+			})
+      // Ensure that we have a local patronIdentity record to track the patron in the supplying ILS
 			.flatMap(patron -> updateLocalPatronIdentityForLmsPatron(patron, patronRequest, supplierRequest));
 	}
 
@@ -304,13 +309,22 @@ public class SupplyingAgencyService {
 		}
 
 		return determinePatronType(supplierHostLmsCode, requestingPatronIdentity)
-			.flatMap(patronType -> client.createPatron(
-				Patron.builder()
-					.uniqueIds( stringToList(patronService.getUniqueIdStringFor(patronRequest.getPatron()) ))
-					.localBarcodes( patron_barcodes )
-					.localPatronType( patronType )
-					.build())
-				.map(createdPatron -> Tuples.of(createdPatron, patronType)));
+			.zipWith( determineUniqueId(patronRequest.getPatron()) )
+			.flatMap(tuple -> {
+				final var patronType = tuple.getT1();
+				final var uniqueId = tuple.getT2();
+				return client.createPatron(
+						Patron.builder()
+							.localBarcodes( patron_barcodes )
+							.localPatronType( patronType )
+							.uniqueIds( stringToList(uniqueId) )
+							.build())
+					.map(createdPatron -> Tuples.of(createdPatron, patronType));
+			});
+	}
+
+	private Mono<String> determineUniqueId(org.olf.dcb.core.model.Patron patron) {
+		return patronService.getUniqueIdStringFor(patron);
 	}
 
 	private List<String> stringToList(String string) {
