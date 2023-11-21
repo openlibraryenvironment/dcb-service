@@ -16,12 +16,14 @@ import static org.olf.dcb.test.matchers.HostLmsMatchers.hasName;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasType;
 import static services.k_int.utils.UUIDUtils.nameUUIDFromNamespaceAndString;
 
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.GrantFixture;
+import org.olf.dcb.test.StatusCodeFixture;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
@@ -38,6 +40,8 @@ class DCBStartupEventListenerTests {
 
 	@Inject
 	private GrantFixture grantFixture;
+	@Inject
+	private StatusCodeFixture statusCodeFixture;
 
 	@Test
 	void shouldFindHostLmsInConfigByCode() {
@@ -71,5 +75,40 @@ class DCBStartupEventListenerTests {
 			hasProperty("grantee", is("ADMIN")),
 			hasProperty("grantOption", is(true))
 		)));
+	}
+
+	@Test
+	void shouldFindStatusesCreatedAtStartup() {
+		final var statusCodes = statusCodeFixture.findAll();
+		
+		assertThat(statusCodes, containsInAnyOrder(
+			hasStatusCode("SupplierRequest", "IDLE", false),
+			hasStatusCode("SupplierRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", true),
+			hasStatusCode("SupplierRequest", "PLACED", true),
+			hasStatusCode("SupplierRequest", "MISSING", false),
+			hasStatusCode("PatronRequest", "IDLE", false),
+			hasStatusCode("PatronRequest", "PLACED", true),
+			hasStatusCode("VirtualItem", "IDLE", false),
+			hasStatusCode("VirtualItem", "RET-TRANSIT", false),
+			hasStatusCode("VirtualItem", "TRANSIT", true),
+			hasStatusCode("VirtualItem", "AVAILABLE", true),
+			hasStatusCode("VirtualItem", "LOANED", true),
+			hasStatusCode("VirtualItem", "PICKUP_TRANSIT", true),
+			hasStatusCode("VirtualItem", "HOLDSHELF", true),
+			hasStatusCode("VirtualItem", "MISSING", false),
+			hasStatusCode("SupplierItem", "TRANSIT", true),
+			hasStatusCode("SupplierItem", "RECEIEVED", true)
+		));
+	}
+
+	private static Matcher<Object> hasStatusCode(String expectedModel,
+		String expectedCode, boolean expectedTracked) {
+
+		return allOf(
+			hasProperty("id", is(notNullValue())),
+			hasProperty("model", is(expectedModel)),
+			hasProperty("code", is(expectedCode)),
+			hasProperty("tracked", is(expectedTracked))
+		);
 	}
 }
