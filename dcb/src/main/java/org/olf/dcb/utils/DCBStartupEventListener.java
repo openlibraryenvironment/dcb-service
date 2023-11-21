@@ -7,6 +7,7 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Grant;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.StatusCode;
+import org.olf.dcb.core.model.config.ConfigHostLms;
 import org.olf.dcb.storage.GrantRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.StatusCodeRepository;
@@ -28,19 +29,19 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	private final HostLmsRepository hostLmsRepository;
 	private final StatusCodeRepository statusCodeRepository;
 	private final GrantRepository grantRepository;
-	private final HostLms[] confHosts;
+	private final ConfigHostLms[] configHosts;
 
 	private static final String REACTOR_DEBUG_VAR = "REACTOR_DEBUG";
 
 	public DCBStartupEventListener(Environment environment,
 		HostLmsRepository hostLmsRepository, StatusCodeRepository statusCodeRepository,
-		GrantRepository grantRepository, HostLms[] confHosts) {
+		GrantRepository grantRepository, ConfigHostLms[] configHosts) {
 
 		this.environment = environment;
 		this.statusCodeRepository = statusCodeRepository;
 		this.hostLmsRepository = hostLmsRepository;
 		this.grantRepository = grantRepository;
-		this.confHosts = confHosts;
+		this.configHosts = configHosts;
 	}
 
 	@Override
@@ -67,7 +68,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		}
 
 		// Enumerate any host LMS entries and create corresponding DB entries
-		for (HostLms hostLms : confHosts) {
+		for (HostLms hostLms : configHosts) {
 			log.debug("make sure {}/{}/{} exists in DB",hostLms.getId(),hostLms.getName(),hostLms);
 
 			final var db_representation = DataHostLms.builder()
