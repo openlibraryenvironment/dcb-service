@@ -1,0 +1,134 @@
+[
+	{
+		"BannerText" : "Bindery",
+		"Description" : "Bindery",
+		"ItemStatusID" : 12,
+		"Name" : "Bindery"
+	},
+	{
+		"BannerText" : "Claim Missing P",
+		"Description" : "Claim Missing Parts",
+		"ItemStatusID" : 21,
+		"Name" : "Claim Missing Parts"
+	},
+	{
+		"BannerText" : "Claim Never Had",
+		"Description" : "Claim Never Had",
+		"ItemStatusID" : 9,
+		"Name" : "Claim Never Had"
+	},
+	{
+		"BannerText" : "Claim Returned",
+		"Description" : "Claim Returned",
+		"ItemStatusID" : 8,
+		"Name" : "Claim Returned"
+	},
+	{
+		"BannerText" : "eCheck Out",
+		"Description" : "eCheck Out",
+		"ItemStatusID" : 22,
+		"Name" : "EContent External Loan"
+	},
+	{
+		"BannerText" : "On Hold Shelf",
+		"Description" : "On Hold Shelf",
+		"ItemStatusID" : 4,
+		"Name" : "Held"
+	},
+	{
+		"BannerText" : "Available",
+		"Description" : "Available",
+		"ItemStatusID" : 1,
+		"Name" : "In"
+	},
+	{
+		"BannerText" : "In Processing",
+		"Description" : "In Processing",
+		"ItemStatusID" : 15,
+		"Name" : "In-Process"
+	},
+	{
+		"BannerText" : "Storage",
+		"Description" : "Storage",
+		"ItemStatusID" : 14,
+		"Name" : "In-Repair"
+	},
+	{
+		"BannerText" : "In-Transit",
+		"Description" : "In-Transit",
+		"ItemStatusID" : 6,
+		"Name" : "In-Transit"
+	},
+	{
+		"BannerText" : "Billed",
+		"Description" : "Billed",
+		"ItemStatusID" : 7,
+		"Name" : "Lost"
+	},
+	{
+		"BannerText" : "Missing",
+		"Description" : "Missing",
+		"ItemStatusID" : 10,
+		"Name" : "Missing"
+	},
+	{
+		"BannerText" : "Library Use Onl",
+		"Description" : "Library Use Only",
+		"ItemStatusID" : 20,
+		"Name" : "Non-circulating"
+	},
+	{
+		"BannerText" : "On-Order",
+		"Description" : "On-Order",
+		"ItemStatusID" : 13,
+		"Name" : "On-Order"
+	},
+	{
+		"BannerText" : "Checked Out",
+		"Description" : "Checked Out",
+		"ItemStatusID" : 2,
+		"Name" : "Out"
+	},
+	{
+		"BannerText" : "Out-ILL",
+		"Description" : "Out-ILL",
+		"ItemStatusID" : 3,
+		"Name" : "Out-ILL"
+	},
+	{
+		"BannerText" : "Returned-ILL",
+		"Description" : "Returned-ILL",
+		"ItemStatusID" : 17,
+		"Name" : "Returned-ILL"
+	},
+	{
+		"BannerText" : "Routed",
+		"Description" : "Routed",
+		"ItemStatusID" : 18,
+		"Name" : "Routed"
+	},
+	{
+		"BannerText" : "Recent Return",
+		"Description" : "Recently Returned",
+		"ItemStatusID" : 19,
+		"Name" : "Shelving"
+	},
+	{
+		"BannerText" : "Transferred",
+		"Description" : "In-Transit (Hold)",
+		"ItemStatusID" : 5,
+		"Name" : "Transferred"
+	},
+	{
+		"BannerText" : "Unavailable",
+		"Description" : "Unavailable",
+		"ItemStatusID" : 16,
+		"Name" : "Unavailable"
+	},
+	{
+		"BannerText" : "Withdrawn",
+		"Description" : "Withdrawn",
+		"ItemStatusID" : 11,
+		"Name" : "Withdrawn"
+	}
+]

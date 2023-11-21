@@ -175,7 +175,9 @@ class ApplicationServicesClient {
 
 		final var itemrecordtype = 8;
 		final var itemrecorddata = 6;
-		final var Available = "1"; // In
+
+		final var Available = 1; // In
+
 		return createRequest(POST, path, uri -> {})
 			.zipWith(client.getMappedItemType(createItemCommand.getCanonicalItemType()))
 			.map(tuple -> {
@@ -211,13 +213,48 @@ class ApplicationServicesClient {
 			.flatMap(this::createItemRequest);
 	}
 
+	public Mono<Void> updateItemRecord(String itemId, Integer fromStatus, Integer toStatus) {
+		final var path = createPath("workflow");
+
+		final var conf = client.getHostLms().getClientConfig();
+		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
+		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+
+		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
+		final var workstation = extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class);
+
+		final var itemrecordtype = 8;
+		final var itemrecorddata = 6;
+
+		return createRequest(POST, path, uri -> {})
+			.map(request -> {
+				final var body = WorkflowRequest.builder()
+					.workflowRequestType(itemrecordtype)
+					.txnUserID(user)
+					.txnBranchID(branch)
+					.txnWorkstationID(workstation)
+					.requestExtension( RequestExtension.builder()
+						.workflowRequestExtensionType(itemrecorddata)
+						.data(RequestExtensionData.builder()
+							.itemRecordID( Integer.valueOf(itemId) )
+							.originalItemStatusID(fromStatus)
+							.itemStatusID(toStatus)
+							.build())
+						.build())
+					.build();
+				return request.body(body);
+			})
+			.flatMap(this::createItemRequest)
+			.then();
+	}
+
 	private Mono<ItemCreateResponse> createItemRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
 		final var InputRequired = -3;
 		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class))
 			.filter(workflowResponse -> workflowResponse.getWorkflowStatus() == InputRequired)
 			.map(WorkflowResponse::getWorkflowRequestGuid)
 			.flatMap(this::createItemWorkflowReply)
-			.switchIfEmpty( Mono.error(new PolarisWorkflowException("create item")) );
+			.switchIfEmpty( Mono.error(new PolarisWorkflowException("item request failed: " + workflowReq)) );
 	}
 
 	private Mono<ItemCreateResponse> createItemWorkflowReply(String guid) {
@@ -234,6 +271,12 @@ class ApplicationServicesClient {
 		final var path = createPath("materialtypes");
 		return createRequest(GET, path, uri -> {})
 			.flatMap(request -> client.retrieve(request, Argument.listOf(MaterialType.class)));
+	}
+
+	public Mono<List<PolarisLmsClient.PolarisItemStatus>> listItemStatuses() {
+		final var path = createPath("itemstatuses");
+		return createRequest(GET, path, uri -> {})
+			.flatMap(request -> client.retrieve(request, Argument.listOf(PolarisLmsClient.PolarisItemStatus.class)));
 	}
 
 	public Mono<BibliographicRecord> getBibliographicRecordByID(String localBibId) {
@@ -440,7 +483,7 @@ class ApplicationServicesClient {
 		@JsonProperty("ItemRecordHistoryActionID")
 		private Integer itemRecordHistoryActionID;
 		@JsonProperty("ItemStatusID")
-		private String itemStatusID;
+		private Integer itemStatusID;
 		@JsonProperty("AssignedBranchID")
 		private Integer assignedBranchID;
 		@JsonProperty("AssociatedBibRecordID")
@@ -462,7 +505,7 @@ class ApplicationServicesClient {
 		@JsonProperty("ItemRecordID")
 		private Integer itemRecordID;
 		@JsonProperty("OriginalItemStatusID")
-		private String originalItemStatusID;
+		private Integer originalItemStatusID;
 		@JsonProperty("DisplayInPAC")
 		private Boolean displayInPAC;
 		@JsonProperty("Barcode")

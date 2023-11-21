@@ -78,7 +78,7 @@ public class ItemStatusMapper {
 		}
 
 		static FallbackMapper polarisFallback() {
-			return fallbackBasedUponAvailableStatuses("Available");
+			return fallbackBasedUponAvailableStatuses("In");
 		}
 
 		static FallbackMapper fallbackBasedUponAvailableStatuses(String... availableStatusCodes) {

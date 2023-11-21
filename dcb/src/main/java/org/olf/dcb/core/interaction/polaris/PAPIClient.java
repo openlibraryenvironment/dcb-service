@@ -26,7 +26,9 @@ import java.util.stream.Collectors;
 import static io.micronaut.http.HttpMethod.*;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
+
 import static java.lang.Integer.parseInt;
+
 import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
@@ -53,8 +55,7 @@ public class PAPIClient {
 
 	/*
 	Public endpoints
-	 */
-
+	*/
 	@SingleResult
 	public Mono<Patron> patronValidate(String barcode, String password) {
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
@@ -307,7 +308,6 @@ public class PAPIClient {
 		private Integer requestPickupBranchID;
 	}
 
-
 	@Builder
 	@Data
 	@AllArgsConstructor
@@ -390,8 +390,17 @@ public class PAPIClient {
 		private String VolumeNumber;
 		@JsonProperty("ShelfLocation")
 		private String ShelfLocation;
+
+		// believed to be the item status 'description'
 		@JsonProperty("CircStatus")
 		private String CircStatus;
+		@JsonProperty("CircStatusID")
+		private Integer circStatusID;
+		@JsonProperty("CircStatusName")
+		private String circStatusName;
+		@JsonProperty("CircStatusBanner")
+		private String circStatusBanner;
+
 		@JsonProperty("LastCircDate")
 		private String LastCircDate;
 		@JsonProperty("MaterialTypeID")
