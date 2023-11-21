@@ -20,10 +20,6 @@ public interface HostLmsRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<? extends DataHostLms> persist(@Valid @NotNull @NonNull DataHostLms hostLms);
-
-	@NonNull
-	@SingleResult
 	Publisher<? extends DataHostLms> update(@Valid @NotNull @NonNull DataHostLms hostLms);
 
 	@NonNull
@@ -33,10 +29,6 @@ public interface HostLmsRepository {
 	@NonNull
 	@SingleResult
 	Publisher<Boolean> existsById(@NonNull UUID id);
-
-	@NonNull
-	@SingleResult
-	Publisher<DataHostLms> findByName(@NonNull String name);
 
 	@NonNull
 	@SingleResult
