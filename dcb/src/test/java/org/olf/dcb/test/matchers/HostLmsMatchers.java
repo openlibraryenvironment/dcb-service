@@ -19,7 +19,7 @@ public class HostLmsMatchers {
 		return hasId(notNullValue());
 	}
 
-	public static Matcher<DataHostLms> hasId(Matcher<Object> matcher) {
+	private static Matcher<DataHostLms> hasId(Matcher<Object> matcher) {
 		return hasProperty("id", matcher);
 	}
 

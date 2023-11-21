@@ -4,10 +4,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasCode;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasId;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasName;
-import static org.olf.dcb.test.matchers.HostLmsMatchers.hasNonNullId;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasType;
+import static services.k_int.utils.UUIDUtils.nameUUIDFromNamespaceAndString;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -34,7 +36,8 @@ class DCBStartupEventListenerTests {
 		final var foundHost = hostLmsService.findByCode("config-host").block();
 
 		// Assert
-		assertThat(foundHost, hasNonNullId());
+		assertThat(foundHost, hasId(
+			nameUUIDFromNamespaceAndString(NAMESPACE_DCB, String.format("config:lms:%s", "config-host"))));
 		assertThat(foundHost, hasCode("config-host"));
 		// The name in the config is ignored and the code is used for the name too
 		assertThat(foundHost, hasName("config-host"));
