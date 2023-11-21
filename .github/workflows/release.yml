@@ -73,6 +73,15 @@ jobs:
         with:
           junit_files: "**/build/test-results/test/**/*.xml"
 
+      - name: Generate JaCoCo Badge
+        uses: cicirello/jacoco-badge-generator@v2.11.0
+
+
+      - name: Log coverage percentage
+        run: |
+          echo "coverage = ${{ steps.jacoco.outputs.coverage }}"
+          echo "branch coverage = ${{ steps.jacoco.outputs.branches }}"
+
       - uses: actions/upload-artifact@v3.1.0
         if: always() # Upload artefacts even when build fails.
         with:
