@@ -10,13 +10,11 @@ import org.olf.dcb.core.model.HostLms;
 
 import io.micronaut.context.annotation.EachProperty;
 import io.micronaut.context.annotation.Parameter;
-import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.serde.annotation.Serdeable;
 import services.k_int.utils.UUIDUtils;
 
 @Serdeable
-@Introspected(excludes = { "agencies" })
 @EachProperty("hosts")
 public class ConfigHostLms implements HostLms {
 
