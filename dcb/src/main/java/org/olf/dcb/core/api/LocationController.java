@@ -69,7 +69,8 @@ public class LocationController {
         @Get("/{?pageable*}")
         public Mono<Page<Location>> list(@Nullable @Parameter String type, @Parameter(hidden = true) @Valid Pageable pageable) {
                 if (pageable == null) {
-                        pageable = Pageable.from(0, 100);
+                        pageable = Pageable.from(0, 100)
+                                .order("name");
                 }
 
                 if ( ( type != null ) && ( type.length() > 0 ) ) {
