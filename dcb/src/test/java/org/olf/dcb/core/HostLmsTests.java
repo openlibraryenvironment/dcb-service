@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.util.Map;
 import java.util.UUID;
 
-import org.apache.velocity.runtime.directive.Define;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -127,32 +126,35 @@ class HostLmsTests {
 		}
 	}
 
-	@Test
-	void shouldBeAbleToCreatePolarisClientFromDatabaseHostLms() {
-		// Arrange
-		hostLmsFixture.createPolarisHostLms("polaris-database-host-lms", "some-username",
-			"some-password", "https://some-polaris-system", "some-domain",
-			"some-access-id", "some-access-key");
+	@Nested
+	class PolarisDatabaseHostLmsTests {
+		@Test
+		void shouldBeAbleToCreatePolarisClientFromDatabaseHostLms() {
+			// Arrange
+			hostLmsFixture.createPolarisHostLms("polaris-database-host-lms", "some-username",
+				"some-password", "https://some-polaris-system", "some-domain",
+				"some-access-id", "some-access-key");
 
-		// Act
-		final var client = hostLmsFixture.createClient("polaris-database-host-lms");
+			// Act
+			final var client = hostLmsFixture.createClient("polaris-database-host-lms");
 
-		// Assert
-		assertThat(client, is(instanceOf(PAPILmsClient.class)));
-	}
+			// Assert
+			assertThat(client, is(instanceOf(PAPILmsClient.class)));
+		}
 
-	@Test
-	void shouldBeAbleToCreatePolarisIngestSourceFromDatabaseHostLms() {
-		// Arrange
-		hostLmsFixture.createPolarisHostLms("polaris-database-host-lms", "some-username",
-			"some-password", "https://some-polaris-system", "some-domain",
-			"some-access-id", "some-access-key");
+		@Test
+		void shouldBeAbleToCreatePolarisIngestSourceFromDatabaseHostLms() {
+			// Arrange
+			hostLmsFixture.createPolarisHostLms("polaris-database-host-lms", "some-username",
+				"some-password", "https://some-polaris-system", "some-domain",
+				"some-access-id", "some-access-key");
 
-		// Act
-		final var client = hostLmsFixture.getIngestSource("polaris-database-host-lms");
+			// Act
+			final var client = hostLmsFixture.getIngestSource("polaris-database-host-lms");
 
-		// Assert
-		assertThat(client, is(instanceOf(PAPILmsClient.class)));
+			// Assert
+			assertThat(client, is(instanceOf(PAPILmsClient.class)));
+		}
 	}
 
 	private static Matcher<DataHostLms> hasId(UUID hostLmsId) {
