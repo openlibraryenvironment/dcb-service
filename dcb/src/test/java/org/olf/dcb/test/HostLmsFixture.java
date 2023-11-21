@@ -9,6 +9,7 @@ import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
@@ -44,26 +45,37 @@ public class HostLmsFixture {
 		this.numericRangeMappingFixture = numericRangeMappingFixture;
 	}
 
+	public void createFolioHostLms(String code, String baseUrl, String apiKey,
+		String recordSyntax, String metadataPrefix) {
+
+		createHostLms(randomUUID(), code, FolioOaiPmhIngestSource.class, Map.of(
+			"base-url", baseUrl,
+			"apikey", apiKey,
+			"record-syntax", recordSyntax,
+			"metadata-prefix", metadataPrefix
+		));
+	}
+
 	public DataHostLms createSierraHostLms(String code) {
 		return createSierraHostLms(code, Map.of());
 	}
 
 	public DataHostLms createSierraHostLms(String code, String username,
-		String password, String host) {
+		String password, String baseUrl) {
 
 		return createSierraHostLms(code, Map.of(
 			"key", username,
 			"secret", password,
-			"base-url", host));
+			"base-url", baseUrl));
 	}
 
 	public DataHostLms createSierraHostLms(String code, String username,
-		String password, String host, String holdPolicy) {
+		String password, String baseUrl, String holdPolicy) {
 
 		return createSierraHostLms(code, Map.of(
 			"key", username,
 			"secret", password,
-			"base-url", host,
+			"base-url", baseUrl,
 			"holdPolicy", holdPolicy,
 			"get-holds-retry-attempts", "1"));
 	}
@@ -77,12 +89,12 @@ public class HostLmsFixture {
 	}
 
 	public DataHostLms createPolarisHostLms(String code, String staffUsername,
-		String staffPassword, String host, String domain, String accessId, String accessKey) {
+		String staffPassword, String baseUrl, String domain, String accessId, String accessKey) {
 
 		Map<String, Object> clientConfig = new HashMap<>();
 		clientConfig.put("staff-username", staffUsername);
 		clientConfig.put("staff-password", staffPassword);
-		clientConfig.put("base-url", host);
+		clientConfig.put("base-url", baseUrl);
 		clientConfig.put("domain-id", domain);
 		clientConfig.put("access-id", accessId);
 		clientConfig.put("access-key", accessKey);

@@ -17,6 +17,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
@@ -154,6 +155,23 @@ class HostLmsTests {
 
 			// Assert
 			assertThat(client, is(instanceOf(PAPILmsClient.class)));
+		}
+	}
+
+	@Nested
+	class FolioDatabaseHostLmsTests {
+		@BeforeEach
+		void beforeEach() {
+			hostLmsFixture.createFolioHostLms("folio-database-host-lms", "https://some-folio-system", "some-api-key", "some-record-syntax", "some-metadata-prefix");
+		}
+
+		@Test
+		void shouldBeAbleToCreateFolioIngestSourceFromDatabaseHostLms() {
+			// Act
+			final var client = hostLmsFixture.getIngestSource("folio-database-host-lms");
+
+			// Assert
+			assertThat(client, is(instanceOf(FolioOaiPmhIngestSource.class)));
 		}
 	}
 }
