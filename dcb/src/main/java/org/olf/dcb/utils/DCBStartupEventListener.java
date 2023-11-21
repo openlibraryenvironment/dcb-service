@@ -70,9 +70,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		}
 
 		// Enumerate any host LMS entries and create corresponding DB entries
-		for (ConfigHostLms hostLms : configHosts) {
-			saveConfigHostLms(hostLms);
-		}
+		configHosts.forEach(this::saveConfigHostLms);
 
 		bootstrapStatusCodes();
 
