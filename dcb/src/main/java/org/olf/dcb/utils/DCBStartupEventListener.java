@@ -1,5 +1,18 @@
 package org.olf.dcb.utils;
 
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+
+import org.olf.dcb.core.model.AgencyGroup;
+import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Grant;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.StatusCode;
+import org.olf.dcb.storage.AgencyGroupRepository;
+import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.storage.GrantRepository;
+import org.olf.dcb.storage.HostLmsRepository;
+import org.olf.dcb.storage.StatusCodeRepository;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,22 +22,7 @@ import io.micronaut.context.event.StartupEvent;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
-
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-
-import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.model.StatusCode;
-import org.olf.dcb.core.model.Grant;
-import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.HostLmsRepository;
-import org.olf.dcb.storage.GrantRepository;
-import org.olf.dcb.storage.StatusCodeRepository;
-import org.reactivestreams.Publisher;
 import services.k_int.utils.UUIDUtils;
-
-import org.olf.dcb.core.model.AgencyGroup;
-import org.olf.dcb.storage.AgencyGroupRepository;
 
 
 @Singleton
@@ -85,16 +83,16 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		// upsertHostLms(dhl1).subscribe();
 
 		// Enumerate any host LMS entries and create corresponding DB entries
-		for ( HostLms hostLms : confHosts ) {
+		for (HostLms hostLms : confHosts) {
 			log.debug("make sure {}/{}/{} exists in DB",hostLms.getId(),hostLms.getName(),hostLms);
-			DataHostLms db_representation = new DataHostLms()
-								.builder()
-								.id(hostLms.getId())
-								.code(hostLms.getCode())
-								.name(hostLms.getName())
-								.lmsClientClass(hostLms.getType().getName())
-								.clientConfig(hostLms.getClientConfig())
-								.build();
+
+			final var db_representation = DataHostLms.builder()
+				.id(hostLms.getId())
+				.code(hostLms.getCode())
+				.name(hostLms.getName())
+				.lmsClientClass(hostLms.getType().getName())
+				.clientConfig(hostLms.getClientConfig())
+				.build();
 
 			// we don't want to proceed until this is done
 			upsertHostLms(db_representation).block(); // subscribe( i -> log.info("Saved hostlms {}",i.getId()) );
