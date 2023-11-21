@@ -1,6 +1,5 @@
 package org.olf.dcb.core;
 
-import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -36,17 +35,8 @@ public class HostLmsService implements IngestSourcesProvider {
 	public Mono<DataHostLms> findByCode(String code) {
 		log.debug("findHostLmsByCode {}", code);
 
-		return getAllHostLms()
-			.collectList()
-			.map(list -> findFirstByCode(code, list))
+		return Mono.from(hostLmsRepository.findByCode(code))
 			.switchIfEmpty(Mono.error(new UnknownHostLmsException("code", code)));
-	}
-
-	private static DataHostLms findFirstByCode(String code, List<DataHostLms> list) {
-		return list.stream()
-			.filter(hostLms -> hostLms.getCode().equals(code))
-			.findFirst()
-			.orElseThrow(() -> new UnknownHostLmsException("code", code));
 	}
 
 	public Mono<HostLmsClient> getClientFor(final HostLms hostLms) {
