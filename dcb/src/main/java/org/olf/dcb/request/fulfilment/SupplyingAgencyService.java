@@ -210,7 +210,7 @@ public class SupplyingAgencyService {
 			.flatMap(tuple -> {
 				final var hostlmsclient = tuple.getT1();
 				final var uniqueid = tuple.getT2();
-				return hostlmsclient.patronAuth("UNIQUE-ID", uniqueid, null);
+				return hostlmsclient.patronAuth("UNIQUE-ID", uniqueid, psrc.getPatronHomeIdentity().getLocalBarcode());
 			})
       // Ensure that we have a local patronIdentity record to track the patron in the supplying ILS
 			.flatMap(patron -> updateLocalPatronIdentityForLmsPatron(patron, patronRequest, supplierRequest));

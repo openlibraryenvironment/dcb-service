@@ -12,7 +12,7 @@ import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.Map;
 
-import org.olf.dcb.core.interaction.polaris.papi.PAPILmsClient;
+import org.olf.dcb.core.interaction.polaris.PAPIClient;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.slf4j.Logger;
@@ -78,8 +78,8 @@ public class ItemResultToItemMapper {
 				.deleted(result.getDeleted())
 				.suppressed(result.getSuppressed())
 				.build())
-				.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode))
-				.flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode, locationCode));
+			.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode))
+			.flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode, locationCode));
 	}
 
 	private static String determineLocalItemTypeCode(Map<Integer, FixedField> fixedFields) {
@@ -97,12 +97,12 @@ public class ItemResultToItemMapper {
 	}
 
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(
-		PAPILmsClient.ItemGetRow itemGetRow, String hostLmsCode, String localBibId) {
+		PAPIClient.ItemGetRow itemGetRow, String hostLmsCode, String localBibId) {
 
 		final var status = Status.builder()
-				.code(itemGetRow.getCircStatus())
-				.duedate(itemGetRow.getDueDate())
-				.build();
+			.code(itemGetRow.getCircStatus())
+			.duedate(itemGetRow.getDueDate())
+			.build();
 
 		return itemStatusMapper.mapStatus(status, hostLmsCode, polarisFallback())
 			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
@@ -118,7 +118,7 @@ public class ItemResultToItemMapper {
 				.hostLmsCode(hostLmsCode)
 				.localBibId(localBibId)
 				.localItemType(itemGetRow.getMaterialType())
-				.localItemTypeCode(itemGetRow.getMaterialType())
+				.localItemTypeCode(itemGetRow.getMaterialTypeID())
 				.suppressed(!itemGetRow.getIsDisplayInPAC())
 				.build())
 				.flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode, item.getLocation().getCode().trim()))

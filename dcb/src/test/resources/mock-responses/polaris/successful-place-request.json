@@ -1,0 +1,22 @@
+{
+	"Answer" : null,
+	"DesignationsOrVolumes" : null,
+	"DuplicateHoldRequests" : null,
+	"HoldRequestID" : 2977175,
+	"LinkedPatronBlocks" : null,
+	"MaxHoldMaterialTypes" : [],
+	"Message" : "",
+	"OldPickUpBranchID" : null,
+	"PAPIAction" : 0,
+	"PAPIActionProcedure" : 0,
+	"PAPIProcedure" : 0,
+	"PAPIProcedureStep" : 0,
+	"PAPIPromptType" : 0,
+	"PAPIReturnCode" : 0,
+	"PAPIStopType" : 1,
+	"PatronBlocks" : null,
+	"ProcedureStep" : null,
+	"ReceiptType" : 0,
+	"ReceiptUrl" : "",
+	"Success" : true
+}
