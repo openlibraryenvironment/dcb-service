@@ -76,8 +76,8 @@ public class HostLmsReactions {
 				}
 			}
 			else if ( sc.getResourceType().equals("PatronRequest") ) {
-				// Patron cancels request at borrowing library then status will be MISSING
-				if (sc.getToState().equals("MISSING")) {
+				// Patron cancels request at borrowing library then status will be MISSING or CANCELLED
+				if (sc.getToState().equals("MISSING") || sc.getToState().equals("CANCELLED")) {
 					handler = "BorrowerRequestMissing";
 				} else {
 					log.error("Unhandled PatronRequest ToState:{}", sc.getToState());

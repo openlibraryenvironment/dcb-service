@@ -128,7 +128,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<HostLmsHold> getHold(String holdId) {
 		return appServicesClient.getLocalHoldRequest(Integer.valueOf(holdId))
 			.map(ApplicationServicesClient.LibraryHold::getSysHoldStatus)
-			.map(status -> HostLmsHold.builder().localId(holdId).status(status).build());
+			.map(status -> HostLmsHold.builder().localId(holdId).status( checkHoldStatus(status) ).build());
+	}
+
+	private String checkHoldStatus(String status) {
+		log.debug("Checking hold status: {}", status);
+		if ("Cancelled".equals(status)) return HostLmsHold.HOLD_CANCELLED;
+		return status;
 	}
 
 	@Override

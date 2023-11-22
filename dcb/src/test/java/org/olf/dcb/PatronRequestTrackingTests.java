@@ -73,11 +73,11 @@ public class PatronRequestTrackingTests {
 
 		// hostlms item status can not be on hold shelf
 		final var patronRequest = Mono.from(patronRequestRepository.save(PatronRequest.builder()
-				.id(savedPatronRequestId).localRequestId("11890").localItemId("1088431")
-				.localItemStatus("").patronHostlmsCode(HOST_LMS_CODE)
-				.localRequestStatus("PLACED")
-				.status(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
-				.patron(patron).build())).block();
+			.id(savedPatronRequestId).localRequestId("11890").localItemId("1088431")
+			.localItemStatus("").patronHostlmsCode(HOST_LMS_CODE)
+			.localRequestStatus("PLACED")
+			.status(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
+			.patron(patron).build())).block();
 
 		Mono.from(supplierRequestRepository.save(SupplierRequest.builder()
 				.id(randomUUID())
@@ -98,7 +98,7 @@ public class PatronRequestTrackingTests {
 		await().atMost(5, SECONDS)
 			.until(() -> Mono.from(patronRequestRepository.findById(savedPatronRequestId)).block(),
 				isFinalised());
-				// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
+		// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
 	}
 
 	@Test
@@ -134,7 +134,7 @@ public class PatronRequestTrackingTests {
 		await().atMost(5, SECONDS)
 			.until(() -> Mono.from(patronRequestRepository.findById(savedPatronRequestId)).block(),
 				isFinalised());
-				// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
+		// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
 	}
 
 	@Test
