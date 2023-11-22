@@ -161,6 +161,7 @@ public class DataFetchers {
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
 
                         Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
+                                .order("auditDate");
 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, PatronRequestAudit.class);

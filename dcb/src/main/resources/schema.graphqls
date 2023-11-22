@@ -114,6 +114,7 @@ type PatronRequest {
 
 type PatronRequestAudit {
   id: ID!
+  auditDate: String
   briefDescription: String
   fromStatus: String
   toStatus: String
