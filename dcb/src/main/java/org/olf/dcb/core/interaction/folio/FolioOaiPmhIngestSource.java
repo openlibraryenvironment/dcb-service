@@ -50,6 +50,7 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import services.k_int.interaction.oaipmh.ListRecordsResponse;
 import services.k_int.interaction.oaipmh.OaiRecord;
+import services.k_int.interaction.oaipmh.OaiRecord.Metadata;
 import services.k_int.interaction.oaipmh.Response;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
@@ -145,14 +146,17 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	@Override
 	public Publisher<OaiRecord> getResources(Instant since) {
 		return Flux.from(pageAllResults())
-				.filter(record -> record.metadata().record() != null)
-				.onErrorResume(t -> {
-					log.error("Error ingesting data {}", t.getMessage());
-					t.printStackTrace();
-					return Mono.empty();
-				}).switchIfEmpty(Mono.fromCallable(() -> {
-					log.info("No results returned. Stopping");
-					return null;
+			.filter(rec -> Optional.ofNullable(rec)
+				.map(OaiRecord::metadata)
+				.map(Metadata::record)
+				.isPresent())
+			.onErrorResume(t -> {
+				log.error("Error ingesting data {}", t.getMessage());
+				t.printStackTrace();
+				return Mono.empty();
+			}).switchIfEmpty(Mono.fromCallable(() -> {
+				log.info("No results returned. Stopping");
+				return null;
 		}));
 	}
 		
