@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
-import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.GrantFixture;
 import org.olf.dcb.test.StatusCodeFixture;
 
@@ -29,7 +28,6 @@ import io.micronaut.context.annotation.Property;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 
-@DcbTest
 @MicronautTest(transactional = false, rebuildContext = true)
 @Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
 @Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
