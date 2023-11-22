@@ -211,4 +211,28 @@ class HostLmsTests {
 			assertThat(client, is(instanceOf(FolioOaiPmhIngestSource.class)));
 		}
 	}
+
+	@Nested
+	class InvalidHostLmsConfigurationTests {
+		@BeforeEach
+		void beforeEach() {
+			hostLmsFixture.saveHostLms(DataHostLms.builder()
+				.id(UUID.randomUUID())
+				.code("unknown-class-host-lms")
+				.name("Unknown class host lms")
+				.lmsClientClass("org.olf.unknownClass")
+				.ingestSourceClass("org.olf.differentUnknownClass")
+				.build());
+		}
+
+		@Test
+		void shouldFailWhenAttemptingToCreateUnknownClientClass() {
+			// Act
+			final var exception = assertThrows(NullPointerException.class,
+				() -> hostLmsFixture.createClient("unknown-class-host-lms"));
+
+			// Assert
+			assertThat(exception, is(instanceOf(NullPointerException.class)));
+		}
+	}
 }
