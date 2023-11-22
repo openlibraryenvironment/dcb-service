@@ -53,14 +53,9 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 	
 	public Mono<IngestSource> getIngestSourceFor(final HostLms hostLms) {
-		final Class<?> ingestSource;
-
-		if (hostLms.getIngestSourceType() != null) {
-			ingestSource = hostLms.getIngestSourceType();
-		}
-		else {
-			ingestSource = hostLms.getType();
-		}
+		final var ingestSource = hostLms.getIngestSourceType() != null
+			? hostLms.getIngestSourceType()
+			: hostLms.getType();
 
 		return Mono.just(ingestSource)
 			.doOnSuccess(type -> log.debug("Found ingest source type: {}", type))
