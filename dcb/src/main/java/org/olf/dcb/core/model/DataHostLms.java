@@ -70,14 +70,7 @@ public class DataHostLms implements HostLms {
 	@Transient
 	@JsonIgnore
 	public Class<?> getClientType() {
-		//TODO: Replace this with a proper converter implementation then remove this getter.
-		
-		Class<? extends HostLmsClient> resolved_class = null;
-		try {
-			resolved_class = (Class<? extends HostLmsClient>) Class.forName(lmsClientClass);
-		} catch (ClassNotFoundException cnfe) {
-		}
-		return resolved_class;
+		return getTypeFromName();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -95,6 +88,18 @@ public class DataHostLms implements HostLms {
 		Class<? extends IngestSource> resolved_class = null;
 		try {
 			resolved_class = (Class<? extends IngestSource>) Class.forName(ingestSourceClass);
+		} catch (ClassNotFoundException cnfe) {
+		}
+		return resolved_class;
+	}
+
+	@Nullable
+	private Class<? extends HostLmsClient> getTypeFromName() {
+		//TODO: Replace this with a proper converter implementation then remove this getter.
+
+		Class<? extends HostLmsClient> resolved_class = null;
+		try {
+			resolved_class = (Class<? extends HostLmsClient>) Class.forName(lmsClientClass);
 		} catch (ClassNotFoundException cnfe) {
 		}
 		return resolved_class;
