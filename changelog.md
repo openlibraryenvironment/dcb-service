@@ -1,5 +1,20 @@
 # Changelog
 
+## Version 2.5.1
+
+### Changes
+* [Chore]
+	* working on item patch
+	* try adding an empty string to messages when updating item status
+* [Feature]
+	* add RequesterNote to patron request
+
+### Fixes
+* [Graphql]
+	* Misspelled data fetcher for patron request joins
+* [General]
+	* Improve badResumption token handling
+
 ## Version 2.5.0
 
 ### Additions
@@ -11,6 +26,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Remove creation of grant during startup DCB-739
 	* Move status codes defined only in tests to startup DCB-739
 	* Remove unused methods on host LMS repository DCB-739
