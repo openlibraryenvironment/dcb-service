@@ -138,8 +138,8 @@ public class HostLmsFixture {
 			Optional.of(PolarisLmsClient.class), clientConfig);
 	}
 
-	public <T, R> DataHostLms createHostLms(UUID id, String code,
-		Class<T> clientClass, Optional<Class<R>> ingestSourceClass,
+	public <T extends HostLmsClient, R extends IngestSource> DataHostLms createHostLms(
+		UUID id, String code, Class<T> clientClass, Optional<Class<R>> ingestSourceClass,
 		Map<String, Object> clientConfig) {
 
 		return saveHostLms(DataHostLms.builder()
