@@ -1,6 +1,7 @@
 package org.olf.dcb.core;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -230,6 +231,14 @@ class HostLmsTests {
 				.lmsClientClass("org.olf.unknownClass")
 				.ingestSourceClass("org.olf.differentUnknownClass")
 				.build());
+
+			hostLmsFixture.saveHostLms(DataHostLms.builder()
+				.id(UUID.randomUUID())
+				.code("invalid-client-class")
+				.name("Invalid client class")
+				.lmsClientClass(FolioOaiPmhIngestSource.class.getCanonicalName())
+				.build());
+
 		}
 
 		@Test
@@ -240,6 +249,15 @@ class HostLmsTests {
 
 			// Assert
 			assertThat(exception, is(instanceOf(NullPointerException.class)));
+		}
+
+		@Test
+		void shouldFailWhenAttemptingToCreateInvalidClientClass() {
+			// Act
+			final var client = hostLmsFixture.createClient("invalid-client-class");
+
+			// Assert
+			assertThat(client, is(nullValue()));
 		}
 
 		@Test
