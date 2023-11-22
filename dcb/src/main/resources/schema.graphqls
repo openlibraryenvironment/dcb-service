@@ -108,6 +108,7 @@ type PatronRequest {
   description: String
   errorMessage: String
   activeWorkflow: String
+  requesterNote: String
   suppliers: [SupplierRequest]
   audit: [PatronRequestAudit]
 }

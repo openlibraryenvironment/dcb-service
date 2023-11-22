@@ -180,6 +180,9 @@ public class PatronRequest {
 	@Nullable
 	private String protocol;
 	
+	@Nullable
+	private String requesterNote;
+	
 	@JsonProperty("status")
 	public Status getStatus() {
 		return this.status;
