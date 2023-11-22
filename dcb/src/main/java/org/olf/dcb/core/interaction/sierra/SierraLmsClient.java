@@ -890,7 +890,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		if (status != null) {
 			ArrayList<String> messages = new ArrayList();
-			messages.add("");
 			ItemPatch ip = ItemPatch.builder()
                                 .status(status)
                                 .itemMessage("-")
