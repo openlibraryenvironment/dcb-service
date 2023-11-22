@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.ingest.IngestSource;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -65,6 +66,7 @@ public class DataHostLms implements HostLms {
 	Map<String, Object> clientConfig;
 
 	@SuppressWarnings("unchecked")
+	@Override
 	@Transient
 	@JsonIgnore
 	public Class<? extends HostLmsClient> getType() {
@@ -76,5 +78,14 @@ public class DataHostLms implements HostLms {
 		} catch (ClassNotFoundException cnfe) {
 		}
 		return resolved_class;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	@Nullable
+	@Transient
+	@JsonIgnore
+	public Class<? extends IngestSource> getIngestSourceType() {
+		return null;
 	}
 }

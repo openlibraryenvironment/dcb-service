@@ -16,6 +16,7 @@ public interface HostLms {
 	String getName();
 
 	Class<?> getType();
+	Class<?> getIngestSourceType();
 
 	Map<String, Object> getClientConfig();
 }
