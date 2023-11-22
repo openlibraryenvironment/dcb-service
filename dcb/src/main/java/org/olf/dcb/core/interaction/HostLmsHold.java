@@ -17,17 +17,19 @@ import io.micronaut.core.annotation.Nullable;
 @ExcludeFromGeneratedCoverageReport
 public class HostLmsHold {
 
-        // Likely that the hold has been deleted from the host system
-        public static final String HOLD_MISSING="MISSING";
+	// Likely that the hold has been deleted from the host system
+	public static final String HOLD_MISSING="MISSING";
 
-        // The Hold has been placed, but is not yet available
-        public static final String HOLD_PLACED="PLACED";
+	// The Hold has been placed, but is not yet available
+	public static final String HOLD_PLACED="PLACED";
 
-        // The Hold is Ready for pickup
-        public static final String HOLD_READY="READY";
+	// The Hold is Ready for pickup
+	public static final String HOLD_READY="READY";
 
-        // The hold is in transit
-        public static final String HOLD_TRANSIT="TRANSIT";
+	// The hold is in transit
+	public static final String HOLD_TRANSIT="TRANSIT";
+	// The hold is cancelled
+	public static final String HOLD_CANCELLED="CANCELLED";
 
 	@Nullable
 	String localId;

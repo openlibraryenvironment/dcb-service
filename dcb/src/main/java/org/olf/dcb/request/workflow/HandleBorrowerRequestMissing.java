@@ -65,6 +65,13 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 						log.debug("setting DCB internal status to CANCELLED {}",pr);
 						return pr.setStatus(CANCELLED);
 					}
+					// Patron cancels request, polaris sets hold status to Cancelled
+					else if (Objects.equals(sr.getLocalStatus(), "CANCELLED")) {
+						patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), CANCELLED,
+							Optional.ofNullable("Local request status was set to cancelled"));
+						log.debug("setting DCB internal status to CANCELLED {}",pr);
+						return pr.setStatus(CANCELLED);
+					}
 					// item has been returned home from borrowing library
 					else if (Objects.equals(sr.getLocalItemStatus(), ITEM_AVAILABLE)) {
 						patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), COMPLETED, 
@@ -88,8 +95,11 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 					log.debug("No matched condition for changing DCB internal status {}",pr);
 					return pr;
 				})
-				.map(patronRequest -> patronRequest.setLocalRequestStatus("MISSING"))
-				.doOnNext(patronRequest -> log.debug("setLocalRequestStatus to MISSING {}", patronRequest))
+				.map(patronRequest -> {
+					if (Objects.equals(patronRequest.getLocalRequestStatus(), "CANCELLED")) return patronRequest;
+					return patronRequest.setLocalRequestStatus("MISSING");
+				})
+				.doOnNext(patronRequest -> log.debug("setLocalRequestStatus to {}", patronRequest.getLocalRequestStatus()))
 				.flatMap(request -> Mono.from(patronRequestRepository.saveOrUpdate(request)))
 				.doOnNext(spr -> log.debug("Saved {} - check if we need to do any cleanup", spr))
 
