@@ -5,10 +5,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.hasProperty;
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
-import static services.k_int.utils.UUIDUtils.nameUUIDFromNamespaceAndString;
 
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
@@ -17,9 +15,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.StatusCode;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.StatusCodeRepository;
@@ -84,19 +80,20 @@ public class PatronRequestTrackingTests {
 				.patron(patron).build())).block();
 
 		Mono.from(supplierRequestRepository.save(SupplierRequest.builder()
-			.id(randomUUID()).localId("11987").localItemId("1088432").patronRequest(patronRequest)
-			.hostLmsCode(HOST_LMS_CODE).build())).block();
-
-		Mono.from(statusCodeRepository.saveOrUpdate(StatusCode.builder()
-				.id(nameUUIDFromNamespaceAndString(NAMESPACE_DCB,
-					"StatusCode:"+"PatronRequest"+":"+"REQUEST_PLACED_AT_BORROWING_AGENCY"))
-				.model("PatronRequest").code("MISSING").tracked(Boolean.TRUE).build())).block();
-				// .model("PatronRequest").code("REQUEST_PLACED_AT_BORROWING_AGENCY").tracked(Boolean.TRUE).build())).block();
+				.id(randomUUID())
+				.localId("11987")
+				.localItemId("1088432")
+				.patronRequest(patronRequest)
+				.hostLmsCode(HOST_LMS_CODE)
+				.build()))
+			.block();
 
 		sierraPatronsAPIFixture.getHoldById404("11890");
 		sierraItemsAPIFixture.getItemById("1088431");
+
 		// Act
 		trackingService.run();
+
 		// Assert
 		await().atMost(5, SECONDS)
 			.until(() -> Mono.from(patronRequestRepository.findById(savedPatronRequestId)).block(),
@@ -115,18 +112,24 @@ public class PatronRequestTrackingTests {
 			.localRequestStatus("PLACED")
 			.status(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
 			.patron(patron).build())).block();
+
 		Mono.from(supplierRequestRepository.save(SupplierRequest.builder()
-			// local status has to be PLACED
-			.id(randomUUID()).localId("11987").localItemId("1088432").localStatus("PLACED").patronRequest(patronRequest)
-			.hostLmsCode(HOST_LMS_CODE).build())).block();
-		Mono.from(statusCodeRepository.saveOrUpdate(StatusCode.builder()
-			.id(nameUUIDFromNamespaceAndString(NAMESPACE_DCB,
-				"StatusCode:"+"PatronRequest"+":"+"REQUEST_PLACED_AT_BORROWING_AGENCY"))
-			.model("PatronRequest").code("REQUEST_PLACED_AT_BORROWING_AGENCY").tracked(Boolean.TRUE).build())).block();
+				// local status has to be PLACED
+				.id(randomUUID())
+				.localId("11987")
+				.localItemId("1088432")
+				.localStatus("PLACED")
+				.patronRequest(patronRequest)
+				.hostLmsCode(HOST_LMS_CODE)
+				.build()))
+			.block();
+
 		sierraPatronsAPIFixture.getHoldById404("11890");
 		sierraItemsAPIFixture.getItemById("1088431");
+
 		// Act
 		trackingService.run();
+
 		// Assert
 		await().atMost(5, SECONDS)
 			.until(() -> Mono.from(patronRequestRepository.findById(savedPatronRequestId)).block(),
@@ -143,37 +146,30 @@ public class PatronRequestTrackingTests {
 			.id(savedPatronRequestId).localRequestId("11890")
 			.localItemId("108843").patronHostlmsCode(HOST_LMS_CODE)
 			.status(CANCELLED).patron(patron).build())).block();
+
 		// the supplier item id has to match with the mock for state change to AVAILABLE
 		Mono.from(supplierRequestRepository.save(SupplierRequest.builder()
-				.id(randomUUID()).localId("11987").localItemId("1088431").patronRequest(patronRequest)
+				.id(randomUUID())
+				.localId("11987")
+				.localItemId("1088431")
+				.patronRequest(patronRequest)
 				.hostLmsCode(HOST_LMS_CODE)
-                                .localItemStatus("TRANSIT")
-                                .build())).block();
+				.localItemStatus("TRANSIT")
+				.build()))
+			.block();
 
-		Mono.from(statusCodeRepository.saveOrUpdate(StatusCode.builder()
-			.id(nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "StatusCode:"+"PatronRequest"+":"+"CANCELLED"))
-			.model("PatronRequest").code("CANCELLED").tracked(Boolean.TRUE).build())).block();
-
-		Mono.from(statusCodeRepository.saveOrUpdate(StatusCode.builder()
-			.id(nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "StatusCode:"+"VirtualItem"+":"+"TRANSIT"))
-			.model("SupplierItem").code("TRANSIT").tracked(Boolean.TRUE).build())).block();
-
-		Mono.from(statusCodeRepository.saveOrUpdate(StatusCode.builder()
-			.id(nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "StatusCode:"+"VirtualItem"+":"+"AVAILABLE"))
-			.model("VirtualItem").code("AVAILABLE").tracked(Boolean.FALSE).build())).block();
 		sierraPatronsAPIFixture.getHoldById("11987");
 		sierraItemsAPIFixture.getItemById("1088431");
+
 		// Act
 		trackingService.run();
+
 		// Assert
 		await().atMost(5, SECONDS)
 			.until(() -> Mono.from(patronRequestRepository.findById(savedPatronRequestId)).block(),
 				isFinalised());
 	}
 
-	private static Matcher<Object> isCanceled() {
-		return hasProperty("status", is(CANCELLED));
-	}
 	private static Matcher<Object> isFinalised() {
 		return hasProperty("status", is(FINALISED));
 	}
