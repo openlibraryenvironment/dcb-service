@@ -16,6 +16,7 @@ import java.util.function.Consumer;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.HostLms;
@@ -29,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
@@ -40,7 +42,6 @@ import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.json.tree.JsonNode;
-import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import jakarta.validation.constraints.NotNull;
@@ -53,7 +54,7 @@ import services.k_int.interaction.oaipmh.Response;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
-@Singleton
+@Prototype
 public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	private static final String CONFIG_API_KEY = "apikey";
 
@@ -154,16 +155,23 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 					return null;
 		}));
 	}
-	
+		
 	private Mono<ListRecordsResponse> handleErrors ( Mono<Response> stream ) {
 		
 		return stream.flatMap( resp -> {
 			var error = resp.error();
 			if (error != null) {
 				return switch( error.code() ) {
-					case noRecordsMatch -> Mono.empty();
+					case noRecordsMatch -> Mono.empty();					
+					case badResumptionToken -> {
+						final String message = error.detail() != null ? String.format("%s: %s", error.code(), error.detail()) : error.code().toString();
+						yield Mono.error(new OaiResumptionTokenError(message));
+					}
 					
-					default -> Mono.error(new IllegalStateException(String.format("%s: %s", error.code(), error.detail())));
+					default -> {
+						final String message = error.detail() != null ? String.format("%s: %s", error.code(), error.detail()) : error.code().toString();
+						yield Mono.error(new DcbError(message));
+					}
 				};
 			}
 			
@@ -171,7 +179,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		});
 	}
 	
-	private Mono<ListRecordsResponse> fetchPage(Instant since, Optional<String> resumptionToken) {
+	protected Mono<ListRecordsResponse> fetchPage(Instant since, Optional<String> resumptionToken) {
 		log.info("Creating subscribeable batch;  since={}, resumptionToken={}", since, resumptionToken);
 	
 		return Mono.from(this.get("", Argument.of( Response.class ), params -> {
@@ -194,6 +202,18 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 			
 		}))
 		.transform( this::handleErrors )
+		.onErrorResume( OaiResumptionTokenError.class , re -> {
+			// If we have a retryable state and a resumption token.... Then recursively return this,
+			// But without a token.
+			if (resumptionToken.isPresent()) {
+				
+				log.atInfo().log("Retrying without a resumption token and a 'since' of [{}]", since);
+				return fetchPage(since, Optional.empty());
+			}
+			
+			// Else bubble it up.
+			return Mono.error(re);
+		})
 		.doOnSubscribe(_s -> log.info("Fetching batch from Folio OAI PMH {} with since={} resumptionToken={}", lms.getName(), since, resumptionToken));
 	}
 	
