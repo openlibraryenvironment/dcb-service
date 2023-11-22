@@ -5,9 +5,6 @@ import static io.micronaut.data.model.DataType.JSON;
 import java.util.Map;
 import java.util.UUID;
 
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.ingest.IngestSource;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.micronaut.core.annotation.Creator;
@@ -70,7 +67,7 @@ public class DataHostLms implements HostLms {
 	@Transient
 	@JsonIgnore
 	public Class<?> getClientType() {
-		return getTypeFromName();
+		return getTypeFromName(lmsClientClass);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -79,27 +76,20 @@ public class DataHostLms implements HostLms {
 	@Transient
 	@JsonIgnore
 	public Class<?> getIngestSourceType() {
-		//TODO: Replace this with a proper converter implementation then remove this getter.
-
 		if (ingestSourceClass == null) {
 			return null;
 		}
 
-		Class<? extends IngestSource> resolved_class = null;
-		try {
-			resolved_class = (Class<? extends IngestSource>) Class.forName(ingestSourceClass);
-		} catch (ClassNotFoundException cnfe) {
-		}
-		return resolved_class;
+		return getTypeFromName(ingestSourceClass);
 	}
 
 	@Nullable
-	private <T> Class<? extends T> getTypeFromName() {
+	private <T> Class<? extends T> getTypeFromName(@Nullable String name) {
 		//TODO: Replace this with a proper converter implementation then remove this getter.
 
 		Class<? extends T> resolved_class = null;
 		try {
-			resolved_class = (Class<? extends T>) Class.forName(lmsClientClass);
+			resolved_class = (Class<? extends T>) Class.forName(name);
 		} catch (ClassNotFoundException cnfe) {
 		}
 		return resolved_class;
