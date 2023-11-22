@@ -218,8 +218,15 @@ class HostLmsTests {
 		void beforeEach() {
 			hostLmsFixture.saveHostLms(DataHostLms.builder()
 				.id(UUID.randomUUID())
-				.code("unknown-class-host-lms")
-				.name("Unknown class host lms")
+				.code("unknown-client-class")
+				.name("Unknown client class")
+				.lmsClientClass("org.olf.unknownClass")
+				.build());
+
+			hostLmsFixture.saveHostLms(DataHostLms.builder()
+				.id(UUID.randomUUID())
+				.code("unknown-ingest-source-class")
+				.name("Unknown ingest source class")
 				.lmsClientClass("org.olf.unknownClass")
 				.ingestSourceClass("org.olf.differentUnknownClass")
 				.build());
@@ -229,7 +236,17 @@ class HostLmsTests {
 		void shouldFailWhenAttemptingToCreateUnknownClientClass() {
 			// Act
 			final var exception = assertThrows(NullPointerException.class,
-				() -> hostLmsFixture.createClient("unknown-class-host-lms"));
+				() -> hostLmsFixture.createClient("unknown-client-class"));
+
+			// Assert
+			assertThat(exception, is(instanceOf(NullPointerException.class)));
+		}
+
+		@Test
+		void shouldFailWhenAttemptingToGetUnknownIngestSource() {
+			// Act
+			final var exception = assertThrows(NullPointerException.class,
+				() -> hostLmsFixture.getIngestSource("unknown-ingest-source-class"));
 
 			// Assert
 			assertThat(exception, is(instanceOf(NullPointerException.class)));
