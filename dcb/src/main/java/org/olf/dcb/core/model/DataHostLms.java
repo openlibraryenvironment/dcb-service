@@ -94,12 +94,12 @@ public class DataHostLms implements HostLms {
 	}
 
 	@Nullable
-	private Class<? extends HostLmsClient> getTypeFromName() {
+	private <T> Class<? extends T> getTypeFromName() {
 		//TODO: Replace this with a proper converter implementation then remove this getter.
 
-		Class<? extends HostLmsClient> resolved_class = null;
+		Class<? extends T> resolved_class = null;
 		try {
-			resolved_class = (Class<? extends HostLmsClient>) Class.forName(lmsClientClass);
+			resolved_class = (Class<? extends T>) Class.forName(lmsClientClass);
 		} catch (ClassNotFoundException cnfe) {
 		}
 		return resolved_class;
