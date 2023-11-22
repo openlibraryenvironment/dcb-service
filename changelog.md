@@ -1,6 +1,91 @@
 # Changelog
 
+## Version 2.5.0
+
+### Additions
+* [General]
+	* patron cancels polaris request [DCB-529]
+	* implement circulation polling and transition for polaris requests [DCB-528]
+	* place request in borrowing library on a polaris system [DCB-485]
+	* Added authentication for Search Index.
+
+### Changes
+* [Chore]
+	* Remove creation of grant during startup DCB-739
+	* Move status codes defined only in tests to startup DCB-739
+	* Remove unused methods on host LMS repository DCB-739
+	* Replace spaces with tabs in host LMS service DCB-739
+	* Use builder when creating status codes during startup DCB-739
+	* Remove unecessary return statement when boostrapping codes DCB-739
+	* Remove unused dependencies from startup event listener DCB-739
+	* Replace spaces with tabs in startup event listener DCB-739
+	* Remove non-static access to data host LMS builder DCB-739
+	* Remove redundant pubic modifiers on host LMS interface DCB-739
+	* Docs - Add SI docs
+	* Shout when cert verification is disabled
+	* Enable generation of jacoco csv file
+	* uncomment metrics implementation
+	* Replace spaces with tabs in data host LMS class DCB-739
+* [Feature]
+	* Clear out messages when updating item status
+	* add messaging to cancellation handler
+	* graphql - Add patronRequest to supplierRequest type
+* [Refactor]
+	* Use lombok to generate getters for config host LMS properties DCB-739
+	* Use for each to save all config host LMS DCB-739
+	* Move save or update of host LMS to repository DCB-739
+	* Extract method for saving config host LMS DCB-739
+	* Accept list of config host LMS during startup DCB-739
+	* Remove unecessary introspection from config host LMS DCB-739
+	* Make get all host LMS private DCB-739
+	* Accept only config host LMS during startup DCB-739
+	* Move method for getting ingest source by code to host LMS service DCB-739
+* [Test]
+	* remove DCB test annotation from startup event listener tests DCB-739
+	* Use fixture to create host LMS during patron identity repository tests DCB-739
+	* Use builder in host LMS tests DCB-739
+	* Demonstrate status codes created at startup DCB-739
+	* Demonstrate grant created at startup DCB-739
+	* Use builder during host LMS repository tests DCB-739
+	* Delete host LMS before each  host LMS repository test DCB-739
+	* Remove redundant http client field in host LMS repository test class DCB-739
+	* Replace spaces with tabs in host LMS repository tests DCB-739
+	* Check format of host LMS ID from config DCB-739
+	* Extract method for host LMS ID matcher DCB-739
+	* Demonstrate loading host LMS from config on startup DCB-739
+	* Demonstrate getting a ingest source from a FOLIO host LMS DCB-739
+	* Move host LMS matchers to separate class DCB-739
+	* Move message matcher to throwable matchers class DCB-739
+	* Define Polaris host LMS before each test in nested class DCB-739
+	* Move Polaris host LMS tests to nested class DCB-739
+	* Define Sierra host LMS before each test in nested class DCB-739
+	* Move Sierra host LMS in database tests to nested class DCB-739
+	* Creation of Polaris ingest source based upon host LMS DCB-739
+	* Creation of Polaris client based upon host LMS DCB-739
+	* Rename method for defining Polaris host LMS DCB-739
+	* Make code first parameter when defining Sierra host LMS DCB-739
+	* Rename method for creating low level Sierra client DCB-739
+	* Move method for getting ingest source in tests to fixture DCB-739
+	* Extract method for getting an ingest source by host LMS code DCB-739
+	* Creation of Sierra ingest source based upon host LMS DCB-739
+	* Creation of Sierra client based upon host LMS DCB-739
+	* Use has property matcher during host LMS tests DCB-739
+	* Group negative host LMS tests together DCB-739
+	* Use fixture to save host LMS DCB-739
+	* Use single value helper method when finding host LMS by code DCB-739
+	* Include LMS in names of existing host LMS tests DCB-739
+
+### Fixes
+* [Tests]
+	* Require config prefix
+* [General]
+	* add patron to WorkFlowContext
+
 ## Version 2.4.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
