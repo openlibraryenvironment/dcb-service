@@ -58,21 +58,21 @@ class DCBStartupEventListenerTests {
 	}
 
 	@Test
-	void shouldFindGrantCreatedAtStartup() {
+	void shouldNotFindAnyGrantsCreatedAtStartup() {
 		final var grants = grantFixture.findAll();
 
-		assertThat("Single grant created at startup", grants, hasSize(1));
+		assertThat("Single grant created at startup", grants, hasSize(0));
 
-		assertThat(grants, containsInAnyOrder(allOf(
-			hasProperty("id", is(notNullValue())),
-			hasProperty("grantResourceOwner", is("%")),
-			hasProperty("grantResourceType", is("%")),
-			hasProperty("grantResourceId", is("%")),
-			hasProperty("grantedPerm", is("%")),
-			hasProperty("granteeType", is("role")),
-			hasProperty("grantee", is("ADMIN")),
-			hasProperty("grantOption", is(true))
-		)));
+//		assertThat(grants, containsInAnyOrder(allOf(
+//			hasProperty("id", is(notNullValue())),
+//			hasProperty("grantResourceOwner", is("%")),
+//			hasProperty("grantResourceType", is("%")),
+//			hasProperty("grantResourceId", is("%")),
+//			hasProperty("grantedPerm", is("%")),
+//			hasProperty("granteeType", is("role")),
+//			hasProperty("grantee", is("ADMIN")),
+//			hasProperty("grantOption", is(true))
+//		)));
 	}
 
 	@Test
