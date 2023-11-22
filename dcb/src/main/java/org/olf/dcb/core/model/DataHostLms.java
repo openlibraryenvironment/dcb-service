@@ -69,7 +69,7 @@ public class DataHostLms implements HostLms {
 	@Override
 	@Transient
 	@JsonIgnore
-	public Class<? extends HostLmsClient> getType() {
+	public Class<?> getType() {
 		//TODO: Replace this with a proper converter implementation then remove this getter.
 		
 		Class<? extends HostLmsClient> resolved_class = null;
@@ -85,7 +85,18 @@ public class DataHostLms implements HostLms {
 	@Nullable
 	@Transient
 	@JsonIgnore
-	public Class<? extends IngestSource> getIngestSourceType() {
-		return null;
+	public Class<?> getIngestSourceType() {
+		//TODO: Replace this with a proper converter implementation then remove this getter.
+
+		if (ingestSourceClass == null) {
+			return null;
+		}
+
+		Class<? extends IngestSource> resolved_class = null;
+		try {
+			resolved_class = (Class<? extends IngestSource>) Class.forName(ingestSourceClass);
+		} catch (ClassNotFoundException cnfe) {
+		}
+		return resolved_class;
 	}
 }

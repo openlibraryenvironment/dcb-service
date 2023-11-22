@@ -19,6 +19,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.interaction.folio.FolioLmsClient;
 import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
@@ -188,8 +189,17 @@ class HostLmsTests {
 		@BeforeEach
 		void beforeEach() {
 			hostLmsFixture.createFolioHostLms("folio-database-host-lms",
-				FolioOaiPmhIngestSource.class, "https://some-folio-system",
+				"https://some-folio-system",
 				"some-api-key", "some-record-syntax", "some-metadata-prefix");
+		}
+
+		@Test
+		void shouldBeAbleToCreateFolioClientFromDatabaseHostLms() {
+			// Act
+			final var client = hostLmsFixture.createClient("folio-database-host-lms");
+
+			// Assert
+			assertThat(client, is(instanceOf(FolioLmsClient.class)));
 		}
 
 		@Test
