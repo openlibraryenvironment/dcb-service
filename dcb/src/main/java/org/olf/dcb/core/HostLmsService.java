@@ -40,7 +40,7 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	public Mono<HostLmsClient> getClientFor(final HostLms hostLms) {
-		return Mono.just(hostLms.getType())
+		return Mono.just(hostLms.getClientType())
 			.doOnSuccess(type -> log.debug("Found client type: {}", type))
 			.filter(HostLmsClient.class::isAssignableFrom)
 			.map(type -> context.createBean(type, hostLms))
@@ -55,7 +55,7 @@ public class HostLmsService implements IngestSourcesProvider {
 	public Mono<IngestSource> getIngestSourceFor(final HostLms hostLms) {
 		final var ingestSource = hostLms.getIngestSourceType() != null
 			? hostLms.getIngestSourceType()
-			: hostLms.getType();
+			: hostLms.getClientType();
 
 		return Mono.just(ingestSource)
 			.doOnSuccess(type -> log.debug("Found ingest source type: {}", type))

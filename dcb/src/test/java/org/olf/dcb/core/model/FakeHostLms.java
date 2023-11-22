@@ -16,7 +16,7 @@ public class FakeHostLms implements HostLms {
 	private final UUID Id;
 	private final String code;
 	private final String name;
-	private final Class<? extends HostLmsClient> type;
+	private final Class<? extends HostLmsClient> clientType;
 	private final Class<? extends IngestSource> ingestSourceType;
 	private final Map<String, Object> clientConfig;
 }

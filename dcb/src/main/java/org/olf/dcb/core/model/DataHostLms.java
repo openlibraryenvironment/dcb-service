@@ -69,7 +69,7 @@ public class DataHostLms implements HostLms {
 	@Override
 	@Transient
 	@JsonIgnore
-	public Class<?> getType() {
+	public Class<?> getClientType() {
 		//TODO: Replace this with a proper converter implementation then remove this getter.
 		
 		Class<? extends HostLmsClient> resolved_class = null;
