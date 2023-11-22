@@ -239,6 +239,13 @@ class HostLmsTests {
 				.lmsClientClass(FolioOaiPmhIngestSource.class.getCanonicalName())
 				.build());
 
+			hostLmsFixture.saveHostLms(DataHostLms.builder()
+				.id(UUID.randomUUID())
+				.code("invalid-ingest-source-class")
+				.name("Invalid ingest source class")
+				.lmsClientClass(FolioLmsClient.class.getCanonicalName())
+				.ingestSourceClass(FolioLmsClient.class.getCanonicalName())
+				.build());
 		}
 
 		@Test
@@ -268,6 +275,15 @@ class HostLmsTests {
 
 			// Assert
 			assertThat(exception, is(instanceOf(NullPointerException.class)));
+		}
+
+		@Test
+		void shouldFailWhenAttemptingToGetInvalidIngestSource() {
+			// Act
+			final var ingestSource = hostLmsFixture.getIngestSource("invalid-ingest-source-class");
+
+			// Assert
+			assertThat(ingestSource, is(nullValue()));
 		}
 	}
 }
