@@ -13,8 +13,8 @@ import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasClientClass;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasCode;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasId;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasIngestSourceClass;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasName;
-import static org.olf.dcb.test.matchers.HostLmsMatchers.hasNoIngestSourceClass;
 import static services.k_int.utils.UUIDUtils.nameUUIDFromNamespaceAndString;
 
 import org.hamcrest.Matcher;
@@ -51,7 +51,7 @@ class DCBStartupEventListenerTests {
 		// The name in the config is ignored and the code is used for the name too
 		assertThat(foundHost, hasName("config-host"));
 		assertThat(foundHost, hasClientClass(SierraLmsClient.class.getCanonicalName()));
-		assertThat(foundHost, hasNoIngestSourceClass());
+		assertThat(foundHost, hasIngestSourceClass(SierraLmsClient.class.getCanonicalName()));
 		assertThat(foundHost, hasProperty("clientConfig",
 			hasEntry("base-url", "https://some-sierra-system")));
 	}

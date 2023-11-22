@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.ingest.IngestSource;
 
 import io.micronaut.context.annotation.EachProperty;
 import io.micronaut.context.annotation.Parameter;
@@ -23,6 +24,7 @@ public class ConfigHostLms {
 	private final String name;
 	private final String code;
 	private Class<? extends HostLmsClient> type;
+	private Class<? extends IngestSource> ingestSourceType;
 
 	public ConfigHostLms(@Parameter("code") @NonNull String code, @Parameter("name") String name) {
 		this.code = code;
@@ -38,5 +40,9 @@ public class ConfigHostLms {
 
 	public void setType(Class<? extends HostLmsClient> type) {
 		this.type = type;
+	}
+
+	public void setIngestSourceType(Class<? extends IngestSource> ingestSourceType) {
+		this.ingestSourceType = ingestSourceType;
 	}
 }

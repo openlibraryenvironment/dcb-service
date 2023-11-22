@@ -85,6 +85,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			.code(hostLms.getCode())
 			.name(hostLms.getName())
 			.lmsClientClass(hostLms.getType().getName())
+			.ingestSourceClass(hostLms.getIngestSourceType().getName())
 			.clientConfig(hostLms.getClientConfig())
 			.build();
 
