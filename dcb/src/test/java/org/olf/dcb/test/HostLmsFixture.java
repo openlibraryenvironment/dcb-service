@@ -134,7 +134,7 @@ public class HostLmsFixture {
 		clientConfig.put("item", item);
 
 		return createHostLms(randomUUID(), code, PolarisLmsClient.class,
-			Optional.empty(), clientConfig);
+			Optional.of(PolarisLmsClient.class), clientConfig);
 	}
 
 	public <T, R> DataHostLms createHostLms(UUID id, String code,
