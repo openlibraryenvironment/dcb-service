@@ -9,7 +9,6 @@ import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.Patron;
@@ -25,19 +23,15 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
-import org.olf.dcb.ingest.IngestService;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.matchers.LocalRequestMatchers;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.client.HttpClient;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -48,27 +42,23 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class HostLmsPolarisClientTests {
-	private final Logger log = LoggerFactory.getLogger(HostLmsPolarisClientTests.class);
+	private static final String CP_RESOURCES_POLARIS = "classpath:mock-responses/polaris/";
 	private static final String HOST_LMS_CODE = "polaris-hostlms-tests";
+
 	@Inject
 	private ResourceLoader loader;
-	@Inject
-	private IngestService ingestService;
+
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
-	@Inject
-	private HostLmsService hostLmsService;
 	@Inject
 	private BibRecordFixture bibRecordFixture;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
-	@Inject
-	private HttpClient client;
-	private static final String CP_RESOURCES_POLARIS = "classpath:mock-responses/polaris/";
+
 	private PolarisTestUtils.MockPolarisPAPIHost mockPolaris;
 	private DataHostLms polarisHostLms;
 
