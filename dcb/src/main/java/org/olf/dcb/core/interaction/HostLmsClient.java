@@ -38,6 +38,9 @@ public interface HostLmsClient {
 	Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType, String recordNumber,
 			String pickupLocation, String note, String patronRequestId);
 
+	Mono<LocalRequest> placeHoldRequestNonTuple(String id, String recordType, String recordNumber,
+		String pickupLocation, String note, String patronRequestId);
+
 	boolean useTitleLevelRequest();
 
 	boolean useItemLevelRequest();

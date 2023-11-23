@@ -22,6 +22,7 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.HostLms;
@@ -317,6 +318,17 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		// (localHoldId, localHoldStatus)
 		// return Mono.empty();
 		return Mono.just(Tuples.of(UUID.randomUUID().toString(), "HELD"));
+	}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestNonTuple(String id, String recordType,
+		String recordNumber, String pickupLocation, String note, String patronRequestId) {
+
+		return placeHoldRequest(id, recordType, recordNumber, pickupLocation, note, patronRequestId)
+			.map(tuple -> LocalRequest.builder()
+				.localId(tuple.getT1())
+				.localStatus(tuple.getT2())
+				.build());
 	}
 
 	@Override

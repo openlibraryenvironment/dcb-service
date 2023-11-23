@@ -43,6 +43,7 @@ import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition.IntegerHostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
@@ -529,6 +530,17 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
 					return Mono.error(new RuntimeException("Error occurred when creating Hold"));
 				});
+	}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestNonTuple(String id, String recordType,
+		String recordNumber, String pickupLocation, String note, String patronRequestId) {
+
+		return placeHoldRequest(id, recordType, recordNumber, pickupLocation, note, patronRequestId)
+			.map(tuple -> LocalRequest.builder()
+				.localId(tuple.getT1())
+				.localStatus(tuple.getT2())
+				.build());
 	}
 
 	private boolean shouldIncludeHold(SierraPatronHold hold, String patronRequestId) {

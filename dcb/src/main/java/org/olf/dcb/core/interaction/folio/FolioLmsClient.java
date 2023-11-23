@@ -11,6 +11,7 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
@@ -47,6 +48,13 @@ public class FolioLmsClient implements HostLmsClient {
 	@Override
 	public Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType, String recordNumber,
 			String pickupLocation, String note, String patronRequestId) {
+		return Mono.empty();
+	}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestNonTuple(String id, String recordType,
+		String recordNumber, String pickupLocation, String note, String patronRequestId) {
+
 		return Mono.empty();
 	}
 
