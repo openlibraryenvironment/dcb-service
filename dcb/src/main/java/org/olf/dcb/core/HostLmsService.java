@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.InvalidHostLmsConfigurationException;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.IngestSourcesProvider;
 import org.olf.dcb.storage.HostLmsRepository;
@@ -40,8 +41,10 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	public Mono<HostLmsClient> getClientFor(final HostLms hostLms) {
-		return Mono.just(hostLms.getClientType())
+		return Mono.justOrEmpty(hostLms.getClientType())
 			.doOnSuccess(type -> log.debug("Found client type: {}", type))
+			.switchIfEmpty(Mono.error(new InvalidHostLmsConfigurationException(
+				hostLms.getCode(), "client class is either unknown or invalid")))
 			.filter(HostLmsClient.class::isAssignableFrom)
 			.map(type -> context.createBean(type, hostLms))
 			.cast(HostLmsClient.class);

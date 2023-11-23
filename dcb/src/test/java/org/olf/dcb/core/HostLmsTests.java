@@ -25,6 +25,7 @@ import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.InvalidHostLmsConfigurationException;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
 
@@ -251,11 +252,12 @@ class HostLmsTests {
 		@Test
 		void shouldFailWhenAttemptingToCreateUnknownClientClass() {
 			// Act
-			final var exception = assertThrows(NullPointerException.class,
+			final var exception = assertThrows(InvalidHostLmsConfigurationException.class,
 				() -> hostLmsFixture.createClient("unknown-client-class"));
 
 			// Assert
-			assertThat(exception, is(instanceOf(NullPointerException.class)));
+			assertThat(exception, hasMessage(
+				"Host LMS \"unknown-client-class\" has invalid configuration: client class is either unknown or invalid"));
 		}
 
 		@Test
