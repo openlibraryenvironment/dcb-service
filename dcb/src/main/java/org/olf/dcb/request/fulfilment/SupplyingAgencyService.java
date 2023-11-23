@@ -8,6 +8,7 @@ import java.util.List;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
+import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
@@ -112,12 +113,11 @@ public class SupplyingAgencyService {
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
 			.flatMap(client -> this.placeHoldRequest(client, psrc) )
-			// .doOnSuccess(result -> log.info("Hold placed({})", result))
-			.map(function(supplierRequest::placed))
+			.map(localRequest -> supplierRequest.placed(localRequest.getLocalId(), localRequest.getLocalStatus()))
 			.thenReturn(psrc);
 	}
 
-	private Mono<Tuple2<String, String>> placeHoldRequest(HostLmsClient client,
+	private Mono<LocalRequest> placeHoldRequest(HostLmsClient client,
 		RequestWorkflowContext context) {
 
 		log.debug("placeHoldRequest");
@@ -149,8 +149,7 @@ public class SupplyingAgencyService {
 
 		return client.placeHoldRequest(patronIdentityAtSupplier.getLocalId(),
 			recordType, recordNumber, context.getPickupAgencyCode(),
-			note, patronRequest.getId().toString())
-			.map(response -> Tuples.of(response.getLocalId(), response.getLocalStatus()));
+			note, patronRequest.getId().toString());
 	}
 
 	private Mono<PatronRequest> updateSupplierRequest(RequestWorkflowContext psrc) {
@@ -162,8 +161,7 @@ public class SupplyingAgencyService {
 		return supplierRequestService.updateSupplierRequest(supplierRequest)
 			.thenReturn(patronRequest);
 	}
-
-
+	
 	// Depending upon the particular setup (1, 2 or three parties) we need to take different actions in different scenarios.
 	// Here we work out which particular workflow is in force and set a value on the patron request for easy reference.
 	// This can change as we select different suppliers, so we recalculate for each new supplier.
