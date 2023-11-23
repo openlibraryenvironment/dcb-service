@@ -263,10 +263,12 @@ class HostLmsTests {
 		@Test
 		void shouldFailWhenAttemptingToCreateInvalidClientClass() {
 			// Act
-			final var client = hostLmsFixture.createClient("invalid-client-class");
+			final var exception = assertThrows(InvalidHostLmsConfigurationException.class,
+				() -> hostLmsFixture.createClient("invalid-client-class"));
 
 			// Assert
-			assertThat(client, is(nullValue()));
+			assertThat(exception, hasMessage(
+				"Host LMS \"invalid-client-class\" has invalid configuration: client class is either unknown or invalid"));
 		}
 
 		@Test
