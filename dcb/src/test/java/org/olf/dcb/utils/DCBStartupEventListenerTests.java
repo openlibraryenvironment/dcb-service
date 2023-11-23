@@ -15,6 +15,8 @@ import static org.olf.dcb.test.matchers.HostLmsMatchers.hasCode;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasId;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasIngestSourceClass;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasName;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasNoIngestSourceClass;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasNonNullId;
 import static services.k_int.utils.UUIDUtils.nameUUIDFromNamespaceAndString;
 
 import org.hamcrest.Matcher;
@@ -54,6 +56,17 @@ class DCBStartupEventListenerTests {
 		assertThat(foundHost, hasIngestSourceClass(SierraLmsClient.class.getCanonicalName()));
 		assertThat(foundHost, hasProperty("clientConfig",
 			hasEntry("base-url", "https://some-sierra-system")));
+	}
+
+	@Test
+	void shouldTolerateHostLmsWithoutIngestSourceType() {
+		// Act
+		final var foundHost = hostLmsService.findByCode("no-ingest-source-config-host").block();
+
+		// Assert
+		assertThat(foundHost, hasNonNullId());
+		assertThat(foundHost, hasClientClass(SierraLmsClient.class.getCanonicalName()));
+		assertThat(foundHost, hasNoIngestSourceClass());
 	}
 
 	@Test
