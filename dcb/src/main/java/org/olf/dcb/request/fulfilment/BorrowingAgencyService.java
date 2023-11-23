@@ -198,9 +198,9 @@ public class BorrowingAgencyService {
 		String note = "Consortial Hold. tno=" + patronRequest.getId();
 
 		return hostLmsClient
-			.placeHoldRequest(patronIdentity.getLocalId(), recordType, recordNumber,
+			.placeHoldRequestNonTuple(patronIdentity.getLocalId(), recordType, recordNumber,
 				patronRequest.getPickupLocationCode(), note, patronRequest.getId().toString())
-			.map(response -> Tuples.of(response.getT1(), response.getT2()))
+			.map(response -> Tuples.of(response.getLocalId(), response.getLocalStatus()))
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to place hold request.")));
 	}
 
