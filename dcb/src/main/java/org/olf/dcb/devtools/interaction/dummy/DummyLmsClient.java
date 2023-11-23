@@ -48,7 +48,6 @@ import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
-import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
@@ -308,16 +307,6 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	@Override
 	public Publisher<ConfigurationRecord> getConfigStream() {
 		return Mono.empty();
-	}
-
-	@Override
-	public Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType, String recordNumber,
-			String pickupLocation, String note, String patronRequestId) {
-		log.info("placeHoldRequest({},{},{},{},{})", id, recordType, recordNumber, pickupLocation, note, patronRequestId);
-
-		// (localHoldId, localHoldStatus)
-		// return Mono.empty();
-		return Mono.just(Tuples.of(UUID.randomUUID().toString(), "HELD"));
 	}
 
 	@Override

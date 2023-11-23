@@ -18,7 +18,6 @@ import org.olf.dcb.core.model.Item;
 
 import io.micronaut.context.annotation.Parameter;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
 
 /**
  */
@@ -42,12 +41,6 @@ public class FolioLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<List<Item>> getItems(String localBibId) {
-		return Mono.empty();
-	}
-
-	@Override
-	public Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType, String recordNumber,
-			String pickupLocation, String note, String patronRequestId) {
 		return Mono.empty();
 	}
 

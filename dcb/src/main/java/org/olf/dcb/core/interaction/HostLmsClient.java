@@ -6,7 +6,6 @@ import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
 
 public interface HostLmsClient {
 
@@ -34,9 +33,6 @@ public interface HostLmsClient {
 	Mono<String> createBib(Bib bib);
 
 	// (localHoldId, localHoldStatus)
-
-	Mono<Tuple2<String, String>> placeHoldRequest(String id, String recordType, String recordNumber,
-			String pickupLocation, String note, String patronRequestId);
 
 	Mono<LocalRequest> placeHoldRequestNonTuple(String id, String recordType, String recordNumber,
 		String pickupLocation, String note, String patronRequestId);
