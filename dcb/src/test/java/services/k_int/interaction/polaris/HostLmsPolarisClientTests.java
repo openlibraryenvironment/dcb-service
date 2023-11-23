@@ -32,6 +32,7 @@ import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.matchers.LocalRequestMatchers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -229,8 +230,8 @@ public class HostLmsPolarisClientTests {
 			.block();
 
 		// Assert
-		assertThat(localRequest, hasProperty("localId", is("2977175")));
-		assertThat(localRequest, hasProperty("localStatus", is("In Processing")));
+		assertThat(localRequest, LocalRequestMatchers.hasLocalId("2977175"));
+		assertThat(localRequest, LocalRequestMatchers.hasLocalStatus("In Processing"));
 	}
 
 	@Test
