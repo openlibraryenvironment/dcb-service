@@ -128,11 +128,22 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<LocalRequest> placeHoldRequestNonTuple(String id, String recordType,
 		String recordNumber, String pickupLocation, String note, String patronRequestId) {
 
-		return placeHoldRequest(id, recordType, recordNumber, pickupLocation, note, patronRequestId)
-			.map(tuple -> LocalRequest.builder()
-				.localId(tuple.getT1())
-				.localStatus(tuple.getT2())
-				.build());
+		if (!Objects.equals(recordType, "i")) {
+			return Mono.error(new HoldRequestTypeException(recordType));
+		}
+
+		return placeItemLevelHoldRequest(HoldRequestParameters.builder()
+			.localPatronId(id)
+			.recordType(recordType)
+			.recordNumber(recordNumber)
+			.pickupLocation(pickupLocation)
+			.note(note)
+			.dcbPatronRequestId(patronRequestId)
+			.build())
+		.map(tuple -> LocalRequest.builder()
+			.localId(tuple.getT1())
+			.localStatus(tuple.getT2())
+			.build());
 	}
 
 	@Override

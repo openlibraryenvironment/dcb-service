@@ -536,7 +536,23 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<LocalRequest> placeHoldRequestNonTuple(String id, String recordType,
 		String recordNumber, String pickupLocation, String note, String patronRequestId) {
 
-		return placeHoldRequest(id, recordType, recordNumber, pickupLocation, note, patronRequestId)
+		PatronHoldPost patronHoldPost = new PatronHoldPost();
+		patronHoldPost.setRecordType(recordType);
+		patronHoldPost.setRecordNumber(convertToInteger(recordNumber));
+		patronHoldPost.setPickupLocation(pickupLocation);
+		patronHoldPost.setNote(note);
+		log.debug("placeHoldRequest({}...) {}", id, patronHoldPost);
+
+		// Ian: NOTE... SIERRA needs time between placeHoldRequest and
+		// getPatronHoldRequestId completing... Either
+		// we need retries or a delay.
+		return Mono.from(client.placeHoldRequest(id, patronHoldPost))
+			.then(Mono.defer(() -> getPatronHoldRequestId(id, recordNumber, note, patronRequestId))
+				.retry(getHoldsRetryAttempts))
+			.onErrorResume(NullPointerException.class, error -> {
+				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
+				return Mono.error(new RuntimeException("Error occurred when creating Hold"));
+			})
 			.map(tuple -> LocalRequest.builder()
 				.localId(tuple.getT1())
 				.localStatus(tuple.getT2())

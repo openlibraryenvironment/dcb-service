@@ -324,7 +324,10 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	public Mono<LocalRequest> placeHoldRequestNonTuple(String id, String recordType,
 		String recordNumber, String pickupLocation, String note, String patronRequestId) {
 
-		return placeHoldRequest(id, recordType, recordNumber, pickupLocation, note, patronRequestId)
+		log.info("placeHoldRequestNonTuple({},{},{},{},{}, {})",
+			id, recordType, recordNumber, pickupLocation, note, patronRequestId);
+
+		return Mono.just(Tuples.of(UUID.randomUUID().toString(), "HELD"))
 			.map(tuple -> LocalRequest.builder()
 				.localId(tuple.getT1())
 				.localStatus(tuple.getT2())
