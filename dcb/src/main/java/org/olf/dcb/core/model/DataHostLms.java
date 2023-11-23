@@ -24,6 +24,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 @Data
@@ -33,6 +34,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @NoArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
 @Builder
+@Slf4j
 public class DataHostLms implements HostLms {
 	@NonNull
 	@Id
@@ -87,11 +89,14 @@ public class DataHostLms implements HostLms {
 			return null;
 		}
 
-		Class<? extends T> resolved_class = null;
 		try {
-			resolved_class = (Class<? extends T>) Class.forName(name);
-		} catch (ClassNotFoundException cnfe) {
+			return (Class<? extends T>) Class.forName(name);
+		} catch (ClassNotFoundException exception) {
+			log.error("class {} cannot be found", name, exception);
+
+			// Does not throw exception because method is used in a property
+			// Properties that throw exceptions fail micronaut validation
+			return null;
 		}
-		return resolved_class;
 	}
 }
