@@ -5,7 +5,6 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
@@ -40,6 +39,7 @@ import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
 import jakarta.inject.Inject;
+import lombok.SneakyThrows;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -72,12 +72,8 @@ public class HostLmsPolarisClientTests {
 	private PolarisTestUtils.MockPolarisPAPIHost mockPolaris;
 	private DataHostLms polarisHostLms;
 
-	private String getResourceAsString(String cp_resources, String resourceName) throws IOException {
-		return new String(loader.getResourceAsStream(cp_resources + resourceName).get().readAllBytes());
-	}
-
 	@BeforeAll
-	public void addFakePolarisApis(MockServerClient mock) throws IOException {
+	public void addFakePolarisApis(MockServerClient mock) {
 		final String BASE_URL = "https://polaris-hostlms-tests.com";
 		final String KEY = "polaris-hostlms-test-key";
 		final String SECRET = "polaris-hostlms-test-secret";
@@ -103,7 +99,7 @@ public class HostLmsPolarisClientTests {
 	}
 
 	@Test
-	public void getItemsByBibIdTest() throws IOException {
+	public void getItemsByBibIdTest() {
 		// Arrange
 		referenceValueMappingFixture.defineLocationToAgencyMapping( "polaris-hostlms-tests", "15", "345test");
 
@@ -152,7 +148,7 @@ public class HostLmsPolarisClientTests {
 	}
 
 	@Test
-	public void patronAuth() throws IOException {
+	public void patronAuth() {
 		// Arrange
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/PAPIService/REST/public/v1/1033/100/1/authenticator/patron"))
@@ -177,7 +173,7 @@ public class HostLmsPolarisClientTests {
 	}
 
 	@Test
-	public void patronFind() throws IOException {
+	public void patronFind() {
 		// Arrange
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/search/patrons/boolean*"))
@@ -204,7 +200,7 @@ public class HostLmsPolarisClientTests {
 	}
 
 	@Test
-	public void placeHoldRequest() throws IOException {
+	public void placeHoldRequest() {
 		// Arrange
 
 		final var recordNumber = "12345";
@@ -235,7 +231,7 @@ public class HostLmsPolarisClientTests {
 	}
 
 	@Test
-	public void getHold() throws IOException {
+	public void getHold() {
 		// Arrange
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/"+2977175))
@@ -249,7 +245,7 @@ public class HostLmsPolarisClientTests {
 	}
 
 	@Test
-	public void createPatron() throws IOException {
+	public void createPatron() {
 		// Arrange
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/PAPIService/REST/public/v1/1033/100/1/patron"))
@@ -271,7 +267,7 @@ public class HostLmsPolarisClientTests {
 	}
 
 	@Test
-	public void updatePatron() throws IOException {
+	public void updatePatron() {
 		// Arrange
 		final var localPatronId = 1255193;
 
@@ -298,7 +294,7 @@ public class HostLmsPolarisClientTests {
 	}
 
 	@Test
-	public void getPatronByLocalId() throws IOException {
+	public void getPatronByLocalId() {
 		// Arrange
 		final var localPatronId = 1255193;
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
@@ -316,7 +312,7 @@ public class HostLmsPolarisClientTests {
 	}
 
 	@Test
-	public void createBib() throws IOException {
+	public void createBib() {
 		// Arrange
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords*"))
@@ -329,7 +325,7 @@ public class HostLmsPolarisClientTests {
 	}
 
 	@Test
-	public void createItem() throws IOException {
+	public void createItem() {
 		// Arrange
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow*"))
@@ -348,7 +344,7 @@ public class HostLmsPolarisClientTests {
 	}
 
 	@Test
-	public void getItem() throws IOException {
+	public void getItem() {
 		// Arrange
 		final var localItemId = "3512742";
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
@@ -369,7 +365,7 @@ public class HostLmsPolarisClientTests {
 	}
 
 	@Test
-	public void updateItemStatus() throws IOException {
+	public void updateItemStatus() {
 		// Arrange
 		final var localItemId = "3512742";
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
@@ -392,5 +388,10 @@ public class HostLmsPolarisClientTests {
 		// Assert
 		assertThat(string, is(notNullValue()));
 		assertThat(string, is("OK"));
+	}
+
+	@SneakyThrows
+	private String getResourceAsString(String cp_resources, String resourceName) {
+		return new String(loader.getResourceAsStream(cp_resources + resourceName).get().readAllBytes());
 	}
 }
