@@ -76,16 +76,16 @@ public class DataHostLms implements HostLms {
 	@Transient
 	@JsonIgnore
 	public Class<?> getIngestSourceType() {
-		if (ingestSourceClass == null) {
-			return null;
-		}
-
 		return getTypeFromName(ingestSourceClass);
 	}
 
 	@Nullable
 	private <T> Class<? extends T> getTypeFromName(@Nullable String name) {
 		//TODO: Replace this with a proper converter implementation then remove this getter.
+
+		if (name == null) {
+			return null;
+		}
 
 		Class<? extends T> resolved_class = null;
 		try {
