@@ -64,34 +64,33 @@ public class DataHostLms implements HostLms {
 	@TypeDef(type = JSON)
 	Map<String, Object> clientConfig;
 
-	@SuppressWarnings("unchecked")
 	@Override
 	@Transient
 	@JsonIgnore
 	public Class<?> getClientType() {
+		//TODO: Replace this with a proper converter implementation then remove this getter.
 		return getTypeFromName(lmsClientClass);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	@Nullable
 	@Transient
 	@JsonIgnore
 	public Class<?> getIngestSourceType() {
+		//TODO: Replace this with a proper converter implementation then remove this getter.
 		return getTypeFromName(ingestSourceClass);
 	}
 
 	@Nullable
-	private <T> Class<? extends T> getTypeFromName(@Nullable String name) {
-		//TODO: Replace this with a proper converter implementation then remove this getter.
-
+	private Class<?> getTypeFromName(@Nullable String name) {
 		if (name == null) {
 			return null;
 		}
 
 		try {
-			return (Class<? extends T>) Class.forName(name);
-		} catch (ClassNotFoundException exception) {
+			return Class.forName(name);
+		}
+		catch (ClassNotFoundException exception) {
 			log.error("class {} cannot be found", name, exception);
 
 			// Does not throw exception because method is used in a property
