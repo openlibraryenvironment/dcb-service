@@ -78,7 +78,7 @@ class PAPIAuthFilter {
 		PAPIClient.PatronCredentials patronCredentials, Boolean override) {
 
 		if (override) {
-			log.debug("staffAuthentication with public method: {}", request.getPath());
+			//log.debug("staffAuthentication with public method: {}", request.getPath());
 			return staffAuthentication(request, TRUE);
 		}
 

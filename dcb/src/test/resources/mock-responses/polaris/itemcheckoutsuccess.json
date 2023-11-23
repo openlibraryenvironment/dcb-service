@@ -1,0 +1,18 @@
+{
+	"CanDesensitize" : true,
+	"ChargeAmount" : 0,
+	"DDM_MediaFormatID" : 1,
+	"DoubleSided" : false,
+	"DueDate" : "/Date(1702619999000-0600)/",
+	"ErrorMessage" : "Success",
+	"IsMagnetic" : false,
+	"IsRenewal" : false,
+	"ItemBlockFlags" : 0,
+	"ItemRecordID" : 2273395,
+	"MaterialTypeID" : 3,
+	"PAPIErrorCode" : 0,
+	"PatronBlockFlags" : 0,
+	"RenewalBlockFlags" : 0,
+	"SelfCheckMediaTypeID" : 1,
+	"Unlocker" : false
+}

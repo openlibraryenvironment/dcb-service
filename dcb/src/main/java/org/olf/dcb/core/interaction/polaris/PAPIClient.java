@@ -12,6 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
+import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
 
 public class PAPIClient {
 	static final Logger log = LoggerFactory.getLogger(PAPIClient.class);
@@ -101,6 +103,36 @@ public class PAPIClient {
 			.flatMap(request -> client.retrieve(request, Argument.of(PatronUpdateResult.class)))
 			.filter(patronUpdateResult -> patronUpdateResult.getPAPIErrorCode() == 0)
 			.map(patronUpdateResult -> barcode);
+	}
+
+	public Mono<ItemCheckoutResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {
+		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
+		// passing empty patron credentials will allow public requests without patron auth
+		final var empty = PatronCredentials.builder().build();
+		final var conf = client.getHostLms().getClientConfig();
+		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
+		final var body = ItemCheckoutData.builder()
+			.logonBranchID( extractMapValue(conf, LOGON_BRANCH_ID, Integer.class) )
+			.logonUserID( extractMapValue(conf, LOGON_USER_ID, Integer.class) )
+			.logonWorkstationID( extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class) )
+			.itemBarcode(itemBarcode)
+			.build();
+
+		log.info("Patron {} checking out item {}", patronBarcode, itemBarcode);
+		return createRequest(POST, path, uri -> {})
+			.map(request -> request.body(body))
+			.flatMap( req -> authFilter.ensurePatronAuth(req, empty, TRUE) )
+			.flatMap(request -> client.retrieve(request, Argument.of(ItemCheckoutResult.class)))
+			.flatMap(this::checkForItemCheckOutError);
+	}
+
+	private <R> Mono<ItemCheckoutResult> checkForItemCheckOutError(ItemCheckoutResult itemCheckoutResult) {
+		return Mono.just(itemCheckoutResult)
+			// PAPI Error Codes: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1221124
+			.filter(result -> result.getPAPIErrorCode() == 0)
+			.switchIfEmpty( Mono.error(() -> new ItemCheckoutException(
+				"Checkout of local item id: " + itemCheckoutResult.getItemRecordID()
+				+ ", failed with error message: '" + itemCheckoutResult.getErrorMessage() + "'")) );
 	}
 
 	/*
@@ -173,6 +205,34 @@ public class PAPIClient {
 			.state("MO")
 			.patronCode( parseInt(patron.getLocalPatronType()) )
 			.build();
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class ItemCheckoutData {
+		@JsonProperty("ItemBarcode")
+		private String itemBarcode;
+		@JsonProperty("LogonBranchID")
+		private Integer logonBranchID;
+		@JsonProperty("LogonUserID")
+		private Integer logonUserID;
+		@JsonProperty("LogonWorkstationID")
+		private Integer logonWorkstationID;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class ItemCheckoutResult {
+		@JsonProperty("PAPIErrorCode")
+		private Integer pAPIErrorCode;
+		@JsonProperty("ErrorMessage")
+		private String errorMessage;
+		@JsonProperty("ItemRecordID")
+		private String itemRecordID;
 	}
 
 	@Builder
