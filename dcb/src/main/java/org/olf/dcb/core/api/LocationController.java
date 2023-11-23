@@ -52,12 +52,14 @@ public class LocationController {
 		Location.class.getSimpleName());
         */
 
+
 	public LocationController(LocationRepository locationRepository,
                                   AgencyRepository agencyRepository) {
 		this.locationRepository = locationRepository;
 		this.agencyRepository = agencyRepository;
 	}
 
+        @Secured(SecurityRule.IS_ANONYMOUS)
         @Operation(
                 summary = "Browse Locations",
                 description = "Paginate through the list of known locations",
