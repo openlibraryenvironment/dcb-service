@@ -60,8 +60,10 @@ public class HostLmsService implements IngestSourcesProvider {
 			? hostLms.getIngestSourceType()
 			: hostLms.getClientType();
 
-		return Mono.just(ingestSource)
+		return Mono.justOrEmpty(ingestSource)
 			.doOnSuccess(type -> log.debug("Found ingest source type: {}", type))
+			.switchIfEmpty(Mono.error(new InvalidHostLmsConfigurationException(
+				hostLms.getCode(), "ingest source class is either unknown or invalid")))
 			.filter(IngestSource.class::isAssignableFrom)
 			.map(type -> context.createBean(type, hostLms))
 			.cast(IngestSource.class);

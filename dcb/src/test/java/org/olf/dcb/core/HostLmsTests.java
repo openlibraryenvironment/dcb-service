@@ -272,11 +272,12 @@ class HostLmsTests {
 		@Test
 		void shouldFailWhenAttemptingToGetUnknownIngestSource() {
 			// Act
-			final var exception = assertThrows(NullPointerException.class,
+			final var exception = assertThrows(InvalidHostLmsConfigurationException.class,
 				() -> hostLmsFixture.getIngestSource("unknown-ingest-source-class"));
 
 			// Assert
-			assertThat(exception, is(instanceOf(NullPointerException.class)));
+			assertThat(exception, hasMessage(
+				"Host LMS \"unknown-ingest-source-class\" has invalid configuration: ingest source class is either unknown or invalid"));
 		}
 
 		@Test
