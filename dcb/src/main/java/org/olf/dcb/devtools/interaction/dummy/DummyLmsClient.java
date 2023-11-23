@@ -48,7 +48,6 @@ import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
-import reactor.util.function.Tuples;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
@@ -316,10 +315,9 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		log.info("placeHoldRequestNonTuple({},{},{},{},{}, {})",
 			id, recordType, recordNumber, pickupLocation, note, patronRequestId);
 
-		return Mono.just(Tuples.of(UUID.randomUUID().toString(), "HELD"))
-			.map(tuple -> LocalRequest.builder()
-				.localId(tuple.getT1())
-				.localStatus(tuple.getT2())
+		return Mono.just(LocalRequest.builder()
+				.localId(UUID.randomUUID().toString())
+				.localStatus("HELD")
 				.build());
 	}
 

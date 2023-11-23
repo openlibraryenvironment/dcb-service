@@ -161,7 +161,7 @@ public class SupplyingAgencyService {
 		return supplierRequestService.updateSupplierRequest(supplierRequest)
 			.thenReturn(patronRequest);
 	}
-	
+
 	// Depending upon the particular setup (1, 2 or three parties) we need to take different actions in different scenarios.
 	// Here we work out which particular workflow is in force and set a value on the patron request for easy reference.
 	// This can change as we select different suppliers, so we recalculate for each new supplier.
