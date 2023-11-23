@@ -2,24 +2,53 @@ package org.olf.dcb.core.interaction.polaris;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-
 import static org.olf.dcb.core.interaction.polaris.Direction.HOST_LMS_TO_POLARIS;
 import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
 import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.AVAILABLE;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.CLIENT_BASE_URL;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.MAX_BIBS;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_APP_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_LANG_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_ORG_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_VERSION;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_LANGUAGE;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_ORG_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_PRODUCT_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_SITE_DOMAIN;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_VERSION;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WORKSTATION_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.TRANSFERRED;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
 import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
 
 import java.net.URI;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsHold;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestTypeException;
 import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
@@ -44,6 +73,7 @@ import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -58,11 +88,8 @@ import lombok.Builder;
 import lombok.Data;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
-import reactor.util.function.Tuples;
-import services.k_int.utils.UUIDUtils;
 import services.k_int.utils.MapUtils;
-import io.micronaut.core.util.StringUtils;
+import services.k_int.utils.UUIDUtils;
 
 @Prototype
 public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsPagedRow>, HostLmsClient{
@@ -120,10 +147,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.pickupLocation(pickupLocation)
 			.note(note)
 			.dcbPatronRequestId(patronRequestId)
-			.build())
-		.map(tuple -> LocalRequest.builder()
-			.localId(tuple.getT1())
-			.localStatus(tuple.getT2())
 			.build());
 	}
 
@@ -224,7 +247,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		};
 	}
 
-	private Mono<Tuple2<String, String>> placeItemLevelHoldRequest(HoldRequestParameters args) {
+	private Mono<LocalRequest> placeItemLevelHoldRequest(HoldRequestParameters args) {
 		return getBibIdFromItemId(args.getRecordNumber())
 			.flatMap(this::getBib)
 			.map(bib -> {
@@ -234,8 +257,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			})
 			.flatMap(appServicesClient::addLocalHoldRequest)
 			.map(ApplicationServicesClient.HoldRequestResponse::getHoldRequestID)
-			.flatMap(this::getPlaceHoldRequestData)
-			.map(localRequest -> Tuples.of(localRequest.getLocalId(), localRequest.getLocalStatus()));
+			.flatMap(this::getPlaceHoldRequestData);
 	}
 
 	private Mono<LocalRequest> getPlaceHoldRequestData(Integer holdRequestId) {
