@@ -76,7 +76,6 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
-import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraApiClient;
@@ -529,11 +528,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Hold"));
-			})
-			.map(tuple -> LocalRequest.builder()
-				.localId(tuple.getT1())
-				.localStatus(tuple.getT2())
-				.build());
+			});
 	}
 
 	private boolean shouldIncludeHold(SierraPatronHold hold, String patronRequestId) {
@@ -543,9 +538,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return false;
 	}
 
-	private Mono<Tuple2<String, String>> getPatronHoldRequestId(String patronLocalId, String localItemId, String note,
-			String patronRequestId) {
-		log.debug("getPatronHoldRequestId({}, {}, {}, {})", patronLocalId, localItemId, note, patronRequestId);
+	private Mono<LocalRequest> getPatronHoldRequestId(String patronLocalId,
+		String localItemId, String note, String patronRequestId) {
+
+		log.debug("getPatronHoldRequestId({}, {}, {}, {})", patronLocalId,
+			localItemId, note, patronRequestId);
 
 		// Ian: TEMPORARY WORKAROUND - Wait for sierra to process the hold and make it
 		// visible
@@ -557,12 +554,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		}
 
 		return Mono.from(client.patronHolds(patronLocalId)).map(SierraPatronHoldResultSet::entries)
-				.doOnNext(entries -> log.debug("Hold entries: {}", entries)).flatMapMany(Flux::fromIterable)
-				.filter(hold -> shouldIncludeHold(hold, patronRequestId)).collectList()
-				.map(filteredHolds -> chooseHold(note, filteredHolds)).onErrorResume(NullPointerException.class, error -> {
-					log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
-					return Mono.error(new RuntimeException("Error occurred when getting Hold"));
-				});
+			.doOnNext(entries -> log.debug("Hold entries: {}", entries))
+			.flatMapMany(Flux::fromIterable)
+			.filter(hold -> shouldIncludeHold(hold, patronRequestId))
+			.collectList()
+			.map(filteredHolds -> chooseHold(note, filteredHolds))
+			.onErrorResume(NullPointerException.class, error -> {
+				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
+				return Mono.error(new RuntimeException("Error occurred when getting Hold"));
+			});
 	}
 
 	// Informed by
@@ -608,14 +608,18 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return result;
 	}
 
-	private Tuple2<String, String> chooseHold(String note, List<SierraPatronHold> filteredHolds) {
+	private LocalRequest chooseHold(String note, List<SierraPatronHold> filteredHolds) {
 		log.debug("chooseHold({},{})", note, filteredHolds);
 
 		if (filteredHolds.size() == 1) {
-			final String extractedId = deRestify(filteredHolds.get(0).id());
-			final String localStatus = mapSierraHoldStatusToDCBHoldStatus(filteredHolds.get(0).status().code());
+			final var extractedId = deRestify(filteredHolds.get(0).id());
+			final var localStatus = mapSierraHoldStatusToDCBHoldStatus(filteredHolds.get(0).status().code());
 
-			return Tuples.of(extractedId, localStatus);
+			return LocalRequest.builder()
+				.localId(extractedId)
+				.localStatus(localStatus)
+				.build();
+
 		} else if (filteredHolds.size() > 1) {
 			throw new RuntimeException("Multiple hold requests found for the given note: " + note);
 		} else {
