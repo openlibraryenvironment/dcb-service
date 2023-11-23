@@ -5,6 +5,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
@@ -223,12 +224,13 @@ public class HostLmsPolarisClientTests {
 			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "get-hold.json")));
 
 		// Act
-		final var tuple = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.placeHoldRequest("1", "i", recordNumber, "5324532", "No special note", "Patron 1").block();
+		final var localRequest = hostLmsFixture.createClient(HOST_LMS_CODE)
+			.placeHoldRequestNonTuple("1", "i", recordNumber, "5324532", "No special note", "Patron 1")
+			.block();
+
 		// Assert
-		assertThat(tuple, is(notNullValue()));
-		assertThat(tuple.getT1(), is("2977175"));
-		assertThat(tuple.getT2(), is("In Processing"));
+		assertThat(localRequest, hasProperty("localId", is("2977175")));
+		assertThat(localRequest, hasProperty("localStatus", is("In Processing")));
 	}
 
 	@Test
