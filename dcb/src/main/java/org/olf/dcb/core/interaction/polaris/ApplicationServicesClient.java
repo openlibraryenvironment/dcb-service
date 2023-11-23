@@ -267,6 +267,14 @@ class ApplicationServicesClient {
 			.flatMap(request -> client.retrieve(request, Argument.of(ItemCreateResponse.class)));
 	}
 
+	public Mono<String> getItemBarcode(String itemId) {
+		final var path = createPath("barcodes", "items", itemId);
+		return createRequest(GET, path, uri -> {})
+			.flatMap(request -> client.retrieve(request, Argument.of(String.class)))
+			// remove quotes
+			.map(string -> string.replace("\"", ""));
+	}
+
 	public Mono<List<MaterialType>> listMaterialTypes() {
 		final var path = createPath("materialtypes");
 		return createRequest(GET, path, uri -> {})

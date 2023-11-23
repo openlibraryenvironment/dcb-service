@@ -44,7 +44,6 @@ public class HostLmsPolarisClientTests {
 
 	@Inject
 	private ResourceLoader loader;
-
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
@@ -278,6 +277,27 @@ public class HostLmsPolarisClientTests {
 		assertThat(response.getLocalPatronType(), is("3"));
 		assertThat(response.getLocalBarcodes(), is(List.of("0077777777")));
 		assertThat(response.getLocalHomeLibraryCode(), is("39"));
+	}
+
+	@Test
+	public void checkOutItemToPatron() {
+		// Arrange
+		final var localItemId = "2273395";
+		final var localPatronBarcode = "0077777777";
+
+		mockPolaris.whenRequest(req -> req.withMethod("GET")
+				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/barcodes/items/"+localItemId))
+			.respond(response().withStatusCode(200).withBody("\"126448190\""));
+
+		mockPolaris.whenRequest(req -> req.withMethod("POST")
+				.withPath("/PAPIService/REST/public/v1/1033/100/1/patron/"+localPatronBarcode+"/itemsout"))
+			.respond(okJson(getResourceAsString("itemcheckoutsuccess.json")));
+		// Act
+		final var response = hostLmsFixture.createClient(HOST_LMS_CODE)
+			.checkOutItemToPatron(localItemId, localPatronBarcode).block();
+		// Assert
+		assertThat(response, is(notNullValue()));
+		assertThat(response, is("OK"));
 	}
 
 	@Test

@@ -28,12 +28,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.marc4j.marc.Record;
@@ -247,6 +242,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		};
 	}
 
+	@Override
+	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
+		return appServicesClient.getItemBarcode(itemId)
+			.flatMap(itemBarcode -> papiClient.itemCheckoutPost(itemBarcode, patronBarcode))
+			.map(itemCheckoutResult -> "OK");
+	}
+
 	private Mono<LocalRequest> placeItemLevelHoldRequest(HoldRequestParameters args) {
 		return getBibIdFromItemId(args.getRecordNumber())
 			.flatMap(this::getBib)
@@ -375,12 +377,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public List<HostLmsPropertyDefinition> getSettings() {
-		return new ArrayList();
-	}
-
-	@Override
-	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
-		return Mono.empty();
+		return Collections.emptyList();
 	}
 
 	@Override
