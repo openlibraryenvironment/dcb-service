@@ -35,6 +35,10 @@ public class HostLmsMatchers {
 		return hasProperty("lmsClientClass", is(expectedClientClass));
 	}
 
+	public static Matcher<DataHostLms> hasNoClientClass() {
+		return hasProperty("lmsClientClass", is(nullValue()));
+	}
+
 	public static Matcher<DataHostLms> hasIngestSourceClass(String expectedIngestSourceClass) {
 		return hasProperty("ingestSourceClass", is(expectedIngestSourceClass));
 	}

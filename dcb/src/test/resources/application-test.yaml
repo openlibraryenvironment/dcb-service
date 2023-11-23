@@ -10,6 +10,10 @@ hosts:
     type: org.olf.dcb.core.interaction.sierra.SierraLmsClient
     client:
       base-url: "https://some-sierra-system"
+  "no-client-config-host":
+    name: No Client Config Host
+    client:
+      base-url: "https://some-sierra-system"
 
 micronaut:
   application:
