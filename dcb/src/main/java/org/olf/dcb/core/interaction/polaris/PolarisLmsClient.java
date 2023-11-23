@@ -234,14 +234,20 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			})
 			.flatMap(appServicesClient::addLocalHoldRequest)
 			.map(ApplicationServicesClient.HoldRequestResponse::getHoldRequestID)
-			.flatMap(this::getPlaceHoldRequestData);
+			.flatMap(this::getPlaceHoldRequestData)
+			.map(localRequest -> Tuples.of(localRequest.getLocalId(), localRequest.getLocalStatus()));
 	}
 
-	private Mono<Tuple2<String, String>> getPlaceHoldRequestData(Integer holdRequestId) {
+	private Mono<LocalRequest> getPlaceHoldRequestData(Integer holdRequestId) {
 		return appServicesClient.getLocalHoldRequest(holdRequestId)
-			.map(response -> Tuples.of(holdRequestId != null ? holdRequestId.toString() : "",
-				response.getSysHoldStatus() != null ? response.getSysHoldStatus() : ""
-			));
+			.map(response -> LocalRequest.builder()
+				.localId(holdRequestId != null
+					? holdRequestId.toString()
+					: "")
+				.localStatus(response.getSysHoldStatus() != null
+					? response.getSysHoldStatus()
+					: "")
+				.build());
 	}
 
 	public Mono<ApplicationServicesClient.BibliographicRecord> getBib(String localBibId) {
