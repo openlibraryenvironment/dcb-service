@@ -1,7 +1,6 @@
 package org.olf.dcb.core;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -285,10 +284,12 @@ class HostLmsTests {
 		@Test
 		void shouldFailWhenAttemptingToGetInvalidIngestSource() {
 			// Act
-			final var ingestSource = hostLmsFixture.getIngestSource("invalid-ingest-source-class");
+			final var exception = assertThrows(InvalidHostLmsConfigurationException.class,
+				() -> hostLmsFixture.getIngestSource("invalid-ingest-source-class"));
 
 			// Assert
-			assertThat(ingestSource, is(nullValue()));
+			assertThat(exception, hasMessage(
+				"Host LMS \"invalid-ingest-source-class\" has invalid configuration: ingest source class is either unknown or invalid"));
 		}
 	}
 }
