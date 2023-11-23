@@ -225,7 +225,7 @@ public class HostLmsPolarisClientTests {
 
 		// Act
 		final var localRequest = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.placeHoldRequestNonTuple("1", "i", recordNumber, "5324532", "No special note", "Patron 1")
+			.placeHoldRequest("1", "i", recordNumber, "5324532", "No special note", "Patron 1")
 			.block();
 
 		// Assert

@@ -510,7 +510,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<LocalRequest> placeHoldRequestNonTuple(String id, String recordType,
+	public Mono<LocalRequest> placeHoldRequest(String id, String recordType,
 		String recordNumber, String pickupLocation, String note, String patronRequestId) {
 
 		PatronHoldPost patronHoldPost = new PatronHoldPost();

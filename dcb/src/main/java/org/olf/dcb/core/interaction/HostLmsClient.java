@@ -34,7 +34,7 @@ public interface HostLmsClient {
 
 	// (localHoldId, localHoldStatus)
 
-	Mono<LocalRequest> placeHoldRequestNonTuple(String id, String recordType, String recordNumber,
+	Mono<LocalRequest> placeHoldRequest(String id, String recordType, String recordNumber,
 		String pickupLocation, String note, String patronRequestId);
 
 	boolean useTitleLevelRequest();

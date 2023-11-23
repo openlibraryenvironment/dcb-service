@@ -147,7 +147,7 @@ public class SupplyingAgencyService {
 
 		String note = "Consortial Hold. tno="+patronRequest.getId();
 
-		return client.placeHoldRequestNonTuple(patronIdentityAtSupplier.getLocalId(),
+		return client.placeHoldRequest(patronIdentityAtSupplier.getLocalId(),
 			recordType, recordNumber, context.getPickupAgencyCode(),
 			note, patronRequest.getId().toString())
 			.map(response -> Tuples.of(response.getLocalId(), response.getLocalStatus()));
