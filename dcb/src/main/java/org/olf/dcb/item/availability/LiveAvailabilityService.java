@@ -5,24 +5,26 @@ import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.request.resolution.Bib;
 import org.olf.dcb.request.resolution.ClusteredBib;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.olf.dcb.request.resolution.SharedIndexService;
 
 import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Prototype
 public class LiveAvailabilityService {
-	private static final Logger log = LoggerFactory.getLogger(LiveAvailabilityService.class);
-
 	private final HostLmsService hostLmsService;
 	private final RequestableItemService requestableItemService;
+	private final SharedIndexService sharedIndexService;
 
-	public LiveAvailabilityService(HostLmsService hostLmsService, RequestableItemService requestableItemService) {
+	public LiveAvailabilityService(HostLmsService hostLmsService,
+		RequestableItemService requestableItemService, SharedIndexService sharedIndexService) {
 
 		this.hostLmsService = hostLmsService;
 		this.requestableItemService = requestableItemService;
+		this.sharedIndexService = sharedIndexService;
 	}
 
 	public Mono<AvailabilityReport> getAvailableItems(ClusteredBib clusteredBib) {
