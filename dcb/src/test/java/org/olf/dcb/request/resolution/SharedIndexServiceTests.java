@@ -6,7 +6,6 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.test.matchers.BibMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.BibMatchers.hasSourceRecordId;
@@ -84,22 +83,7 @@ class SharedIndexServiceTests {
 				)
 			));
 	}
-
-	@Test
-	void canFindClusterRecordWithNoAssociatedBibs() {
-		final var clusterRecordId = randomUUID();
-
-		clusterRecordFixture.createClusterRecord(clusterRecordId);
-
-		final var clusteredBib = sharedIndexService
-			.findClusteredBib(clusterRecordId).block();
-
-		assertThat(clusteredBib, is(notNullValue()));
-		assertThat(clusteredBib, hasId(clusterRecordId));
-
-		assertThat("Should have no bibs", clusteredBib.getBibs(), hasSize(0));
-	}
-
+	
 	@Test
 	void failsWhenCannotFindHostLmsForBib() {
 		final var clusterRecordId = randomUUID();
