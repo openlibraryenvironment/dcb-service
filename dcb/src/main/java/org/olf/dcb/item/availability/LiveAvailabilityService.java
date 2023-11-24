@@ -1,5 +1,6 @@
 package org.olf.dcb.item.availability;
 
+import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 
 import org.olf.dcb.core.HostLmsService;
@@ -36,6 +37,14 @@ public class LiveAvailabilityService {
 			.reduce(emptyReport(), AvailabilityReport::combineReports)
 			.map(AvailabilityReport::sortItems)
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to resolve items for cluster record "+clusteredBib)));
+	}
+
+	public Mono<AvailabilityReport> getAvailabilityReport(ClusteredBib clusteredBib) {
+		return Mono.just(clusteredBib)
+			// don't call service if bibs empty
+			.flatMap(clusteredRecord -> isEmpty(clusteredRecord.getBibs())
+				? Mono.just(emptyReport())
+				: getAvailableItems(clusteredRecord));
 	}
 
 	private Flux<Bib> getBibs(ClusteredBib clusteredBib) {

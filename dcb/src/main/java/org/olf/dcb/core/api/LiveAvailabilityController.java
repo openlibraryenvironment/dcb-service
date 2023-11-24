@@ -1,15 +1,12 @@
 package org.olf.dcb.core.api;
 
-import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 
 import java.util.UUID;
 
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.AvailabilityResponseView;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
-import org.olf.dcb.request.resolution.ClusteredBib;
 import org.olf.dcb.request.resolution.SharedIndexService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,14 +58,6 @@ public class LiveAvailabilityController {
 
 	public Mono<AvailabilityReport> getAvailableItems(UUID clusteredBibId) {
 		return sharedIndexService.findClusteredBib(clusteredBibId)
-			.flatMap(this::getAvailabilityReport);
-	}
-
-	private Mono<AvailabilityReport> getAvailabilityReport(ClusteredBib clusteredBib) {
-		return Mono.just(clusteredBib)
-			// don't call service if bibs empty
-			.flatMap(clusteredRecord -> isEmpty(clusteredRecord.getBibs())
-				? Mono.just(emptyReport())
-				: liveAvailabilityService.getAvailableItems(clusteredRecord));
+			.flatMap(liveAvailabilityService::getAvailabilityReport);
 	}
 }
