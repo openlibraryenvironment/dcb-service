@@ -75,7 +75,7 @@ class SharedIndexServiceTests {
 			.findClusteredBib(clusterRecordId).block();
 
 		assertThat(clusteredBib, is(notNullValue()));
-		assertThat(clusteredBib.getId(), is(clusterRecordId));
+		assertThat(clusteredBib, hasId(clusterRecordId));
 
 		assertThat("Should have multiple bib records",
 			clusteredBib.getBibs(), containsInAnyOrder(
@@ -85,7 +85,7 @@ class SharedIndexServiceTests {
 					hasHostLmsCode("SECOND-HOST-LMS")
 				),
 				allOf(
-					hasProperty("id", is(secondBibRecordId)),
+					hasId(secondBibRecordId),
 					hasSourceRecordId("896857"),
 					hasHostLmsCode("FIRST-HOST-LMS")
 				)
@@ -102,12 +102,9 @@ class SharedIndexServiceTests {
 			.findClusteredBib(clusterRecordId).block();
 
 		assertThat(clusteredBib, is(notNullValue()));
-		assertThat(clusteredBib.getId(), is(clusterRecordId));
+		assertThat(clusteredBib, hasId(clusterRecordId));
 
-		final var bibs = clusteredBib.getBibs();
-
-		assertThat(bibs, is(notNullValue()));
-		assertThat(bibs, hasSize(0));
+		assertThat("Should have no bibs", clusteredBib.getBibs(), hasSize(0));
 	}
 
 	@Test
@@ -141,7 +138,7 @@ class SharedIndexServiceTests {
 			"No Host LMS found for ID: " + unknownHostId));
 	}
 
-	private static Matcher<Bib> hasId(UUID expectedId) {
+	private static Matcher<Object> hasId(UUID expectedId) {
 		return hasProperty("id", is(expectedId));
 	}
 
