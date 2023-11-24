@@ -83,7 +83,6 @@ class LiveAvailabilityServiceTests {
 	@BeforeEach
 	void beforeEach() {
 		clusterRecordFixture.deleteAll();
-		hostLmsFixture.deleteAll();
 	}
 
 	@Test
