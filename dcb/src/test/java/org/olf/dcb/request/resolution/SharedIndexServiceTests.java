@@ -13,7 +13,6 @@ import static org.olf.dcb.test.matchers.BibMatchers.hasSourceRecordId;
 import static org.olf.dcb.test.matchers.ModelMatchers.hasId;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.HostLmsService.UnknownHostLmsException;
@@ -40,12 +39,6 @@ class SharedIndexServiceTests {
 
 	@BeforeEach
 	void beforeEach() {
-		clusterRecordFixture.deleteAll();
-		hostLmsFixture.deleteAll();
-	}
-
-	@AfterEach
-	void afterEach() {
 		clusterRecordFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 	}
