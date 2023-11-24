@@ -77,6 +77,7 @@ class LiveAvailabilityApiTests {
 
 	@Test
 	void canProvideAListOfAvailableItems() {
+		// Arrange
 		final var clusterRecordId = randomUUID();
 
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
@@ -97,6 +98,7 @@ class LiveAvailabilityApiTests {
 				.name("Test College")
 				.build());
 
+		// Act
 		final var uri = UriBuilder.of("/items/availability")
 			.queryParam("clusteredBibId", clusterRecordId)
 			.build();
@@ -104,6 +106,7 @@ class LiveAvailabilityApiTests {
 		final var availabilityResponse = client.toBlocking()
 			.retrieve(HttpRequest.GET(uri), AvailabilityResponse.class);
 
+		// Assert
 		assertThat(availabilityResponse, is(notNullValue()));
 
 		final var items = availabilityResponse.getItemList();
@@ -161,5 +164,29 @@ class LiveAvailabilityApiTests {
 		assertThat(secondItemLocation, is(notNullValue()));
 		assertThat(secondItemLocation.getCode(), is("ab6"));
 		assertThat(secondItemLocation.getName(), is("King 6th Floor"));
+	}
+
+	@Test
+	void shouldProvideEmptyReportWhenClusterRecordHasNoContributingBibs() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+
+		clusterRecordFixture.createClusterRecord(clusterRecordId);
+
+		// Act
+		final var uri = UriBuilder.of("/items/availability")
+			.queryParam("clusteredBibId", clusterRecordId)
+			.build();
+
+		final var availabilityResponse = client.toBlocking()
+			.retrieve(HttpRequest.GET(uri), AvailabilityResponse.class);
+
+		// Assert
+		assertThat("Report is not null", availabilityResponse, is(notNullValue()));
+		assertThat("Should have cluster record ID",
+			availabilityResponse.getClusteredBibId(), is(clusterRecordId));
+
+		assertThat("Should contain no items", availabilityResponse.getItemList(),  is(nullValue()));
+		assertThat("Should contain no errors", availabilityResponse.getErrors(),  is(nullValue()));
 	}
 }
