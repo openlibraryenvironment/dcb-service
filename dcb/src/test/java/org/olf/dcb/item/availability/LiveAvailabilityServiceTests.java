@@ -5,9 +5,13 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -142,6 +146,9 @@ class LiveAvailabilityServiceTests {
 		assertThat("Report should not be null", report, is(notNullValue()));
 		assertThat("No items should be included in report",
 			report.getItems(), is(hasSize(0)));
+
+		assertThat(report, hasNoItems());
+		assertThat(report, hasNoErrors());
 	}
 
 	@Test
@@ -166,10 +173,9 @@ class LiveAvailabilityServiceTests {
 
 		final var errors = report.getErrors();
 
-		assertThat("Reported errors should not be null", errors, is(notNullValue()));
-		assertThat("Should have one error", errors, hasSize(1));
-		assertThat("Should have one error", errors.get(0).getMessage(),
-			is("Failed to fetch items for bib: 839552 from host: first-local-system"));
+		assertThat(report, hasNoItems());
+		assertThat(report, hasError(
+			"Failed to fetch items for bib: 839552 from host: first-local-system"));
 	}
 
 	@Test
@@ -183,8 +189,21 @@ class LiveAvailabilityServiceTests {
 			.getAvailableItems(clusterRecord.getId()).block();
 
 		// Assert
-		assertThat("Report should not be null", report, is(notNullValue()));
-		assertThat("Items returned should not be null", report.getItems(), is(notNullValue()));
-		assertThat("Should have no items", report.getItems(), hasSize(0));
+		assertThat(report, hasNoItems());
+		assertThat(report, hasNoErrors());
+	}
+
+	private static Matcher<AvailabilityReport> hasNoItems() {
+		return hasProperty("items", empty());
+	}
+
+	private static Matcher<AvailabilityReport> hasNoErrors() {
+		return hasProperty("errors", empty());
+	}
+
+	private static Matcher<AvailabilityReport> hasError(String expectedMessage) {
+		return hasProperty("errors", containsInAnyOrder(
+			hasProperty("message", is(expectedMessage)))
+		);
 	}
 }
