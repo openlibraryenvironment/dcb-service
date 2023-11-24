@@ -6,10 +6,6 @@ import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 
 import java.util.UUID;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.validation.constraints.NotNull;
-
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.AvailabilityResponseView;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
@@ -26,7 +22,9 @@ import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.validation.Validated;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Mono;
 
 @Validated
@@ -56,10 +54,14 @@ public class LiveAvailabilityController {
 
 		log.info("REST, getLiveAvailability: {}", clusteredBibId);
 
-		return sharedIndexService.findClusteredBib(clusteredBibId)
-			.flatMap(this::getAvailabilityReport)
+		return getAvailableItems(clusteredBibId)
 			.map(report -> AvailabilityResponseView.from(report, clusteredBibId))
 			.map(HttpResponse::ok);
+	}
+
+	public Mono<AvailabilityReport> getAvailableItems(UUID clusteredBibId) {
+		return sharedIndexService.findClusteredBib(clusteredBibId)
+			.flatMap(this::getAvailabilityReport);
 	}
 
 	private Mono<AvailabilityReport> getAvailabilityReport(ClusteredBib clusteredBib) {
