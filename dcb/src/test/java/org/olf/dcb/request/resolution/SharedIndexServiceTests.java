@@ -9,8 +9,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import java.util.UUID;
+import static org.olf.dcb.test.matchers.ModelMatchers.*;
 
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.AfterEach;
@@ -21,6 +20,7 @@ import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.matchers.ModelMatchers;
 
 import jakarta.inject.Inject;
 
@@ -136,10 +136,6 @@ class SharedIndexServiceTests {
 		assertThat(exception, is(notNullValue()));
 		assertThat(exception.getMessage(), is(
 			"No Host LMS found for ID: " + unknownHostId));
-	}
-
-	private static Matcher<Object> hasId(UUID expectedId) {
-		return hasProperty("id", is(expectedId));
 	}
 
 	private static Matcher<Bib> hasSourceRecordId(String expectedId) {
