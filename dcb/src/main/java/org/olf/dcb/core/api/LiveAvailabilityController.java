@@ -4,12 +4,8 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 import java.util.UUID;
 
-import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.AvailabilityResponseView;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
-import org.olf.dcb.request.resolution.SharedIndexService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.http.HttpResponse;
@@ -22,22 +18,19 @@ import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Validated
 @Secured(SecurityRule.IS_ANONYMOUS)
 @Controller
 @Tag(name = "Live Availability API")
 public class LiveAvailabilityController {
-	private static final Logger log = LoggerFactory.getLogger(LiveAvailabilityController.class);
-
 	private final LiveAvailabilityService liveAvailabilityService;
-	private final SharedIndexService sharedIndexService;
 
-	public LiveAvailabilityController(LiveAvailabilityService liveAvailabilityService,
-		SharedIndexService sharedIndexService) {
+	public LiveAvailabilityController(LiveAvailabilityService liveAvailabilityService) {
 		this.liveAvailabilityService = liveAvailabilityService;
-		this.sharedIndexService = sharedIndexService;
 	}
 
 	@Operation(
@@ -51,13 +44,8 @@ public class LiveAvailabilityController {
 
 		log.info("REST, getLiveAvailability: {}", clusteredBibId);
 
-		return getAvailableItems(clusteredBibId)
+		return liveAvailabilityService.getAvailableItems(clusteredBibId)
 			.map(report -> AvailabilityResponseView.from(report, clusteredBibId))
 			.map(HttpResponse::ok);
-	}
-
-	public Mono<AvailabilityReport> getAvailableItems(UUID clusteredBibId) {
-		return sharedIndexService.findClusteredBib(clusteredBibId)
-			.flatMap(liveAvailabilityService::getAvailabilityReport);
 	}
 }
