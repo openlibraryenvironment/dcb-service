@@ -2,13 +2,11 @@ package org.olf.dcb.item.availability;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasProperty;
-import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import org.hamcrest.Matcher;
@@ -20,7 +18,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.core.model.Item;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -107,22 +104,15 @@ class LiveAvailabilityServiceTests {
 			.getAvailableItems(clusterRecord.getId()).block();
 
 		// Assert
-		assertThat("Report should not be null", report, is(notNullValue()));
-
-		final var items = report.getItems();
-
-		assertThat("Report should include items from both systems", items, is(hasSize(5)));
-
-		final var itemBarcodes = items.stream()
-			.map(Item::getBarcode)
-			.toList();
-
 		// This is a compromise that checks the rough identity of each item
 		// without duplicating checks for many fields
 		// The order is important due to the sorting applied to items
-		assertThat("Should contain expected items sorted by location and call number",
-			itemBarcodes, contains(
-				"9849123490", "6565750674", "30800005238487", "30800005208449", "30800005315459"));
+		assertThat(report, hasItems(
+			hasBarcode("9849123490"),
+			hasBarcode("6565750674"),
+			hasBarcode("30800005238487"),
+			hasBarcode("30800005208449"),
+			hasBarcode("30800005315459")));
 	}
 
 	@Test
@@ -187,6 +177,15 @@ class LiveAvailabilityServiceTests {
 
 	private static Matcher<AvailabilityReport> hasNoItems() {
 		return hasProperty("items", empty());
+	}
+
+	@SafeVarargs
+	private static Matcher<AvailabilityReport> hasItems(Matcher<Object>... matchers) {
+		return hasProperty("items", contains(matchers));
+	}
+
+	private static Matcher<Object> hasBarcode(String expectedBarcode) {
+		return hasProperty("barcode", is(expectedBarcode));
 	}
 
 	private static Matcher<AvailabilityReport> hasNoErrors() {
