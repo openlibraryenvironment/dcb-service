@@ -1,9 +1,6 @@
 package org.olf.dcb.request.resolution;
 
-import static org.olf.dcb.utils.PublisherErrors.failWhenEmpty;
-
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
@@ -36,12 +33,8 @@ public class SharedIndexService {
 	public Mono<ClusteredBib> findClusteredBib(UUID bibClusterId) {
 		log.debug("findClusteredBib({})", bibClusterId);
 
-		// Repository returns null when cluster record cannot be found
 		return Mono.from(clusterRecordRepository.findOneById(bibClusterId))
-			.map(Optional::ofNullable)
-			.defaultIfEmpty(Optional.empty())
-			.map(optionalClusterRecord -> failWhenEmpty(optionalClusterRecord,
-				() -> new CannotFindClusterRecordException(bibClusterId)))
+			.switchIfEmpty(Mono.error(new CannotFindClusterRecordException(bibClusterId)))
 			.zipWhen(this::findBibRecords, this::mapToClusteredBibWithBib);
 	}
 
