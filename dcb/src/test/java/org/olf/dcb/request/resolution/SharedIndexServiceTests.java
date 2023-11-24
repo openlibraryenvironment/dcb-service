@@ -101,16 +101,6 @@ class SharedIndexServiceTests {
 	}
 
 	@Test
-	void failsWhenCannotFindClusterRecordById() {
-		final var clusterRecordId = randomUUID();
-
-		final var exception = assertThrows(CannotFindClusterRecordException.class,
-			() -> sharedIndexService.findClusteredBib(clusterRecordId).block());
-
-		assertThat(exception, hasMessage("Cannot find cluster record for: " + clusterRecordId));
-	}
-
-	@Test
 	void failsWhenCannotFindHostLmsForBib() {
 		final var clusterRecordId = randomUUID();
 		final var bibRecordId = randomUUID();

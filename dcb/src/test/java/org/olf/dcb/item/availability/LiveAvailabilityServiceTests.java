@@ -7,7 +7,9 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -158,6 +161,16 @@ class LiveAvailabilityServiceTests {
 		assertThat(report, hasNoItems());
 		assertThat(report, hasError(
 			"Failed to fetch items for bib: 839552 from host: first-local-system"));
+	}
+
+	@Test
+	void failsWhenCannotFindClusterRecordById() {
+		final var clusterRecordId = randomUUID();
+
+		final var exception = assertThrows(CannotFindClusterRecordException.class,
+			() -> liveAvailabilityService.getAvailableItems(clusterRecordId).block());
+
+		assertThat(exception, hasMessage("Cannot find cluster record for: " + clusterRecordId));
 	}
 
 	@Test
