@@ -143,10 +143,6 @@ class LiveAvailabilityServiceTests {
 			.getAvailableItems(clusterRecord.getId()).block();
 
 		// Assert
-		assertThat("Report should not be null", report, is(notNullValue()));
-		assertThat("No items should be included in report",
-			report.getItems(), is(hasSize(0)));
-
 		assertThat(report, hasNoItems());
 		assertThat(report, hasNoErrors());
 	}
@@ -169,10 +165,6 @@ class LiveAvailabilityServiceTests {
 			.getAvailableItems(clusterRecord.getId()).block();
 
 		// Assert
-		assertThat("Report should not be null", report, is(notNullValue()));
-
-		final var errors = report.getErrors();
-
 		assertThat(report, hasNoItems());
 		assertThat(report, hasError(
 			"Failed to fetch items for bib: 839552 from host: first-local-system"));
