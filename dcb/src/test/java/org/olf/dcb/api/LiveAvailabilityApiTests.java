@@ -20,10 +20,6 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
-import io.micronaut.http.uri.UriBuilder;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import services.k_int.interaction.sierra.SierraTestUtils;
@@ -36,9 +32,7 @@ class LiveAvailabilityApiTests {
 
 	@Inject
 	private ResourceLoader loader;
-	@Inject
-	@Client("/")
-	private HttpClient client;
+
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
 	@Inject
@@ -49,6 +43,9 @@ class LiveAvailabilityApiTests {
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
+
+	@Inject
+	private LiveAvailabilityApiClient liveAvailabilityApiClient;
 
 	@BeforeAll
 	@SneakyThrows
@@ -99,21 +96,16 @@ class LiveAvailabilityApiTests {
 				.build());
 
 		// Act
-		final var uri = UriBuilder.of("/items/availability")
-			.queryParam("clusteredBibId", clusterRecordId)
-			.build();
-
-		final var availabilityResponse = client.toBlocking()
-			.retrieve(HttpRequest.GET(uri), AvailabilityResponse.class);
+		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
 
 		// Assert
-		assertThat(availabilityResponse, is(notNullValue()));
+		assertThat(report, is(notNullValue()));
 
-		final var items = availabilityResponse.getItemList();
+		final var items = report.getItemList();
 
 		assertThat(items, is(notNullValue()));
 		assertThat(items.size(), is(2));
-		assertThat(availabilityResponse.getClusteredBibId(), is(clusterRecordId));
+		assertThat(report.getClusteredBibId(), is(clusterRecordId));
 
 		final var firstItem = items.get(0);
 
@@ -174,19 +166,14 @@ class LiveAvailabilityApiTests {
 		clusterRecordFixture.createClusterRecord(clusterRecordId);
 
 		// Act
-		final var uri = UriBuilder.of("/items/availability")
-			.queryParam("clusteredBibId", clusterRecordId)
-			.build();
-
-		final var availabilityResponse = client.toBlocking()
-			.retrieve(HttpRequest.GET(uri), AvailabilityResponse.class);
+		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
 
 		// Assert
-		assertThat("Report is not null", availabilityResponse, is(notNullValue()));
+		assertThat("Report is not null", report, is(notNullValue()));
 		assertThat("Should have cluster record ID",
-			availabilityResponse.getClusteredBibId(), is(clusterRecordId));
+			report.getClusteredBibId(), is(clusterRecordId));
 
-		assertThat("Should contain no items", availabilityResponse.getItemList(),  is(nullValue()));
-		assertThat("Should contain no errors", availabilityResponse.getErrors(),  is(nullValue()));
+		assertThat("Should contain no items", report.getItemList(),  is(nullValue()));
+		assertThat("Should contain no errors", report.getErrors(),  is(nullValue()));
 	}
 }
