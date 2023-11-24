@@ -6,6 +6,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,7 +17,6 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.request.resolution.SharedIndexService;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -28,10 +28,11 @@ import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 class LiveAvailabilityServiceTests {
 	@Inject
 	private ResourceLoader loader;
+
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
 	@Inject
@@ -39,8 +40,6 @@ class LiveAvailabilityServiceTests {
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 
-	@Inject
-	private SharedIndexService sharedIndexService;
 	@Inject
 	private LiveAvailabilityService liveAvailabilityService;
 
@@ -100,11 +99,8 @@ class LiveAvailabilityServiceTests {
 		sierraItemsAPIFixture.threeItemsResponseForBibId("767648");
 
 		// Act
-		final var clusteredBib = sharedIndexService
-			.findClusteredBib(clusterRecord.getId()).block();
-
 		final var report = liveAvailabilityService
-			.getAvailableItems(clusteredBib).block();
+			.getAvailableItems(clusterRecord.getId()).block();
 
 		// Assert
 		assertThat("Report should not be null", report, is(notNullValue()));
@@ -139,11 +135,8 @@ class LiveAvailabilityServiceTests {
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("762354");
 
 		// Act
-		final var clusteredBib = sharedIndexService
-			.findClusteredBib(clusterRecord.getId()).block();
-
 		final var report = liveAvailabilityService
-			.getAvailableItems(clusteredBib).block();
+			.getAvailableItems(clusterRecord.getId()).block();
 
 		// Assert
 		assertThat("Report should not be null", report, is(notNullValue()));
@@ -165,11 +158,8 @@ class LiveAvailabilityServiceTests {
 		sierraItemsAPIFixture.errorResponseForBibId("839552");
 
 		// Act
-		final var clusteredBib = sharedIndexService
-			.findClusteredBib(clusterRecord.getId()).block();
-
 		final var report = liveAvailabilityService
-			.getAvailableItems(clusteredBib).block();
+			.getAvailableItems(clusterRecord.getId()).block();
 
 		// Assert
 		assertThat("Report should not be null", report, is(notNullValue()));
@@ -189,11 +179,8 @@ class LiveAvailabilityServiceTests {
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
 
 		// Act
-		final var clusteredBib = sharedIndexService
-			.findClusteredBib(clusterRecord.getId()).block();
-
 		final var report = liveAvailabilityService
-			.getAvailableItems(clusteredBib).block();
+			.getAvailableItems(clusterRecord.getId()).block();
 
 		// Assert
 		assertThat("Report should not be null", report, is(notNullValue()));
