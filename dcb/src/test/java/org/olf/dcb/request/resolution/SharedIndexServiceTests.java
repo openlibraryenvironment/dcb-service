@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.test.matchers.BibMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.BibMatchers.hasSourceRecordId;
 import static org.olf.dcb.test.matchers.ModelMatchers.hasId;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -113,9 +114,7 @@ class SharedIndexServiceTests {
 		final var exception = assertThrows(CannotFindClusterRecordException.class,
 			() -> sharedIndexService.findClusteredBib(clusterRecordId).block());
 
-		assertThat(exception, is(notNullValue()));
-		assertThat(exception.getMessage(), is(
-			"Cannot find cluster record for: " + clusterRecordId));
+		assertThat(exception, hasMessage("Cannot find cluster record for: " + clusterRecordId));
 	}
 
 	@Test
@@ -132,8 +131,6 @@ class SharedIndexServiceTests {
 		final var exception = assertThrows(UnknownHostLmsException.class,
 			() -> sharedIndexService.findClusteredBib(clusterRecordId).block());
 
-		assertThat(exception, is(notNullValue()));
-		assertThat(exception.getMessage(), is(
-			"No Host LMS found for ID: " + unknownHostId));
+		assertThat(exception, hasMessage("No Host LMS found for ID: " + unknownHostId));
 	}
 }
