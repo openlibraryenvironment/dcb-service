@@ -8,6 +8,7 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
@@ -38,13 +39,15 @@ public class TrackingService implements Runnable {
         private final HostLmsService hostLmsService;
 	private HostLmsReactions hostLmsReactions;
 	private PatronRequestWorkflowService patronRequestWorkflowService;
+	private PatronRequestAuditService patronRequestAuditService;
 
 	TrackingService( PatronRequestRepository patronRequestRepository,
 			 SupplierRequestRepository supplierRequestRepository,
                          SupplyingAgencyService supplyingAgencyService,
                          HostLmsService hostLmsService,
                          HostLmsReactions hostLmsReactions,
-                         PatronRequestWorkflowService patronRequestWorkflowService
+                         PatronRequestWorkflowService patronRequestWorkflowService,
+                         PatronRequestAuditService patronRequestAuditService
                         ) {
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
@@ -52,6 +55,7 @@ public class TrackingService implements Runnable {
 		this.hostLmsService = hostLmsService;
 		this.hostLmsReactions = hostLmsReactions;
 		this.patronRequestWorkflowService = patronRequestWorkflowService;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	@jakarta.annotation.PostConstruct
