@@ -1,6 +1,5 @@
 package org.olf.dcb.indexing;
 
-import java.time.Duration;
 import java.time.Instant;
 
 import org.olf.dcb.core.model.clustering.ClusterRecord;
@@ -21,6 +20,7 @@ import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoSink;
 
 @Requires(bean = SharedIndexService.class)
 @ExecuteOn(TaskExecutors.BLOCKING)
@@ -60,42 +60,51 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 		// To make this more passive, we should try/catch. 
 		Mono.from(sharedIndexService.initialize()).block();
 	}
-	
-	@Transactional(readOnly = true)
-	public Mono<Void> reindexAllClusters() {
-		// Grab the current timestamp to filter out resources that have been updated since we started.
+
+	@ExecuteOn(TaskExecutors.BLOCKING)
+	protected void doAndReportReindex( MonoSink<Void> startedSignal ) {
+	// Grab the current timestamp to filter out resources that have been updated since we started.
 		
 		final Instant start = Instant.now();
 		
-		final var throttledQueue = clusters.findNext1000UpdatedBefore(start, Pageable.from(0, 1000))
+		clusters.findNext1000UpdatedBefore(start, Pageable.from(0, 1000))
+			.doOnSuccess(_v -> startedSignal.success())
 			.expand(p -> {
 				Pageable nextPage = p.nextPageable();
-				return clusters.findNext1000UpdatedBefore(start, nextPage);
+				return Mono.defer( () -> {
+					log.trace("Fetch next page of 1000");
+					return clusters.findNext1000UpdatedBefore(start, nextPage);
+				});
 			})
-			.delayElements(Duration.ofSeconds(2));
-			
-			// This publisher will emit when the process starts.
-			// And propagate immediate errors for us.
-			final Mono<Void> begun = throttledQueue
-				.next()
-				.then();
-		
-		throttledQueue
-			.doOnNext( nextP ->  log.debug("Fetching page {}", nextP.getPageNumber() + 1) )
+			.limitRate(1, 0)
+//			.delayElements(Duration.ofSeconds(1))
+			.doOnNext( nextP -> {
+				final var currentPage = nextP.getPageNumber();
+				
+				if (currentPage > 0 && currentPage % 10 == 0) {
+					log.atInfo().log("Processed {} items", currentPage * 1000);
+				}
+				
+				log.debug("Processing page {}", nextP.getPageNumber() + 1);
+				
+			})
 			.takeUntil( p -> {
 				if (p.isEmpty()) {
-					log.info("Finished reindex job");
+					log.info("No more results");
 					return true;
 				}
 				
 				return false;
 			})
-			.flatMap(Flux::fromIterable)
+			.concatMap(Flux::fromIterable)
 			.subscribe(sharedIndexService::add, err -> {
 				log.error("Error reindexing clusters.");
 			});
-		
-		return begun;
+	}
+
+	@Transactional(readOnly = true)
+	public Mono<Void> reindexAllClusters() {		
+		return Mono.create(this::doAndReportReindex);
 	}
 	
 }

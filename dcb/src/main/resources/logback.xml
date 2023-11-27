@@ -34,7 +34,7 @@
 	
 	<logger name="org.olf.dcb.core.error" level="INFO"/>
 	
-	<logger name="org.olf.dcb.indexing" level="WARN"/>
+	<logger name="org.olf.dcb.indexing" level="INFO"/>
 	<logger name="services.k_int" level="DEBUG"/>
 	<logger name="org.olf.dcb.ingest.marc.MarcIngestSource" level="WARN"/>
 	<logger name="io.micronaut.security.authentication" level="WARN" />

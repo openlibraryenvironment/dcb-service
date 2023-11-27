@@ -61,7 +61,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	protected void overflow( UUID id ) {
 		
 		log.debug("Backpressure overflow handler");
-		saveSingleEntry(id, Optional.empty());
+		saveSingleEntry(id, Optional.empty()).block();
 	}
 	
 	protected void initializeQueue() {

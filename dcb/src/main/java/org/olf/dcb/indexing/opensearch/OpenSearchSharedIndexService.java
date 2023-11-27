@@ -292,7 +292,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 			)
 			.doOnNext( resp -> {
 				if (log.isDebugEnabled()) {
-					log.debug("Indexed {} documents in {}", resp.items().size(), resp.took());
+					log.debug("Sent {} documents to be indexed in {} seconds", resp.items().size(),  (resp.took() / 1000.00D));
 					if (resp.errors()) {
 						long errCount = resp.items().stream()
 							.map(BulkResponseItem::error)
