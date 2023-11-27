@@ -1,6 +1,5 @@
 package org.olf.dcb.request.resolution;
 
-import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
 
 import java.util.List;
@@ -25,21 +24,18 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 public class PatronRequestResolutionService {
-	private final SharedIndexService sharedIndexService;
 	private final LiveAvailabilityService liveAvailabilityService;
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 	private final AgencyRepository agencyRepository;
 	private final List<ResolutionStrategy> allResolutionStrategies;
 	private final String itemResolver;
 
-	public PatronRequestResolutionService(SharedIndexService sharedIndexService,
+	public PatronRequestResolutionService(
 		ReferenceValueMappingRepository referenceValueMappingRepository,
-		AgencyRepository agencyRepository,
-		LiveAvailabilityService liveAvailabilityService,
+		AgencyRepository agencyRepository, LiveAvailabilityService liveAvailabilityService,
 		@Value("${dcb.itemresolver.code}") String itemResolver,
 		List<ResolutionStrategy> allResolutionStrategies) {
 
-		this.sharedIndexService = sharedIndexService;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.agencyRepository = agencyRepository;
 		this.liveAvailabilityService = liveAvailabilityService;
@@ -64,27 +60,15 @@ public class PatronRequestResolutionService {
 			.findFirst()
 			.orElseThrow(() -> new RuntimeException("No resolver with code " + this.itemResolver));
 
-		return findClusterRecord(clusterRecordId)
-			.flatMap(this::getItems)
+		return liveAvailabilityService.getAvailableItems(clusterRecordId)
 			.onErrorMap(NoBibsForClusterRecordException.class, error -> new UnableToResolvePatronRequest(error.getMessage()))
+			.map(AvailabilityReport::getItems)
 			.flatMap(items -> resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest))
 			.doOnNext(item -> log.debug("Selected item {}",item))
 			.flatMap(item -> createSupplierRequest(item, patronRequest))
 			.map(PatronRequestResolutionService::mapToResolution)
 			.onErrorReturn(NoItemsRequestableAtAnyAgency.class, resolveToNoItemsAvailable(patronRequest))
 			.switchIfEmpty(Mono.just(resolveToNoItemsAvailable(patronRequest)));
-	}
-
-	private Mono<ClusteredBib> findClusterRecord(UUID clusterRecordId) {
-		return sharedIndexService.findClusteredBib(clusterRecordId);
-	}
-
-	private Mono<List<Item>> getItems(ClusteredBib clusteredBib) {
-		log.debug("getAvailableItems({})", clusteredBib);
-
-		return liveAvailabilityService.getAvailableItems(clusteredBib)
-			.switchIfEmpty(Mono.just(emptyReport()))
-			.map(AvailabilityReport::getItems);
 	}
 
 	private Mono<SupplierRequest> createSupplierRequest(Item item, PatronRequest patronRequest) {
