@@ -1,10 +1,13 @@
 package org.olf.dcb.api;
 
+import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +23,7 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import services.k_int.interaction.sierra.SierraTestUtils;
@@ -156,6 +160,22 @@ class LiveAvailabilityApiTests {
 		assertThat(secondItemLocation, is(notNullValue()));
 		assertThat(secondItemLocation.getCode(), is("ab6"));
 		assertThat(secondItemLocation.getName(), is("King 6th Floor"));
+	}
+
+	@Test
+	void shouldFailWhenClusterRecordCannotBeFound() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+
+		// Act
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId));
+
+		// Assert
+		final var response = exception.getResponse();
+		assertThat("Should return a bad request status", response.getStatus(), is(INTERNAL_SERVER_ERROR));
+
+		assertThat(exception, hasMessage("Internal Server Error"));
 	}
 
 	@Test
