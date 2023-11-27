@@ -60,19 +60,12 @@ public class LiveAvailabilityService {
 	private Mono<AvailabilityReport> getItems(Bib bib) {
 		log.debug("getItems({})", bib);
 
-		if (bib.getHostLms() == null) {
-			log.error("hostLMS cannot be null when asking for available items");
-
-			return Mono.error(new IllegalArgumentException("hostLMS cannot be null"));
-
-		} else {
-			return hostLmsService.getClientFor(bib.getHostLms())
-				.flatMap(hostLmsClient -> hostLmsClient
-					.getItems(bib.getSourceRecordId()))
-				.doOnError(error -> log.error("Error occurred fetching items: ", error))
-				.map(AvailabilityReport::ofItems)
-				.onErrorReturn(AvailabilityReport.ofErrors(mapToError(bib)));
-		}
+		return hostLmsService.getClientFor(bib.getHostLms())
+			.flatMap(hostLmsClient -> hostLmsClient
+				.getItems(bib.getSourceRecordId()))
+			.doOnError(error -> log.error("Error occurred fetching items: ", error))
+			.map(AvailabilityReport::ofItems)
+			.onErrorReturn(AvailabilityReport.ofErrors(mapToError(bib)));
 	}
 
 	private AvailabilityReport determineRequestability(AvailabilityReport report) {
