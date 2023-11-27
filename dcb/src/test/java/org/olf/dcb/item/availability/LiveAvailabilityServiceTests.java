@@ -18,6 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
@@ -189,6 +190,23 @@ class LiveAvailabilityServiceTests {
 		// Assert
 		assertThat(exception, hasMessage(
 			"Cluster record: \"" + clusterRecord.getId() + "\" has no bibs"));
+	}
+
+	@Test
+	void shouldFailWhenHostLmsCannotBeFoundForBib() {
+		final var clusterRecordId = randomUUID();
+		final var bibRecordId = randomUUID();
+		final var unknownHostId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+
+		bibRecordFixture.createBibRecord(bibRecordId, unknownHostId,
+			"7657673", clusterRecord);
+
+		final var exception = assertThrows(HostLmsService.UnknownHostLmsException.class,
+			() -> liveAvailabilityService.getAvailableItems(clusterRecordId).block());
+
+		assertThat(exception, hasMessage("No Host LMS found for ID: " + unknownHostId));
 	}
 
 	private static Matcher<AvailabilityReport> hasNoItems() {

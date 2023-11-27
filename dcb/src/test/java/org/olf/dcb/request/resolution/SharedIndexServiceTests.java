@@ -6,15 +6,12 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.test.matchers.BibMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.BibMatchers.hasSourceRecordId;
 import static org.olf.dcb.test.matchers.ModelMatchers.hasId;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.olf.dcb.core.HostLmsService.UnknownHostLmsException;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.DcbTest;
@@ -29,10 +26,8 @@ class SharedIndexServiceTests {
 
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
-
 	@Inject
 	private BibRecordFixture bibRecordFixture;
-
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 
@@ -82,22 +77,5 @@ class SharedIndexServiceTests {
 					hasHostLmsCode("FIRST-HOST-LMS")
 				)
 			));
-	}
-	
-	@Test
-	void failsWhenCannotFindHostLmsForBib() {
-		final var clusterRecordId = randomUUID();
-		final var bibRecordId = randomUUID();
-		final var unknownHostId = randomUUID();
-
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
-
-		bibRecordFixture.createBibRecord(bibRecordId, unknownHostId,
-			"7657673", clusterRecord);
-
-		final var exception = assertThrows(UnknownHostLmsException.class,
-			() -> sharedIndexService.findClusteredBib(clusterRecordId).block());
-
-		assertThat(exception, hasMessage("No Host LMS found for ID: " + unknownHostId));
 	}
 }
