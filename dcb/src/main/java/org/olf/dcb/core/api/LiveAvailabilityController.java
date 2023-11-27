@@ -1,5 +1,6 @@
 package org.olf.dcb.core.api;
 
+import static io.micronaut.http.HttpResponse.badRequest;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.security.rules.SecurityRule.IS_ANONYMOUS;
 
@@ -7,9 +8,12 @@ import java.util.UUID;
 
 import org.olf.dcb.item.availability.AvailabilityResponseView;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
+import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Error;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.security.annotation.Secured;
@@ -45,5 +49,10 @@ public class LiveAvailabilityController {
 
 		return liveAvailabilityService.getAvailableItems(clusteredBibId)
 			.map(report -> AvailabilityResponseView.from(report, clusteredBibId));
+	}
+
+	@Error
+	public HttpResponse<String> onCheckFailure(CannotFindClusterRecordException exception) {
+		return badRequest(exception.getMessage());
 	}
 }

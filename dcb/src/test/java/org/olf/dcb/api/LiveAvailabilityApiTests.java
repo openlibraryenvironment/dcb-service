@@ -1,13 +1,12 @@
 package org.olf.dcb.api;
 
-import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -173,9 +172,14 @@ class LiveAvailabilityApiTests {
 
 		// Assert
 		final var response = exception.getResponse();
-		assertThat("Should return a bad request status", response.getStatus(), is(INTERNAL_SERVER_ERROR));
 
-		assertThat(exception, hasMessage("Internal Server Error"));
+		assertThat("Should return a bad request status", response.getStatus(), is(BAD_REQUEST));
+
+		final var optionalBody = response.getBody(String.class);
+
+		assertThat("Response should have body", optionalBody.isPresent(), is(true));
+		assertThat("Body should contain error", optionalBody.get(),
+			is("Cannot find cluster record for: " + clusterRecordId));
 	}
 
 	@Test
