@@ -31,20 +31,16 @@ public class LiveAvailabilityService {
 		this.sharedIndexService = sharedIndexService;
 	}
 
-	public Mono<AvailabilityReport> getAvailableItems(ClusteredBib clusteredBib) {
-		log.debug("getAvailableItems({})", clusteredBib);
+	public Mono<AvailabilityReport> getAvailableItems(UUID clusteredBibId) {
+		log.debug("getAvailableItems({})", clusteredBibId);
 
-		return getBibs(clusteredBib)
+		return sharedIndexService.findClusteredBib(clusteredBibId)
+			.flatMap(clusteredBib -> getBibs(clusteredBib)
 			.flatMap(this::getItems)
 			.map(this::determineRequestability)
 			.reduce(emptyReport(), AvailabilityReport::combineReports)
 			.map(AvailabilityReport::sortItems)
-			.switchIfEmpty(Mono.error(new RuntimeException("Failed to resolve items for cluster record "+clusteredBib)));
-	}
-
-	public Mono<AvailabilityReport> getAvailableItems(UUID clusteredBibId) {
-		return sharedIndexService.findClusteredBib(clusteredBibId)
-			.flatMap(this::getAvailableItems);
+			.switchIfEmpty(Mono.error(new RuntimeException("Failed to resolve items for cluster record " + clusteredBib))));
 	}
 
 	private Flux<Bib> getBibs(ClusteredBib clusteredBib) {
@@ -85,11 +81,12 @@ public class LiveAvailabilityService {
 	}
 
 	private static AvailabilityReport.Error mapToError(Bib bib) {
+		log.error("Failed to fetch items for bib: {} from host: {}",
+			bib.getSourceRecordId(), bib.getHostLms().getCode());
 
-		log.error("Failed to fetch items for bib: {} from host: {}", bib.getSourceRecordId(), bib.getHostLms().getCode());
-
-		return AvailabilityReport.Error.builder().message(String.format(
-			"Failed to fetch items for bib: %s from host: %s",
-			bib.getSourceRecordId(), bib.getHostLms().getCode())).build();
+		return AvailabilityReport.Error.builder()
+			.message(String.format("Failed to fetch items for bib: %s from host: %s",
+				bib.getSourceRecordId(), bib.getHostLms().getCode()))
+			.build();
 	}
 }
