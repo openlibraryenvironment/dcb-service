@@ -21,6 +21,7 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
+import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -164,28 +165,30 @@ class LiveAvailabilityServiceTests {
 	}
 
 	@Test
-	void failsWhenCannotFindClusterRecordById() {
+	void shouldFailWhenCannotFindClusterRecordById() {
+		// Arrange
 		final var clusterRecordId = randomUUID();
 
+		// Act
 		final var exception = assertThrows(CannotFindClusterRecordException.class,
 			() -> liveAvailabilityService.getAvailableItems(clusterRecordId).block());
 
+		// Assert
 		assertThat(exception, hasMessage("Cannot find cluster record for: " + clusterRecordId));
 	}
 
 	@Test
-	@DisplayName("Should find no items when no bibs in cluster record")
-	void shouldFindNoItemsWhenNoBibsInClusterRecord() {
+	void shouldFailWhenClusterRecordHasNoContributingBibs() {
 		// Arrange
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
 
 		// Act
-		final var report = liveAvailabilityService
-			.getAvailableItems(clusterRecord.getId()).block();
+		final var exception = assertThrows(NoBibsForClusterRecordException.class,
+			() -> liveAvailabilityService.getAvailableItems(clusterRecord.getId()).block());
 
 		// Assert
-		assertThat(report, hasNoItems());
-		assertThat(report, hasNoErrors());
+		assertThat(exception, hasMessage(
+			"Cluster record: \"" + clusterRecord.getId() + "\" has no bibs"));
 	}
 
 	private static Matcher<AvailabilityReport> hasNoItems() {

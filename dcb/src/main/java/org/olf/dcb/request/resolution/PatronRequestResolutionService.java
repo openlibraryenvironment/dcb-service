@@ -1,6 +1,5 @@
 package org.olf.dcb.request.resolution;
 
-import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
 
@@ -66,8 +65,8 @@ public class PatronRequestResolutionService {
 			.orElseThrow(() -> new RuntimeException("No resolver with code " + this.itemResolver));
 
 		return findClusterRecord(clusterRecordId)
-			.map(this::validateClusteredBib)
 			.flatMap(this::getItems)
+			.onErrorMap(NoBibsForClusterRecordException.class, error -> new UnableToResolvePatronRequest(error.getMessage()))
 			.flatMap(items -> resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest))
 			.doOnNext(item -> log.debug("Selected item {}",item))
 			.flatMap(item -> createSupplierRequest(item, patronRequest))
@@ -78,18 +77,6 @@ public class PatronRequestResolutionService {
 
 	private Mono<ClusteredBib> findClusterRecord(UUID clusterRecordId) {
 		return sharedIndexService.findClusteredBib(clusterRecordId);
-	}
-
-	private ClusteredBib validateClusteredBib(ClusteredBib clusteredBib) {
-		log.debug("validateClusteredBib({})", clusteredBib);
-
-		final var bibs = clusteredBib.getBibs();
-
-		if (isEmpty(bibs)) {
-			throw new UnableToResolvePatronRequest("No bibs in clustered bib");
-		}
-
-		return clusteredBib;
 	}
 
 	private Mono<List<Item>> getItems(ClusteredBib clusteredBib) {

@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.request.resolution.Bib;
 import org.olf.dcb.request.resolution.ClusteredBib;
+import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.request.resolution.SharedIndexService;
 
 import io.micronaut.context.annotation.Prototype;
@@ -43,15 +44,7 @@ public class LiveAvailabilityService {
 
 	public Mono<AvailabilityReport> getAvailableItems(UUID clusteredBibId) {
 		return sharedIndexService.findClusteredBib(clusteredBibId)
-			.flatMap(this::getAvailabilityReport);
-	}
-
-	private Mono<AvailabilityReport> getAvailabilityReport(ClusteredBib clusteredBib) {
-		return Mono.just(clusteredBib)
-			// don't call service if bibs empty
-			.flatMap(clusteredRecord -> isEmpty(clusteredRecord.getBibs())
-				? Mono.just(emptyReport())
-				: getAvailableItems(clusteredRecord));
+			.flatMap(this::getAvailableItems);
 	}
 
 	private Flux<Bib> getBibs(ClusteredBib clusteredBib) {
@@ -59,10 +52,10 @@ public class LiveAvailabilityService {
 
 		final var bibs = clusteredBib.getBibs();
 
-		if (bibs== null) {
-			log.error("Bibs cannot be null when asking for available items");
+		if (isEmpty(bibs)) {
+			log.error("Clustered bib record: \"" + clusteredBib.getId() + "\" has no bibs");
 
-			return Flux.error(new IllegalArgumentException("Bibs cannot be null"));
+			return Flux.error(new NoBibsForClusterRecordException(clusteredBib.getId()));
 		}
 
 		return Flux.fromIterable(bibs);

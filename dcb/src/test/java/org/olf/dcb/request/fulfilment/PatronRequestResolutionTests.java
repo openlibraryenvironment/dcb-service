@@ -257,7 +257,7 @@ class PatronRequestResolutionTests {
 		// Assert
 		assertThat("Exception should not be null", exception, is(notNullValue()));
 		assertThat("Exception should have a message",
-			exception.getMessage(), is("No bibs in clustered bib"));
+			exception.getMessage(), is("Cluster record: \"" + clusterRecord.getId() + "\" has no bibs"));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
