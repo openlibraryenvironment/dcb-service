@@ -31,7 +31,7 @@ public class PatronRequestResolutionService {
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 	private final AgencyRepository agencyRepository;
 	private final List<ResolutionStrategy> allResolutionStrategies;
-	private String itemResolver;
+	private final String itemResolver;
 
 	public PatronRequestResolutionService(SharedIndexService sharedIndexService,
 		ReferenceValueMappingRepository referenceValueMappingRepository,
