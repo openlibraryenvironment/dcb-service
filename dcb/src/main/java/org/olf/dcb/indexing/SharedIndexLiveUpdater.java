@@ -78,7 +78,7 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 				});
 			})
 			.limitRate(1, 0)
-			.delayElements(Duration.ofSeconds(1))
+			.delayElements(Duration.ofSeconds(3))
 			.doOnNext( nextP -> {
 				final var currentPage = nextP.getPageNumber();
 				
