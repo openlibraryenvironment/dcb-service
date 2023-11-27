@@ -63,10 +63,7 @@ public class PatronRequestResolutionService {
 		final var resolutionStrategy = allResolutionStrategies.stream()
 			.filter(strategy -> strategy.getCode().equals(this.itemResolver))
 			.findFirst()
-			.get();
-
-		if (resolutionStrategy == null)
-			throw new RuntimeException("No resolver with code " + this.itemResolver);
+			.orElseThrow(() -> new RuntimeException("No resolver with code " + this.itemResolver));
 
 		return findClusterRecord(clusterRecordId)
 			.map(this::validateClusteredBib)
