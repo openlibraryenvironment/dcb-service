@@ -1,9 +1,81 @@
 # Changelog
 
+## Version 2.6.0
+
+### Additions
+* [General]
+	* checkOutItemToPatron [DCB-743]
+
+### Changes
+* [Chore]
+	* Report server error when host LMS cannot be found for bib during live availability
+	* Remove redundant check for host LMS not found during live availability
+	* Throw exception inline when finding resolution stragegy
+	* Make item resolver finl in resolution service
+	* Return bad request response when no cluster record found for live availability
+	* Use switch when empty to report error when cluster record cannot be found
+	* Replace spaces with tabs in resolution service
+	* Remove explicit http status code from live availability controller
+	* Remove unecessary use of tuple in dummy host LMS client
+	* Remove use of tuple within supplying agency service
+	* Replace spaces with tabs in supplier request
+	* no security needed on list location
+* [Refactor]
+	* Remove cluster record overload in live availability service
+	* Get item availability for cluster record ID during resolution
+	* Throw explicit exception when no bibs found for cluster record during live availability
+	* Move method for getting available items by ID to service
+	* Move method for getting availability report to service
+	* Extract method in controller for getting item availability by clustered bib ID
+	* Add shared index service dependency to live availability service
+	* Remove use of tuple when placing hold request in Sierra
+	* Remove use of tuple when placing hold request in Polaris
+	* Remove use of tuple when getting hold request from Polaris
+	* Rename non-tuple based place hold request method
+	* Remove tuple based place hold request method
+	* Inline any use of the tuple method
+	* Use non-tuple method in supplying agency service
+	* Use non-tuple method in borrowing agency service
+	* Introduce place hold request method that returns object instead of tuple
+* [Test]
+	* Move live availability fails when host LMS cannot be found test
+	* Demonstrate live availability API fails when cluster record not found
+	* Remove redundant test for cluster record with no bibs
+	* Move test for no cluster record can be found to live availability service tests
+	* Use property matchers for checking order of items in live availability report
+	* Remove unecessary assertions in live availability tests
+	* Stop deleting host LMS before each live availability test
+	* Remove after each from shared index service tests
+	* Delete all host LMS before live availability service tests
+	* Use property matchers when checking availability report
+	* Extract client from live availability API tests
+	* Demonstrate live availability API when cluster record has no bibs
+	* Use cluster record ID overload in service tests
+	* Use throwable matchers in shared index service tests
+	* Move bib matchers to separate class
+	* Move has ID matcher to separate class
+	* Use matcher for clustered bib ID
+	* Inline constant resources path in Polaris host LMS client tests
+	* Stop reloading context for Polaris host LMS client tests
+	* Remove unused dependencies from Polaris host LMS client tests
+	* Use sneaky throws when getting resources in Polaris host LMS client tests
+	* Move local request matchers to separate class
+
+### Fixes
+* [Graphql]
+	* correct PatronRequest type mappings in graphql
+* [General]
+	* Try with a 3second delay
+	* Reinstate the delay
+	* Ensure endpoint is protected
+	* Do not overwhelm the indexer with 2 subs
+	* Null handling.
+
 ## Version 2.5.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* working on item patch
 	* try adding an empty string to messages when updating item status
 * [Feature]
