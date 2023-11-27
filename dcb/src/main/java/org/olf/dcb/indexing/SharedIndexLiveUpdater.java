@@ -1,5 +1,6 @@
 package org.olf.dcb.indexing;
 
+import java.time.Duration;
 import java.time.Instant;
 
 import org.olf.dcb.core.model.clustering.ClusterRecord;
@@ -77,7 +78,7 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 				});
 			})
 			.limitRate(1, 0)
-//			.delayElements(Duration.ofSeconds(1))
+			.delayElements(Duration.ofSeconds(1))
 			.doOnNext( nextP -> {
 				final var currentPage = nextP.getPageNumber();
 				
@@ -96,7 +97,7 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 				
 				return false;
 			})
-			.concatMap(Flux::fromIterable)
+			.concatMap(Flux::fromIterable, 0)
 			.subscribe(sharedIndexService::add, err -> {
 				log.error("Error reindexing clusters.");
 			});

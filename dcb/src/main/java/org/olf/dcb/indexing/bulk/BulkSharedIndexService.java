@@ -68,7 +68,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 		Flux.create(this::setSink)
 			.onBackpressureBuffer( maxSize * 2, this::overflow, BufferOverflowStrategy.DROP_LATEST)
 			.windowTimeout(maxSize, throttleTimeout)
-			.concatMap( source -> source.buffer() )
+			.concatMap( source -> source.buffer(), 0)
 			
 			.doOnNext( bulk -> {
 				if (log.isDebugEnabled()) log.debug("Got list of {} index items", bulk.size());
