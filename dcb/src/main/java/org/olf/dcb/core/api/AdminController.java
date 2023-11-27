@@ -123,7 +123,7 @@ public class AdminController {
 		return configurationService.importConfiguration(ic.getProfile(), ic.getUrl());
 	}
 
-//	@Secured({ "ADMIN" })
+	@Secured({ "ADMIN" })
 	@Post(uri = "/reindex", produces = APPLICATION_JSON)
 	public Mono<MutableHttpResponse<Object>> reindex() {
 		log.debug("Begin re-index");
