@@ -1,6 +1,7 @@
 package org.olf.dcb.api;
 
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
+import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -180,6 +181,34 @@ class LiveAvailabilityApiTests {
 		assertThat("Response should have body", optionalBody.isPresent(), is(true));
 		assertThat("Body should contain error", optionalBody.get(),
 			is("Cannot find cluster record for: " + clusterRecordId));
+	}
+
+	@Test
+	void shouldFailWhenHostLmsCannotBeFoundForBib() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+		final var bibRecordId = randomUUID();
+		final var unknownHostId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+
+		bibRecordFixture.createBibRecord(bibRecordId, unknownHostId,
+			"7657673", clusterRecord);
+
+		// Act
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId));
+
+		// Assert
+		final var response = exception.getResponse();
+
+		assertThat("Should return a server error status", response.getStatus(), is(INTERNAL_SERVER_ERROR));
+
+		final var optionalBody = response.getBody(String.class);
+
+		assertThat("Response should have body", optionalBody.isPresent(), is(true));
+		assertThat("Body should contain error", optionalBody.get(),
+			is("No Host LMS found for ID: " + unknownHostId));
 	}
 
 	@Test

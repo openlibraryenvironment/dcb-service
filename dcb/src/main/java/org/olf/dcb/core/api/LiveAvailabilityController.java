@@ -1,12 +1,14 @@
 package org.olf.dcb.core.api;
 
 import static io.micronaut.http.HttpResponse.badRequest;
+import static io.micronaut.http.HttpResponse.serverError;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.security.rules.SecurityRule.IS_ANONYMOUS;
 import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 
 import java.util.UUID;
 
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.item.availability.AvailabilityResponseView;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
@@ -58,4 +60,10 @@ public class LiveAvailabilityController {
 	public HttpResponse<String> onCheckFailure(CannotFindClusterRecordException exception) {
 		return badRequest(exception.getMessage());
 	}
+
+	@Error
+	public HttpResponse<String> onUnknownHostLms(HostLmsService.UnknownHostLmsException exception) {
+		return serverError(exception.getMessage());
+	}
+
 }
