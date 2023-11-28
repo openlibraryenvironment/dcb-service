@@ -69,10 +69,21 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 			.onBackpressureBuffer( maxSize * 2, this::overflow, BufferOverflowStrategy.DROP_LATEST)
 			.windowTimeout(maxSize, throttleTimeout)
 			.concatMap( source -> source.buffer(), 0)
-			
 			.doOnNext( bulk -> {
 				if (log.isDebugEnabled()) log.debug("Got list of {} index items", bulk.size());
 			})
+			
+			.transform(this::expandAndProcess)
+			.doOnComplete(() -> log.info("Subscription finalised"))
+			.retry(10)
+			.subscribe( null, t -> {
+				log.atError().log("Index service cannot be initialized", t);
+			});
+	}
+	
+	@Override
+	public Publisher<List<IndexOperation<UUID, ClusterRecord>>> expandAndProcess( Flux<List<UUID>> idFlux ) {
+		return idFlux
 			.concatMap( this::manifestCluster )
 			.concatMap(ops -> this.offloadToImplementation(ops)
 				.onErrorResume(e -> {
@@ -86,15 +97,9 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 						log.atTrace().log("Circuit open cause: ", e.getCause() );
 					}
 					
-//					return Mono.empty();
+	//				return Mono.empty();
 					return queueInBackupJob( ops );
-				}))
-
-			.doOnComplete(() -> log.info("Subscription finalised"))
-			.repeat()
-			.subscribe( null, t -> {
-				log.atError().log("Index service unavailable", t);
-			});
+				}));
 	}
 
 	@NonNull

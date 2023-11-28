@@ -1,10 +1,14 @@
 package org.olf.dcb.indexing;
 
-import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.svc.RecordClusteringService;
+import org.olf.dcb.indexing.bulk.IndexOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,12 +18,13 @@ import io.micronaut.context.event.StartupEvent;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.event.EntityEventContext;
 import io.micronaut.data.event.EntityEventListener;
+import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
+import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 
@@ -63,49 +68,80 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 	}
 
 	@ExecuteOn(TaskExecutors.BLOCKING)
-	protected void doAndReportReindex( MonoSink<Void> startedSignal ) {
-	// Grab the current timestamp to filter out resources that have been updated since we started.
+	protected void doAndReportReindex( @NonNull MonoSink<Void> startedSignal ) {
+		// Grab the current timestamp to filter out resources that have been updated since we started.
 		
 		final Instant start = Instant.now();
 		
 		clusters.findNext1000UpdatedBefore(start, Pageable.from(0, 1000))
-			.doOnSuccess(_v -> startedSignal.success())
+			.doOnSuccess(_v -> startedSignal.success() )
+			.doOnError( startedSignal::error )
 			.expand(p -> {
+				log.trace("Preparing next page fetch");
 				Pageable nextPage = p.nextPageable();
-				return Mono.defer( () -> {
-					log.trace("Fetch next page of 1000");
-					return clusters.findNext1000UpdatedBefore(start, nextPage);
-				});
+				return Mono.from(clusters.findNext1000UpdatedBefore(start, nextPage))
+					.doOnSubscribe(_s -> log.trace("Fetch next page of 1000"));
 			})
-			.limitRate(1, 0)
-			.delayElements(Duration.ofSeconds(3))
+			.takeWhile( p -> {
+				if (p.isEmpty()) {
+					log.info("No more results");
+					return false;
+				}
+				
+				return true;
+			})
 			.doOnNext( nextP -> {
 				final var currentPage = nextP.getPageNumber();
 				
 				if (currentPage > 0 && currentPage % 10 == 0) {
 					log.atInfo().log("Processed {} items", currentPage * 1000);
-				}
-				
+				}		
 				log.debug("Processing page {}", nextP.getPageNumber() + 1);
-				
 			})
-			.takeUntil( p -> {
-				if (p.isEmpty()) {
-					log.info("No more results");
-					return true;
-				}
-				
-				return false;
-			})
-			.concatMap(Flux::fromIterable, 0)
-			.subscribe(sharedIndexService::add, err -> {
-				log.error("Error reindexing clusters.");
+			.map(Page::getContent)
+			.transform(sharedIndexService::expandAndProcess)
+			.limitRate(2, 1) // Fetch 2 pages, and fetch another 2 when we're at 1.
+			.doFinally( _signal -> this.jobMono = null )
+			.subscribe(this::logResults, err -> {
+				log.error("Error in reindex job");
 			});
 	}
+	
+	private void logResults( final List<IndexOperation<UUID, ClusterRecord>> processed ) {
+		
+		if (log.isDebugEnabled()) {
+			log.debug( "Sent {} records to be indexed", processed.size() );
+			final Map<IndexOperation.Type, Integer> counts = new HashMap<>();
+			for (var op : processed) {
+				var count = counts.getOrDefault(op.type(), 0);
+				count ++;
+				counts.put(op.type(), count);
+			}
+			
+			counts.forEach((key, val) -> {
+				log.debug("{} {}", key.name(), val);
+			});
+		}
+	}
+	
+	private Mono<Void> jobMono;
 
-	@Transactional(readOnly = true)
-	public Mono<Void> reindexAllClusters() {		
-		return Mono.create(this::doAndReportReindex);
+	@Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+	public Mono<Void> reindexAllClusters() {
+		
+		if (jobMono == null) {
+			synchronized (this) {
+				if (jobMono == null) {
+					log.debug("Begin re-index");
+					jobMono = Mono.create(this::doAndReportReindex)
+						.cache();
+				}
+			}
+		} else {
+			log.debug("Job already running. NOOP");
+		}
+		
+		return jobMono;
 	}
 	
 }
