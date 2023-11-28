@@ -3,6 +3,12 @@
 Note: Today flyway does not support r2dbc datasources, so we need to configure both JDBC and R2DBC datasources - same DB connection effectively, 2 different connections - with JDBC only being used for database migrations.
 ======
 
+[NOTE]
+=====
+Note: Both ELASTICSEARCH_HTTP_HOSTS and OPENSEARCH_HTTP_HOSTS are optional but you must configure one of them to enable push to 
+OS/ES functionality. Not configuring one of these options will result in a 404 error when POSTing to /admin/reindex.
+=====
+
 [%autowidth.stretch]
 |===
 |ENV | Description |Required | Example
