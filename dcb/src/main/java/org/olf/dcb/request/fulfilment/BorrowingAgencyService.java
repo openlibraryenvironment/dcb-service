@@ -177,31 +177,10 @@ public class BorrowingAgencyService {
 		PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 		String localItemId, String localBibId) {
 
-		final String recordNumber;
-		final String recordType;
-
-		if (hostLmsClient.useTitleLevelRequest()) {
-			log.debug("place title level request for ID {} {}", localBibId, patronIdentity);
-			recordType = "b";
-			recordNumber = localBibId;
-		}
-		else if (hostLmsClient.useItemLevelRequest()) {
-			log.debug("place item level request for ID {} {}", localItemId, patronIdentity);
-			recordType = "i";
-			recordNumber = localItemId;
-		}
-		else {
-			// Using runtime error until this logic is moved behind the host LMS client boundary
-			return Mono.error(new RuntimeException(
-				"Invalid hold policy for Host LMS \"" + hostLmsClient.getHostLms().getCode() + "\""));
-		}
-
 		String note = "Consortial Hold. tno=" + patronRequest.getId();
 
 		return hostLmsClient.placeHoldRequest(PlaceHoldRequestParameters.builder()
 				.localPatronId(patronIdentity.getLocalId())
-				.recordType(recordType)
-				.recordNumber(recordNumber)
 				.localBibId(localBibId)
 				.localItemId(localItemId)
 				.pickupLocation(patronRequest.getPickupLocationCode())

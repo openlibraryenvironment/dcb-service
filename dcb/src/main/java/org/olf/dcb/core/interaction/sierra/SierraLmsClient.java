@@ -513,9 +513,31 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
 		log.debug("placeHoldRequest({})", parameters);
 
+		final String recordNumber;
+		final String recordType;
+
+		if (useTitleLevelRequest()) {
+			log.debug("place title level request with ID: {} for local patron ID: {}",
+				parameters.getLocalBibId(), parameters.getLocalPatronId());
+
+			recordType = "b";
+			recordNumber = parameters.getLocalBibId();
+		}
+		else if (useItemLevelRequest()) {
+			log.debug("place item level request for ID: {} for local patron ID: {}",
+				parameters.getLocalItemId(), parameters.getLocalPatronId());
+
+			recordType = "i";
+			recordNumber = parameters.getLocalItemId();
+		}
+		else {
+			return Mono.error(new RuntimeException(
+				"Invalid hold policy for Host LMS \"" + getHostLms().getCode() + "\""));
+		}
+
 		var patronHoldPost = PatronHoldPost.builder()
-			.recordType(parameters.getRecordType())
-			.recordNumber(convertToInteger(parameters.getRecordNumber()))
+			.recordType(recordType)
+			.recordNumber(convertToInteger(recordNumber))
 			.pickupLocation(parameters.getPickupLocation())
 			.note(parameters.getNote())
 			.build();

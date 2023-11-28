@@ -123,35 +123,14 @@ public class SupplyingAgencyService {
 
 		log.debug("placeHoldRequest");
 
-		PatronRequest patronRequest = context.getPatronRequest();
-		SupplierRequest supplierRequest = context.getSupplierRequest();
-		PatronIdentity patronIdentityAtSupplier = context.getPatronVirtualIdentity();
+		final var patronRequest = context.getPatronRequest();
+		final var supplierRequest = context.getSupplierRequest();
+		final var patronIdentityAtSupplier = context.getPatronVirtualIdentity();
 
-		final String recordNumber;
-		final String recordType;
-
-		if (client.useTitleLevelRequest()) {
-			log.debug("place title level request for ID {}", supplierRequest.getLocalBibId());
-			recordType = "b";
-			recordNumber = supplierRequest.getLocalBibId();
-		}
-		else if (client.useItemLevelRequest()) {
-			log.debug("place item level request for ID {}", supplierRequest.getLocalItemId());
-			recordType = "i";
-			recordNumber = supplierRequest.getLocalItemId();
-		}
-		else {
-			// Using runtime error until this logic is moved behind the host LMS client boundary
-			return Mono.error(new RuntimeException(
-				"Invalid hold policy for Host LMS \"" + client.getHostLms().getCode() + "\""));
-		}
-
-		String note = "Consortial Hold. tno="+patronRequest.getId();
+		String note = "Consortial Hold. tno=" + patronRequest.getId();
 
 		return client.placeHoldRequest(PlaceHoldRequestParameters.builder()
 			.localPatronId(patronIdentityAtSupplier.getLocalId())
-			.recordType(recordType)
-			.recordNumber(recordNumber)
 			.localBibId(supplierRequest.getLocalBibId())
 			.localItemId(supplierRequest.getLocalItemId())
 			.pickupLocation(context.getPickupAgencyCode())
