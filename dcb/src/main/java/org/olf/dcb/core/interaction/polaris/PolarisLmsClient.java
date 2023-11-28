@@ -136,7 +136,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		return placeItemLevelHoldRequest(HoldRequestParameters.builder()
 			.localPatronId(parameters.getLocalPatronId())
-			.recordNumber(parameters.getRecordNumber())
+			.recordNumber(parameters.getLocalItemId())
 			.pickupLocation(parameters.getPickupLocation())
 			.note(parameters.getNote())
 			.dcbPatronRequestId(parameters.getPatronRequestId())

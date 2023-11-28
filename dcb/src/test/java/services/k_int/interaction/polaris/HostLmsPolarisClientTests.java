@@ -214,7 +214,6 @@ public class HostLmsPolarisClientTests {
 			.placeHoldRequest(PlaceHoldRequestParameters.builder()
 				.localPatronId("1")
 				.recordType("i")
-				.recordNumber(recordNumber)
 				.localBibId(null)
 				.localItemId(recordNumber)
 				.pickupLocation("5324532")
