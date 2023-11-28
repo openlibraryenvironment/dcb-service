@@ -1,5 +1,37 @@
 # Changelog
 
+## Version 2.6.1
+
+### Changes
+* [Chore]
+	* add note on HTTP_HOSTS env vars
+	* Add missing test resource loader file
+	* Remove check in Polaris host LMS client for item level requests only
+* [Refactor]
+	* use logon branch id as fallback for patron branch id [DCB-746]
+	* Move Polaris hold request parameters to separate class
+	* Remove unecessary setters in Polaris hold request parameters
+	* Inline place item level request method in Polaris host LMS client
+	* Move item vs title request logic to Sierra host LMS clent only
+	* Always use local item ID when placing request in Polaris
+	* Rename local patron ID parameter when placing hold request
+	* Remove unused record type from Polaris hold request parameters
+	* Pass local item ID when placing hold request
+	* Pass local bib ID when placing hold request
+	* Use builder for placing patron hold request to Sierra
+	* Introduce parameter object for placing a hold request
+	* patron branch id when creating a patron in polaris [DCB-746]
+* [Test]
+	* Use source record ID when getting items from Polaris
+	* Use test resource loader in Polaris LMS client tests
+	* Move test resource loader to test package
+	* Move resource loading to separate class
+
+### Fixes
+* [General]
+	* Refactor the background index job.
+	* polaris item status fallback mapping
+
 ## Version 2.6.0
 
 ### Additions
@@ -8,6 +40,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Report server error when host LMS cannot be found for bib during live availability
 	* Remove redundant check for host LMS not found during live availability
 	* Throw exception inline when finding resolution stragegy
