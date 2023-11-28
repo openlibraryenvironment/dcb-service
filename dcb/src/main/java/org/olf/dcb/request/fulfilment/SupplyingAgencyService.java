@@ -317,6 +317,7 @@ public class SupplyingAgencyService {
 							.localBarcodes( patron_barcodes )
 							.localPatronType( patronType )
 							.uniqueIds( stringToList(uniqueId) )
+							.localHomeLibraryCode(requestingPatronIdentity.getLocalHomeLibraryCode())
 							.build())
 					.map(createdPatron -> Tuples.of(createdPatron, patronType));
 			});

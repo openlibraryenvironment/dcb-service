@@ -12,6 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.polaris.exceptions.CreatePatronException;
 import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -21,6 +22,7 @@ import reactor.core.publisher.Mono;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -194,7 +196,7 @@ public class PAPIClient {
 			.logonBranchID(Integer.valueOf((String) conf.get(LOGON_BRANCH_ID)))
 			.logonUserID(Integer.valueOf((String) conf.get(LOGON_USER_ID)))
 			.logonWorkstationID(Integer.valueOf((String) servicesMap.get(SERVICES_WORKSTATION_ID)))
-			.patronBranchID(Integer.valueOf(patron.getLocalHomeLibraryCode()))
+			.patronBranchID( getPatronBranchID(patron) )
 			.nameFirst(patron.getLocalBarcodes().get(0))
 			.nameLast(patron.getUniqueIds().get(0))
 			.userName(patron.getUniqueIds().get(0))
@@ -206,6 +208,16 @@ public class PAPIClient {
 			.patronCode( parseInt(patron.getLocalPatronType()) )
 			.build();
 	}
+
+	private static Integer getPatronBranchID(Patron patron) {
+		return Optional.ofNullable(patron.getLocalHomeLibraryCode())
+			.map(Integer::valueOf)
+			.orElseGet(() -> {
+				log.error("Unable to extract patron branch id for patron: {}", patron);
+				throw new CreatePatronException("Unable to extract patron branch id for patron: " + patron);
+			});
+	}
+
 
 	@Builder
 	@Data
