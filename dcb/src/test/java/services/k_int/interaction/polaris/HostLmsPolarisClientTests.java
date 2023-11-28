@@ -33,16 +33,15 @@ import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.TestResourceLoader;
 
 import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
-import lombok.SneakyThrows;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 public class HostLmsPolarisClientTests {
-	private static final String CP_RESOURCES_POLARIS = "classpath:mock-responses/polaris/";
 	private static final String HOST_LMS_CODE = "polaris-hostlms-tests";
 
 	@Inject
@@ -59,6 +58,8 @@ public class HostLmsPolarisClientTests {
 	private AgencyFixture agencyFixture;
 
 	private PolarisTestUtils.MockPolarisPAPIHost mockPolaris;
+	private TestResourceLoader resourceLoader;
+
 	private DataHostLms polarisHostLms;
 
 	@BeforeAll
@@ -68,8 +69,9 @@ public class HostLmsPolarisClientTests {
 		final String SECRET = "polaris-hostlms-test-secret";
 		final String DOMAIN = "TEST";
 
-		hostLmsFixture.deleteAll();
+		resourceLoader = new TestResourceLoader("classpath:mock-responses/polaris/", loader);
 
+		hostLmsFixture.deleteAll();
 
 		polarisHostLms = hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, DOMAIN, KEY, SECRET);
@@ -79,12 +81,12 @@ public class HostLmsPolarisClientTests {
 		// papi auth
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/authenticator/staff"))
-			.respond(okJson(getResourceAsString("test-staff-auth.json")));
+			.respond(okJson(resourceLoader.getResource("test-staff-auth.json")));
 
 		// app services auth
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/authentication/staffuser"))
-			.respond(okJson(getResourceAsString("auth-response.json")));
+			.respond(okJson(resourceLoader.getResource("auth-response.json")));
 	}
 
 	@Test
@@ -99,26 +101,29 @@ public class HostLmsPolarisClientTests {
 
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/"+bibRecordId))
-			.respond(okJson(getResourceAsString("items-get.json")));
+			.respond(okJson(resourceLoader.getResource("items-get.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/materialtypes"))
-			.respond(okJson(getResourceAsString("materialtypes.json")));
+			.respond(okJson(resourceLoader.getResource("materialtypes.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses"))
-			.respond(okJson(getResourceAsString("itemstatuses.json")));
+			.respond(okJson(resourceLoader.getResource("itemstatuses.json")));
 
 		// Act
 		final var itemsList = hostLmsFixture.createClient(HOST_LMS_CODE)
 			.getItems(String.valueOf(bibRecordId)).block();
+
 		// Assert
 		assertThat(itemsList, is(notNullValue()));
 		assertThat(itemsList.size(), is(3));
+
 		final var firstItem = itemsList.stream()
 			.filter(item -> "3512742".equals(item.getId()))
 			.findFirst()
 			.orElse(null);
+
 		assertThat(firstItem, is(notNullValue()));
 		assertThat(firstItem.getStatus(), is(new ItemStatus(ItemStatusCode.UNAVAILABLE)));
 		assertThat(firstItem.getDueDate().getClass(), is(Instant.class));
@@ -141,15 +146,16 @@ public class HostLmsPolarisClientTests {
 		// Arrange
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/PAPIService/REST/public/v1/1033/100/1/authenticator/patron"))
-			.respond(okJson(getResourceAsString("test-patron-auth.json")));
+			.respond(okJson(resourceLoader.getResource("test-patron-auth.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/PAPIService/REST/public/v1/1033/100/1/patron/"+"3100222227777"))
-			.respond(okJson(getResourceAsString("patron-by-barcode.json")));
+			.respond(okJson(resourceLoader.getResource("patron-by-barcode.json")));
 
 		// Act
 		final var patron = hostLmsFixture.createClient(HOST_LMS_CODE)
 			.patronAuth("BASIC/BARCODE+PASSWORD", "3100222227777", "password123").block();
+
 		// Assert
 		assertThat(patron, is(notNullValue()));
 		assertThat(patron.getLocalId(), is(List.of("1255192")));
@@ -166,7 +172,7 @@ public class HostLmsPolarisClientTests {
 		// Arrange
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/search/patrons/boolean*"))
-			.respond(okJson(getResourceAsString("patron-search.json")));
+			.respond(okJson(resourceLoader.getResource("patron-search.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/1255217/blockssummary"))
@@ -175,11 +181,12 @@ public class HostLmsPolarisClientTests {
 		final var localPatronId = 1255217;
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/"+localPatronId))
-			.respond(okJson(getResourceAsString("get-patron-by-local-id.json")));
+			.respond(okJson(resourceLoader.getResource("get-patron-by-local-id.json")));
 
 		// Act
 		final var patron = hostLmsFixture.createClient(HOST_LMS_CODE)
 			.patronAuth("UNIQUE-ID", "dcb_unique_Id", null).block();
+
 		// Assert
 		assertThat(patron, is(notNullValue()));
 		assertThat(patron.getLocalId(), is(List.of("1255193")));
@@ -195,19 +202,19 @@ public class HostLmsPolarisClientTests {
 		final var recordNumber = "12345";
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/"+recordNumber))
-			.respond(okJson(getResourceAsString("items-get.json")));
+			.respond(okJson(resourceLoader.getResource("items-get.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords/"+1106339+"*"))
-			.respond(okJson(getResourceAsString("get-bib.json")));
+			.respond(okJson(resourceLoader.getResource("get-bib.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds*"))
-			.respond(okJson(getResourceAsString("successful-place-request.json")));
+			.respond(okJson(resourceLoader.getResource("successful-place-request.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/"+2977175)) // must match id from successful hold id
-			.respond(okJson(getResourceAsString("get-hold.json")));
+			.respond(okJson(resourceLoader.getResource("get-hold.json")));
 
 		// Act
 		final var localRequest = hostLmsFixture.createClient(HOST_LMS_CODE)
@@ -231,9 +238,11 @@ public class HostLmsPolarisClientTests {
 		// Arrange
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/"+2977175))
-			.respond(okJson(getResourceAsString("get-hold.json")));
+			.respond(okJson(resourceLoader.getResource("get-hold.json")));
+
 		// Act
 		final var hold = hostLmsFixture.createClient(HOST_LMS_CODE).getHold("2977175").block();
+
 		// Assert
 		assertThat(hold, is(notNullValue()));
 		assertThat(hold.getLocalId(), is("2977175"));
@@ -245,7 +254,7 @@ public class HostLmsPolarisClientTests {
 		// Arrange
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/PAPIService/REST/public/v1/1033/100/1/patron"))
-			.respond(okJson(getResourceAsString("create-patron.json")));
+			.respond(okJson(resourceLoader.getResource("create-patron.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/1255217/blockssummary"))
@@ -255,8 +264,10 @@ public class HostLmsPolarisClientTests {
 		final var patron = Patron.builder().uniqueIds(List.of(uniqueId))
 			.localPatronType("1").localHomeLibraryCode("39")
 			.localBarcodes(List.of("0088888888")).build();
+
 		// Act
 		final var response = hostLmsFixture.createClient(HOST_LMS_CODE).createPatron(patron).block();
+
 		// Assert
 		assertThat(response, is(notNullValue()));
 		assertThat(response, is("1255217"));
@@ -273,14 +284,16 @@ public class HostLmsPolarisClientTests {
 
 		mockPolaris.whenRequest(req -> req.withMethod("PUT")
 				.withPath("/PAPIService/REST/public/v1/1033/100/1/patron/0077777777"))
-			.respond(okJson(getResourceAsString("update-patron.json")));
+			.respond(okJson(resourceLoader.getResource("update-patron.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/"+localPatronId))
-			.respond(okJson(getResourceAsString("get-patron-by-local-id.json")));
+			.respond(okJson(resourceLoader.getResource("get-patron-by-local-id.json")));
+
 		// Act
 		final var response = hostLmsFixture.createClient(HOST_LMS_CODE)
 			.updatePatron(String.valueOf(localPatronId), "3").block();
+
 		// Assert
 		assertThat(response, is(notNullValue()));
 		assertThat(response.getLocalId(), is(List.of("1255193")));
@@ -301,10 +314,12 @@ public class HostLmsPolarisClientTests {
 
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/PAPIService/REST/public/v1/1033/100/1/patron/"+localPatronBarcode+"/itemsout"))
-			.respond(okJson(getResourceAsString("itemcheckoutsuccess.json")));
+			.respond(okJson(resourceLoader.getResource("itemcheckoutsuccess.json")));
+
 		// Act
 		final var response = hostLmsFixture.createClient(HOST_LMS_CODE)
 			.checkOutItemToPatron(localItemId, localPatronBarcode).block();
+
 		// Assert
 		assertThat(response, is(notNullValue()));
 		assertThat(response, is("OK"));
@@ -314,12 +329,15 @@ public class HostLmsPolarisClientTests {
 	public void getPatronByLocalId() {
 		// Arrange
 		final var localPatronId = 1255193;
+
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/"+localPatronId))
-			.respond(okJson(getResourceAsString("get-patron-by-local-id.json")));
+			.respond(okJson(resourceLoader.getResource("get-patron-by-local-id.json")));
+
 		// Act
 		final var response = hostLmsFixture.createClient(HOST_LMS_CODE)
 			.getPatronByLocalId(String.valueOf(localPatronId)).block();
+
 		// Assert
 		assertThat(response, is(notNullValue()));
 		assertThat(response.getLocalId(), is(List.of("1255193")));
@@ -333,9 +351,11 @@ public class HostLmsPolarisClientTests {
 		// Arrange
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords*"))
-			.respond(okJson(getResourceAsString("create-bib-resp.json")));
+			.respond(okJson(resourceLoader.getResource("create-bib-resp.json")));
+
 		// Act
 		final var bib = hostLmsFixture.createClient(HOST_LMS_CODE).createBib(Bib.builder().title("title").build()).block();
+
 		// Assert
 		assertThat(bib, is(notNullValue()));
 		assertThat(bib, is("1203065"));
@@ -346,14 +366,16 @@ public class HostLmsPolarisClientTests {
 		// Arrange
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow*"))
-			.respond(okJson(getResourceAsString("item-workflow-response.json")));
+			.respond(okJson(resourceLoader.getResource("item-workflow-response.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("PUT")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow/0e4c9e68-785e-4a1e-9417-f9bd245cc147"))
-			.respond(okJson(getResourceAsString("create-item-resp.json")));
+			.respond(okJson(resourceLoader.getResource("create-item-resp.json")));
+
 		// Act
 		final var item = hostLmsFixture.createClient(HOST_LMS_CODE)
 			.createItem(CreateItemCommand.builder().bibId("1203065").barcode("3430470102").build()).block();
+
 		// Assert
 		assertThat(item, is(notNullValue()));
 		assertThat(item.getLocalId(), is("4314002"));
@@ -366,14 +388,15 @@ public class HostLmsPolarisClientTests {
 		final var localItemId = "3512742";
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/"+localItemId))
-			.respond(okJson(getResourceAsString("items-get.json")));
+			.respond(okJson(resourceLoader.getResource("items-get.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses"))
-			.respond(okJson(getResourceAsString("itemstatuses.json")));
+			.respond(okJson(resourceLoader.getResource("itemstatuses.json")));
 
 		// Act
 		final var item = hostLmsFixture.createClient(HOST_LMS_CODE).getItem(localItemId).block();
+
 		// Assert
 		assertThat(item, is(notNullValue()));
 		assertThat(item.getLocalId(), is("3512742"));
@@ -387,29 +410,25 @@ public class HostLmsPolarisClientTests {
 		final var localItemId = "3512742";
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/"+localItemId))
-			.respond(okJson(getResourceAsString("items-get.json")));
+			.respond(okJson(resourceLoader.getResource("items-get.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow*"))
-			.respond(okJson(getResourceAsString("item-workflow-response.json")));
+			.respond(okJson(resourceLoader.getResource("item-workflow-response.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("PUT")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow/0e4c9e68-785e-4a1e-9417-f9bd245cc147"))
-			.respond(okJson(getResourceAsString("create-item-resp.json")));
+			.respond(okJson(resourceLoader.getResource("create-item-resp.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses"))
-			.respond(okJson(getResourceAsString("itemstatuses.json")));
+			.respond(okJson(resourceLoader.getResource("itemstatuses.json")));
+
 		// Act
 		final var string = hostLmsFixture.createClient(HOST_LMS_CODE).updateItemStatus(localItemId, TRANSIT).block();
+
 		// Assert
 		assertThat(string, is(notNullValue()));
 		assertThat(string, is("OK"));
-	}
-
-	@SneakyThrows
-	private String getResourceAsString(String resourceName) {
-		return new String(loader.getResourceAsStream(CP_RESOURCES_POLARIS + resourceName)
-			.get().readAllBytes());
 	}
 }
