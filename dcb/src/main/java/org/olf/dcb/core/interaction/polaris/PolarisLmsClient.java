@@ -136,7 +136,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		return placeItemLevelHoldRequest(HoldRequestParameters.builder()
 			.localPatronId(parameters.getId())
-			.recordType(parameters.getRecordType())
 			.recordNumber(parameters.getRecordNumber())
 			.pickupLocation(parameters.getPickupLocation())
 			.note(parameters.getNote())
@@ -584,7 +583,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Serdeable
 	static class HoldRequestParameters {
 		private String localPatronId;
-		private String recordType;
 		private String recordNumber;
 		private String title;
 		private String pickupLocation;
