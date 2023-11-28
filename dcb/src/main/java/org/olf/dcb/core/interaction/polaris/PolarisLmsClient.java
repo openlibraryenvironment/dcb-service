@@ -28,7 +28,13 @@ import java.net.URI;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.marc4j.marc.Record;
@@ -36,7 +42,6 @@ import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
@@ -44,8 +49,8 @@ import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
-import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestTypeException;
 import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.HostLms;
@@ -130,13 +135,20 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
-		return placeItemLevelHoldRequest(HoldRequestParameters.builder()
-			.localPatronId(parameters.getLocalPatronId())
-			.recordNumber(parameters.getLocalItemId())
-			.pickupLocation(parameters.getPickupLocation())
-			.note(parameters.getNote())
-			.dcbPatronRequestId(parameters.getPatronRequestId())
-			.build());
+		return getBibIdFromItemId(parameters.getLocalItemId())
+			.flatMap(this::getBib)
+			.map(bib -> HoldRequestParameters.builder()
+				.localPatronId(parameters.getLocalPatronId())
+				.recordNumber(parameters.getLocalItemId())
+				.title(bib.getBrowseTitle())
+				.primaryMARCTOMID(bib.getPrimaryMARCTOMID())
+				.pickupLocation(parameters.getPickupLocation())
+				.note(parameters.getNote())
+				.dcbPatronRequestId(parameters.getPatronRequestId())
+				.build())
+			.flatMap(appServicesClient::addLocalHoldRequest)
+			.map(ApplicationServicesClient.HoldRequestResponse::getHoldRequestID)
+			.flatMap(this::getPlaceHoldRequestData);
 	}
 
 	@Override
@@ -241,19 +253,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return appServicesClient.getItemBarcode(itemId)
 			.flatMap(itemBarcode -> papiClient.itemCheckoutPost(itemBarcode, patronBarcode))
 			.map(itemCheckoutResult -> "OK");
-	}
-
-	private Mono<LocalRequest> placeItemLevelHoldRequest(HoldRequestParameters args) {
-		return getBibIdFromItemId(args.getRecordNumber())
-			.flatMap(this::getBib)
-			.map(bib -> {
-				args.setTitle(bib.getBrowseTitle());
-				args.setPrimaryMARCTOMID(bib.getPrimaryMARCTOMID());
-				return args;
-			})
-			.flatMap(appServicesClient::addLocalHoldRequest)
-			.map(ApplicationServicesClient.HoldRequestResponse::getHoldRequestID)
-			.flatMap(this::getPlaceHoldRequestData);
 	}
 
 	private Mono<LocalRequest> getPlaceHoldRequestData(Integer holdRequestId) {
