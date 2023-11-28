@@ -8,10 +8,13 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
+import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -19,8 +22,8 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.ItemStatus;
@@ -30,7 +33,6 @@ import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-import org.olf.dcb.test.matchers.LocalRequestMatchers;
 
 import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
@@ -213,15 +215,16 @@ public class HostLmsPolarisClientTests {
 				.id("1")
 				.recordType("i")
 				.recordNumber(recordNumber)
+				.localBibId(null)
 				.pickupLocation("5324532")
 				.note("No special note")
-				.patronRequestId("Patron 1")
+				.patronRequestId(UUID.randomUUID().toString())
 				.build())
 			.block();
 
 		// Assert
-		assertThat(localRequest, LocalRequestMatchers.hasLocalId("2977175"));
-		assertThat(localRequest, LocalRequestMatchers.hasLocalStatus("In Processing"));
+		assertThat(localRequest, hasLocalId("2977175"));
+		assertThat(localRequest, hasLocalStatus("In Processing"));
 	}
 
 	@Test

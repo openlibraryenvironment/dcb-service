@@ -8,9 +8,9 @@ import java.util.UUID;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
@@ -202,6 +202,7 @@ public class BorrowingAgencyService {
 				.id(patronIdentity.getLocalId())
 				.recordType(recordType)
 				.recordNumber(recordNumber)
+				.localBibId(localBibId)
 				.pickupLocation(patronRequest.getPickupLocationCode())
 				.note(note)
 				.patronRequestId(patronRequest.getId().toString())
