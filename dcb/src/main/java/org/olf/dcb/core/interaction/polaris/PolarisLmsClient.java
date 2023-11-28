@@ -87,7 +87,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.Value;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.utils.MapUtils;
@@ -571,18 +570,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		private Integer itemStatusID;
 		@JsonProperty("Name")
 		private String name;
-	}
-
-	@Builder
-	@Value
-	static class HoldRequestParameters {
-		String localPatronId;
-		String recordNumber;
-		String title;
-		String pickupLocation;
-		String dcbPatronRequestId;
-		String note;
-		Integer primaryMARCTOMID;
 	}
 
 	@Builder
