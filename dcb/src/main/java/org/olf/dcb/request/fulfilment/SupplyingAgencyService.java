@@ -153,6 +153,7 @@ public class SupplyingAgencyService {
 			.recordType(recordType)
 			.recordNumber(recordNumber)
 			.localBibId(supplierRequest.getLocalBibId())
+			.localItemId(supplierRequest.getLocalItemId())
 			.pickupLocation(context.getPickupAgencyCode())
 			.note(note)
 			.patronRequestId(patronRequest.getId().toString())

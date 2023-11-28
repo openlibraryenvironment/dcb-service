@@ -203,6 +203,7 @@ public class BorrowingAgencyService {
 				.recordType(recordType)
 				.recordNumber(recordNumber)
 				.localBibId(localBibId)
+				.localItemId(localItemId)
 				.pickupLocation(patronRequest.getPickupLocationCode())
 				.note(note)
 				.patronRequestId(patronRequest.getId().toString())

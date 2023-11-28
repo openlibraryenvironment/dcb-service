@@ -216,6 +216,7 @@ public class HostLmsPolarisClientTests {
 				.recordType("i")
 				.recordNumber(recordNumber)
 				.localBibId(null)
+				.localItemId(recordNumber)
 				.pickupLocation("5324532")
 				.note("No special note")
 				.patronRequestId(UUID.randomUUID().toString())

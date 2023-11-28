@@ -10,6 +10,7 @@ public class PlaceHoldRequestParameters {
 	String recordType;
 	String recordNumber;
 	String localBibId;
+	String localItemId;
 	String pickupLocation;
 	String note;
 	String patronRequestId;
