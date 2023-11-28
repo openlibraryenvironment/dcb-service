@@ -513,12 +513,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
 		log.debug("placeHoldRequest({})", parameters);
 
-		PatronHoldPost patronHoldPost = new PatronHoldPost();
-		patronHoldPost.setRecordType(parameters.getRecordType());
-		patronHoldPost.setRecordNumber(convertToInteger(parameters.getRecordNumber()));
-		patronHoldPost.setPickupLocation(parameters.getPickupLocation());
-		patronHoldPost.setNote(parameters.getNote());
-
+		var patronHoldPost = PatronHoldPost.builder()
+			.recordType(parameters.getRecordType())
+			.recordNumber(convertToInteger(parameters.getRecordNumber()))
+			.pickupLocation(parameters.getPickupLocation())
+			.note(parameters.getNote())
+			.build();
+		
 		// Ian: NOTE... SIERRA needs time between placeHoldRequest and
 		// getPatronHoldRequestId completing... Either
 		// we need retries or a delay.
