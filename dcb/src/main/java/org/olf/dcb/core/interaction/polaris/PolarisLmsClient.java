@@ -130,10 +130,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
-		if (!Objects.equals(parameters.getRecordType(), "i")) {
-			return Mono.error(new HoldRequestTypeException(parameters.getRecordType()));
-		}
-
 		return placeItemLevelHoldRequest(HoldRequestParameters.builder()
 			.localPatronId(parameters.getLocalPatronId())
 			.recordNumber(parameters.getLocalItemId())

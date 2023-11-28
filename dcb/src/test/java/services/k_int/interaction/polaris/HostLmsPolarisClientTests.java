@@ -213,7 +213,6 @@ public class HostLmsPolarisClientTests {
 		final var localRequest = hostLmsFixture.createClient(HOST_LMS_CODE)
 			.placeHoldRequest(PlaceHoldRequestParameters.builder()
 				.localPatronId("1")
-				.recordType("i")
 				.localBibId(null)
 				.localItemId(recordNumber)
 				.pickupLocation("5324532")
