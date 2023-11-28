@@ -523,8 +523,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// Ian: NOTE... SIERRA needs time between placeHoldRequest and
 		// getPatronHoldRequestId completing... Either
 		// we need retries or a delay.
-		return Mono.from(client.placeHoldRequest(parameters.getId(), patronHoldPost))
-			.then(Mono.defer(() -> getPatronHoldRequestId(parameters.getId(),
+		return Mono.from(client.placeHoldRequest(parameters.getLocalPatronId(), patronHoldPost))
+			.then(Mono.defer(() -> getPatronHoldRequestId(parameters.getLocalPatronId(),
 					parameters.getRecordNumber(), parameters.getNote(), parameters.getPatronRequestId()))
 				.retry(getHoldsRetryAttempts))
 			.onErrorResume(NullPointerException.class, error -> {

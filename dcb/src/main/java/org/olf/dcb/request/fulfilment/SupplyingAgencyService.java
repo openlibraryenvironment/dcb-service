@@ -149,7 +149,7 @@ public class SupplyingAgencyService {
 		String note = "Consortial Hold. tno="+patronRequest.getId();
 
 		return client.placeHoldRequest(PlaceHoldRequestParameters.builder()
-			.id(patronIdentityAtSupplier.getLocalId())
+			.localPatronId(patronIdentityAtSupplier.getLocalId())
 			.recordType(recordType)
 			.recordNumber(recordNumber)
 			.localBibId(supplierRequest.getLocalBibId())

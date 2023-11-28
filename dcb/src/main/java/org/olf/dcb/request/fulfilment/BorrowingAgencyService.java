@@ -199,7 +199,7 @@ public class BorrowingAgencyService {
 		String note = "Consortial Hold. tno=" + patronRequest.getId();
 
 		return hostLmsClient.placeHoldRequest(PlaceHoldRequestParameters.builder()
-				.id(patronIdentity.getLocalId())
+				.localPatronId(patronIdentity.getLocalId())
 				.recordType(recordType)
 				.recordNumber(recordNumber)
 				.localBibId(localBibId)
