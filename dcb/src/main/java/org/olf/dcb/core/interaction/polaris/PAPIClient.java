@@ -192,32 +192,36 @@ public class PAPIClient {
 	private PatronRegistration getPatronRegistration(Patron patron) {
 		final var conf = client.getHostLms().getClientConfig();
 		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
+
+		final var logonBranchID = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
 		return PatronRegistration.builder()
-			.logonBranchID(Integer.valueOf((String) conf.get(LOGON_BRANCH_ID)))
-			.logonUserID(Integer.valueOf((String) conf.get(LOGON_USER_ID)))
-			.logonWorkstationID(Integer.valueOf((String) servicesMap.get(SERVICES_WORKSTATION_ID)))
-			.patronBranchID( getPatronBranchID(patron) )
+			.logonBranchID( logonBranchID )
+			.logonUserID(extractMapValue(conf, LOGON_USER_ID, Integer.class))
+			.logonWorkstationID(extractMapValue(servicesMap, LOGON_USER_ID, Integer.class))
+			.patronBranchID( getPatronBranchID(patron, logonBranchID) )
 			.nameFirst(patron.getLocalBarcodes().get(0))
 			.nameLast(patron.getUniqueIds().get(0))
 			.userName(patron.getUniqueIds().get(0))
+			.patronCode( parseInt(patron.getLocalPatronType()) )
 			.birthdate("1999-11-01")
 			.postalCode("63131")
 			.streetOne("1412 S Spoede")
 			.city("SAINT LOUIS")
 			.state("MO")
-			.patronCode( parseInt(patron.getLocalPatronType()) )
 			.build();
 	}
 
-	private static Integer getPatronBranchID(Patron patron) {
-		return Optional.ofNullable(patron.getLocalHomeLibraryCode())
-			.map(Integer::valueOf)
-			.orElseGet(() -> {
-				log.error("Unable to extract patron branch id for patron: {}", patron);
-				throw new CreatePatronException("Unable to extract patron branch id for patron: " + patron);
-			});
+	private static Integer getPatronBranchID(Patron patron, Integer logonBranchID) {
+		try {
+			return Optional.ofNullable(patron.getLocalHomeLibraryCode())
+				.map(Integer::valueOf)
+				.orElseThrow(() -> new NumberFormatException("Invalid number format"));
+		} catch (NumberFormatException e) {
+			log.error("Cannot use localHomeLibraryCode for patronBranchID: {}.", patron, e);
+			log.warn("Falling back to logon branch ID: '{}' as the patron's branch ID.", logonBranchID);
+			return logonBranchID;
+		}
 	}
-
 
 	@Builder
 	@Data
