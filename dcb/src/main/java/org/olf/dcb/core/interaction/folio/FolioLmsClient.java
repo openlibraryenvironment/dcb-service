@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
@@ -45,9 +46,7 @@ public class FolioLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<LocalRequest> placeHoldRequest(String id, String recordType,
-		String recordNumber, String pickupLocation, String note, String patronRequestId) {
-
+	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
 		return Mono.empty();
 	}
 

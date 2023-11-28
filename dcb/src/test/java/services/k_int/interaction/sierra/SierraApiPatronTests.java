@@ -219,10 +219,11 @@ class SierraApiPatronTests {
 		final var patronLocalId = "1341234";
 		sierraPatronsAPIFixture.patronHoldRequestResponse(patronLocalId, "i", null);
 
-		PatronHoldPost patronHoldPost = new PatronHoldPost();
-		patronHoldPost.setRecordNumber(32897458);
-		patronHoldPost.setRecordType("i");
-		patronHoldPost.setPickupLocation("pickupLocation");
+		final var patronHoldPost = PatronHoldPost.builder()
+			.recordNumber(32897458)
+			.recordType("i")
+			.pickupLocation("pickupLocation")
+			.build();
 
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
@@ -239,10 +240,11 @@ class SierraApiPatronTests {
 		final var patronLocalId = "4325435";
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse(patronLocalId, "i");
 
-		PatronHoldPost patronHoldPost = new PatronHoldPost();
-		patronHoldPost.setRecordNumber(423543254);
-		patronHoldPost.setRecordType("i");
-		patronHoldPost.setPickupLocation("pickupLocation");
+		final var patronHoldPost = PatronHoldPost.builder()
+			.recordNumber(423543254)
+			.recordType("i")
+			.pickupLocation("pickupLocation")
+			.build();
 
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 

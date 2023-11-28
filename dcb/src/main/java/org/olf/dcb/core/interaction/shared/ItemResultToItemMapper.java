@@ -100,7 +100,7 @@ public class ItemResultToItemMapper {
 		PAPIClient.ItemGetRow itemGetRow, String hostLmsCode, String localBibId) {
 
 		final var status = Status.builder()
-			.code(itemGetRow.getCircStatus())
+			.code(itemGetRow.getCircStatusName())
 			.duedate(itemGetRow.getDueDate())
 			.build();
 

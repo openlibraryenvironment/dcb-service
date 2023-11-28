@@ -95,7 +95,6 @@ public class AdminController {
 	}
 
 	private Mono<PatronRequestAdminView> assembleAdminView( PatronRequest patronRequest ) {
-		
 		return Mono.zip(
 			Mono.just(patronRequest),
 			supplierRequestService.findAllSupplierRequestsFor(patronRequest),
@@ -123,10 +122,9 @@ public class AdminController {
 		return configurationService.importConfiguration(ic.getProfile(), ic.getUrl());
 	}
 
-//	@Secured({ "ADMIN" })
+	@Secured({ "ADMIN" })
 	@Post(uri = "/reindex", produces = APPLICATION_JSON)
 	public Mono<MutableHttpResponse<Object>> reindex() {
-		log.debug("Begin re-index");
 		
 		return Mono.justOrEmpty(sharedIndexUpdater)
 			.flatMap( indexService -> 
