@@ -29,8 +29,6 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.test.AgencyFixture;
-import org.olf.dcb.test.BibRecordFixture;
-import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.TestResourceLoader;
@@ -49,18 +47,12 @@ public class HostLmsPolarisClientTests {
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
-	private ClusterRecordFixture clusterRecordFixture;
-	@Inject
-	private BibRecordFixture bibRecordFixture;
-	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
 
 	private PolarisTestUtils.MockPolarisPAPIHost mockPolaris;
 	private TestResourceLoader resourceLoader;
-
-	private DataHostLms polarisHostLms;
 
 	@BeforeAll
 	public void addFakePolarisApis(MockServerClient mock) {
@@ -73,7 +65,7 @@ public class HostLmsPolarisClientTests {
 
 		hostLmsFixture.deleteAll();
 
-		polarisHostLms = hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY,
+		hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, DOMAIN, KEY, SECRET);
 
 		mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);
@@ -95,12 +87,11 @@ public class HostLmsPolarisClientTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping( "polaris-hostlms-tests", "15", "345test");
 
 		agencyFixture.saveAgency(DataAgency.builder().id(randomUUID()).code("345test").name("Test College").build());
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
-		final var bibRecordId = randomUUID();
-		bibRecordFixture.createBibRecord(bibRecordId, polarisHostLms.getId(), "465675", clusterRecord);
+
+		final var sourceRecordId = "643425";
 
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
-				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/"+bibRecordId))
+				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/" + sourceRecordId))
 			.respond(okJson(resourceLoader.getResource("items-get.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
@@ -113,7 +104,7 @@ public class HostLmsPolarisClientTests {
 
 		// Act
 		final var itemsList = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.getItems(String.valueOf(bibRecordId)).block();
+			.getItems(sourceRecordId).block();
 
 		// Assert
 		assertThat(itemsList, is(notNullValue()));
@@ -132,7 +123,7 @@ public class HostLmsPolarisClientTests {
 		assertThat(firstItem.getBarcode(), is("3430470102"));
 		assertThat(firstItem.getCallNumber(), is("E Bellini Mario"));
 		assertThat(firstItem.getHostLmsCode(), is(HOST_LMS_CODE));
-		assertThat(firstItem.getLocalBibId(), is(String.valueOf(bibRecordId)));
+		assertThat(firstItem.getLocalBibId(), is(sourceRecordId));
 		assertThat(firstItem.getLocalItemTypeCode(), is("3"));
 		assertThat(firstItem.getLocalItemType(), is("Book"));
 		assertThat(firstItem.getSuppressed(), is(false));
