@@ -19,6 +19,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
@@ -208,7 +209,14 @@ public class HostLmsPolarisClientTests {
 
 		// Act
 		final var localRequest = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.placeHoldRequest("1", "i", recordNumber, "5324532", "No special note", "Patron 1")
+			.placeHoldRequest(PlaceHoldRequestParameters.builder()
+				.id("1")
+				.recordType("i")
+				.recordNumber(recordNumber)
+				.pickupLocation("5324532")
+				.note("No special note")
+				.patronRequestId("Patron 1")
+				.build())
 			.block();
 
 		// Assert

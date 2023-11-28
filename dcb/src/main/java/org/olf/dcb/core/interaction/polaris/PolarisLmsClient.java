@@ -36,6 +36,7 @@ import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
@@ -128,20 +129,18 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<LocalRequest> placeHoldRequest(String id, String recordType,
-		String recordNumber, String pickupLocation, String note, String patronRequestId) {
-
-		if (!Objects.equals(recordType, "i")) {
-			return Mono.error(new HoldRequestTypeException(recordType));
+	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
+		if (!Objects.equals(parameters.getRecordType(), "i")) {
+			return Mono.error(new HoldRequestTypeException(parameters.getRecordType()));
 		}
 
 		return placeItemLevelHoldRequest(HoldRequestParameters.builder()
-			.localPatronId(id)
-			.recordType(recordType)
-			.recordNumber(recordNumber)
-			.pickupLocation(pickupLocation)
-			.note(note)
-			.dcbPatronRequestId(patronRequestId)
+			.localPatronId(parameters.getId())
+			.recordType(parameters.getRecordType())
+			.recordNumber(parameters.getRecordNumber())
+			.pickupLocation(parameters.getPickupLocation())
+			.note(parameters.getNote())
+			.dcbPatronRequestId(parameters.getPatronRequestId())
 			.build());
 	}
 
@@ -279,7 +278,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<String> getBibIdFromItemId(String recordNumber) {
-		return papiClient.synch_ItemGet(recordNumber).map(PAPIClient.ItemGetRow::getBibliographicRecordID).map(String::valueOf);
+		return papiClient.synch_ItemGet(recordNumber)
+			.map(PAPIClient.ItemGetRow::getBibliographicRecordID)
+			.map(String::valueOf);
 	}
 
 	private Mono<PAPIClient.ItemGetRow> setMaterialTypeCode(PAPIClient.ItemGetRow itemGetRow) {

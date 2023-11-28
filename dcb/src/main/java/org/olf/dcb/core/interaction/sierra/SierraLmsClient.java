@@ -38,6 +38,7 @@ import org.olf.dcb.configuration.RefdataRecord;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
@@ -509,21 +510,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<LocalRequest> placeHoldRequest(String id, String recordType,
-		String recordNumber, String pickupLocation, String note, String patronRequestId) {
+	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
+		log.debug("placeHoldRequest({})", parameters);
 
 		PatronHoldPost patronHoldPost = new PatronHoldPost();
-		patronHoldPost.setRecordType(recordType);
-		patronHoldPost.setRecordNumber(convertToInteger(recordNumber));
-		patronHoldPost.setPickupLocation(pickupLocation);
-		patronHoldPost.setNote(note);
-		log.debug("placeHoldRequest({}...) {}", id, patronHoldPost);
+		patronHoldPost.setRecordType(parameters.getRecordType());
+		patronHoldPost.setRecordNumber(convertToInteger(parameters.getRecordNumber()));
+		patronHoldPost.setPickupLocation(parameters.getPickupLocation());
+		patronHoldPost.setNote(parameters.getNote());
 
 		// Ian: NOTE... SIERRA needs time between placeHoldRequest and
 		// getPatronHoldRequestId completing... Either
 		// we need retries or a delay.
-		return Mono.from(client.placeHoldRequest(id, patronHoldPost))
-			.then(Mono.defer(() -> getPatronHoldRequestId(id, recordNumber, note, patronRequestId))
+		return Mono.from(client.placeHoldRequest(parameters.getId(), patronHoldPost))
+			.then(Mono.defer(() -> getPatronHoldRequestId(parameters.getId(),
+					parameters.getRecordNumber(), parameters.getNote(), parameters.getPatronRequestId()))
 				.retry(getHoldsRetryAttempts))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());

@@ -18,6 +18,7 @@ import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
@@ -309,16 +310,13 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	@Override
-	public Mono<LocalRequest> placeHoldRequest(String id, String recordType,
-		String recordNumber, String pickupLocation, String note, String patronRequestId) {
-
-		log.info("placeHoldRequestNonTuple({},{},{},{},{}, {})",
-			id, recordType, recordNumber, pickupLocation, note, patronRequestId);
+	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
+		log.info("placeHoldRequest({})", parameters);
 
 		return Mono.just(LocalRequest.builder()
-				.localId(UUID.randomUUID().toString())
-				.localStatus("HELD")
-				.build());
+			.localId(UUID.randomUUID().toString())
+			.localStatus("HELD")
+			.build());
 	}
 
 	@Override

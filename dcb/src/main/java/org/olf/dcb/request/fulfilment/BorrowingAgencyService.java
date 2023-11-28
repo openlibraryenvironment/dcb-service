@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.BibRecord;
@@ -197,9 +198,14 @@ public class BorrowingAgencyService {
 
 		String note = "Consortial Hold. tno=" + patronRequest.getId();
 
-		return hostLmsClient
-			.placeHoldRequest(patronIdentity.getLocalId(), recordType, recordNumber,
-				patronRequest.getPickupLocationCode(), note, patronRequest.getId().toString())
+		return hostLmsClient.placeHoldRequest(PlaceHoldRequestParameters.builder()
+				.id(patronIdentity.getLocalId())
+				.recordType(recordType)
+				.recordNumber(recordNumber)
+				.pickupLocation(patronRequest.getPickupLocationCode())
+				.note(note)
+				.patronRequestId(patronRequest.getId().toString())
+				.build())
 			.map(response -> Tuples.of(response.getLocalId(), response.getLocalStatus()))
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to place hold request.")));
 	}

@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.LocalRequest;
@@ -147,9 +148,14 @@ public class SupplyingAgencyService {
 
 		String note = "Consortial Hold. tno="+patronRequest.getId();
 
-		return client.placeHoldRequest(patronIdentityAtSupplier.getLocalId(),
-			recordType, recordNumber, context.getPickupAgencyCode(),
-			note, patronRequest.getId().toString());
+		return client.placeHoldRequest(PlaceHoldRequestParameters.builder()
+			.id(patronIdentityAtSupplier.getLocalId())
+			.recordType(recordType)
+			.recordNumber(recordNumber)
+			.pickupLocation(context.getPickupAgencyCode())
+			.note(note)
+			.patronRequestId(patronRequest.getId().toString())
+			.build());
 	}
 
 	private Mono<PatronRequest> updateSupplierRequest(RequestWorkflowContext psrc) {
