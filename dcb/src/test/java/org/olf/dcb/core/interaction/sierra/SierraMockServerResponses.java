@@ -7,16 +7,14 @@ import static org.mockserver.model.HttpStatusCode.INTERNAL_SERVER_ERROR_500;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
-import java.io.InputStream;
-
 import org.mockserver.model.HttpResponse;
 import org.mockserver.model.JsonBody;
+import org.olf.dcb.test.TestResourceLoader;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
-import lombok.SneakyThrows;
 
 public class SierraMockServerResponses {
 	private final TestResourceLoader resourceLoader;
@@ -107,34 +105,5 @@ public class SierraMockServerResponses {
 		Integer httpStatus;
 		String name;
 		String description;
-	}
-
-	public class TestResourceLoader {
-		private final String basePath;
-		private final ResourceLoader loader;
-
-		public TestResourceLoader(String basePath, ResourceLoader loader) {
-			this.loader = loader;
-			this.basePath = basePath;
-		}
-
-		public String getResource(String responseBodySubPath) {
-			return getResourceAsString(basePath + responseBodySubPath);
-		}
-
-		public JsonBody getJsonResource(String subPath) {
-			return json(getResource(subPath));
-		}
-
-		@SneakyThrows
-		private static String resourceToString(InputStream resource) {
-			return new String(resource.readAllBytes());
-		}
-
-		private String getResourceAsString(String resourcePath) {
-			return loader.getResourceAsStream(resourcePath)
-				.map(TestResourceLoader::resourceToString)
-				.orElseThrow(() -> new RuntimeException("Resource could not be found: " + resourcePath));
-		}
 	}
 }
