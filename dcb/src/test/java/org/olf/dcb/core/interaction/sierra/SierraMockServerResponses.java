@@ -19,12 +19,10 @@ import lombok.Data;
 import lombok.SneakyThrows;
 
 public class SierraMockServerResponses {
-	private final String basePath;
-	private final ResourceLoader loader;
+	private final TestResourceLoader resourceLoader;
 
 	public SierraMockServerResponses(String basePath, ResourceLoader loader) {
-		this.basePath = basePath;
-		this.loader = loader;
+		this.resourceLoader = new TestResourceLoader(basePath, loader);
 	}
 
 	public HttpResponse jsonSuccess(String responseBodySubPath) {
@@ -84,26 +82,7 @@ public class SierraMockServerResponses {
 	}
 
 	private HttpResponse jsonResponse(HttpResponse response, String responseBodySubPath) {
-		return jsonResponse(response, getJsonResource(responseBodySubPath));
-	}
-
-	private JsonBody getJsonResource(String subPath) {
-		return json(getResource(subPath));
-	}
-
-	private String getResource(String responseBodySubPath) {
-		return getResourceAsString(basePath + responseBodySubPath);
-	}
-
-	private String getResourceAsString(String resourcePath) {
-		return loader.getResourceAsStream(resourcePath)
-			.map(SierraMockServerResponses::resourceToString)
-			.orElseThrow(() -> new RuntimeException("Resource could not be found: " + resourcePath));
-	}
-
-	@SneakyThrows
-	private static String resourceToString(InputStream resource) {
-		return new String(resource.readAllBytes());
+		return jsonResponse(response, resourceLoader.getJsonResource(responseBodySubPath));
 	}
 
 	private HttpResponse jsonResponse(HttpResponse response, JsonBody body) {
@@ -128,5 +107,34 @@ public class SierraMockServerResponses {
 		Integer httpStatus;
 		String name;
 		String description;
+	}
+
+	public class TestResourceLoader {
+		private final String basePath;
+		private final ResourceLoader loader;
+
+		public TestResourceLoader(String basePath, ResourceLoader loader) {
+			this.loader = loader;
+			this.basePath = basePath;
+		}
+
+		public String getResource(String responseBodySubPath) {
+			return getResourceAsString(basePath + responseBodySubPath);
+		}
+
+		public JsonBody getJsonResource(String subPath) {
+			return json(getResource(subPath));
+		}
+
+		@SneakyThrows
+		private static String resourceToString(InputStream resource) {
+			return new String(resource.readAllBytes());
+		}
+
+		private String getResourceAsString(String resourcePath) {
+			return loader.getResourceAsStream(resourcePath)
+				.map(TestResourceLoader::resourceToString)
+				.orElseThrow(() -> new RuntimeException("Resource could not be found: " + resourcePath));
+		}
 	}
 }
