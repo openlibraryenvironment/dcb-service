@@ -8,16 +8,12 @@ import org.olf.dcb.core.model.Item;
 import reactor.core.publisher.Mono;
 
 public interface HostLmsClient {
-
-
-
 	// All implementations must understand these states and be able to translate
 	// them to
 	// local values when encountered via updateRequestStatus
 	enum CanonicalRequestState {
 		PLACED, TRANSIT;
 	}
-
 
 	enum CanonicalItemState {
 		AVAILABLE, TRANSIT, OFFSITE, RECEIVED, MISSING, ONHOLDSHELF;
@@ -32,10 +28,7 @@ public interface HostLmsClient {
 
 	Mono<String> createBib(Bib bib);
 
-	// (localHoldId, localHoldStatus)
-
-	Mono<LocalRequest> placeHoldRequest(String id, String recordType, String recordNumber,
-		String pickupLocation, String note, String patronRequestId);
+	Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters);
 
 	boolean useTitleLevelRequest();
 

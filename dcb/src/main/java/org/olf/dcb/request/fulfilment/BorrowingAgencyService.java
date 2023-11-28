@@ -10,6 +10,7 @@ import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
@@ -176,30 +177,16 @@ public class BorrowingAgencyService {
 		PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 		String localItemId, String localBibId) {
 
-		final String recordNumber;
-		final String recordType;
-
-		if (hostLmsClient.useTitleLevelRequest()) {
-			log.debug("place title level request for ID {} {}", localBibId, patronIdentity);
-			recordType = "b";
-			recordNumber = localBibId;
-		}
-		else if (hostLmsClient.useItemLevelRequest()) {
-			log.debug("place item level request for ID {} {}", localItemId, patronIdentity);
-			recordType = "i";
-			recordNumber = localItemId;
-		}
-		else {
-			// Using runtime error until this logic is moved behind the host LMS client boundary
-			return Mono.error(new RuntimeException(
-				"Invalid hold policy for Host LMS \"" + hostLmsClient.getHostLms().getCode() + "\""));
-		}
-
 		String note = "Consortial Hold. tno=" + patronRequest.getId();
 
-		return hostLmsClient
-			.placeHoldRequest(patronIdentity.getLocalId(), recordType, recordNumber,
-				patronRequest.getPickupLocationCode(), note, patronRequest.getId().toString())
+		return hostLmsClient.placeHoldRequest(PlaceHoldRequestParameters.builder()
+				.localPatronId(patronIdentity.getLocalId())
+				.localBibId(localBibId)
+				.localItemId(localItemId)
+				.pickupLocation(patronRequest.getPickupLocationCode())
+				.note(note)
+				.patronRequestId(patronRequest.getId().toString())
+				.build())
 			.map(response -> Tuples.of(response.getLocalId(), response.getLocalStatus()))
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to place hold request.")));
 	}

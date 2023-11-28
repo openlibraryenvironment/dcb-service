@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.LocalRequest;
@@ -122,34 +123,20 @@ public class SupplyingAgencyService {
 
 		log.debug("placeHoldRequest");
 
-		PatronRequest patronRequest = context.getPatronRequest();
-		SupplierRequest supplierRequest = context.getSupplierRequest();
-		PatronIdentity patronIdentityAtSupplier = context.getPatronVirtualIdentity();
+		final var patronRequest = context.getPatronRequest();
+		final var supplierRequest = context.getSupplierRequest();
+		final var patronIdentityAtSupplier = context.getPatronVirtualIdentity();
 
-		final String recordNumber;
-		final String recordType;
+		String note = "Consortial Hold. tno=" + patronRequest.getId();
 
-		if (client.useTitleLevelRequest()) {
-			log.debug("place title level request for ID {}", supplierRequest.getLocalBibId());
-			recordType = "b";
-			recordNumber = supplierRequest.getLocalBibId();
-		}
-		else if (client.useItemLevelRequest()) {
-			log.debug("place item level request for ID {}", supplierRequest.getLocalItemId());
-			recordType = "i";
-			recordNumber = supplierRequest.getLocalItemId();
-		}
-		else {
-			// Using runtime error until this logic is moved behind the host LMS client boundary
-			return Mono.error(new RuntimeException(
-				"Invalid hold policy for Host LMS \"" + client.getHostLms().getCode() + "\""));
-		}
-
-		String note = "Consortial Hold. tno="+patronRequest.getId();
-
-		return client.placeHoldRequest(patronIdentityAtSupplier.getLocalId(),
-			recordType, recordNumber, context.getPickupAgencyCode(),
-			note, patronRequest.getId().toString());
+		return client.placeHoldRequest(PlaceHoldRequestParameters.builder()
+			.localPatronId(patronIdentityAtSupplier.getLocalId())
+			.localBibId(supplierRequest.getLocalBibId())
+			.localItemId(supplierRequest.getLocalItemId())
+			.pickupLocation(context.getPickupAgencyCode())
+			.note(note)
+			.patronRequestId(patronRequest.getId().toString())
+			.build());
 	}
 
 	private Mono<PatronRequest> updateSupplierRequest(RequestWorkflowContext psrc) {
@@ -317,6 +304,7 @@ public class SupplyingAgencyService {
 							.localBarcodes( patron_barcodes )
 							.localPatronType( patronType )
 							.uniqueIds( stringToList(uniqueId) )
+							.localHomeLibraryCode(requestingPatronIdentity.getLocalHomeLibraryCode())
 							.build())
 					.map(createdPatron -> Tuples.of(createdPatron, patronType));
 			});

@@ -48,7 +48,7 @@ class ApplicationServicesClient {
 		this.URI_PARAMETERS = "/polaris.applicationservices/api" + client.getGeneralUriParameters(APPLICATION_SERVICES);
 	}
 
-	Mono<HoldRequestResponse> addLocalHoldRequest(PolarisLmsClient.HoldRequestParameters holdRequestParameters) {
+	Mono<HoldRequestResponse> addLocalHoldRequest(HoldRequestParameters holdRequestParameters) {
 		final var path = createPath("holds");
 		return createRequest(POST, path, uri -> uri.queryParam("bulkmode", true))
 			.zipWith( getLocalRequestBody(holdRequestParameters) )
@@ -294,7 +294,7 @@ class ApplicationServicesClient {
 			.flatMap(response -> Mono.justOrEmpty(response.getBody()));
 	}
 
-	private Mono<LocalRequest> getLocalRequestBody(PolarisLmsClient.HoldRequestParameters data) {
+	private Mono<LocalRequest> getLocalRequestBody(HoldRequestParameters data) {
 		final var conf = client.getHostLms().getClientConfig();
 		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
 		return getHoldRequestDefaults().map( expiration -> LocalRequest.builder()

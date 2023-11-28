@@ -28,7 +28,13 @@ import java.net.URI;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.marc4j.marc.Record;
@@ -43,8 +49,8 @@ import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
-import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestTypeException;
 import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.HostLms;
@@ -128,21 +134,21 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<LocalRequest> placeHoldRequest(String id, String recordType,
-		String recordNumber, String pickupLocation, String note, String patronRequestId) {
-
-		if (!Objects.equals(recordType, "i")) {
-			return Mono.error(new HoldRequestTypeException(recordType));
-		}
-
-		return placeItemLevelHoldRequest(HoldRequestParameters.builder()
-			.localPatronId(id)
-			.recordType(recordType)
-			.recordNumber(recordNumber)
-			.pickupLocation(pickupLocation)
-			.note(note)
-			.dcbPatronRequestId(patronRequestId)
-			.build());
+	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
+		return getBibIdFromItemId(parameters.getLocalItemId())
+			.flatMap(this::getBib)
+			.map(bib -> HoldRequestParameters.builder()
+				.localPatronId(parameters.getLocalPatronId())
+				.recordNumber(parameters.getLocalItemId())
+				.title(bib.getBrowseTitle())
+				.primaryMARCTOMID(bib.getPrimaryMARCTOMID())
+				.pickupLocation(parameters.getPickupLocation())
+				.note(parameters.getNote())
+				.dcbPatronRequestId(parameters.getPatronRequestId())
+				.build())
+			.flatMap(appServicesClient::addLocalHoldRequest)
+			.map(ApplicationServicesClient.HoldRequestResponse::getHoldRequestID)
+			.flatMap(this::getPlaceHoldRequestData);
 	}
 
 	@Override
@@ -249,19 +255,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.map(itemCheckoutResult -> "OK");
 	}
 
-	private Mono<LocalRequest> placeItemLevelHoldRequest(HoldRequestParameters args) {
-		return getBibIdFromItemId(args.getRecordNumber())
-			.flatMap(this::getBib)
-			.map(bib -> {
-				args.setTitle(bib.getBrowseTitle());
-				args.setPrimaryMARCTOMID(bib.getPrimaryMARCTOMID());
-				return args;
-			})
-			.flatMap(appServicesClient::addLocalHoldRequest)
-			.map(ApplicationServicesClient.HoldRequestResponse::getHoldRequestID)
-			.flatMap(this::getPlaceHoldRequestData);
-	}
-
 	private Mono<LocalRequest> getPlaceHoldRequestData(Integer holdRequestId) {
 		return appServicesClient.getLocalHoldRequest(holdRequestId)
 			.map(response -> LocalRequest.builder()
@@ -279,7 +272,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<String> getBibIdFromItemId(String recordNumber) {
-		return papiClient.synch_ItemGet(recordNumber).map(PAPIClient.ItemGetRow::getBibliographicRecordID).map(String::valueOf);
+		return papiClient.synch_ItemGet(recordNumber)
+			.map(PAPIClient.ItemGetRow::getBibliographicRecordID)
+			.map(String::valueOf);
 	}
 
 	private Mono<PAPIClient.ItemGetRow> setMaterialTypeCode(PAPIClient.ItemGetRow itemGetRow) {
@@ -575,29 +570,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		private Integer itemStatusID;
 		@JsonProperty("Name")
 		private String name;
-	}
-
-	@Builder
-	@Data
-	@AllArgsConstructor
-	@Serdeable
-	static class HoldRequestParameters {
-		private String localPatronId;
-		private String recordType;
-		private String recordNumber;
-		private String title;
-		private String pickupLocation;
-		private String dcbPatronRequestId;
-		private String note;
-		private Integer primaryMARCTOMID;
-		public HoldRequestParameters setTitle(String title) {
-			this.title = title;
-			return this;
-		}
-		public HoldRequestParameters setPrimaryMARCTOMID(Integer id) {
-			this.primaryMARCTOMID = id;
-			return this;
-		}
 	}
 
 	@Builder

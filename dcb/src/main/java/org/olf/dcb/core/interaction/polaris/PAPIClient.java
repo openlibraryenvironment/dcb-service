@@ -12,6 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.polaris.exceptions.CreatePatronException;
 import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -21,6 +22,7 @@ import reactor.core.publisher.Mono;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -190,21 +192,35 @@ public class PAPIClient {
 	private PatronRegistration getPatronRegistration(Patron patron) {
 		final var conf = client.getHostLms().getClientConfig();
 		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
+
+		final var logonBranchID = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
 		return PatronRegistration.builder()
-			.logonBranchID(Integer.valueOf((String) conf.get(LOGON_BRANCH_ID)))
-			.logonUserID(Integer.valueOf((String) conf.get(LOGON_USER_ID)))
-			.logonWorkstationID(Integer.valueOf((String) servicesMap.get(SERVICES_WORKSTATION_ID)))
-			.patronBranchID(Integer.valueOf(patron.getLocalHomeLibraryCode()))
+			.logonBranchID( logonBranchID )
+			.logonUserID(extractMapValue(conf, LOGON_USER_ID, Integer.class))
+			.logonWorkstationID(extractMapValue(servicesMap, LOGON_USER_ID, Integer.class))
+			.patronBranchID( getPatronBranchID(patron, logonBranchID) )
 			.nameFirst(patron.getLocalBarcodes().get(0))
 			.nameLast(patron.getUniqueIds().get(0))
 			.userName(patron.getUniqueIds().get(0))
+			.patronCode( parseInt(patron.getLocalPatronType()) )
 			.birthdate("1999-11-01")
 			.postalCode("63131")
 			.streetOne("1412 S Spoede")
 			.city("SAINT LOUIS")
 			.state("MO")
-			.patronCode( parseInt(patron.getLocalPatronType()) )
 			.build();
+	}
+
+	private static Integer getPatronBranchID(Patron patron, Integer logonBranchID) {
+		try {
+			return Optional.ofNullable(patron.getLocalHomeLibraryCode())
+				.map(Integer::valueOf)
+				.orElseThrow(() -> new NumberFormatException("Invalid number format"));
+		} catch (NumberFormatException e) {
+			log.error("Cannot use localHomeLibraryCode for patronBranchID: {}.", patron, e);
+			log.warn("Falling back to logon branch ID: '{}' as the patron's branch ID.", logonBranchID);
+			return logonBranchID;
+		}
 	}
 
 	@Builder
