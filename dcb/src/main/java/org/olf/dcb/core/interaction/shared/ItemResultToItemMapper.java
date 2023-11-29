@@ -1,8 +1,8 @@
 package org.olf.dcb.core.interaction.shared;
 
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.sierraFallback;
 import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.polarisFallback;
+import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.sierraFallback;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -13,35 +13,31 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.olf.dcb.core.interaction.polaris.PAPIClient;
-import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
 import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
 
+@Slf4j
 @Singleton
 public class ItemResultToItemMapper {
-	private static final Logger log = LoggerFactory.getLogger(ItemResultToItemMapper.class);
+	private static final Integer FIXED_FIELD_61 = 61;
 	private final ItemStatusMapper itemStatusMapper;
 	private final NumericItemTypeMapper itemTypeMapper;
-	private final ReferenceValueMappingRepository referenceValueMappingRepository;
-	private final AgencyRepository agencyRepository;
-	private static final Integer FIXED_FIELD_61 = Integer.valueOf(61);
+
+	private final LocationToAgencyMappingService locationToAgencyMappingService;
 
 	ItemResultToItemMapper(ItemStatusMapper itemStatusMapper,
 		NumericItemTypeMapper itemTypeMapper,
-		ReferenceValueMappingRepository referenceValueMappingRepository,
-		AgencyRepository agencyRepository)
-	{
+		LocationToAgencyMappingService locationToAgencyMappingService) {
+
 		this.itemStatusMapper = itemStatusMapper;
 		this.itemTypeMapper = itemTypeMapper;
-		this.referenceValueMappingRepository = referenceValueMappingRepository;
-		this.agencyRepository = agencyRepository;
+		this.locationToAgencyMappingService = locationToAgencyMappingService;
 	}
 
 	public Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem result,
@@ -125,26 +121,24 @@ public class ItemResultToItemMapper {
 				.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode));
 	}
 
-	Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromShelvingLocation(org.olf.dcb.core.model.Item item, String hostSystem, String itemShelvingLocation) {
-//			log.debug("map shelving location to agency  {}:\"{}\"",hostSystem,itemShelvingLocation);
-			return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-				"Location", hostSystem, itemShelvingLocation, "AGENCY", "DCB"))
-				.flatMap(rvm -> Mono.from(agencyRepository.findOneByCode( rvm.getToValue() )))
-				.map(dataAgency -> {
-					item.setAgencyCode( dataAgency.getCode() );
-					item.setAgencyDescription( dataAgency.getName() );
-					return item;
-				})
-				.defaultIfEmpty(item);
+	Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromShelvingLocation(
+		org.olf.dcb.core.model.Item item, String hostSystem, String itemShelvingLocation) {
+
+		return locationToAgencyMappingService.mapLocationToAgency(hostSystem, itemShelvingLocation)
+			.map(dataAgency -> {
+				item.setAgencyCode(dataAgency.getCode());
+				item.setAgencyDescription(dataAgency.getName());
+				return item;
+			})
+			.defaultIfEmpty(item);
 	}
 
 	Mono<org.olf.dcb.core.model.Item> enrichItemWithMappedItemType(org.olf.dcb.core.model.Item item, String hostSystem) {
 			// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human readable string at the moment
 			// Sierra items should have a fixedField 61 according to https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
-//		log.debug("enrichItemWithMappedItemType: hostSystem: {}, localItemTypeCode: {}", hostSystem, item.getLocalItemTypeCode());
 			return itemTypeMapper.getCanonicalItemType(hostSystem, item.getLocalItemTypeCode())
-							.defaultIfEmpty("UNKNOWN")
-							.map( mappedType -> item.setCanonicalItemType(mappedType) );
+				.defaultIfEmpty("UNKNOWN")
+				.map(item::setCanonicalItemType);
 	}
 
 	public static Instant convertFrom(String dueDate) {
