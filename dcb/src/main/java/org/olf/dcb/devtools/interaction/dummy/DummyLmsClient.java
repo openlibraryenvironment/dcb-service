@@ -30,11 +30,10 @@ import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
+import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
-import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Parameter;
@@ -61,19 +60,17 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	private static final String UUID5_PREFIX = "ingest-source:dummy-lms";
 	private final HostLms lms;
 	private final ProcessStateService processStateService;
-	private final ReferenceValueMappingRepository referenceValueMappingRepository;
-	private final AgencyRepository agencyRepository;
+	private final LocationToAgencyMappingService locationToAgencyMappingService;
 
 	private static final String[] titleWords = { "Science", "Philosophy", "Music", "Art", "Nonsense", "Dialectic",
 			"FlipDeBoop", "FlopLehoop", "Affdgerandunique", "Literacy" };
 
-	public DummyLmsClient(@Parameter HostLms lms,
-			ProcessStateService processStateService,
-			ReferenceValueMappingRepository referenceValueMappingRepository, AgencyRepository agencyRepository) {
+	public DummyLmsClient(@Parameter HostLms lms, ProcessStateService processStateService,
+		LocationToAgencyMappingService locationToAgencyMappingService) {
+
 		this.lms = lms;
 		this.processStateService = processStateService;
-		this.referenceValueMappingRepository = referenceValueMappingRepository;
-		this.agencyRepository = agencyRepository;
+		this.locationToAgencyMappingService = locationToAgencyMappingService;
 	}
 
 	@Override
@@ -349,21 +346,21 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	protected Mono<PublisherState> saveState(PublisherState state) {
 		log.debug("Update state {} - {}", state, lms.getName());
 
-		return Mono.from(processStateService.updateState(lms.getId(), "ingest", state.storred_state)).thenReturn(state);
+		return Mono.from(processStateService.updateState(lms.getId(), "ingest", state.storred_state))
+			.thenReturn(state);
 	}
 
-	Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromShelvingLocation(org.olf.dcb.core.model.Item item,
-			String hostSystem, String itemShelvingLocation) {
+	Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromShelvingLocation(
+		org.olf.dcb.core.model.Item item, String hostSystem, String itemShelvingLocation) {
 		// log.debug("map shelving location to agency
 		// {}:\"{}\"",hostSystem,itemShelvingLocation);
-		return Mono
-				.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-						"Location", hostSystem, itemShelvingLocation, "AGENCY", "DCB"))
-				.flatMap(rvm -> Mono.from(agencyRepository.findOneByCode(rvm.getToValue()))).map(dataAgency -> {
-					item.setAgencyCode(dataAgency.getCode());
-					item.setAgencyDescription(dataAgency.getName());
-					return item;
-				}).defaultIfEmpty(item);
+		return locationToAgencyMappingService.mapLocationToAgency(hostSystem, itemShelvingLocation)
+			.map(dataAgency -> {
+				item.setAgencyCode(dataAgency.getCode());
+				item.setAgencyDescription(dataAgency.getName());
+				return item;
+			})
+			.defaultIfEmpty(item);
 	}
 
 	@Override
