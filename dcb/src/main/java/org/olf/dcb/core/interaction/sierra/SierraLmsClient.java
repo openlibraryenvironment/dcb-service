@@ -651,7 +651,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		}
 	}
 
-	public static int convertToInteger(String integer) {
+	private static int convertToInteger(String integer) {
 		try {
 			return parseInt(integer);
 		} catch (NumberFormatException e) {
@@ -659,13 +659,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		}
 	}
 
-	@Override
-	public boolean useTitleLevelRequest() {
+	private boolean useTitleLevelRequest() {
 		return holdPolicyIs("title");
 	}
 
-	@Override
-	public boolean useItemLevelRequest() {
+	private boolean useItemLevelRequest() {
 		return holdPolicyIs("item");
 	}
 

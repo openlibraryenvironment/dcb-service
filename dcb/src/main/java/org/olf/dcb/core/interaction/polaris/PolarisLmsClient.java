@@ -87,14 +87,15 @@ import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
+@Slf4j
 @Prototype
 public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsPagedRow>, HostLmsClient{
-	private static final Logger log = LoggerFactory.getLogger(PolarisLmsClient.class);
 	private final URI rootUri;
 	private final HostLms lms;
 	private final HttpClient client;
@@ -459,16 +460,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Publisher<ConfigurationRecord> getConfigStream() {
 		log.debug("{}, {}", "getConfigStream() not implemented, returning: ", null);
 		return Mono.empty();
-	}
-
-	@Override
-	public boolean useTitleLevelRequest() {
-		return false;
-	}
-
-	@Override
-	public boolean useItemLevelRequest() {
-		return true;
 	}
 
 	@Override

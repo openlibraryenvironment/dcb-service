@@ -18,13 +18,13 @@ import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
@@ -36,8 +36,6 @@ import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -46,6 +44,7 @@ import io.micronaut.core.util.StringUtils;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import jakarta.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
@@ -56,12 +55,9 @@ import services.k_int.utils.UUIDUtils;
  * This adapter exists to allow devs to run a fully functional local system
  * without configuring an external HostLMS.
  */
-// public class DummyLmsClient implements HostLmsClient, MarcIngestSource<OaiListRecordsMarcXML> {
+@Slf4j
 @Prototype
 public class DummyLmsClient implements HostLmsClient, IngestSource {
-
-	private static final Logger log = LoggerFactory.getLogger(DummyLmsClient.class);
-
 	private static final String UUID5_PREFIX = "ingest-source:dummy-lms";
 	private final HostLms lms;
 	private final ProcessStateService processStateService;
@@ -317,16 +313,6 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 			.localId(UUID.randomUUID().toString())
 			.localStatus("HELD")
 			.build());
-	}
-
-	@Override
-	public boolean useTitleLevelRequest() {
-		return false;
-	}
-
-	@Override
-	public boolean useItemLevelRequest() {
-		return true;
 	}
 
 	private String generateTitle(String recordId) {

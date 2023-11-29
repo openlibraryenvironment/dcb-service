@@ -30,10 +30,6 @@ public interface HostLmsClient {
 
 	Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters);
 
-	boolean useTitleLevelRequest();
-
-	boolean useItemLevelRequest();
-
 	Mono<Patron> getPatronByLocalId(String localPatronId);
 
 	Mono<Patron> updatePatron(String localId, String patronType);

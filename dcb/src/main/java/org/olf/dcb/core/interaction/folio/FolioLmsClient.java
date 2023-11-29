@@ -51,16 +51,6 @@ public class FolioLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public boolean useTitleLevelRequest() {
-		return false;
-	}
-
-	@Override
-	public boolean useItemLevelRequest() {
-		return true;
-	}
-
-	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		return Mono.empty();
 	}
