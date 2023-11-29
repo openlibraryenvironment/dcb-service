@@ -1,9 +1,49 @@
 # Changelog
 
+## Version 2.6.2
+
+### Changes
+* [Chore]
+	* Remove unused factory method for availability report
+	* Reformat Polaris host LMS client
+	* Reformat Sierra host LMS client
+	* Remove use of record number when getting recently placed hold
+* [Refactor]
+	* Introduce guard clause for null item type
+	* Use location code from item when mapping to agency
+	* Extract method for parsing Sierra due date
+	* Return item status instead of code when mapping local item status DCB-479
+	* Move pickup location to agency mapping to reference value mapping service
+	* Use reference mapping service in location to agency mapping service
+	* Use location to agency mapping service in dummy host LMS
+	* Extract service for mapping a location to an agency
+	* error response handling when placing a hold in the polaris client [DCB-746]
+	* Rename item local ID field
+	* Hide decision between title and item holds within Sierra host LMS client
+	* Remove unused record number from place hold request parameters
+	* Remove unused record type from place hold request parameters
+* [Test]
+	* Use additional item matchers pulled forward from DCB-479
+	* Introduce parameter for type when defining FOLIO host LMS
+	* Demonstrate Polaris fallback mapping DCB-479
+	* Remove unecessary context rebuilds
+	* Use item barcode matcher in live availability service tests
+	* Use item matchers for items from Polaris
+	* Add missing due date checks for items from Sierra
+	* Move item matchers to separate class
+	* Extract methods for item matchers
+	* Use has property matchers for checking items from Sierra
+	* Demonstrate getting items using the Sierra host LMS client
+
+### Fixes
+* [General]
+	* Use lowercase token_filter by default
+
 ## Version 2.6.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* add note on HTTP_HOSTS env vars
 	* Add missing test resource loader file
 	* Remove check in Polaris host LMS client for item level requests only
