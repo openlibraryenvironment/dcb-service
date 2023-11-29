@@ -22,7 +22,7 @@ public class ReferenceValueMappingService {
 		return findLocationToAgencyMapping("DCB", pickupLocationCode);
 	}
 
-	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String fromContext, String pickupLocationCode) {
+	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String fromContext, String locationCode) {
 		if (isEmpty(fromContext)) {
 			return Mono.empty();
 		}
@@ -31,11 +31,11 @@ public class ReferenceValueMappingService {
 		final var toCategory = "AGENCY";
 		final var toContext = "DCB";
 
-		log.debug("Attempting to find mapping from category: {}, from context: {}, pickup location code: {}, to category: {}, to context: {}",
-			fromCategory, fromContext, pickupLocationCode, toCategory, toContext);
+		log.debug("Attempting to find mapping from category: {}, from context: {}, location code: {}, to category: {}, to context: {}",
+			fromCategory, fromContext, locationCode, toCategory, toContext);
 
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-			fromCategory, fromContext, pickupLocationCode, toCategory, toContext))
+			fromCategory, fromContext, locationCode, toCategory, toContext))
 			.doOnSuccess(mapping -> log.debug("Found mapping: {}", mapping));
 	}
 }
