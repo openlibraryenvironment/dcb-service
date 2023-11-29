@@ -16,8 +16,6 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
-import org.olf.dcb.request.resolution.FirstRequestableItemResolutionStrategy;
-import org.olf.dcb.request.resolution.NoItemsRequestableAtAnyAgency;
 
 class ChooseFirstRequestableItemResolutionStrategyTests {
 	private final FirstRequestableItemResolutionStrategy resolutionStrategy
@@ -33,7 +31,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 
 		// Assert
 		assertThat("Should have expected local ID",
-			chosenItem.getId(), is("78458456"));
+			chosenItem.getLocalId(), is("78458456"));
 
 		assertThat("Should have expected host LMS",
 			chosenItem.getHostLmsCode(), is("FAKE_HOST"));
@@ -56,7 +54,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 
 		// Assert
 		assertThat("Should have expected local ID",
-			chosenItem.getId(), is("47463572"));
+			chosenItem.getLocalId(), is("47463572"));
 
 		assertThat("Should have expected host LMS",
 			chosenItem.getHostLmsCode(), is("FAKE_HOST"));
@@ -101,7 +99,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 		ItemStatusCode statusCode, Boolean requestable) {
 
 		return Item.builder()
-			.id(id)
+			.localId(id)
 			.status(new ItemStatus(statusCode))
 			.location(Location.builder()
 				.code("code")

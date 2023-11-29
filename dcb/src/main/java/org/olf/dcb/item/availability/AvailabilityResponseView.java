@@ -22,7 +22,7 @@ public class AvailabilityResponseView {
 		UUID clusteredBibId) {
 
 		final var mappedItems = report.getItems().stream()
-			.map(item -> new Item(item.getId(),
+			.map(item -> new Item(item.getLocalId(),
 				new Status(item.getStatus().getCode().name()), item.getDueDate(),
 				new Location(item.getLocation().getCode(), item.getLocation().getName()),
 				item.getBarcode(), item.getCallNumber(), item.getHostLmsCode(),

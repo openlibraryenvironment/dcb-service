@@ -112,7 +112,7 @@ public class PatronRequestResolutionService {
 		return SupplierRequest.builder()
 			.id(supplierRequestId)
 			.patronRequest(updatedPatronRequest)
-			.localItemId(item.getId())
+			.localItemId(item.getLocalId())
 			.localBibId(item.getLocalBibId())
 			.localItemBarcode(item.getBarcode())
 			.localItemLocationCode(item.getLocation().getCode())

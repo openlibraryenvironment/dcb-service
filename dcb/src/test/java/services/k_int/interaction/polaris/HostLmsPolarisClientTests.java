@@ -25,7 +25,6 @@ import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.test.AgencyFixture;
@@ -111,7 +110,7 @@ public class HostLmsPolarisClientTests {
 		assertThat(itemsList.size(), is(3));
 
 		final var firstItem = itemsList.stream()
-			.filter(item -> "3512742".equals(item.getId()))
+			.filter(item -> "3512742".equals(item.getLocalId()))
 			.findFirst()
 			.orElse(null);
 

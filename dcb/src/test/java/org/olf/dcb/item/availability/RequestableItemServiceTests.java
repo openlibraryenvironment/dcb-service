@@ -13,7 +13,6 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
-import org.olf.dcb.item.availability.RequestableItemService;
 
 class RequestableItemServiceTests {
 	private final RequestableItemService requestableItemService
@@ -73,7 +72,7 @@ class RequestableItemServiceTests {
 
 	private static Item createItem(String id, ItemStatusCode statusCode, String locationCode) {
 		return Item.builder()
-			.id(id)
+			.localId(id)
 			.location(Location.builder()
 				.code(locationCode)
 				.build())

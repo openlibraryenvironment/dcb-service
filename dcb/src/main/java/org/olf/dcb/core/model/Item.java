@@ -23,7 +23,7 @@ import lombok.experimental.Accessors;
 @AllArgsConstructor()
 @Accessors(chain=true)
 public class Item implements Comparable<Item> {
-	private String id;
+	private String localId;
 	private ItemStatus status;
 	@Nullable
 	private Instant dueDate;

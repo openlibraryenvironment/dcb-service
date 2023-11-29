@@ -61,7 +61,7 @@ public class ItemResultToItemMapper {
 
 		return itemStatusMapper.mapStatus(result.getStatus(), hostLmsCode, sierraFallback())
 			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
-				.id(result.getId())
+				.localId(result.getId())
 				.status(itemStatus)
 				.dueDate(parsedDueDate)
 				.location(org.olf.dcb.core.model.Location.builder()
@@ -106,7 +106,7 @@ public class ItemResultToItemMapper {
 
 		return itemStatusMapper.mapStatus(status, hostLmsCode, polarisFallback())
 			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
-				.id(String.valueOf(itemGetRow.getItemRecordID()))
+				.localId(String.valueOf(itemGetRow.getItemRecordID()))
 				.status(itemStatus)
 				.dueDate( convertFrom(itemGetRow.getDueDate()) )
 				.location(org.olf.dcb.core.model.Location.builder()
