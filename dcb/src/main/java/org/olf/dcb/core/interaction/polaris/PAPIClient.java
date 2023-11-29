@@ -197,7 +197,7 @@ public class PAPIClient {
 		return PatronRegistration.builder()
 			.logonBranchID( logonBranchID )
 			.logonUserID(extractMapValue(conf, LOGON_USER_ID, Integer.class))
-			.logonWorkstationID(extractMapValue(servicesMap, LOGON_USER_ID, Integer.class))
+			.logonWorkstationID(extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class))
 			.patronBranchID( getPatronBranchID(patron, logonBranchID) )
 			.nameFirst(patron.getLocalBarcodes().get(0))
 			.nameLast(patron.getUniqueIds().get(0))

@@ -12,6 +12,7 @@ import lombok.Data;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
 import org.olf.dcb.core.interaction.polaris.exceptions.PatronBlockException;
 import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
 import org.slf4j.Logger;
@@ -58,7 +59,15 @@ class ApplicationServicesClient {
 				return request.body(body);
 			})
 			.flatMap(request -> client.exchange(request, HoldRequestResponse.class))
-			.flatMap(response -> Mono.justOrEmpty(response.getBody()));
+			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
+			.onErrorResume(Exception.class, error -> {
+				if (error instanceof HoldRequestException) {
+					return Mono.error(error);
+				} else {
+					log.debug("An error occurred when creating a hold: {}", error.getMessage());
+					return Mono.error(new HoldRequestException("Error occurred when creating a hold"));
+				}
+			});
 	}
 
 	Mono<LibraryHold> getLocalHoldRequest(Integer id) {
@@ -302,15 +311,26 @@ class ApplicationServicesClient {
 			.answer(1) // default
 			.activationDate( LocalDateTime.now().format( ofPattern("yyyy-MM-dd") ) )
 			.expirationDate( LocalDateTime.now().plusDays(expiration).format( ofPattern("MM/dd/yyyy") ))
-			.origin(Integer.valueOf((String) servicesMap.get(SERVICES_PRODUCT_ID)))
+			.origin(extractMapValue(servicesMap, SERVICES_PRODUCT_ID, Integer.class))
 			.patronID(Optional.ofNullable(data.getLocalPatronId()).map(Integer::valueOf).orElse(null))
-			.pickupBranchID(Optional.ofNullable(data.getPickupLocation()).map(Integer::valueOf).orElse(null))
+			.pickupBranchID( checkPickupBranchID(data) )
 			.trackingNumber(data.getDcbPatronRequestId())
 			.unlockedRequest(true)
 			.itemRecordID(Optional.ofNullable(data.getRecordNumber()).map(Integer::valueOf).orElse(null))
 			.title(data.getTitle())
 			.mARCTOMID(data.getPrimaryMARCTOMID())
 			.build());
+	}
+
+	private static Integer checkPickupBranchID(HoldRequestParameters data) {
+		log.debug("checking pickup branch id from passed pickup location: '{}'", data.getPickupLocation());
+		try {
+			return Optional.ofNullable(data.getPickupLocation())
+				.map(Integer::valueOf)
+				.orElseThrow(() -> new NumberFormatException("Invalid number format"));
+		} catch (NumberFormatException e) {
+			throw new HoldRequestException("Cannot use pickup location '"+data.getPickupLocation()+"' for pickupBranchID.");
+		}
 	}
 
 	private <T> Mono<MutableHttpRequest<?>> createRequest(HttpMethod httpMethod, String path,
