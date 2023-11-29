@@ -38,4 +38,18 @@ public class ReferenceValueMappingService {
 			fromCategory, fromContext, locationCode, toCategory, toContext))
 			.doOnSuccess(mapping -> log.debug("Found mapping: {}", mapping));
 	}
+
+	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
+		String pickupLocationContext, String pickupLocationCode) {
+
+		return findLocationToAgencyMapping(pickupLocationContext, pickupLocationCode);
+	}
+
+	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
+		String pickupLocationCode, String pickupLocationContext, String requestorLocalSystemCode) {
+
+		return findLocationToAgencyMapping(pickupLocationCode)
+			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(pickupLocationContext, pickupLocationCode)))
+			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(requestorLocalSystemCode, pickupLocationCode)));
+	}
 }

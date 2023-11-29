@@ -42,24 +42,18 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 	private Mono<Tuple3<CheckResult, String, String>> checkMapping(PlacePatronRequestCommand command) {
 		final var pickupLocationCode = command.getPickupLocationCode();
 
-		return findAgencyMapping(command)
+		return findPickupLocationToAgencyMapping(command)
 			.map(mapping -> Tuples.of(CheckResult.passed(), mapping.getToValue(), pickupLocationCode))
 			.defaultIfEmpty(Tuples.of(CheckResult.failed(
 				"Pickup location \"" + pickupLocationCode + "\" is not mapped to an agency"), "", pickupLocationCode));
 	}
 
-	private Mono<ReferenceValueMapping> findAgencyMapping(PlacePatronRequestCommand command) {
-		return mapPossibleIdToCode(command.getPickupLocationCode())
-			.flatMap(locationCode -> findAgencyMapping(locationCode,
-				command.getPickupLocationContext(), command.getRequestorLocalSystemCode()));
-	}
+	private Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
+		PlacePatronRequestCommand command) {
 
-	private Mono<ReferenceValueMapping> findAgencyMapping(String pickupLocationCode,
-		String pickupLocationContext, String requestorLocalSystemCode) {
-		
-		return findDcbContextAgencyMapping(pickupLocationCode)
-			.switchIfEmpty(Mono.defer(() -> findAgencyMapping(pickupLocationContext, pickupLocationCode)))
-			.switchIfEmpty(Mono.defer(() -> findAgencyMapping(requestorLocalSystemCode, pickupLocationCode)));
+		return mapPossibleIdToCode(command.getPickupLocationCode())
+			.flatMap(locationCode -> referenceValueMappingService.findPickupLocationToAgencyMapping(locationCode,
+				command.getPickupLocationContext(), command.getRequestorLocalSystemCode()));
 	}
 
 	/**
@@ -73,17 +67,6 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 		return locationService.findById(pickupLocationCode)
 			.map(Location::getCode)
 			.defaultIfEmpty(pickupLocationCode);
-	}
-
-	private Mono<ReferenceValueMapping> findAgencyMapping(
-		String pickupLocationContext, String pickupLocationCode) {
-
-		return referenceValueMappingService.findLocationToAgencyMapping(
-			pickupLocationContext, pickupLocationCode);
-	}
-
-	private Mono<ReferenceValueMapping> findDcbContextAgencyMapping(String pickupLocationCode) {
-		return referenceValueMappingService.findLocationToAgencyMapping(pickupLocationCode);
 	}
 
 	private Mono<CheckResult> checkAgencyWhenPreviousCheckPassed(CheckResult previousCheck,
