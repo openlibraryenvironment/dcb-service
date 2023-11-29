@@ -547,7 +547,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// we need retries or a delay.
 		return Mono.from(client.placeHoldRequest(parameters.getLocalPatronId(), patronHoldPost))
 			.then(Mono.defer(() -> getPatronHoldRequestId(parameters.getLocalPatronId(),
-					parameters.getRecordNumber(), parameters.getNote(), parameters.getPatronRequestId()))
+					recordNumber, parameters.getNote(), parameters.getPatronRequestId()))
 				.retry(getHoldsRetryAttempts))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
