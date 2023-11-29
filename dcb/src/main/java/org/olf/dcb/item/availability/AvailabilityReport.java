@@ -26,10 +26,6 @@ public class AvailabilityReport {
 		return of(items, List.of());
 	}
 
-	public static AvailabilityReport ofItems(Item... items) {
-		return ofItems(List.of(items));
-	}
-
 	public static AvailabilityReport ofErrors(Error... errors) {
 		return of(List.of(), List.of(errors));
 	}
