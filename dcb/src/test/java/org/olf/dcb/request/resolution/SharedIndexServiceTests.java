@@ -8,6 +8,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.olf.dcb.test.matchers.BibMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.BibMatchers.hasSourceRecordId;
+import static org.olf.dcb.test.matchers.BibMatchers.hasSourceSystemIdFor;
 import static org.olf.dcb.test.matchers.ModelMatchers.hasId;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -69,11 +70,13 @@ class SharedIndexServiceTests {
 				allOf(
 					hasId(firstBibRecordId),
 					hasSourceRecordId("798472"),
+					hasSourceSystemIdFor(secondHostLms),
 					hasHostLmsCode("SECOND-HOST-LMS")
 				),
 				allOf(
 					hasId(secondBibRecordId),
 					hasSourceRecordId("896857"),
+					hasSourceSystemIdFor(firstHostLms),
 					hasHostLmsCode("FIRST-HOST-LMS")
 				)
 			));

@@ -14,5 +14,6 @@ import lombok.Data;
 public class Bib {
 	private final UUID id;
 	private final String sourceRecordId;
+	private final UUID sourceSystemId;
 	private final HostLms hostLms;
 }

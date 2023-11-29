@@ -58,6 +58,7 @@ public class SharedIndexService {
 			.map(hostLms -> Bib.builder()
 				.id(bibRecord.getId())
 				.sourceRecordId(bibRecord.getSourceRecordId())
+				.sourceSystemId(bibRecord.getSourceSystemId())
 				.hostLms(hostLms)
 				.build());
 	}
