@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import org.hamcrest.Matcher;
@@ -21,6 +22,7 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Item;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.test.BibRecordFixture;
@@ -112,12 +114,13 @@ class LiveAvailabilityServiceTests {
 		// This is a compromise that checks the rough identity of each item
 		// without duplicating checks for many fields
 		// The order is important due to the sorting applied to items
-		assertThat(report, hasItems(
+		assertThat(report, hasItemsInOrder(
 			hasBarcode("9849123490"),
 			hasBarcode("6565750674"),
 			hasBarcode("30800005238487"),
 			hasBarcode("30800005208449"),
-			hasBarcode("30800005315459")));
+			hasBarcode("30800005315459")
+		));
 	}
 
 	@Test
@@ -214,12 +217,8 @@ class LiveAvailabilityServiceTests {
 	}
 
 	@SafeVarargs
-	private static Matcher<AvailabilityReport> hasItems(Matcher<Object>... matchers) {
+	private static Matcher<AvailabilityReport> hasItemsInOrder(Matcher<Item>... matchers) {
 		return hasProperty("items", contains(matchers));
-	}
-
-	private static Matcher<Object> hasBarcode(String expectedBarcode) {
-		return hasProperty("barcode", is(expectedBarcode));
 	}
 
 	private static Matcher<AvailabilityReport> hasNoErrors() {
