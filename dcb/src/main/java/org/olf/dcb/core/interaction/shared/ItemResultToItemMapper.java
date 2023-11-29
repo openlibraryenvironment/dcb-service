@@ -15,6 +15,7 @@ import java.util.Map;
 import org.olf.dcb.core.interaction.polaris.PAPIClient;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
+import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
@@ -40,42 +41,45 @@ public class ItemResultToItemMapper {
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 	}
 
-	public Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem result,
+	public Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem itemResult,
 		String hostLmsCode, String localBibId) {
 
-		log.debug("mapResultToItem(result, {}, {})", hostLmsCode, localBibId);
+		log.debug("mapResultToItem({}, {}, {})", itemResult, hostLmsCode, localBibId);
 
-		final var dueDate = result.getStatus().getDuedate();
+		final var localItemTypeCode = determineLocalItemTypeCode(itemResult.getFixedFields());
 
-		final var parsedDueDate = isNotEmpty(dueDate)
-			? Instant.parse(dueDate)
-			: null;
+		final var locationCode = itemResult.getLocation().getCode().trim();
 
-		final var localItemTypeCode = determineLocalItemTypeCode(result.getFixedFields());
-
-		final var locationCode = result.getLocation().getCode().trim();
-
-		return itemStatusMapper.mapStatus(result.getStatus(), hostLmsCode, sierraFallback())
+		return itemStatusMapper.mapStatus(itemResult.getStatus(), hostLmsCode, sierraFallback())
 			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
-				.localId(result.getId())
+				.localId(itemResult.getId())
 				.status(itemStatus)
-				.dueDate(parsedDueDate)
+				.dueDate(parsedDueDate(itemResult))
 				.location(org.olf.dcb.core.model.Location.builder()
 					.code(locationCode)
-					.name(result.getLocation().getName())
+					.name(itemResult.getLocation().getName())
 					.build())
-				.barcode(result.getBarcode())
-				.callNumber(result.getCallNumber())
+				.barcode(itemResult.getBarcode())
+				.callNumber(itemResult.getCallNumber())
 				.hostLmsCode(hostLmsCode)
-				.holdCount(result.getHoldCount())
+				.holdCount(itemResult.getHoldCount())
 				.localBibId(localBibId)
-				.localItemType(result.getItemType())
+				.localItemType(itemResult.getItemType())
 				.localItemTypeCode(localItemTypeCode)
-				.deleted(result.getDeleted())
-				.suppressed(result.getSuppressed())
+				.deleted(itemResult.getDeleted())
+				.suppressed(itemResult.getSuppressed())
 				.build())
 			.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode))
 			.flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode, locationCode));
+	}
+
+	@Nullable
+	private static Instant parsedDueDate(SierraItem result) {
+		final var dueDate = result.getStatus().getDuedate();
+
+		return isNotEmpty(dueDate)
+			? Instant.parse(dueDate)
+			: null;
 	}
 
 	private static String determineLocalItemTypeCode(Map<Integer, FixedField> fixedFields) {
