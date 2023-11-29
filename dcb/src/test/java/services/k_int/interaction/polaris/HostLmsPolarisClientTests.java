@@ -12,6 +12,8 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
@@ -34,6 +36,7 @@ import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.TestResourceLoader;
+import org.olf.dcb.test.matchers.ItemMatchers;
 
 import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
@@ -118,15 +121,16 @@ public class HostLmsPolarisClientTests {
 			.orElse(null);
 
 		assertThat(firstItem, is(notNullValue()));
+		assertThat(firstItem, ItemMatchers.hasLocalId("3512742"));
 		assertThat(firstItem, hasStatus(UNAVAILABLE));
 		assertThat(firstItem, hasDueDate("2023-10-14T23:59:00Z"));
 		assertThat(firstItem, hasLocation("SLPL Kingshighway", "15"));
 		assertThat(firstItem, hasBarcode("3430470102"));
 		assertThat(firstItem, hasCallNumber("E Bellini Mario"));
 		assertThat(firstItem.getHostLmsCode(), is(HOST_LMS_CODE));
-		assertThat(firstItem.getLocalBibId(), is(sourceRecordId));
+		assertThat(firstItem, hasLocalBibId(sourceRecordId));
 		assertThat(firstItem.getLocalItemTypeCode(), is("3"));
-		assertThat(firstItem.getLocalItemType(), is("Book"));
+		assertThat(firstItem, hasLocalItemType("Book"));
 		assertThat(firstItem.getSuppressed(), is(false));
 		assertThat(firstItem.getAgencyCode(), is("345test"));
 		assertThat(firstItem.getAgencyDescription(), is("Test College"));

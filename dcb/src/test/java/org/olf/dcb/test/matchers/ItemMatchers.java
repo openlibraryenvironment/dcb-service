@@ -20,12 +20,16 @@ public class ItemMatchers {
 		return hasProperty("barcode", is(expectedBarcode));
 	}
 
-	public static Matcher<Item> hasCallNumber(String expectedCallNumber) {
-		return hasProperty("callNumber", is(expectedCallNumber));
+	public static Matcher<Item> hasLocalItemType(String expectedLocalItemType) {
+		return hasProperty("localItemType", is(expectedLocalItemType));
 	}
 
 	public static Matcher<Item> hasStatus(ItemStatusCode expectedStatus) {
 		return hasProperty("status", hasProperty("code", is(expectedStatus)));
+	}
+
+	public static Matcher<Item> hasCallNumber(String expectedCallNumber) {
+		return hasProperty("callNumber", is(expectedCallNumber));
 	}
 
 	public static Matcher<Item> hasLocation(String expectedName, String expectedCode) {
@@ -41,5 +45,9 @@ public class ItemMatchers {
 
 	public static Matcher<Item> hasNoDueDate() {
 		return hasProperty("dueDate", is(nullValue()));
+	}
+
+	public static Matcher<Item> hasLocalBibId(String expectedLocalBibId) {
+		return hasProperty("localBibId", is(expectedLocalBibId));
 	}
 }

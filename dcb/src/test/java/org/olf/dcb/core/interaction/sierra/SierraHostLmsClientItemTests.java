@@ -12,7 +12,9 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
@@ -76,7 +78,9 @@ class SierraHostLmsClientItemTests {
 				hasCallNumber("BL221 .C48"),
 				hasStatus(CHECKED_OUT),
 				hasDueDate("2023-04-22T15:55:13Z"),
-				hasLocation("King 5th Floor", "ab5")
+				hasLocation("King 5th Floor", "ab5"),
+				hasLocalBibId("65423515"),
+				hasLocalItemType("999")
 			),
 			allOf(
 				hasLocalId("c5bc9cd0-fc23-48be-9d52-647cea8c63ca"),
@@ -84,7 +88,9 @@ class SierraHostLmsClientItemTests {
 				hasCallNumber("HX157 .H8"),
 				hasStatus(AVAILABLE),
 				hasNoDueDate(),
-				hasLocation("King 7th Floor", "ab7")
+				hasLocation("King 7th Floor", "ab7"),
+				hasLocalBibId("65423515"),
+				hasLocalItemType("999")
 			),
 			allOf(
 				hasLocalId("69415d0a-ace5-49e4-96fd-f63855235bf0"),
@@ -92,7 +98,9 @@ class SierraHostLmsClientItemTests {
 				hasCallNumber("HC336.2 .S74 1969"),
 				hasStatus(AVAILABLE),
 				hasNoDueDate(),
-				hasLocation("King 7th Floor", "ab7")
+				hasLocation("King 7th Floor", "ab7"),
+				hasLocalBibId("65423515"),
+				hasLocalItemType("999")
 			)
 		));
 	}
