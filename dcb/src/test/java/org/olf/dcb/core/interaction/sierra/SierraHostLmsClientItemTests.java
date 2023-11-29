@@ -5,19 +5,20 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 
-import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.test.HostLmsFixture;
 
 import io.micronaut.core.io.ResourceLoader;
@@ -100,28 +101,5 @@ class SierraHostLmsClientItemTests {
 		final var items = singleValueFrom(client.getItems("87878325"));
 
 		assertThat("Should have no items", items, is(empty()));
-	}
-
-	private static Matcher<Item> hasLocalId(String expectedId) {
-		return hasProperty("localId", is(expectedId));
-	}
-
-	private static Matcher<Item> hasBarcode(String expectedBarcode) {
-		return hasProperty("barcode", is(expectedBarcode));
-	}
-
-	private static Matcher<Item> hasCallNumber(String expectedCallNumber) {
-		return hasProperty("callNumber", is(expectedCallNumber));
-	}
-
-	private static Matcher<Item> hasStatus(ItemStatusCode expectedStatus) {
-		return hasProperty("status", hasProperty("code", is(expectedStatus)));
-	}
-
-	private static Matcher<Item> hasLocation(String expectedName, String expectedCode) {
-		return hasProperty("location", allOf(
-			hasProperty("name", is(expectedName)),
-			hasProperty("code", is(expectedCode))
-		));
 	}
 }
