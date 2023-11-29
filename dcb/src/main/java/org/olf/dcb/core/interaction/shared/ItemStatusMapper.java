@@ -15,10 +15,9 @@ import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.items.Status;
 
@@ -27,10 +26,9 @@ Status is interpreted based upon
  <a href="https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html#item%20STATUS">
  this documentation</a>
  */
+@Slf4j
 @Singleton
 public class ItemStatusMapper {
-	private static final Logger log = LoggerFactory.getLogger(ItemResultToItemMapper.class);
-
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	ItemStatusMapper(ReferenceValueMappingRepository referenceValueMappingRepository) {
@@ -45,22 +43,30 @@ public class ItemStatusMapper {
 		final var statusCode = getValue(status, Status::getCode);
 		final var dueDate = getValue(status, Status::getDuedate);
 
-		return mapStatus(statusCode, hostLmsCode, fallbackStatusMapping)
-			.map(itemStatusCode -> checkForDueDate(itemStatusCode, dueDate))
-			.map(ItemStatus::new);
-	}
-
-	private Mono<ItemStatusCode> mapStatus(String statusCode, String hostLmsCode, FallbackMapper fallbackMapper) {
 		return Mono.justOrEmpty(statusCode)
 			.flatMap(code -> fetchReferenceValueMap(code, hostLmsCode))
 			.map(ReferenceValueMapping::getToValue)
 			.map(ItemStatusCode::valueOf)
-			.defaultIfEmpty( fallbackMapper.map(statusCode));
+			.defaultIfEmpty(fallbackStatusMapping.map(statusCode))
+			.map(itemStatusCode -> checkForDueDate(itemStatusCode, dueDate))
+			.map(ItemStatus::new);
+	}
+
+	public Mono<ItemStatus> mapStatus(String statusCode, String hostLmsCode,
+		FallbackMapper fallbackMapper) {
+
+		return Mono.justOrEmpty(statusCode)
+			.flatMap(code -> fetchReferenceValueMap(code, hostLmsCode))
+			.map(ReferenceValueMapping::getToValue)
+			.map(ItemStatusCode::valueOf)
+			.defaultIfEmpty(fallbackMapper.map(statusCode))
+			.map(ItemStatus::new);
 	}
 
 	private Mono<ReferenceValueMapping> fetchReferenceValueMap(String statusCode, String hostLmsCode) {
 		return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToContext(
-				"itemStatus", hostLmsCode, statusCode, "DCB"));
+				"itemStatus", hostLmsCode, statusCode, "DCB"))
+			.doOnSuccess(mapping -> log.debug("Found mapping: {} for status code: {} host LMS: {}", mapping, statusCode, hostLmsCode));
 	}
 
 	private String getValue(Status status, Function<Status, String> function) {
