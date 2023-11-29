@@ -10,7 +10,6 @@ import java.util.UUID;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
-import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
@@ -45,10 +44,10 @@ public class HostLmsFixture {
 		this.numericRangeMappingFixture = numericRangeMappingFixture;
 	}
 
-	public void createFolioHostLms(String code, String baseUrl, String apiKey,
-		String recordSyntax, String metadataPrefix) {
+	public <T> void createFolioHostLms(String code, Class<T> type,
+		String baseUrl, String apiKey, String recordSyntax, String metadataPrefix) {
 
-		createHostLms(randomUUID(), code, FolioOaiPmhIngestSource.class, Map.of(
+		createHostLms(randomUUID(), code, type, Map.of(
 			"base-url", baseUrl,
 			"apikey", apiKey,
 			"record-syntax", recordSyntax,

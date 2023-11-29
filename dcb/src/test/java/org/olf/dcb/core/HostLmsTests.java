@@ -183,8 +183,8 @@ class HostLmsTests {
 		@BeforeEach
 		void beforeEach() {
 			hostLmsFixture.createFolioHostLms("folio-database-host-lms",
-				"https://some-folio-system", "some-api-key", "some-record-syntax",
-				"some-metadata-prefix");
+				FolioOaiPmhIngestSource.class, "https://some-folio-system",
+				"some-api-key", "some-record-syntax", "some-metadata-prefix");
 		}
 
 		@Test
