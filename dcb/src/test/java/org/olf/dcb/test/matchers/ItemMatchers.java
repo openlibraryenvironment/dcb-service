@@ -2,7 +2,10 @@ package org.olf.dcb.test.matchers;
 
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.hasProperty;
+
+import java.time.Instant;
 
 import org.hamcrest.Matcher;
 import org.olf.dcb.core.model.Item;
@@ -30,5 +33,13 @@ public class ItemMatchers {
 			hasProperty("name", is(expectedName)),
 			hasProperty("code", is(expectedCode))
 		));
+	}
+
+	public static Matcher<Item> hasDueDate(String expectedDueDate) {
+		return hasProperty("dueDate", is(Instant.parse(expectedDueDate)));
+	}
+
+	public static Matcher<Item> hasNoDueDate() {
+		return hasProperty("dueDate", is(nullValue()));
 	}
 }

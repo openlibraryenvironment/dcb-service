@@ -11,8 +11,10 @@ import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -73,6 +75,7 @@ class SierraHostLmsClientItemTests {
 				hasBarcode("9849123490"),
 				hasCallNumber("BL221 .C48"),
 				hasStatus(CHECKED_OUT),
+				hasDueDate("2023-04-22T15:55:13Z"),
 				hasLocation("King 5th Floor", "ab5")
 			),
 			allOf(
@@ -80,6 +83,7 @@ class SierraHostLmsClientItemTests {
 				hasBarcode("30800005315459"),
 				hasCallNumber("HX157 .H8"),
 				hasStatus(AVAILABLE),
+				hasNoDueDate(),
 				hasLocation("King 7th Floor", "ab7")
 			),
 			allOf(
@@ -87,6 +91,7 @@ class SierraHostLmsClientItemTests {
 				hasBarcode("30800005208449"),
 				hasCallNumber("HC336.2 .S74 1969"),
 				hasStatus(AVAILABLE),
+				hasNoDueDate(),
 				hasLocation("King 7th Floor", "ab7")
 			)
 		));
