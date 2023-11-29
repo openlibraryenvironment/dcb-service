@@ -1,23 +1,26 @@
 package org.olf.dcb.core.interaction.polaris;
 
-import jakarta.transaction.Transactional;
+import static java.lang.Integer.parseInt;
+import static reactor.function.TupleUtils.function;
+
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.HostLms;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import jakarta.transaction.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
-
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
-import static java.lang.Integer.parseInt;
-import static reactor.function.TupleUtils.function;
 
 class IngestHelper {
 	private static final Logger log = LoggerFactory.getLogger(IngestHelper.class);
@@ -32,6 +35,13 @@ class IngestHelper {
 		this.client = client;
 		this.lms = lms;
 		this.processStateService = processStateService;
+	}
+
+	public static String formatDateFrom(Instant instant) {
+		if (instant == null) return null;
+
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("UTC"));
+		return formatter.format(instant);
 	}
 
 	Publisher<PolarisLmsClient.BibsPagedRow> pageAllResults(int pageSize) {
@@ -82,7 +92,7 @@ class IngestHelper {
 			});
 	}
 
-	PublisherState mapToPublisherState(Map<String, Object> mapData) {
+	 PublisherState mapToPublisherState(Map<String, Object> mapData) {
 		PublisherState generatorState = new PublisherState(mapData);
 		log.info("backpressureAwareBibResultGenerator - state={} lmsid={} thread={}", mapData, lms.getId(),
 			Thread.currentThread().getName());
@@ -121,8 +131,9 @@ class IngestHelper {
 		return generatorState;
 	}
 
+	private Flux<Tuple2<PublisherState, PolarisLmsClient.BibsPagedResult>> fetchPageAndUpdateState(
+		PublisherState state, int pageSize) {
 
-	private Flux<Tuple2<PublisherState, PolarisLmsClient.BibsPagedResult>> fetchPageAndUpdateState(PublisherState state, int pageSize) {
 		return Mono.zip(Mono.just(state.toBuilder().build()), fetchPage(state.since, state.offset, pageSize))
 			.expand(function((currentState, results) -> {
 				var bibs = results.getGetBibsPagedRows();
@@ -149,9 +160,10 @@ class IngestHelper {
 			}));
 	}
 
-	private Publisher<PolarisLmsClient.BibsPagedRow> processPageAndSaveState(PublisherState state, PolarisLmsClient.BibsPagedResult page) {
+	private Publisher<PolarisLmsClient.BibsPagedRow> processPageAndSaveState(
+		PublisherState state, PolarisLmsClient.BibsPagedResult page) {
+
 		state.offset = page.getLastID();
-		// log.debug("page getting converted to iterable: {}", page);
 
 		return Flux.fromIterable(page.getGetBibsPagedRows())
 			.concatWith(Mono.defer(() -> saveState(state))
@@ -162,13 +174,13 @@ class IngestHelper {
 			.doOnComplete(() -> log.debug("Consumed {} items", page.getGetBibsPagedRows().size()));
 	}
 
-	private Mono<PolarisLmsClient.BibsPagedResult> fetchPage(Instant updatedate, Integer lastId, Integer nrecs) {
+	private Mono<PolarisLmsClient.BibsPagedResult> fetchPage(Instant updateDate, Integer lastId, Integer nrecs) {
 		log.info("Creating subscribeable batch from last id;  {}, {}", lastId, nrecs);
-		final var date = PolarisLmsClient.formatDateFrom(updatedate);
+		final var date = formatDateFrom(updateDate);
 		return Mono.from( client.getBibs(date, lastId, nrecs) )
 			//.doOnSuccess(bibsPagedResult -> log.debug("result of bibPagedResult: {}", bibsPagedResult))
 			.doOnSubscribe(_s -> log.info("Fetching batch from Polaris {} with since={} offset={} limit={}",
-				lms.getName(), updatedate, lastId, nrecs));
+				lms.getName(), updateDate, lastId, nrecs));
 	}
 
 	@Transactional(value = Transactional.TxType.REQUIRES_NEW)

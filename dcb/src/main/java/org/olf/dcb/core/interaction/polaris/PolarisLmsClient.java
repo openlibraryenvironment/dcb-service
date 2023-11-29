@@ -26,8 +26,6 @@ import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
 
 import java.net.URI;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -62,8 +60,6 @@ import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -268,7 +264,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.build());
 	}
 
-	public Mono<ApplicationServicesClient.BibliographicRecord> getBib(String localBibId) {
+	private Mono<ApplicationServicesClient.BibliographicRecord> getBib(String localBibId) {
 		return appServicesClient.getBibliographicRecordByID(localBibId);
 	}
 
@@ -338,24 +334,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return RelativeUriResolver.resolve(rootUri, relativeURI);
 	}
 
-	public UUID uuid5ForBibPagedRow(@NotNull final BibsPagedRow result) {
-
+	private UUID uuid5ForBibPagedRow(@NotNull final BibsPagedRow result) {
 		final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":" + result.getBibliographicRecordID();
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
-	public UUID uuid5ForRawJson(@NotNull final BibsPagedRow result) {
-
+	private UUID uuid5ForRawJson(@NotNull final BibsPagedRow result) {
 		final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":raw:" + result.getBibliographicRecordID();
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
-	}
-
-	public static String formatDateFrom(Instant instant) {
-
-		if (instant == null) return null;
-
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("UTC"));
-		return formatter.format(instant);
 	}
 
 	@Override
@@ -403,10 +389,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		}
 
 		return Flux.from( ingestHelper.pageAllResults(pageSize) )
-			.filter(bibsPagedRow -> {
-//				log.debug("getResources({}), ", bibsPagedRow);
-				return bibsPagedRow.getBibliographicRecordXML() != null;
-			})
+			.filter(bibsPagedRow -> bibsPagedRow.getBibliographicRecordXML() != null)
 			.onErrorResume(t -> {
 				log.error("Error ingesting data {}", t.getMessage());
 				t.printStackTrace();
@@ -442,23 +425,24 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public RawSource resourceToRawSource(BibsPagedRow resource) {
-//		log.debug("resourceToRawSource: {}", resource);
-
-		Record record = convertToMarcRecord( resource.getBibliographicRecordXML() );
-		final JsonNode rawJson = conversionService.convertRequired(record, JsonNode.class);
+		final var record = convertToMarcRecord(resource.getBibliographicRecordXML());
+		final var rawJson = conversionService.convertRequired(record, JsonNode.class);
 
 		@SuppressWarnings("unchecked")
 		final Map<String, ?> rawJsonString = conversionService.convertRequired(rawJson, Map.class);
 
-		RawSource raw = RawSource.builder().id(uuid5ForRawJson(resource)).hostLmsId(lms.getId()).remoteId(String.valueOf(record.getId()))
-			.json(rawJsonString).build();
-
-		return raw;
+		return RawSource.builder()
+			.id(uuid5ForRawJson(resource))
+			.hostLmsId(lms.getId())
+			.remoteId(String.valueOf(record.getId()))
+			.json(rawJsonString)
+			.build();
 	}
 
 	@Override
 	public Publisher<ConfigurationRecord> getConfigStream() {
 		log.debug("{}, {}", "getConfigStream() not implemented, returning: ", null);
+
 		return Mono.empty();
 	}
 
@@ -481,8 +465,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return papiClient.synch_BibsPagedGet(date, lastId, nrecs);
 	}
 
-	String getGeneralUriParameters(PolarisClient polarisClient) {
-		final Map<String, Object> conf = lms.getClientConfig();
+	public String getGeneralUriParameters(PolarisClient polarisClient) {
+		final var conf = lms.getClientConfig();
+
 		// LinkedHashMap used to keep order of params
 		final Map<String, String> params = new LinkedHashMap<>();
 		switch (polarisClient) {
@@ -510,7 +495,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		if (params.values().stream().anyMatch(Objects::isNull)) {
 			log.error("One or more parameter values are null: params={}", params);
-			// return null;
 		}
 
 		return params.values().stream().map(s -> "/" + s).collect(Collectors.joining());
@@ -582,7 +566,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class BibsPagedRow {
+	public static class BibsPagedRow {
 		@JsonProperty("BibliographicRecordID")
 		private Integer BibliographicRecordID;
 		@JsonProperty("IsDisplayInPAC")
@@ -599,7 +583,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		private String BibliographicRecordXML;
 	}
 
-	enum PolarisClient { PAPIService, APPLICATION_SERVICES}
+	enum PolarisClient { PAPIService, APPLICATION_SERVICES }
 
 	private static RuntimeException patronNotFound(String localId, String hostLmsCode) {
 		return new PatronNotFoundInHostLmsException(localId, hostLmsCode);
