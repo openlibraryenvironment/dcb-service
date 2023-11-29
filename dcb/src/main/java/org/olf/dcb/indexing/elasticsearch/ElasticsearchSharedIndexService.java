@@ -49,7 +49,8 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	
-	private static final String STOPWORDS_FILTER = "dcb_stopwords_filter";
+	private static final String STOPWORDS_FILTER_NAME = "dcb_stopwords_filter";
+	private static final String LOWERCASE_FILTER_NAME = "lowercase";
 
 	private static final String LOWERCASE_NORMALIZER = "lowercase_normalizer";
 
@@ -152,12 +153,12 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 			"default", Analyzer.of( anb -> anb
 			  .custom(cab -> cab
 					.tokenizer("whitespace")
-					.filter(List.of(STOPWORDS_FILTER)))));
+					.filter(List.of(LOWERCASE_FILTER_NAME, STOPWORDS_FILTER_NAME)))));
 	}
 	
 	private static Map<String, TokenFilter> getFiltersMap() {
 		return Map.of(
-			STOPWORDS_FILTER, TokenFilter.of(tf -> tf
+			STOPWORDS_FILTER_NAME, TokenFilter.of(tf -> tf
 				.definition(def -> def
 					.stop(sb -> sb
 						.ignoreCase(true)))));

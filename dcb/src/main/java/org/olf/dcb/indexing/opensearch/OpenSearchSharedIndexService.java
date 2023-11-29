@@ -50,8 +50,9 @@ import reactor.core.publisher.Mono;
 @Requires(bean = SharedIndexConfiguration.class)
 @Singleton
 public class OpenSearchSharedIndexService extends BulkSharedIndexService {
-	
+
 	private static final String STOPWORDS_FILTER_NAME = "dcb_stopwords_filter";
+	private static final String LOWERCASE_FILTER_NAME = "lowercase";
 
 	private static final String DEFAULT_STOPWORDS = "_english_";
 
@@ -161,7 +162,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 			"default", Analyzer.of( anb -> anb
 			  .custom(cab -> cab
 					.tokenizer("whitespace")
-					.filter(List.of(STOPWORDS_FILTER_NAME)))));
+					.filter(List.of(LOWERCASE_FILTER_NAME, STOPWORDS_FILTER_NAME)))));
 	}
 	
 	private static Map<String, TokenFilter> getFiltersMap() {
