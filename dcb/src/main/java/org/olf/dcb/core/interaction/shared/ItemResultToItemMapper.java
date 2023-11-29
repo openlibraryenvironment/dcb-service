@@ -46,17 +46,13 @@ public class ItemResultToItemMapper {
 
 		log.debug("mapResultToItem({}, {}, {})", itemResult, hostLmsCode, localBibId);
 
-		final var localItemTypeCode = determineLocalItemTypeCode(itemResult.getFixedFields());
-
-		final var locationCode = itemResult.getLocation().getCode().trim();
-
 		return itemStatusMapper.mapStatus(itemResult.getStatus(), hostLmsCode, sierraFallback())
 			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
 				.localId(itemResult.getId())
 				.status(itemStatus)
 				.dueDate(parsedDueDate(itemResult))
 				.location(org.olf.dcb.core.model.Location.builder()
-					.code(locationCode)
+					.code(itemResult.getLocation().getCode().trim())
 					.name(itemResult.getLocation().getName())
 					.build())
 				.barcode(itemResult.getBarcode())
@@ -65,12 +61,12 @@ public class ItemResultToItemMapper {
 				.holdCount(itemResult.getHoldCount())
 				.localBibId(localBibId)
 				.localItemType(itemResult.getItemType())
-				.localItemTypeCode(localItemTypeCode)
+				.localItemTypeCode(determineLocalItemTypeCode(itemResult.getFixedFields()))
 				.deleted(itemResult.getDeleted())
 				.suppressed(itemResult.getSuppressed())
 				.build())
 			.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode))
-			.flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode, locationCode));
+			.flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode));
 	}
 
 	@Nullable
@@ -121,14 +117,14 @@ public class ItemResultToItemMapper {
 				.localItemTypeCode(itemGetRow.getMaterialTypeID())
 				.suppressed(!itemGetRow.getIsDisplayInPAC())
 				.build())
-				.flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode, item.getLocation().getCode().trim()))
+				.flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode))
 				.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode));
 	}
 
 	Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromShelvingLocation(
-		org.olf.dcb.core.model.Item item, String hostSystem, String itemShelvingLocation) {
+		org.olf.dcb.core.model.Item item, String hostSystem) {
 
-		return locationToAgencyMappingService.mapLocationToAgency(hostSystem, itemShelvingLocation)
+		return locationToAgencyMappingService.mapLocationToAgency(hostSystem, item.getLocation().getCode().trim())
 			.map(dataAgency -> {
 				item.setAgencyCode(dataAgency.getCode());
 				item.setAgencyDescription(dataAgency.getName());
