@@ -2,6 +2,7 @@ package services.k_int.interaction.sierra;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import java.util.List;
 import java.util.Map;
@@ -28,9 +29,7 @@ import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
-@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 class SierraApiBibTests {
 	private static final String HOST_LMS_CODE = "sierra-bib-api-tests";
 

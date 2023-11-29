@@ -34,8 +34,6 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @MicronautTest(transactional = false, rebuildContext = true)
-@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
-@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
 @TestInstance(PER_CLASS)
 @Slf4j
 class IngestTests {

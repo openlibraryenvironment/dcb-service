@@ -7,6 +7,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import org.hamcrest.Matcher;
@@ -17,7 +18,6 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraPickupLocationsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
-import io.micronaut.context.annotation.Property;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
 import jakarta.inject.Inject;
@@ -25,9 +25,7 @@ import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
-@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 class SierraApiPickupLocationsTests {
 	private static final String HOST_LMS_CODE = "sierra-locations-api-tests";
 
@@ -81,6 +79,7 @@ class SierraApiPickupLocationsTests {
 	private static Matcher<PickupLocationInfo> hasPickupLocation(String name, String code) {
 		return allOf(
 			hasProperty("name", is(name)),
-			hasProperty("code", is(code)));
+			hasProperty("code", is(code))
+		);
 	}
 }

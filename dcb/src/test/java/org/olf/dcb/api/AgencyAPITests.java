@@ -4,30 +4,29 @@ import static io.micronaut.http.HttpStatus.OK;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.api.serde.AgencyDTO;
 import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
+import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.clients.LoginClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.core.type.Argument;
 import io.micronaut.data.model.Page;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 
-@MicronautTest(transactional = false, rebuildContext = true)
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Slf4j
+@DcbTest
+@TestInstance(PER_CLASS)
 class AgencyAPITests {
-	private final Logger log = LoggerFactory.getLogger(PatronRequestApiTests.class);
-
 	@Inject
 	@Client("/")
 	private HttpClient client;

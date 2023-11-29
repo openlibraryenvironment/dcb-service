@@ -5,6 +5,7 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.JsonBody.json;
 
 import java.util.List;
@@ -19,10 +20,9 @@ import org.olf.dcb.core.api.serde.AgencyDTO;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
 import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.clients.LoginClient;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.clients.LoginClient;
 
-import io.micronaut.context.annotation.Property;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.core.type.Argument;
@@ -38,9 +38,7 @@ import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@Property(name = "r2dbc.datasources.default.options.maxSize", value = "1")
-@Property(name = "r2dbc.datasources.default.options.initialSize", value = "1")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 public class PatronAuthApiTests {
 	private static final String HOST_LMS_CODE = "patron-auth-api-tests";
 
@@ -58,9 +56,8 @@ public class PatronAuthApiTests {
 	private HostLmsFixture hostLmsFixture;
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
-        @Inject
-        private ReferenceValueMappingFixture referenceValueMappingFixture;
-
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
 	private SierraTestUtils.MockSierraV6Host mockSierra;
 
@@ -86,8 +83,6 @@ public class PatronAuthApiTests {
 	@Test
 	@DisplayName("basic barcode and pin patron auth test")
 	void shouldReturnValidStatusWhenUsingBasicBarcodeAndPinValidation() {
-
-
 		// Arrange
 		final var blockingClient = client.toBlocking();
 		final var accessToken = loginClient.getAccessToken();
@@ -134,7 +129,7 @@ public class PatronAuthApiTests {
 			.patronPrinciple("3100222227777").secret("Joe Bloggs").build();
 		final var postPatronAuthRequest = HttpRequest.POST("/patron/auth", patronCredentials).bearerAuth(accessToken);
 		sierraPatronsAPIFixture.patronResponseForUniqueId("b", "3100222227777");
-                savePatronTypeMappings();
+		savePatronTypeMappings();
 
 		// Act
 		final var response = blockingClient.exchange(postPatronAuthRequest, Argument.of(VerificationResponse.class));
@@ -198,9 +193,8 @@ public class PatronAuthApiTests {
 		@Nullable String homeLocationCode;
 	}
 
-        private void savePatronTypeMappings() {
-                referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("patron-auth-api-tests", 10, 25, "DCB", "15");
-                referenceValueMappingFixture.definePatronTypeMapping("DCB", "15", "patron-auth-api-tests", "15");
-        }
-
+	private void savePatronTypeMappings() {
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("patron-auth-api-tests", 10, 25, "DCB", "15");
+		referenceValueMappingFixture.definePatronTypeMapping("DCB", "15", "patron-auth-api-tests", "15");
+	}
 }
