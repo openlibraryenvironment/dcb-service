@@ -8,11 +8,16 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
+import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,8 +30,6 @@ import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.ItemStatus;
-import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -115,12 +118,11 @@ public class HostLmsPolarisClientTests {
 			.orElse(null);
 
 		assertThat(firstItem, is(notNullValue()));
-		assertThat(firstItem.getStatus(), is(new ItemStatus(ItemStatusCode.UNAVAILABLE)));
-		assertThat(firstItem.getDueDate().getClass(), is(Instant.class));
-		assertThat(firstItem.getLocation().getCode(), is("15"));
-		assertThat(firstItem.getLocation().getName(), is("SLPL Kingshighway"));
-		assertThat(firstItem.getBarcode(), is("3430470102"));
-		assertThat(firstItem.getCallNumber(), is("E Bellini Mario"));
+		assertThat(firstItem, hasStatus(UNAVAILABLE));
+		assertThat(firstItem, hasDueDate("2023-10-14T23:59:00Z"));
+		assertThat(firstItem, hasLocation("SLPL Kingshighway", "15"));
+		assertThat(firstItem, hasBarcode("3430470102"));
+		assertThat(firstItem, hasCallNumber("E Bellini Mario"));
 		assertThat(firstItem.getHostLmsCode(), is(HOST_LMS_CODE));
 		assertThat(firstItem.getLocalBibId(), is(sourceRecordId));
 		assertThat(firstItem.getLocalItemTypeCode(), is("3"));
