@@ -54,7 +54,12 @@ public class HostLmsService implements IngestSourcesProvider {
 		return findByCode(code)
 			.flatMap(this::getClientFor);
 	}
-	
+
+	public Mono<HostLmsClient> getClientFor(UUID id) {
+		return findById(id)
+			.flatMap(this::getClientFor);
+	}
+
 	public Mono<IngestSource> getIngestSourceFor(final HostLms hostLms) {
 		final var ingestSource = hostLms.getIngestSourceType() != null
 			? hostLms.getIngestSourceType()

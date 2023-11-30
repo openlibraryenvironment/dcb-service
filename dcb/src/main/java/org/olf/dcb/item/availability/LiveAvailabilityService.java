@@ -60,8 +60,7 @@ public class LiveAvailabilityService {
 	private Mono<AvailabilityReport> getItems(Bib bib) {
 		log.debug("getItems({})", bib);
 
-		return hostLmsService.findById(bib.getSourceSystemId())
-			.flatMap(hostLmsService::getClientFor)
+		return hostLmsService.getClientFor(bib.getSourceSystemId())
 			.flatMap(hostLmsClient -> hostLmsClient.getItems(bib.getSourceRecordId()))
 			.doOnError(error -> log.error("Error occurred fetching items: ", error))
 			.map(AvailabilityReport::ofItems)
