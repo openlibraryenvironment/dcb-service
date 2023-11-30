@@ -69,7 +69,7 @@ public class LiveAvailabilityService {
 		return client.getItems(bib.getSourceRecordId())
 			.doOnError(error -> log.error("Error occurred fetching items: ", error))
 			.map(AvailabilityReport::ofItems)
-			.onErrorReturn(AvailabilityReport.ofErrors(mapToError(bib, client.getHostLms().getCode())));
+			.onErrorReturn(AvailabilityReport.ofErrors(mapToError(bib, client.getHostLmsCode())));
 	}
 
 	private AvailabilityReport determineRequestability(AvailabilityReport report) {

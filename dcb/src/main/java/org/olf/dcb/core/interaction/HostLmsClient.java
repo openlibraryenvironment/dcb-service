@@ -13,12 +13,19 @@ public interface HostLmsClient {
 	// local values when encountered via updateRequestStatus
 	enum CanonicalRequestState {
 		PLACED, TRANSIT;
+
 	}
 
 	enum CanonicalItemState {
 		AVAILABLE, TRANSIT, OFFSITE, RECEIVED, MISSING, ONHOLDSHELF;
+
 	}
+
 	HostLms getHostLms();
+
+	default String getHostLmsCode() {
+		return getHostLms().getCode();
+	}
 
 	List<HostLmsPropertyDefinition> getSettings();
 

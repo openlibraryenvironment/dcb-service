@@ -538,7 +538,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		}
 		else {
 			return Mono.error(new RuntimeException(
-				"Invalid hold policy for Host LMS \"" + getHostLms().getCode() + "\""));
+				"Invalid hold policy for Host LMS \"" + getHostLmsCode() + "\""));
 		}
 
 		var patronHoldPost = PatronHoldPost.builder()
@@ -882,7 +882,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return Mono.from(client.getPatron(Long.valueOf(localPatronId)))
 			.flatMap(this::sierraPatronToHostLmsPatron)
-			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLms().getCode())));
+			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLmsCode())));
 	}
 
 	@Override
@@ -893,7 +893,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return Mono.from(client.updatePatron(Long.valueOf(localPatronId), patronPatch))
 			.flatMap(this::sierraPatronToHostLmsPatron)
-			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLms().getCode())));
+			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLmsCode())));
 	}
 
 	public HostLmsHold sierraPatronHoldToHostLmsHold(SierraPatronHold sierraHold) {
