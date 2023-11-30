@@ -2,6 +2,7 @@ package org.olf.dcb.storage;
 
 import java.util.UUID;
 
+import io.micronaut.data.annotation.Query;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
@@ -43,8 +44,14 @@ public interface ReferenceValueMappingRepository {
     @NonNull
     Publisher<? extends ReferenceValueMapping> queryAll();
 
-    Publisher<Void> delete(UUID id);
+		Publisher<Void> delete(UUID id);
 
+		@Query("UPDATE reference_value_mapping SET deleted = true WHERE from_category = :fromCategory AND from_context = :fromContext")
+		Publisher<Long> markAsDeleted(@NotNull String fromCategory, @NotNull String fromContext);
+
+		// Find all deleted mappings. This method could be extended for a specific context / category in future if needed.
+		@Query("SELECT * FROM reference_value_mapping WHERE deleted = true")
+		Publisher<ReferenceValueMapping> findDeleted();
 
 	/**
 	 * given a source category, context, value and target context look up a value.
@@ -66,29 +73,27 @@ public interface ReferenceValueMappingRepository {
 		@NonNull String sourceValue,
 		@NonNull String targetContext);
 
-        Publisher<ReferenceValueMapping> findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-                @NonNull String sourceCategory,
-                @NonNull String sourceContext,
-                @NonNull String sourceValue,
-                @NonNull String targetCategory,
-                @NonNull String targetContext);
+	Publisher<ReferenceValueMapping> findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+		@NonNull String sourceCategory,
+		@NonNull String sourceContext,
+		@NonNull String sourceValue,
+		@NonNull String targetCategory,
+		@NonNull String targetContext);
 
         /**
          * Used to try to find a mapping when it's possible for the source value to be globally unique - as we thought
          * was the case for pickup locations (And later turned out not to be true)
          */
-        Publisher<ReferenceValueMapping> findOneByFromCategoryAndFromValueAndToCategoryAndToContext(
-                @NonNull String sourceCategory,
-                @NonNull String sourceValue,
-                @NonNull String targetCategory,
-                @NonNull String targetContext);
+	Publisher<ReferenceValueMapping> findOneByFromCategoryAndFromValueAndToCategoryAndToContext(
+		@NonNull String sourceCategory,
+		@NonNull String sourceValue,
+		@NonNull String targetCategory,
+		@NonNull String targetContext);
 
-
-        @SingleResult
-        @NonNull
-        default Publisher<ReferenceValueMapping> saveOrUpdate(@Valid @NotNull @NonNull ReferenceValueMapping rvm) {
-                return Mono.from(this.existsById(rvm.getId()))
-                                .flatMap(update -> Mono.from(update ? this.update(rvm) : this.save(rvm)));
-        }
-
+	@SingleResult
+	@NonNull
+	default Publisher<ReferenceValueMapping> saveOrUpdate(@Valid @NotNull @NonNull ReferenceValueMapping rvm) {
+		return Mono.from(this.existsById(rvm.getId()))
+			.flux().concatMap(update -> Mono.from(update ? this.update(rvm) : this.save(rvm)));
+	  }
 }
