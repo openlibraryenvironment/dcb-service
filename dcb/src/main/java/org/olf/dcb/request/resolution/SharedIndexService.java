@@ -59,7 +59,6 @@ public class SharedIndexService {
 				.id(bibRecord.getId())
 				.sourceRecordId(bibRecord.getSourceRecordId())
 				.sourceSystemId(bibRecord.getSourceSystemId())
-				.hostLms(hostLms)
 				.build());
 	}
 }

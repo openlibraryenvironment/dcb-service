@@ -12,11 +12,6 @@ public class BibMatchers {
 		return hasProperty("sourceRecordId", is(expectedId));
 	}
 
-	public static Matcher<Bib> hasHostLmsCode(String expectedCode) {
-		return hasProperty("hostLms",
-			hasProperty("code", is(expectedCode)));
-	}
-
 	public static Matcher<Bib> hasSourceSystemIdFor(DataHostLms expectedHostLms) {
 		return hasProperty("sourceSystemId", is(expectedHostLms.getId()));
 	}

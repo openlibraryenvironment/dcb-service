@@ -2,8 +2,6 @@ package org.olf.dcb.request.resolution;
 
 import java.util.UUID;
 
-import org.olf.dcb.core.model.HostLms;
-
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
@@ -15,5 +13,4 @@ public class Bib {
 	private final UUID id;
 	private final String sourceRecordId;
 	private final UUID sourceSystemId;
-	private final HostLms hostLms;
 }
