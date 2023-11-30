@@ -31,7 +31,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
 @MappedEntity
-@Where("@.deleted = false")
+@Where("@.deleted = false OR @.deleted IS NULL")
 public class ReferenceValueMapping {
 
     @NotNull
@@ -84,5 +84,6 @@ public class ReferenceValueMapping {
 		private Instant lastImported;
 
 		@Nullable
+		@Builder.Default
 		private Boolean deleted = false;
 }
