@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction;
 
 import java.util.List;
+import java.util.Map;
 
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
@@ -13,18 +14,20 @@ public interface HostLmsClient {
 	// local values when encountered via updateRequestStatus
 	enum CanonicalRequestState {
 		PLACED, TRANSIT;
-
 	}
 
 	enum CanonicalItemState {
 		AVAILABLE, TRANSIT, OFFSITE, RECEIVED, MISSING, ONHOLDSHELF;
-
 	}
 
 	HostLms getHostLms();
 
 	default String getHostLmsCode() {
 		return getHostLms().getCode();
+	}
+
+	default Map<String, Object> getConfig() {
+		return getHostLms().getClientConfig();
 	}
 
 	List<HostLmsPropertyDefinition> getSettings();

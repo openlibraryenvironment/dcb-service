@@ -1,7 +1,36 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import static io.micronaut.http.HttpMethod.GET;
+import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.HttpMethod.PUT;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
+import static java.lang.Integer.parseInt;
+import static java.lang.String.valueOf;
+import static java.util.Collections.singletonList;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_BRANCH_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_USER_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WORKSTATION_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
+import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpMethod;
@@ -11,32 +40,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.polaris.exceptions.CreatePatronException;
-import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-
-import static io.micronaut.http.HttpMethod.*;
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
-
-import static java.lang.Integer.parseInt;
-
-import static java.lang.String.valueOf;
-import static java.util.Collections.singletonList;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
 
 public class PAPIClient {
 	static final Logger log = LoggerFactory.getLogger(PAPIClient.class);
@@ -91,7 +95,7 @@ public class PAPIClient {
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
 		// passing empty patron credentials will allow public requests without patron auth
 		final var empty = PatronCredentials.builder().build();
-		final var conf = client.getHostLms().getClientConfig();
+		final var conf = client.getConfig();
 		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
 		final var body = PatronRegistration.builder()
 			.logonBranchID(Integer.valueOf((String) conf.get(LOGON_BRANCH_ID)))
@@ -111,7 +115,7 @@ public class PAPIClient {
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
 		// passing empty patron credentials will allow public requests without patron auth
 		final var empty = PatronCredentials.builder().build();
-		final var conf = client.getHostLms().getClientConfig();
+		final var conf = client.getConfig();
 		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
 		final var body = ItemCheckoutData.builder()
 			.logonBranchID( extractMapValue(conf, LOGON_BRANCH_ID, Integer.class) )
@@ -190,7 +194,7 @@ public class PAPIClient {
 	}
 
 	private PatronRegistration getPatronRegistration(Patron patron) {
-		final var conf = client.getHostLms().getClientConfig();
+		final var conf = client.getConfig();
 		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
 
 		final var logonBranchID = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);

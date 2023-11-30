@@ -1,6 +1,25 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.DOMAIN_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_LANGUAGE;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_PRODUCT_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_SITE_DOMAIN;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_VERSION;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.STAFF_PASSWORD;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.STAFF_USERNAME;
+
+import java.time.Instant;
+import java.util.Base64;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MutableHttpRequest;
@@ -9,17 +28,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
-
-import java.time.Instant;
-import java.util.Base64;
-import java.util.Map;
-
-import static io.micronaut.http.HttpMethod.POST;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 
 class ApplicationServicesAuthFilter {
 	static final Logger log = LoggerFactory.getLogger(ApplicationServicesAuthFilter.class);
@@ -28,7 +37,7 @@ class ApplicationServicesAuthFilter {
 	private final Map<String, Object> conf;
 	public ApplicationServicesAuthFilter(PolarisLmsClient client) {
 		this.client = client;
-		this.conf = client.getHostLms().getClientConfig();
+		this.conf = client.getConfig();
 	}
 
 	<T> Mono<MutableHttpRequest<?>> basicAuth (MutableHttpRequest<?> request) {

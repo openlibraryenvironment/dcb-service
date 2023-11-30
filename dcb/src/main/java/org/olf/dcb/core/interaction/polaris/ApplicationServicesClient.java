@@ -110,7 +110,7 @@ class ApplicationServicesClient {
 	}
 
 	private <R> Mono<List<PatronBlockGetRow>> getPatronBlocks(Integer localPatronId) {
-		final var conf = client.getHostLms().getClientConfig();
+		final var conf = client.getConfig();
 		final var path = createPath("patrons", localPatronId, "blockssummary");
 		return createRequest(GET, path, uri -> uri
 				.queryParam("logonBranchID", conf.get(LOGON_BRANCH_ID))
@@ -171,7 +171,7 @@ class ApplicationServicesClient {
 	public Mono<ItemCreateResponse> addItemRecord(CreateItemCommand createItemCommand) {
 		final var path = createPath("workflow");
 
-		final var conf = client.getHostLms().getClientConfig();
+		final var conf = client.getConfig();
 		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
 		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
 
@@ -225,7 +225,7 @@ class ApplicationServicesClient {
 	public Mono<Void> updateItemRecord(String itemId, Integer fromStatus, Integer toStatus) {
 		final var path = createPath("workflow");
 
-		final var conf = client.getHostLms().getClientConfig();
+		final var conf = client.getConfig();
 		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
 		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
 
@@ -304,7 +304,7 @@ class ApplicationServicesClient {
 	}
 
 	private Mono<LocalRequest> getLocalRequestBody(HoldRequestParameters data) {
-		final var conf = client.getHostLms().getClientConfig();
+		final var conf = client.getConfig();
 		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
 		return getHoldRequestDefaults().map( expiration -> LocalRequest.builder()
 			.procedureStep(20) // bypass

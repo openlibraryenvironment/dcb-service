@@ -668,7 +668,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private boolean holdPolicyIs(String expectedHoldPolicy) {
-		final var actualHoldPolicy = Optional.ofNullable(getHostLms().getClientConfig())
+		final var actualHoldPolicy = Optional.ofNullable(getConfig())
 			.map(config -> config.get("holdPolicy"))
 			.orElse("item");
 
