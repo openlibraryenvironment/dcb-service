@@ -5,14 +5,13 @@ import static org.hamcrest.Matchers.hasProperty;
 
 import org.hamcrest.Matcher;
 import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.request.resolution.Bib;
 
-public class BibMatchers {
-	public static Matcher<Bib> hasSourceRecordId(String expectedId) {
+public class BibRecordMatchers {
+	public static Matcher<Object> hasSourceRecordId(String expectedId) {
 		return hasProperty("sourceRecordId", is(expectedId));
 	}
 
-	public static Matcher<Bib> hasSourceSystemIdFor(DataHostLms expectedHostLms) {
+	public static Matcher<Object> hasSourceSystemIdFor(DataHostLms expectedHostLms) {
 		return hasProperty("sourceSystemId", is(expectedHostLms.getId()));
 	}
 }

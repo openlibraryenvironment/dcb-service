@@ -6,8 +6,8 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.olf.dcb.test.matchers.BibMatchers.hasSourceRecordId;
-import static org.olf.dcb.test.matchers.BibMatchers.hasSourceSystemIdFor;
+import static org.olf.dcb.test.matchers.BibRecordMatchers.hasSourceRecordId;
+import static org.olf.dcb.test.matchers.BibRecordMatchers.hasSourceSystemIdFor;
 import static org.olf.dcb.test.matchers.ModelMatchers.hasId;
 
 import org.junit.jupiter.api.BeforeEach;
