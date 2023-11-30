@@ -3,12 +3,10 @@ package org.olf.dcb.request.resolution;
 import java.util.List;
 import java.util.UUID;
 
-import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.ClusterRecordRepository;
-import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
@@ -20,14 +18,12 @@ import reactor.core.publisher.Mono;
 public class SharedIndexService {
 	private final ClusterRecordRepository clusterRecordRepository;
 	private final BibRepository bibRepository;
-	private final HostLmsService hostLmsService;
 
 	public SharedIndexService(ClusterRecordRepository clusterRecordRepository,
-		BibRepository bibRepository, HostLmsService hostLmsService) {
+		BibRepository bibRepository) {
 
 		this.clusterRecordRepository = clusterRecordRepository;
 		this.bibRepository = bibRepository;
-		this.hostLmsService = hostLmsService;
 	}
 
 	public Mono<ClusteredBib> findClusteredBib(UUID bibClusterId) {
@@ -49,16 +45,15 @@ public class SharedIndexService {
 
 	private Mono<List<Bib>> findBibRecords(ClusterRecord clusteredBib) {
 		return Flux.from(bibRepository.findAllByContributesTo(clusteredBib))
-			.flatMap(this::findHostLms)
+			.map(this::mapToBib)
 			.collectList();
 	}
 
-	private Publisher<Bib> findHostLms(BibRecord bibRecord) {
-		return Mono.from(hostLmsService.findById(bibRecord.getSourceSystemId()))
-			.map(hostLms -> Bib.builder()
-				.id(bibRecord.getId())
-				.sourceRecordId(bibRecord.getSourceRecordId())
-				.sourceSystemId(bibRecord.getSourceSystemId())
-				.build());
+	private Bib mapToBib(BibRecord bibRecord) {
+		return Bib.builder()
+			.id(bibRecord.getId())
+			.sourceRecordId(bibRecord.getSourceRecordId())
+			.sourceSystemId(bibRecord.getSourceSystemId())
+			.build();
 	}
 }
