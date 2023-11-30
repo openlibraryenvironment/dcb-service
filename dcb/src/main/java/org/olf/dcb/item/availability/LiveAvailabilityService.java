@@ -6,6 +6,7 @@ import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.request.resolution.Bib;
 import org.olf.dcb.request.resolution.ClusteredBib;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
@@ -61,10 +62,14 @@ public class LiveAvailabilityService {
 		log.debug("getItems({})", bib);
 
 		return hostLmsService.getClientFor(bib.getSourceSystemId())
-			.flatMap(hostLmsClient -> hostLmsClient.getItems(bib.getSourceRecordId()))
+			.flatMap(client -> getItems(bib, client));
+	}
+
+	private Mono<AvailabilityReport> getItems(Bib bib, HostLmsClient client) {
+		return client.getItems(bib.getSourceRecordId())
 			.doOnError(error -> log.error("Error occurred fetching items: ", error))
 			.map(AvailabilityReport::ofItems)
-			.onErrorReturn(AvailabilityReport.ofErrors(mapToError(bib)));
+			.onErrorReturn(AvailabilityReport.ofErrors(mapToError(bib, client.getHostLms().getCode())));
 	}
 
 	private AvailabilityReport determineRequestability(AvailabilityReport report) {
@@ -72,13 +77,13 @@ public class LiveAvailabilityService {
 			item -> item.setIsRequestable(requestableItemService.isRequestable(item)));
 	}
 
-	private static AvailabilityReport.Error mapToError(Bib bib) {
+	private static AvailabilityReport.Error mapToError(Bib bib, String hostLmsCode) {
 		log.error("Failed to fetch items for bib: {} from host: {}",
-			bib.getSourceRecordId(), bib.getHostLms().getCode());
+			bib.getSourceRecordId(), hostLmsCode);
 
 		return AvailabilityReport.Error.builder()
 			.message(String.format("Failed to fetch items for bib: %s from host: %s",
-				bib.getSourceRecordId(), bib.getHostLms().getCode()))
+				bib.getSourceRecordId(), hostLmsCode))
 			.build();
 	}
 }
