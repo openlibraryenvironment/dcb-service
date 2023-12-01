@@ -1,17 +1,17 @@
 scalar JSON
 
 type Query {
-    agencies(query: String, pageno: Int, pagesize: Int): AgencyPage!
-    hostLms(query: String, pageno:Int, pagesize: Int): HostLmsPage!
-    locations(query: String, pageno:Int, pagesize: Int): LocationPage!
-    patronRequests(query: String, pageno:Int, pagesize: Int): PatronRequestPage
-    supplierRequests(query: String, pageno:Int, pagesize: Int): SupplierRequestPage!
-    agencyGroups(query: String, pageno:Int, pagesize: Int): AgencyGroupPage!
-    instanceClusters(query: String, pageno: Int, pagesize: Int): ClusterRecordPage!
-    sourceBibs(query: String, pageno:Int, pagesize: Int): BibRecordPage!
-    processStates(query: String, pageno:Int, pagesize: Int): ProcessStatePage!
-    audits(query: String, pageno:Int, pagesize: Int): PatronRequestAuditPage!
-    patronIdentities(query: String, pageno:Int, pagesize: Int): PatronIdentityPage!
+    agencies(query: String, pageno: Int, pagesize: Int, order: String): AgencyPage!
+    hostLms(query: String, pageno:Int, pagesize: Int, order: String): HostLmsPage!
+    locations(query: String, pageno:Int, pagesize: Int, order: String): LocationPage!
+    patronRequests(query: String, pageno:Int, pagesize: Int, order: String): PatronRequestPage
+    supplierRequests(query: String, pageno:Int, pagesize: Int, order: String): SupplierRequestPage!
+    agencyGroups(query: String, pageno:Int, pagesize: Int, order: String): AgencyGroupPage!
+    instanceClusters(query: String, pageno: Int, pagesize: Int, order: String): ClusterRecordPage!
+    sourceBibs(query: String, pageno:Int, pagesize: Int, order: String): BibRecordPage!
+    processStates(query: String, pageno:Int, pagesize: Int, order: String): ProcessStatePage!
+    audits(query: String, pageno:Int, pagesize: Int, order: String): PatronRequestAuditPage!
+    patronIdentities(query: String, pageno:Int, pagesize: Int, order: String): PatronIdentityPage!
 }
 
 type Mutation {

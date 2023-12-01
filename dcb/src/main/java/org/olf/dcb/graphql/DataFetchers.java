@@ -99,11 +99,14 @@ public class DataFetchers {
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
+                        String order = env.getArgument("order");
                         
                         if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
+                        if ( order == null ) order = "name";
 
-                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
+                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
+				.order(order);
                 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, DataAgency.class);
