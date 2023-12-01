@@ -13,6 +13,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyDescription;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasCanonicalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
@@ -140,7 +141,7 @@ public class HostLmsPolarisClientTests {
 		assertThat(firstItem, isNotSuppressed());
 		assertThat(firstItem, hasAgencyCode("345test"));
 		assertThat(firstItem, hasAgencyDescription("Test College"));
-		assertThat(firstItem.getCanonicalItemType(), is("UNKNOWN"));
+		assertThat(firstItem, hasCanonicalItemType("UNKNOWN"));
 	}
 
 	@Test

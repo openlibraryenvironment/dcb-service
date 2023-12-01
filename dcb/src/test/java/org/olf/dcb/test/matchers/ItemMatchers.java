@@ -20,10 +20,6 @@ public class ItemMatchers {
 		return hasProperty("barcode", is(expectedBarcode));
 	}
 
-	public static Matcher<Item> hasLocalItemType(String expectedLocalItemType) {
-		return hasProperty("localItemType", is(expectedLocalItemType));
-	}
-
 	public static Matcher<Item> hasStatus(ItemStatusCode expectedStatus) {
 		return hasProperty("status", hasProperty("code", is(expectedStatus)));
 	}
@@ -55,8 +51,16 @@ public class ItemMatchers {
 		return hasProperty("hostLmsCode", is(expectedHostLmsCode));
 	}
 
+	public static Matcher<Item> hasLocalItemType(String expectedLocalItemType) {
+		return hasProperty("localItemType", is(expectedLocalItemType));
+	}
+
 	public static Matcher<Item> hasLocalItemTypeCode(String expectedLocalItemTypeCode) {
 		return hasProperty("localItemTypeCode", is(expectedLocalItemTypeCode));
+	}
+
+	public static Matcher<Item> hasCanonicalItemType(String expectedCanonicalItemType) {
+		return hasProperty("canonicalItemType", is(expectedCanonicalItemType));
 	}
 
 	public static Matcher<Item> isNotSuppressed() {

@@ -11,6 +11,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasCanonicalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
@@ -87,6 +88,7 @@ class SierraHostLmsClientItemTests {
 				hasLocalBibId("65423515"),
 				hasLocalItemType("999"),
 				hasLocalItemTypeCode("999"),
+				hasCanonicalItemType("BKM"),
 				hasHostLmsCode(HOST_LMS_CODE),
 				hasNoAgencyCode(),
 				hasNoAgencyDescription(),
@@ -102,6 +104,7 @@ class SierraHostLmsClientItemTests {
 				hasLocalBibId("65423515"),
 				hasLocalItemType("999"),
 				hasLocalItemTypeCode("999"),
+				hasCanonicalItemType("BKM"),
 				hasHostLmsCode(HOST_LMS_CODE),
 				hasNoAgencyCode(),
 				hasNoAgencyDescription(),
@@ -117,6 +120,7 @@ class SierraHostLmsClientItemTests {
 				hasLocalBibId("65423515"),
 				hasLocalItemType("999"),
 				hasLocalItemTypeCode("999"),
+				hasCanonicalItemType("BKM"),
 				hasHostLmsCode(HOST_LMS_CODE),
 				hasNoAgencyCode(),
 				hasNoAgencyDescription(),
