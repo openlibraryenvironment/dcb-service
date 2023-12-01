@@ -36,9 +36,9 @@ import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.TestResourceLoader;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 import org.olf.dcb.test.matchers.ItemMatchers;
 
-import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -48,7 +48,8 @@ public class HostLmsPolarisClientTests {
 	private static final String HOST_LMS_CODE = "polaris-hostlms-tests";
 
 	@Inject
-	private ResourceLoader loader;
+	private TestResourceLoaderProvider testResourceLoaderProvider;
+
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
@@ -66,7 +67,7 @@ public class HostLmsPolarisClientTests {
 		final String SECRET = "polaris-hostlms-test-secret";
 		final String DOMAIN = "TEST";
 
-		resourceLoader = new TestResourceLoader("classpath:mock-responses/polaris/", loader);
+		resourceLoader = testResourceLoaderProvider.forBasePath("classpath:mock-responses/polaris/");
 
 		hostLmsFixture.deleteAll();
 
