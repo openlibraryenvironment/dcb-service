@@ -20,6 +20,7 @@ import org.mockserver.matchers.Times;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraLoginAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
@@ -43,6 +44,8 @@ class SierraApiLoginTests {
 	private ResourceLoader loader;
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private TestResourceLoaderProvider testResourceLoaderProvider;
 
 	@BeforeAll
 	void beforeAll() {
@@ -99,7 +102,8 @@ class SierraApiLoginTests {
 	@Test
 	void shouldReauthenticateAfterDeniedRequested(MockServerClient mockServerClient) {
 		// Arrange
-		final var sierraLoginFixture = new SierraLoginAPIFixture(mockServerClient, loader);
+		final var sierraLoginFixture = new SierraLoginAPIFixture(mockServerClient,
+			testResourceLoaderProvider);
 
 		// Login should be re-attempted after unauthorised response
 		sierraLoginFixture.successfulLoginFor(KEY, SECRET, "login-token",
@@ -144,7 +148,7 @@ class SierraApiLoginTests {
 	}
 
 	private void mockSuccessfulLogin(MockServerClient mock, String token) {
-		final var sierraLoginFixture = new SierraLoginAPIFixture(mock, loader);
+		final var sierraLoginFixture = new SierraLoginAPIFixture(mock, testResourceLoaderProvider);
 
 		sierraLoginFixture.successfulLoginFor(KEY, SECRET, token);
 		sierraLoginFixture.failLoginsForAnyOtherCredentials(KEY, SECRET);

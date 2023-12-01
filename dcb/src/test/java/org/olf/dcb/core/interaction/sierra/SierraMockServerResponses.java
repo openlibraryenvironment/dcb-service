@@ -20,7 +20,11 @@ public class SierraMockServerResponses {
 	private final TestResourceLoader resourceLoader;
 
 	public SierraMockServerResponses(String basePath, ResourceLoader loader) {
-		this.resourceLoader = new TestResourceLoader(basePath, loader);
+		this(new TestResourceLoader(basePath, loader));
+	}
+
+	public SierraMockServerResponses(TestResourceLoader resourceLoader) {
+		this.resourceLoader = resourceLoader;
 	}
 
 	public HttpResponse jsonSuccess(String responseBodySubPath) {

@@ -1,6 +1,5 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.JsonBody.json;
 
 import java.util.List;

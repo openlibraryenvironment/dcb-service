@@ -13,21 +13,19 @@ import java.util.Map;
 
 import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.Times;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 
-import io.micronaut.core.io.ResourceLoader;
+import lombok.AllArgsConstructor;
 
+@AllArgsConstructor
 public class SierraLoginAPIFixture {
 	private final MockServerClient mockServer;
 	private final SierraMockServerRequests sierraMockServerRequests;
 	private final SierraMockServerResponses sierraMockServerResponses;
 
-	public SierraLoginAPIFixture(MockServerClient mockServer, ResourceLoader loader) {
-		this.mockServer = mockServer;
-		this.sierraMockServerRequests = new SierraMockServerRequests(
-			"/iii/sierra-api/v6/token");
-
-		this.sierraMockServerResponses = new SierraMockServerResponses(
-			"classpath:mock-responses/sierra/", loader);
+	public SierraLoginAPIFixture(MockServerClient mockServer, TestResourceLoaderProvider provider) {
+		this(mockServer, new SierraMockServerRequests("/iii/sierra-api/v6/token"),
+			new SierraMockServerResponses(provider.forBasePath("classpath:mock-responses/sierra/")));
 	}
 
 	public void successfulLoginFor(String key, String secret, String token) {
