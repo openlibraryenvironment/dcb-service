@@ -38,9 +38,7 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Event;
-import org.olf.dcb.core.model.ShelvingLocation;
 import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.ShelvingLocationRepository;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -88,11 +86,7 @@ class PatronRequestApiTests {
 	private LocationFixture locationFixture;
 	@Inject
 	private EventLogFixture eventLogFixture;
-
-	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
-
-	@Inject
-	private ShelvingLocationRepository shelvingLocationRepository;
+	
 	@Inject
 	private AgencyRepository agencyRepository;
 
@@ -100,6 +94,8 @@ class PatronRequestApiTests {
 	private PatronRequestApiClient patronRequestApiClient;
 	@Inject
 	private AdminApiClient adminApiClient;
+
+	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
@@ -154,6 +150,7 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
 
 		agencyFixture.deleteAll();
+
 		final var da = agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
 			.code("AGENCY1")
@@ -162,7 +159,7 @@ class PatronRequestApiTests {
 			.build());
 		log.debug("Create dataAgency {}", da);
 
-		final var da2 = agencyFixture.saveAgency(DataAgency.builder()
+		agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
 			.code("ab6")
 			.name("AB6")
@@ -171,17 +168,6 @@ class PatronRequestApiTests {
 
 		sierraPatronsAPIFixture.addPatronGetExpectation("43546");
 		sierraPatronsAPIFixture.addPatronGetExpectation(KNOWN_PATRON_LOCAL_ID);
-
-		final var shelvingLocation = ShelvingLocation.builder()
-			.id(randomUUID())
-			.code("ab6")
-			.name("name")
-			.hostSystem(h3)
-			.agency(da2)
-			.build();
-
-		Mono.from(shelvingLocationRepository.save(shelvingLocation)).block();
-
 	}
 
 	@BeforeEach
@@ -209,7 +195,6 @@ class PatronRequestApiTests {
 
 	@AfterAll
 	void afterAll() {
-		Mono.from(shelvingLocationRepository.deleteByCode("ab6")).block();
 		Mono.from(agencyRepository.deleteByCode("ab6")).block();
 		hostLmsFixture.deleteAll();
 	}
