@@ -6,6 +6,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.olf.dcb.test.matchers.BibRecordMatchers.hasSourceRecordId;
 import static org.olf.dcb.test.matchers.BibRecordMatchers.hasSourceSystemIdFor;
 import static org.olf.dcb.test.matchers.ModelMatchers.hasId;
@@ -62,7 +63,22 @@ class SharedIndexServiceTests {
 			.findClusteredBib(clusterRecordId).block();
 
 		assertThat(clusteredBib, is(notNullValue()));
-		assertThat(clusteredBib, hasId(clusterRecordId));
+
+		assertThat(clusteredBib, allOf(
+			hasId(clusterRecordId),
+			hasProperty("bibRecords", containsInAnyOrder(
+				allOf(
+					hasId(firstBibRecordId),
+					hasSourceRecordId("798472"),
+					hasSourceSystemIdFor(secondHostLms)
+				),
+				allOf(
+					hasId(secondBibRecordId),
+					hasSourceRecordId("896857"),
+					hasSourceSystemIdFor(firstHostLms)
+				)
+			))
+		));
 
 		assertThat("Should have multiple bib records",
 			clusteredBib.getBibs(), containsInAnyOrder(
