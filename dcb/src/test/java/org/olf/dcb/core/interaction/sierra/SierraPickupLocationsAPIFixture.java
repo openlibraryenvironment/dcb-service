@@ -5,25 +5,25 @@ import static org.mockserver.model.JsonBody.json;
 import java.util.List;
 
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.serde.annotation.Serdeable;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
+@AllArgsConstructor
 public class SierraPickupLocationsAPIFixture {
 	private final MockServerClient mockServer;
 	private final SierraMockServerRequests sierraMockServerRequests;
 	private final SierraMockServerResponses sierraMockServerResponses;
 
-	public SierraPickupLocationsAPIFixture(MockServerClient mockServer, ResourceLoader loader) {
-		this.mockServer = mockServer;
+	public SierraPickupLocationsAPIFixture(MockServerClient mockServer,
+		TestResourceLoaderProvider testResourceLoaderProvider) {
 
-		sierraMockServerRequests = new SierraMockServerRequests(
-			"/iii/sierra-api/v6/branches/pickupLocations");
-
-		sierraMockServerResponses = new SierraMockServerResponses(
-			"classpath:mock-responses/sierra/", loader);
+		this(mockServer, new SierraMockServerRequests("/iii/sierra-api/v6/branches/pickupLocations"),
+			new SierraMockServerResponses(
+				testResourceLoaderProvider.forBasePath("classpath:mock-responses/sierra/")));
 	}
 
 	public void successfulResponseWhenGettingPickupLocations() {

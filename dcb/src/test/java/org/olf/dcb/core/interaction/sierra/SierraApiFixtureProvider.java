@@ -16,4 +16,8 @@ public class SierraApiFixtureProvider {
 	public SierraLoginAPIFixture loginFixtureFor(MockServerClient mockServerClient) {
 		return new SierraLoginAPIFixture(mockServerClient, testResourceLoaderProvider);
 	}
+
+	public SierraPickupLocationsAPIFixture pickupLocationsFor(MockServerClient mock) {
+		return new SierraPickupLocationsAPIFixture(mock, testResourceLoaderProvider);
+	}
 }

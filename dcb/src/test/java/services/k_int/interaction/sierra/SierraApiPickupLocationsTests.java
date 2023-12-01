@@ -10,15 +10,17 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import org.apiguardian.api.API;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPickupLocationsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
@@ -32,23 +34,23 @@ class SierraApiPickupLocationsTests {
 	@Inject
 	private HttpClient client;
 	@Inject
-	private ResourceLoader loader;
-	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
 	private SierraPickupLocationsAPIFixture sierraPickupLocationsFixture;
-
+	
 	@BeforeAll
-	void beforeAll(MockServerClient mock) {
+	void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://pickup-locations-api-tests.com";
 		final String KEY = "pickup-locations-key";
 		final String SECRET = "pickup-locations-secret";
 
-		SierraTestUtils.mockFor(mock, BASE_URL)
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		sierraPickupLocationsFixture = new SierraPickupLocationsAPIFixture(mock, loader);
+		sierraPickupLocationsFixture = sierraApiFixtureProvider.pickupLocationsFor(mockServerClient);
 
 		hostLmsFixture.deleteAll();
 
