@@ -66,4 +66,12 @@ public class ItemMatchers {
 	public static Matcher<Item> suppressionUnknown() {
 		return hasProperty("suppressed", is(nullValue()));
 	}
+
+	public static Matcher<Item> hasAgencyCode(String expectedAgencyCode) {
+		return hasProperty("agencyCode", is(expectedAgencyCode));
+	}
+
+	public static Matcher<Item> hasNoAgencyCode() {
+		return hasProperty("agencyCode", is(nullValue()));
+	}
 }
