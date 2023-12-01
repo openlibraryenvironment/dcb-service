@@ -17,6 +17,7 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.request.resolution.SharedIndexService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.BibRepository;
@@ -43,6 +44,7 @@ public class BorrowingAgencyService {
 	private final SupplierRequestService supplierRequestService;
 	private final BibRepository bibRepository;
 	private final ClusterRecordRepository clusterRecordRepository;
+	private final SharedIndexService sharedIndexService;
 
 	// Provider to prevent circular reference exception by allowing lazy access to
 	// this singleton.
@@ -52,7 +54,7 @@ public class BorrowingAgencyService {
 	public BorrowingAgencyService(HostLmsService hostLmsService,
 		PatronIdentityRepository patronIdentityRepository,
 		SupplierRequestService supplierRequestService, BibRepository bibRepository,
-		ClusterRecordRepository clusterRecordRepository,
+		ClusterRecordRepository clusterRecordRepository, SharedIndexService sharedIndexService,
 		ReferenceValueMappingRepository referenceValueMappingRepository,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
 
@@ -61,6 +63,7 @@ public class BorrowingAgencyService {
 		this.supplierRequestService = supplierRequestService;
 		this.bibRepository = bibRepository;
 		this.clusterRecordRepository = clusterRecordRepository;
+		this.sharedIndexService = sharedIndexService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 	}
