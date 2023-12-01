@@ -11,17 +11,12 @@ import org.mockserver.model.HttpResponse;
 import org.mockserver.model.JsonBody;
 import org.olf.dcb.test.TestResourceLoader;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
 
 public class SierraMockServerResponses {
 	private final TestResourceLoader resourceLoader;
-
-	public SierraMockServerResponses(String basePath, ResourceLoader loader) {
-		this(new TestResourceLoader(basePath, loader));
-	}
 
 	public SierraMockServerResponses(TestResourceLoader resourceLoader) {
 		this.resourceLoader = resourceLoader;
