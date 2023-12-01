@@ -19,6 +19,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyCode;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyDescription;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.suppressionUnknown;
@@ -88,6 +89,7 @@ class SierraHostLmsClientItemTests {
 				hasLocalItemTypeCode("999"),
 				hasHostLmsCode(HOST_LMS_CODE),
 				hasNoAgencyCode(),
+				hasNoAgencyDescription(),
 				suppressionUnknown()
 			),
 			allOf(
@@ -102,6 +104,7 @@ class SierraHostLmsClientItemTests {
 				hasLocalItemTypeCode("999"),
 				hasHostLmsCode(HOST_LMS_CODE),
 				hasNoAgencyCode(),
+				hasNoAgencyDescription(),
 				suppressionUnknown()
 			),
 			allOf(
@@ -116,6 +119,7 @@ class SierraHostLmsClientItemTests {
 				hasLocalItemTypeCode("999"),
 				hasHostLmsCode(HOST_LMS_CODE),
 				hasNoAgencyCode(),
+				hasNoAgencyDescription(),
 				suppressionUnknown()
 			)
 		));
