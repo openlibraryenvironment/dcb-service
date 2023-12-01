@@ -26,11 +26,10 @@ public class SharedIndexService {
 		this.bibRepository = bibRepository;
 	}
 
-	public Mono<ClusteredBib> findClusteredBib(UUID bibClusterId) {
-		log.debug("findClusteredBib({})", bibClusterId);
+	public Mono<ClusteredBib> findClusteredBib(UUID clusterRecordId) {
+		log.debug("findClusteredBib({})", clusterRecordId);
 
-		return Mono.from(clusterRecordRepository.findOneById(bibClusterId))
-			.switchIfEmpty(Mono.error(new CannotFindClusterRecordException(bibClusterId)))
+		return findClusterRecord(clusterRecordId)
 			.zipWhen(this::findBibRecords, this::mapToClusteredBibWithBib);
 	}
 
@@ -50,7 +49,7 @@ public class SharedIndexService {
 	}
 
 	public Mono<BibRecord> findSelectedBib(UUID clusterRecordId) {
-		return getClusterRecord(clusterRecordId)
+		return findClusterRecord(clusterRecordId)
 			.flatMap(this::getSelectedBib);
 	}
 
@@ -60,8 +59,8 @@ public class SharedIndexService {
 				"Unable to locate selected bib " + clusterRecord.getSelectedBib() + " for cluster " + clusterRecord.getId())));
 	}
 
-	private Mono<ClusterRecord> getClusterRecord(UUID clusterRecordId) {
-		return Mono.from(clusterRecordRepository.findById(clusterRecordId))
-			.switchIfEmpty(Mono.error(new RuntimeException("Unable to locate cluster record " + clusterRecordId)));
+	private Mono<? extends ClusterRecord> findClusterRecord(UUID clusterRecordId) {
+		return Mono.from(clusterRecordRepository.findOneById(clusterRecordId))
+			.switchIfEmpty(Mono.error(new CannotFindClusterRecordException(clusterRecordId)));
 	}
 }
