@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.UUID;
 
 import org.hamcrest.Matcher;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -53,7 +52,6 @@ import org.olf.dcb.test.clients.ChecksFailure;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -86,9 +84,6 @@ class PatronRequestApiTests {
 	private LocationFixture locationFixture;
 	@Inject
 	private EventLogFixture eventLogFixture;
-	
-	@Inject
-	private AgencyRepository agencyRepository;
 
 	@Inject
 	private PatronRequestApiClient patronRequestApiClient;
@@ -191,12 +186,6 @@ class PatronRequestApiTests {
 		locationFixture.createPickupLocation("ABC123", "ABC123");
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", "AGENCY1");
-	}
-
-	@AfterAll
-	void afterAll() {
-		Mono.from(agencyRepository.deleteByCode("ab6")).block();
-		hostLmsFixture.deleteAll();
 	}
 
 	@Test
