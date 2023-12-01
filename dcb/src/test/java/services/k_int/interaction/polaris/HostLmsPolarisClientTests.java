@@ -18,6 +18,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
@@ -134,7 +135,7 @@ public class HostLmsPolarisClientTests {
 		assertThat(firstItem, hasLocalBibId(sourceRecordId));
 		assertThat(firstItem, hasLocalItemType("Book"));
 		assertThat(firstItem, hasLocalItemTypeCode("3"));
-		assertThat(firstItem.getSuppressed(), is(false));
+		assertThat(firstItem, isNotSuppressed());
 		assertThat(firstItem.getAgencyCode(), is("345test"));
 		assertThat(firstItem.getAgencyDescription(), is("Test College"));
 		assertThat(firstItem.getCanonicalItemType(), is("UNKNOWN"));

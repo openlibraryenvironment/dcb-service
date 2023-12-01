@@ -20,6 +20,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.ItemMatchers.suppressionUnknown;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -84,7 +85,8 @@ class SierraHostLmsClientItemTests {
 				hasLocalBibId("65423515"),
 				hasLocalItemType("999"),
 				hasLocalItemTypeCode("999"),
-				hasHostLmsCode(HOST_LMS_CODE)
+				hasHostLmsCode(HOST_LMS_CODE),
+				suppressionUnknown()
 			),
 			allOf(
 				hasLocalId("c5bc9cd0-fc23-48be-9d52-647cea8c63ca"),
@@ -96,7 +98,8 @@ class SierraHostLmsClientItemTests {
 				hasLocalBibId("65423515"),
 				hasLocalItemType("999"),
 				hasLocalItemTypeCode("999"),
-				hasHostLmsCode(HOST_LMS_CODE)
+				hasHostLmsCode(HOST_LMS_CODE),
+				suppressionUnknown()
 			),
 			allOf(
 				hasLocalId("69415d0a-ace5-49e4-96fd-f63855235bf0"),
@@ -108,7 +111,8 @@ class SierraHostLmsClientItemTests {
 				hasLocalBibId("65423515"),
 				hasLocalItemType("999"),
 				hasLocalItemTypeCode("999"),
-				hasHostLmsCode(HOST_LMS_CODE)
+				hasHostLmsCode(HOST_LMS_CODE),
+				suppressionUnknown()
 			)
 		));
 	}

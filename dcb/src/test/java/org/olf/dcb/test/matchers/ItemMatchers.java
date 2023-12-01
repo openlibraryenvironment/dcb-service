@@ -58,4 +58,12 @@ public class ItemMatchers {
 	public static Matcher<Item> hasLocalItemTypeCode(String expectedLocalItemTypeCode) {
 		return hasProperty("localItemTypeCode", is(expectedLocalItemTypeCode));
 	}
+
+	public static Matcher<Item> isNotSuppressed() {
+		return hasProperty("suppressed", is(false));
+	}
+
+	public static Matcher<Item> suppressionUnknown() {
+		return hasProperty("suppressed", is(nullValue()));
+	}
 }
