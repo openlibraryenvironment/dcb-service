@@ -35,7 +35,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
-import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Event;
@@ -128,7 +127,7 @@ class PatronRequestApiTests {
 
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
 
-		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mockServerClient, loader);
+		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
 
 		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");

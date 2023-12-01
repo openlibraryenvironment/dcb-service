@@ -11,50 +11,48 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.micronaut.context.annotation.Property;
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+@Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 class SierraApiBibTests {
 	private static final String HOST_LMS_CODE = "sierra-bib-api-tests";
 
-	private final Logger log = LoggerFactory.getLogger(SierraApiBibTests.class);
-
 	@Inject
 	private HttpClient client;
 	@Inject
-	private ResourceLoader loader;
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
+
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 
 	private SierraBibsAPIFixture sierraBibsAPIFixture;
 
 	@BeforeAll
-	void beforeAll(MockServerClient mock) {
+	void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://bib-api-tests.com";
 		final String KEY = "bib-key";
 		final String SECRET = "bib-secret";
 
-		SierraTestUtils.mockFor(mock, BASE_URL)
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
+		sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
 
 		hostLmsFixture.deleteAll();
 

@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
-import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
@@ -114,7 +113,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
 
 		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
-		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mockServerClient, loader);
+		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
 
 		final var bibPatch = BibPatch.builder()
 			.authors(List.of("Stafford Beer"))

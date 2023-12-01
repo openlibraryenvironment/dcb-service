@@ -24,4 +24,8 @@ public class SierraApiFixtureProvider {
 	public SierraItemsAPIFixture itemsApiFor(MockServerClient mockServerClient) {
 		return new SierraItemsAPIFixture(mockServerClient, testResourceLoaderProvider);
 	}
+
+	public SierraBibsAPIFixture bibsApiFor(MockServerClient mockServerClient) {
+		return new SierraBibsAPIFixture(mockServerClient, testResourceLoaderProvider);
+	}
 }
