@@ -7,7 +7,7 @@ import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.request.resolution.Bib;
+import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.request.resolution.ClusteredBib;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.request.resolution.SharedIndexService;
@@ -44,10 +44,10 @@ public class LiveAvailabilityService {
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to resolve items for cluster record " + clusteredBib))));
 	}
 
-	private Flux<Bib> getBibs(ClusteredBib clusteredBib) {
+	private Flux<BibRecord> getBibs(ClusteredBib clusteredBib) {
 		log.debug("getBibs: {}", clusteredBib);
 
-		final var bibs = clusteredBib.getBibs();
+		final var bibs = clusteredBib.getBibRecords();
 
 		if (isEmpty(bibs)) {
 			log.error("Clustered bib record: \"" + clusteredBib.getId() + "\" has no bibs");
@@ -58,14 +58,14 @@ public class LiveAvailabilityService {
 		return Flux.fromIterable(bibs);
 	}
 
-	private Mono<AvailabilityReport> getItems(Bib bib) {
+	private Mono<AvailabilityReport> getItems(BibRecord bib) {
 		log.debug("getItems({})", bib);
 
 		return hostLmsService.getClientFor(bib.getSourceSystemId())
 			.flatMap(client -> getItems(bib, client));
 	}
 
-	private Mono<AvailabilityReport> getItems(Bib bib, HostLmsClient client) {
+	private Mono<AvailabilityReport> getItems(BibRecord bib, HostLmsClient client) {
 		return client.getItems(bib.getSourceRecordId())
 			.doOnError(error -> log.error("Error occurred fetching items: ", error))
 			.map(AvailabilityReport::ofItems)
@@ -77,7 +77,7 @@ public class LiveAvailabilityService {
 			item -> item.setIsRequestable(requestableItemService.isRequestable(item)));
 	}
 
-	private static AvailabilityReport.Error mapToError(Bib bib, String hostLmsCode) {
+	private static AvailabilityReport.Error mapToError(BibRecord bib, String hostLmsCode) {
 		log.error("Failed to fetch items for bib: {} from host: {}",
 			bib.getSourceRecordId(), hostLmsCode);
 
