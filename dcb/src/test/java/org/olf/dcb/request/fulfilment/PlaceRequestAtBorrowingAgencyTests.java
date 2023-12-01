@@ -29,12 +29,12 @@ import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtBorrowingAgencyStateTransition;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.ShelvingLocationRepository;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
-import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 
@@ -148,12 +148,15 @@ class PlaceRequestAtBorrowingAgencyTests {
 	void placeRequestAtBorrowingAgencySucceeds() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			clusterRecordId, bibRecordId);
 
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron("872321");
 
@@ -196,12 +199,15 @@ class PlaceRequestAtBorrowingAgencyTests {
 	void shouldFailWhenPlacingRequestInSierraRespondsWithServerError() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			clusterRecordId, bibRecordId);
 
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron("972321");
 
@@ -244,12 +250,15 @@ class PlaceRequestAtBorrowingAgencyTests {
 	void shouldFailWhenPlacedRequestCannotBeFoundInSierra() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			clusterRecordId, bibRecordId);
 
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron("972321");
 
@@ -298,12 +307,15 @@ class PlaceRequestAtBorrowingAgencyTests {
 	void shouldFailWhenSierraHostLmsHasInvalidHoldPolicyConfiguration() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			clusterRecordId, bibRecordId);
 
 		final var invalidHoldPolicyHostLms = hostLmsFixture.findByCode(INVALID_HOLD_POLICY_HOST_LMS_CODE);
 		final var sourceSystemId = invalidHoldPolicyHostLms.getId();
 
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron("872321");
 

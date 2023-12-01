@@ -81,7 +81,7 @@ class LiveAvailabilityApiTests {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 
@@ -190,7 +190,7 @@ class LiveAvailabilityApiTests {
 		final var bibRecordId = randomUUID();
 		final var unknownHostId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 
 		bibRecordFixture.createBibRecord(bibRecordId, unknownHostId,
 			"7657673", clusterRecord);
@@ -216,7 +216,7 @@ class LiveAvailabilityApiTests {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 
-		clusterRecordFixture.createClusterRecord(clusterRecordId);
+		clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 
 		// Act
 		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);

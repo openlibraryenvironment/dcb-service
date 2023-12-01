@@ -93,7 +93,7 @@ class LiveAvailabilityServiceTests {
 	@DisplayName("Should get items for multiple bibs from separate Sierra systems")
 	void shouldGetItemsForMultipleBibsFromSeparateSierraSystems(MockServerClient mock) {
 		// Arrange
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
 
 		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(),
 			"465675", clusterRecord);
@@ -127,7 +127,7 @@ class LiveAvailabilityServiceTests {
 	@DisplayName("Should report zero items when Sierra responds with no records found error")
 	void shouldReportZeroItemsWhenSierraRespondsWithNoRecordsFoundError(MockServerClient mock) {
 		// Arrange
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
 
 		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(),
 			"762354", clusterRecord);
@@ -149,7 +149,7 @@ class LiveAvailabilityServiceTests {
 	@DisplayName("Should report failures when fetching items from Sierra")
 	void shouldReportFailuresFetchingItemsFromSierra(MockServerClient mock) {
 		// Arrange
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
 
 		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(),
 			"839552", clusterRecord);
@@ -184,7 +184,7 @@ class LiveAvailabilityServiceTests {
 	@Test
 	void shouldFailWhenClusterRecordHasNoContributingBibs() {
 		// Arrange
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
 
 		// Act
 		final var exception = assertThrows(NoBibsForClusterRecordException.class,
@@ -201,7 +201,7 @@ class LiveAvailabilityServiceTests {
 		final var bibRecordId = randomUUID();
 		final var unknownHostId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 
 		bibRecordFixture.createBibRecord(bibRecordId, unknownHostId,
 			"7657673", clusterRecord);

@@ -221,7 +221,7 @@ class PatronRequestApiTests {
 		log.info("\n\nshouldBeAbleToPlacePatronForNewPatron\n\n");
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
@@ -341,7 +341,7 @@ class PatronRequestApiTests {
 		log.info("\n\ncannotFulfilPatronRequestWhenNoRequestableItemsAreFound\n\n");
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
@@ -418,7 +418,7 @@ class PatronRequestApiTests {
 
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
@@ -452,7 +452,7 @@ class PatronRequestApiTests {
 	void cannotPlaceRequestForPickupAtUnknownLocation() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
@@ -491,7 +491,7 @@ class PatronRequestApiTests {
 	void cannotPlaceRequestForPickupAtUnmappedLocation() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 

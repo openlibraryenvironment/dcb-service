@@ -91,9 +91,11 @@ class PatronRequestResolutionTests {
 	@Test
 	void shouldResolveVerifiedRequestWhenFirstItemOfMultipleIsChosen(MockServerClient mockServer) {
 		// Arrange
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
+		final var bibRecordId = randomUUID();
 
-		bibRecordFixture.createBibRecord(randomUUID(), hostLms.getId(),
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		bibRecordFixture.createBibRecord(bibRecordId, hostLms.getId(),
 			"465675", clusterRecord);
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mockServer, loader);
@@ -153,9 +155,11 @@ class PatronRequestResolutionTests {
 		MockServerClient mockServer) {
 
 		// Arrange
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
+		final var bibRecordId = randomUUID();
 
-		bibRecordFixture.createBibRecord(randomUUID(), hostLms.getId(),
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		bibRecordFixture.createBibRecord(bibRecordId, hostLms.getId(),
 			"245375", clusterRecord);
 
 		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mockServer, loader);
@@ -235,7 +239,7 @@ class PatronRequestResolutionTests {
 	@Test
 	void shouldFailToResolveVerifiedRequestWhenNoBibsForClusterRecord() {
 		// Arrange
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), null);
 
 		final var patron = patronFixture.savePatron("757646");
 		patronFixture.saveIdentity(patron, hostLms, "86848", true, "-", "757646", null);

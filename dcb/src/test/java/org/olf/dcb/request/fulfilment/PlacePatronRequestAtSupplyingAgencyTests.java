@@ -290,7 +290,9 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 	private UUID createClusterRecord() {
 		final UUID clusterRecordId = randomUUID();
-		clusterRecordFixture.createClusterRecord(clusterRecordId);
+
+		clusterRecordFixture.createClusterRecord(clusterRecordId, null);
+
 		return clusterRecordId;
 	}
 
