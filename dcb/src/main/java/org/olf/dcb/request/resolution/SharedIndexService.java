@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.request.CannotFindSelectedBibException;
 import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.ClusterRecordRepository;
 
@@ -55,8 +56,7 @@ public class SharedIndexService {
 
 	private Mono<BibRecord> getSelectedBib(ClusterRecord clusterRecord) {
 		return Mono.from(bibRepository.findById(clusterRecord.getSelectedBib()))
-			.switchIfEmpty(Mono.error(new RuntimeException(
-				"Unable to locate selected bib " + clusterRecord.getSelectedBib() + " for cluster " + clusterRecord.getId())));
+			.switchIfEmpty(Mono.error(new CannotFindSelectedBibException(clusterRecord)));
 	}
 
 	private Mono<? extends ClusterRecord> findClusterRecord(UUID clusterRecordId) {
