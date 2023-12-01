@@ -92,7 +92,7 @@ public class HostLmsFixture {
 			Optional.empty(), config);
 	}
 
-	public DataHostLms createPolarisHostLms(String code, String staffUsername,
+	public void createPolarisHostLms(String code, String staffUsername,
 		String staffPassword, String baseUrl, String domain, String accessId, String accessKey) {
 
 		Map<String, Object> clientConfig = new HashMap<>();
@@ -134,7 +134,7 @@ public class HostLmsFixture {
 
 		clientConfig.put("item", item);
 
-		return createHostLms(randomUUID(), code, PolarisLmsClient.class,
+		createHostLms(randomUUID(), code, PolarisLmsClient.class,
 			Optional.of(PolarisLmsClient.class), clientConfig);
 	}
 
