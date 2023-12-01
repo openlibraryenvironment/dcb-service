@@ -49,13 +49,18 @@ public class SharedIndexService {
 			.collectList();
 	}
 
-	public Mono<BibRecord> getSelectedBib(ClusterRecord clusterRecord) {
+	public Mono<BibRecord> findSelectedBib(UUID clusterRecordId) {
+		return getClusterRecord(clusterRecordId)
+			.flatMap(this::getSelectedBib);
+	}
+
+	private Mono<BibRecord> getSelectedBib(ClusterRecord clusterRecord) {
 		return Mono.from(bibRepository.findById(clusterRecord.getSelectedBib()))
 			.switchIfEmpty(Mono.error(new RuntimeException(
 				"Unable to locate selected bib " + clusterRecord.getSelectedBib() + " for cluster " + clusterRecord.getId())));
 	}
 
-	public Mono<ClusterRecord> getClusterRecord(UUID clusterRecordId) {
+	private Mono<ClusterRecord> getClusterRecord(UUID clusterRecordId) {
 		return Mono.from(clusterRecordRepository.findById(clusterRecordId))
 			.switchIfEmpty(Mono.error(new RuntimeException("Unable to locate cluster record " + clusterRecordId)));
 	}

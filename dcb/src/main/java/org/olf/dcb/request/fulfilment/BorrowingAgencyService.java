@@ -110,18 +110,13 @@ public class BorrowingAgencyService {
 
 		log.debug("createVirtualBib for cluster {}", bibClusterId);
 
-		return findSelectedBib(bibClusterId)
+		return sharedIndexService.findSelectedBib(bibClusterId)
 			.map(this::extractBibData)
 			.flatMap(hostLmsClient::createBib)
 			.map(patronRequest::setLocalBibId)
 			.switchIfEmpty(Mono.error(new RuntimeException(
 				"Failed to create virtual bib at " + hostLmsClient.getHostLmsCode() + " for cluster " + bibClusterId)))
 			.map(pr -> Tuples.of(pr, patronIdentity, hostLmsClient, supplierRequest));
-	}
-
-	public Mono<BibRecord> findSelectedBib(UUID bibClusterId) {
-		return sharedIndexService.getClusterRecord(bibClusterId)
-			.flatMap(sharedIndexService::getSelectedBib);
 	}
 
 	private Bib extractBibData(BibRecord bibRecord) {
