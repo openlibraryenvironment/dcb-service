@@ -79,19 +79,5 @@ class SharedIndexServiceTests {
 				)
 			))
 		));
-
-		assertThat("Should have multiple bib records",
-			clusteredBib.getBibs(), containsInAnyOrder(
-				allOf(
-					hasId(firstBibRecordId),
-					hasSourceRecordId("798472"),
-					hasSourceSystemIdFor(secondHostLms)
-				),
-				allOf(
-					hasId(secondBibRecordId),
-					hasSourceRecordId("896857"),
-					hasSourceSystemIdFor(firstHostLms)
-				)
-			));
 	}
 }

@@ -20,6 +20,5 @@ import lombok.NoArgsConstructor;
 public class ClusteredBib {
 	private UUID id;
 	private String title;
-	private List<Bib> bibs;
 	private List<BibRecord> bibRecords;
 }

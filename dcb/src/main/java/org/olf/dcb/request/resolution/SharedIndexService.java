@@ -2,7 +2,6 @@ package org.olf.dcb.request.resolution;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
@@ -42,22 +41,11 @@ public class SharedIndexService {
 			.id(clusterRecord.getId())
 			.title(clusterRecord.getTitle())
 			.bibRecords(bibRecords)
-			.bibs(bibRecords.stream()
-				.map(this::mapToBib)
-				.collect(Collectors.toList()))
 			.build();
 	}
 
 	private Mono<List<BibRecord>> findBibRecords(ClusterRecord clusteredBib) {
 		return Flux.from(bibRepository.findAllByContributesTo(clusteredBib))
 			.collectList();
-	}
-
-	private Bib mapToBib(BibRecord bibRecord) {
-		return Bib.builder()
-			.id(bibRecord.getId())
-			.sourceRecordId(bibRecord.getSourceRecordId())
-			.sourceSystemId(bibRecord.getSourceSystemId())
-			.build();
 	}
 }
