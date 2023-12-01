@@ -25,6 +25,7 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.CannotFindSelectedBibException;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtBorrowingAgencyStateTransition;
 import org.olf.dcb.storage.AgencyRepository;
@@ -345,6 +346,55 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		assertThat("Should have invalid hold policy message",
 			exception.getMessage(), is(expectedErrorMessage));
+
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat("Request should have error status afterwards",
+			fetchedPatronRequest.getStatus(), is(ERROR));
+
+		assertThat("Request should have error message afterwards",
+			fetchedPatronRequest.getErrorMessage(), is(expectedErrorMessage));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
+	}
+
+	@Test
+	void shouldFailWhenSelectedBibCannotBeFound() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+		final var bibRecordId = randomUUID();
+
+		clusterRecordFixture.createClusterRecord(clusterRecordId, bibRecordId);
+
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+
+		final var patron = patronFixture.savePatron("872321");
+
+		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-", "872321", null);
+
+		final var patronRequestId = randomUUID();
+		var patronRequest = PatronRequest.builder()
+			.id(patronRequestId)
+			.patron(patron)
+			.bibClusterId(clusterRecordId)
+			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.pickupLocationCode("ABC123")
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
+			"ab6", "9849123490", hostLms.code);
+
+		// Act
+		final var exception = assertThrows(CannotFindSelectedBibException.class,
+			() -> placeRequestAtBorrowingAgency(patronRequest));
+
+		// Assert
+		final var expectedErrorMessage = "Unable to locate selected bib " + bibRecordId
+			+ " for cluster " + clusterRecordId;
+
+		assertThat(exception, hasMessage(expectedErrorMessage));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
