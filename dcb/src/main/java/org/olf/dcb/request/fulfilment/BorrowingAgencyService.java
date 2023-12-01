@@ -16,7 +16,6 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.request.resolution.SharedIndexService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
@@ -121,13 +120,8 @@ public class BorrowingAgencyService {
 	}
 
 	public Mono<BibRecord> findSelectedBib(UUID bibClusterId) {
-		return getClusterRecord(bibClusterId)
+		return sharedIndexService.getClusterRecord(bibClusterId)
 			.flatMap(sharedIndexService::getSelectedBib);
-	}
-
-	private Mono<ClusterRecord> getClusterRecord(UUID clusterId) {
-		return Mono.from(clusterRecordRepository.findById(clusterId))
-			.switchIfEmpty(Mono.error(new RuntimeException("Unable to locate cluster record "+clusterId)));
 	}
 
 	private Bib extractBibData(BibRecord bibRecord) {

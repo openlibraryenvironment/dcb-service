@@ -54,4 +54,9 @@ public class SharedIndexService {
 			.switchIfEmpty(Mono.error(new RuntimeException(
 				"Unable to locate selected bib " + clusterRecord.getSelectedBib() + " for cluster " + clusterRecord.getId())));
 	}
+
+	public Mono<ClusterRecord> getClusterRecord(UUID clusterRecordId) {
+		return Mono.from(clusterRecordRepository.findById(clusterRecordId))
+			.switchIfEmpty(Mono.error(new RuntimeException("Unable to locate cluster record " + clusterRecordId)));
+	}
 }
