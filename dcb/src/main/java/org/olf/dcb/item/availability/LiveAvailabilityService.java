@@ -1,6 +1,5 @@
 package org.olf.dcb.item.availability;
 
-import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 
 import java.util.UUID;
@@ -36,26 +35,13 @@ public class LiveAvailabilityService {
 		log.debug("getAvailableItems({})", clusteredBibId);
 
 		return sharedIndexService.findClusteredBib(clusteredBibId)
-			.flatMap(clusteredBib -> getBibs(clusteredBib)
+			.flatMapIterable(ClusteredBib::getBibs)
+			.switchIfEmpty(Flux.error(new NoBibsForClusterRecordException(clusteredBibId)))
 			.flatMap(this::getItems)
 			.map(this::determineRequestability)
 			.reduce(emptyReport(), AvailabilityReport::combineReports)
 			.map(AvailabilityReport::sortItems)
-			.switchIfEmpty(Mono.error(new RuntimeException("Failed to resolve items for cluster record " + clusteredBib))));
-	}
-
-	private Flux<BibRecord> getBibs(ClusteredBib clusteredBib) {
-		log.debug("getBibs: {}", clusteredBib);
-
-		final var bibs = clusteredBib.getBibs();
-
-		if (isEmpty(bibs)) {
-			log.error("Clustered bib record: \"" + clusteredBib.getId() + "\" has no bibs");
-
-			return Flux.error(new NoBibsForClusterRecordException(clusteredBib.getId()));
-		}
-
-		return Flux.fromIterable(bibs);
+			.switchIfEmpty(Mono.error(new RuntimeException("Failed to resolve items for cluster record " + clusteredBibId)));
 	}
 
 	private Mono<AvailabilityReport> getItems(BibRecord bib) {
