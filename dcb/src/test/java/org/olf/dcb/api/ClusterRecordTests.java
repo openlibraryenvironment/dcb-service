@@ -6,7 +6,6 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
@@ -28,9 +27,11 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+@Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 class ClusterRecordTests {
@@ -102,15 +103,10 @@ class ClusterRecordTests {
 		final var title = metadata.title();
 		assertThat(title, is("Basic circuit theory [by] Charles A. Desoer and Ernest S. Kuh."));
 
-		final var subjects = metadata.subjects();
-
-		final var subject = subjects.stream()
-			.filter(s -> "topical-term".equals(s.subtype()))
-			.findFirst()
-			.orElse(null);
-
-		assertThat(subject, is(notNullValue()));
-		assertThat(subject.label(), is("Electric circuits."));
+		assertThat(metadata.subjects(), containsInAnyOrder(
+			hasSubject("Electric circuits.", "topical-term"),
+			hasSubject("Electric networks.", "topical-term")
+		));
 
 		assertThat(metadata.identifiers(), containsInAnyOrder(
 			hasIdentifier("ISBN", "9781234567890"),
@@ -120,9 +116,20 @@ class ClusterRecordTests {
 			hasIdentifier("BLOCKING_TITLE", "basic circuit theory charles desoer ernest kuh")));
 	}
 
-	private static Matcher<ClusterRecord.Identifier> hasIdentifier(String namespace, String value) {
+	private static Matcher<ClusterRecord.Identifier> hasIdentifier(String namespace,
+		String value) {
+
 		return allOf(
 			hasProperty("namespace", is(namespace)),
 			hasProperty("value", is(value)));
+	}
+
+	private static Matcher<ClusterRecord.Subject> hasSubject(String expectedLabel,
+		String expectedSubType) {
+
+		return allOf(
+			hasProperty("label", is(expectedLabel)),
+			hasProperty("subtype", is(expectedSubType))
+		);
 	}
 }

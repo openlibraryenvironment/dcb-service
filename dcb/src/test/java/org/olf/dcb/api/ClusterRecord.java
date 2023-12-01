@@ -54,10 +54,11 @@ public record ClusterRecord(
 	) {
 	}
 
-
 	@Serdeable
 	public record Subject(
+		@Getter
 		@Nullable String label,
+		@Getter
 		@Nullable String subtype
 	) {
 	}
