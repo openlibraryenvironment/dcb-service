@@ -13,7 +13,6 @@ import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import java.util.List;
 import java.util.UUID;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,8 +26,6 @@ import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.CannotFindSelectedBibException;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtBorrowingAgencyStateTransition;
-import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.ShelvingLocationRepository;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -40,7 +37,6 @@ import org.olf.dcb.test.SupplierRequestsFixture;
 
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
-import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -75,11 +71,6 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 	@Inject
 	private PlacePatronRequestAtBorrowingAgencyStateTransition placePatronRequestAtBorrowingAgencyStateTransition;
-
-	@Inject
-	private ShelvingLocationRepository shelvingLocationRepository;
-	@Inject
-	private AgencyRepository agencyRepository;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mockServerClient) {
@@ -134,13 +125,6 @@ class PlaceRequestAtBorrowingAgencyTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab6", "ab6");
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			INVALID_HOLD_POLICY_HOST_LMS_CODE, "ab6", "ab6");
-	}
-
-	@AfterAll
-	void afterAll() {
-		Mono.from(shelvingLocationRepository.deleteByCode("ab6")).block();
-		Mono.from(agencyRepository.deleteByCode("ab6")).block();
-		hostLmsFixture.deleteAll();
 	}
 
 	@Test
