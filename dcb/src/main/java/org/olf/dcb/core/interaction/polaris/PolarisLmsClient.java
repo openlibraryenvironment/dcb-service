@@ -239,6 +239,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
 		return switch (authProfile) {
+			case "BASIC/BARCODE+PIN" -> papiClient.patronValidate(patronPrinciple, secret);
 			case "BASIC/BARCODE+PASSWORD" -> papiClient.patronValidate(patronPrinciple, secret);
 			case "UNIQUE-ID" -> patronFind(patronPrinciple, secret);
 			default -> Mono.empty();
