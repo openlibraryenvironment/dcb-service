@@ -40,7 +40,7 @@ public class SharedIndexService {
 		return ClusteredBib.builder()
 			.id(clusterRecord.getId())
 			.title(clusterRecord.getTitle())
-			.bibRecords(bibRecords)
+			.bibs(bibRecords)
 			.build();
 	}
 

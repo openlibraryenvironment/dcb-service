@@ -66,7 +66,7 @@ class SharedIndexServiceTests {
 
 		assertThat(clusteredBib, allOf(
 			hasId(clusterRecordId),
-			hasProperty("bibRecords", containsInAnyOrder(
+			hasProperty("bibs", containsInAnyOrder(
 				allOf(
 					hasId(firstBibRecordId),
 					hasSourceRecordId("798472"),

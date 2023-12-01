@@ -47,7 +47,7 @@ public class LiveAvailabilityService {
 	private Flux<BibRecord> getBibs(ClusteredBib clusteredBib) {
 		log.debug("getBibs: {}", clusteredBib);
 
-		final var bibs = clusteredBib.getBibRecords();
+		final var bibs = clusteredBib.getBibs();
 
 		if (isEmpty(bibs)) {
 			log.error("Clustered bib record: \"" + clusteredBib.getId() + "\" has no bibs");
