@@ -19,30 +19,24 @@ import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.resolution.SharedIndexService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
-import org.olf.dcb.storage.BibRepository;
-import org.olf.dcb.storage.ClusterRecordRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple4;
 import reactor.util.function.Tuple5;
 import reactor.util.function.Tuples;
 
+@Slf4j
 @Prototype
 public class BorrowingAgencyService {
-	private static final Logger log = LoggerFactory.getLogger(BorrowingAgencyService.class);
-
 	private final HostLmsService hostLmsService;
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final SupplierRequestService supplierRequestService;
-	private final BibRepository bibRepository;
-	private final ClusterRecordRepository clusterRecordRepository;
 	private final SharedIndexService sharedIndexService;
 
 	// Provider to prevent circular reference exception by allowing lazy access to
@@ -52,16 +46,13 @@ public class BorrowingAgencyService {
 
 	public BorrowingAgencyService(HostLmsService hostLmsService,
 		PatronIdentityRepository patronIdentityRepository,
-		SupplierRequestService supplierRequestService, BibRepository bibRepository,
-		ClusterRecordRepository clusterRecordRepository, SharedIndexService sharedIndexService,
+		SupplierRequestService supplierRequestService, SharedIndexService sharedIndexService,
 		ReferenceValueMappingRepository referenceValueMappingRepository,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
 
 		this.hostLmsService = hostLmsService;
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.supplierRequestService = supplierRequestService;
-		this.bibRepository = bibRepository;
-		this.clusterRecordRepository = clusterRecordRepository;
 		this.sharedIndexService = sharedIndexService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
