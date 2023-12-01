@@ -17,10 +17,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.Times;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
-import org.olf.dcb.core.interaction.sierra.SierraLoginAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.TestResourceLoaderProvider;
 
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
@@ -45,7 +44,7 @@ class SierraApiLoginTests {
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
-	private TestResourceLoaderProvider testResourceLoaderProvider;
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
 	@BeforeAll
 	void beforeAll() {
@@ -102,8 +101,7 @@ class SierraApiLoginTests {
 	@Test
 	void shouldReauthenticateAfterDeniedRequested(MockServerClient mockServerClient) {
 		// Arrange
-		final var sierraLoginFixture = new SierraLoginAPIFixture(mockServerClient,
-			testResourceLoaderProvider);
+		final var sierraLoginFixture = sierraApiFixtureProvider.loginFixtureFor(mockServerClient);
 
 		// Login should be re-attempted after unauthorised response
 		sierraLoginFixture.successfulLoginFor(KEY, SECRET, "login-token",
@@ -147,8 +145,8 @@ class SierraApiLoginTests {
 		assertThat("Should have 2 items", items.getEntries(), hasSize(2));
 	}
 
-	private void mockSuccessfulLogin(MockServerClient mock, String token) {
-		final var sierraLoginFixture = new SierraLoginAPIFixture(mock, testResourceLoaderProvider);
+	private void mockSuccessfulLogin(MockServerClient mockServerClient, String token) {
+		final var sierraLoginFixture = sierraApiFixtureProvider.loginFixtureFor(mockServerClient);
 
 		sierraLoginFixture.successfulLoginFor(KEY, SECRET, token);
 		sierraLoginFixture.failLoginsForAnyOtherCredentials(KEY, SECRET);
