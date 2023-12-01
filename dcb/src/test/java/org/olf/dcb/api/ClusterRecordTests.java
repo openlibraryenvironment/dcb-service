@@ -16,15 +16,14 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.ingest.IngestService;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.core.type.Argument;
 import io.micronaut.data.model.Page;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import jakarta.inject.Inject;
-import lombok.SneakyThrows;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -32,10 +31,10 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(PER_CLASS)
 class ClusterRecordTests {
 	private static final String HOST_LMS_CODE = "cluster-record-tests";
-	private static final String CP_RESOURCES = "classpath:mock-responses/sierra/";
 
 	@Inject
-	private ResourceLoader loader;
+	private TestResourceLoaderProvider testResourceLoaderProvider;
+
 	@Inject
 	private IngestService ingestService;
 	@Inject
@@ -62,8 +61,10 @@ class ClusterRecordTests {
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		// Mock bibs returned by the sierra system for ingest.
+		final var resourceLoader = testResourceLoaderProvider.forBasePath("classpath:mock-responses/sierra/");
+
 		mockSierra.whenRequest(req -> req.withMethod("GET").withPath("/iii/sierra-api/v6/bibs/*"))
-			.respond(okJson(getResourceAsString("bibs-slice-0-2.json")));
+			.respond(okJson(resourceLoader.getResource("bibs-slice-0-2.json")));
 	}
 
 	@BeforeEach
@@ -124,10 +125,5 @@ class ClusterRecordTests {
 
 		assertThat(issnIdentifier, is(notNullValue()));
 		assertThat(issnIdentifier.value(), is("1234-5678"));
-	}
-
-	@SneakyThrows
-	private String getResourceAsString(String resourceName) {
-		return new String(loader.getResourceAsStream(CP_RESOURCES + resourceName).get().readAllBytes());
 	}
 }
