@@ -44,8 +44,14 @@ public class SharedIndexService {
 			.build();
 	}
 
-	private Mono<List<BibRecord>> findBibRecords(ClusterRecord clusteredBib) {
-		return Flux.from(bibRepository.findAllByContributesTo(clusteredBib))
+	private Mono<List<BibRecord>> findBibRecords(ClusterRecord clusterRecord) {
+		return Flux.from(bibRepository.findAllByContributesTo(clusterRecord))
 			.collectList();
+	}
+
+	public Mono<BibRecord> getSelectedBib(ClusterRecord clusterRecord) {
+		return Mono.from(bibRepository.findById(clusterRecord.getSelectedBib()))
+			.switchIfEmpty(Mono.error(new RuntimeException(
+				"Unable to locate selected bib " + clusterRecord.getSelectedBib() + " for cluster " + clusterRecord.getId())));
 	}
 }

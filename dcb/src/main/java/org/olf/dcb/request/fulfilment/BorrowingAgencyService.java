@@ -120,19 +120,14 @@ public class BorrowingAgencyService {
 			.map(pr -> Tuples.of(pr, patronIdentity, hostLmsClient, supplierRequest));
 	}
 
-	private Mono<BibRecord> findSelectedBib(UUID bibClusterId) {
+	public Mono<BibRecord> findSelectedBib(UUID bibClusterId) {
 		return getClusterRecord(bibClusterId)
-			.flatMap(this::getSelectedBib);
+			.flatMap(sharedIndexService::getSelectedBib);
 	}
 
 	private Mono<ClusterRecord> getClusterRecord(UUID clusterId) {
 		return Mono.from(clusterRecordRepository.findById(clusterId))
 			.switchIfEmpty(Mono.error(new RuntimeException("Unable to locate cluster record "+clusterId)));
-	}
-
-	private Mono<BibRecord> getSelectedBib(ClusterRecord cr) {
-		return Mono.from(bibRepository.findById(cr.getSelectedBib()))
-			.switchIfEmpty(Mono.error(new RuntimeException("Unable to locate selected bib "+cr.getSelectedBib()+" for cluster "+cr.getId())));
 	}
 
 	private Bib extractBibData(BibRecord bibRecord) {
