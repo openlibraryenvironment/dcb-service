@@ -12,6 +12,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
@@ -128,7 +129,7 @@ public class HostLmsPolarisClientTests {
 		assertThat(firstItem, hasLocation("SLPL Kingshighway", "15"));
 		assertThat(firstItem, hasBarcode("3430470102"));
 		assertThat(firstItem, hasCallNumber("E Bellini Mario"));
-		assertThat(firstItem.getHostLmsCode(), is(HOST_LMS_CODE));
+		assertThat(firstItem, hasHostLmsCode(HOST_LMS_CODE));
 		assertThat(firstItem, hasLocalBibId(sourceRecordId));
 		assertThat(firstItem.getLocalItemTypeCode(), is("3"));
 		assertThat(firstItem, hasLocalItemType("Book"));

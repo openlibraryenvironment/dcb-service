@@ -50,4 +50,8 @@ public class ItemMatchers {
 	public static Matcher<Item> hasLocalBibId(String expectedLocalBibId) {
 		return hasProperty("localBibId", is(expectedLocalBibId));
 	}
+
+	public static Matcher<Item> hasHostLmsCode(String expectedHostLmsCode) {
+		return hasProperty("hostLmsCode", is(expectedHostLmsCode));
+	}
 }
