@@ -16,11 +16,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.matchers.SierraErrorMatchers;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
@@ -38,23 +38,23 @@ class SierraApiItemTests {
 	@Inject
 	private HttpClient client;
 	@Inject
-	private ResourceLoader loader;
-	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@BeforeAll
-	public void beforeAll(MockServerClient mock) {
+	public void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://item-api-tests.com";
 		final String KEY = "item-key";
 		final String SECRET = "item-secret";
 
-		SierraTestUtils.mockFor(mock, BASE_URL)
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		hostLmsFixture.deleteAll();
 

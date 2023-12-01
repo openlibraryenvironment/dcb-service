@@ -19,8 +19,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
-import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
@@ -55,6 +55,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 	@Inject
 	private ResourceLoader loader;
+	@Inject
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
@@ -84,13 +86,13 @@ class PlaceRequestAtBorrowingAgencyTests {
 	private AgencyRepository agencyRepository;
 
 	@BeforeAll
-	public void beforeAll(MockServerClient mock) {
+	public void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://borrowing-agency-service-tests.com";
 		final String KEY = "borrowing-agency-service-key";
 		final String SECRET = "borrowing-agency-service-secret";
 
-		SierraTestUtils.mockFor(mock, BASE_URL)
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		hostLmsFixture.deleteAll();
@@ -109,10 +111,10 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.hostLms(sierraHostLms)
 			.build());
 
-		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
 
-		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
-		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
+		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mockServerClient, loader);
 
 		final var bibPatch = BibPatch.builder()
 			.authors(List.of("Stafford Beer"))

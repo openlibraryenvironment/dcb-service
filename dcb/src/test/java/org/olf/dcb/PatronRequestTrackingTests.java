@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.PatronRequest;
@@ -36,6 +37,9 @@ public class PatronRequestTrackingTests {
 	@Inject
 	ResourceLoader loader;
 	@Inject
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
+
+	@Inject
 	TrackingService trackingService;
 	@Inject
 	PatronRequestRepository patronRequestRepository;
@@ -52,14 +56,14 @@ public class PatronRequestTrackingTests {
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@BeforeAll
-	public void beforeAll(MockServerClient mock) {
+	public void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://patron-request-tracking-tests.com";
 		final String KEY = "patron-request-tracking-tests-key";
 		final String SECRET = "patron-request-tracking-tests-secret";
-		SierraTestUtils.mockFor(mock, BASE_URL).setValidCredentials(KEY, SECRET, TOKEN, 60);
-		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
-		this.sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL).setValidCredentials(KEY, SECRET, TOKEN, 60);
+		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 	}

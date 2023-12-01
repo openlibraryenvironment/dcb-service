@@ -34,8 +34,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
-import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Event;
@@ -71,6 +71,8 @@ class PatronRequestApiTests {
 
 	@Inject
 	private ResourceLoader loader;
+	@Inject
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
 	@Inject
 	private PatronRequestsFixture patronRequestsFixture;
@@ -104,13 +106,14 @@ class PatronRequestApiTests {
 	private AdminApiClient adminApiClient;
 
 	@BeforeAll
-	void beforeAll(MockServerClient mock) {
+	void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://patron-request-api-tests.com";
 		final String KEY = "patron-request-key";
 		final String SECRET = "patron-request-secret";
 
-		SierraTestUtils.mockFor(mock, BASE_URL).setValidCredentials(KEY, SECRET, TOKEN, 60);
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		hostLmsFixture.deleteAll();
 
@@ -121,11 +124,11 @@ class PatronRequestApiTests {
 		final var h3 = hostLmsFixture.createSierraHostLms("codeBB", KEY, SECRET, BASE_URL);
 		log.debug("Created dataHostLms {}", h3);
 
-		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
+		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
-		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
 
-		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
+		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mockServerClient, loader);
 
 		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");

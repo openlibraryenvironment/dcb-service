@@ -10,7 +10,6 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
-import org.apiguardian.api.API;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -19,7 +18,6 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPickupLocationsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.TestResourceLoaderProvider;
 
 import io.micronaut.http.client.HttpClient;
 import jakarta.inject.Inject;
