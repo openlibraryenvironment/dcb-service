@@ -136,13 +136,15 @@ public class DataFetchers {
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
+                        String order = env.getArgument("order");
                         
                         if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
+                        if ( order == null ) order = "dateCreated";
 
                         Pageable pageable = Pageable
                                 .from(pageno.intValue(), pagesize.intValue())
-                                .order("dateCreated");
+                                .order(order);
                 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, PatronRequest.class);
@@ -159,13 +161,15 @@ public class DataFetchers {
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
+                        String order = env.getArgument("order");
 
                         if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
+                        if ( order == null ) order = "auditDate";
 
                         Pageable pageable = Pageable
 				.from(pageno.intValue(), pagesize.intValue())
-                                .order("auditDate");
+                                .order(order);
 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, PatronRequestAudit.class);
@@ -182,6 +186,7 @@ public class DataFetchers {
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
+                        String order = env.getArgument("order");
                         
                         if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
@@ -202,13 +207,15 @@ public class DataFetchers {
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
+                        String order = env.getArgument("order");
                         
                         if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
+                        if ( order == null ) order = "dateCreated";
 
                         Pageable pageable = Pageable
                                 .from(pageno.intValue(), pagesize.intValue())
-                                .order("dateCreated");
+                                .order(order);
                 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, SupplierRequest.class);
@@ -262,12 +269,15 @@ public class DataFetchers {
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
+                        String order = env.getArgument("order");
 
                         if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
+                        if ( order == null ) order = "name";
 
                         log.debug("InstanceClusterDataFetcher::get({},{},{})", pageno,pagesize,query);
-                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
+                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
+				.order(order);
 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, Location.class);
@@ -284,14 +294,16 @@ public class DataFetchers {
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
+                        String order = env.getArgument("order");
 
                         if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
+                        if ( order == null ) order = "code";
 
                         log.debug("InstanceClusterDataFetcher::get({},{},{})", pageno,pagesize,query);
                         Pageable pageable = Pageable
                                 .from(pageno.intValue(), pagesize.intValue())
-                                .order("code")
+                                .order(order)
                                 ;
 
                         if ((query != null) && (query.length() > 0)) {
@@ -310,6 +322,7 @@ public class DataFetchers {
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
+                        String order = env.getArgument("order");
 
                         if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
