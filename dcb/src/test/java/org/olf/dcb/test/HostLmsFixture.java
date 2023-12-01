@@ -17,7 +17,6 @@ import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.ingest.IngestSource;
-import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 
 import io.micronaut.context.annotation.Prototype;
@@ -32,19 +31,19 @@ public class HostLmsFixture {
 
 	private final HostLmsRepository hostLmsRepository;
 	private final HostLmsService hostLmsService;
-	private final AgencyRepository agencyRepository;
 	private final PatronFixture patronFixture;
 	private final NumericRangeMappingFixture numericRangeMappingFixture;
+	private final AgencyFixture agencyFixture;
 
-	public HostLmsFixture(HostLmsRepository hostLmsRepository,
-		HostLmsService hostLmsService, AgencyRepository agencyRepository,
-		PatronFixture patronFixture, NumericRangeMappingFixture numericRangeMappingFixture) {
+	public HostLmsFixture(HostLmsRepository hostLmsRepository, HostLmsService hostLmsService,
+		PatronFixture patronFixture, NumericRangeMappingFixture numericRangeMappingFixture,
+		AgencyFixture agencyFixture) {
 
 		this.hostLmsRepository = hostLmsRepository;
 		this.hostLmsService = hostLmsService;
-		this.agencyRepository = agencyRepository;
 		this.patronFixture = patronFixture;
 		this.numericRangeMappingFixture = numericRangeMappingFixture;
+		this.agencyFixture = agencyFixture;
 	}
 
 	public void createFolioHostLms(String code,
@@ -159,11 +158,8 @@ public class HostLmsFixture {
 	}
 
 	public void deleteAll() {
-		dataAccess.deleteAll(agencyRepository.queryAll(),
-			agency -> agencyRepository.delete(agency.getId()));
-
+		agencyFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
-
 		numericRangeMappingFixture.deleteAll();
 
 		dataAccess.deleteAll(hostLmsRepository.queryAll(),
