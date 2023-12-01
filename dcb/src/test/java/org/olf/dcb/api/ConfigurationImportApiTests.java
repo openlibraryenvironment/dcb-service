@@ -1,19 +1,17 @@
 package org.olf.dcb.api;
 
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
-
-import java.io.InputStream;
-import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 import org.olf.dcb.test.clients.LoginClient;
 import org.olf.dcb.utils.DCBConfigurationService.ConfigImportResult;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
@@ -27,10 +25,10 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @Slf4j
 @MockServerMicronautTest
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 class ConfigurationImportApiTests {
 	@Inject
-	private ResourceLoader loader;
+	private TestResourceLoaderProvider testResourceLoaderProvider;
 
 	@Inject
 	@Client("/")
@@ -39,13 +37,11 @@ class ConfigurationImportApiTests {
 	@Inject
 	private LoginClient loginClient;
 
-	private String itemTypeMappings = null;
-
 	@BeforeAll
 	@SneakyThrows
 	public void beforeAll(MockServerClient mock) {
-		Optional<InputStream> ois = loader.getResourceAsStream("classpath:mock-responses/config/numericRangeMappingImport.tsv");
-		ois.ifPresent(is -> { try { itemTypeMappings = new String(is.readAllBytes()); } catch ( Exception e ) {}  } );
+		String itemTypeMappings = testResourceLoaderProvider.forBasePath("classpath:mock-responses/config/")
+			.getResource("numericRangeMappingImport.tsv");
 
 		mock.when(
 			request()
