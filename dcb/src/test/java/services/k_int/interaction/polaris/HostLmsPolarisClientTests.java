@@ -15,6 +15,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
@@ -131,8 +132,8 @@ public class HostLmsPolarisClientTests {
 		assertThat(firstItem, hasCallNumber("E Bellini Mario"));
 		assertThat(firstItem, hasHostLmsCode(HOST_LMS_CODE));
 		assertThat(firstItem, hasLocalBibId(sourceRecordId));
-		assertThat(firstItem.getLocalItemTypeCode(), is("3"));
 		assertThat(firstItem, hasLocalItemType("Book"));
+		assertThat(firstItem, hasLocalItemTypeCode("3"));
 		assertThat(firstItem.getSuppressed(), is(false));
 		assertThat(firstItem.getAgencyCode(), is("345test"));
 		assertThat(firstItem.getAgencyDescription(), is("Test College"));

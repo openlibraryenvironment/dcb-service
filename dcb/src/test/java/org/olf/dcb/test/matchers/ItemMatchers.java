@@ -54,4 +54,8 @@ public class ItemMatchers {
 	public static Matcher<Item> hasHostLmsCode(String expectedHostLmsCode) {
 		return hasProperty("hostLmsCode", is(expectedHostLmsCode));
 	}
+
+	public static Matcher<Item> hasLocalItemTypeCode(String expectedLocalItemTypeCode) {
+		return hasProperty("localItemTypeCode", is(expectedLocalItemTypeCode));
+	}
 }
