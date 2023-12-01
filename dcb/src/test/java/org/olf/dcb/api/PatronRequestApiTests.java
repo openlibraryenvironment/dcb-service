@@ -52,7 +52,6 @@ import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.clients.ChecksFailure;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -68,8 +67,6 @@ class PatronRequestApiTests {
 	private static final String HOST_LMS_CODE = "patron-request-api-tests";
 	private static final String KNOWN_PATRON_LOCAL_ID = "872321";
 
-	@Inject
-	private ResourceLoader loader;
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
@@ -125,7 +122,7 @@ class PatronRequestApiTests {
 
 		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
-		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
 

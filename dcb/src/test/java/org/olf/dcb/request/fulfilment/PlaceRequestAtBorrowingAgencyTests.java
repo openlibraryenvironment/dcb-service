@@ -38,7 +38,6 @@ import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
@@ -52,8 +51,6 @@ class PlaceRequestAtBorrowingAgencyTests {
 	private static final String HOST_LMS_CODE = "borrowing-agency-service-tests";
 	private static final String INVALID_HOLD_POLICY_HOST_LMS_CODE = "invalid-hold-policy";
 
-	@Inject
-	private ResourceLoader loader;
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
@@ -110,7 +107,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.hostLms(sierraHostLms)
 			.build());
 
-		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);

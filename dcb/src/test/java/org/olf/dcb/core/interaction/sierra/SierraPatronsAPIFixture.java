@@ -10,24 +10,25 @@ import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.mockserver.model.JsonBody;
 import org.mockserver.model.RequestDefinition;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.serde.annotation.Serdeable;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
+@AllArgsConstructor
 public class SierraPatronsAPIFixture {
 	private final MockServerClient mockServer;
 	private final SierraMockServerRequests sierraMockServerRequests;
 	private final SierraMockServerResponses sierraMockServerResponses;
-	
-	public SierraPatronsAPIFixture(MockServerClient mockServer, ResourceLoader loader) {
-		this.mockServer = mockServer;
-		this.sierraMockServerRequests = new SierraMockServerRequests(
-			"/iii/sierra-api/v6/patrons");
 
-		this.sierraMockServerResponses = new SierraMockServerResponses(
-			"classpath:mock-responses/sierra/", loader);
+	public SierraPatronsAPIFixture(MockServerClient mockServer,
+	 TestResourceLoaderProvider testResourceLoaderProvider) {
+
+		this(mockServer, new SierraMockServerRequests("/iii/sierra-api/v6/patrons"),
+			new SierraMockServerResponses(
+				testResourceLoaderProvider.forBasePath("classpath:mock-responses/sierra/")));
 	}
 
 	public void getHoldById404(String holdId) {

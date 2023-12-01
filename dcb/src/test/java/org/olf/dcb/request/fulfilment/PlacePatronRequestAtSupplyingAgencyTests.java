@@ -14,6 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
@@ -29,7 +30,6 @@ import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
@@ -42,7 +42,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	private static final String INVALID_HOLD_POLICY_HOST_LMS_CODE = "invalid-hold-policy";
 
 	@Inject
-	ResourceLoader loader;
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
+
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
@@ -67,12 +68,15 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	private DataAgency agency_ab6 = null;
 
 	@BeforeAll
-	public void beforeAll(MockServerClient mock) {
+	public void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://supplying-agency-service-tests.com";
 		final String KEY = "supplying-agency-service-key";
 		final String SECRET = "supplying-agency-service-secret";
-		SierraTestUtils.mockFor(mock, BASE_URL) .setValidCredentials(KEY, SECRET, TOKEN, 60);
+
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+
 		hostLmsFixture.deleteAll();
 
 		DataHostLms sierraHostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE,
@@ -84,10 +88,13 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		this.agency_ab6 = agencyFixture.saveAgency(
 			DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(sierraHostLms).build());
 		referenceValueMappingFixture.deleteAll();
-		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+
+		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+
 		// patron hold requests success
 		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002", "b", 563653);
 		sierraPatronsAPIFixture.patronHoldRequestResponse("1000003", "b", 563653);
+
 		// add patron type mappings
 		savePatronTypeMappings();
 		saveHomeLibraryMappings();

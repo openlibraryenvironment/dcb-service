@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
 
@@ -25,17 +26,16 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.tracking.TrackingService;
 
-import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 public class PatronRequestTrackingTests {
-	@Inject
-	ResourceLoader loader;
+	private static final String HOST_LMS_CODE = "patron-request-tracking-tests";
+
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
@@ -51,7 +51,7 @@ public class PatronRequestTrackingTests {
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private PatronFixture patronFixture;
-	private static final String HOST_LMS_CODE = "patron-request-tracking-tests";
+
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
@@ -61,8 +61,11 @@ public class PatronRequestTrackingTests {
 		final String BASE_URL = "https://patron-request-tracking-tests.com";
 		final String KEY = "patron-request-tracking-tests-key";
 		final String SECRET = "patron-request-tracking-tests-secret";
-		SierraTestUtils.mockFor(mockServerClient, BASE_URL).setValidCredentials(KEY, SECRET, TOKEN, 60);
-		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+
+		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");

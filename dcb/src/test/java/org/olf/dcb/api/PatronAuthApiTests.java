@@ -17,6 +17,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpResponse;
 import org.olf.dcb.core.api.serde.AgencyDTO;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
 import org.olf.dcb.test.HostLmsFixture;
@@ -24,7 +25,6 @@ import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.clients.LoginClient;
 
 import io.micronaut.core.annotation.Nullable;
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
@@ -43,7 +43,7 @@ public class PatronAuthApiTests {
 	private static final String HOST_LMS_CODE = "patron-auth-api-tests";
 
 	@Inject
-	private ResourceLoader loader;
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
 	@Inject
 	@Client("/")
@@ -65,7 +65,7 @@ public class PatronAuthApiTests {
 	private LoginClient loginClient;
 
 	@BeforeAll
-	public void addFakeSierraApis(MockServerClient mock) {
+	public void addFakeSierraApis(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://patron-auth-tests.com";
 		final String KEY = "patron-auth-key";
@@ -76,8 +76,10 @@ public class PatronAuthApiTests {
 
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 
-		mockSierra = SierraTestUtils.mockFor(mock, BASE_URL).setValidCredentials(KEY, SECRET, TOKEN, 60);
-		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		mockSierra = SierraTestUtils.mockFor(mockServerClient, BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+
+		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 	}
 
 	@Test

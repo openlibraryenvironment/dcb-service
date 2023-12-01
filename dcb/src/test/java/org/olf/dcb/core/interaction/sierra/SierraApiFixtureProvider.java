@@ -28,4 +28,8 @@ public class SierraApiFixtureProvider {
 	public SierraBibsAPIFixture bibsApiFor(MockServerClient mockServerClient) {
 		return new SierraBibsAPIFixture(mockServerClient, testResourceLoaderProvider);
 	}
+
+	public SierraPatronsAPIFixture patronsApiFor(MockServerClient mockServerClient) {
+		return new SierraPatronsAPIFixture(mockServerClient, testResourceLoaderProvider);
+	}
 }

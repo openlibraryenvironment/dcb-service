@@ -20,7 +20,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
@@ -32,7 +32,6 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
-import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -43,7 +42,8 @@ public class ValidatePatronTests {
 	private static final String HOST_LMS_CODE = "validate-patron-transition-tests";
 
 	@Inject
-	ResourceLoader loader;
+	SierraApiFixtureProvider sierraApiFixtureProvider;
+
 	@Inject
 	private ValidatePatronTransition validatePatronTransition;
 	@Inject
@@ -60,13 +60,13 @@ public class ValidatePatronTests {
 	private PatronService patronService;
 
 	@BeforeAll
-	public void beforeAll(MockServerClient mock) {
+	public void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://validate-patron-transition-tests.com";
 		final String KEY = "validate-patron-transition-key";
 		final String SECRET = "validate-patron-transition-secret";
 
-		SierraTestUtils.mockFor(mock, BASE_URL)
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		hostLmsFixture.deleteAll();
@@ -74,7 +74,7 @@ public class ValidatePatronTests {
 		final var hostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, "item");
 
-		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("467295");
 
@@ -125,7 +125,7 @@ public class ValidatePatronTests {
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
-		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId("672954");
 
@@ -159,7 +159,7 @@ public class ValidatePatronTests {
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
-		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		sierraPatronsAPIFixture.badRequestWhenGettingPatronByLocalId("236462");
 
@@ -195,7 +195,7 @@ public class ValidatePatronTests {
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
-		final var sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mockServerClient, loader);
+		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localId);
 
