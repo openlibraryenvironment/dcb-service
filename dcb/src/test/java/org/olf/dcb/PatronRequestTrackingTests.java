@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
 
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.PatronRequest;
@@ -24,17 +26,19 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.tracking.TrackingService;
 
-import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 public class PatronRequestTrackingTests {
+	private static final String HOST_LMS_CODE = "patron-request-tracking-tests";
+
 	@Inject
-	ResourceLoader loader;
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
+
 	@Inject
 	TrackingService trackingService;
 	@Inject
@@ -47,19 +51,22 @@ public class PatronRequestTrackingTests {
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private PatronFixture patronFixture;
-	private static final String HOST_LMS_CODE = "patron-request-tracking-tests";
+
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@BeforeAll
-	public void beforeAll(MockServerClient mock) {
+	public void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://patron-request-tracking-tests.com";
 		final String KEY = "patron-request-tracking-tests-key";
 		final String SECRET = "patron-request-tracking-tests-secret";
-		SierraTestUtils.mockFor(mock, BASE_URL).setValidCredentials(KEY, SECRET, TOKEN, 60);
-		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
-		this.sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
+
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+
+		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 	}

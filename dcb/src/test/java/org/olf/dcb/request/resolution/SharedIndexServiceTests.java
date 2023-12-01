@@ -6,8 +6,9 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.olf.dcb.test.matchers.BibMatchers.hasHostLmsCode;
-import static org.olf.dcb.test.matchers.BibMatchers.hasSourceRecordId;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.olf.dcb.test.matchers.BibRecordMatchers.hasSourceRecordId;
+import static org.olf.dcb.test.matchers.BibRecordMatchers.hasSourceSystemIdFor;
 import static org.olf.dcb.test.matchers.ModelMatchers.hasId;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -44,7 +45,8 @@ class SharedIndexServiceTests {
 		final var firstBibRecordId = randomUUID();
 		final var secondBibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			clusterRecordId, firstBibRecordId);
 
 		final var firstHostLms = hostLmsFixture.createSierraHostLms("FIRST-HOST-LMS");
 		final var secondHostLms = hostLmsFixture.createSierraHostLms("SECOND-HOST-LMS");
@@ -62,20 +64,21 @@ class SharedIndexServiceTests {
 			.findClusteredBib(clusterRecordId).block();
 
 		assertThat(clusteredBib, is(notNullValue()));
-		assertThat(clusteredBib, hasId(clusterRecordId));
 
-		assertThat("Should have multiple bib records",
-			clusteredBib.getBibs(), containsInAnyOrder(
+		assertThat(clusteredBib, allOf(
+			hasId(clusterRecordId),
+			hasProperty("bibs", containsInAnyOrder(
 				allOf(
 					hasId(firstBibRecordId),
 					hasSourceRecordId("798472"),
-					hasHostLmsCode("SECOND-HOST-LMS")
+					hasSourceSystemIdFor(secondHostLms)
 				),
 				allOf(
 					hasId(secondBibRecordId),
 					hasSourceRecordId("896857"),
-					hasHostLmsCode("FIRST-HOST-LMS")
+					hasSourceSystemIdFor(firstHostLms)
 				)
-			));
+			))
+		));
 	}
 }

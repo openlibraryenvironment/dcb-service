@@ -2,12 +2,15 @@ package org.olf.dcb.api;
 
 import static io.micronaut.http.HttpStatus.OK;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,26 +19,27 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.ingest.IngestService;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.core.type.Argument;
 import io.micronaut.data.model.Page;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import jakarta.inject.Inject;
-import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+@Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 class ClusterRecordTests {
 	private static final String HOST_LMS_CODE = "cluster-record-tests";
-	private static final String CP_RESOURCES = "classpath:mock-responses/sierra/";
 
 	@Inject
-	private ResourceLoader loader;
+	private TestResourceLoaderProvider testResourceLoaderProvider;
+
 	@Inject
 	private IngestService ingestService;
 	@Inject
@@ -62,8 +66,10 @@ class ClusterRecordTests {
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		// Mock bibs returned by the sierra system for ingest.
+		final var resourceLoader = testResourceLoaderProvider.forBasePath("classpath:mock-responses/sierra/");
+
 		mockSierra.whenRequest(req -> req.withMethod("GET").withPath("/iii/sierra-api/v6/bibs/*"))
-			.respond(okJson(getResourceAsString("bibs-slice-0-2.json")));
+			.respond(okJson(resourceLoader.getResource("bibs-slice-0-2.json")));
 	}
 
 	@BeforeEach
@@ -97,37 +103,33 @@ class ClusterRecordTests {
 		final var title = metadata.title();
 		assertThat(title, is("Basic circuit theory [by] Charles A. Desoer and Ernest S. Kuh."));
 
-		final var subjects = metadata.subjects();
+		assertThat(metadata.subjects(), containsInAnyOrder(
+			hasSubject("Electric circuits.", "topical-term"),
+			hasSubject("Electric networks.", "topical-term")
+		));
 
-		final var subject = subjects.stream()
-			.filter(s -> "topical-term".equals(s.subtype()))
-			.findFirst()
-			.orElse(null);
-
-		assertThat(subject, is(notNullValue()));
-		assertThat(subject.label(), is("Electric circuits."));
-
-		final var identifiers = metadata.identifiers();
-
-		final var isbnIdentifier = identifiers.stream()
-			.filter(identifier -> "ISBN".equals(identifier.namespace()))
-			.findFirst()
-			.orElse(null);
-
-		assertThat(isbnIdentifier, is(notNullValue()));
-		assertThat(isbnIdentifier.value(), is("9781234567890"));
-
-		final var issnIdentifier = identifiers.stream()
-			.filter(identifier -> "ISSN".equals(identifier.namespace()))
-			.findFirst()
-			.orElse(null);
-
-		assertThat(issnIdentifier, is(notNullValue()));
-		assertThat(issnIdentifier.value(), is("1234-5678"));
+		assertThat(metadata.identifiers(), containsInAnyOrder(
+			hasIdentifier("ISBN", "9781234567890"),
+			hasIdentifier("ISSN", "1234-5678"),
+			hasIdentifier("LCCN", "68009551"),
+			hasIdentifier("GOLDRUSH", "basiccircuittheory                                               1969876    mca                              "),
+			hasIdentifier("BLOCKING_TITLE", "basic circuit theory charles desoer ernest kuh")));
 	}
 
-	@SneakyThrows
-	private String getResourceAsString(String resourceName) {
-		return new String(loader.getResourceAsStream(CP_RESOURCES + resourceName).get().readAllBytes());
+	private static Matcher<ClusterRecord.Identifier> hasIdentifier(String namespace,
+		String value) {
+
+		return allOf(
+			hasProperty("namespace", is(namespace)),
+			hasProperty("value", is(value)));
+	}
+
+	private static Matcher<ClusterRecord.Subject> hasSubject(String expectedLabel,
+		String expectedSubType) {
+
+		return allOf(
+			hasProperty("label", is(expectedLabel)),
+			hasProperty("subtype", is(expectedSubType))
+		);
 	}
 }

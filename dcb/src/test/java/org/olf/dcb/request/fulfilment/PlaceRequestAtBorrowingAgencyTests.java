@@ -8,38 +8,35 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.List;
 import java.util.UUID;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
-import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.CannotFindSelectedBibException;
+import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtBorrowingAgencyStateTransition;
-import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.ShelvingLocationRepository;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
-import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
-import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -51,7 +48,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 	private static final String INVALID_HOLD_POLICY_HOST_LMS_CODE = "invalid-hold-policy";
 
 	@Inject
-	private ResourceLoader loader;
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
@@ -75,19 +72,14 @@ class PlaceRequestAtBorrowingAgencyTests {
 	@Inject
 	private PlacePatronRequestAtBorrowingAgencyStateTransition placePatronRequestAtBorrowingAgencyStateTransition;
 
-	@Inject
-	private ShelvingLocationRepository shelvingLocationRepository;
-	@Inject
-	private AgencyRepository agencyRepository;
-
 	@BeforeAll
-	public void beforeAll(MockServerClient mock) {
+	public void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://borrowing-agency-service-tests.com";
 		final String KEY = "borrowing-agency-service-key";
 		final String SECRET = "borrowing-agency-service-secret";
 
-		SierraTestUtils.mockFor(mock, BASE_URL)
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		hostLmsFixture.deleteAll();
@@ -106,10 +98,10 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.hostLms(sierraHostLms)
 			.build());
 
-		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
-		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
-		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
+		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
 
 		final var bibPatch = BibPatch.builder()
 			.authors(List.of("Stafford Beer"))
@@ -135,23 +127,19 @@ class PlaceRequestAtBorrowingAgencyTests {
 			INVALID_HOLD_POLICY_HOST_LMS_CODE, "ab6", "ab6");
 	}
 
-	@AfterAll
-	void afterAll() {
-		Mono.from(shelvingLocationRepository.deleteByCode("ab6")).block();
-		Mono.from(agencyRepository.deleteByCode("ab6")).block();
-		hostLmsFixture.deleteAll();
-	}
-
 	@Test
 	void placeRequestAtBorrowingAgencySucceeds() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			clusterRecordId, bibRecordId);
 
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron("872321");
 
@@ -194,12 +182,15 @@ class PlaceRequestAtBorrowingAgencyTests {
 	void shouldFailWhenPlacingRequestInSierraRespondsWithServerError() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			clusterRecordId, bibRecordId);
 
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron("972321");
 
@@ -242,12 +233,15 @@ class PlaceRequestAtBorrowingAgencyTests {
 	void shouldFailWhenPlacedRequestCannotBeFoundInSierra() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			clusterRecordId, bibRecordId);
 
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron("972321");
 
@@ -296,12 +290,15 @@ class PlaceRequestAtBorrowingAgencyTests {
 	void shouldFailWhenSierraHostLmsHasInvalidHoldPolicyConfiguration() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			clusterRecordId, bibRecordId);
 
 		final var invalidHoldPolicyHostLms = hostLmsFixture.findByCode(INVALID_HOLD_POLICY_HOST_LMS_CODE);
 		final var sourceSystemId = invalidHoldPolicyHostLms.getId();
 
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var patron = patronFixture.savePatron("872321");
 
@@ -331,6 +328,100 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		assertThat("Should have invalid hold policy message",
 			exception.getMessage(), is(expectedErrorMessage));
+
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat("Request should have error status afterwards",
+			fetchedPatronRequest.getStatus(), is(ERROR));
+
+		assertThat("Request should have error message afterwards",
+			fetchedPatronRequest.getErrorMessage(), is(expectedErrorMessage));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
+	}
+
+	@Test
+	void shouldFailWhenSelectedBibCannotBeFound() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+		final var bibRecordId = randomUUID();
+
+		clusterRecordFixture.createClusterRecord(clusterRecordId, bibRecordId);
+
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+
+		final var patron = patronFixture.savePatron("872321");
+
+		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-", "872321", null);
+
+		final var patronRequestId = randomUUID();
+		var patronRequest = PatronRequest.builder()
+			.id(patronRequestId)
+			.patron(patron)
+			.bibClusterId(clusterRecordId)
+			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.pickupLocationCode("ABC123")
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
+			"ab6", "9849123490", hostLms.code);
+
+		// Act
+		final var exception = assertThrows(CannotFindSelectedBibException.class,
+			() -> placeRequestAtBorrowingAgency(patronRequest));
+
+		// Assert
+		final var expectedErrorMessage = "Unable to locate selected bib " + bibRecordId
+			+ " for cluster " + clusterRecordId;
+
+		assertThat(exception, hasMessage(expectedErrorMessage));
+
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat("Request should have error status afterwards",
+			fetchedPatronRequest.getStatus(), is(ERROR));
+
+		assertThat("Request should have error message afterwards",
+			fetchedPatronRequest.getErrorMessage(), is(expectedErrorMessage));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
+	}
+
+	@Test
+	void shouldFailWhenClusterRecordCannotBeFound() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+
+		final var patron = patronFixture.savePatron("872321");
+
+		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-", "872321", null);
+
+		final var patronRequestId = randomUUID();
+		var patronRequest = PatronRequest.builder()
+			.id(patronRequestId)
+			.patron(patron)
+			.bibClusterId(clusterRecordId)
+			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.pickupLocationCode("ABC123")
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
+			"ab6", "9849123490", hostLms.code);
+
+		// Act
+		final var exception = assertThrows(CannotFindClusterRecordException.class,
+			() -> placeRequestAtBorrowingAgency(patronRequest));
+
+		// Assert
+		final var expectedErrorMessage = "Cannot find cluster record for: " + clusterRecordId;
+
+		assertThat(exception, hasMessage(expectedErrorMessage));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 

@@ -8,6 +8,7 @@ import java.time.Instant;
 
 import io.micronaut.http.multipart.CompletedFileUpload;
 import io.micronaut.serde.annotation.Serdeable;
+import jakarta.transaction.Transactional;
 import lombok.Builder;
 import lombok.Data;
 import lombok.AllArgsConstructor;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 
 import io.micronaut.http.HttpRequest;
@@ -107,7 +109,11 @@ public class DCBConfigurationService {
 			case "CirculationStatus" -> {
 				// Define expected headers for "CirculationStatus"
 				expectedHeaders = new String[]{"Code", "Meaning", "DCB Available or Unavailable"};
-				return referenceValueMappingImport(file, code, mappingCategory, expectedHeaders);
+				// Run cleanup on any existing mappings and then import the newly uploaded ones.
+				return cleanupMappings(mappingCategory, code)
+					.flatMap(cleanupResult ->
+						referenceValueMappingImport(file, code, mappingCategory, expectedHeaders, cleanupResult)
+					);
 			}
 			// Example of adding a new category.
 			//	case "ShelvingLocation" -> {
@@ -124,19 +130,20 @@ public class DCBConfigurationService {
 	}
 
 	// This method processes the uploaded file and builds the object to be returned.
-	private Mono<UploadedConfigImport> referenceValueMappingImport(CompletedFileUpload file, String code, String mappingCategory, String[] expectedHeaders) {
+	private Mono<UploadedConfigImport> referenceValueMappingImport(CompletedFileUpload file, String code, String mappingCategory, String[] expectedHeaders, Long cleanupResult) {
 		try {
 			InputStreamReader reader = new InputStreamReader(file.getInputStream());
 			// Parse the CSV data and convert it to a list of arrays
 			List<String[]> csvData = parseCsv(reader, expectedHeaders);
 			// Process each line and convert it to a Flux of Mono
 				return Flux.fromIterable(csvData)
-				.flatMap(line -> processReferenceValueMapping(line, code, mappingCategory))
+				.concatMap(line -> processReferenceValueMapping(line, code, mappingCategory))
 				.collectList()
 				.map(mappings -> UploadedConfigImport.builder()
 					.message(mappings.size() + " mappings have been imported successfully.")
 					.lastImported(Instant.now())
-					.recordsImported(Long.valueOf(mappings.size()))
+					.recordsImported((long) mappings.size())
+					.recordsDeleted(cleanupResult)
 					.build());
 		} catch (IOException e) {
 			throw new FileUploadValidationException("Error reading file.");
@@ -145,7 +152,6 @@ public class DCBConfigurationService {
 
 	// Method for parsing the uploaded CSV/TSV file. Runs validation on the supplied data.
 	public static List<String[]> parseCsv(Reader reader, String[] expectedHeaders) {
-		// Make it skip the headers
 		String validationError = "";
 		try {
 			CSVReader csvReader = new CSVReader(reader);
@@ -157,12 +163,10 @@ public class DCBConfigurationService {
 					". Please check your CSV file and retry.";
 				throw new FileUploadValidationException(validationError);
 			}
-			// Before skipping the headers, check that they do actually exist + are what we're expecting - pass expected headers
-			csvReader.skip(1);
-			// Now, validate that there are no empty entries for meaning or code
 			String[] line;
 			List<String[]> csvData = new ArrayList<>();
 			int lineNumber = 2;
+			// Now, validate that there are no empty entries for meaning or code
 			while ((line = csvReader.readNext()) != null) {
 				// Check that 'local code' and 'meaning' columns are not empty
 				if (!line[0].isEmpty() && !line[1].isEmpty()) {
@@ -180,14 +184,12 @@ public class DCBConfigurationService {
 		}
 	}
 
-
 	// This method override is used to build a CirculationStatusMapping
 	private Mono<ReferenceValueMapping> processReferenceValueMapping(String[] rvm, String code, String mappingCategory) {
 		// Used for circulation status mappings only at present.
-		// For context see https://openlibraryfoundation.atlassian.net/browse/DCB-508
 		String dcbCode = getDcbCode(rvm);
 		ReferenceValueMapping rvmd= ReferenceValueMapping.builder()
-			.id(UUIDUtils.dnsUUID(rvm[0]+":"+rvm[1]+":"+rvm[2]))
+			.id(UUID.randomUUID())
 			.fromContext(code)
 			.fromCategory(mappingCategory)
 			.fromValue(rvm[0])
@@ -196,6 +198,7 @@ public class DCBConfigurationService {
 			.toValue(dcbCode.toUpperCase())
 			.label(rvm[1])
 			.lastImported(Instant.now())
+			.deleted(false)
 			.build();
 		return Mono.from(referenceValueMappingRepository.saveOrUpdate(rvmd));
 	}
@@ -210,6 +213,12 @@ public class DCBConfigurationService {
 			dcbCode = rvm[2];
 		}
 		return dcbCode;
+	}
+
+	@Transactional
+	protected Mono<Long> cleanupMappings(String category, String context) {
+		 // This method marks any existing mappings for the given category and context as deleted.
+     return Mono.from(referenceValueMappingRepository.markAsDeleted(category, context));
 	}
 
 	private Mono<ConfigImportResult> numericRangeImport(String url) {
@@ -253,7 +262,6 @@ public class DCBConfigurationService {
 			.toCategory(rvm[4])
 			.toValue(rvm[5])
 			.build();
-		log.debug("This line is: "+ rvmd);
 		return Mono.from(referenceValueMappingRepository.saveOrUpdate(rvmd));
 	}
 	private Mono<NumericRangeMapping> processNumericRangeMapping(String[] nrmr) {
@@ -292,5 +300,6 @@ public class DCBConfigurationService {
 			String message;
 			Long recordsImported;
 			Instant lastImported;
+			Long recordsDeleted;
 	}
 }

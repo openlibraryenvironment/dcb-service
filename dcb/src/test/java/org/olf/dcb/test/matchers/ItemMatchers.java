@@ -20,10 +20,6 @@ public class ItemMatchers {
 		return hasProperty("barcode", is(expectedBarcode));
 	}
 
-	public static Matcher<Item> hasLocalItemType(String expectedLocalItemType) {
-		return hasProperty("localItemType", is(expectedLocalItemType));
-	}
-
 	public static Matcher<Item> hasStatus(ItemStatusCode expectedStatus) {
 		return hasProperty("status", hasProperty("code", is(expectedStatus)));
 	}
@@ -49,5 +45,45 @@ public class ItemMatchers {
 
 	public static Matcher<Item> hasLocalBibId(String expectedLocalBibId) {
 		return hasProperty("localBibId", is(expectedLocalBibId));
+	}
+
+	public static Matcher<Item> hasHostLmsCode(String expectedHostLmsCode) {
+		return hasProperty("hostLmsCode", is(expectedHostLmsCode));
+	}
+
+	public static Matcher<Item> hasLocalItemType(String expectedLocalItemType) {
+		return hasProperty("localItemType", is(expectedLocalItemType));
+	}
+
+	public static Matcher<Item> hasLocalItemTypeCode(String expectedLocalItemTypeCode) {
+		return hasProperty("localItemTypeCode", is(expectedLocalItemTypeCode));
+	}
+
+	public static Matcher<Item> hasCanonicalItemType(String expectedCanonicalItemType) {
+		return hasProperty("canonicalItemType", is(expectedCanonicalItemType));
+	}
+
+	public static Matcher<Item> isNotSuppressed() {
+		return hasProperty("suppressed", is(false));
+	}
+
+	public static Matcher<Item> suppressionUnknown() {
+		return hasProperty("suppressed", is(nullValue()));
+	}
+
+	public static Matcher<Item> hasAgencyCode(String expectedAgencyCode) {
+		return hasProperty("agencyCode", is(expectedAgencyCode));
+	}
+
+	public static Matcher<Item> hasNoAgencyCode() {
+		return hasProperty("agencyCode", is(nullValue()));
+	}
+
+	public static Matcher<Item> hasAgencyDescription(String expectedAgencyDescription) {
+		return hasProperty("agencyDescription", is(expectedAgencyDescription));
+	}
+
+	public static Matcher<Item> hasNoAgencyDescription() {
+		return hasProperty("agencyDescription", is(nullValue()));
 	}
 }

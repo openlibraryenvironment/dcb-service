@@ -1,6 +1,35 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.ACCESS_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.ACCESS_KEY;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.DOMAIN_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.HMAC_SHA1_ALGORITHM;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.STAFF_PASSWORD;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.STAFF_USERNAME;
+import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
+
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Base64;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpRequest;
@@ -10,25 +39,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import static io.micronaut.http.HttpMethod.POST;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
 
 class PAPIAuthFilter {
 	static final Logger log = LoggerFactory.getLogger(PAPIAuthFilter.class);
@@ -40,7 +51,7 @@ class PAPIAuthFilter {
 	private Boolean overridemethod;
 	PAPIAuthFilter(PolarisLmsClient client) {
 		this.client = client;
-		this.conf = client.getHostLms().getClientConfig();
+		this.conf = client.getConfig();
 		this.URI_PARAMETERS = client.getGeneralUriParameters(PAPIService);
 	}
 

@@ -11,13 +11,19 @@ import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasCanonicalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyCode;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyDescription;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.ItemMatchers.suppressionUnknown;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -25,7 +31,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.test.HostLmsFixture;
 
-import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import services.k_int.interaction.sierra.SierraTestUtils;
@@ -37,23 +42,24 @@ class SierraHostLmsClientItemTests {
 	private static final String HOST_LMS_CODE = "sierra-item-api-tests";
 
 	@Inject
-	private ResourceLoader loader;
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
+
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@BeforeAll
-	public void beforeAll(MockServerClient mock) {
+	public void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://item-api-tests.com";
 		final String KEY = "item-key";
 		final String SECRET = "item-secret";
 
-		SierraTestUtils.mockFor(mock, BASE_URL)
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		hostLmsFixture.deleteAll();
 
@@ -80,7 +86,13 @@ class SierraHostLmsClientItemTests {
 				hasDueDate("2023-04-22T15:55:13Z"),
 				hasLocation("King 5th Floor", "ab5"),
 				hasLocalBibId("65423515"),
-				hasLocalItemType("999")
+				hasLocalItemType("999"),
+				hasLocalItemTypeCode("999"),
+				hasCanonicalItemType("BKM"),
+				hasHostLmsCode(HOST_LMS_CODE),
+				hasNoAgencyCode(),
+				hasNoAgencyDescription(),
+				suppressionUnknown()
 			),
 			allOf(
 				hasLocalId("c5bc9cd0-fc23-48be-9d52-647cea8c63ca"),
@@ -90,7 +102,13 @@ class SierraHostLmsClientItemTests {
 				hasNoDueDate(),
 				hasLocation("King 7th Floor", "ab7"),
 				hasLocalBibId("65423515"),
-				hasLocalItemType("999")
+				hasLocalItemType("999"),
+				hasLocalItemTypeCode("999"),
+				hasCanonicalItemType("BKM"),
+				hasHostLmsCode(HOST_LMS_CODE),
+				hasNoAgencyCode(),
+				hasNoAgencyDescription(),
+				suppressionUnknown()
 			),
 			allOf(
 				hasLocalId("69415d0a-ace5-49e4-96fd-f63855235bf0"),
@@ -100,7 +118,13 @@ class SierraHostLmsClientItemTests {
 				hasNoDueDate(),
 				hasLocation("King 7th Floor", "ab7"),
 				hasLocalBibId("65423515"),
-				hasLocalItemType("999")
+				hasLocalItemType("999"),
+				hasLocalItemTypeCode("999"),
+				hasCanonicalItemType("BKM"),
+				hasHostLmsCode(HOST_LMS_CODE),
+				hasNoAgencyCode(),
+				hasNoAgencyDescription(),
+				suppressionUnknown()
 			)
 		));
 	}

@@ -17,11 +17,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.Times;
-import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
-import org.olf.dcb.core.interaction.sierra.SierraLoginAPIFixture;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.test.HostLmsFixture;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
@@ -40,9 +38,9 @@ class SierraApiLoginTests {
 	@Inject
 	private HttpClient client;
 	@Inject
-	private ResourceLoader loader;
-	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
 	@BeforeAll
 	void beforeAll() {
@@ -99,7 +97,7 @@ class SierraApiLoginTests {
 	@Test
 	void shouldReauthenticateAfterDeniedRequested(MockServerClient mockServerClient) {
 		// Arrange
-		final var sierraLoginFixture = new SierraLoginAPIFixture(mockServerClient, loader);
+		final var sierraLoginFixture = sierraApiFixtureProvider.loginFixtureFor(mockServerClient);
 
 		// Login should be re-attempted after unauthorised response
 		sierraLoginFixture.successfulLoginFor(KEY, SECRET, "login-token",
@@ -107,7 +105,7 @@ class SierraApiLoginTests {
 
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
-		final var itemsFixture = new SierraItemsAPIFixture(mockServerClient, loader);
+		final var itemsFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		itemsFixture.unauthorisedResponseForCreateItem(12345, "ABC-123",
 			"584866478");
@@ -143,8 +141,8 @@ class SierraApiLoginTests {
 		assertThat("Should have 2 items", items.getEntries(), hasSize(2));
 	}
 
-	private void mockSuccessfulLogin(MockServerClient mock, String token) {
-		final var sierraLoginFixture = new SierraLoginAPIFixture(mock, loader);
+	private void mockSuccessfulLogin(MockServerClient mockServerClient, String token) {
+		final var sierraLoginFixture = sierraApiFixtureProvider.loginFixtureFor(mockServerClient);
 
 		sierraLoginFixture.successfulLoginFor(KEY, SECRET, token);
 		sierraLoginFixture.failLoginsForAnyOtherCredentials(KEY, SECRET);

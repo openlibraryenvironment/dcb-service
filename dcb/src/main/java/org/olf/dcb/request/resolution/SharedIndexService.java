@@ -3,12 +3,11 @@ package org.olf.dcb.request.resolution;
 import java.util.List;
 import java.util.UUID;
 
-import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.request.CannotFindSelectedBibException;
 import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.ClusterRecordRepository;
-import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
@@ -20,45 +19,48 @@ import reactor.core.publisher.Mono;
 public class SharedIndexService {
 	private final ClusterRecordRepository clusterRecordRepository;
 	private final BibRepository bibRepository;
-	private final HostLmsService hostLmsService;
 
 	public SharedIndexService(ClusterRecordRepository clusterRecordRepository,
-		BibRepository bibRepository, HostLmsService hostLmsService) {
+		BibRepository bibRepository) {
 
 		this.clusterRecordRepository = clusterRecordRepository;
 		this.bibRepository = bibRepository;
-		this.hostLmsService = hostLmsService;
 	}
 
-	public Mono<ClusteredBib> findClusteredBib(UUID bibClusterId) {
-		log.debug("findClusteredBib({})", bibClusterId);
+	public Mono<ClusteredBib> findClusteredBib(UUID clusterRecordId) {
+		log.debug("findClusteredBib({})", clusterRecordId);
 
-		return Mono.from(clusterRecordRepository.findOneById(bibClusterId))
-			.switchIfEmpty(Mono.error(new CannotFindClusterRecordException(bibClusterId)))
+		return findClusterRecord(clusterRecordId)
 			.zipWhen(this::findBibRecords, this::mapToClusteredBibWithBib);
 	}
 
 	private ClusteredBib mapToClusteredBibWithBib(ClusterRecord clusterRecord,
-		List<Bib> bibs) {
+		List<BibRecord> bibRecords) {
+
 		return ClusteredBib.builder()
 			.id(clusterRecord.getId())
 			.title(clusterRecord.getTitle())
-			.bibs(bibs)
+			.bibs(bibRecords)
 			.build();
 	}
 
-	private Mono<List<Bib>> findBibRecords(ClusterRecord clusteredBib) {
-		return Flux.from(bibRepository.findAllByContributesTo(clusteredBib))
-			.flatMap(this::findHostLms)
+	private Mono<List<BibRecord>> findBibRecords(ClusterRecord clusterRecord) {
+		return Flux.from(bibRepository.findAllByContributesTo(clusterRecord))
 			.collectList();
 	}
 
-	private Publisher<Bib> findHostLms(BibRecord bibRecord) {
-		return Mono.from(hostLmsService.findById(bibRecord.getSourceSystemId()))
-			.map(hostLms -> Bib.builder()
-				.id(bibRecord.getId())
-				.sourceRecordId(bibRecord.getSourceRecordId())
-				.hostLms(hostLms)
-				.build());
+	public Mono<BibRecord> findSelectedBib(UUID clusterRecordId) {
+		return findClusterRecord(clusterRecordId)
+			.flatMap(this::getSelectedBib);
+	}
+
+	private Mono<BibRecord> getSelectedBib(ClusterRecord clusterRecord) {
+		return Mono.from(bibRepository.findById(clusterRecord.getSelectedBib()))
+			.switchIfEmpty(Mono.error(new CannotFindSelectedBibException(clusterRecord)));
+	}
+
+	private Mono<? extends ClusterRecord> findClusterRecord(UUID clusterRecordId) {
+		return Mono.from(clusterRecordRepository.findOneById(clusterRecordId))
+			.switchIfEmpty(Mono.error(new CannotFindClusterRecordException(clusterRecordId)));
 	}
 }

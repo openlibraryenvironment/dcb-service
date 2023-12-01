@@ -18,11 +18,10 @@ import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 
 import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 
-/**
- */
-// @Prototype
+@Prototype
 public class FolioLmsClient implements HostLmsClient {
 	private final HostLms lms;
 

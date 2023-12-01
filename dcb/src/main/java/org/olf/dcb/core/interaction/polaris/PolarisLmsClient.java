@@ -233,7 +233,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		return appServicesClient.getPatron(localPatronId)
-			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLms().getCode())));
+			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLmsCode())));
 	}
 
 	@Override
@@ -519,11 +519,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	Mono<String> getMappedItemType(String itemTypeCode) {
-		final var targetSystemCode = getHostLms().getCode();
-
-		if (targetSystemCode != null && itemTypeCode != null) {
+		if (getHostLmsCode()!= null && itemTypeCode != null) {
 			return Mono.from(mapping.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-					"ItemType", "DCB", itemTypeCode, "ItemType", targetSystemCode))
+					"ItemType", "DCB", itemTypeCode, "ItemType", getHostLmsCode()))
 				.map(ReferenceValueMapping::getToValue)
 				.defaultIfEmpty("19")
 				.switchIfEmpty(Mono.fromRunnable(() -> log.warn("Request to map item type was missing required parameters")));

@@ -9,13 +9,19 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyDescription;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasCanonicalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
@@ -36,9 +42,9 @@ import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.TestResourceLoader;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 import org.olf.dcb.test.matchers.ItemMatchers;
 
-import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -48,7 +54,8 @@ public class HostLmsPolarisClientTests {
 	private static final String HOST_LMS_CODE = "polaris-hostlms-tests";
 
 	@Inject
-	private ResourceLoader loader;
+	private TestResourceLoaderProvider testResourceLoaderProvider;
+
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
@@ -66,7 +73,7 @@ public class HostLmsPolarisClientTests {
 		final String SECRET = "polaris-hostlms-test-secret";
 		final String DOMAIN = "TEST";
 
-		resourceLoader = new TestResourceLoader("classpath:mock-responses/polaris/", loader);
+		resourceLoader = testResourceLoaderProvider.forBasePath("classpath:mock-responses/polaris/");
 
 		hostLmsFixture.deleteAll();
 
@@ -127,14 +134,14 @@ public class HostLmsPolarisClientTests {
 		assertThat(firstItem, hasLocation("SLPL Kingshighway", "15"));
 		assertThat(firstItem, hasBarcode("3430470102"));
 		assertThat(firstItem, hasCallNumber("E Bellini Mario"));
-		assertThat(firstItem.getHostLmsCode(), is(HOST_LMS_CODE));
+		assertThat(firstItem, hasHostLmsCode(HOST_LMS_CODE));
 		assertThat(firstItem, hasLocalBibId(sourceRecordId));
-		assertThat(firstItem.getLocalItemTypeCode(), is("3"));
 		assertThat(firstItem, hasLocalItemType("Book"));
-		assertThat(firstItem.getSuppressed(), is(false));
-		assertThat(firstItem.getAgencyCode(), is("345test"));
-		assertThat(firstItem.getAgencyDescription(), is("Test College"));
-		assertThat(firstItem.getCanonicalItemType(), is("UNKNOWN"));
+		assertThat(firstItem, hasLocalItemTypeCode("3"));
+		assertThat(firstItem, isNotSuppressed());
+		assertThat(firstItem, hasAgencyCode("345test"));
+		assertThat(firstItem, hasAgencyDescription("Test College"));
+		assertThat(firstItem, hasCanonicalItemType("UNKNOWN"));
 	}
 
 	@Test

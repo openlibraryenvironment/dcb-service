@@ -5,8 +5,6 @@ import static io.micronaut.data.model.DataType.JSON;
 import java.util.Map;
 import java.util.UUID;
 
-import org.olf.dcb.core.interaction.HostLmsClient;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.micronaut.core.annotation.Creator;
@@ -26,6 +24,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 @Data
@@ -35,6 +34,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @NoArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
 @Builder
+@Slf4j
 public class DataHostLms implements HostLms {
 	@NonNull
 	@Id
@@ -55,21 +55,47 @@ public class DataHostLms implements HostLms {
 	public String lmsClientClass;
 
 	@ToString.Exclude
+	@Nullable
+	@Size(max = 200)
+	public String ingestSourceClass;
+
+	@ToString.Exclude
 	@Singular("clientConfig")
 	@TypeDef(type = JSON)
 	Map<String, Object> clientConfig;
 
-	@SuppressWarnings("unchecked")
+	@Override
 	@Transient
 	@JsonIgnore
-	public Class<? extends HostLmsClient> getType() {
+	public Class<?> getClientType() {
 		//TODO: Replace this with a proper converter implementation then remove this getter.
-		
-		Class<? extends HostLmsClient> resolved_class = null;
-		try {
-			resolved_class = (Class<? extends HostLmsClient>) Class.forName(lmsClientClass);
-		} catch (ClassNotFoundException cnfe) {
+		return getTypeFromName(lmsClientClass);
+	}
+
+	@Override
+	@Nullable
+	@Transient
+	@JsonIgnore
+	public Class<?> getIngestSourceType() {
+		//TODO: Replace this with a proper converter implementation then remove this getter.
+		return getTypeFromName(ingestSourceClass);
+	}
+
+	@Nullable
+	private Class<?> getTypeFromName(@Nullable String name) {
+		if (name == null) {
+			return null;
 		}
-		return resolved_class;
+
+		try {
+			return Class.forName(name);
+		}
+		catch (ClassNotFoundException exception) {
+			log.error("class {} cannot be found", name, exception);
+
+			// Does not throw exception because method is used in a property
+			// Properties that throw exceptions fail micronaut validation
+			return null;
+		}
 	}
 }

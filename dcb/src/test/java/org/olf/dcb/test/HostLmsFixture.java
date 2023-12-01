@@ -5,16 +5,18 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.folio.FolioLmsClient;
+import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.ingest.IngestSource;
-import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 
 import io.micronaut.context.annotation.Prototype;
@@ -29,29 +31,30 @@ public class HostLmsFixture {
 
 	private final HostLmsRepository hostLmsRepository;
 	private final HostLmsService hostLmsService;
-	private final AgencyRepository agencyRepository;
 	private final PatronFixture patronFixture;
 	private final NumericRangeMappingFixture numericRangeMappingFixture;
+	private final AgencyFixture agencyFixture;
 
-	public HostLmsFixture(HostLmsRepository hostLmsRepository,
-		HostLmsService hostLmsService, AgencyRepository agencyRepository,
-		PatronFixture patronFixture, NumericRangeMappingFixture numericRangeMappingFixture) {
+	public HostLmsFixture(HostLmsRepository hostLmsRepository, HostLmsService hostLmsService,
+		PatronFixture patronFixture, NumericRangeMappingFixture numericRangeMappingFixture,
+		AgencyFixture agencyFixture) {
 
 		this.hostLmsRepository = hostLmsRepository;
 		this.hostLmsService = hostLmsService;
-		this.agencyRepository = agencyRepository;
 		this.patronFixture = patronFixture;
 		this.numericRangeMappingFixture = numericRangeMappingFixture;
+		this.agencyFixture = agencyFixture;
 	}
 
-	public <T> void createFolioHostLms(String code, Class<T> type,
+	public void createFolioHostLms(String code,
 		String baseUrl, String apiKey, String recordSyntax, String metadataPrefix) {
 
-		createHostLms(randomUUID(), code, type, Map.of(
-			"base-url", baseUrl,
-			"apikey", apiKey,
-			"record-syntax", recordSyntax,
-			"metadata-prefix", metadataPrefix
+		createHostLms(randomUUID(), code, FolioLmsClient.class,
+			Optional.of(FolioOaiPmhIngestSource.class), Map.of(
+				"base-url", baseUrl,
+				"apikey", apiKey,
+				"record-syntax", recordSyntax,
+				"metadata-prefix", metadataPrefix
 		));
 	}
 
@@ -84,10 +87,11 @@ public class HostLmsFixture {
 
 		numericRangeMappingFixture.createMapping(code, "ItemType", 998L, 1001L, "DCB", "BKM");
 
-		return createHostLms(UUID.randomUUID(), code, SierraLmsClient.class, config);
+		return createHostLms(UUID.randomUUID(), code, SierraLmsClient.class,
+			Optional.empty(), config);
 	}
 
-	public DataHostLms createPolarisHostLms(String code, String staffUsername,
+	public void createPolarisHostLms(String code, String staffUsername,
 		String staffPassword, String baseUrl, String domain, String accessId, String accessKey) {
 
 		Map<String, Object> clientConfig = new HashMap<>();
@@ -129,17 +133,22 @@ public class HostLmsFixture {
 
 		clientConfig.put("item", item);
 
-		return createHostLms(randomUUID(), code, PolarisLmsClient.class, clientConfig);
+		createHostLms(randomUUID(), code, PolarisLmsClient.class,
+			Optional.of(PolarisLmsClient.class), clientConfig);
 	}
 
-	public <T> DataHostLms createHostLms(UUID id, String code,
-		Class<T> clientClass, Map<String, Object> clientConfig) {
+	public <T extends HostLmsClient, R extends IngestSource> DataHostLms createHostLms(
+		UUID id, String code, Class<T> clientClass, Optional<Class<R>> ingestSourceClass,
+		Map<String, Object> clientConfig) {
 
 		return saveHostLms(DataHostLms.builder()
 			.id(id)
 			.code(code)
 			.name("Test Host LMS")
 			.lmsClientClass(clientClass.getCanonicalName())
+			.ingestSourceClass(ingestSourceClass
+				.map(Class::getCanonicalName)
+				.orElse(null))
 			.clientConfig(clientConfig)
 			.build());
 	}
@@ -149,11 +158,8 @@ public class HostLmsFixture {
 	}
 
 	public void deleteAll() {
-		dataAccess.deleteAll(agencyRepository.queryAll(),
-			agency -> agencyRepository.delete(agency.getId()));
-
+		agencyFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
-
 		numericRangeMappingFixture.deleteAll();
 
 		dataAccess.deleteAll(hostLmsRepository.queryAll(),

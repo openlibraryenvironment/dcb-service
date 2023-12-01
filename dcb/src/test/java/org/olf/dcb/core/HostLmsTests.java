@@ -4,11 +4,13 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasClientClass;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasCode;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasId;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasIngestSourceClass;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasName;
+import static org.olf.dcb.test.matchers.HostLmsMatchers.hasNoIngestSourceClass;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasNonNullId;
-import static org.olf.dcb.test.matchers.HostLmsMatchers.hasType;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.Map;
@@ -17,10 +19,12 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.interaction.folio.FolioLmsClient;
 import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.InvalidHostLmsConfigurationException;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
 
@@ -46,7 +50,8 @@ class HostLmsTests {
 			.id(UUID.randomUUID())
 			.code("database-host")
 			.name("Database Host")
-			.lmsClientClass(SierraLmsClient.class.getName())
+			.lmsClientClass(SierraLmsClient.class.getCanonicalName())
+			.ingestSourceClass(SierraLmsClient.class.getCanonicalName())
 			.clientConfig(Map.of())
 			.build());
 
@@ -57,7 +62,8 @@ class HostLmsTests {
 		assertThat(foundHost, hasNonNullId());
 		assertThat(foundHost, hasCode("database-host"));
 		assertThat(foundHost, hasName("Database Host"));
-		assertThat(foundHost, hasType(SierraLmsClient.class));
+		assertThat(foundHost, hasClientClass(SierraLmsClient.class.getCanonicalName()));
+		assertThat(foundHost, hasIngestSourceClass(SierraLmsClient.class.getCanonicalName()));
 	}
 
 	@Test
@@ -69,7 +75,7 @@ class HostLmsTests {
 			.id(hostLmsId)
 			.code("database-host")
 			.name("Database Host")
-			.lmsClientClass(SierraLmsClient.class.getName())
+			.lmsClientClass(SierraLmsClient.class.getCanonicalName())
 			.clientConfig(Map.of())
 			.build());
 
@@ -78,7 +84,8 @@ class HostLmsTests {
 		assertThat(foundHost, hasId(hostLmsId));
 		assertThat(foundHost, hasCode("database-host"));
 		assertThat(foundHost, hasName("Database Host"));
-		assertThat(foundHost, hasType(SierraLmsClient.class));
+		assertThat(foundHost, hasClientClass(SierraLmsClient.class.getCanonicalName()));
+		assertThat(foundHost, hasNoIngestSourceClass());
 	}
 
 	@Test
@@ -183,8 +190,17 @@ class HostLmsTests {
 		@BeforeEach
 		void beforeEach() {
 			hostLmsFixture.createFolioHostLms("folio-database-host-lms",
-				FolioOaiPmhIngestSource.class, "https://some-folio-system",
+				"https://some-folio-system",
 				"some-api-key", "some-record-syntax", "some-metadata-prefix");
+		}
+
+		@Test
+		void shouldBeAbleToCreateFolioClientFromDatabaseHostLms() {
+			// Act
+			final var client = hostLmsFixture.createClient("folio-database-host-lms");
+
+			// Assert
+			assertThat(client, is(instanceOf(FolioLmsClient.class)));
 		}
 
 		@Test
@@ -194,6 +210,86 @@ class HostLmsTests {
 
 			// Assert
 			assertThat(client, is(instanceOf(FolioOaiPmhIngestSource.class)));
+		}
+	}
+
+	@Nested
+	class InvalidHostLmsConfigurationTests {
+		@BeforeEach
+		void beforeEach() {
+			hostLmsFixture.saveHostLms(DataHostLms.builder()
+				.id(UUID.randomUUID())
+				.code("unknown-client-class")
+				.name("Unknown client class")
+				.lmsClientClass("org.olf.unknownClass")
+				.build());
+
+			hostLmsFixture.saveHostLms(DataHostLms.builder()
+				.id(UUID.randomUUID())
+				.code("unknown-ingest-source-class")
+				.name("Unknown ingest source class")
+				.lmsClientClass("org.olf.unknownClass")
+				.ingestSourceClass("org.olf.differentUnknownClass")
+				.build());
+
+			hostLmsFixture.saveHostLms(DataHostLms.builder()
+				.id(UUID.randomUUID())
+				.code("invalid-client-class")
+				.name("Invalid client class")
+				.lmsClientClass(FolioOaiPmhIngestSource.class.getCanonicalName())
+				.build());
+
+			hostLmsFixture.saveHostLms(DataHostLms.builder()
+				.id(UUID.randomUUID())
+				.code("invalid-ingest-source-class")
+				.name("Invalid ingest source class")
+				.lmsClientClass(FolioLmsClient.class.getCanonicalName())
+				.ingestSourceClass(FolioLmsClient.class.getCanonicalName())
+				.build());
+		}
+
+		@Test
+		void shouldFailWhenAttemptingToCreateUnknownClientClass() {
+			// Act
+			final var exception = assertThrows(InvalidHostLmsConfigurationException.class,
+				() -> hostLmsFixture.createClient("unknown-client-class"));
+
+			// Assert
+			assertThat(exception, hasMessage(
+				"Host LMS \"unknown-client-class\" has invalid configuration: client class is either unknown or invalid"));
+		}
+
+		@Test
+		void shouldFailWhenAttemptingToCreateInvalidClientClass() {
+			// Act
+			final var exception = assertThrows(InvalidHostLmsConfigurationException.class,
+				() -> hostLmsFixture.createClient("invalid-client-class"));
+
+			// Assert
+			assertThat(exception, hasMessage(
+				"Host LMS \"invalid-client-class\" has invalid configuration: client class is either unknown or invalid"));
+		}
+
+		@Test
+		void shouldFailWhenAttemptingToGetUnknownIngestSource() {
+			// Act
+			final var exception = assertThrows(InvalidHostLmsConfigurationException.class,
+				() -> hostLmsFixture.getIngestSource("unknown-ingest-source-class"));
+
+			// Assert
+			assertThat(exception, hasMessage(
+				"Host LMS \"unknown-ingest-source-class\" has invalid configuration: ingest source class is either unknown or invalid"));
+		}
+
+		@Test
+		void shouldFailWhenAttemptingToGetInvalidIngestSource() {
+			// Act
+			final var exception = assertThrows(InvalidHostLmsConfigurationException.class,
+				() -> hostLmsFixture.getIngestSource("invalid-ingest-source-class"));
+
+			// Assert
+			assertThat(exception, hasMessage(
+				"Host LMS \"invalid-ingest-source-class\" has invalid configuration: ingest source class is either unknown or invalid"));
 		}
 	}
 }

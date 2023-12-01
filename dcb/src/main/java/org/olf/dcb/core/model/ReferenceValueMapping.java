@@ -3,6 +3,7 @@ package org.olf.dcb.core.model;
 import java.time.Instant;
 import java.util.UUID;
 
+import io.micronaut.data.annotation.Where;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -30,6 +31,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
 @MappedEntity
+@Where("@.deleted = false OR @.deleted IS NULL")
 public class ReferenceValueMapping {
 
     @NotNull
@@ -73,10 +75,15 @@ public class ReferenceValueMapping {
     private Boolean reciprocal;
 
 		// The below values were added to the DB in V1_0_1_010__extendReferenceValueMapping.sql
+		// and deleted was added in V1_0_1_012__softDeleteReferenceValueMapping.sql
 
 		@Nullable
 		private String label;
 
 		@Nullable
 		private Instant lastImported;
+
+		@Nullable
+		@Builder.Default
+		private Boolean deleted = false;
 }

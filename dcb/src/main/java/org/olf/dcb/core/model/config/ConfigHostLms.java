@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.ingest.IngestSource;
 
 import io.micronaut.context.annotation.EachProperty;
 import io.micronaut.context.annotation.Parameter;
@@ -18,12 +18,13 @@ import services.k_int.utils.UUIDUtils;
 @Serdeable
 @Getter
 @EachProperty("hosts")
-public class ConfigHostLms implements HostLms {
+public class ConfigHostLms {
 	private Map<String, Object> clientConfig;
 	private final UUID id;
 	private final String name;
 	private final String code;
 	private Class<? extends HostLmsClient> type;
+	private Class<? extends IngestSource> ingestSourceType;
 
 	public ConfigHostLms(@Parameter("code") @NonNull String code, @Parameter("name") String name) {
 		this.code = code;
@@ -39,5 +40,9 @@ public class ConfigHostLms implements HostLms {
 
 	public void setType(Class<? extends HostLmsClient> type) {
 		this.type = type;
+	}
+
+	public void setIngestSourceType(Class<? extends IngestSource> ingestSourceType) {
+		this.ingestSourceType = ingestSourceType;
 	}
 }

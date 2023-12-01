@@ -16,33 +16,28 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.request.resolution.SharedIndexService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
-import org.olf.dcb.storage.BibRepository;
-import org.olf.dcb.storage.ClusterRecordRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple4;
 import reactor.util.function.Tuple5;
 import reactor.util.function.Tuples;
 
+@Slf4j
 @Prototype
 public class BorrowingAgencyService {
-	private static final Logger log = LoggerFactory.getLogger(BorrowingAgencyService.class);
-
 	private final HostLmsService hostLmsService;
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final SupplierRequestService supplierRequestService;
-	private final BibRepository bibRepository;
-	private final ClusterRecordRepository clusterRecordRepository;
+	private final SharedIndexService sharedIndexService;
 
 	// Provider to prevent circular reference exception by allowing lazy access to
 	// this singleton.
@@ -51,16 +46,14 @@ public class BorrowingAgencyService {
 
 	public BorrowingAgencyService(HostLmsService hostLmsService,
 		PatronIdentityRepository patronIdentityRepository,
-		SupplierRequestService supplierRequestService, BibRepository bibRepository,
-		ClusterRecordRepository clusterRecordRepository,
+		SupplierRequestService supplierRequestService, SharedIndexService sharedIndexService,
 		ReferenceValueMappingRepository referenceValueMappingRepository,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
 
 		this.hostLmsService = hostLmsService;
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.supplierRequestService = supplierRequestService;
-		this.bibRepository = bibRepository;
-		this.clusterRecordRepository = clusterRecordRepository;
+		this.sharedIndexService = sharedIndexService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 	}
@@ -108,23 +101,13 @@ public class BorrowingAgencyService {
 
 		log.debug("createVirtualBib for cluster {}", bibClusterId);
 
-		return getClusterRecord(bibClusterId)
-			.flatMap(this::getSelectedBib)
+		return sharedIndexService.findSelectedBib(bibClusterId)
 			.map(this::extractBibData)
 			.flatMap(hostLmsClient::createBib)
 			.map(patronRequest::setLocalBibId)
-			.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual bib at "+hostLmsClient.getHostLms().getCode()+" for cluster "+bibClusterId)))
+			.switchIfEmpty(Mono.error(new RuntimeException(
+				"Failed to create virtual bib at " + hostLmsClient.getHostLmsCode() + " for cluster " + bibClusterId)))
 			.map(pr -> Tuples.of(pr, patronIdentity, hostLmsClient, supplierRequest));
-	}
-
-	private Mono<ClusterRecord> getClusterRecord(UUID clusterId) {
-		return Mono.from(clusterRecordRepository.findById(clusterId))
-			.switchIfEmpty(Mono.error(new RuntimeException("Unable to locate cluster record "+clusterId)));
-	}
-
-	private Mono<BibRecord> getSelectedBib(ClusterRecord cr) {
-		return Mono.from(bibRepository.findById(cr.getSelectedBib()))
-			.switchIfEmpty(Mono.error(new RuntimeException("Unable to locate selected bib "+cr.getSelectedBib()+" for cluster "+cr.getId())));
 	}
 
 	private Bib extractBibData(BibRecord bibRecord) {

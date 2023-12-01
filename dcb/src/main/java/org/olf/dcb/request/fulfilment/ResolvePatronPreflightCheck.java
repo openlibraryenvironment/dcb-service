@@ -25,8 +25,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
 		final var localSystemCode = command.getRequestorLocalSystemCode();
 
-		return hostLmsService.findByCode(localSystemCode)
-			.flatMap(hostLmsService::getClientFor)
+		return hostLmsService.getClientFor(localSystemCode)
 			.flatMap(client -> client.getPatronByLocalId(command.getRequestorLocalId()))
 			.map(localPatron -> CheckResult.passed())
 			.onErrorResume(PatronNotFoundInHostLmsException.class,

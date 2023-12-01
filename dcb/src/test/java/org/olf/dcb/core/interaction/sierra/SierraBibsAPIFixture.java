@@ -3,23 +3,23 @@ package org.olf.dcb.core.interaction.sierra;
 import static org.mockserver.model.JsonBody.json;
 
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 
-import io.micronaut.core.io.ResourceLoader;
+import lombok.AllArgsConstructor;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 
+@AllArgsConstructor
 public class SierraBibsAPIFixture {
 	private final MockServerClient mockServer;
 	private final SierraMockServerRequests sierraMockServerRequests;
 	private final SierraMockServerResponses sierraMockServerResponses;
 
-	public SierraBibsAPIFixture(MockServerClient mockServer, ResourceLoader loader) {
-		this.mockServer = mockServer;
+	public SierraBibsAPIFixture(MockServerClient mockServer,
+		TestResourceLoaderProvider testResourceLoaderProvider) {
 
-		sierraMockServerRequests = new SierraMockServerRequests(
-			"/iii/sierra-api/v6/bibs");
-
-		sierraMockServerResponses = new SierraMockServerResponses(
-			"classpath:mock-responses/sierra/bibs/", loader);
+		this(mockServer, new SierraMockServerRequests("/iii/sierra-api/v6/bibs"),
+			new SierraMockServerResponses(
+				testResourceLoaderProvider.forBasePath("classpath:mock-responses/sierra/bibs/")));
 	}
 
 	public void createGetBibsMockWithQueryStringParameters() {

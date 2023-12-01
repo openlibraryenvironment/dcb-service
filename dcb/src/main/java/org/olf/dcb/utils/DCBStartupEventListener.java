@@ -5,6 +5,7 @@ import static services.k_int.utils.UUIDUtils.nameUUIDFromNamespaceAndString;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Grant;
@@ -84,13 +85,20 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			.id(hostLms.getId())
 			.code(hostLms.getCode())
 			.name(hostLms.getName())
-			.lmsClientClass(hostLms.getType().getName())
+			.lmsClientClass(tolerateNoType(hostLms.getType()))
+			.ingestSourceClass(tolerateNoType(hostLms.getIngestSourceType()))
 			.clientConfig(hostLms.getClientConfig())
 			.build();
 
 		// we don't want to proceed until this is done
 		hostLmsRepository.saveOrUpdate(db_representation).block();
 		log.debug("Save complete");
+	}
+
+	private static String tolerateNoType(Class<?> type) {
+		return Optional.ofNullable(type)
+			.map(Class::getName)
+			.orElse(null);
 	}
 
 	private void bootstrapStatusCodes() {

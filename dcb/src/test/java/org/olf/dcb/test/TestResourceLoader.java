@@ -5,16 +5,18 @@ import static org.mockserver.model.JsonBody.json;
 import java.io.InputStream;
 
 import org.mockserver.model.JsonBody;
-import org.olf.dcb.core.interaction.sierra.SierraMockServerResponses;
 
+import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.io.ResourceLoader;
 import lombok.SneakyThrows;
 
+@Prototype
 public class TestResourceLoader {
 	private final String basePath;
 	private final ResourceLoader loader;
 
-	public TestResourceLoader(String basePath, ResourceLoader loader) {
+	public TestResourceLoader(@Parameter String basePath, ResourceLoader loader) {
 		this.loader = loader;
 		this.basePath = basePath;
 	}

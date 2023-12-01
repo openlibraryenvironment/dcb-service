@@ -27,21 +27,16 @@ import java.util.List;
 import java.util.UUID;
 
 import org.hamcrest.Matcher;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
-import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Event;
-import org.olf.dcb.core.model.ShelvingLocation;
-import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.ShelvingLocationRepository;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -53,11 +48,9 @@ import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.clients.ChecksFailure;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -70,7 +63,7 @@ class PatronRequestApiTests {
 	private static final String KNOWN_PATRON_LOCAL_ID = "872321";
 
 	@Inject
-	private ResourceLoader loader;
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
 	@Inject
 	private PatronRequestsFixture patronRequestsFixture;
@@ -91,26 +84,22 @@ class PatronRequestApiTests {
 	@Inject
 	private EventLogFixture eventLogFixture;
 
-	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
-
-	@Inject
-	private ShelvingLocationRepository shelvingLocationRepository;
-	@Inject
-	private AgencyRepository agencyRepository;
-
 	@Inject
 	private PatronRequestApiClient patronRequestApiClient;
 	@Inject
 	private AdminApiClient adminApiClient;
 
+	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+
 	@BeforeAll
-	void beforeAll(MockServerClient mock) {
+	void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://patron-request-api-tests.com";
 		final String KEY = "patron-request-key";
 		final String SECRET = "patron-request-secret";
 
-		SierraTestUtils.mockFor(mock, BASE_URL).setValidCredentials(KEY, SECRET, TOKEN, 60);
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		hostLmsFixture.deleteAll();
 
@@ -121,11 +110,11 @@ class PatronRequestApiTests {
 		final var h3 = hostLmsFixture.createSierraHostLms("codeBB", KEY, SECRET, BASE_URL);
 		log.debug("Created dataHostLms {}", h3);
 
-		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
+		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
-		this.sierraPatronsAPIFixture = new SierraPatronsAPIFixture(mock, loader);
+		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
-		final var sierraBibsAPIFixture = new SierraBibsAPIFixture(mock, loader);
+		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
 
 		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");
@@ -155,6 +144,7 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
 
 		agencyFixture.deleteAll();
+
 		final var da = agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
 			.code("AGENCY1")
@@ -163,7 +153,7 @@ class PatronRequestApiTests {
 			.build());
 		log.debug("Create dataAgency {}", da);
 
-		final var da2 = agencyFixture.saveAgency(DataAgency.builder()
+		agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
 			.code("ab6")
 			.name("AB6")
@@ -172,17 +162,6 @@ class PatronRequestApiTests {
 
 		sierraPatronsAPIFixture.addPatronGetExpectation("43546");
 		sierraPatronsAPIFixture.addPatronGetExpectation(KNOWN_PATRON_LOCAL_ID);
-
-		final var shelvingLocation = ShelvingLocation.builder()
-			.id(randomUUID())
-			.code("ab6")
-			.name("name")
-			.hostSystem(h3)
-			.agency(da2)
-			.build();
-
-		Mono.from(shelvingLocationRepository.save(shelvingLocation)).block();
-
 	}
 
 	@BeforeEach
@@ -208,20 +187,13 @@ class PatronRequestApiTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", "AGENCY1");
 	}
 
-	@AfterAll
-	void afterAll() {
-		Mono.from(shelvingLocationRepository.deleteByCode("ab6")).block();
-		Mono.from(agencyRepository.deleteByCode("ab6")).block();
-		hostLmsFixture.deleteAll();
-	}
-
 	@Test
 	@DisplayName("should be able to place patron request for new patron")
 	void shouldBeAbleToPlaceRequestForNewPatron() {
 		log.info("\n\nshouldBeAbleToPlacePatronForNewPatron\n\n");
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
@@ -341,7 +313,7 @@ class PatronRequestApiTests {
 		log.info("\n\ncannotFulfilPatronRequestWhenNoRequestableItemsAreFound\n\n");
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
@@ -418,7 +390,7 @@ class PatronRequestApiTests {
 
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
@@ -452,7 +424,7 @@ class PatronRequestApiTests {
 	void cannotPlaceRequestForPickupAtUnknownLocation() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
@@ -491,7 +463,7 @@ class PatronRequestApiTests {
 	void cannotPlaceRequestForPickupAtUnmappedLocation() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 

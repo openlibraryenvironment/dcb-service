@@ -26,7 +26,7 @@ import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
 @Produces(APPLICATION_JSON)
 @Consumes(MULTIPART_FORM_DATA)
 @Controller("/uploadedMappings")
-@Secured(SecurityRule.IS_ANONYMOUS)
+@Secured({"ADMIN"})
 @Tag(name = "Uploaded Mappings API")
 @Introspected
 public class UploadedMappingsController {
@@ -45,16 +45,24 @@ public class UploadedMappingsController {
 		return HttpResponse.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
 	}
 
-	// This method returns all mappings of a given category.
+	// This method returns all mappings of a given category that have not been deleted.
+	// As @Where("@.deleted = false") is specified in the ReferenceValueMapping class,
+	// all methods will return only mappings that haven't been flagged as deleted by default.
 	@Get(value = "/{category}", produces = APPLICATION_JSON)
 	public Flux<ReferenceValueMapping> get(@Parameter String category) {
 		return Flux.from(referenceValueMappingRepository.findAllByFromCategory(category));
 	}
 
-	// Method to return all mappings of a given category and context
+	// Method to return all mappings of a given category and context.
 	@Get(value = "/{category}/{context}", produces = APPLICATION_JSON)
 	public Flux<ReferenceValueMapping> get(@Parameter String category, @Parameter String context) {
 		return Flux.from(referenceValueMappingRepository.findAllByFromCategoryAndFromContext(category, context));
+	}
+
+	// Returns all deleted items, in case we need to retrieve mappings that have been deleted by the user.
+	@Get(value = "/deleted", produces = APPLICATION_JSON)
+	public Flux<ReferenceValueMapping> get() {
+		return Flux.from(referenceValueMappingRepository.findDeleted());
 	}
 
 	// This method posts a file of uploaded mappings of a given mapping category.

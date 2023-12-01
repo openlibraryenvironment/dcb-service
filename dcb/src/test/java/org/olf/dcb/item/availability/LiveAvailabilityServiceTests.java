@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
@@ -29,7 +29,6 @@ import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
-import io.micronaut.core.io.ResourceLoader;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import services.k_int.interaction.sierra.SierraTestUtils;
@@ -39,7 +38,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(PER_CLASS)
 class LiveAvailabilityServiceTests {
 	@Inject
-	private ResourceLoader loader;
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
@@ -91,9 +90,11 @@ class LiveAvailabilityServiceTests {
 
 	@Test
 	@DisplayName("Should get items for multiple bibs from separate Sierra systems")
-	void shouldGetItemsForMultipleBibsFromSeparateSierraSystems(MockServerClient mock) {
+	void shouldGetItemsForMultipleBibsFromSeparateSierraSystems(
+		MockServerClient mockServerClient) {
+
 		// Arrange
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
 
 		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(),
 			"465675", clusterRecord);
@@ -101,7 +102,7 @@ class LiveAvailabilityServiceTests {
 		bibRecordFixture.createBibRecord(randomUUID(), secondHostLms.getId(),
 			"767648", clusterRecord);
 
-		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
+		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		sierraItemsAPIFixture.twoItemsResponseForBibId("465675");
 		sierraItemsAPIFixture.threeItemsResponseForBibId("767648");
@@ -125,14 +126,16 @@ class LiveAvailabilityServiceTests {
 
 	@Test
 	@DisplayName("Should report zero items when Sierra responds with no records found error")
-	void shouldReportZeroItemsWhenSierraRespondsWithNoRecordsFoundError(MockServerClient mock) {
+	void shouldReportZeroItemsWhenSierraRespondsWithNoRecordsFoundError(
+		MockServerClient mockServerClient) {
+
 		// Arrange
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
 
 		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(),
 			"762354", clusterRecord);
 
-		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
+		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("762354");
 
@@ -147,14 +150,14 @@ class LiveAvailabilityServiceTests {
 
 	@Test
 	@DisplayName("Should report failures when fetching items from Sierra")
-	void shouldReportFailuresFetchingItemsFromSierra(MockServerClient mock) {
+	void shouldReportFailuresFetchingItemsFromSierra(MockServerClient mockServerClient) {
 		// Arrange
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
 
 		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(),
 			"839552", clusterRecord);
 
-		final var sierraItemsAPIFixture = new SierraItemsAPIFixture(mock, loader);
+		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		sierraItemsAPIFixture.errorResponseForBibId("839552");
 
@@ -184,7 +187,7 @@ class LiveAvailabilityServiceTests {
 	@Test
 	void shouldFailWhenClusterRecordHasNoContributingBibs() {
 		// Arrange
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID());
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
 
 		// Act
 		final var exception = assertThrows(NoBibsForClusterRecordException.class,
@@ -201,7 +204,7 @@ class LiveAvailabilityServiceTests {
 		final var bibRecordId = randomUUID();
 		final var unknownHostId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId);
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 
 		bibRecordFixture.createBibRecord(bibRecordId, unknownHostId,
 			"7657673", clusterRecord);
