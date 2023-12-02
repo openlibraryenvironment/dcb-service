@@ -103,12 +103,13 @@ public class LocationController {
 
         	DataHostLms hostSystem = location.hostLms() != null ? Mono.from(hostLmsRepository.findById(location.hostLms())).block() : null;
 
-		// If we weren't given an host system, see if we can infer one from the agency.
-	        if ( hostSystem == null )
-			hostSystem = agency.getHostLms();
+		if ( ( location.agency() != null ) && ( agency != null ) ) {
+			// If we weren't given an host system, see if we can infer one from the agency.
+		        if ( ( hostSystem == null ) && ( agency != null ) )
+				hostSystem = agency.getHostLms();
 
-                // Convert AgencyDTO into DataAgency with correctly linked HostLMS
-                Location l = Location.builder()
+			// Convert AgencyDTO into DataAgency with correctly linked HostLMS
+			Location l = Location.builder()
                                     .id(location.id())
                                     .code(location.code())
                                     .name(location.name())
@@ -122,8 +123,13 @@ public class LocationController {
                                     .printLabel(location.printLabel())
                                     .build();
 
-                return Mono.from(locationRepository.existsById(l.getId()))
-                       .flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)));
+                	return Mono.from(locationRepository.existsById(l.getId()))
+				.flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)));
+		}
+		else {
+			log.warn("Client upload a location {} with an unknown agency UUID",location);
+			return Mono.empty();
+		}
         }
 
 }
