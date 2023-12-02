@@ -13,13 +13,17 @@ public record LocationDTO(
 	String name, 
 	String type, 
 	UUID agency, 
+	UUID hostLms, 
 	Boolean isPickup, 
 	Double longitude, 
-	Double latitude
+	Double latitude,
+	String deliveryStops,
+	String printLabel
 ) {
 	static LocationDTO from(Location location) {
 
                 UUID agency = ( location.getAgency() != null ) ? location.getAgency().getId() : null;
+                UUID hostLms = ( location.getHostSystem() != null ) ? location.getHostSystem().getId() : null;
 
 		return new LocationDTO(
                                   location.getId(),
@@ -27,9 +31,12 @@ public record LocationDTO(
 			          location.getName(),
                                   location.getType(),
                                   agency,
+				  hostLms,
                                   location.getIsPickup(),
                                   location.getLongitude(),
-                                  location.getLatitude()
+                                  location.getLatitude(),
+				  location.getDeliveryStops(),
+				  location.getPrintLabel()
 		);
 	}
 }

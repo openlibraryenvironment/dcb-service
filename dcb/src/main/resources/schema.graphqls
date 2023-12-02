@@ -172,6 +172,8 @@ type Location {
   longitude: Float
   latitude: Float
   locationReference: String
+  deliveryStops: String
+  printLabel: String
 }
 
 """

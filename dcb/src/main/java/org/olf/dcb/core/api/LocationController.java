@@ -6,9 +6,11 @@ import jakarta.validation.Valid;
 
 import org.olf.dcb.core.api.serde.LocationDTO;
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.LocationRepository;
+import org.olf.dcb.storage.HostLmsRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,28 +37,16 @@ public class LocationController {
 
         private static final Logger log = LoggerFactory.getLogger(LocationController.class);
 
+        private HostLmsRepository hostLmsRepository;
         private LocationRepository locationRepository;
         private AgencyRepository agencyRepository;
 
-        /*
-	private static Location decorateWithUUID(Location l) {
-
-		l.setId(UUIDUtils.nameUUIDFromNamespaceAndString(LOCATION_NS, l.getCode().toLowerCase()));
-		return l;
-	}
-
-	private final List<Location> LOCATIONS_TEMP;
-
-
-	private final static UUID LOCATION_NS = UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB,
-		Location.class.getSimpleName());
-        */
-
-
 	public LocationController(LocationRepository locationRepository,
-                                  AgencyRepository agencyRepository) {
+                                  AgencyRepository agencyRepository,
+				  HostLmsRepository hostLmsRepository) {
 		this.locationRepository = locationRepository;
 		this.agencyRepository = agencyRepository;
+		this.hostLmsRepository = hostLmsRepository;
 	}
 
         @Secured(SecurityRule.IS_ANONYMOUS)
@@ -111,7 +101,11 @@ public class LocationController {
                 // Look up any agency if given on the incoming DTO
                 DataAgency agency = location.agency() != null ? Mono.from(agencyRepository.findById(location.agency())).block() : null;
 
-                log.debug("Creating location with agency {}",agency);
+        	DataHostLms hostSystem = location.hostLms() != null ? Mono.from(hostLmsRepository.findById(location.hostLms())).block() : null;
+
+		// If we weren't given an host system, see if we can infer one from the agency.
+	        if ( hostSystem == null )
+			hostSystem = agency.getHostLms();
 
                 // Convert AgencyDTO into DataAgency with correctly linked HostLMS
                 Location l = Location.builder()
@@ -120,9 +114,12 @@ public class LocationController {
                                     .name(location.name())
                                     .type(location.type())
                                     .agency(agency)
+				    .hostSystem(hostSystem)
                                     .isPickup(location.isPickup())
                                     .longitude(location.longitude())
                                     .latitude(location.latitude())
+                                    .deliveryStops(location.deliveryStops())
+                                    .printLabel(location.printLabel())
                                     .build();
 
                 return Mono.from(locationRepository.existsById(l.getId()))

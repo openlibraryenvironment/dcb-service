@@ -98,4 +98,9 @@ public class Location {
 	// We now allow import to specify a reference which might help us retrospectively
 	// identify bad data uploads and remove blocks of errors
 	private String importReference;
+
+	// It's common to find a short or coded name that should be printed on slips
+	private String printLabel;
+
+	private String deliveryStops;
 }
