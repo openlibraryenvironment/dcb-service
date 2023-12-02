@@ -160,6 +160,8 @@ type PatronIdentity {
 
 type Location {
   id: ID!
+  dateCreated: String
+  dateUpdated: String
   code: String
   name: String
   type: String
@@ -169,6 +171,7 @@ type Location {
   isPickup: Boolean
   longitude: Float
   latitude: Float
+  locationReference: String
 }
 
 """
