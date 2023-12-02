@@ -39,11 +39,17 @@ public class PatronRequestPreflightChecksService {
 			return Mono.just(command);
 		}
 
+		log.info("Perform preflight checks {}",command);
+
 		return performChecks(command)
 			.flatMap(results -> {
 				if (allPassed(results)) {
+					log.info("PR passed preflight {}",command);
 					return Mono.just(command);
 				}
+
+				// It's worth logging the failures as it might be a sign of some fundamental systems issue
+				log.warn("request {} failed preflight {}",command, results);
 
 				return reportFailedChecksInEventLog(results)
 					.flatMap(reportedResults ->
@@ -53,6 +59,9 @@ public class PatronRequestPreflightChecksService {
 
 	private Mono<List<CheckResult>> performChecks(PlacePatronRequestCommand command) {
 		return Flux.fromIterable(checks)
+			.doOnNext(check -> {
+				log.info("Preflight check: {}",check);
+			})
 			.concatMap(check -> check.check(command))
 			.reduce(PatronRequestPreflightChecksService::concatenateChecks);
 	}

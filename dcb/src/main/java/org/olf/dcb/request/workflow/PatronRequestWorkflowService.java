@@ -60,10 +60,10 @@ public class PatronRequestWorkflowService {
 	}
 
 	public void initiate(PatronRequest patronRequest) {
-		log.debug("initiate({})", patronRequest);
+		log.info("initiate({})", patronRequest);
 		progressAll(patronRequest)
                         .doFinally( signalType -> {
-                                log.debug("Completed processing for {}",patronRequest.getId());
+                                log.info("Completed processing for {}",patronRequest.getId());
                         })
                         .subscribe();
 	}

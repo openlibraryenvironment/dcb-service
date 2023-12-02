@@ -53,7 +53,10 @@ public class PatronRequestService {
 			.zipWhen(this::findOrCreatePatron)
 			.map(function(this::mapToPatronRequest))
 			.flatMap(this::savePatronRequest)
-			.doOnSuccess(requestWorkflow::initiate);
+			.doOnSuccess(requestWorkflow::initiate)
+			.doOnError( e -> {
+				log.error("placePatronRequest {} did not succeed {}",command,e);
+			});
 	}
 
 	private Mono<Patron> findOrCreatePatron(PlacePatronRequestCommand command) {

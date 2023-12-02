@@ -15,7 +15,7 @@
   </appender>
 
 	<logger name="io.micronaut.http.client" level="WARN"/>
-	<logger name="services.k_int.interaction" level="DEBUG"/>
+	<logger name="services.k_int.interaction" level="INFO"/>
 	
 	<logger name="io.r2dbc.postgresql.QUERY" level="ERROR"/>
 	<logger name="io.micronaut.data.query" level="WARN"/>
@@ -30,7 +30,7 @@
 	<logger name="org.flywaydb" level="WARN"/>
 	<logger name="org.flyway" level="WARN"/>
 	<logger name="io.micronaut.flyway" level="WARN"/>
-	<logger name="org.olf.dcb" level="DEBUG"/>
+	<logger name="org.olf.dcb" level="INFO"/>
 	
 	<logger name="org.olf.dcb.core.error" level="INFO"/>
 	

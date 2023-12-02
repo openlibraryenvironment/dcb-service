@@ -121,7 +121,7 @@ public class PatronRequestController {
 	public Mono<PatronRequestView> placePatronRequest(
 			@Body @Valid PlacePatronRequestCommand command) {
 
-		log.debug("REST, place patron request: {}", command);
+		log.info("REST, place patron request: {}", command);
 
 		return patronRequestService.placePatronRequest(command)
 			.map(PatronRequestView::from);
