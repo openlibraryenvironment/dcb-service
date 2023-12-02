@@ -1,9 +1,110 @@
 # Changelog
 
+## Version 3.0.0
+
+### Additions
+* [General]
+	* **BREAKING** -  Add new ingest source type for host LMS configuration DCB-739
+
+### Changes
+* [Chore]
+	* more logging
+	* defensive code rejecting locations which specify an unknown agency
+	* graphql - implement more sort defaults
+	* Allow polaris to use BASIC/BARCODE+PIN as well as other variants as an auth profile
+	* Include source system ID in bib
+	* Tolerate no client type for host LMS in config DCB-739
+	* Tolerate no ingest source type for host LMS in config DCB-739
+	* Remove redundant unchecked conversion of type DCB-739
+	* Log error when class cannot be found for name DCB-739
+	* Raise specific error when host LMS ingest source class is not an ingest source DCB-739
+	* Raise specific error when host LMS client class is not a host LMS client DCB-739
+	* Raise specific error when host LMS ingest source class cannot be found DCB-739
+	* Raise specific error when host LMS client class cannot be found DCB-739
+	* Define invalid host LMS configuration exception DCB-739
+	* Make FOLIO LMS client a bean DCB-739
+	* Configure ingest source class for host LMS from config DCB-739
+	* Add ingest source class field to data host LMS DCB-739
+	* Add ingest source class column to host LMS table DCB-739
+* [Feature]
+	* Shipping and Routing Labels
+	* Administrative metatdata for Location imports
+	* Add order clause to graphql schema, implement for agencies and default to name
+	* Check for existing mapping data on import [DCB-603]
+* [Refactor]
+	* Remove unused dependencies in borrowing agency service
+	* Introduce specific exception when cannot find selected bib for cluster record
+	* Consolidate finding cluster record in shared index service
+	* Move find selected bib method to shared index service
+	* Move get cluster record method to shared index service
+	* Move get selected bib to shared index service
+	* Add shared index service dependency to borrowing agency service
+	* Extract method for finding selected bib
+	* Use switch if empty instead of specific check for no bibs for cluster record
+	* Rename bibs field in clustered bib
+	* Remove bibs from clustered bib
+	* Use bib records during live availability
+	* Include bib records in clustered bib
+	* Remove finding host LMS from shared index service
+	* Remove host LMS field from bib
+	* Extract method for getting config from host LMS client
+	* Extract method for getting host LMS code from host LMS client
+	* Extract method for getting items using host LMS client
+	* Get host LMS client by code during patron resolution preflight check
+	* Extract method for getting host LMS client by ID
+	* Find host LMS inside live availability service
+	* Move null check to common get type method DCB-739
+	* Introduce parameter for name getting class from a name DCB-739
+	* Introduce generic parameter for type of class to get from name DCB-739
+	* Extract method for getting type from class name DCB-739
+	* Rename get client type method for host LMS DCB-739
+	* Use ternary operator for falling back to client class for ingest source DCB-739
+	* Introduce get ingest source type method on host LMS interface DCB-739
+	* Config host LMS no longer implements host LMS interface DCB-739
+* [Test]
+	* Check that items from Sierra have a canonical item type
+	* Check that items from Sierra have no agency description
+	* Check that items from Sierra have no agency code
+	* Check whether items from Sierra are suppressed
+	* Check local item type code for items from Sierra
+	* Check host LMS code on items from Sierra
+	* Use property matchers for cluster record subjects
+	* Use fixture to delete agencies in host LMS fixture
+	* Stop deleting records after place request at borrowing agency tests
+	* Stop deleting records after patron request API tests
+	* Stop creating shelving location in patron request API tests
+	* Remove unused constructor in Sierra mock server responses
+	* Use test resource loader during cluster records API tests
+	* Use test resource loader during configuration import tests
+	* Use provider for test resources in Polaris host LMS client tests
+	* Use provider for Sierra patrons API fixture
+	* Use provider for Sierra bibs API fixture
+	* Use provider for Sierra API items fixture
+	* Use Provider for Sierra API pickup locations fixture
+	* Use provider for Sierra API login fixture
+	* Use test resource provider in Sierra API login fixture
+	* Stop returning created Polaris host LMS
+	* Demonstrate placing request at borrowing agency fails when selected bib cannot be found
+	* Introduce parameter for selected bib for cluster record
+	* Demonstrate placing request at borrowing agency fails when cluster record cannot be found
+	* Weaken type constraints on bib matchers
+	* Demonstrate failure when host LMS has invalid ingest source class DCB-739
+	* Demonstrate failure when host LMS has invalid client class DCB-739
+	* Demonstrate failure when host LMS ingest source class is unknown DCB-739
+	* Demonstrate failure when host LMS client class is unknown DCB-739
+	* Constrain client and ingest source types in fixture DCB-739
+	* Define ingest source class explicitly for Polaris host LMS DCB-739
+	* Introduce parameter for ingest source class when creating host LMS DCB-739
+
+### Fixes
+* [General]
+	* Amend annotations on ReferenceValueMapping to fix failing tests [DCB-603]
+
 ## Version 2.6.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Remove unused factory method for availability report
 	* Reformat Polaris host LMS client
 	* Reformat Sierra host LMS client
