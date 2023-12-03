@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 3.0.1
+
+### Changes
+* [Chore]
+	* move mapping around in ReferenceValueMappingService to provide more meaningful logging
+* [Feature]
+	* Disable auto location configuration for sierra. data too messy to rely upon, locations don't have agencies attached
+
 ## Version 3.0.0
 
 ### Additions
@@ -8,6 +16,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* more logging
 	* defensive code rejecting locations which specify an unknown agency
 	* graphql - implement more sort defaults
