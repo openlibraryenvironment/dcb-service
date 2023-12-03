@@ -783,9 +783,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public Publisher<ConfigurationRecord> getConfigStream() {
-		return Flux.from(getBranches())
-			.concatWith(getPickupLocations())
-			.concatWith(getPatronMetadata());
+
+		// II: This is just creating confusion disabling for now
+		return Mono.empty();
+
+		// return Flux.from(getBranches())
+		// 	.concatWith(getPickupLocations())
+		// 	.concatWith(getPatronMetadata());
 	}
 
 	public TrackingRecord sierraPatronHoldToTrackingData(SierraPatronHold sph) {
