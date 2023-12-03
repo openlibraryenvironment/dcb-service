@@ -35,8 +35,7 @@ public class ReferenceValueMappingService {
 			fromCategory, fromContext, locationCode, toCategory, toContext);
 
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-			fromCategory, fromContext, locationCode, toCategory, toContext))
-			.doOnSuccess(mapping -> log.debug("Found mapping: {}", mapping));
+			fromCategory, fromContext, locationCode, toCategory, toContext));
 	}
 
 	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
@@ -50,6 +49,14 @@ public class ReferenceValueMappingService {
 
 		return findLocationToAgencyMapping(pickupLocationCode)
 			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(pickupLocationContext, pickupLocationCode)))
-			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(requestorLocalSystemCode, pickupLocationCode)));
+			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(requestorLocalSystemCode, pickupLocationCode)))
+			.doOnSuccess( result -> {
+				if ( result != null ) {
+					log.debug("Found mapping: {}", result);
+				}
+				else {
+					log.info("No pickup location mapping found for {} {} {}",pickupLocationCode,pickupLocationContext,requestorLocalSystemCode);
+				}
+			} );
 	}
 }
