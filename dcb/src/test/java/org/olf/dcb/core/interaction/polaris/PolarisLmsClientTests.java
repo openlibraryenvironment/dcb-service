@@ -20,6 +20,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoHoldCount;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
@@ -139,6 +140,7 @@ public class PolarisLmsClientTests {
 		assertThat(firstItem, hasLocalBibId(sourceRecordId));
 		assertThat(firstItem, hasLocalItemType("Book"));
 		assertThat(firstItem, hasLocalItemTypeCode("3"));
+		assertThat(firstItem, hasNoHoldCount());
 		assertThat(firstItem, isNotSuppressed());
 		assertThat(firstItem, hasAgencyCode("345test"));
 		assertThat(firstItem, hasAgencyName("Test College"));

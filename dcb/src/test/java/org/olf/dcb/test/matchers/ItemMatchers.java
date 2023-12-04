@@ -67,6 +67,10 @@ public class ItemMatchers {
 		return hasProperty("holdCount", is(expectedHoldCount));
 	}
 
+	public static Matcher<Item> hasNoHoldCount() {
+		return hasProperty("holdCount", is(nullValue()));
+	}
+
 	public static Matcher<Item> isNotSuppressed() {
 		return hasProperty("suppressed", is(false));
 	}
