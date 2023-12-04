@@ -1,12 +1,15 @@
 package services.k_int.interaction.sierra.items;
 
-import io.micronaut.core.annotation.Nullable;
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.Data;
-import services.k_int.interaction.sierra.FixedField;
 import java.util.Map;
 
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Data;
+import services.k_int.interaction.sierra.FixedField;
+
 @Data
+@Builder
 @Serdeable
 public class SierraItem {
 	@Nullable

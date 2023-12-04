@@ -10,9 +10,11 @@ import org.mockserver.model.HttpResponse;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 
 import io.micronaut.serde.annotation.Serdeable;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import services.k_int.interaction.sierra.items.SierraItem;
 
 @AllArgsConstructor
 public class SierraItemsAPIFixture {
@@ -32,6 +34,14 @@ public class SierraItemsAPIFixture {
 		mockServer
 			.when(sierraMockServerRequests.get("/"+itemId))
 			.respond(sierraMockServerResponses.jsonSuccess("items/1088431.json"));
+	}
+
+	public void itemsForBibId(String bibId, List<SierraItem> items) {
+		mockServer.when(getItemsForBib(bibId))
+			.respond(sierraMockServerResponses.jsonSuccess(json(
+				ItemResultSet.builder()
+					.entries(items)
+					.build())));
 	}
 
 	public void threeItemsResponseForBibId(String bibId) {
@@ -112,5 +122,14 @@ public class SierraItemsAPIFixture {
 		Integer itemType;
 		String location;
 		List<String> barcodes;
+	}
+
+	@Serdeable
+	@Data
+	@Builder
+	static class ItemResultSet {
+		int total;
+		int start;
+		@NotNull List<SierraItem> entries;
 	}
 }
