@@ -13,7 +13,6 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.olf.dcb.core.interaction.polaris.PAPIClient;
-import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
 import io.micronaut.core.annotation.Nullable;
@@ -67,7 +66,7 @@ public class ItemResultToItemMapper {
 				.suppressed(itemResult.getSuppressed())
 				.build())
 			.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode))
-			.flatMap(item -> enrichItemAgencyFromLocation(item, hostLmsCode));
+			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode));
 	}
 
 	@Nullable
@@ -118,17 +117,8 @@ public class ItemResultToItemMapper {
 				.localItemTypeCode(itemGetRow.getMaterialTypeID())
 				.suppressed(!itemGetRow.getIsDisplayInPAC())
 				.build())
-				.flatMap(item -> enrichItemAgencyFromLocation(item, hostLmsCode))
+				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
 				.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode));
-	}
-
-	Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromLocation(
-		org.olf.dcb.core.model.Item item, String hostSystem) {
-
-		return Mono.just(item)
-			.zipWhen(i -> locationToAgencyMappingService.findLocationToAgencyMapping(i, hostSystem),
-				Item::setAgency)
-			.defaultIfEmpty(item);
 	}
 
 	Mono<org.olf.dcb.core.model.Item> enrichItemWithMappedItemType(org.olf.dcb.core.model.Item item, String hostSystem) {

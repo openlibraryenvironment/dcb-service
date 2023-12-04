@@ -24,7 +24,13 @@ public class LocationToAgencyMappingService {
 			.flatMap(rvm -> Mono.from(agencyRepository.findOneByCode(rvm.getToValue())));
 	}
 
-	public Mono<DataAgency> findLocationToAgencyMapping(Item item, String hostLmsCode) {
+	public Mono<Item> enrichItemAgencyFromLocation(Item incomingItem, String hostLmsCode) {
+		return Mono.just(incomingItem)
+			.zipWhen(item -> findLocationToAgencyMapping(item, hostLmsCode), Item::setAgency)
+			.defaultIfEmpty(incomingItem);
+	}
+
+	private Mono<DataAgency> findLocationToAgencyMapping(Item item, String hostLmsCode) {
 		return mapLocationToAgency(hostLmsCode, item.getLocation().getCode().trim());
 	}
 }
