@@ -13,6 +13,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.olf.dcb.core.interaction.polaris.PAPIClient;
+import org.olf.dcb.core.interaction.sierra.ItemMapper;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
 import io.micronaut.core.annotation.Nullable;
@@ -32,13 +33,17 @@ public class ItemResultToItemMapper {
 
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 
+	private final ItemMapper sierraItemMapper;
+
 	ItemResultToItemMapper(ItemStatusMapper itemStatusMapper,
 		NumericItemTypeMapper itemTypeMapper,
-		LocationToAgencyMappingService locationToAgencyMappingService) {
+		LocationToAgencyMappingService locationToAgencyMappingService,
+		ItemMapper sierraItemMapper) {
 
 		this.itemStatusMapper = itemStatusMapper;
 		this.itemTypeMapper = itemTypeMapper;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
+		this.sierraItemMapper = sierraItemMapper;
 	}
 
 	public Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem itemResult,
