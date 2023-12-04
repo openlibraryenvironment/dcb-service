@@ -47,7 +47,6 @@ import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.HostLms;
@@ -119,24 +118,24 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final SierraApiClient client;
 	private final ProcessStateService processStateService;
 	private final RawSourceRepository rawSourceRepository;
-	private final ItemResultToItemMapper itemResultToItemMapper;
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 	private final NumericPatronTypeMapper numericPatronTypeMapper;
+	private final ItemMapper itemMapper;
+
 	private final Integer getHoldsRetryAttempts;
 
 	public SierraLmsClient(@Parameter HostLms lms,
 		HostLmsSierraApiClientFactory clientFactory,
-		RawSourceRepository rawSourceRepository, 
+		RawSourceRepository rawSourceRepository,
 		ProcessStateService processStateService,
-		ReferenceValueMappingRepository referenceValueMappingRepository, 
+		ReferenceValueMappingRepository referenceValueMappingRepository,
 		ConversionService conversionService,
-		ItemResultToItemMapper itemResultToItemMapper,
-		NumericPatronTypeMapper numericPatronTypeMapper) {
+		NumericPatronTypeMapper numericPatronTypeMapper, ItemMapper itemMapper) {
 
 		this.lms = lms;
-		this.itemResultToItemMapper = itemResultToItemMapper;
 
 		this.getHoldsRetryAttempts = getGetHoldsRetryAttempts(lms.getClientConfig());
+		this.itemMapper = itemMapper;
 
 		// Get a sierra api client.
 		client = clientFactory.createClientFor(lms);
@@ -376,12 +375,16 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<List<Item>> getItems(String localBibId) {
 		log.debug("getItemsByBibId({})", localBibId);
 
-		return Mono.from(client.items(params -> params.deleted(false).bibIds(List.of(localBibId))
+		return Mono.from(client.items(params -> params
+				.deleted(false)
+				.bibIds(List.of(localBibId))
 				.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "suppressed", "bibIds", "location",
 					"status", "volumes", "barcode", "callNumber", "itemType", "transitInfo", "copyNo", "holdCount",
 					"fixedFields", "varFields"))))
-			.map(ResultSet::getEntries).flatMapMany(Flux::fromIterable)
-			.flatMap(result -> itemResultToItemMapper.mapResultToItem(result, lms.getCode(), localBibId)).collectList();
+			.map(ResultSet::getEntries)
+			.flatMapMany(Flux::fromIterable)
+			.flatMap(result -> itemMapper.mapResultToItem(result, lms.getCode(), localBibId))
+			.collectList();
 	}
 
 	public Mono<Patron> patronFind(String varFieldTag, String varFieldContent) {

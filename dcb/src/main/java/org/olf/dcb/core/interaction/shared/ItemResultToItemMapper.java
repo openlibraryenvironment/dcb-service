@@ -10,13 +10,11 @@ import java.time.format.DateTimeParseException;
 import java.util.Locale;
 
 import org.olf.dcb.core.interaction.polaris.PAPIClient;
-import org.olf.dcb.core.interaction.sierra.ItemMapper;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
 
 @Slf4j
@@ -27,23 +25,13 @@ public class ItemResultToItemMapper {
 
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 
-	private final ItemMapper sierraItemMapper;
-
 	ItemResultToItemMapper(ItemStatusMapper itemStatusMapper,
 		NumericItemTypeMapper itemTypeMapper,
-		LocationToAgencyMappingService locationToAgencyMappingService,
-		ItemMapper sierraItemMapper) {
+		LocationToAgencyMappingService locationToAgencyMappingService) {
 
 		this.itemStatusMapper = itemStatusMapper;
 		this.itemTypeMapper = itemTypeMapper;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
-		this.sierraItemMapper = sierraItemMapper;
-	}
-
-	public Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem itemResult,
-		String hostLmsCode, String localBibId) {
-
-		return sierraItemMapper.mapResultToItem(itemResult, hostLmsCode, localBibId);
 	}
 
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(

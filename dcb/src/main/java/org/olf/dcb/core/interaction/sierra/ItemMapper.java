@@ -20,12 +20,12 @@ import services.k_int.interaction.sierra.items.SierraItem;
 
 @Slf4j
 @Singleton
-public class ItemMapper {
+class ItemMapper {
 	private final ItemStatusMapper itemStatusMapper;
 	private final NumericItemTypeMapper itemTypeMapper;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 
-	public ItemMapper(ItemStatusMapper itemStatusMapper, NumericItemTypeMapper itemTypeMapper,
+	ItemMapper(ItemStatusMapper itemStatusMapper, NumericItemTypeMapper itemTypeMapper,
 		LocationToAgencyMappingService locationToAgencyMappingService) {
 
 		this.itemStatusMapper = itemStatusMapper;
