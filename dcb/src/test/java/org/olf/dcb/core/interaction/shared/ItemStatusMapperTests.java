@@ -4,7 +4,6 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.polarisFallback;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
@@ -13,8 +12,6 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.test.DcbTest;
@@ -47,8 +44,7 @@ class ItemStatusMapperTests {
 			defineStatusMapping("-", "AVAILABLE");
 
 			// Act
-			final var mappedStatus = mapStatusWithUnknownFallback(
-				new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
+			final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
 
 			// Assert
 			assertThat(mappedStatus, is(notNullValue()));
@@ -61,8 +57,7 @@ class ItemStatusMapperTests {
 			defineStatusMapping("-", "AVAILABLE");
 
 			// Act
-			final var mappedStatus = mapStatusWithUnknownFallback(
-				new Status("-", "AVAILABLE", null));
+			final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", null));
 
 			// Assert
 			assertThat(mappedStatus, is(notNullValue()));
@@ -75,8 +70,7 @@ class ItemStatusMapperTests {
 			defineStatusMapping("/", "UNAVAILABLE");
 
 			// Act
-			final var mappedStatus = mapStatusWithUnknownFallback(
-				new Status("/", "UNAVAILABLE", null));
+			final var mappedStatus = mapStatus(new Status("/", "UNAVAILABLE", null));
 
 			// Assert
 			assertThat(mappedStatus, is(notNullValue()));
@@ -90,8 +84,7 @@ class ItemStatusMapperTests {
 
 			// Act
 			final var exception = assertThrows(IllegalArgumentException.class, () ->
-				mapStatusWithUnknownFallback(
-					new Status("?", "INVALID", "2023-04-22T15:55:13Z")));
+				mapStatus(new Status("?", "INVALID", "2023-04-22T15:55:13Z")));
 
 			// Assert
 			assertThat(exception, is(notNullValue()));
@@ -105,8 +98,7 @@ class ItemStatusMapperTests {
 			defineStatusMapping("?", "INVALID");
 
 			// Act
-			final var mappedStatus = mapStatusWithUnknownFallback(
-				new Status("NOT_MATCHED", "", null));
+			final var mappedStatus = mapStatus(new Status("NOT_MATCHED", "", null));
 
 			// Assert
 			assertThat(mappedStatus, is(notNullValue()));
@@ -118,84 +110,9 @@ class ItemStatusMapperTests {
 		}
 	}
 
-	@Nested
-	class PolarisFallbackMappingTests {
-		/**
-		 * The codes used here come from the descriptions from
-		 * <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/itemstatuses/get_item_statuses">this API</a>
-		 */
-
-		@Test
-		void statusIsAvailableWhenCodeIsAvailable() {
-			final var mappedStatus = mapPolarisStatus("In");
-
-			assertThat(mappedStatus, is(notNullValue()));
-			assertThat(mappedStatus.getCode(), is(AVAILABLE));
-		}
-
-		@ParameterizedTest
-		@ValueSource(strings = {
-			"Bindery",
-			"Claim Missing Parts",
-			"Claim Never Had",
-			"Claim Returned",
-			"EContent External Loan",
-			"Held",
-			"In-Process",
-			"In-Repair",
-			"In-Transit",
-			"Lost",
-			"Missing",
-			"Non-circulating",
-			"On-Order",
-			"Out",
-			"Out-ILL",
-			"Returned-ILL",
-			"Routed",
-			"Shelving",
-			"Transferred",
-			"Unavailable",
-			"Withdrawn"
-		})
-		void statusIsUnavailableWhenCodeAnythingElse(String statusCode) {
-			final var mappedStatus = mapPolarisStatus(statusCode);
-
-			assertThat(mappedStatus, is(notNullValue()));
-			assertThat(mappedStatus.getCode(), is(UNAVAILABLE));
-		}
-
-		@Test
-		void statusIsUnknownWhenCodeIsNull() {
-			final var mappedStatus = mapPolarisStatus(null);
-
-			assertThat(mappedStatus, is(notNullValue()));
-			assertThat(mappedStatus.getCode(), is(UNKNOWN));
-		}
-
-		@Test
-		void statusIsUnknownWhenCodeIsEmptyString() {
-			final var mappedStatus = mapPolarisStatus("");
-
-			assertThat(mappedStatus, is(notNullValue()));
-			assertThat(mappedStatus.getCode(), is(UNKNOWN));
-		}
-		@Nullable
-		private ItemStatus mapPolarisStatus(String statusCode) {
-			return mapper.mapStatus(Status.builder().code(statusCode).build(),
-					HOST_LMS_CODE, polarisFallback())
-				.block();
-		}
-
-	}
-
 	@Nullable
-	private ItemStatus mapStatusWithUnknownFallback(Status status) {
-		return mapStatus(status, unknownStatusFallback());
-	}
-
-	@Nullable
-	private ItemStatus mapStatus(Status status, FallbackMapper fallbackMapper) {
-		return mapper.mapStatus(status, HOST_LMS_CODE, fallbackMapper)
+	private ItemStatus mapStatus(Status status) {
+		return mapper.mapStatus(status, HOST_LMS_CODE, unknownStatusFallback())
 			.block();
 	}
 
