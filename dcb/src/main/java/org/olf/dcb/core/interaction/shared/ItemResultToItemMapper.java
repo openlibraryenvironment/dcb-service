@@ -13,6 +13,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.olf.dcb.core.interaction.polaris.PAPIClient;
+import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
 import io.micronaut.core.annotation.Nullable;
@@ -126,9 +127,7 @@ public class ItemResultToItemMapper {
 
 		return Mono.just(item)
 			.zipWhen(i -> locationToAgencyMappingService.mapLocationToAgency(hostSystem, i.getLocation().getCode().trim()),
-				(i, agency) -> i
-					.setAgencyCode(agency.getCode())
-					.setAgencyName(agency.getName()))
+				Item::setAgency)
 			.defaultIfEmpty(item);
 	}
 

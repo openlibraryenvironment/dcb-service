@@ -56,6 +56,11 @@ public class Item implements Comparable<Item> {
 			: location.getCode();
 	}
 
+	public Item setAgency(DataAgency agency) {
+		return setAgencyCode(agency.getCode())
+			.setAgencyName(agency.getName());
+	}
+
 	@Override
 	public int compareTo(Item other) {
 		return nullsLast(CompareByLocationCodeThenCallNumber())
