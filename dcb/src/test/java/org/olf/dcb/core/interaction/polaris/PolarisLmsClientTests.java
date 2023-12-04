@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
@@ -39,6 +40,7 @@ import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -118,8 +120,10 @@ public class PolarisLmsClientTests {
 			.respond(okJson(resourceLoader.getResource("itemstatuses.json")));
 
 		// Act
-		final var itemsList = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.getItems(sourceRecordId).block();
+		final var itemsList = singleValueFrom(hostLmsFixture.createClient(HOST_LMS_CODE)
+			.getItems(BibRecord.builder()
+				.sourceRecordId(sourceRecordId)
+				.build()));
 
 		// Assert
 		assertThat(itemsList, is(notNullValue()));

@@ -29,11 +29,16 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.suppressionUnknown;
 
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.Item;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.NumericRangeMappingFixture;
@@ -101,7 +106,7 @@ class SierraHostLmsClientItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var items = singleValueFrom(client.getItems("65423515"));
+		final var items = getItems(client, "65423515");
 
 		assertThat(items, containsInAnyOrder(
 			allOf(
@@ -167,8 +172,14 @@ class SierraHostLmsClientItemTests {
 
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var items = singleValueFrom(client.getItems("87878325"));
+		final var items = getItems(client,"87878325");
 
 		assertThat("Should have no items", items, is(empty()));
+	}
+
+	private static List<Item> getItems(HostLmsClient client, String sourceRecordId) {
+		return singleValueFrom(client.getItems(BibRecord.builder()
+			.sourceRecordId(sourceRecordId)
+			.build()));
 	}
 }
