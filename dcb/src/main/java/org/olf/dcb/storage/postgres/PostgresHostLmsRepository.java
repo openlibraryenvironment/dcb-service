@@ -22,6 +22,10 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import io.micronaut.data.repository.jpa.reactive.ReactiveStreamsJpaSpecificationExecutor;
 
+import org.reactivestreams.Publisher;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.async.annotation.SingleResult;
+
 @SuppressWarnings("unchecked")
 @Singleton
 @R2dbcRepository(dialect = Dialect.POSTGRES)
@@ -29,4 +33,8 @@ import io.micronaut.data.repository.jpa.reactive.ReactiveStreamsJpaSpecification
 public interface PostgresHostLmsRepository extends ReactiveStreamsPageableRepository<DataHostLms, UUID>, 
                                                         ReactiveStreamsJpaSpecificationExecutor<DataHostLms>,
                                                         HostLmsRepository {
+
+        @NonNull
+        @SingleResult
+        Publisher<DataHostLms> findById(@NonNull UUID id);
 }

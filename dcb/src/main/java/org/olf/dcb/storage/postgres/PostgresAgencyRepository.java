@@ -45,6 +45,8 @@ import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 import io.micronaut.data.repository.jpa.reactive.ReactiveStreamsJpaSpecificationExecutor;
 
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.async.annotation.SingleResult;
 
 
 @SuppressWarnings("unchecked")
@@ -55,4 +57,9 @@ public interface PostgresAgencyRepository extends
         ReactiveStreamsPageableRepository<DataAgency, UUID>, 
         ReactiveStreamsJpaSpecificationExecutor<DataAgency>,
         AgencyRepository {
+
+        @NonNull
+        @SingleResult
+        Publisher<DataAgency> findById(@NonNull UUID id);
+
 }

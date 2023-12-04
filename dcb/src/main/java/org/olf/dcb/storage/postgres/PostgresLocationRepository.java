@@ -13,6 +13,12 @@ import io.micronaut.data.repository.reactive.ReactiveStreamsPageableRepository;
 import jakarta.inject.Singleton;
 import io.micronaut.data.repository.jpa.reactive.ReactorJpaSpecificationExecutor;
 
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.async.annotation.SingleResult;
+import org.reactivestreams.Publisher;
+import jakarta.validation.constraints.NotNull;
+
+
 @SuppressWarnings("unchecked")
 @Singleton
 @R2dbcRepository(dialect = Dialect.POSTGRES)
@@ -20,5 +26,9 @@ import io.micronaut.data.repository.jpa.reactive.ReactorJpaSpecificationExecutor
 public interface PostgresLocationRepository extends ReactiveStreamsPageableRepository<Location, UUID>, 
                                                 ReactorJpaSpecificationExecutor<Location>,
                                                 LocationRepository {
+        @NonNull
+        @SingleResult
+        Publisher<Location> findById(@NotNull UUID id);
+
 }
 

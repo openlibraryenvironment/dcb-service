@@ -89,6 +89,12 @@ public class GraphQLFactory {
                                                 .dataFetcher("suppliers", dataFetchers.getSupplierRequestsForPR())
                                                 .dataFetcher("audit", dataFetchers.getAuditMessagesForPR())
                                 )
+                                .type("Location",
+					typeWiring -> typeWiring
+                                                .dataFetcher("agency", dataFetchers.getAgencyForLocation())
+                                                .dataFetcher("hostSystem", dataFetchers.getHostSystemForLocation())
+                                                .dataFetcher("parentLocation", dataFetchers.getParentForLocation())
+                                )
 				.scalar(ExtendedScalars.Json)
 				.build();
 

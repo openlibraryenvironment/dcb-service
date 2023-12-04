@@ -367,4 +367,32 @@ public class DataFetchers {
                         return Mono.from(postgresPatronRequestRepository.getPRForSRID(sr.getId())).toFuture();
                 };
 	}
+
+	public DataFetcher<CompletableFuture<DataAgency>> getAgencyForLocation() {
+                // ToDo: FillOut
+                return env -> {
+                        Location l = (Location) env.getSource();
+                        UUID agencyUUID = l.getAgency().getId();
+                        return Mono.from(postgresAgencyRepository.findById(agencyUUID)).toFuture();
+                };
+	}
+
+        public DataFetcher<CompletableFuture<DataHostLms>> getHostSystemForLocation() {
+                // ToDo: FillOut
+                return env -> {
+                        Location l = (Location) env.getSource();
+                        UUID hostSystemUUID = l.getHostSystem().getId();
+                        return Mono.from(postgresHostLmsRepository.findById(hostSystemUUID)).toFuture();
+                };
+        }
+        
+        public DataFetcher<CompletableFuture<Location>> getParentForLocation() {
+                // ToDo: FillOut
+                return env -> {
+                        Location l = (Location) env.getSource();
+                        @io.micronaut.core.annotation.NonNull
+                        UUID parentLocationUUID = l.getParentLocation().getId();
+                        return Mono.from(postgresLocationRepository.findById(parentLocationUUID)).toFuture();
+                };
+        }
 }
