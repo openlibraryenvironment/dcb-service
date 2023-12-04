@@ -175,14 +175,23 @@ class ItemStatusMapperTests {
 			assertThat(mappedStatus, is(notNullValue()));
 			assertThat(mappedStatus.getCode(), is(UNKNOWN));
 		}
+
+		@Nullable
+		private ItemStatus mapSierraStatus(Status status) {
+			FallbackMapper fallbackMapper = sierraFallback();
+			return mapper.mapStatus(status, HOST_LMS_CODE, fallbackMapper)
+				.block();
+		}
 	}
 
-	/**
-	 * The codes used here come from the descriptions from
-	 * <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/itemstatuses/get_item_statuses">this API</a>
-	 */
+
 	@Nested
 	class PolarisFallbackMappingTests {
+		/**
+		 * The codes used here come from the descriptions from
+		 * <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/itemstatuses/get_item_statuses">this API</a>
+		 */
+
 		@Test
 		void statusIsAvailableWhenCodeIsAvailable() {
 			final var mappedStatus = mapPolarisStatus("In");
@@ -237,18 +246,13 @@ class ItemStatusMapperTests {
 			assertThat(mappedStatus, is(notNullValue()));
 			assertThat(mappedStatus.getCode(), is(UNKNOWN));
 		}
-
 		@Nullable
 		private ItemStatus mapPolarisStatus(String statusCode) {
 			return mapper.mapStatus(Status.builder().code(statusCode).build(),
 					HOST_LMS_CODE, polarisFallback())
 				.block();
 		}
-	}
 
-	@Nullable
-	private ItemStatus mapSierraStatus(Status status) {
-		return mapStatus(status, sierraFallback());
 	}
 
 	@Nullable
