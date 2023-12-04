@@ -63,6 +63,7 @@ class PatronRequestApiTests {
 	private static final String HOST_LMS_CODE = "patron-request-api-tests";
 	private static final String KNOWN_PATRON_LOCAL_ID = "872321";
 	private static final String PICKUP_LOCATION_CODE = "ABC123";
+	private static final String SUPPLYING_LOCATION_CODE = "ab6";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -121,7 +122,7 @@ class PatronRequestApiTests {
 			.id("1000002")
 			.statusCode("-")
 				.callNumber("BL221 .C48")
-				.locationCode("ab6")
+				.locationCode(SUPPLYING_LOCATION_CODE)
 				.locationName("King 6th Floor")
 				.barcode("6565750674")
 				.itemType("999")
@@ -142,11 +143,11 @@ class PatronRequestApiTests {
 			.build();
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
-		sierraItemsAPIFixture.successResponseForCreateItem(7916920, "ab6", "6565750674");
+		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_LOCATION_CODE, "6565750674");
 		sierraPatronsAPIFixture.patronHoldRequestResponse(KNOWN_PATRON_LOCAL_ID, "i", null);
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
-		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
+		sierraItemsAPIFixture.successResponseForCreateItem(7916921, SUPPLYING_LOCATION_CODE, "9849123490");
 
 		agencyFixture.deleteAll();
 
@@ -160,7 +161,7 @@ class PatronRequestApiTests {
 
 		agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
-			.code("ab6")
+			.code(SUPPLYING_LOCATION_CODE)
 			.name("AB6")
 			.hostLms(h3)
 			.build());
@@ -181,10 +182,10 @@ class PatronRequestApiTests {
 
 		eventLogFixture.deleteAll();
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab6", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, SUPPLYING_LOCATION_CODE, SUPPLYING_LOCATION_CODE);
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping( HOST_LMS_CODE, "tstce", "ab6");
-		referenceValueMappingFixture.defineLocationToAgencyMapping( HOST_LMS_CODE, "tstr", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping( HOST_LMS_CODE, "tstce", SUPPLYING_LOCATION_CODE);
+		referenceValueMappingFixture.defineLocationToAgencyMapping( HOST_LMS_CODE, "tstr", SUPPLYING_LOCATION_CODE);
 
 		locationFixture.createPickupLocation(PICKUP_LOCATION_CODE, PICKUP_LOCATION_CODE);
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, PICKUP_LOCATION_CODE, "AGENCY1");
@@ -295,7 +296,7 @@ class PatronRequestApiTests {
 		assertThat(supplierRequest.getItem(), is(notNullValue()));
 		assertThat(supplierRequest.getItem().getId(), is("1000002"));
 		assertThat(supplierRequest.getItem().getLocalItemBarcode(), is("6565750674"));
-		assertThat(supplierRequest.getItem().getLocalItemLocationCode(), is("ab6"));
+		assertThat(supplierRequest.getItem().getLocalItemLocationCode(), is(SUPPLYING_LOCATION_CODE));
 
 		assertThat(fetchedPatronRequest.getAudits(), is(notNullValue()));
 
