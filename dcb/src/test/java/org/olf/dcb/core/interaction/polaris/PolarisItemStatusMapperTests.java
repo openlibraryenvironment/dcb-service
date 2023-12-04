@@ -23,6 +23,11 @@ import services.k_int.interaction.sierra.items.Status;
 
 @DcbTest
 class PolarisItemStatusMapperTests {
+	/**
+	 * The codes used here come from the descriptions from
+	 * <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/itemstatuses/get_item_statuses">this API</a>
+	 */
+
 	private static final String HOST_LMS_CODE = "polaris-host-lms";
 
 	@Inject
@@ -36,14 +41,22 @@ class PolarisItemStatusMapperTests {
 		referenceValueMappingFixture.deleteAll();
 	}
 
-	/**
-	 * The codes used here come from the descriptions from
-	 * <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/itemstatuses/get_item_statuses">this API</a>
-	 */
+	@Test
+	void statusIsAvailableWhenCodeIsIn() {
+		final var mappedStatus = mapPolarisStatus("In");
+
+		assertThat(mappedStatus, is(notNullValue()));
+		assertThat(mappedStatus.getCode(), is(AVAILABLE));
+	}
 
 	@Test
-	void statusIsAvailableWhenCodeIsAvailable() {
-		final var mappedStatus = mapPolarisStatus("In");
+	void statusIsAvailableWhenCodeIsInEvenWhenDueDateIsProvided() {
+		final var mappedStatus = mapper.mapStatus(Status.builder()
+					.code("In")
+					.duedate("2023-10-05T23:59:59Z")
+					.build(),
+				HOST_LMS_CODE, false, polarisFallback())
+			.block();
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(AVAILABLE));
@@ -95,10 +108,13 @@ class PolarisItemStatusMapperTests {
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(UNKNOWN));
 	}
+
 	@Nullable
 	private ItemStatus mapPolarisStatus(String statusCode) {
-		return mapper.mapStatus(Status.builder().code(statusCode).build(),
-				HOST_LMS_CODE, polarisFallback())
+		return mapper.mapStatus(Status.builder()
+					.code(statusCode)
+					.build(),
+				HOST_LMS_CODE, true, polarisFallback())
 			.block();
 	}
 }

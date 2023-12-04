@@ -36,7 +36,7 @@ public class ItemStatusMapper {
 	}
 
 	public Mono<ItemStatus> mapStatus(Status status, String hostLmsCode,
-		FallbackMapper fallbackStatusMapping) {
+		boolean checkForDueDate, FallbackMapper fallbackStatusMapping) {
 
 		log.debug("mapStatus( status: {}, hostLmsCode: {} )", status, hostLmsCode);
 
@@ -48,7 +48,7 @@ public class ItemStatusMapper {
 			.map(ReferenceValueMapping::getToValue)
 			.map(ItemStatusCode::valueOf)
 			.defaultIfEmpty(fallbackStatusMapping.map(statusCode))
-			.map(itemStatusCode -> checkForDueDate(itemStatusCode, dueDate))
+			.map(itemStatusCode -> checkForDueDate(itemStatusCode, dueDate, checkForDueDate))
 			.map(ItemStatus::new);
 	}
 
@@ -62,8 +62,16 @@ public class ItemStatusMapper {
 		return Optional.ofNullable(status).map(function).orElse(null);
 	}
 
-	private ItemStatusCode checkForDueDate(ItemStatusCode itemStatusCode, String dueDate) {
-		return itemStatusCode.equals(AVAILABLE) && isNotEmpty(dueDate) ? CHECKED_OUT : itemStatusCode;
+	private ItemStatusCode checkForDueDate(ItemStatusCode itemStatusCode,
+		String dueDate, boolean checkForDueDate) {
+
+		if (!checkForDueDate) {
+			return itemStatusCode;
+		}
+
+		return itemStatusCode.equals(AVAILABLE) && isNotEmpty(dueDate)
+			? CHECKED_OUT
+			: itemStatusCode;
 	}
 
 	@FunctionalInterface

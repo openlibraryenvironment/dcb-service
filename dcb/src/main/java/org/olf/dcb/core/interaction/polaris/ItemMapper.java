@@ -42,7 +42,7 @@ class ItemMapper {
 			.duedate(itemGetRow.getDueDate())
 			.build();
 
-		return itemStatusMapper.mapStatus(status, hostLmsCode, polarisFallback())
+		return itemStatusMapper.mapStatus(status, hostLmsCode, false, polarisFallback())
 			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
 				.localId(String.valueOf(itemGetRow.getItemRecordID()))
 				.status(itemStatus)

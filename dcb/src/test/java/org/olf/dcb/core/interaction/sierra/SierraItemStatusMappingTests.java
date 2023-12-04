@@ -94,8 +94,7 @@ public class SierraItemStatusMappingTests {
 
 	@Nullable
 	private ItemStatus mapSierraStatus(Status status) {
-		ItemStatusMapper.FallbackMapper fallbackMapper = sierraFallback();
-		return mapper.mapStatus(status, HOST_LMS_CODE, fallbackMapper)
+		return mapper.mapStatus(status, HOST_LMS_CODE, true, sierraFallback())
 			.block();
 	}
 }

@@ -36,7 +36,7 @@ class ItemStatusMapperTests {
 	}
 
 	@Test
-	void statusCheckedOutIsMappedWhenValidMappingPresent() {
+	void statusCheckedOutIsMappedWhenValidMappingPresentAndDueDateIsPresent() {
 		// Arrange
 		defineStatusMapping("-", "AVAILABLE");
 
@@ -49,7 +49,7 @@ class ItemStatusMapperTests {
 	}
 
 	@Test
-	void statusAvailableIsMappedWhenValidMappingPresent() {
+	void statusAvailableIsMappedWhenValidMappingPresentAndNoDueDateIsPresent() {
 		// Arrange
 		defineStatusMapping("-", "AVAILABLE");
 
@@ -108,7 +108,7 @@ class ItemStatusMapperTests {
 
 	@Nullable
 	private ItemStatus mapStatus(Status status) {
-		return mapper.mapStatus(status, HOST_LMS_CODE, unknownStatusFallback())
+		return mapper.mapStatus(status, HOST_LMS_CODE, true, unknownStatusFallback())
 			.block();
 	}
 
