@@ -10,7 +10,6 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper;
 import org.olf.dcb.core.model.ItemStatus;
@@ -23,7 +22,7 @@ import services.k_int.interaction.sierra.items.Status;
 
 @DcbTest
 class ItemStatusMapperTests {
-	private static final String HOST_LMS_CODE = "test1";
+	private static final String HOST_LMS_CODE = "any-host-lms";
 
 	@Inject
 	private ItemStatusMapper mapper;
@@ -36,78 +35,75 @@ class ItemStatusMapperTests {
 		referenceValueMappingFixture.deleteAll();
 	}
 
-	@Nested
-	class ReferenceValueMappingTests {
-		@Test
-		void statusCheckedOutIsMappedWhenValidMappingPresent() {
-			// Arrange
-			defineStatusMapping("-", "AVAILABLE");
+	@Test
+	void statusCheckedOutIsMappedWhenValidMappingPresent() {
+		// Arrange
+		defineStatusMapping("-", "AVAILABLE");
 
-			// Act
-			final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
+		// Act
+		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
 
-			// Assert
-			assertThat(mappedStatus, is(notNullValue()));
-			assertThat(mappedStatus.getCode(), is(CHECKED_OUT));
-		}
+		// Assert
+		assertThat(mappedStatus, is(notNullValue()));
+		assertThat(mappedStatus.getCode(), is(CHECKED_OUT));
+	}
 
-		@Test
-		void statusAvailableIsMappedWhenValidMappingPresent() {
-			// Arrange
-			defineStatusMapping("-", "AVAILABLE");
+	@Test
+	void statusAvailableIsMappedWhenValidMappingPresent() {
+		// Arrange
+		defineStatusMapping("-", "AVAILABLE");
 
-			// Act
-			final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", null));
+		// Act
+		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", null));
 
-			// Assert
-			assertThat(mappedStatus, is(notNullValue()));
-			assertThat(mappedStatus.getCode(), is(AVAILABLE));
-		}
+		// Assert
+		assertThat(mappedStatus, is(notNullValue()));
+		assertThat(mappedStatus.getCode(), is(AVAILABLE));
+	}
 
-		@Test
-		void statusUnavailableIsMappedWhenValidMappingPresent() {
-			// Arrange
-			defineStatusMapping("/", "UNAVAILABLE");
+	@Test
+	void statusUnavailableIsMappedWhenValidMappingPresent() {
+		// Arrange
+		defineStatusMapping("/", "UNAVAILABLE");
 
-			// Act
-			final var mappedStatus = mapStatus(new Status("/", "UNAVAILABLE", null));
+		// Act
+		final var mappedStatus = mapStatus(new Status("/", "UNAVAILABLE", null));
 
-			// Assert
-			assertThat(mappedStatus, is(notNullValue()));
-			assertThat(mappedStatus.getCode(), is(UNAVAILABLE));
-		}
+		// Assert
+		assertThat(mappedStatus, is(notNullValue()));
+		assertThat(mappedStatus.getCode(), is(UNAVAILABLE));
+	}
 
-		@Test
-		void statusIsNotMappedToInvalidEnum() {
-			// Arrange
-			defineStatusMapping("?", "INVALID");
+	@Test
+	void statusIsNotMappedToInvalidEnum() {
+		// Arrange
+		defineStatusMapping("?", "INVALID");
 
-			// Act
-			final var exception = assertThrows(IllegalArgumentException.class, () ->
-				mapStatus(new Status("?", "INVALID", "2023-04-22T15:55:13Z")));
+		// Act
+		final var exception = assertThrows(IllegalArgumentException.class, () ->
+			mapStatus(new Status("?", "INVALID", "2023-04-22T15:55:13Z")));
 
-			// Assert
-			assertThat(exception, is(notNullValue()));
-			assertThat(exception.getMessage(),
-				is("No enum constant org.olf.dcb.core.model.ItemStatusCode.INVALID"));
-		}
+		// Assert
+		assertThat(exception, is(notNullValue()));
+		assertThat(exception.getMessage(),
+			is("No enum constant org.olf.dcb.core.model.ItemStatusCode.INVALID"));
+	}
 
-		@Test
-		void statusIsUnknownWhenNoMatchingMappingIsDefined() {
-			// Arrange
-			defineStatusMapping("?", "INVALID");
+	@Test
+	void statusIsUnknownWhenNoMatchingMappingIsDefined() {
+		// Arrange
+		defineStatusMapping("?", "INVALID");
 
-			// Act
-			final var mappedStatus = mapStatus(new Status("NOT_MATCHED", "", null));
+		// Act
+		final var mappedStatus = mapStatus(new Status("NOT_MATCHED", "", null));
 
-			// Assert
-			assertThat(mappedStatus, is(notNullValue()));
-			assertThat(mappedStatus.getCode(), is(UNKNOWN));
-		}
+		// Assert
+		assertThat(mappedStatus, is(notNullValue()));
+		assertThat(mappedStatus.getCode(), is(UNKNOWN));
+	}
 
-		private void defineStatusMapping(String fromValue, String toValue) {
-			referenceValueMappingFixture.defineItemStatusMapping(HOST_LMS_CODE, fromValue, toValue);
-		}
+	private void defineStatusMapping(String fromValue, String toValue) {
+		referenceValueMappingFixture.defineItemStatusMapping(HOST_LMS_CODE, fromValue, toValue);
 	}
 
 	@Nullable
