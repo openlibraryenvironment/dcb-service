@@ -32,6 +32,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.NumericRangeMappingFixture;
 
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
@@ -50,6 +51,8 @@ class SierraHostLmsClientItemTests {
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
+	@Inject
+	private NumericRangeMappingFixture numericRangeMappingFixture;
 
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
@@ -80,6 +83,8 @@ class SierraHostLmsClientItemTests {
 	void sierraCanRespondWithMultipleItems() {
 		// Arrange
 		sierraItemsAPIFixture.threeItemsResponseForBibId("65423515");
+
+		numericRangeMappingFixture.createMapping(HOST_LMS_CODE, "ItemType", 999L, 999L, "DCB", "BKM");
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
