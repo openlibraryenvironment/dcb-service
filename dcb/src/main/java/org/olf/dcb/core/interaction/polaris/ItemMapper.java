@@ -50,7 +50,7 @@ public class ItemMapper {
 			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
 				.localId(String.valueOf(itemGetRow.getItemRecordID()))
 				.status(itemStatus)
-				.dueDate( convertFrom(itemGetRow.getDueDate()) )
+				.dueDate(convertFrom(itemGetRow.getDueDate()))
 				.location(org.olf.dcb.core.model.Location.builder()
 					.code(String.valueOf(itemGetRow.getLocationID()))
 					.name(itemGetRow.getLocationName())
@@ -62,6 +62,7 @@ public class ItemMapper {
 				.localItemType(itemGetRow.getMaterialType())
 				.localItemTypeCode(itemGetRow.getMaterialTypeID())
 				.suppressed(!itemGetRow.getIsDisplayInPAC())
+				.deleted(false)
 				.build())
 				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
 				.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item, hostLmsCode));

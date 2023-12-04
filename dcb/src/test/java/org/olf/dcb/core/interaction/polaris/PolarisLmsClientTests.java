@@ -22,6 +22,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoHoldCount;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
@@ -142,6 +143,7 @@ public class PolarisLmsClientTests {
 		assertThat(firstItem, hasLocalItemTypeCode("3"));
 		assertThat(firstItem, hasNoHoldCount());
 		assertThat(firstItem, isNotSuppressed());
+		assertThat(firstItem, isNotDeleted());
 		assertThat(firstItem, hasAgencyCode("345test"));
 		assertThat(firstItem, hasAgencyName("Test College"));
 		assertThat(firstItem, hasCanonicalItemType("UNKNOWN"));
