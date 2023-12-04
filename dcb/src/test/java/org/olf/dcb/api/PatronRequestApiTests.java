@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Event;
@@ -116,7 +117,16 @@ class PatronRequestApiTests {
 
 		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
 
-		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
+		sierraItemsAPIFixture.itemsForBibId("798472", List.of(SierraItem.builder()
+			.id("1000002")
+			.statusCode("-")
+				.callNumber("BL221 .C48")
+				.locationCode("ab6")
+				.locationName("King 6th Floor")
+				.barcode("6565750674")
+				.itemType("999")
+				.holdCount(0)
+			.build()));
 
 		// patron service
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "872321@ab6");
