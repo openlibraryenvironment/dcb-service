@@ -176,16 +176,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<List<Item>> getItems(String localBibId) {
-		return papiClient.synch_ItemGetByBibID(localBibId)
-			.flatMapMany(Flux::fromIterable)
-			.flatMap(this::setCircStatus)
-			.flatMap(this::setMaterialTypeCode)
-			.flatMap(result -> itemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId))
-			.collectList();
-	}
-
-	@Override
 	public Mono<List<Item>> getItems(BibRecord bib) {
 		final var localBibId = bib.getSourceRecordId();
 

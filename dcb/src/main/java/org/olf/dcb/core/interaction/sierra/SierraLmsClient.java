@@ -372,22 +372,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.just("UNKNOWN");
 	}
 
-	@Override
-	public Mono<List<Item>> getItems(String localBibId) {
-		log.debug("getItemsByBibId({})", localBibId);
-
-		return Mono.from(client.items(params -> params
-				.deleted(false)
-				.bibIds(List.of(localBibId))
-				.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "suppressed", "bibIds", "location",
-					"status", "volumes", "barcode", "callNumber", "itemType", "transitInfo", "copyNo", "holdCount",
-					"fixedFields", "varFields"))))
-			.map(ResultSet::getEntries)
-			.flatMapMany(Flux::fromIterable)
-			.flatMap(result -> itemMapper.mapResultToItem(result, lms.getCode(), localBibId))
-			.collectList();
-	}
-
 	public Mono<List<Item>> getItems(BibRecord bib) {
 		log.debug("getItems({})", bib);
 

@@ -33,8 +33,6 @@ public interface HostLmsClient {
 
 	List<HostLmsPropertyDefinition> getSettings();
 
-	Mono<List<Item>> getItems(String localBibId);
-
 	Mono<List<Item>> getItems(BibRecord bibRecord);
 
 	Mono<String> createPatron(Patron patron);
