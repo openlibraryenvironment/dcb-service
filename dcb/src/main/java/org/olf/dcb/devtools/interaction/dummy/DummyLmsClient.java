@@ -357,7 +357,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return locationToAgencyMappingService.mapLocationToAgency(hostSystem, itemShelvingLocation)
 			.map(dataAgency -> {
 				item.setAgencyCode(dataAgency.getCode());
-				item.setAgencyDescription(dataAgency.getName());
+				item.setAgencyName(dataAgency.getName());
 				return item;
 			})
 			.defaultIfEmpty(item);

@@ -79,11 +79,11 @@ public class ItemMatchers {
 		return hasProperty("agencyCode", is(nullValue()));
 	}
 
-	public static Matcher<Item> hasAgencyDescription(String expectedAgencyDescription) {
-		return hasProperty("agencyDescription", is(expectedAgencyDescription));
+	public static Matcher<Item> hasAgencyName(String expectedAgencyDescription) {
+		return hasProperty("agencyName", is(expectedAgencyDescription));
 	}
 
-	public static Matcher<Item> hasNoAgencyDescription() {
-		return hasProperty("agencyDescription", is(nullValue()));
+	public static Matcher<Item> hasNoAgencyName() {
+		return hasProperty("agencyName", is(nullValue()));
 	}
 }

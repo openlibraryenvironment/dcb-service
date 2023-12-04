@@ -40,7 +40,7 @@ public class Item implements Comparable<Item> {
 	private Boolean deleted;
 	private Boolean suppressed;
 	private String agencyCode;
-	private String agencyDescription;
+	private String agencyName;
 
 	public boolean isAvailable() {
 		return getStatus().getCode() == AVAILABLE;

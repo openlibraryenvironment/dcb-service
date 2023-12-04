@@ -10,7 +10,7 @@ import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyDescription;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCanonicalItemType;
@@ -141,7 +141,7 @@ public class PolarisLmsClientTests {
 		assertThat(firstItem, hasLocalItemTypeCode("3"));
 		assertThat(firstItem, isNotSuppressed());
 		assertThat(firstItem, hasAgencyCode("345test"));
-		assertThat(firstItem, hasAgencyDescription("Test College"));
+		assertThat(firstItem, hasAgencyName("Test College"));
 		assertThat(firstItem, hasCanonicalItemType("UNKNOWN"));
 	}
 

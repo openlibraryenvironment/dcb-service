@@ -10,7 +10,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyDescription;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCanonicalItemType;
@@ -22,7 +22,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyCode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyDescription;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyName;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.suppressionUnknown;
@@ -115,7 +115,7 @@ class SierraHostLmsClientItemTests {
 				hasCanonicalItemType("BKM"),
 				hasHostLmsCode(HOST_LMS_CODE),
 				hasAgencyCode("sierra-agency"),
-				hasAgencyDescription("Sierra Agency"),
+				hasAgencyName("Sierra Agency"),
 				suppressionUnknown()
 			),
 			allOf(
@@ -131,7 +131,7 @@ class SierraHostLmsClientItemTests {
 				hasCanonicalItemType("BKM"),
 				hasHostLmsCode(HOST_LMS_CODE),
 				hasNoAgencyCode(),
-				hasNoAgencyDescription(),
+				hasNoAgencyName(),
 				suppressionUnknown()
 			),
 			allOf(
@@ -147,7 +147,7 @@ class SierraHostLmsClientItemTests {
 				hasCanonicalItemType("BKM"),
 				hasHostLmsCode(HOST_LMS_CODE),
 				hasNoAgencyCode(),
-				hasNoAgencyDescription(),
+				hasNoAgencyName(),
 				suppressionUnknown()
 			)
 		));

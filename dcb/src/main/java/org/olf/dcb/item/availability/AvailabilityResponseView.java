@@ -28,7 +28,7 @@ public class AvailabilityResponseView {
 				item.getBarcode(), item.getCallNumber(), item.getHostLmsCode(),
 				item.getIsRequestable(), item.getHoldCount(), item.getLocalItemType(),
 				item.getCanonicalItemType(), item.getLocalItemTypeCode(),
-				new Agency(item.getAgencyCode(), item.getAgencyDescription())))
+				new Agency(item.getAgencyCode(), item.getAgencyName())))
 			.toList();
 
 		final var mappedErrors = report.getErrors().stream()

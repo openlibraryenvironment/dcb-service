@@ -127,7 +127,7 @@ public class ItemResultToItemMapper {
 		return locationToAgencyMappingService.mapLocationToAgency(hostSystem, item.getLocation().getCode().trim())
 			.map(dataAgency -> {
 				item.setAgencyCode(dataAgency.getCode());
-				item.setAgencyDescription(dataAgency.getName());
+				item.setAgencyName(dataAgency.getName());
 				return item;
 			})
 			.defaultIfEmpty(item);
