@@ -50,6 +50,7 @@ import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
@@ -182,6 +183,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.flatMap(this::setMaterialTypeCode)
 			.flatMap(result -> itemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId))
 			.collectList();
+	}
+
+	@Override
+	public Mono<List<Item>> getItems(BibRecord bib) {
+		return getItems(bib.getSourceRecordId());
 	}
 
 	@Override

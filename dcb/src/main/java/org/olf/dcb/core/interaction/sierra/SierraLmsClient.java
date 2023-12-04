@@ -50,6 +50,7 @@ import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
@@ -386,6 +387,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.flatMapMany(Flux::fromIterable)
 			.flatMap(result -> itemMapper.mapResultToItem(result, lms.getCode(), localBibId))
 			.collectList();
+	}
+
+	public Mono<List<Item>> getItems(BibRecord bib) {
+		return getItems(bib.getSourceRecordId());
 	}
 
 	public Mono<Patron> patronFind(String varFieldTag, String varFieldContent) {

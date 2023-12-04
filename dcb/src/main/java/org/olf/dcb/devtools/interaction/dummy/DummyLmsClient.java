@@ -26,6 +26,7 @@ import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
@@ -107,6 +108,11 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		}
 
 		return Mono.empty();
+	}
+
+	@Override
+	public Mono<List<Item>> getItems(BibRecord bib) {
+		return getItems(bib.getSourceRecordId());
 	}
 
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {

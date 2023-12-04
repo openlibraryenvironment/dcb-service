@@ -14,6 +14,7 @@ import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 
@@ -45,6 +46,11 @@ public class FolioLmsClient implements HostLmsClient {
 	}
 
 	@Override
+	public Mono<List<Item>> getItems(BibRecord bib) {
+		return getItems(bib.getSourceRecordId());
+	}
+
+	@Override
 	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
 		return Mono.empty();
 	}
@@ -53,7 +59,7 @@ public class FolioLmsClient implements HostLmsClient {
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		return Mono.empty();
 	}
-	
+
 	@Override
 	public Mono<String> createPatron(Patron patron) {
 		return Mono.empty();
@@ -94,6 +100,7 @@ public class FolioLmsClient implements HostLmsClient {
 		return Mono.just("Dummy");
 	}
 	// WARNING We might need to make this accept a patronIdentity - as different
+
 	// systems might take different ways to identify the patron
 
 	@Override

@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction;
 import java.util.List;
 import java.util.Map;
 
+import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 
@@ -33,6 +34,8 @@ public interface HostLmsClient {
 	List<HostLmsPropertyDefinition> getSettings();
 
 	Mono<List<Item>> getItems(String localBibId);
+
+	Mono<List<Item>> getItems(BibRecord bibRecord);
 
 	Mono<String> createPatron(Patron patron);
 
