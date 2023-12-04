@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyDescription;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCanonicalItemType;
@@ -92,6 +94,8 @@ class SierraHostLmsClientItemTests {
 
 		agencyFixture.defineAgency("sierra-agency", "Sierra Agency");
 
+		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab5", "sierra-agency");
+
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
@@ -110,8 +114,8 @@ class SierraHostLmsClientItemTests {
 				hasLocalItemTypeCode("999"),
 				hasCanonicalItemType("BKM"),
 				hasHostLmsCode(HOST_LMS_CODE),
-				hasNoAgencyCode(),
-				hasNoAgencyDescription(),
+				hasAgencyCode("sierra-agency"),
+				hasAgencyDescription("Sierra Agency"),
 				suppressionUnknown()
 			),
 			allOf(
