@@ -125,11 +125,9 @@ public class ItemResultToItemMapper {
 		org.olf.dcb.core.model.Item item, String hostSystem) {
 
 		return locationToAgencyMappingService.mapLocationToAgency(hostSystem, item.getLocation().getCode().trim())
-			.map(dataAgency -> {
-				item.setAgencyCode(dataAgency.getCode());
-				item.setAgencyName(dataAgency.getName());
-				return item;
-			})
+			.map(agency -> item
+				.setAgencyCode(agency.getCode())
+				.setAgencyName(agency.getName()))
 			.defaultIfEmpty(item);
 	}
 
