@@ -33,6 +33,7 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.NumericRangeMappingFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
@@ -49,6 +50,8 @@ class SierraHostLmsClientItemTests {
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
 	@Inject
@@ -75,6 +78,7 @@ class SierraHostLmsClientItemTests {
 
 	@BeforeEach
 	void beforeEach() {
+		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
 	}
 
