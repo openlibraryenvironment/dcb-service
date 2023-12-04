@@ -66,7 +66,7 @@ public class ItemResultToItemMapper {
 				.suppressed(itemResult.getSuppressed())
 				.build())
 			.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode))
-			.flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode));
+			.flatMap(item -> enrichItemAgencyFromLocation(item, hostLmsCode));
 	}
 
 	@Nullable
@@ -117,11 +117,11 @@ public class ItemResultToItemMapper {
 				.localItemTypeCode(itemGetRow.getMaterialTypeID())
 				.suppressed(!itemGetRow.getIsDisplayInPAC())
 				.build())
-				.flatMap(item -> enrichItemAgencyFromShelvingLocation(item, hostLmsCode))
+				.flatMap(item -> enrichItemAgencyFromLocation(item, hostLmsCode))
 				.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode));
 	}
 
-	Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromShelvingLocation(
+	Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromLocation(
 		org.olf.dcb.core.model.Item item, String hostSystem) {
 
 		return locationToAgencyMappingService.mapLocationToAgency(hostSystem, item.getLocation().getCode().trim())
