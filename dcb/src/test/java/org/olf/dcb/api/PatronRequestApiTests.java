@@ -61,6 +61,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 class PatronRequestApiTests {
 	private static final String HOST_LMS_CODE = "patron-request-api-tests";
 	private static final String KNOWN_PATRON_LOCAL_ID = "872321";
+	private static final String PICKUP_LOCATION_CODE = "ABC123";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -171,15 +172,14 @@ class PatronRequestApiTests {
 
 		eventLogFixture.deleteAll();
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ABC123", "AGENCY1");
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab6", "ab6");
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping( "patron-request-api-tests", "tstce", "ab6");
-		referenceValueMappingFixture.defineLocationToAgencyMapping( "patron-request-api-tests", "tstr", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping( HOST_LMS_CODE, "tstce", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping( HOST_LMS_CODE, "tstr", "ab6");
 
-		locationFixture.createPickupLocation("ABC123", "ABC123");
-
-		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", "AGENCY1");
+		locationFixture.createPickupLocation(PICKUP_LOCATION_CODE, PICKUP_LOCATION_CODE);
+		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, PICKUP_LOCATION_CODE, "AGENCY1");
+		referenceValueMappingFixture.defineLocationToAgencyMapping(PICKUP_LOCATION_CODE, "AGENCY1");
 	}
 
 	@Test
@@ -198,7 +198,7 @@ class PatronRequestApiTests {
 
 		// Act
 		var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, KNOWN_PATRON_LOCAL_ID, "ABC123", HOST_LMS_CODE, "home-library");
+			clusterRecordId, KNOWN_PATRON_LOCAL_ID, PICKUP_LOCATION_CODE, HOST_LMS_CODE, "home-library");
 
 		// Assert
 		assertThat(placedRequestResponse.getStatus(), is(OK));
@@ -244,7 +244,7 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.getCitation().getBibClusterId(), is(clusterRecordId));
 
 		assertThat(fetchedPatronRequest.getPickupLocation(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is("ABC123"));
+		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is(PICKUP_LOCATION_CODE));
 
 		assertThat(fetchedPatronRequest.getStatus(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.getStatus().getCode(), is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
@@ -318,7 +318,7 @@ class PatronRequestApiTests {
 
 		// Act
 		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, "43546", "ABC123", HOST_LMS_CODE, "homeLibraryCode");
+			clusterRecordId, "43546", PICKUP_LOCATION_CODE, HOST_LMS_CODE, "homeLibraryCode");
 
 		assertThat(placedRequestResponse.getStatus(), is(OK));
 
@@ -337,7 +337,7 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.getCitation().getBibClusterId(), is(clusterRecordId));
 
 		assertThat(fetchedPatronRequest.getPickupLocation(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is("ABC123"));
+		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is(PICKUP_LOCATION_CODE));
 
 		assertThat(fetchedPatronRequest.getStatus(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.getStatus().getCode(), is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY"));
@@ -394,7 +394,7 @@ class PatronRequestApiTests {
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
-				"73825", "ABC123", "unknown-system", "home-library-code"));
+				"73825", PICKUP_LOCATION_CODE, "unknown-system", "home-library-code"));
 
 		// Then a bad request response should be returned
 		final var response = exception.getResponse();
@@ -530,10 +530,10 @@ class PatronRequestApiTests {
 
 		// Define a mapping from patron-request-api-tests:[10-20] to DCB:15 - so any value between 10 and 20 can be mapped
 		// to our canonical DCB:15 type
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("patron-request-api-tests", 10, 20, "DCB", "15");
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE, 10, 20, "DCB", "15");
 		// was referenceValueMappingFixture.definePatronTypeMapping("patron-request-api-tests", "15", "DCB", "15");
 
 		// Define a mapping from the spine reference DCB:15 to a TARGET vocal (patron-request-api-tests) value 15
-		referenceValueMappingFixture.definePatronTypeMapping("DCB", "15", "patron-request-api-tests", "15");
+		referenceValueMappingFixture.definePatronTypeMapping("DCB", "15", HOST_LMS_CODE, "15");
 	}
 }
