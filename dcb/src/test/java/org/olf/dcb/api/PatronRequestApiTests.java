@@ -64,6 +64,7 @@ class PatronRequestApiTests {
 	private static final String KNOWN_PATRON_LOCAL_ID = "872321";
 	private static final String PICKUP_LOCATION_CODE = "ABC123";
 	private static final String SUPPLYING_LOCATION_CODE = "ab6";
+	private final String SUPPLYING_ITEM_BARCODE = "6565750674";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -124,7 +125,7 @@ class PatronRequestApiTests {
 				.callNumber("BL221 .C48")
 				.locationCode(SUPPLYING_LOCATION_CODE)
 				.locationName("King 6th Floor")
-				.barcode("6565750674")
+				.barcode(SUPPLYING_ITEM_BARCODE)
 				.itemType("999")
 				.holdCount(0)
 			.build()));
@@ -143,7 +144,7 @@ class PatronRequestApiTests {
 			.build();
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
-		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_LOCATION_CODE, "6565750674");
+		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_LOCATION_CODE, SUPPLYING_ITEM_BARCODE);
 		sierraPatronsAPIFixture.patronHoldRequestResponse(KNOWN_PATRON_LOCAL_ID, "i", null);
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
@@ -295,7 +296,7 @@ class PatronRequestApiTests {
 
 		assertThat(supplierRequest.getItem(), is(notNullValue()));
 		assertThat(supplierRequest.getItem().getId(), is("1000002"));
-		assertThat(supplierRequest.getItem().getLocalItemBarcode(), is("6565750674"));
+		assertThat(supplierRequest.getItem().getLocalItemBarcode(), is(SUPPLYING_ITEM_BARCODE));
 		assertThat(supplierRequest.getItem().getLocalItemLocationCode(), is(SUPPLYING_LOCATION_CODE));
 
 		assertThat(fetchedPatronRequest.getAudits(), is(notNullValue()));
