@@ -147,9 +147,6 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_LOCATION_CODE, SUPPLYING_ITEM_BARCODE);
 		sierraPatronsAPIFixture.patronHoldRequestResponse(KNOWN_PATRON_LOCAL_ID, "i", null);
 
-		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
-		sierraItemsAPIFixture.successResponseForCreateItem(7916921, SUPPLYING_LOCATION_CODE, "9849123490");
-
 		agencyFixture.deleteAll();
 
 		final var da = agencyFixture.saveAgency(DataAgency.builder()
