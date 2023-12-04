@@ -29,9 +29,14 @@ public class AgencyFixture {
 	}
 
 	public void defineAgency(String code) {
+		defineAgency(code, "An agency");
+	}
+
+	public void defineAgency(String code, String name) {
 		saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
 			.code(code)
+			.name(name)
 			.build());
 	}
 }

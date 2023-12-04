@@ -90,6 +90,8 @@ class SierraHostLmsClientItemTests {
 
 		numericRangeMappingFixture.createMapping(HOST_LMS_CODE, "ItemType", 999L, 999L, "DCB", "BKM");
 
+		agencyFixture.defineAgency("sierra-agency", "Sierra Agency");
+
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
