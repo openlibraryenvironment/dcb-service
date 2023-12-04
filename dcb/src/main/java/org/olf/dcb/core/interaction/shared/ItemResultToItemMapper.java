@@ -46,6 +46,8 @@ public class ItemResultToItemMapper {
 
 		log.debug("mapResultToItem({}, {}, {})", itemResult, hostLmsCode, localBibId);
 
+		// Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
+		// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human readable string at the moment
 		return itemStatusMapper.mapStatus(itemResult.getStatus(), hostLmsCode, sierraFallback())
 			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
 				.localId(itemResult.getId())
@@ -65,7 +67,7 @@ public class ItemResultToItemMapper {
 				.deleted(itemResult.getDeleted())
 				.suppressed(itemResult.getSuppressed())
 				.build())
-			.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode))
+			.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item, hostLmsCode))
 			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode));
 	}
 
@@ -118,15 +120,7 @@ public class ItemResultToItemMapper {
 				.suppressed(!itemGetRow.getIsDisplayInPAC())
 				.build())
 				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
-				.flatMap(item -> enrichItemWithMappedItemType(item, hostLmsCode));
-	}
-
-	Mono<org.olf.dcb.core.model.Item> enrichItemWithMappedItemType(org.olf.dcb.core.model.Item item, String hostSystem) {
-			// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human readable string at the moment
-			// Sierra items should have a fixedField 61 according to https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
-			return itemTypeMapper.getCanonicalItemType(hostSystem, item.getLocalItemTypeCode())
-				.defaultIfEmpty("UNKNOWN")
-				.map(item::setCanonicalItemType);
+				.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item, hostLmsCode));
 	}
 
 	public static Instant convertFrom(String dueDate) {

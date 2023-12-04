@@ -15,8 +15,13 @@ public class NumericItemTypeMapper {
 		this.numericRangeMappingRepository = numericRangeMappingRepository;
 	}
 
-	// Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
-	public Mono<String> getCanonicalItemType(String system, String localItemTypeCode) {
+	public Mono<org.olf.dcb.core.model.Item> enrichItemWithMappedItemType(org.olf.dcb.core.model.Item item, String hostLmsCode) {
+		return getCanonicalItemType(hostLmsCode, item.getLocalItemTypeCode())
+			.defaultIfEmpty("UNKNOWN")
+			.map(item::setCanonicalItemType);
+	}
+
+	private Mono<String> getCanonicalItemType(String system, String localItemTypeCode) {
 		log.debug("getCanonicalItemType({}, {})", system, localItemTypeCode);
 
 		if (localItemTypeCode == null) {
