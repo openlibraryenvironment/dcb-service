@@ -26,9 +26,11 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.suppressionUnknown;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
@@ -46,6 +48,8 @@ class SierraHostLmsClientItemTests {
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
@@ -64,6 +68,11 @@ class SierraHostLmsClientItemTests {
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
+	}
+
+	@BeforeEach
+	void beforeEach() {
+		agencyFixture.deleteAll();
 	}
 
 	@Test
