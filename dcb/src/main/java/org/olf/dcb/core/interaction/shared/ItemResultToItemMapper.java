@@ -124,10 +124,11 @@ public class ItemResultToItemMapper {
 	Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromLocation(
 		org.olf.dcb.core.model.Item item, String hostSystem) {
 
-		return locationToAgencyMappingService.mapLocationToAgency(hostSystem, item.getLocation().getCode().trim())
-			.map(agency -> item
-				.setAgencyCode(agency.getCode())
-				.setAgencyName(agency.getName()))
+		return Mono.just(item)
+			.zipWhen(i -> locationToAgencyMappingService.mapLocationToAgency(hostSystem, i.getLocation().getCode().trim()),
+				(i, agency) -> i
+					.setAgencyCode(agency.getCode())
+					.setAgencyName(agency.getName()))
 			.defaultIfEmpty(item);
 	}
 
