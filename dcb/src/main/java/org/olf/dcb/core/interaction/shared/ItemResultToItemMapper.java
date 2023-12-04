@@ -1,6 +1,5 @@
 package org.olf.dcb.core.interaction.shared;
 
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.polarisFallback;
 import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.sierraFallback;
 
@@ -16,7 +15,6 @@ import org.olf.dcb.core.interaction.polaris.PAPIClient;
 import org.olf.dcb.core.interaction.sierra.ItemMapper;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
-import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
@@ -57,7 +55,7 @@ public class ItemResultToItemMapper {
 			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
 				.localId(itemResult.getId())
 				.status(itemStatus)
-				.dueDate(parsedDueDate(itemResult))
+				.dueDate(sierraItemMapper.parsedDueDate(itemResult))
 				.location(org.olf.dcb.core.model.Location.builder()
 					.code(itemResult.getLocation().getCode().trim())
 					.name(itemResult.getLocation().getName())
@@ -74,15 +72,6 @@ public class ItemResultToItemMapper {
 				.build())
 			.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item, hostLmsCode))
 			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode));
-	}
-
-	@Nullable
-	private static Instant parsedDueDate(SierraItem result) {
-		final var dueDate = result.getStatus().getDuedate();
-
-		return isNotEmpty(dueDate)
-			? Instant.parse(dueDate)
-			: null;
 	}
 
 	private static String determineLocalItemTypeCode(Map<Integer, FixedField> fixedFields) {
