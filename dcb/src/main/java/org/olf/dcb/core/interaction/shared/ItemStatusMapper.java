@@ -52,17 +52,6 @@ public class ItemStatusMapper {
 			.map(ItemStatus::new);
 	}
 
-	public Mono<ItemStatus> mapStatus(String statusCode, String hostLmsCode,
-		FallbackMapper fallbackMapper) {
-
-		return Mono.justOrEmpty(statusCode)
-			.flatMap(code -> fetchReferenceValueMap(code, hostLmsCode))
-			.map(ReferenceValueMapping::getToValue)
-			.map(ItemStatusCode::valueOf)
-			.defaultIfEmpty(fallbackMapper.map(statusCode))
-			.map(ItemStatus::new);
-	}
-
 	private Mono<ReferenceValueMapping> fetchReferenceValueMap(String statusCode, String hostLmsCode) {
 		return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToContext(
 				"itemStatus", hostLmsCode, statusCode, "DCB"))
