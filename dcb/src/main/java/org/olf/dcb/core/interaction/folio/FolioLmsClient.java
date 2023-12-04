@@ -47,7 +47,7 @@ public class FolioLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<List<Item>> getItems(BibRecord bib) {
-		return getItems(bib.getSourceRecordId());
+		return Mono.empty();
 	}
 
 	@Override

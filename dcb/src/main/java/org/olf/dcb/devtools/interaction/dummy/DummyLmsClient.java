@@ -112,7 +112,34 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	@Override
 	public Mono<List<Item>> getItems(BibRecord bib) {
-		return getItems(bib.getSourceRecordId());
+		log.debug("getItems({})", bib);
+
+		String localBibId = bib.getSourceRecordId();
+
+		// All Dummy systems return holdings for each shelving location
+		String shelvingLocations = (String) lms.getClientConfig().get("shelving-locations");
+
+		if (shelvingLocations != null) {
+			int n = 0;
+			List<Item> result_items = new ArrayList<>();
+			String[] locs = shelvingLocations.split(",");
+			for (String s : locs) {
+				result_items.add(Item.builder().localId(localBibId + "-i" + n).localBibId(localBibId)
+						.status(new ItemStatus(ItemStatusCode.AVAILABLE)).hostLmsCode(lms.getCode())
+						// .dueDate(parsedDueDate)
+						.location(org.olf.dcb.core.model.Location.builder().code(s).name(s).build()).barcode(localBibId + "-i" + n)
+						.callNumber("CN-" + localBibId).holdCount(0).localItemType("Books/Monographs").localItemTypeCode("BKM")
+						.deleted(false).suppressed(false).build());
+				n++;
+			}
+
+			return Flux.fromIterable(result_items)
+					.flatMap(
+							item -> enrichItemAgencyFromShelvingLocation(item, item.getHostLmsCode(), item.getLocation().getCode()))
+					.collectList();
+		}
+
+		return Mono.empty();
 	}
 
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
