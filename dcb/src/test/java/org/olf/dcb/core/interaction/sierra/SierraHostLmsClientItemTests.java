@@ -29,6 +29,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.suppressionUnknown;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -47,6 +48,7 @@ import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.items.Location;
@@ -54,6 +56,7 @@ import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+@Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 class SierraHostLmsClientItemTests {
@@ -101,61 +104,37 @@ class SierraHostLmsClientItemTests {
 	void sierraCanRespondWithMultipleItems() {
 		// Arrange
 		sierraItemsAPIFixture.itemsForBibId("65423515", List.of(
-			SierraItem.builder()
+			defineItem(org.olf.dcb.core.interaction.sierra.SierraItem.builder()
 				.id("f2010365-e1b1-4a5d-b431-a3c65b5f23fb")
 				.barcode("9849123490")
 				.callNumber("BL221 .C48")
-				.status(Status.builder()
-					.code("-")
-					.duedate("2023-04-22T15:55:13Z")
-					.build())
-				.location(Location.builder()
-					.name("King 5th Floor")
-					.code("ab5")
-					.build())
+				.statusCode("-")
+				.dueDate(Instant.parse("2023-04-22T15:55:13Z"))
+				.locationName("King 5th Floor")
+				.locationCode("ab5")
 				.itemType("999")
-				.fixedFields(Map.of(
-					61, FixedField.builder().value("999").build()
-				))
 				.holdCount(0)
-				.deleted(false)
-				.build(),
-				SierraItem.builder()
-					.id("c5bc9cd0-fc23-48be-9d52-647cea8c63ca")
-					.barcode("30800005315459")
-					.callNumber("HX157 .H8")
-					.status(Status.builder()
-						.code("-")
-						.build())
-					.location(Location.builder()
-						.name("King 7th Floor")
-						.code("ab7")
-						.build())
-					.itemType("999")
-					.fixedFields(Map.of(
-						61, FixedField.builder().value("999").build()
-					))
-					.holdCount(1)
-					.deleted(false)
-					.build(),
-			SierraItem.builder()
+				.build()),
+			defineItem(org.olf.dcb.core.interaction.sierra.SierraItem.builder()
+				.id("c5bc9cd0-fc23-48be-9d52-647cea8c63ca")
+				.barcode("30800005315459")
+				.callNumber("HX157 .H8")
+				.statusCode("-")
+				.locationName("King 7th Floor")
+				.locationCode("ab7")
+				.itemType("999")
+				.holdCount(1)
+				.build()),
+			defineItem(org.olf.dcb.core.interaction.sierra.SierraItem.builder()
 				.id("69415d0a-ace5-49e4-96fd-f63855235bf0")
 				.barcode("30800005208449")
 				.callNumber("HC336.2 .S74 1969")
-				.status(Status.builder()
-					.code("-")
-					.build())
-				.location(Location.builder()
-					.name("King 7th Floor")
-					.code("ab7")
-					.build())
+				.statusCode("-")
+				.locationName("King 7th Floor")
+				.locationCode("ab7")
 				.itemType("999")
-				.fixedFields(Map.of(
-					61, FixedField.builder().value("999").build()
-				))
 				.holdCount(2)
-				.deleted(false)
-				.build()
+				.build())
 		));
 
 		numericRangeMappingFixture.createMapping(HOST_LMS_CODE, "ItemType", 999L, 999L, "DCB", "BKM");
@@ -242,5 +221,31 @@ class SierraHostLmsClientItemTests {
 		return singleValueFrom(client.getItems(BibRecord.builder()
 			.sourceRecordId(sourceRecordId)
 			.build()));
+	}
+
+	private static SierraItem defineItem(org.olf.dcb.core.interaction.sierra.SierraItem item) {
+		final var formattedDueDate = item.getDueDate() != null
+			? item.getDueDate().toString()
+			: null;
+
+		return SierraItem.builder()
+			.id(item.getId())
+			.barcode(item.getBarcode())
+			.callNumber(item.getCallNumber())
+			.status(Status.builder()
+				.code(item.getStatusCode())
+				.duedate(formattedDueDate)
+				.build())
+			.location(Location.builder()
+				.name(item.getLocationName())
+				.code(item.getLocationCode())
+				.build())
+			.itemType(item.getItemType())
+			.fixedFields(Map.of(
+				61, FixedField.builder().value(item.getItemType()).build()
+			))
+			.holdCount(item.getHoldCount())
+			.deleted(false)
+			.build();
 	}
 }
