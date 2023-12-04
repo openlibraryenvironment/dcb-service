@@ -63,6 +63,10 @@ public class ItemMatchers {
 		return hasProperty("canonicalItemType", is(expectedCanonicalItemType));
 	}
 
+	public static Matcher<Item> hasHoldCount(Integer expectedHoldCount) {
+		return hasProperty("holdCount", is(expectedHoldCount));
+	}
+
 	public static Matcher<Item> isNotSuppressed() {
 		return hasProperty("suppressed", is(false));
 	}

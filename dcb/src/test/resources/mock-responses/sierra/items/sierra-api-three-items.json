@@ -23,6 +23,7 @@
 			"barcode": "9849123490",
 			"callNumber": "BL221 .C48",
 			"itemType": 999,
+			"holdCount": 0,
 			"fixedFields": {
 				61: {
 					"label": "TEST",
@@ -51,6 +52,7 @@
 			"barcode": "30800005315459",
 			"callNumber": "HX157 .H8",
 			"itemType": 999,
+			"holdCount": 1,
 			"fixedFields": {
 				61: {
 					"label": "TEST",
@@ -79,6 +81,7 @@
 			"barcode": "30800005208449",
 			"callNumber": "HC336.2 .S74 1969",
 			"itemType": 999,
+			"holdCount": 2,
 			"fixedFields": {
 				61: {
 					"label": "TEST",
