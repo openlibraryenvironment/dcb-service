@@ -117,7 +117,6 @@ class PatronRequestApiTests {
 		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
 
 		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
-		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");
 
 		// patron service
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "872321@ab6");
