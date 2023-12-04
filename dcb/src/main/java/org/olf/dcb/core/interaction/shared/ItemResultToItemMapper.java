@@ -1,7 +1,6 @@
 package org.olf.dcb.core.interaction.shared;
 
 import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.polarisFallback;
-import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.sierraFallback;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -44,31 +43,7 @@ public class ItemResultToItemMapper {
 	public Mono<org.olf.dcb.core.model.Item> mapResultToItem(SierraItem itemResult,
 		String hostLmsCode, String localBibId) {
 
-		log.debug("mapResultToItem({}, {}, {})", itemResult, hostLmsCode, localBibId);
-
-		// Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
-		// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human readable string at the moment
-		return itemStatusMapper.mapStatus(itemResult.getStatus(), hostLmsCode, sierraFallback())
-			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
-				.localId(itemResult.getId())
-				.status(itemStatus)
-				.dueDate(sierraItemMapper.parsedDueDate(itemResult))
-				.location(org.olf.dcb.core.model.Location.builder()
-					.code(itemResult.getLocation().getCode().trim())
-					.name(itemResult.getLocation().getName())
-					.build())
-				.barcode(itemResult.getBarcode())
-				.callNumber(itemResult.getCallNumber())
-				.hostLmsCode(hostLmsCode)
-				.holdCount(itemResult.getHoldCount())
-				.localBibId(localBibId)
-				.localItemType(itemResult.getItemType())
-				.localItemTypeCode(sierraItemMapper.determineLocalItemTypeCode(itemResult.getFixedFields()))
-				.deleted(itemResult.getDeleted())
-				.suppressed(itemResult.getSuppressed())
-				.build())
-			.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item, hostLmsCode))
-			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode));
+		return sierraItemMapper.mapResultToItem(itemResult, hostLmsCode, localBibId);
 	}
 
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(
