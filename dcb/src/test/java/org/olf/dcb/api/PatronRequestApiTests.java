@@ -105,8 +105,7 @@ class PatronRequestApiTests {
 
 		final var h1 = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL);
 		log.debug("Created dataHostLms {}", h1);
-		final var h2 = hostLmsFixture.createSierraHostLms("codeAA", KEY, SECRET, BASE_URL);
-		log.debug("Created dataHostLms {}", h2);
+
 		final var h3 = hostLmsFixture.createSierraHostLms("codeBB", KEY, SECRET, BASE_URL);
 		log.debug("Created dataHostLms {}", h3);
 
@@ -120,11 +119,7 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("565382");
 
 		// patron service
-
-		// sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "DCB:872321@ab6");
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "872321@ab6");
-
-		// sierraPatronsAPIFixture.postPatronResponse("DCB:872321@ab6", 2745326);
 		sierraPatronsAPIFixture.postPatronResponse("872321@ab6", 2745326);
 
 		// supplying agency service
@@ -530,7 +525,6 @@ class PatronRequestApiTests {
 	}
 
 	private void savePatronTypeMappings() {
-
 		// We map into and out of patron-request-api-tests here because the tests are naive and not like the real world
 		// In a more realistic scenario we go from one context to a different context
 
