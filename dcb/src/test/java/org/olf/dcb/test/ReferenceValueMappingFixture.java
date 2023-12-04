@@ -73,22 +73,6 @@ public class ReferenceValueMappingFixture {
 		saveReferenceValueMapping(mappingToSave);
 	}
 
-/*
-	public void defineShelvingLocationToAgencyMapping(String fromContext,
-		String shelvingLocationCode, String agencyCode) {
-
-		saveReferenceValueMapping(ReferenceValueMapping.builder()
-			.id(randomUUID())
-			.fromCategory("ShelvingLocation")
-			.fromContext(fromContext)
-			.fromValue(shelvingLocationCode)
-			.toCategory("AGENCY")
-			.toContext("DCB")
-			.toValue(agencyCode)
-			.build());
-	}
-*/
-
 	public void definePatronTypeMapping(String fromContext, String fromPatronType,
 		String toContext, String toPatronType) {
 
