@@ -21,11 +21,6 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.items.Status;
 
-/**
-Status is interpreted based upon
- <a href="https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html#item%20STATUS">
- this documentation</a>
- */
 @Slf4j
 @Singleton
 public class ItemStatusMapper {
@@ -76,14 +71,6 @@ public class ItemStatusMapper {
 
 	@FunctionalInterface
 	public interface FallbackMapper {
-		static FallbackMapper sierraFallback() {
-			return fallbackBasedUponAvailableStatuses("-");
-		}
-
-		static FallbackMapper polarisFallback() {
-			return fallbackBasedUponAvailableStatuses("In");
-		}
-
 		static FallbackMapper fallbackBasedUponAvailableStatuses(String... availableStatusCodes) {
 			return fallbackBasedUponAvailableStatuses(List.of(availableStatusCodes));
 		}

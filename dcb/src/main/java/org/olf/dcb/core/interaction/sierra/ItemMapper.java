@@ -1,7 +1,7 @@
 package org.olf.dcb.core.interaction.sierra;
 
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.sierraFallback;
+import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.fallbackBasedUponAvailableStatuses;
 
 import java.time.Instant;
 import java.util.Map;
@@ -20,10 +20,19 @@ import services.k_int.interaction.sierra.items.SierraItem;
 
 @Slf4j
 @Singleton
-class ItemMapper {
+public class ItemMapper {
 	private final ItemStatusMapper itemStatusMapper;
 	private final NumericItemTypeMapper itemTypeMapper;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
+
+	/**
+	 Status is interpreted based upon
+	 <a href="https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html#item%20STATUS">
+	 this documentation</a>
+	 */
+	public static ItemStatusMapper.FallbackMapper sierraItemStatusFallback() {
+		return fallbackBasedUponAvailableStatuses("-");
+	}
 
 	ItemMapper(ItemStatusMapper itemStatusMapper, NumericItemTypeMapper itemTypeMapper,
 		LocationToAgencyMappingService locationToAgencyMappingService) {
@@ -38,7 +47,7 @@ class ItemMapper {
 
 		// Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
 		// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human-readable string at the moment
-		return itemStatusMapper.mapStatus(itemResult.getStatus(), hostLmsCode, true, sierraFallback())
+		return itemStatusMapper.mapStatus(itemResult.getStatus(), hostLmsCode, true, sierraItemStatusFallback())
 			.map(itemStatus -> Item.builder()
 				.localId(itemResult.getId())
 				.status(itemStatus)

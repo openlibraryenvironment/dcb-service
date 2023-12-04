@@ -12,6 +12,7 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.booleanProp
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.integerPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.fallbackBasedUponAvailableStatuses;
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
 

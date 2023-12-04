@@ -1,6 +1,6 @@
 package org.olf.dcb.core.interaction.polaris;
 
-import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.polarisFallback;
+import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.fallbackBasedUponAvailableStatuses;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -20,11 +20,15 @@ import services.k_int.interaction.sierra.items.Status;
 
 @Slf4j
 @Singleton
-class ItemMapper {
+public class ItemMapper {
 	private final ItemStatusMapper itemStatusMapper;
 	private final NumericItemTypeMapper itemTypeMapper;
 
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
+
+	public static ItemStatusMapper.FallbackMapper polarisFallback() {
+		return fallbackBasedUponAvailableStatuses("In");
+	}
 
 	ItemMapper(ItemStatusMapper itemStatusMapper, NumericItemTypeMapper itemTypeMapper,
 		LocationToAgencyMappingService locationToAgencyMappingService) {
