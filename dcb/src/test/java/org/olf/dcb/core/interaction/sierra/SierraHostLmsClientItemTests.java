@@ -31,7 +31,6 @@ import static org.olf.dcb.test.matchers.ItemMatchers.suppressionUnknown;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,11 +48,7 @@ import org.olf.dcb.test.ReferenceValueMappingFixture;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraTestUtils;
-import services.k_int.interaction.sierra.items.Location;
-import services.k_int.interaction.sierra.items.SierraItem;
-import services.k_int.interaction.sierra.items.Status;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @Slf4j
@@ -104,7 +99,7 @@ class SierraHostLmsClientItemTests {
 	void sierraCanRespondWithMultipleItems() {
 		// Arrange
 		sierraItemsAPIFixture.itemsForBibId("65423515", List.of(
-			defineItem(org.olf.dcb.core.interaction.sierra.SierraItem.builder()
+			SierraItem.builder()
 				.id("f2010365-e1b1-4a5d-b431-a3c65b5f23fb")
 				.barcode("9849123490")
 				.callNumber("BL221 .C48")
@@ -114,8 +109,8 @@ class SierraHostLmsClientItemTests {
 				.locationCode("ab5")
 				.itemType("999")
 				.holdCount(0)
-				.build()),
-			defineItem(org.olf.dcb.core.interaction.sierra.SierraItem.builder()
+				.build(),
+			SierraItem.builder()
 				.id("c5bc9cd0-fc23-48be-9d52-647cea8c63ca")
 				.barcode("30800005315459")
 				.callNumber("HX157 .H8")
@@ -124,8 +119,8 @@ class SierraHostLmsClientItemTests {
 				.locationCode("ab7")
 				.itemType("999")
 				.holdCount(1)
-				.build()),
-			defineItem(org.olf.dcb.core.interaction.sierra.SierraItem.builder()
+				.build(),
+			SierraItem.builder()
 				.id("69415d0a-ace5-49e4-96fd-f63855235bf0")
 				.barcode("30800005208449")
 				.callNumber("HC336.2 .S74 1969")
@@ -134,7 +129,7 @@ class SierraHostLmsClientItemTests {
 				.locationCode("ab7")
 				.itemType("999")
 				.holdCount(2)
-				.build())
+				.build()
 		));
 
 		numericRangeMappingFixture.createMapping(HOST_LMS_CODE, "ItemType", 999L, 999L, "DCB", "BKM");
@@ -221,31 +216,5 @@ class SierraHostLmsClientItemTests {
 		return singleValueFrom(client.getItems(BibRecord.builder()
 			.sourceRecordId(sourceRecordId)
 			.build()));
-	}
-
-	private static SierraItem defineItem(org.olf.dcb.core.interaction.sierra.SierraItem item) {
-		final var formattedDueDate = item.getDueDate() != null
-			? item.getDueDate().toString()
-			: null;
-
-		return SierraItem.builder()
-			.id(item.getId())
-			.barcode(item.getBarcode())
-			.callNumber(item.getCallNumber())
-			.status(Status.builder()
-				.code(item.getStatusCode())
-				.duedate(formattedDueDate)
-				.build())
-			.location(Location.builder()
-				.name(item.getLocationName())
-				.code(item.getLocationCode())
-				.build())
-			.itemType(item.getItemType())
-			.fixedFields(Map.of(
-				61, FixedField.builder().value(item.getItemType()).build()
-			))
-			.holdCount(item.getHoldCount())
-			.deleted(false)
-			.build();
 	}
 }

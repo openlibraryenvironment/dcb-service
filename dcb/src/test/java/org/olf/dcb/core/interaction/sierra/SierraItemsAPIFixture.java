@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction.sierra;
 import static org.mockserver.model.JsonBody.json;
 
 import java.util.List;
+import java.util.Map;
 
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
@@ -14,7 +15,10 @@ import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import services.k_int.interaction.sierra.FixedField;
+import services.k_int.interaction.sierra.items.Location;
 import services.k_int.interaction.sierra.items.SierraItem;
+import services.k_int.interaction.sierra.items.Status;
 
 @AllArgsConstructor
 public class SierraItemsAPIFixture {
@@ -36,11 +40,13 @@ public class SierraItemsAPIFixture {
 			.respond(sierraMockServerResponses.jsonSuccess("items/1088431.json"));
 	}
 
-	public void itemsForBibId(String bibId, List<SierraItem> items) {
+	public void itemsForBibId(String bibId, List<org.olf.dcb.core.interaction.sierra.SierraItem> items) {
 		mockServer.when(getItemsForBib(bibId))
 			.respond(sierraMockServerResponses.jsonSuccess(json(
 				ItemResultSet.builder()
-					.entries(items)
+					.entries(items.stream()
+						.map(SierraItemsAPIFixture::mapItem)
+						.toList())
 					.build())));
 	}
 
@@ -112,6 +118,32 @@ public class SierraItemsAPIFixture {
 		return sierraMockServerRequests.get()
 			.withQueryStringParameter("bibIds", bibId)
 			.withQueryStringParameter("deleted", "false");
+	}
+
+	private static SierraItem mapItem(org.olf.dcb.core.interaction.sierra.SierraItem item) {
+		final var formattedDueDate = item.getDueDate() != null
+			? item.getDueDate().toString()
+			: null;
+
+		return SierraItem.builder()
+			.id(item.getId())
+			.barcode(item.getBarcode())
+			.callNumber(item.getCallNumber())
+			.status(Status.builder()
+				.code(item.getStatusCode())
+				.duedate(formattedDueDate)
+				.build())
+			.location(Location.builder()
+				.name(item.getLocationName())
+				.code(item.getLocationCode())
+				.build())
+			.itemType(item.getItemType())
+			.fixedFields(Map.of(
+				61, FixedField.builder().value(item.getItemType()).build()
+			))
+			.holdCount(item.getHoldCount())
+			.deleted(false)
+			.build();
 	}
 
 	@Serdeable
