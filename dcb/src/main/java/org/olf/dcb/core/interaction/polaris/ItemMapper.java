@@ -1,4 +1,4 @@
-package org.olf.dcb.core.interaction.shared;
+package org.olf.dcb.core.interaction.polaris;
 
 import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.polarisFallback;
 
@@ -9,7 +9,8 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 
-import org.olf.dcb.core.interaction.polaris.PAPIClient;
+import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
+import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
 import jakarta.inject.Singleton;
@@ -19,14 +20,13 @@ import services.k_int.interaction.sierra.items.Status;
 
 @Slf4j
 @Singleton
-public class ItemResultToItemMapper {
+class ItemMapper {
 	private final ItemStatusMapper itemStatusMapper;
 	private final NumericItemTypeMapper itemTypeMapper;
 
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 
-	ItemResultToItemMapper(ItemStatusMapper itemStatusMapper,
-		NumericItemTypeMapper itemTypeMapper,
+	ItemMapper(ItemStatusMapper itemStatusMapper, NumericItemTypeMapper itemTypeMapper,
 		LocationToAgencyMappingService locationToAgencyMappingService) {
 
 		this.itemStatusMapper = itemStatusMapper;
@@ -63,7 +63,7 @@ public class ItemResultToItemMapper {
 				.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item, hostLmsCode));
 	}
 
-	public static Instant convertFrom(String dueDate) {
+	private static Instant convertFrom(String dueDate) {
 //		log.debug("Converting String: '{}', to class: '{}'", dueDate, ZonedDateTime.class);
 		if (dueDate == null) {
 			return null;

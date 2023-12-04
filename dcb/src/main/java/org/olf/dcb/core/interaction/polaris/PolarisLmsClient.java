@@ -49,7 +49,6 @@ import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
-import org.olf.dcb.core.interaction.shared.ItemResultToItemMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
@@ -99,7 +98,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final RawSourceRepository rawSourceRepository;
 	private final ConversionService conversionService;
 	private final IngestHelper ingestHelper;
-	private final ItemResultToItemMapper itemResultToItemMapper;
+	private final ItemMapper itemMapper;
 	private final PAPIClient papiClient;
 	private final ApplicationServicesClient appServicesClient;
 	private final List<ApplicationServicesClient.MaterialType> materialTypes = new ArrayList<>();
@@ -113,7 +112,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		ProcessStateService processStateService,
 		RawSourceRepository rawSourceRepository,
 		ConversionService conversionService,
-		ItemResultToItemMapper itemResultToItemMapper,
+		ItemMapper itemMapper,
 		ReferenceValueMappingRepository referenceValueMappingRepository)
 	{
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
@@ -122,7 +121,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.mapping = referenceValueMappingRepository;
 		this.appServicesClient = new ApplicationServicesClient(this);
 		this.papiClient = new PAPIClient(this);
-		this.itemResultToItemMapper = itemResultToItemMapper;
+		this.itemMapper = itemMapper;
 		this.ingestHelper = new IngestHelper(this, hostLms, processStateService);
 		this.processStateService = processStateService;
 		this.rawSourceRepository = rawSourceRepository;
@@ -181,7 +180,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.flatMapMany(Flux::fromIterable)
 			.flatMap(this::setCircStatus)
 			.flatMap(this::setMaterialTypeCode)
-			.flatMap(result -> itemResultToItemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId))
+			.flatMap(result -> itemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId))
 			.collectList();
 	}
 
