@@ -126,7 +126,7 @@ public class ItemResultToItemMapper {
 		org.olf.dcb.core.model.Item item, String hostSystem) {
 
 		return Mono.just(item)
-			.zipWhen(i -> locationToAgencyMappingService.mapLocationToAgency(hostSystem, i.getLocation().getCode().trim()),
+			.zipWhen(i -> locationToAgencyMappingService.findLocationToAgencyMapping(i, hostSystem),
 				Item::setAgency)
 			.defaultIfEmpty(item);
 	}
