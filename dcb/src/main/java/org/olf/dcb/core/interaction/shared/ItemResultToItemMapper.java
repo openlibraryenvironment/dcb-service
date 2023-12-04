@@ -9,7 +9,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
-import java.util.Map;
 
 import org.olf.dcb.core.interaction.polaris.PAPIClient;
 import org.olf.dcb.core.interaction.sierra.ItemMapper;
@@ -18,14 +17,12 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
 
 @Slf4j
 @Singleton
 public class ItemResultToItemMapper {
-	private static final Integer FIXED_FIELD_61 = 61;
 	private final ItemStatusMapper itemStatusMapper;
 	private final NumericItemTypeMapper itemTypeMapper;
 
@@ -66,26 +63,12 @@ public class ItemResultToItemMapper {
 				.holdCount(itemResult.getHoldCount())
 				.localBibId(localBibId)
 				.localItemType(itemResult.getItemType())
-				.localItemTypeCode(determineLocalItemTypeCode(itemResult.getFixedFields()))
+				.localItemTypeCode(sierraItemMapper.determineLocalItemTypeCode(itemResult.getFixedFields()))
 				.deleted(itemResult.getDeleted())
 				.suppressed(itemResult.getSuppressed())
 				.build())
 			.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item, hostLmsCode))
 			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode));
-	}
-
-	private static String determineLocalItemTypeCode(Map<Integer, FixedField> fixedFields) {
-		// We should look into result.fixedFields for 61 here and set itemType according to that code
-		// and not the human-readable text
-		String localItemTypeCode = null;
-
-		if (fixedFields != null) {
-			if (fixedFields.get(FIXED_FIELD_61) != null) {
-				localItemTypeCode = fixedFields.get(FIXED_FIELD_61).getValue().toString();
-			}
-		}
-
-		return localItemTypeCode;
 	}
 
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(
