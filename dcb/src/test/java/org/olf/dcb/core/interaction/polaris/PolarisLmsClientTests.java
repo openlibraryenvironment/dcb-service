@@ -1,4 +1,4 @@
-package services.k_int.interaction.polaris;
+package org.olf.dcb.core.interaction.polaris;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
@@ -46,11 +46,12 @@ import org.olf.dcb.test.TestResourceLoaderProvider;
 import org.olf.dcb.test.matchers.ItemMatchers;
 
 import jakarta.inject.Inject;
+import services.k_int.interaction.polaris.PolarisTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
-public class HostLmsPolarisClientTests {
+public class PolarisLmsClientTests {
 	private static final String HOST_LMS_CODE = "polaris-hostlms-tests";
 
 	@Inject
