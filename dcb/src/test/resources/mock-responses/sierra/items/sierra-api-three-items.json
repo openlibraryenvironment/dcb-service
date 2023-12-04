@@ -22,15 +22,14 @@
 			"volumes": [],
 			"barcode": "9849123490",
 			"callNumber": "BL221 .C48",
-                        "itemType": 999,
-                        "fixedFields": {
-                                61: {
-                                        "label": "TEST",
-                                        "value": "999",
-                                        "display": "DISP"
-                                }
-                        }
-
+			"itemType": 999,
+			"fixedFields": {
+				61: {
+					"label": "TEST",
+					"value": "999",
+					"display": "DISP"
+				}
+			}
 		},
 		{
 			"id": "c5bc9cd0-fc23-48be-9d52-647cea8c63ca",
@@ -51,14 +50,14 @@
 			"volumes": [],
 			"barcode": "30800005315459",
 			"callNumber": "HX157 .H8",
-                        "itemType": 999,
-                        "fixedFields": {
-                                61: {
-                                        "label": "TEST",
-                                        "value": "999",
-                                        "display": "DISP"
-                                }
-                        }
+			"itemType": 999,
+			"fixedFields": {
+				61: {
+					"label": "TEST",
+					"value": "999",
+					"display": "DISP"
+				}
+			}
 		},
 		{
 			"id": "69415d0a-ace5-49e4-96fd-f63855235bf0",
@@ -79,14 +78,14 @@
 			"volumes": [],
 			"barcode": "30800005208449",
 			"callNumber": "HC336.2 .S74 1969",
-                        "itemType": 999,
-                        "fixedFields": {
-                                61: {
-                                        "label": "TEST",
-                                        "value": "999",
-                                        "display": "DISP"
-                                }
-                        }
+			"itemType": 999,
+			"fixedFields": {
+				61: {
+					"label": "TEST",
+					"value": "999",
+					"display": "DISP"
+				}
+			}
 		}
 	]
 }
