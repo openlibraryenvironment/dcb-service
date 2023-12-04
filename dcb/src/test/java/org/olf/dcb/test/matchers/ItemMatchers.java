@@ -79,6 +79,10 @@ public class ItemMatchers {
 		return hasProperty("suppressed", is(nullValue()));
 	}
 
+	public static Matcher<Item> isNotDeleted() {
+		return hasProperty("deleted", is(false));
+	}
+
 	public static Matcher<Item> hasAgencyCode(String expectedAgencyCode) {
 		return hasProperty("agencyCode", is(expectedAgencyCode));
 	}
