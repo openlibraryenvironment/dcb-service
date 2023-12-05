@@ -8,8 +8,6 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
 
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
@@ -19,7 +17,6 @@ import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-import services.k_int.interaction.sierra.items.Status;
 
 @Slf4j
 @Singleton
@@ -30,19 +27,11 @@ public class ItemStatusMapper {
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 	}
 
-	public Mono<ItemStatus> mapStatus(Status status, String hostLmsCode,
-		boolean checkForDueDate, FallbackMapper fallbackStatusMapping) {
-
-		log.debug("mapStatus( status: {}, hostLmsCode: {} )", status, hostLmsCode);
-
-		final var statusCode = getValue(status, Status::getCode);
-		final var dueDate = getValue(status, Status::getDuedate);
-
-		return mapStatus(statusCode, dueDate, hostLmsCode, checkForDueDate, fallbackStatusMapping);
-	}
-
 	public Mono<ItemStatus> mapStatus(String statusCode, String dueDate,
 		String hostLmsCode, boolean checkForDueDate, FallbackMapper fallbackStatusMapping) {
+
+		log.debug("mapStatus(statusCode: {}, dueDate: {} hostLmsCode: {}, checkForDueDate: {}, fallbackStatusMapping: {})",
+			statusCode, dueDate, hostLmsCode, checkForDueDate, fallbackStatusMapping);
 
 		return Mono.justOrEmpty(statusCode)
 			.flatMap(code -> fetchReferenceValueMap(code, hostLmsCode))
@@ -57,10 +46,6 @@ public class ItemStatusMapper {
 		return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToContext(
 				"itemStatus", hostLmsCode, statusCode, "DCB"))
 			.doOnSuccess(mapping -> log.debug("Found mapping: {} for status code: {} host LMS: {}", mapping, statusCode, hostLmsCode));
-	}
-
-	private String getValue(Status status, Function<Status, String> function) {
-		return Optional.ofNullable(status).map(function).orElse(null);
 	}
 
 	private ItemStatusCode checkForDueDate(ItemStatusCode itemStatusCode,

@@ -16,7 +16,6 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-import services.k_int.interaction.sierra.items.Status;
 
 @Slf4j
 @Singleton
@@ -41,12 +40,8 @@ public class PolarisItemMapper {
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(
 		PAPIClient.ItemGetRow itemGetRow, String hostLmsCode, String localBibId) {
 
-		final var status = Status.builder()
-			.code(itemGetRow.getCircStatusName())
-			.duedate(itemGetRow.getDueDate())
-			.build();
-
-		return itemStatusMapper.mapStatus(status, hostLmsCode, false, polarisFallback())
+		return itemStatusMapper.mapStatus(itemGetRow.getCircStatusName(), itemGetRow.getDueDate(),
+				hostLmsCode, false, polarisFallback())
 			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
 				.localId(String.valueOf(itemGetRow.getItemRecordID()))
 				.status(itemStatus)

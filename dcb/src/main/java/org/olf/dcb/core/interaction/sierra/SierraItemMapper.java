@@ -5,6 +5,8 @@ import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMappe
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
@@ -17,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.items.SierraItem;
+import services.k_int.interaction.sierra.items.Status;
 
 @Slf4j
 @Singleton
@@ -45,9 +48,12 @@ public class SierraItemMapper {
 	public Mono<Item> mapResultToItem(SierraItem itemResult, String hostLmsCode, String localBibId) {
 		log.debug("mapResultToItem({}, {}, {})", itemResult, hostLmsCode, localBibId);
 
+		final var statusCode = getValue(itemResult.getStatus(), Status::getCode);
+		final var dueDate = getValue(itemResult.getStatus(), Status::getDuedate);
+
 		// Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
 		// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human-readable string at the moment
-		return itemStatusMapper.mapStatus(itemResult.getStatus(), hostLmsCode, true, sierraItemStatusFallback())
+		return itemStatusMapper.mapStatus(statusCode, dueDate, hostLmsCode, true, sierraItemStatusFallback())
 			.map(itemStatus -> Item.builder()
 				.localId(itemResult.getId())
 				.status(itemStatus)
@@ -93,5 +99,11 @@ public class SierraItemMapper {
 		}
 
 		return localItemTypeCode;
+	}
+
+	private String getValue(Status status, Function<Status, String> function) {
+		return Optional.ofNullable(status)
+			.map(function)
+			.orElse(null);
 	}
 }

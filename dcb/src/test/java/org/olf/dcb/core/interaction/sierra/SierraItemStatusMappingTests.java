@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.test.DcbTest;
@@ -39,7 +40,7 @@ public class SierraItemStatusMappingTests {
 
 	@Test
 	void statusIsAvailableWhenCodeIsHyphenAndDueDateIsNotPresent() {
-		final var mappedStatus = mapSierraStatus(new Status("-", "AVAILABLE", null));
+		final var mappedStatus = mapStatus("-", null);
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(AVAILABLE));
@@ -47,7 +48,7 @@ public class SierraItemStatusMappingTests {
 
 	@Test
 	void statusIsAvailableWhenCodeIsHyphenAndDueDateIsBlank() {
-		final var mappedStatus = mapSierraStatus(new Status("-", "AVAILABLE", ""));
+		final var mappedStatus = mapStatus("-", "");
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(AVAILABLE));
@@ -55,7 +56,7 @@ public class SierraItemStatusMappingTests {
 
 	@Test
 	void statusIsCheckedOutWhenCodeIsHyphenAndDueDateIsPresent() {
-		final var mappedStatus = mapSierraStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
+		final var mappedStatus = mapStatus("-", "2023-04-22T15:55:13Z");
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(CHECKED_OUT));
@@ -67,10 +68,9 @@ public class SierraItemStatusMappingTests {
 	 * this documentation</a> of standard codes
 	 */
 	@ParameterizedTest
-	@CsvSource({"m,MISSING", "!,ON HOLDSHELF", "$,BILLED PAID", "n,BILLED NOTPAID",
-		"z,CL RETURNED", "o,LIB USE ONLY", "t,IN TRANSIT"})
-	void statusIsUnavailableWhenCodeAnythingOtherThanHyphen(String code, String displayText) {
-		final var mappedStatus = mapSierraStatus(new Status(code, displayText, null));
+	@ValueSource(strings = {"m", "!", "$", "n", "z", "o", "t"})
+	void statusIsUnavailableWhenCodeAnythingOtherThanHyphen(String code) {
+		final var mappedStatus = mapStatus(code, null);
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(UNAVAILABLE));
@@ -78,7 +78,7 @@ public class SierraItemStatusMappingTests {
 
 	@Test
 	void statusIsUnknownWhenCodeIsEmpty() {
-		final var mappedStatus = mapSierraStatus(new Status("", "", ""));
+		final var mappedStatus = mapStatus("", "");
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(UNKNOWN));
@@ -86,15 +86,15 @@ public class SierraItemStatusMappingTests {
 
 	@Test
 	void statusIsUnknownWhenSierraStatusIsNull() {
-		final var mappedStatus = mapSierraStatus(null);
+		final var mappedStatus = mapStatus(null, null);
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(UNKNOWN));
 	}
 
 	@Nullable
-	private ItemStatus mapSierraStatus(Status status) {
-		return mapper.mapStatus(status, HOST_LMS_CODE, true, sierraItemStatusFallback())
+	private ItemStatus mapStatus(String statusCode, String dueDate) {
+		return mapper.mapStatus(statusCode, dueDate, HOST_LMS_CODE, true, sierraItemStatusFallback())
 			.block();
 	}
 }

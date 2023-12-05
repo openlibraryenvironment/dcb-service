@@ -18,7 +18,6 @@ import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
-import services.k_int.interaction.sierra.items.Status;
 
 @DcbTest
 class ItemStatusMapperTests {
@@ -41,7 +40,7 @@ class ItemStatusMapperTests {
 		defineStatusMapping("-", "AVAILABLE");
 
 		// Act
-		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", "2023-04-22T15:55:13Z"));
+		final var mappedStatus = mapStatus("-", "2023-04-22T15:55:13Z");
 
 		// Assert
 		assertThat(mappedStatus, is(notNullValue()));
@@ -54,7 +53,7 @@ class ItemStatusMapperTests {
 		defineStatusMapping("-", "AVAILABLE");
 
 		// Act
-		final var mappedStatus = mapStatus(new Status("-", "AVAILABLE", null));
+		final var mappedStatus = mapStatus("-", null);
 
 		// Assert
 		assertThat(mappedStatus, is(notNullValue()));
@@ -67,7 +66,7 @@ class ItemStatusMapperTests {
 		defineStatusMapping("/", "UNAVAILABLE");
 
 		// Act
-		final var mappedStatus = mapStatus(new Status("/", "UNAVAILABLE", null));
+		final var mappedStatus = mapStatus("/", null);
 
 		// Assert
 		assertThat(mappedStatus, is(notNullValue()));
@@ -81,7 +80,7 @@ class ItemStatusMapperTests {
 
 		// Act
 		final var exception = assertThrows(IllegalArgumentException.class, () ->
-			mapStatus(new Status("?", "INVALID", "2023-04-22T15:55:13Z")));
+			mapStatus("?", "2023-04-22T15:55:13Z"));
 
 		// Assert
 		assertThat(exception, is(notNullValue()));
@@ -95,7 +94,7 @@ class ItemStatusMapperTests {
 		defineStatusMapping("?", "INVALID");
 
 		// Act
-		final var mappedStatus = mapStatus(new Status("NOT_MATCHED", "", null));
+		final var mappedStatus = mapStatus("NOT_MATCHED", null);
 
 		// Assert
 		assertThat(mappedStatus, is(notNullValue()));
@@ -107,8 +106,8 @@ class ItemStatusMapperTests {
 	}
 
 	@Nullable
-	private ItemStatus mapStatus(Status status) {
-		return mapper.mapStatus(status, HOST_LMS_CODE, true, unknownStatusFallback())
+	private ItemStatus mapStatus(String statusCode, String dueDate) {
+		return mapper.mapStatus(statusCode, dueDate, HOST_LMS_CODE, true, unknownStatusFallback())
 			.block();
 	}
 

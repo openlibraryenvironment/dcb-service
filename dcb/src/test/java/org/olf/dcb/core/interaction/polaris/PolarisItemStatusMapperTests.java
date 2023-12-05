@@ -19,7 +19,6 @@ import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
-import services.k_int.interaction.sierra.items.Status;
 
 @DcbTest
 class PolarisItemStatusMapperTests {
@@ -51,11 +50,8 @@ class PolarisItemStatusMapperTests {
 
 	@Test
 	void statusIsAvailableWhenCodeIsInEvenWhenDueDateIsProvided() {
-		final var mappedStatus = mapper.mapStatus(Status.builder()
-					.code("In")
-					.duedate("2023-10-05T23:59:59Z")
-					.build(),
-				HOST_LMS_CODE, false, polarisFallback())
+		final var mappedStatus = mapper.mapStatus("In",
+			"2023-10-05T23:59:59Z", HOST_LMS_CODE, false, polarisFallback())
 			.block();
 
 		assertThat(mappedStatus, is(notNullValue()));
@@ -111,10 +107,7 @@ class PolarisItemStatusMapperTests {
 
 	@Nullable
 	private ItemStatus mapPolarisStatus(String statusCode) {
-		return mapper.mapStatus(Status.builder()
-					.code(statusCode)
-					.build(),
-				HOST_LMS_CODE, true, polarisFallback())
+		return mapper.mapStatus(statusCode, null, HOST_LMS_CODE, true, polarisFallback())
 			.block();
 	}
 }
