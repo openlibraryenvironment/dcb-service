@@ -3,7 +3,7 @@ package org.olf.dcb.core.interaction.sierra;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.olf.dcb.core.interaction.sierra.ItemMapper.sierraItemStatusFallback;
+import static org.olf.dcb.core.interaction.sierra.SierraItemMapper.sierraItemStatusFallback;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;

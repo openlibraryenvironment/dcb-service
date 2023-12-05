@@ -20,7 +20,7 @@ import services.k_int.interaction.sierra.items.Status;
 
 @Slf4j
 @Singleton
-public class ItemMapper {
+public class PolarisItemMapper {
 	private final ItemStatusMapper itemStatusMapper;
 	private final NumericItemTypeMapper itemTypeMapper;
 
@@ -30,7 +30,7 @@ public class ItemMapper {
 		return fallbackBasedUponAvailableStatuses("In");
 	}
 
-	ItemMapper(ItemStatusMapper itemStatusMapper, NumericItemTypeMapper itemTypeMapper,
+	PolarisItemMapper(ItemStatusMapper itemStatusMapper, NumericItemTypeMapper itemTypeMapper,
 		LocationToAgencyMappingService locationToAgencyMappingService) {
 
 		this.itemStatusMapper = itemStatusMapper;
