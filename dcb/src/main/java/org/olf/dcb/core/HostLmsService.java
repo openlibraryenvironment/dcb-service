@@ -69,7 +69,7 @@ public class HostLmsService implements IngestSourcesProvider {
 			.doOnSuccess(type -> log.debug("Found ingest source type: {}", type))
 			.filter(IngestSource.class::isAssignableFrom)
 			.switchIfEmpty(Mono.error(new InvalidHostLmsConfigurationException(
-				hostLms.getCode(), "ingest source class is either unknown or invalid")))
+                                hostLms.getCode(), "ingest source class is either unknown or invalid")))
 			.map(type -> context.createBean(type, hostLms))
 			.cast(IngestSource.class);
 	}

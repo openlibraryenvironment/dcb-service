@@ -88,6 +88,8 @@ dependencies {
 	implementation("io.micronaut.data:micronaut-data-jdbc")
 	implementation("io.micronaut.sql:micronaut-jdbc-hikari")
 
+        implementation("io.micronaut.problem:micronaut-problem-json")
+
 	runtimeOnly("org.postgresql:postgresql")
 	
 	// Without this dependency, testcontainer injection seems not to happen at all.

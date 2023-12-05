@@ -27,11 +27,19 @@ public class FirstRequestableItemResolutionStrategy implements ResolutionStrateg
 
 	@Override
 	public Mono<Item> chooseItem(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest) {
-		log.debug("chooseItem(array of size {})", items.size());
+
+                UUID patronRequestId = patronRequest != null ? patronRequest.getId() : null;
+
+		log.info("PR-{} - chooseItem(array of size {})", patronRequestId, items.size());
 
 		return Mono.just(
 			items.stream()
-                       		.peek(item -> log.debug("Consider item requestable:{} holds:{} ",item.getIsRequestable(),item.hasNoHolds()))
+                       		.peek(item -> log.info("PR-{} - Consider item {} @ {} requestable:{} holds:{} ",
+                                        patronRequestId,
+                                        item.getLocalId(),
+                                        item.getLocation(),
+                                        item.getIsRequestable(),
+                                        item.hasNoHolds()))
 				.filter(Item::getIsRequestable)
 				.filter(Item::hasNoHolds)
 				.findFirst()
