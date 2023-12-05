@@ -103,7 +103,7 @@ class HostLmsTests {
 		// Act
 		final var unknownHostId = UUID.randomUUID();
 
-		final var exception = assertThrows(HostLmsService.UnknownHostLmsException.class,
+		final var exception = assertThrows(UnknownHostLmsException.class,
 			() -> hostLmsService.findById(unknownHostId).block());
 
 		// Assert
@@ -123,7 +123,7 @@ class HostLmsTests {
 			.build());
 
 		// Act
-		final var exception = assertThrows(HostLmsService.UnknownHostLmsException.class,
+		final var exception = assertThrows(UnknownHostLmsException.class,
 			() -> hostLmsService.findByCode("unknown-host").block());
 
 		// Assert

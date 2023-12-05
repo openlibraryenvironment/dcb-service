@@ -8,7 +8,7 @@ import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 
 import java.util.UUID;
 
-import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.item.availability.AvailabilityResponseView;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
@@ -62,7 +62,7 @@ public class LiveAvailabilityController {
 	}
 
 	@Error
-	public HttpResponse<String> onUnknownHostLms(HostLmsService.UnknownHostLmsException exception) {
+	public HttpResponse<String> onUnknownHostLms(UnknownHostLmsException exception) {
 		return serverError(exception.getMessage());
 	}
 

@@ -90,10 +90,4 @@ public class HostLmsService implements IngestSourcesProvider {
 
 		return Flux.from(hostLmsRepository.queryAll());
 	}
-
-	public static class UnknownHostLmsException extends RuntimeException {
-		UnknownHostLmsException(String propertyName, Object value) {
-			super(String.format("No Host LMS found for %s: %s", propertyName, value));
-		}
-	}
 }

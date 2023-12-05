@@ -19,7 +19,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
@@ -209,7 +209,7 @@ class LiveAvailabilityServiceTests {
 		bibRecordFixture.createBibRecord(bibRecordId, unknownHostId,
 			"7657673", clusterRecord);
 
-		final var exception = assertThrows(HostLmsService.UnknownHostLmsException.class,
+		final var exception = assertThrows(UnknownHostLmsException.class,
 			() -> liveAvailabilityService.getAvailableItems(clusterRecordId).block());
 
 		assertThat(exception, hasMessage("No Host LMS found for ID: " + unknownHostId));

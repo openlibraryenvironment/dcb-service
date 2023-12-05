@@ -3,7 +3,7 @@ package org.olf.dcb.request.fulfilment;
 import java.util.List;
 
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.HostLmsService.UnknownHostLmsException;
+import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
