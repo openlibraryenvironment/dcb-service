@@ -1,6 +1,5 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.fallbackBasedUponAvailableStatuses;
 
 import java.time.Instant;
@@ -14,6 +13,7 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
@@ -78,11 +78,11 @@ public class SierraItemMapper {
 
 	@Nullable
 	private Instant parsedDueDate(SierraItem result) {
-		final var dueDate = result.getStatus().getDuedate();
-
-		return isNotEmpty(dueDate)
-			? Instant.parse(dueDate)
-			: null;
+		return Optional.ofNullable(result.getStatus())
+			.map(Status::getDuedate)
+			.filter(StringUtils::isNotEmpty)
+			.map(Instant::parse)
+			.orElse(null);
 	}
 
 	private String determineLocalItemTypeCode(Map<Integer, FixedField> fixedFields) {
