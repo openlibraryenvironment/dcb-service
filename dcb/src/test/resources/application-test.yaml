@@ -5,15 +5,18 @@ hosts:
     ingestSourceType: org.olf.dcb.core.interaction.sierra.SierraLmsClient
     client:
       base-url: "https://some-sierra-system"
+      ingest: false
   "no-ingest-source-config-host":
     name: No Ingest Source Config Host
     type: org.olf.dcb.core.interaction.sierra.SierraLmsClient
     client:
       base-url: "https://some-sierra-system"
+      ingest: false
   "no-client-config-host":
     name: No Client Config Host
     client:
       base-url: "https://some-sierra-system"
+      ingest: false
 
 micronaut:
   application:
