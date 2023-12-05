@@ -82,7 +82,9 @@ public class HostLmsService implements IngestSourcesProvider {
 	@Override
 	public Publisher<IngestSource> getIngestSources() {
 		return getAllHostLms()
-			.flatMap(this::getIngestSourceFor);
+			.flatMap(this::getIngestSourceFor)
+			.onErrorContinue(InvalidHostLmsConfigurationException.class,
+				(error, source) -> log.warn("{}", error.getMessage()));
 	}
 
 	private Flux<DataHostLms> getAllHostLms() {
