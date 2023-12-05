@@ -121,7 +121,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final RawSourceRepository rawSourceRepository;
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 	private final NumericPatronTypeMapper numericPatronTypeMapper;
-	private final ItemMapper itemMapper;
+	private final SierraItemMapper itemMapper;
 
 	private final Integer getHoldsRetryAttempts;
 
@@ -131,7 +131,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		ProcessStateService processStateService,
 		ReferenceValueMappingRepository referenceValueMappingRepository,
 		ConversionService conversionService,
-		NumericPatronTypeMapper numericPatronTypeMapper, ItemMapper itemMapper) {
+		NumericPatronTypeMapper numericPatronTypeMapper, SierraItemMapper itemMapper) {
 
 		this.lms = lms;
 

@@ -99,7 +99,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final RawSourceRepository rawSourceRepository;
 	private final ConversionService conversionService;
 	private final IngestHelper ingestHelper;
-	private final ItemMapper itemMapper;
+	private final PolarisItemMapper itemMapper;
 	private final PAPIClient papiClient;
 	private final ApplicationServicesClient appServicesClient;
 	private final List<ApplicationServicesClient.MaterialType> materialTypes = new ArrayList<>();
@@ -113,7 +113,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		ProcessStateService processStateService,
 		RawSourceRepository rawSourceRepository,
 		ConversionService conversionService,
-		ItemMapper itemMapper,
+		PolarisItemMapper itemMapper,
 		ReferenceValueMappingRepository referenceValueMappingRepository)
 	{
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
