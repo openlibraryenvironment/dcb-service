@@ -28,6 +28,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
+import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.ItemMatchers.suppressionUnknown;
 
 import java.time.Instant;
@@ -131,7 +132,7 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasHoldCount(1),
 					hasLocalItemType("book"),
 					hasLocation("Crerar, Lower Level, Bookstacks", "CLLA"),
-					suppressionUnknown(),
+					isNotSuppressed(),
 					isNotDeleted()
 				),
 				allOf(
@@ -144,7 +145,7 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasHoldCount(2),
 					hasNoLocalItemType(),
 					hasLocation("Social Service Administration", "SSA"),
-					suppressionUnknown(),
+					isNotSuppressed(),
 					isNotDeleted()
 				)
 			));

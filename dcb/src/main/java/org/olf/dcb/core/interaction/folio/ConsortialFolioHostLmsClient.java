@@ -235,6 +235,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.name(holding.getLocation())
 					.code(holding.getLocationCode())
 					.build())
+				.suppressed(false)
 				.deleted(false)
 				.build());
 	}
