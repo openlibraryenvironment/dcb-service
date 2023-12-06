@@ -5,11 +5,11 @@ import java.time.Instant;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Value;
 
 @Serdeable
 @Builder
-@Data
+@Value
 public class Holding {
 	@Nullable String id;
 	@Nullable String barcode;
@@ -19,4 +19,5 @@ public class Holding {
 	@Nullable String status;
 	@Nullable Instant dueDate;
 	@Nullable String permanentLoanType;
+	@Nullable MaterialType materialType;
 }

@@ -5,12 +5,12 @@ import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMappe
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.util.StringUtils;
@@ -48,8 +48,8 @@ public class SierraItemMapper {
 	public Mono<Item> mapResultToItem(SierraItem itemResult, String hostLmsCode, String localBibId) {
 		log.debug("mapResultToItem({}, {}, {})", itemResult, hostLmsCode, localBibId);
 
-		final var statusCode = getValue(itemResult.getStatus(), Status::getCode);
-		final var dueDate = getValue(itemResult.getStatus(), Status::getDuedate);
+		final var statusCode = PropertyAccessUtils.getValue(itemResult.getStatus(), Status::getCode);
+		final var dueDate = PropertyAccessUtils.getValue(itemResult.getStatus(), Status::getDuedate);
 
 		// Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
 		// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human-readable string at the moment
@@ -99,11 +99,5 @@ public class SierraItemMapper {
 		}
 
 		return localItemTypeCode;
-	}
-
-	private String getValue(Status status, Function<Status, String> function) {
-		return Optional.ofNullable(status)
-			.map(function)
-			.orElse(null);
 	}
 }
