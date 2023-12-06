@@ -16,12 +16,15 @@ import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -76,6 +79,8 @@ class ConsortialFolioHostLmsClientItemTests {
 		// Arrange
 		final var instanceId = UUID.randomUUID().toString();
 
+		final var dueDate = Instant.parse("2023-12-11T23:59:59.000+00:00");
+
 		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
 			Holding.builder()
 				.id("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2")
@@ -88,7 +93,8 @@ class ConsortialFolioHostLmsClientItemTests {
 				.id("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3")
 				.callNumber("QA273.A5450 1984")
 				.location("Social Service Administration")
-				.status("Available")
+				.status("Checked out")
+				.dueDate(dueDate)
 				.permanentLoanType("stks")
 				.build()
 		);
@@ -106,6 +112,7 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasLocalBibId(instanceId),
 					hasCallNumber("QA273.A5450 1984"),
 					hasStatus(AVAILABLE),
+					hasNoDueDate(),
 					hasLocalItemType("stks"),
 					hasLocation("Crerar, Lower Level, Bookstacks")
 				),
@@ -113,7 +120,8 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasLocalId("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3"),
 					hasLocalBibId(instanceId),
 					hasCallNumber("QA273.A5450 1984"),
-					hasStatus(AVAILABLE),
+					hasStatus(CHECKED_OUT),
+					hasDueDate(dueDate),
 					hasLocalItemType("stks"),
 					hasLocation("Social Service Administration")
 				)

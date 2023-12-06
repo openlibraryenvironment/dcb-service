@@ -226,6 +226,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.localBibId(instanceId)
 				.callNumber(holding.getCallNumber())
 				.status(status)
+				.dueDate(holding.getDueDate())
 				.localItemType(holding.getPermanentLoanType())
 				.location(Location.builder()
 					.name(holding.getLocation())

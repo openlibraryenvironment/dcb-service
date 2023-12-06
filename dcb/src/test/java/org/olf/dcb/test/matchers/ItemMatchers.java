@@ -43,7 +43,11 @@ public class ItemMatchers {
 	}
 
 	public static Matcher<Item> hasDueDate(String expectedDueDate) {
-		return hasProperty("dueDate", is(Instant.parse(expectedDueDate)));
+		return hasDueDate(Instant.parse(expectedDueDate));
+	}
+
+	public static Matcher<Item> hasDueDate(Instant expectedDueDate) {
+		return hasProperty("dueDate", is(expectedDueDate));
 	}
 
 	public static Matcher<Item> hasNoDueDate() {
