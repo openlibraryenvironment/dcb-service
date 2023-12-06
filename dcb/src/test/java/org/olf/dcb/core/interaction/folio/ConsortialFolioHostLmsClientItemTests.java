@@ -18,6 +18,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasHoldCount;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
@@ -93,6 +94,7 @@ class ConsortialFolioHostLmsClientItemTests {
 				.location("Crerar, Lower Level, Bookstacks")
 				.locationCode("CLLA")
 				.status("Available")
+				.totalHoldRequests(1)
 				.permanentLoanType("stks")
 				.materialType(MaterialType.builder()
 					.name("book")
@@ -105,6 +107,7 @@ class ConsortialFolioHostLmsClientItemTests {
 				.location("Social Service Administration")
 				.locationCode("SSA")
 				.status("Checked out")
+				.totalHoldRequests(2)
 				.dueDate(dueDate)
 				.permanentLoanType("stks")
 				.build()
@@ -125,6 +128,7 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasCallNumber("QA273.A5450 1984"),
 					hasStatus(AVAILABLE),
 					hasNoDueDate(),
+					hasHoldCount(1),
 					hasLocalItemType("book"),
 					hasLocation("Crerar, Lower Level, Bookstacks", "CLLA"),
 					suppressionUnknown(),
@@ -137,6 +141,7 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasCallNumber("QA273.A5450 1984"),
 					hasStatus(CHECKED_OUT),
 					hasDueDate(dueDate),
+					hasHoldCount(2),
 					hasNoLocalItemType(),
 					hasLocation("Social Service Administration", "SSA"),
 					suppressionUnknown(),

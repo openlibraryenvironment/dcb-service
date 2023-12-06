@@ -20,4 +20,5 @@ public class Holding {
 	@Nullable Instant dueDate;
 	@Nullable String permanentLoanType;
 	@Nullable MaterialType materialType;
+	@Nullable Integer totalHoldRequests;
 }

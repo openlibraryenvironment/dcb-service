@@ -229,6 +229,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.callNumber(holding.getCallNumber())
 				.status(status)
 				.dueDate(holding.getDueDate())
+				.holdCount(holding.getTotalHoldRequests())
 				.localItemType(getValue(holding.getMaterialType(), MaterialType::getName))
 				.location(Location.builder()
 					.name(holding.getLocation())
