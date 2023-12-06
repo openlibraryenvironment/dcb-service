@@ -24,6 +24,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 
 import java.time.Instant;
@@ -91,6 +92,9 @@ class ConsortialFolioHostLmsClientItemTests {
 				.locationCode("CLLA")
 				.status("Available")
 				.permanentLoanType("stks")
+				.materialType(MaterialType.builder()
+					.name("book")
+					.build())
 				.build(),
 			Holding.builder()
 				.id("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3")
@@ -119,7 +123,7 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasCallNumber("QA273.A5450 1984"),
 					hasStatus(AVAILABLE),
 					hasNoDueDate(),
-					hasLocalItemType("stks"),
+					hasLocalItemType("book"),
 					hasLocation("Crerar, Lower Level, Bookstacks", "CLLA")
 				),
 				allOf(
@@ -129,7 +133,7 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasCallNumber("QA273.A5450 1984"),
 					hasStatus(CHECKED_OUT),
 					hasDueDate(dueDate),
-					hasLocalItemType("stks"),
+					hasNoLocalItemType(),
 					hasLocation("Social Service Administration", "SSA")
 				)
 			));

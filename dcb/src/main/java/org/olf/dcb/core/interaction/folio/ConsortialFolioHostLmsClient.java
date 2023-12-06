@@ -9,6 +9,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.net.URI;
 import java.util.List;
@@ -228,7 +229,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.callNumber(holding.getCallNumber())
 				.status(status)
 				.dueDate(holding.getDueDate())
-				.localItemType(holding.getPermanentLoanType())
+				.localItemType(getValue(holding.getMaterialType(), MaterialType::getName))
 				.location(Location.builder()
 					.name(holding.getLocation())
 					.code(holding.getLocationCode())

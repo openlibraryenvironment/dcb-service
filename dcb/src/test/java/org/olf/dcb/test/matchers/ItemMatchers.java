@@ -70,6 +70,10 @@ public class ItemMatchers {
 		return hasProperty("localItemType", is(expectedLocalItemType));
 	}
 
+	public static Matcher<Item> hasNoLocalItemType() {
+		return hasProperty("localItemType", is(nullValue()));
+	}
+
 	public static Matcher<Item> hasLocalItemTypeCode(String expectedLocalItemTypeCode) {
 		return hasProperty("localItemTypeCode", is(expectedLocalItemTypeCode));
 	}
