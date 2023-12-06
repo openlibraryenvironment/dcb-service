@@ -78,6 +78,10 @@ public class ItemMatchers {
 		return hasProperty("localItemTypeCode", is(expectedLocalItemTypeCode));
 	}
 
+	public static Matcher<Item> hasNoLocalItemTypeCode() {
+		return hasProperty("localItemTypeCode", is(nullValue()));
+	}
+
 	public static Matcher<Item> hasCanonicalItemType(String expectedCanonicalItemType) {
 		return hasProperty("canonicalItemType", is(expectedCanonicalItemType));
 	}

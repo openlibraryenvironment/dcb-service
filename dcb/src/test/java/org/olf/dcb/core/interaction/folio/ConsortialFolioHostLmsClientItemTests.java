@@ -22,14 +22,15 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasHoldCount;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoLocalItemType;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
-import static org.olf.dcb.test.matchers.ItemMatchers.suppressionUnknown;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -131,6 +132,7 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasNoDueDate(),
 					hasHoldCount(1),
 					hasLocalItemType("book"),
+					hasLocalItemTypeCode("book"),
 					hasLocation("Crerar, Lower Level, Bookstacks", "CLLA"),
 					isNotSuppressed(),
 					isNotDeleted()
@@ -144,6 +146,7 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasDueDate(dueDate),
 					hasHoldCount(2),
 					hasNoLocalItemType(),
+					hasNoLocalItemTypeCode(),
 					hasLocation("Social Service Administration", "SSA"),
 					isNotSuppressed(),
 					isNotDeleted()
