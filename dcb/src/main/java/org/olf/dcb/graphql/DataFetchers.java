@@ -372,8 +372,14 @@ public class DataFetchers {
                 // ToDo: FillOut
                 return env -> {
                         Location l = (Location) env.getSource();
-                        UUID agencyUUID = l.getAgency().getId();
-                        return Mono.from(postgresAgencyRepository.findById(agencyUUID)).toFuture();
+			if ( l.getAgency() != null ) {
+                        	UUID agencyUUID = l.getAgency().getId();
+                        	return Mono.from(postgresAgencyRepository.findById(agencyUUID)).toFuture();
+			}
+			else {
+				Mono<DataAgency> r = Mono.empty();
+				return r.toFuture();
+			}
                 };
 	}
 
@@ -381,8 +387,14 @@ public class DataFetchers {
                 // ToDo: FillOut
                 return env -> {
                         Location l = (Location) env.getSource();
-                        UUID hostSystemUUID = l.getHostSystem().getId();
-                        return Mono.from(postgresHostLmsRepository.findById(hostSystemUUID)).toFuture();
+			if ( l.getHostSystem() != null ) {
+                        	UUID hostSystemUUID = l.getHostSystem().getId();
+                        	return Mono.from(postgresHostLmsRepository.findById(hostSystemUUID)).toFuture();
+			}
+			else {
+				Mono<DataHostLms> r = Mono.empty();
+				return r.toFuture();
+			}
                 };
         }
         
@@ -390,9 +402,14 @@ public class DataFetchers {
                 // ToDo: FillOut
                 return env -> {
                         Location l = (Location) env.getSource();
-                        @io.micronaut.core.annotation.NonNull
-                        UUID parentLocationUUID = l.getParentLocation().getId();
-                        return Mono.from(postgresLocationRepository.findById(parentLocationUUID)).toFuture();
+			if ( l.getParentLocation() != null ) {
+	                        UUID parentLocationUUID = l.getParentLocation().getId();
+        	                return Mono.from(postgresLocationRepository.findById(parentLocationUUID)).toFuture();
+			}
+			else {
+				Mono<Location> r = Mono.empty();
+				return r.toFuture();
+			}
                 };
         }
 }
