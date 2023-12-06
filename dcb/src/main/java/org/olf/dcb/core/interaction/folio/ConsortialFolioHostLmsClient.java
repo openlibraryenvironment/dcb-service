@@ -224,6 +224,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.map(status -> Item.builder()
 				.localId(holding.getId())
 				.localBibId(instanceId)
+				.barcode(holding.getBarcode())
 				.callNumber(holding.getCallNumber())
 				.status(status)
 				.dueDate(holding.getDueDate())

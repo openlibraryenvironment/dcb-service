@@ -12,6 +12,7 @@ import lombok.Data;
 @Data
 public class Holding {
 	@Nullable String id;
+	@Nullable String barcode;
 	@Nullable String callNumber;
 	@Nullable String location;
 	@Nullable String status;

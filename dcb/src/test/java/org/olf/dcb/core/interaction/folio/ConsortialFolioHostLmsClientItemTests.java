@@ -15,12 +15,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 
@@ -91,6 +93,7 @@ class ConsortialFolioHostLmsClientItemTests {
 				.build(),
 			Holding.builder()
 				.id("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3")
+				.barcode("26928683")
 				.callNumber("QA273.A5450 1984")
 				.location("Social Service Administration")
 				.status("Checked out")
@@ -110,6 +113,7 @@ class ConsortialFolioHostLmsClientItemTests {
 				allOf(
 					hasLocalId("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2"),
 					hasLocalBibId(instanceId),
+					hasNoBarcode(),
 					hasCallNumber("QA273.A5450 1984"),
 					hasStatus(AVAILABLE),
 					hasNoDueDate(),
@@ -119,6 +123,7 @@ class ConsortialFolioHostLmsClientItemTests {
 				allOf(
 					hasLocalId("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3"),
 					hasLocalBibId(instanceId),
+					hasBarcode("26928683"),
 					hasCallNumber("QA273.A5450 1984"),
 					hasStatus(CHECKED_OUT),
 					hasDueDate(dueDate),

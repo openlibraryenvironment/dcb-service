@@ -20,6 +20,10 @@ public class ItemMatchers {
 		return hasProperty("barcode", is(expectedBarcode));
 	}
 
+	public static Matcher<Item> hasNoBarcode() {
+		return hasProperty("barcode", is(nullValue()));
+	}
+
 	public static Matcher<Item> hasStatus(ItemStatusCode expectedStatus) {
 		return hasProperty("status", hasProperty("code", is(expectedStatus)));
 	}
