@@ -88,6 +88,7 @@ class ConsortialFolioHostLmsClientItemTests {
 				.id("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2")
 				.callNumber("QA273.A5450 1984")
 				.location("Crerar, Lower Level, Bookstacks")
+				.locationCode("CLLA")
 				.status("Available")
 				.permanentLoanType("stks")
 				.build(),
@@ -96,6 +97,7 @@ class ConsortialFolioHostLmsClientItemTests {
 				.barcode("26928683")
 				.callNumber("QA273.A5450 1984")
 				.location("Social Service Administration")
+				.locationCode("SSA")
 				.status("Checked out")
 				.dueDate(dueDate)
 				.permanentLoanType("stks")
@@ -118,7 +120,7 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasStatus(AVAILABLE),
 					hasNoDueDate(),
 					hasLocalItemType("stks"),
-					hasLocation("Crerar, Lower Level, Bookstacks")
+					hasLocation("Crerar, Lower Level, Bookstacks", "CLLA")
 				),
 				allOf(
 					hasLocalId("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3"),
@@ -128,7 +130,7 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasStatus(CHECKED_OUT),
 					hasDueDate(dueDate),
 					hasLocalItemType("stks"),
-					hasLocation("Social Service Administration")
+					hasLocation("Social Service Administration", "SSA")
 				)
 			));
 	}

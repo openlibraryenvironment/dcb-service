@@ -231,6 +231,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.localItemType(holding.getPermanentLoanType())
 				.location(Location.builder()
 					.name(holding.getLocation())
+					.code(holding.getLocationCode())
 					.build())
 				.build());
 	}

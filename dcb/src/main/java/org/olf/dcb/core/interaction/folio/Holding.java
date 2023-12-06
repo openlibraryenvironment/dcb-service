@@ -15,6 +15,7 @@ public class Holding {
 	@Nullable String barcode;
 	@Nullable String callNumber;
 	@Nullable String location;
+	@Nullable String locationCode;
 	@Nullable String status;
 	@Nullable Instant dueDate;
 	@Nullable String permanentLoanType;
