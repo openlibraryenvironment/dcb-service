@@ -238,6 +238,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.build())
 				.suppressed(false)
 				.deleted(false)
+				.hostLmsCode(getHostLmsCode())
 				.build());
 	}
 

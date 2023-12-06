@@ -19,6 +19,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasHoldCount;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
@@ -135,7 +136,8 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasLocalItemTypeCode("book"),
 					hasLocation("Crerar, Lower Level, Bookstacks", "CLLA"),
 					isNotSuppressed(),
-					isNotDeleted()
+					isNotDeleted(),
+					hasHostLmsCode(HOST_LMS_CODE)
 				),
 				allOf(
 					hasLocalId("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3"),
@@ -149,7 +151,8 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasNoLocalItemTypeCode(),
 					hasLocation("Social Service Administration", "SSA"),
 					isNotSuppressed(),
-					isNotDeleted()
+					isNotDeleted(),
+					hasHostLmsCode(HOST_LMS_CODE)
 				)
 			));
 	}
