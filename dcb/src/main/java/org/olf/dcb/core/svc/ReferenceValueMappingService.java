@@ -24,6 +24,8 @@ public class ReferenceValueMappingService {
 
 	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String fromContext, String locationCode) {
 		if (isEmpty(fromContext)) {
+			log.warn("Attempting to find mapping from location (code: \"{}\") to agency with empty from context", locationCode);
+
 			return Mono.empty();
 		}
 
