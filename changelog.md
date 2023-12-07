@@ -1,9 +1,82 @@
 # Changelog
 
+## Version 3.0.2
+
+### Changes
+* [Chore]
+	* Replace spaces with tabs in host LMS service
+	* Add dependency on Sierra specific mapper from shared item mapper
+	* Remove unused status mapping method when mapping items
+* [Feature]
+	* graphql - Location data fetchers
+* [Refactor]
+	* Map status using separate code and due date
+	* Extract method for mapping item status and due date
+	* Move unknown host LMS exception to top level
+	* Rename item mappers to refer to host LMS type
+	* Remove overload for getting items by local bib ID
+	* Inline existing method into get by bib record overload
+	* Replace usages of get items by bib ID
+	* Introduce method for getting items from host LMS by bib record
+	* Move item status fallback definitions to specific mappers
+	* Move remaining item mapping logic to Polaris package
+	* Use Sierra specific item mapper directly
+	* Move map Sierra result to item to Sierra specific mapper
+	* Move local item type method to Sierra specific item mapper
+	* Move parsed due date method to Sierra specific item mapper
+	* Add location to agency mapper dependency to Sierra specific item mapper
+	* Add item type mapper dependency to Sierra specific item mapper
+	* Add item status mapper dependency to Sierra specific item mapper
+	* Move method for enriching item with an item type to mapper
+	* Move method for enriching item with an agency to service
+	* Extract method for mapping an item's location to an agency
+	* Extract method for setting agency information on an item
+	* Use zip to enrich item with agency code and name
+	* Use property chaining to set item agency code and name
+	* Rename item agency name field
+	* Rename enrich item with agency based upon location method
+* [Test]
+	* Disable ingest for all config defined host LMS
+	* Remove unecessary borrowing agency mocks in patron request API tests
+	* Extract constant for the barcode of supplied item in patron request API tests
+	* Extract constant for the location of supplied item in patron request API tests
+	* Use code to define items in Sierra during patron request API tests
+	* Remove unecessary mock response in patron request API tests
+	* Use constant for host LMS code where possible in patron request API tests
+	* Remove unused host LMS in patron API tests
+	* Move mapping to Sierra items response to fixture
+	* Use simpler Sierra item definition when defining mock responses
+	* Define items from Sierra in code rather than resource
+	* Check that Polaris items are not deleted
+	* Check that Sierra items are not deleted
+	* Check no hold count is provided for Polaris item
+	* Check hold count for Sierra items
+	* Replace spaces with tabs in three item Sierra response
+	* Remove nested class in item status mapper tests
+	* Move Polaris item status mapping tests to separate class
+	* Move Sierra item status mapping tests to separate class
+	* Move map sierra item statsus method to nested class
+	* Remove commented out method in reference value mapping fixture
+	* Define one location to agency mapping during Sierra host LMS client item test
+	* Define agency during Sierra host LMS client item test
+	* Delete reference value mappings before each Sierra host LMS client items test
+	* Define item type mapping during Sierra host LMS client item test
+	* Delete agencies before each Sierra host LMS client items test
+	* Move Polaris host LMS client tests to same package as production
+
+### Fixes
+* [General]
+	* Defensive code in data fetchers - null safety
+	* Add further validation of uploaded mappings [DCB-508]
+	* Tolerate Sierra item's without a status
+	* Warn when ingest configuration is invalid for a host LMS
+	* Do not change Polaris item status based upon presence of due date
+
 ## Version 3.0.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* move mapping around in ReferenceValueMappingService to provide more meaningful logging
 * [Feature]
 	* Disable auto location configuration for sierra. data too messy to rely upon, locations don't have agencies attached
