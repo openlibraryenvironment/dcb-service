@@ -312,6 +312,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	private <T> Mono<MutableHttpRequest<T>> createRequest(HttpMethod method, String path) {
 		return Mono.just(UriBuilder.of(path).build())
 			.map(this::resolve)
+			.doOnNext(resolvedUri -> log.info("Fetching records from: \"{}\"", resolvedUri))
 			.map(resolvedUri -> HttpRequest.<T>create(method, resolvedUri.toString())
 				.accept(APPLICATION_JSON));
 	}

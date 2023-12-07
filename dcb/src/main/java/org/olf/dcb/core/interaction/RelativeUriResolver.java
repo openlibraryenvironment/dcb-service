@@ -4,9 +4,13 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import io.micronaut.core.util.StringUtils;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class RelativeUriResolver {
 	public static URI resolve(URI baseUri, URI relativeUri) {
+		log.debug("resolve({}, {})", baseUri, relativeUri);
+
 		URI thisUri = baseUri;
 
 		// if the URI features credentials strip this out
