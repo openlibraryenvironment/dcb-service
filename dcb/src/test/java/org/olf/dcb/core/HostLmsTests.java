@@ -19,7 +19,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.olf.dcb.core.interaction.folio.FolioLmsClient;
+import org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient;
 import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
@@ -200,7 +200,7 @@ class HostLmsTests {
 			final var client = hostLmsFixture.createClient("folio-database-host-lms");
 
 			// Assert
-			assertThat(client, is(instanceOf(FolioLmsClient.class)));
+			assertThat(client, is(instanceOf(ConsortialFolioHostLmsClient.class)));
 		}
 
 		@Test
@@ -243,8 +243,8 @@ class HostLmsTests {
 				.id(UUID.randomUUID())
 				.code("invalid-ingest-source-class")
 				.name("Invalid ingest source class")
-				.lmsClientClass(FolioLmsClient.class.getCanonicalName())
-				.ingestSourceClass(FolioLmsClient.class.getCanonicalName())
+				.lmsClientClass(ConsortialFolioHostLmsClient.class.getCanonicalName())
+				.ingestSourceClass(ConsortialFolioHostLmsClient.class.getCanonicalName())
 				.build());
 		}
 

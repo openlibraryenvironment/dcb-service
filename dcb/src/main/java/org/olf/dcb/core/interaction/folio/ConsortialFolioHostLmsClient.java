@@ -23,10 +23,10 @@ import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 
 @Prototype
-public class FolioLmsClient implements HostLmsClient {
+public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private final HostLms lms;
 
-	public FolioLmsClient(@Parameter HostLms lms) {
+	public ConsortialFolioHostLmsClient(@Parameter HostLms lms) {
 		this.lms = lms;
 	}
 
