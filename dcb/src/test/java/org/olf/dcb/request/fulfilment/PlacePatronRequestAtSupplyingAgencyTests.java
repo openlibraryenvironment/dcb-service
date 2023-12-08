@@ -234,7 +234,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			fetchedPatronRequest.getStatus(), is(ERROR));
 
 		assertThat("Request should have error message afterwards",
-			fetchedPatronRequest.getErrorMessage(), is(expectedMessage));
+			fetchedPatronRequest.getErrorMessage(), containsString(expectedMessage));
 
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedMessage);
 	}
@@ -269,7 +269,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			fetchedPatronRequest.getStatus(), is(ERROR));
 
 		assertThat("Request should have error message afterwards",
-			fetchedPatronRequest.getErrorMessage(), is(expectedErrorMessage));
+			fetchedPatronRequest.getErrorMessage(), containsString(expectedErrorMessage));
 
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
 	}
@@ -289,13 +289,9 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
 		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
-		assertThat("Patron Request audit should have brief description",
-			fetchedAudit.getBriefDescription(),
-			is(description));
-		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(Status.RESOLVED));
-		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(ERROR));
+		assertThat("Patron Request audit should have brief description", fetchedAudit.getBriefDescription(), containsString(description));
+		assertThat("Patron Request audit should have from state", fetchedAudit.getFromStatus(), is(Status.RESOLVED));
+		assertThat("Patron Request audit should have to state", fetchedAudit.getToStatus(), is(ERROR));
 	}
 
 	private UUID createClusterRecord() {

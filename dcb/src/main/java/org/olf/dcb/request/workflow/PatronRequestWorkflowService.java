@@ -137,7 +137,10 @@ public class PatronRequestWorkflowService {
 		
 		return ( Publisher<PatronRequest> pub  ) -> Flux.from(pub)
 				.onErrorResume( throwable -> {
-					
+                                        
+					// If we don't do this, then a subsequent save of the patron request can overwrite the status we explicitly set
+                                        patronRequest.setStatus(Status.ERROR);
+
 					final UUID prId = patronRequest.getId();
 					if (prId == null) return Mono.error(throwable);
 					
