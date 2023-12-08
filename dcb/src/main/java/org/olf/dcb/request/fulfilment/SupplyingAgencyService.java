@@ -4,6 +4,7 @@ import static reactor.function.TupleUtils.function;
 
 import java.util.Arrays;
 import java.util.List;
+import java.net.URI;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
@@ -25,9 +26,13 @@ import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
+import org.zalando.problem.Problem;
+
 @Prototype
 public class SupplyingAgencyService {
 	private static final Logger log = LoggerFactory.getLogger(SupplyingAgencyService.class);
+
+        private static final URI ERR0010 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/2738356304/0010+-+Error+in+place+request+at+supplier");
 
 	private final HostLmsService hostLmsService;
 	private final SupplierRequestService supplierRequestService;
@@ -115,7 +120,25 @@ public class SupplyingAgencyService {
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
 			.flatMap(client -> this.placeHoldRequest(client, psrc) )
 			.map(localRequest -> supplierRequest.placed(localRequest.getLocalId(), localRequest.getLocalStatus()))
-			.thenReturn(psrc);
+			.thenReturn(psrc)
+                        .onErrorResume( error -> {
+                                log.error("Error in placeRequestAtSupplier {} : {}", psrc, error.getMessage());
+                                return Mono.error(
+                                        Problem.builder()
+                                                .withType(ERR0010)
+                                                .withTitle("Unable to place request at supplier: "+error.getMessage())
+                                                .withDetail(error.getMessage() + " " + psrc.toString())
+                                                .with("dcbContext",psrc)
+                                                .with("dcbPatronId",patronIdentityAtSupplier.getLocalId())
+                                                .with("dcbLocalItemId",supplierRequest.getLocalItemId())
+                                                .with("dcbLocalItemBarcode",supplierRequest.getLocalItemBarcode())
+                                                .with("dcbLocalItemType",supplierRequest.getLocalItemType())
+                                                .with("dcbLocalPatronType",patronIdentityAtSupplier.getLocalPtype())
+                                                .with("dcbCanonicalPatronType",patronIdentityAtSupplier.getCanonicalPtype())
+                                                .with("dcbLocalPatronBarcode",patronIdentityAtSupplier.getLocalBarcode())
+                                                .build()
+                                );
+                        });
 	}
 
 	private Mono<LocalRequest> placeHoldRequest(HostLmsClient client,

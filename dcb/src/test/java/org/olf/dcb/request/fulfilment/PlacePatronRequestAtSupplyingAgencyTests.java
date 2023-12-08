@@ -2,6 +2,7 @@ package org.olf.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -34,6 +35,8 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import org.zalando.problem.DefaultProblem;
 
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -216,13 +219,14 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", "b");
 
 		// Act
-		final var exception = assertThrows(HttpClientResponseException.class,
+		// final var exception = assertThrows(HttpClientResponseException.class,
+		final var exception = assertThrows(DefaultProblem.class,
 			() -> placePatronRequestAtSupplyingAgencyStateTransition.attempt(patronRequest).block());
 
 		// Assert
 		final var expectedMessage = "Internal server error: Invalid configuration - [109 / 0]";
 
-		assertThat("Should report exception message", exception.getMessage(), is(expectedMessage));
+		assertThat("Should report exception message", exception.getMessage(), containsString(expectedMessage));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
@@ -254,11 +258,10 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			() -> placePatronRequestAtSupplyingAgencyStateTransition.attempt(patronRequest).block());
 
 		// Assert
-		final var expectedErrorMessage = "Invalid hold policy for Host LMS \""
-			+ INVALID_HOLD_POLICY_HOST_LMS_CODE + "\"";
+		final var expectedErrorMessage = "Invalid hold policy for Host LMS";
 
 		assertThat("Should have invalid hold policy message",
-			exception.getMessage(), is(expectedErrorMessage));
+			exception.getMessage(), containsString(expectedErrorMessage));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
