@@ -11,10 +11,16 @@ import io.micronaut.data.model.query.builder.sql.Dialect;
 import io.micronaut.data.r2dbc.annotation.R2dbcRepository;
 import io.micronaut.data.repository.reactive.ReactiveStreamsPageableRepository;
 import jakarta.inject.Singleton;
+import io.micronaut.data.repository.jpa.reactive.ReactiveStreamsJpaSpecificationExecutor;
+import io.micronaut.data.repository.reactive.ReactiveStreamsPageableRepository;
+
 
 @SuppressWarnings("unchecked")
 @Singleton
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 @Transactional
-public interface PostgresNumericRangeMappingRepository extends ReactiveStreamsPageableRepository<NumericRangeMapping, UUID>, NumericRangeMappingRepository {
+public interface PostgresNumericRangeMappingRepository extends 
+        ReactiveStreamsPageableRepository<NumericRangeMapping, UUID>, 
+        ReactiveStreamsJpaSpecificationExecutor<NumericRangeMapping>,
+        NumericRangeMappingRepository {
 }

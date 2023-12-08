@@ -12,6 +12,8 @@ type Query {
     processStates(query: String, pageno:Int, pagesize: Int, order: String): ProcessStatePage!
     audits(query: String, pageno:Int, pagesize: Int, order: String): PatronRequestAuditPage!
     patronIdentities(query: String, pageno:Int, pagesize: Int, order: String): PatronIdentityPage!
+    numericRangeMappings(query: String, pageno:Int, pagesize: Int, order: String): NumericRangeMappingPage!
+    referenceValueMappings(query: String, pageno:Int, pagesize: Int, order: String): ReferenceValueMappingPage!
 }
 
 type Mutation {
@@ -250,6 +252,42 @@ type SupplierRequestPage {
   content: [SupplierRequest]
   totalSize: Int
   pageable: Pageable
+}
+
+type NumericRangeMappingPage {
+  content: [NumericRangeMapping]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type ReferenceValueMappingPage {
+  content: [ReferenceValueMapping]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type ReferenceValueMapping {
+  id: ID!
+  fromCategory: String
+  fromContext: String
+  fromValue: String
+  toCategory: String
+  toContext: String
+  toValue: String
+  Boolan: reciprocal
+  label: String
+  lastImported: String
+  deleted: Boolean
+}
+
+type NumericRangeMapping {
+  id: ID!
+  context: String
+  domain: String
+  lowerBound: Int
+  upperBound: Int
+  targetContext: String
+  mappedValue: String
 }
 
 type ClusterRecord {

@@ -2,32 +2,11 @@ package org.olf.dcb.graphql;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.olf.dcb.core.model.AgencyGroupMember;
-import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.PatronIdentity;
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequestAudit;
-import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
-import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.core.model.Location;
-import org.olf.dcb.core.model.AgencyGroup;
-import org.olf.dcb.core.model.ProcessState;
 import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
-import org.olf.dcb.storage.postgres.PostgresBibRepository;
-import org.olf.dcb.storage.postgres.PostgresRawSourceRepository;
-import org.olf.dcb.storage.postgres.PostgresHostLmsRepository;
-import org.olf.dcb.storage.postgres.PostgresLocationRepository;
-import org.olf.dcb.storage.postgres.PostgresAgencyGroupRepository;
-import org.olf.dcb.storage.postgres.PostgresProcessStateRepository;
-import org.olf.dcb.storage.postgres.PostgresSupplierRequestRepository;
-import org.olf.dcb.storage.postgres.PostgresPatronRequestAuditRepository;
-import org.olf.dcb.storage.postgres.PostgresPatronIdentityRepository;
-import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
-import org.olf.dcb.storage.postgres.PostgresPatronRequestRepository;
-import org.olf.dcb.storage.postgres.PostgresClusterRecordRepository;
+import org.olf.dcb.storage.postgres.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.reactivestreams.Publisher;
@@ -63,7 +42,10 @@ public class DataFetchers {
         private final PostgresProcessStateRepository postgresProcessStateRepository;
         private final PostgresPatronRequestAuditRepository postgresPatronRequestAuditRepository;
         private final PostgresPatronIdentityRepository postgresPatronIdentityRepository;
-				private final PostgresClusterRecordRepository postgresClusterRecordRepository;
+	private final PostgresClusterRecordRepository postgresClusterRecordRepository;
+	private final PostgresReferenceValueMappingRepository postgresReferenceValueMappingRepository;
+	private final PostgresNumericRangeMappingRepository postgresNumericRangeMappingRepository;
+
 	private final QueryService qs;
 
 	public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
@@ -77,7 +59,10 @@ public class DataFetchers {
                         PostgresAgencyGroupRepository postgresAgencyGroupRepository,
 			PostgresProcessStateRepository postgresProcessStateRepository,
                         PostgresPatronRequestAuditRepository postgresPatronRequestAuditRepository,
-                        PostgresPatronIdentityRepository postgresPatronIdentityRepository, PostgresClusterRecordRepository postgresClusterRecordRepository,
+                        PostgresPatronIdentityRepository postgresPatronIdentityRepository, 
+                        PostgresClusterRecordRepository postgresClusterRecordRepository,
+                        PostgresNumericRangeMappingRepository postgresNumericRangeMappingRepository,
+                        PostgresReferenceValueMappingRepository postgresReferenceValueMappingRepository,
                         QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
@@ -92,7 +77,9 @@ public class DataFetchers {
                 this.postgresProcessStateRepository = postgresProcessStateRepository;
                 this.postgresPatronRequestAuditRepository = postgresPatronRequestAuditRepository;
                 this.postgresPatronIdentityRepository = postgresPatronIdentityRepository;
-								this.postgresClusterRecordRepository = postgresClusterRecordRepository;
+		this.postgresClusterRecordRepository = postgresClusterRecordRepository;
+		this.postgresReferenceValueMappingRepository = postgresReferenceValueMappingRepository;
+		this.postgresNumericRangeMappingRepository = postgresNumericRangeMappingRepository;
 	}
 
 
@@ -363,14 +350,14 @@ public class DataFetchers {
                 };
         }
 
-				public DataFetcher<CompletableFuture<ClusterRecord>> getClusterRecordForPR(){
-						return env -> {
-							PatronRequest parent = (PatronRequest) env.getSource();
-							log.debug("Get the Bib Cluster Record for {}", parent);
-							return Mono.from(postgresClusterRecordRepository.findById(parent.getBibClusterId()))
-								.toFuture();
-						};
-				}
+
+	public DataFetcher<CompletableFuture<ClusterRecord>> getClusterRecordForPR(){
+		return env -> {
+			PatronRequest parent = (PatronRequest) env.getSource();
+			log.debug("Get the Bib Cluster Record for {}", parent);
+			return Mono.from(postgresClusterRecordRepository.findById(parent.getBibClusterId())).toFuture();
+		};
+	}
 
 	public DataFetcher<CompletableFuture<PatronRequest>> getPatronRequestForSupplierRequestDataFetcher() {
                 return env -> {
@@ -435,6 +422,52 @@ public class DataFetchers {
 				Mono<Location> r = Mono.empty();
 				return r.toFuture();
 			}
+                };
+        }
+
+        public DataFetcher<CompletableFuture<Page<NumericRangeMapping>>> getNumericRangeMappingsDataFetcher() {
+                return env -> {
+                        Integer pageno = env.getArgument("pageno");
+                        Integer pagesize = env.getArgument("pagesize");
+                        String query = env.getArgument("query");
+                        String order = env.getArgument("order");
+
+                        if ( pageno == null ) pageno = Integer.valueOf(0);
+                        if ( pagesize == null ) pagesize = Integer.valueOf(10);
+                        if ( order == null ) order = "id";
+
+                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
+                                .order(order);
+
+                        if ((query != null) && (query.length() > 0)) {
+                                var spec = qs.evaluate(query, NumericRangeMapping.class);
+                                return Mono.from(postgresNumericRangeMappingRepository.findAll(spec, pageable)).toFuture();
+                        }
+
+                        return Mono.from(postgresNumericRangeMappingRepository.findAll(pageable)).toFuture();
+                };
+        }
+
+        public DataFetcher<CompletableFuture<Page<ReferenceValueMapping>>> getReferenceValueMappingsDataFetcher() {
+                return env -> {                 
+                        Integer pageno = env.getArgument("pageno");
+                        Integer pagesize = env.getArgument("pagesize");
+                        String query = env.getArgument("query");
+                        String order = env.getArgument("order");
+
+                        if ( pageno == null ) pageno = Integer.valueOf(0);
+                        if ( pagesize == null ) pagesize = Integer.valueOf(10);
+                        if ( order == null ) order = "id";
+
+                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
+                                .order(order);
+
+                        if ((query != null) && (query.length() > 0)) {
+                                var spec = qs.evaluate(query, ReferenceValueMapping.class);
+                                return Mono.from(postgresReferenceValueMappingRepository.findAll(spec, pageable)).toFuture();
+                        }
+
+                        return Mono.from(postgresReferenceValueMappingRepository.findAll(pageable)).toFuture();
                 };
         }
 }
