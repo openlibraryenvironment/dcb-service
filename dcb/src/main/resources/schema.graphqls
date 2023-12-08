@@ -274,7 +274,7 @@ type ReferenceValueMapping {
   toCategory: String
   toContext: String
   toValue: String
-  Boolan: reciprocal
+  reciprocal: Boolean
   label: String
   lastImported: String
   deleted: Boolean
