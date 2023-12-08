@@ -66,7 +66,8 @@ public class BorrowingAgencyService {
 			.flatMap(function(this::createVirtualItem))
 			.flatMap(function(this::placeHoldRequest))
 			.map(function(patronRequest::placedAtBorrowingAgency))
-			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
+			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest))
+                        ;
 	}
 
 	public Mono<String> cleanUp(PatronRequest patronRequest) {

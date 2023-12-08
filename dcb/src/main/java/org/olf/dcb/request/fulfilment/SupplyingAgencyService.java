@@ -83,7 +83,8 @@ public class SupplyingAgencyService {
 			.map(PatronRequest::placedAtSupplyingAgency)
 			// We do this work a level up at PlacePatronRequestAtSupplyingAgencyStateTransition.createAuditEntry
 			// commenting out as of 2023-08-16. If audit log looks good will remove entirely.
-			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
+			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest))
+                        ;
 	}
 
 	public Mono<PatronRequest> cleanUp(PatronRequest patronRequest) {
@@ -126,8 +127,8 @@ public class SupplyingAgencyService {
                                 return Mono.error(
                                         Problem.builder()
                                                 .withType(ERR0010)
-                                                .withTitle("Unable to place request at supplier: "+error.getMessage())
-                                                .withDetail(error.getMessage() + " " + psrc.toString())
+                                                .withTitle("Unable to place request at supplier") // : "+error.getMessage())
+                                                .withDetail(error.getMessage())
                                                 .with("dcbContext",psrc)
                                                 .with("dcbPatronId",patronIdentityAtSupplier.getLocalId())
                                                 .with("dcbLocalItemId",supplierRequest.getLocalItemId())
