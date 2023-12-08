@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
 
+import jakarta.validation.constraints.NotNull;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.storage.ClusterRecordRepository;
 import org.reactivestreams.Publisher;
@@ -96,6 +97,10 @@ public interface PostgresClusterRecordRepository extends
 	@NonNull
 	@SingleResult
 	Publisher<? extends ClusterRecord> findOneById(@NonNull UUID id);
+
+	@NonNull
+	@SingleResult
+	Publisher<ClusterRecord> findById(@NotNull UUID id);
 
 	@NonNull
 	@Join(value = "bibs", type = Type.LEFT_FETCH)
