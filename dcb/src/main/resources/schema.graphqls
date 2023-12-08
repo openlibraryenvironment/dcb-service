@@ -111,6 +111,7 @@ type PatronRequest {
   requesterNote: String
   suppliers: [SupplierRequest]
   audit: [PatronRequestAudit]
+	clusterRecord: [ClusterRecord]
 }
 
 type PatronRequestAudit {

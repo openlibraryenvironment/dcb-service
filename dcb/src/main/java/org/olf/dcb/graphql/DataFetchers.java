@@ -16,9 +16,6 @@ import org.olf.dcb.core.model.AgencyGroup;
 import org.olf.dcb.core.model.ProcessState;
 import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
-import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
-import org.olf.dcb.storage.postgres.PostgresPatronRequestRepository;
-import org.olf.dcb.storage.postgres.PostgresSupplierRequestRepository;
 import org.olf.dcb.storage.postgres.PostgresBibRepository;
 import org.olf.dcb.storage.postgres.PostgresRawSourceRepository;
 import org.olf.dcb.storage.postgres.PostgresHostLmsRepository;
@@ -28,6 +25,9 @@ import org.olf.dcb.storage.postgres.PostgresProcessStateRepository;
 import org.olf.dcb.storage.postgres.PostgresSupplierRequestRepository;
 import org.olf.dcb.storage.postgres.PostgresPatronRequestAuditRepository;
 import org.olf.dcb.storage.postgres.PostgresPatronIdentityRepository;
+import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
+import org.olf.dcb.storage.postgres.PostgresPatronRequestRepository;
+import org.olf.dcb.storage.postgres.PostgresClusterRecordRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.reactivestreams.Publisher;
@@ -63,6 +63,7 @@ public class DataFetchers {
         private final PostgresProcessStateRepository postgresProcessStateRepository;
         private final PostgresPatronRequestAuditRepository postgresPatronRequestAuditRepository;
         private final PostgresPatronIdentityRepository postgresPatronIdentityRepository;
+				private final PostgresClusterRecordRepository postgresClusterRecordRepository;
 	private final QueryService qs;
 
 	public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
@@ -76,7 +77,7 @@ public class DataFetchers {
                         PostgresAgencyGroupRepository postgresAgencyGroupRepository,
 			PostgresProcessStateRepository postgresProcessStateRepository,
                         PostgresPatronRequestAuditRepository postgresPatronRequestAuditRepository,
-                        PostgresPatronIdentityRepository postgresPatronIdentityRepository,
+                        PostgresPatronIdentityRepository postgresPatronIdentityRepository, PostgresClusterRecordRepository postgresClusterRecordRepository,
                         QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
@@ -91,6 +92,7 @@ public class DataFetchers {
                 this.postgresProcessStateRepository = postgresProcessStateRepository;
                 this.postgresPatronRequestAuditRepository = postgresPatronRequestAuditRepository;
                 this.postgresPatronIdentityRepository = postgresPatronIdentityRepository;
+								this.postgresClusterRecordRepository = postgresClusterRecordRepository;
 	}
 
 
@@ -360,6 +362,15 @@ public class DataFetchers {
 				.toFuture();
                 };
         }
+
+				public DataFetcher<CompletableFuture<ClusterRecord>> getClusterRecordForPR(){
+						return env -> {
+							PatronRequest parent = (PatronRequest) env.getSource();
+							log.debug("Get the Bib Cluster Record for {}", parent);
+							return Mono.from(postgresClusterRecordRepository.findById(parent.getBibClusterId()))
+								.toFuture();
+						};
+				}
 
 	public DataFetcher<CompletableFuture<PatronRequest>> getPatronRequestForSupplierRequestDataFetcher() {
                 return env -> {
