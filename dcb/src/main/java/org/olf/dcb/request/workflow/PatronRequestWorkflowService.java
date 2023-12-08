@@ -2,6 +2,7 @@ package org.olf.dcb.request.workflow;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
@@ -22,6 +23,7 @@ import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import org.zalando.problem.DefaultProblem;
 
 @Singleton
 @ExecuteOn(value = TaskExecutors.IO)
@@ -137,17 +139,25 @@ public class PatronRequestWorkflowService {
 		
 		return ( Publisher<PatronRequest> pub  ) -> Flux.from(pub)
 				.onErrorResume( throwable -> {
-					
+                                        
+					// If we don't do this, then a subsequent save of the patron request can overwrite the status we explicitly set
+                                        patronRequest.setStatus(Status.ERROR);
+
 					final UUID prId = patronRequest.getId();
 					if (prId == null) return Mono.error(throwable);
 					
 					// When we encounter an error we should set the status in the DB only to avoid,
 					// partial state saves.
 
-					log.error("update patron request {} to error state ({})",prId,throwable.toString());
+					log.error("update patron request {} to error state ({}) - {}",prId,throwable.getMessage(),throwable.getClass().getName());
+
+                                        Map<String,Object> auditData = null;
+                                        if ( throwable instanceof DefaultProblem ) {
+                                                auditData = ((DefaultProblem)throwable).getParameters();
+                                        }
 					
-					return Mono.from(patronRequestRepository.updateStatusWithError(prId, throwable))
-						.then(patronRequestAuditService.addErrorAuditEntry(patronRequest, fromState, throwable))
+					return Mono.from(patronRequestRepository.updateStatusWithError(prId, throwable.getMessage()))
+						.then(patronRequestAuditService.addErrorAuditEntry(patronRequest, fromState, throwable, auditData))
 						.onErrorResume(saveError -> {
 							log.error("Could not update PatronRequest with error state", saveError);
 							return Mono.empty();

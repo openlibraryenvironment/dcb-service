@@ -74,8 +74,8 @@ public interface PatronRequestRepository {
 	
 	@NonNull
 	@SingleResult
-	default Publisher<Void> updateStatusWithError(@Id UUID id, Throwable t) {
-		return this.updateStatusAndErrorMessage(id, Status.ERROR, t.getMessage());
+	default Publisher<Void> updateStatusWithError(@Id UUID id, String errorMessage) {
+		return this.updateStatusAndErrorMessage(id, Status.ERROR, errorMessage);
 	};
 
 	@NonNull

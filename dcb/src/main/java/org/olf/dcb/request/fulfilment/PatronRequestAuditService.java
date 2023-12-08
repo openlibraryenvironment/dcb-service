@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
+import java.util.Map;
+
 @Singleton
 public class PatronRequestAuditService {
 
@@ -31,10 +33,24 @@ public class PatronRequestAuditService {
 	}
 
 	public Mono<PatronRequestAudit> addAuditEntry(PatronRequest patronRequest, Status from, Status to) {
-		return addAuditEntry(patronRequest, from, to, Optional.empty());
+		return addAuditEntry(patronRequest, from, to, Optional.empty(), Optional.empty());
 	}
 
-	public Mono<PatronRequestAudit> addAuditEntry(PatronRequest patronRequest, Status from, Status to, Optional<String> message) {
+	public Mono<PatronRequestAudit> addAuditEntry(
+                PatronRequest patronRequest, 
+                Status from, 
+                Status to, 
+                Optional<String> message ) {
+                return addAuditEntry(patronRequest,from,to,message,Optional.empty());
+        }
+        
+	public Mono<PatronRequestAudit> addAuditEntry(
+                PatronRequest patronRequest, 
+                Status from, 
+                Status to, 
+                Optional<String> message, 
+                Optional<Map<String,Object>> auditData) {
+
 		var builder = PatronRequestAudit.builder()
 			.id(UUID.randomUUID())
 			.patronRequest(patronRequest)
@@ -54,15 +70,19 @@ public class PatronRequestAuditService {
 	}
 
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, String message) {
-		return addAuditEntry(patronRequest, patronRequest.getStatus(), Status.ERROR, Optional.ofNullable(message));
+		return addAuditEntry(patronRequest, patronRequest.getStatus(), Status.ERROR, Optional.ofNullable(message), Optional.empty());
 	}
 	
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, Throwable error) {
-		return addErrorAuditEntry(patronRequest, patronRequest.getStatus(), error);
+		return addErrorAuditEntry(patronRequest, patronRequest.getStatus(), error, null);
 	}
 
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, Status from, Throwable error) {
+                return addErrorAuditEntry(patronRequest,from,error,null);
+        }
+
+	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, Status from, Throwable error, Map<String,Object> auditData) {
 		log.debug("addErrorAuditEntry");
-		return addAuditEntry(patronRequest, from, Status.ERROR, Optional.ofNullable(error.getMessage()));
+		return addAuditEntry(patronRequest, from, Status.ERROR, Optional.ofNullable(error.getMessage()), Optional.ofNullable(auditData));
 	}
 }
