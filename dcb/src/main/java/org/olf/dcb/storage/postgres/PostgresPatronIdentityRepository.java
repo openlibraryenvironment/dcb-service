@@ -14,6 +14,11 @@ import jakarta.inject.Singleton;
 
 import io.micronaut.data.repository.jpa.reactive.ReactiveStreamsJpaSpecificationExecutor;
 
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.async.annotation.SingleResult;
+import org.reactivestreams.Publisher;
+import jakarta.validation.constraints.NotNull;
+
 
 
 @SuppressWarnings("unchecked")
@@ -25,4 +30,7 @@ public interface PostgresPatronIdentityRepository extends
         ReactiveStreamsJpaSpecificationExecutor<PatronIdentity>,
         PatronIdentityRepository {
 	
+        @NonNull
+        @SingleResult
+        Publisher<PatronIdentity> findById(@NonNull UUID id);
 }

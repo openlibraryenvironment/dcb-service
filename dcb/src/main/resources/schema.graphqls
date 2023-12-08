@@ -140,6 +140,7 @@ type SupplierRequest {
   localStatus: String
   localAgency: String
   patronRequest: PatronRequest
+  virtualIdentity: PatronIdentity
 }
 
 type Patron {
