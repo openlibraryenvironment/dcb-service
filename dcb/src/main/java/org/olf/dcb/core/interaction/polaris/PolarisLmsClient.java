@@ -239,6 +239,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
+        public Mono<Patron> getPatronByUsername(String username) {
+		return patronFind(username);
+	}
+
+
+
+	@Override
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
 		return switch (authProfile) {
 			case "BASIC/BARCODE+PIN" -> papiClient.patronValidate(patronPrinciple, secret);
@@ -310,6 +317,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.map(PolarisItemStatus::getItemStatusID);
 	}
 
+
+        private Mono<Patron> patronFind(String barcode) {
+                return papiClient.patronSearch(barcode)
+                        .map(PAPIClient.PatronSearchRow::getPatronID)
+                        .flatMap(appServicesClient::handlePatronBlock)
+                        .map(String::valueOf)
+                        .flatMap(this::getPatronByLocalId);
+        }
 
 	private Mono<Patron> patronFind(String uniqueID, String barcode) {
 		return papiClient.patronSearch(barcode, uniqueID)

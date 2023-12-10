@@ -115,6 +115,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return Mono.empty();
 	}
 
+	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		log.info("getPatronByLocalId({})", localPatronId);
 		Patron result = Patron.builder().localId(List.of(localPatronId)).localNames(List.of("Dummy Name"))
@@ -122,7 +123,15 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 				.localHomeLibraryCode("TR").build();
 
 		return Mono.just(result);
-		// return Mono.empty();
+	}
+
+	@Override
+	public Mono<Patron> getPatronByUsername(String username) {
+		log.info("getPatronByUsername({})", username);
+		Patron result = Patron.builder().localId(List.of(username)).localNames(List.of("Dummy Name"))
+				.localBarcodes(List.of("66635556635")).uniqueIds(List.of("994746466")).localPatronType("STD")
+				.localHomeLibraryCode("TR").build();
+		return Mono.just(result);
 	}
 
 	@Override
