@@ -56,6 +56,11 @@ public class FolioLmsClient implements HostLmsClient {
 	}
 
 	@Override
+	public Mono<Patron> getPatronByUsername(String localUsername) {
+		return Mono.empty();
+	}
+
+	@Override
 	public Mono<String> createPatron(Patron patron) {
 		return Mono.empty();
 	}

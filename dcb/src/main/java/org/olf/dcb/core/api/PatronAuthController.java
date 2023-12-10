@@ -80,7 +80,7 @@ public class PatronAuthController {
 				}),
 			required = true
 		))
-	public Mono<HttpResponse<VerificationResponse>> patronAuth(@Body @Valid PatronCredentials request) {
+	public Mono<HttpResponse<LocalPatronDetails>> patronAuth(@Body @Valid PatronCredentials request) {
 		log.debug("REST, verify patron {}", request);
 		return Mono.from(agencyRepository.findOneByCode(request.agencyCode))
 			.flatMap(this::addHostLms)
@@ -89,13 +89,12 @@ public class PatronAuthController {
 			.map(HttpResponse::ok);
 	}
 
-	private Mono<VerificationResponse> patronAuth(PatronCredentials creds, DataAgency agency) {
+	private Mono<LocalPatronDetails> patronAuth(PatronCredentials creds, DataAgency agency) {
                 log.debug("patronAuth({},{}) {}",creds,agency,agency.getAuthProfile());
 
 		return hostLmsService.getClientFor(agency.getHostLms().code)
-
 			.flatMap(hostLmsClient -> hostLmsClient.patronAuth( agency.getAuthProfile(), creds.patronPrinciple, creds.secret))
-			.map(patron -> VerificationResponse.builder()
+			.map(patron -> LocalPatronDetails.builder()
 				.status(VALID)
 				.localPatronId(patron.getLocalId())
 				.agencyCode(agency.getCode())
@@ -104,9 +103,9 @@ public class PatronAuthController {
 				.build());
 	}
 
-	private static VerificationResponse invalid(PatronCredentials patronCredentials) {
+	private static LocalPatronDetails invalid(PatronCredentials patronCredentials) {
 		log.debug("Unable to authenticate patron: {}", patronCredentials);
-		return VerificationResponse.builder().status(INVALID).build();
+		return LocalPatronDetails.builder().status(INVALID).build();
 	}
 
 	@Builder
@@ -125,7 +124,7 @@ public class PatronAuthController {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	public static class VerificationResponse {
+	public static class LocalPatronDetails {
 		Status status;
 		List<String> localPatronId;
 		String agencyCode;
@@ -145,4 +144,34 @@ public class PatronAuthController {
 			.flatMap(hostLmsId -> Mono.from(hostLmsRepository.findById(hostLmsId)))
 			.map(dataAgency::setHostLms);
 	}
+
+	/**
+         * A secured endpoint to look up a user record by their ID in a remote system.
+         */
+        @Secured({ "ADMIN" })
+	public Mono<HttpResponse<LocalPatronDetails>> getUserByLocalPrincipal(PatronCredentials c) {
+
+		// Lookup agency
+		return Mono.from(agencyRepository.findOneByCode(c.agencyCode))
+			// Attach hostLMS to agency object
+			.flatMap(this::addHostLms)
+			// Ask HostLMS to look up username
+                        .flatMap(agency -> patronByUsername(c, agency))
+                        .defaultIfEmpty( invalid(c) )
+                        .map(HttpResponse::ok);
+	}
+
+        private Mono<LocalPatronDetails> patronByUsername(PatronCredentials creds, DataAgency agency) {
+                log.debug("patronByUsername({},{}) {}",creds,agency,agency.getAuthProfile());
+		return hostLmsService.getClientFor(agency.getHostLms().code)
+			.flatMap(hostLmsClient -> hostLmsClient.getPatronByUsername( creds.patronPrinciple ))
+			.map(patron -> LocalPatronDetails.builder()
+				.status(VALID)
+				.localPatronId(patron.getLocalId())
+				.agencyCode(agency.getCode())
+				.systemCode(agency.getHostLms().code)
+				.homeLocationCode(patron.getLocalHomeLibraryCode())
+				.build());
+	}
+
 }

@@ -41,7 +41,11 @@ public interface HostLmsClient {
 
 	Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters);
 
+	// Look up patron by their internal id - e.g. 1234
 	Mono<Patron> getPatronByLocalId(String localPatronId);
+
+	// Look up patron by the string they use to identift themselves on the login screen - e.g. fred.user
+	Mono<Patron> getPatronByUsername(String username);
 
 	Mono<Patron> updatePatron(String localId, String patronType);
 
