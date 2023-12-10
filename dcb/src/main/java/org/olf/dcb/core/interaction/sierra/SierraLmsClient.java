@@ -403,13 +403,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
-		log.debug("patronAuth({})", authProfile);
+		log.info("attempt patronAuth({},{},...)", authProfile,patronPrinciple);
 
 		return switch (authProfile) {
 			case "BASIC/BARCODE+PIN" -> validatePatronCredentials("native", patronPrinciple, secret);
 			case "BASIC/BARCODE+NAME" -> validatePatronByBarcodeAndName(patronPrinciple, secret);
 			case "UNIQUE-ID" -> patronFind("u", patronPrinciple);
-			case "BASIC/UNIQUE-ID+PIN" -> validatePatronByUniqueIdAndSecret(patronPrinciple, secret);
+			case "BASIC/UNIQUE-ID+PIN" -> validatePatronCredentials("native", patronPrinciple, secret);
 			default -> Mono.empty();
 		};
 	}
