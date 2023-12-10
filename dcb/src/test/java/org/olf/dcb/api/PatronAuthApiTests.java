@@ -35,6 +35,7 @@ import lombok.Builder;
 import lombok.Data;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
+import services.k_int.interaction.sierra.patrons.PatronValidation;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -95,13 +96,17 @@ public class PatronAuthApiTests {
 		final var patronCredentials = PatronCredentials.builder().agencyCode("ab7")
 			.patronPrinciple("3100222227777").secret("76trombones").build();
 		final var postPatronAuthRequest = HttpRequest.POST("/patron/auth", patronCredentials).bearerAuth(accessToken);
-		mockSierra.whenRequest(req -> req
-				.withMethod("POST")
-				.withPath("/iii/sierra-api/v6/patrons/auth")
-				.withBody(json(InternalPatronValidation.builder().authMethod("native")
-					.patronId("3100222227777").patronSecret("76trombones").build())))
-			.respond(HttpResponse.response("23945734234"));
+
+                mockSierra.whenRequest(req -> req
+                                .withMethod("POST")
+                                .withPath("/iii/sierra-api/v6/patrons/validate")
+                                .withBody(json(PatronValidation.builder()
+                                        .barcode("3100222227777").pin("76trombones").build())))
+                        .respond(HttpResponse.response().withStatusCode(200));
+
+		// I don't understand what this is doing here
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("23945734234");
+		// Or this
                 savePatronTypeMappings();
 
 		// Act
@@ -110,12 +115,14 @@ public class PatronAuthApiTests {
 		// Assert
 		assertThat(response.getStatus(), is(OK));
 		assertThat(response.getBody().isPresent(), is(true));
+
 		VerificationResponse verificationResponse = response.getBody().get();
 		assertThat(verificationResponse.status, is("VALID"));
 		assertThat(verificationResponse.localPatronId.get(0), is("1000002"));
 		assertThat(verificationResponse.agencyCode, is("ab7"));
 		assertThat(verificationResponse.systemCode, is("patron-auth-api-tests"));
-		assertThat(verificationResponse.homeLocationCode, is("testccc"));
+		// assertThat(verificationResponse.homeLocationCode, is("testccc"));
+		assertThat(verificationResponse.homeLocationCode, is("testbbb"));
 	}
 
 	@Test

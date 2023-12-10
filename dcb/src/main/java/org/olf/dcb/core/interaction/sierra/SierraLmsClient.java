@@ -406,26 +406,29 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.info("{} attempt patronAuth({},{},...)", lms.getCode(), authProfile, patronPrinciple);
 
 		return switch (authProfile) {
-			case "BASIC/BARCODE+PIN" -> validatePatronCredentials("native", patronPrinciple, secret);
+			case "BASIC/BARCODE+PIN" -> validatePatronCredentials(patronPrinciple, secret, "b");
 			case "BASIC/BARCODE+NAME" -> validatePatronByBarcodeAndName(patronPrinciple, secret);
 			case "UNIQUE-ID" -> patronFind("u", patronPrinciple);
-			case "BASIC/UNIQUE-ID+PIN" -> validatePatronCredentials("native", patronPrinciple, secret);
+			case "BASIC/UNIQUE-ID+PIN" -> validatePatronCredentials(patronPrinciple, secret,"u");
 			default -> Mono.empty();
 		};
 	}
 
-	private Mono<Patron> validatePatronCredentials(String authMethod, String barcode, String pin) {
-		final var internalPatronValidation = InternalPatronValidation.builder()
-			.authMethod(authMethod)
-			.patronId(barcode)
-			.patronSecret(pin)
+	// In sierra validate == process with pin and whatever identifier the patron wants to send but it only returns boolean
+	private Mono<Patron> validatePatronCredentials(String principal, String pin, String principalType) {
+
+		final var patronValidationRequest = PatronValidation.builder()
+			.barcode(principal)
+			.pin(pin)
+			.caseSensitivity(Boolean.TRUE)
 			.build();
 
-		log.info("Attempt client patron validation : {}", internalPatronValidation);
+		log.info("Attempt client patron validation : {}", patronValidationRequest);
 
-		return Mono.from(client.validatePatronCredentials(internalPatronValidation))
-			.doOnError(error -> log.debug("response of validatePatronCredentials for {}", internalPatronValidation, error))
-			.flatMap(this::getPatronByLocalId);
+		return Mono.from(client.validatePatron(patronValidationRequest))
+			.doOnError(error -> log.debug("response of validatePatronCredentials for {}", patronValidationRequest, error))
+			.filter(result -> result == Boolean.TRUE)
+			.flatMap( result -> patronFind(principalType,principal));
 	}
 
 	private Mono<Patron> validatePatronByUniqueIdAndSecret(String uniqueId, String credentials) {
