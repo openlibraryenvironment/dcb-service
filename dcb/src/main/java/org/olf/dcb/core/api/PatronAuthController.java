@@ -149,6 +149,7 @@ public class PatronAuthController {
          * A secured endpoint to look up a user record by their ID in a remote system.
          */
         @Secured({ "ADMIN" })
+        @Post(value = "/lookup", consumes = APPLICATION_JSON)
 	public Mono<HttpResponse<LocalPatronDetails>> getUserByLocalPrincipal(PatronCredentials c) {
 
 		// Lookup agency
