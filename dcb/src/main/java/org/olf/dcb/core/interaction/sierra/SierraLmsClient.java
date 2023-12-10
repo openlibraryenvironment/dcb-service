@@ -403,7 +403,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
-		log.info("attempt patronAuth({},{},...)", authProfile,patronPrinciple);
+		log.info("{} attempt patronAuth({},{},...)", lms.getCode(), authProfile, patronPrinciple);
 
 		return switch (authProfile) {
 			case "BASIC/BARCODE+PIN" -> validatePatronCredentials("native", patronPrinciple, secret);
@@ -421,7 +421,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.patronSecret(pin)
 			.build();
 
-		log.debug("Attempt client patron validation : {}", internalPatronValidation);
+		log.info("Attempt client patron validation : {}", internalPatronValidation);
 
 		return Mono.from(client.validatePatronCredentials(internalPatronValidation))
 			.doOnError(error -> log.debug("response of validatePatronCredentials for {}", internalPatronValidation, error))

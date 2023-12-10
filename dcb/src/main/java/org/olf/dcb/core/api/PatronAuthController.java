@@ -81,7 +81,7 @@ public class PatronAuthController {
 			required = true
 		))
 	public Mono<HttpResponse<LocalPatronDetails>> patronAuth(@Body @Valid PatronCredentials request) {
-		log.debug("REST, verify patron {}", request);
+		log.info("REST, verify patron {}", request);
 		return Mono.from(agencyRepository.findOneByCode(request.agencyCode))
 			.flatMap(this::addHostLms)
 			.flatMap(agency -> patronAuth(request, agency))
@@ -90,7 +90,7 @@ public class PatronAuthController {
 	}
 
 	private Mono<LocalPatronDetails> patronAuth(PatronCredentials creds, DataAgency agency) {
-                log.debug("patronAuth({},{}) {}",creds,agency,agency.getAuthProfile());
+                log.info("patronAuth({},{}) {}",creds,agency,agency.getAuthProfile());
 
 		return hostLmsService.getClientFor(agency.getHostLms().code)
 			.flatMap(hostLmsClient -> hostLmsClient.patronAuth( agency.getAuthProfile(), creds.patronPrinciple, creds.secret))
@@ -104,7 +104,7 @@ public class PatronAuthController {
 	}
 
 	private static LocalPatronDetails invalid(PatronCredentials patronCredentials) {
-		log.debug("Unable to authenticate patron: {}", patronCredentials);
+		log.warn("Unable to authenticate patron: {}", patronCredentials);
 		return LocalPatronDetails.builder().status(INVALID).build();
 	}
 
