@@ -894,6 +894,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLmsCode())));
 	}
 
+        public Mono<Patron> getPatronByUsername(String username) {
+		log.debug("getPatronByUsername({})", username);
+		return Mono.empty();
+	}
+
+
 	@Override
 	public Mono<Patron> updatePatron(String localPatronId, String patronType) {
 		log.debug("updatePatron({})", localPatronId);
