@@ -896,7 +896,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
         public Mono<Patron> getPatronByUsername(String username) {
 		log.debug("getPatronByUsername({})", username);
-		return Mono.empty();
+		// This is complicated because in sierra, users log on by different fields - some systems are
+		// configured to have users log in by barcode, and others use uniqueId. Here we're going to try a
+		// belt and braces approach and look up by UniqueId first, then Barcode
+		return patronFind("u", username)
+			.switchIfEmpty(Mono.defer(() -> { return patronFind("b", username); }));
 	}
 
 
