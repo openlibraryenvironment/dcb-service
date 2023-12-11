@@ -85,7 +85,7 @@ public class PatronAuthController {
 		return Mono.from(agencyRepository.findOneByCode(request.agencyCode))
 			.flatMap(this::addHostLms)
 			.flatMap(agency -> patronAuth(request, agency))
-			.defaultIfEmpty( invalid(request) )
+			.switchIfEmpty( Mono.defer(() -> { return invalid(request); } ) )
 			.map(HttpResponse::ok);
 	}
 
@@ -103,9 +103,9 @@ public class PatronAuthController {
 				.build());
 	}
 
-	private static LocalPatronDetails invalid(PatronCredentials patronCredentials) {
+	private static Mono<LocalPatronDetails> invalid(PatronCredentials patronCredentials) {
 		log.warn("Unable to authenticate patron: {}", patronCredentials);
-		return LocalPatronDetails.builder().status(INVALID).build();
+		return Mono.just(LocalPatronDetails.builder().status(INVALID).build());
 	}
 
 	@Builder
@@ -160,7 +160,7 @@ public class PatronAuthController {
 			.flatMap(this::addHostLms)
 			// Ask HostLMS to look up username
                         .flatMap(agency -> patronByUsername(c, agency))
-                        .defaultIfEmpty( invalid(c) )
+			.switchIfEmpty( Mono.defer(() -> { return invalid(c); } ) )
                         .map(HttpResponse::ok);
 	}
 
