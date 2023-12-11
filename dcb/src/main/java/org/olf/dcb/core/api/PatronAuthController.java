@@ -150,7 +150,7 @@ public class PatronAuthController {
          */
         @Secured({ "ADMIN" })
         @Post(uri="/lookup", consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
-	public Mono<HttpResponse<LocalPatronDetails>> getUserByLocalPrincipal(PatronCredentials c) {
+	public Mono<HttpResponse<LocalPatronDetails>> getUserByLocalPrincipal(@Body @Valid PatronCredentials c) {
 
                 log.info("PatronAuthController::getUserByLocalPrincipal({})",c);
 
