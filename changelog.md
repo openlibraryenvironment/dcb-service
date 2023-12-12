@@ -1,9 +1,38 @@
 # Changelog
 
+## Version 3.0.3
+
+### Changes
+* [Chore]
+	* Better error logging around create item in Polaris
+	* Add @body annotation to lookup api call
+	* update post annotation on user lookup
+	* refactor validate by pin
+	* more logging around user auth
+	* rest annotations on new lookup methof
+	* Add rest annotation
+	* Work on workflow doc
+* [Core]
+	* defer creation of invalid response when doing patron auth
+* [Feature]
+	* lookup user by username
+	* graphql - Add ReferenceValue and NumericRangeMapping queries
+	* Add BibRecord to PatronRequest GraphQL [DCB-748]
+	* graphql - Add virtual patron identity to supplier request
+
+### Fixes
+* [Graphql]
+	* Reciprocal mapping syntax error
+* [General]
+	* Update PatronRequest GraphQL type [DCB-487]
+	* Correct GraphQLFactory clusterRecord naming [DCB-748]
+	* When authenticating uniqueid+pin for sierra, use the standard auth method
+
 ## Version 3.0.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Replace spaces with tabs in host LMS service
 	* Add dependency on Sierra specific mapper from shared item mapper
 	* Remove unused status mapping method when mapping items
