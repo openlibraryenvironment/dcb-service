@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
@@ -90,7 +91,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			"Available", AVAILABLE,
 			"Checked out", CHECKED_OUT);
 
-		return statusCode -> (statusCode == null || (statusCode.isEmpty()))
+		return statusCode -> isEmpty(statusCode)
 			? UNKNOWN
 			: statusCodeMap.getOrDefault(statusCode, UNAVAILABLE);
 	}

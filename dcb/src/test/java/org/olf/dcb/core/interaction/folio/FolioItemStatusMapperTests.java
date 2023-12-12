@@ -19,6 +19,7 @@ import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Inject;
 
 @DcbTest
@@ -89,6 +90,14 @@ class FolioItemStatusMapperTests {
 	@Test
 	void statusIsUnknownWhenCodeIsNull() {
 		final var mappedStatus = mapFolioStatus(null);
+
+		assertThat(mappedStatus, is(notNullValue()));
+		assertThat(mappedStatus.getCode(), is(UNKNOWN));
+	}
+
+	@Test
+	void statusIsUnknownWhenCodeIsEmpty() {
+		final var mappedStatus = mapFolioStatus("");
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(UNKNOWN));
