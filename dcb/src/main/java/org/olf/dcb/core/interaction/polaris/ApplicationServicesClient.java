@@ -35,11 +35,17 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.APPLICATION_SERVICES;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
 
+import java.net.URI;
+import org.zalando.problem.Problem;
+
 class ApplicationServicesClient {
 	private static final Logger log = LoggerFactory.getLogger(ApplicationServicesClient.class);
 	private final PolarisLmsClient client;
 	private final ApplicationServicesAuthFilter authFilter;
 	private final String URI_PARAMETERS;
+
+        // ToDo align these URLs
+        private static final URI ERR0210 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0210/Polaris/UnableToLoadPatronBlocks");
 
 	ApplicationServicesClient(
 		PolarisLmsClient client)
@@ -115,7 +121,19 @@ class ApplicationServicesClient {
 		return createRequest(GET, path, uri -> uri
 				.queryParam("logonBranchID", conf.get(LOGON_BRANCH_ID))
 				.queryParam("associatedblocks", false))
-			.flatMap(request -> client.retrieve(request, Argument.listOf(PatronBlockGetRow.class)));
+			.flatMap(request -> client.retrieve(request, Argument.listOf(PatronBlockGetRow.class)))
+                        .onErrorResume( error -> {
+                                log.error("Error attempting to retrieve patron blocks {} : {}", localPatronId, error.getMessage());
+                                return Mono.error(
+                                        Problem.builder()
+                                                .withType(ERR0210)
+                                                .withTitle("Unable to retrieve patron blocks from polaris") // : "+error.getMessage())
+                                                .withDetail(error.getMessage())
+                                                .with("localPatronId",localPatronId)
+                                                .build()
+                                );
+                        });
+
 	}
 
 	private <R> Mono<Integer> deletePatronBlock(Integer localPatronId, Integer blocktype, Integer blockid) {

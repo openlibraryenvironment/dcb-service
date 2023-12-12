@@ -92,6 +92,9 @@ public class PAPIClient {
 	}
 
 	public Mono<String> patronRegistrationUpdate(String barcode, String patronType) {
+
+		log.info("patronRegistrationUpdate {} {}", barcode, patronType);
+
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
 		// passing empty patron credentials will allow public requests without patron auth
 		final var empty = PatronCredentials.builder().build();
@@ -112,6 +115,9 @@ public class PAPIClient {
 	}
 
 	public Mono<ItemCheckoutResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {
+
+		log.info("Patron {} checking out item {}", patronBarcode, itemBarcode);
+
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
 		// passing empty patron credentials will allow public requests without patron auth
 		final var empty = PatronCredentials.builder().build();
@@ -124,7 +130,6 @@ public class PAPIClient {
 			.itemBarcode(itemBarcode)
 			.build();
 
-		log.info("Patron {} checking out item {}", patronBarcode, itemBarcode);
 		return createRequest(POST, path, uri -> {})
 			.map(request -> request.body(body))
 			.flatMap( req -> authFilter.ensurePatronAuth(req, empty, TRUE) )

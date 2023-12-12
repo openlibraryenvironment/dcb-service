@@ -59,7 +59,7 @@ public class BorrowingAgencyService {
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(PatronRequest patronRequest) {
-		log.debug("placePatronRequestAtBorrowingAgency {}", patronRequest.getId());
+		log.info("placePatronRequestAtBorrowingAgency {}", patronRequest.getId());
 
 		return getHoldRequestData(patronRequest)
 			.flatMap(function(this::createVirtualBib))
@@ -71,7 +71,7 @@ public class BorrowingAgencyService {
 	}
 
 	public Mono<String> cleanUp(PatronRequest patronRequest) {
-		log.debug("cleanUp {}", patronRequest);
+		log.info("cleanUp {}", patronRequest);
 		if (patronRequest.getPatronHostlmsCode() != null) {
 			return Mono.from(hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode())).flatMap(client -> {
 				if (patronRequest.getLocalItemId() != null)
@@ -93,14 +93,16 @@ public class BorrowingAgencyService {
 			PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 			SupplierRequest supplierRequest) {
 
+
 		final UUID bibClusterId = patronRequest.getBibClusterId();
+
+		log.info("createVirtualBib for cluster {}", bibClusterId);
 
 		if (hostLmsClient == null) {
 			log.error("Cannot create a bib item at host system because hostLmsClient is NULL");
 			throw new RuntimeException("Cannot create a bib item at host system because hostLmsClient is NULL");
 		}
 
-		log.debug("createVirtualBib for cluster {}", bibClusterId);
 
 		return sharedIndexService.findSelectedBib(bibClusterId)
 			.map(this::extractBibData)
@@ -112,7 +114,7 @@ public class BorrowingAgencyService {
 	}
 
 	private Bib extractBibData(BibRecord bibRecord) {
-		log.debug("extractBibData(bibRecord: {})", bibRecord);
+		log.info("extractBibData(bibRecord: {})", bibRecord);
 
 		// Guard clause
 		if (bibRecord.getTitle() == null) {
@@ -128,7 +130,7 @@ public class BorrowingAgencyService {
 			PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 			SupplierRequest supplierRequest) {
 
-		log.debug("createVirtualItem(...)");
+		log.info("createVirtualItem(...)");
 
 		final String localBibId = patronRequest.getLocalBibId();
 		Objects.requireNonNull(localBibId, "Local bib ID not set on Patron Request");
