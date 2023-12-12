@@ -179,6 +179,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
     log.info("createItem({})",createItemCommand);
 
 		return appServicesClient.addItemRecord(createItemCommand)
+      .doOnSuccess( r -> log.info("Got create item response from Polaris: {}",r) )
 			.map(itemCreateResponse -> HostLmsItem.builder()
 				.localId(String.valueOf(itemCreateResponse.getAnswerExtension().getAnswerData().getItemRecord().getItemRecordID()))
 				.status(String.valueOf(itemCreateResponse.getAnswerExtension().getAnswerData().getItemRecord().getItemStatusID()))
