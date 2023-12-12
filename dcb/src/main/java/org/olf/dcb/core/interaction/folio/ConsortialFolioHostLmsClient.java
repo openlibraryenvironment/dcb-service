@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
@@ -36,6 +37,7 @@ import org.olf.dcb.core.model.Location;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.type.Argument;
+import io.micronaut.core.util.CollectionUtils;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
@@ -186,11 +188,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private static boolean hasNoErrors(OuterHoldings outerHoldings) {
-		return outerHoldings.getErrors() == null || outerHoldings.getErrors().isEmpty();
+		return isEmpty(outerHoldings.getErrors());
 	}
 
 	private static boolean hasNoOuterHoldings(OuterHoldings outerHoldings) {
-		return outerHoldings.getHoldings() == null || outerHoldings.getHoldings().isEmpty();
+		return isEmpty(outerHoldings.getHoldings());
 	}
 
 	private static boolean hasMultipleOuterHoldings(OuterHoldings outerHoldings) {
@@ -205,7 +207,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Flux<Item> mapHoldingsToItems(OuterHolding outerHoldings) {
-		if (outerHoldings.getHoldings() == null) {
+		if (isEmpty(outerHoldings.getHoldings())) {
 			return Flux.empty();
 		}
 
