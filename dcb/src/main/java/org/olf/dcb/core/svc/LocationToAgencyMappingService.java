@@ -9,8 +9,10 @@ import org.olf.dcb.storage.AgencyRepository;
 
 import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Singleton
 public class LocationToAgencyMappingService {
 	private final AgencyRepository agencyRepository;
@@ -25,7 +27,8 @@ public class LocationToAgencyMappingService {
 
 	public Mono<DataAgency> mapLocationToAgency(String hostLmsCode, String locationCode) {
 		return referenceValueMappingService.findLocationToAgencyMapping(hostLmsCode, locationCode)
-			.flatMap(rvm -> Mono.from(agencyRepository.findOneByCode(rvm.getToValue())));
+			.flatMap(rvm -> Mono.from(agencyRepository.findOneByCode(rvm.getToValue())))
+			.doOnNext(agency -> log.debug("Found agency for location: {}", agency));
 	}
 
 	public Mono<Item> enrichItemAgencyFromLocation(Item incomingItem, String hostLmsCode) {

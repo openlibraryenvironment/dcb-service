@@ -37,7 +37,8 @@ public class ReferenceValueMappingService {
 			fromCategory, fromContext, locationCode, toCategory, toContext);
 
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-			fromCategory, fromContext, locationCode, toCategory, toContext));
+			fromCategory, fromContext, locationCode, toCategory, toContext))
+			.doOnNext(mapping -> log.debug("Found mapping from location to agency: {}", mapping));
 	}
 
 	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(

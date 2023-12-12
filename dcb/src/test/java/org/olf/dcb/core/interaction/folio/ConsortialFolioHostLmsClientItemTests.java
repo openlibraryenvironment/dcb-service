@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.folio;
 
 import static java.util.Collections.emptyList;
+import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -15,6 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
@@ -88,7 +91,7 @@ class ConsortialFolioHostLmsClientItemTests {
 	@Test
 	void shouldBeAbleToGetItems() {
 		// Arrange
-		final var instanceId = UUID.randomUUID().toString();
+		final var instanceId = randomUUID().toString();
 
 		final var dueDate = Instant.parse("2023-12-11T23:59:59.000+00:00");
 
@@ -162,10 +165,10 @@ class ConsortialFolioHostLmsClientItemTests {
 	@Test
 	void shouldMapItemStatusUsingReferenceValueMappings() {
 		// Arrange
-		final var instanceId = UUID.randomUUID().toString();
+		final var instanceId = randomUUID().toString();
 
-		final var checkedOutItemId = UUID.randomUUID().toString();
-		final var availableItemId = UUID.randomUUID().toString();
+		final var checkedOutItemId = randomUUID().toString();
+		final var availableItemId = randomUUID().toString();
 
 		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
 			exampleHolding()
@@ -203,11 +206,11 @@ class ConsortialFolioHostLmsClientItemTests {
 	@Test
 	void shouldMapItemStatusUsingFallbackMappings() {
 		// Arrange
-		final var instanceId = UUID.randomUUID().toString();
+		final var instanceId = randomUUID().toString();
 
-		final var availableItemId = UUID.randomUUID().toString();
-		final var checkedOutItemId = UUID.randomUUID().toString();
-		final var declaredLostItemId = UUID.randomUUID().toString();
+		final var availableItemId = randomUUID().toString();
+		final var checkedOutItemId = randomUUID().toString();
+		final var declaredLostItemId = randomUUID().toString();
 
 		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
 			exampleHolding()
@@ -246,9 +249,37 @@ class ConsortialFolioHostLmsClientItemTests {
 	}
 
 	@Test
+	void shouldMapLocationCodeToAgencyWhenMappingRefersToExistingAgency() {
+		// Arrange
+		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,
+			"mapped-location", "known-agency");
+
+		agencyFixture.defineAgency("known-agency", "Known agency");
+
+		final var instanceId = randomUUID().toString();
+
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
+			exampleHolding()
+				.locationCode("mapped-location")
+				.location("Mapped location")
+				.build());
+
+		// Act
+		final var items = getItems(instanceId);
+
+		// Assert
+		assertThat("Item should have agency based upon location code", items,
+			containsInAnyOrder(
+				allOf(
+					hasAgencyCode("known-agency"),
+					hasAgencyName("Known agency")
+				)));
+	}
+
+	@Test
 	void shouldBeAbleToHandleZeroInnerHoldings() {
 		// Arrange
-		final var instanceId = UUID.randomUUID().toString();
+		final var instanceId = randomUUID().toString();
 
 		mockFolioFixture.mockHoldingsByInstanceId(instanceId, emptyList());
 
@@ -262,7 +293,7 @@ class ConsortialFolioHostLmsClientItemTests {
 	@Test
 	void shouldFailWhenLikelyInvalidApiKeyResponseIsReceived() {
 		// Arrange
-		final var instanceId = UUID.randomUUID().toString();
+		final var instanceId = randomUUID().toString();
 		
 		// An invalid API key results in a response with no outer holdings
 		mockFolioFixture.mockHoldingsByInstanceId(instanceId, OuterHoldings.builder()
@@ -283,7 +314,7 @@ class ConsortialFolioHostLmsClientItemTests {
 	@Test
 	void shouldFailWhenInstanceNotFoundErrorReceived() {
 		// Arrange
-		final var instanceId = UUID.randomUUID().toString();
+		final var instanceId = randomUUID().toString();
 
 		mockFolioFixture.mockHoldingsByInstanceId(instanceId, OuterHoldings.builder()
 			.errors(List.of(
@@ -305,7 +336,7 @@ class ConsortialFolioHostLmsClientItemTests {
 	@Test
 	void shouldReportZeroItemsWhenHoldingsCannotBeFound() {
 		// Arrange
-		final var instanceId = UUID.randomUUID().toString();
+		final var instanceId = randomUUID().toString();
 
 		mockFolioFixture.mockHoldingsByInstanceId(instanceId, OuterHoldings.builder()
 			.errors(List.of(
@@ -328,8 +359,8 @@ class ConsortialFolioHostLmsClientItemTests {
 		// RTAC should never respond with multiple outer holdings (instances)
 
 		// Arrange
-		final var requestedInstanceId = UUID.randomUUID().toString();
-		final var otherInstanceId = UUID.randomUUID().toString();
+		final var requestedInstanceId = randomUUID().toString();
+		final var otherInstanceId = randomUUID().toString();
 
 		mockFolioFixture.mockHoldingsByInstanceId(requestedInstanceId, OuterHoldings.builder()
 			.holdings(List.of(
@@ -362,7 +393,7 @@ class ConsortialFolioHostLmsClientItemTests {
 		// For more information on the flow inside RTAC - https://github.com/folio-org/mod-rtac/blob/3e7f25445ff79b60690fa2025f3a426d9e57fd21/src/main/java/org/folio/mappers/FolioToRtacMapper.java#L112
 		
 		// Arrange
-		final var instanceId = UUID.randomUUID().toString();
+		final var instanceId = randomUUID().toString();
 
 		final var folioItemStatuses = List.of(
 			"Aged to lost",
@@ -446,6 +477,7 @@ class ConsortialFolioHostLmsClientItemTests {
 
 	private static Holding.HoldingBuilder exampleHolding() {
 		return Holding.builder()
+			.id(randomUUID().toString())
 			.callNumber("QA273.A5450 1984")
 			.location("Crerar, Lower Level, Bookstacks")
 			.status("Available");

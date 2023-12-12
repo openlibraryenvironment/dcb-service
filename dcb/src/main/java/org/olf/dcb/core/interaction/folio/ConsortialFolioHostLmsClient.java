@@ -246,7 +246,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.suppressed(false)
 				.deleted(false)
 				.hostLmsCode(getHostLmsCode())
-				.build());
+				.build())
+			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()));
 	}
 
 	@Override
