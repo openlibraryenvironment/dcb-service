@@ -89,6 +89,9 @@ import reactor.core.publisher.Mono;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
+import java.net.URI;
+import org.zalando.problem.Problem;
+
 @Slf4j
 @Prototype
 public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsPagedRow>, HostLmsClient{
@@ -105,6 +108,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final List<ApplicationServicesClient.MaterialType> materialTypes = new ArrayList<>();
 	private final List<PolarisItemStatus> statuses = new ArrayList<>();
 	private final ReferenceValueMappingRepository mapping;
+
+  // ToDo align these URLs
+  private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
+
 
 	@Creator
 	PolarisLmsClient(
@@ -168,11 +175,25 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand) {
+
+    log.info("createItem({})",createItemCommand);
+
 		return appServicesClient.addItemRecord(createItemCommand)
 			.map(itemCreateResponse -> HostLmsItem.builder()
 				.localId(String.valueOf(itemCreateResponse.getAnswerExtension().getAnswerData().getItemRecord().getItemRecordID()))
 				.status(String.valueOf(itemCreateResponse.getAnswerExtension().getAnswerData().getItemRecord().getItemStatusID()))
-				.build());
+				.build())
+      .onErrorResume( error -> { 
+        log.error("Error attempting to create item {} : {}", createItemCommand, error.getMessage());
+        return Mono.error(
+          Problem.builder()
+            .withType(ERR0211)
+            .withTitle("Unable to create virtual item at polaris") // : "+error.getMessage())
+            .withDetail(error.getMessage())
+            .with("createItemCommand",createItemCommand)
+            .build()                        
+        );                  
+      });
 	}
 
 	@Override

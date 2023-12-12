@@ -121,18 +121,18 @@ class ApplicationServicesClient {
 		return createRequest(GET, path, uri -> uri
 				.queryParam("logonBranchID", conf.get(LOGON_BRANCH_ID))
 				.queryParam("associatedblocks", false))
-			.flatMap(request -> client.retrieve(request, Argument.listOf(PatronBlockGetRow.class)))
-                        .onErrorResume( error -> {
-                                log.error("Error attempting to retrieve patron blocks {} : {}", localPatronId, error.getMessage());
-                                return Mono.error(
-                                        Problem.builder()
-                                                .withType(ERR0210)
-                                                .withTitle("Unable to retrieve patron blocks from polaris") // : "+error.getMessage())
-                                                .withDetail(error.getMessage())
-                                                .with("localPatronId",localPatronId)
-                                                .build()
-                                );
-                        });
+			  .flatMap(request -> client.retrieve(request, Argument.listOf(PatronBlockGetRow.class)))
+        .onErrorResume( error -> {
+            log.error("Error attempting to retrieve patron blocks {} : {}", localPatronId, error.getMessage());
+            return Mono.error(
+              Problem.builder()
+                .withType(ERR0210)
+                .withTitle("Unable to retrieve patron blocks from polaris") // : "+error.getMessage())
+                .withDetail(error.getMessage())
+                .with("localPatronId",localPatronId)
+                .build()
+            );
+        });
 
 	}
 
