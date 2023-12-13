@@ -28,6 +28,8 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyCode;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyName;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoLocalItemType;
@@ -91,6 +93,11 @@ class ConsortialFolioHostLmsClientItemTests {
 	@Test
 	void shouldBeAbleToGetItems() {
 		// Arrange
+		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,
+			"CLLA", "known-agency");
+
+		agencyFixture.defineAgency("known-agency", "Known agency");
+
 		final var instanceId = randomUUID().toString();
 
 		final var dueDate = Instant.parse("2023-12-11T23:59:59.000+00:00");
@@ -128,7 +135,7 @@ class ConsortialFolioHostLmsClientItemTests {
 		assertThat("Should have 2 items", items, hasSize(2));
 
 		assertThat("Items should have expected properties", items,
-			contains(
+			containsInAnyOrder(
 				allOf(
 					hasLocalId("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2"),
 					hasLocalBibId(instanceId),
@@ -142,7 +149,9 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasLocation("Crerar, Lower Level, Bookstacks", "CLLA"),
 					isNotSuppressed(),
 					isNotDeleted(),
-					hasHostLmsCode(HOST_LMS_CODE)
+					hasHostLmsCode(HOST_LMS_CODE),
+					hasAgencyCode("known-agency"),
+					hasAgencyName("Known agency")
 				),
 				allOf(
 					hasLocalId("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3"),
@@ -157,7 +166,9 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasLocation("Social Service Administration", "SSA"),
 					isNotSuppressed(),
 					isNotDeleted(),
-					hasHostLmsCode(HOST_LMS_CODE)
+					hasHostLmsCode(HOST_LMS_CODE),
+					hasNoAgencyCode(),
+					hasNoAgencyName()
 				)
 			));
 	}
