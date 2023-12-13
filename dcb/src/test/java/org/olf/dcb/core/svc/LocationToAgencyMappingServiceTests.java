@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
@@ -20,10 +21,13 @@ class LocationToAgencyMappingServiceTests {
 
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 
 	@BeforeEach
 	void beforeEach() {
 		referenceValueMappingFixture.deleteAll();
+		agencyFixture.deleteAll();
 	}
 
 	@Test
