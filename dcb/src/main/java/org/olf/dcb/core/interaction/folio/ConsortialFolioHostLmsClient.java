@@ -33,11 +33,11 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.type.Argument;
-import io.micronaut.core.util.CollectionUtils;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
@@ -84,6 +84,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private final HttpClient httpClient;
 
 	private final ItemStatusMapper itemStatusMapper;
+	private final LocationToAgencyMappingService locationToAgencyMappingService;
 
 	private final String apiKey;
 	private final URI rootUri;
@@ -99,14 +100,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	public ConsortialFolioHostLmsClient(@Parameter HostLms hostLms,
-		@Parameter("client") HttpClient httpClient, ItemStatusMapper itemStatusMapper) {
+		@Parameter("client") HttpClient httpClient, ItemStatusMapper itemStatusMapper,
+		LocationToAgencyMappingService locationToAgencyMappingService) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
 
+		this.itemStatusMapper = itemStatusMapper;
+		this.locationToAgencyMappingService = locationToAgencyMappingService;
+
 		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
 		this.rootUri = UriBuilder.of(BASE_URL_SETTING.getRequiredConfigValue(hostLms)).build();
-		this.itemStatusMapper = itemStatusMapper;
 	}
 
 	@Override
