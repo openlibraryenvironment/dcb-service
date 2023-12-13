@@ -37,9 +37,7 @@ class LocationToAgencyMappingServiceTests {
 			.code("location-with-no-mapping")
 			.build());
 
-		final var enrichedItem = locationToAgencyMappingService.enrichItemAgencyFromLocation(
-				item, "host-lms")
-			.block();
+		final var enrichedItem = enrichItemWithAgency(item);
 
 		// Assert
 		assertThat(enrichedItem, hasNoAgencyCode());
@@ -51,9 +49,7 @@ class LocationToAgencyMappingServiceTests {
 		// Act
 		final var itemWithNullLocation = exampleItem(null);
 
-		final var enrichedItem = locationToAgencyMappingService.enrichItemAgencyFromLocation(
-				itemWithNullLocation, "host-lms")
-			.block();
+		final var enrichedItem = enrichItemWithAgency(itemWithNullLocation);
 
 		// Assert
 		assertThat(enrichedItem, hasNoAgencyCode());
@@ -67,9 +63,7 @@ class LocationToAgencyMappingServiceTests {
 			.code(null)
 			.build());
 
-		final var enrichedItem = locationToAgencyMappingService.enrichItemAgencyFromLocation(
-				itemWithNullLocationCode, "host-lms")
-			.block();
+		final var enrichedItem = enrichItemWithAgency(itemWithNullLocationCode);
 
 		// Assert
 		assertThat(enrichedItem, hasNoAgencyCode());
@@ -80,5 +74,10 @@ class LocationToAgencyMappingServiceTests {
 		return Item.builder()
 			.location(location)
 			.build();
+	}
+
+	private Item enrichItemWithAgency(Item item) {
+		return locationToAgencyMappingService.enrichItemAgencyFromLocation(item, "host-lms")
+			.block();
 	}
 }
