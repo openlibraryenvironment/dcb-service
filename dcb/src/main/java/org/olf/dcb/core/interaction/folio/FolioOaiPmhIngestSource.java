@@ -186,7 +186,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	protected Mono<ListRecordsResponse> fetchPage(Instant since, Optional<String> resumptionToken) {
 		log.info("Creating subscribeable batch;  since={}, resumptionToken={}", since, resumptionToken);
 	
-		return Mono.from(this.get("", Argument.of( Response.class ), params -> {
+		return Mono.from(this.get("/oai", Argument.of( Response.class ), params -> {
 			
 			params.queryParam("verb", "ListRecords");
 			
@@ -312,6 +312,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	private <T> Mono<MutableHttpRequest<T>> createRequest(HttpMethod method, String path) {
 		return Mono.just(UriBuilder.of(path).build())
 			.map(this::resolve)
+			.doOnNext(resolvedUri -> log.info("Fetching records from: \"{}\"", resolvedUri))
 			.map(resolvedUri -> HttpRequest.<T>create(method, resolvedUri.toString())
 				.accept(APPLICATION_JSON));
 	}
