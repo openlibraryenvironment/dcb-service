@@ -1,6 +1,8 @@
 package org.olf.dcb.core.svc;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyName;
 
@@ -28,6 +30,25 @@ class LocationToAgencyMappingServiceTests {
 	void beforeEach() {
 		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
+	}
+
+	@Test
+	void shouldEnrichItemWithAgencyMappedFromLocationCode() {
+		// Act
+		agencyFixture.defineAgency("known-agency", "Known agency");
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping("host-lms",
+			"location-with-mapping", "known-agency");
+
+		final var item = exampleItem(Location.builder()
+			.code("location-with-mapping")
+			.build());
+
+		final var enrichedItem = enrichItemWithAgency(item);
+
+		// Assert
+		assertThat(enrichedItem, hasAgencyCode("known-agency"));
+		assertThat(enrichedItem, hasAgencyName("Known agency"));
 	}
 
 	@Test
