@@ -1,9 +1,13 @@
 package org.olf.dcb.core.svc;
 
+import static io.micronaut.core.util.StringUtils.isEmpty;
+import static io.micronaut.core.util.StringUtils.trimToNull;
+
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.storage.AgencyRepository;
 
+import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
@@ -31,6 +35,10 @@ public class LocationToAgencyMappingService {
 	}
 
 	private Mono<DataAgency> findLocationToAgencyMapping(Item item, String hostLmsCode) {
-		return mapLocationToAgency(hostLmsCode, item.getLocation().getCode().trim());
+		if (isEmpty(item.getLocationCode())) {
+			return Mono.empty();
+		}
+
+		return mapLocationToAgency(hostLmsCode, trimToNull(item.getLocationCode()));
 	}
 }
