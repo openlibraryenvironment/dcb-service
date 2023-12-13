@@ -210,7 +210,7 @@ class ApplicationServicesClient {
 			.zipWith(client.getMappedItemType(createItemCommand.getCanonicalItemType()))
 			.map(tuple -> {
 				final var request = tuple.getT1();
-				final var itemtype = tuple.getT2();
+				final var itemtype = Integer.parseInt(tuple.getT2());
 				final var body = WorkflowRequest.builder()
 				.workflowRequestType(itemrecordtype)
 				.txnUserID(user)
@@ -537,7 +537,7 @@ class ApplicationServicesClient {
 		@JsonProperty("AssociatedBibRecordID")
 		private String associatedBibRecordID;
 		@JsonProperty("MaterialTypeID")
-		private String materialTypeID;
+		private Integer materialTypeID;
 		@JsonProperty("RenewalLimit")
 		private Integer renewalLimit;
 		@JsonProperty("LoanPeriodCodeID")
