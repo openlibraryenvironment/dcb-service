@@ -6,6 +6,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyName;
 
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.test.DcbTest;
 
 import jakarta.inject.Inject;
@@ -18,8 +19,10 @@ class LocationToAgencyMappingServiceTests {
 	@Test
 	void shouldTolerateNullLocationWhenEnrichingItemWithAgency() {
 		// Act
+		final var itemWithNullLocation = exampleItem(null);
+
 		final var enrichedItem = locationToAgencyMappingService.enrichItemAgencyFromLocation(
-				exampleItem(), "host-lms")
+				itemWithNullLocation, "host-lms")
 			.block();
 
 		// Assert
@@ -27,8 +30,25 @@ class LocationToAgencyMappingServiceTests {
 		assertThat(enrichedItem, hasNoAgencyName());
 	}
 
-	private static Item exampleItem() {
+	@Test
+	void shouldTolerateNullLocationCodeWhenEnrichingItemWithAgency() {
+		// Act
+		final var itemWithNullLocationCode = exampleItem(Location.builder()
+			.code(null)
+			.build());
+
+		final var enrichedItem = locationToAgencyMappingService.enrichItemAgencyFromLocation(
+				itemWithNullLocationCode, "host-lms")
+			.block();
+
+		// Assert
+		assertThat(enrichedItem, hasNoAgencyCode());
+		assertThat(enrichedItem, hasNoAgencyName());
+	}
+
+	private static Item exampleItem(Location location) {
 		return Item.builder()
+			.location(location)
 			.build();
 	}
 }
