@@ -187,6 +187,7 @@ class ApplicationServicesClient {
 	}
 
 	public Mono<ItemCreateResponse> addItemRecord(CreateItemCommand createItemCommand) {
+
 		final var path = createPath("workflow");
 
 		final var conf = client.getConfig();
@@ -235,6 +236,7 @@ class ApplicationServicesClient {
 						.build())
 					.build())
 				.build();
+				log.info("create item workflow request: {}",body);
 				return request.body(body);
 			})
 			.flatMap(this::createItemRequest);

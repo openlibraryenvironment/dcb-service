@@ -176,25 +176,25 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand) {
 
-    log.info("createItem({})",createItemCommand);
+		log.info("createItem({})",createItemCommand);
 
 		return appServicesClient.addItemRecord(createItemCommand)
-      .doOnSuccess( r -> log.info("Got create item response from Polaris: {}",r) )
+			.doOnSuccess( r -> log.info("Got create item response from Polaris: {}",r) )
 			.map(itemCreateResponse -> HostLmsItem.builder()
 				.localId(String.valueOf(itemCreateResponse.getAnswerExtension().getAnswerData().getItemRecord().getItemRecordID()))
 				.status(String.valueOf(itemCreateResponse.getAnswerExtension().getAnswerData().getItemRecord().getItemStatusID()))
 				.build())
-      .onErrorResume( error -> { 
-        log.error("Error attempting to create item {} : {}", createItemCommand, error.getMessage());
-        return Mono.error(
-          Problem.builder()
-            .withType(ERR0211)
-            .withTitle("Unable to create virtual item at polaris") // : "+error.getMessage())
-            .withDetail(error.getMessage())
-            .with("createItemCommand",createItemCommand)
-            .build()                        
-        );                  
-      });
+			.onErrorResume( error -> { 
+				log.error("Error attempting to create item {} : {}", createItemCommand, error.getMessage());
+				return Mono.error(
+					Problem.builder()
+						.withType(ERR0211)
+						.withTitle("Unable to create virtual item at polaris") // : "+error.getMessage())
+						.withDetail(error.getMessage())
+						.with("createItemCommand",createItemCommand)
+						.build()                        
+				);                  
+			});
 	}
 
 	@Override
@@ -561,12 +561,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		if (getHostLmsCode()!= null && itemTypeCode != null) {
 			return Mono.from(mapping.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
 					"ItemType", "DCB", itemTypeCode, "ItemType", getHostLmsCode()))
+				.doOnSuccess( r -> log.info("Mapped canonical item type {} to polaris system {} code {}",itemTypeCode,getHostLmsCode(),r) )
 				.map(ReferenceValueMapping::getToValue)
 				.defaultIfEmpty("19")
 				.switchIfEmpty(Mono.fromRunnable(() -> log.warn("Request to map item type was missing required parameters")));
 		}
 
-		log.warn("Request to map item type was missing required parameters");
+		log.warn("Request to map item type was missing required parameters {}/{}", getHostLmsCode(), itemTypeCode);
 		return Mono.just("19");
 	}
 
