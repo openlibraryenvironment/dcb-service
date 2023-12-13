@@ -1,9 +1,23 @@
 # Changelog
 
+## Version 4.0.0
+
+### Additions
+* [General]
+	* **BREAKING** -  Rename consortial FOLIO host LMS client DCB-774
+	* **BREAKING** -  Expect FOLIO base-url without /oai path DCB-774
+
+### Changes
+* [Chore]
+	* more polaris logging
+	* Switch logging to json, better message for failed to place supplier hold error
+	* Add logging around URI resolution during FOLIO ingest DCB-774
+
 ## Version 3.0.3
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Better error logging around create item in Polaris
 	* Add @body annotation to lookup api call
 	* update post annotation on user lookup
