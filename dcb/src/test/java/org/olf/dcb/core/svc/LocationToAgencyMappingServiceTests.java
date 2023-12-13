@@ -27,6 +27,22 @@ class LocationToAgencyMappingServiceTests {
 	}
 
 	@Test
+	void shouldTolerateAbsenceOfMappingWhenEnrichingItemWithAgency() {
+		// Act
+		final var item = exampleItem(Location.builder()
+			.code("location-with-no-mapping")
+			.build());
+
+		final var enrichedItem = locationToAgencyMappingService.enrichItemAgencyFromLocation(
+				item, "host-lms")
+			.block();
+
+		// Assert
+		assertThat(enrichedItem, hasNoAgencyCode());
+		assertThat(enrichedItem, hasNoAgencyName());
+	}
+
+	@Test
 	void shouldTolerateNullLocationWhenEnrichingItemWithAgency() {
 		// Act
 		final var itemWithNullLocation = exampleItem(null);
