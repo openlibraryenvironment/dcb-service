@@ -45,6 +45,23 @@ class LocationToAgencyMappingServiceTests {
 	}
 
 	@Test
+	void shouldTolerateMissingAgencyWhenEnrichingItemWithAgency() {
+		// Act
+		referenceValueMappingFixture.defineLocationToAgencyMapping("host-lms",
+			"location-with-mapping", "unknown-agency");
+
+		final var item = exampleItem(Location.builder()
+			.code("location-with-mapping")
+			.build());
+
+		final var enrichedItem = enrichItemWithAgency(item);
+
+		// Assert
+		assertThat(enrichedItem, hasNoAgencyCode());
+		assertThat(enrichedItem, hasNoAgencyName());
+	}
+
+	@Test
 	void shouldTolerateNullLocationWhenEnrichingItemWithAgency() {
 		// Act
 		final var itemWithNullLocation = exampleItem(null);
