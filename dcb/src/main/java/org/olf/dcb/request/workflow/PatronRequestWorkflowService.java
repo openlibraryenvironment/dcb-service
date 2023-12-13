@@ -25,6 +25,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import org.zalando.problem.DefaultProblem;
 
+import org.slf4j.MDC;
+
 @Singleton
 @ExecuteOn(value = TaskExecutors.IO)
 public class PatronRequestWorkflowService {
@@ -63,6 +65,10 @@ public class PatronRequestWorkflowService {
 
 	public void initiate(PatronRequest patronRequest) {
 		log.info("initiate({})", patronRequest);
+
+		// Inspred by https://blogs.ashrithgn.com/adding-transaction-trace-id-correlation-id-for-each-request-in-micronaut-for-tracing-the-log-easily/
+		MDC.put("prID",patronRequest.getId().toString());
+
 		progressAll(patronRequest)
                         .doFinally( signalType -> {
                                 log.info("Completed processing for {}",patronRequest.getId());
