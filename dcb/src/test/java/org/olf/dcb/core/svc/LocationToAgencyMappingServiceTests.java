@@ -19,11 +19,16 @@ class LocationToAgencyMappingServiceTests {
 	void shouldTolerateNullLocationWhenEnrichingItemWithAgency() {
 		// Act
 		final var enrichedItem = locationToAgencyMappingService.enrichItemAgencyFromLocation(
-				Item.builder().build(), "host-lms")
+				exampleItem(), "host-lms")
 			.block();
 
 		// Assert
 		assertThat(enrichedItem, hasNoAgencyCode());
 		assertThat(enrichedItem, hasNoAgencyName());
+	}
+
+	private static Item exampleItem() {
+		return Item.builder()
+			.build();
 	}
 }
