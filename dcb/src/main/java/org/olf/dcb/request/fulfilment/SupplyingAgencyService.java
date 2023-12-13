@@ -127,7 +127,8 @@ public class SupplyingAgencyService {
                                 return Mono.error(
                                         Problem.builder()
                                                 .withType(ERR0010)
-                                                .withTitle("Unable to place request at supplier") // : "+error.getMessage())
+                                                .withTitle("Unable to place SUPPLIER hold request for pr="+patronRequest.getId()+" Lpatron="+patronIdentityAtSupplier.getLocalId()+
+							" Litemid="+supplierRequest.getLocalItemId()+" Lit="+supplierRequest.getLocalItemType()+" Lpt="+patronIdentityAtSupplier.getLocalPtype()+" system="+supplierRequest.getHostLmsCode())
                                                 .withDetail(error.getMessage())
                                                 .with("dcbContext",psrc)
                                                 .with("dcbPatronId",patronIdentityAtSupplier.getLocalId())

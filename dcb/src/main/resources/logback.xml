@@ -1,5 +1,14 @@
 <configuration>
 
+	<appender name="JSON_SYNC" class="ch.qos.logback.core.ConsoleAppender">
+		<layout class="ch.qos.logback.contrib.json.classic.JsonLayout">
+			<jsonFormatter class="ch.qos.logback.contrib.jackson.JacksonJsonFormatter">
+				<prettyPrint>true</prettyPrint>
+			</jsonFormatter>
+			<timestampFormat>yyyy-MM-dd' 'HH:mm:ss.SSS</timestampFormat>
+		</layout>
+	</appender>
+
 	<appender name="STDOUT_SYNC"
 		class="ch.qos.logback.core.ConsoleAppender">
 		<!-- encoders are assigned the type ch.qos.logback.classic.encoder.PatternLayoutEncoder 
@@ -11,8 +20,8 @@
 	</appender>
 	
 	<appender name="STDOUT" class="ch.qos.logback.classic.AsyncAppender">
-    <appender-ref ref="STDOUT_SYNC" />
-  </appender>
+		<appender-ref ref="JSON_SYNC" />
+	</appender>
 
 	<logger name="io.micronaut.http.client" level="WARN"/>
 	<logger name="services.k_int.interaction" level="INFO"/>
@@ -35,7 +44,7 @@
 	<logger name="org.olf.dcb.core.error" level="INFO"/>
 	
 	<logger name="org.olf.dcb.indexing" level="INFO"/>
-	<logger name="services.k_int" level="DEBUG"/>
+	<logger name="services.k_int" level="INFO"/>
 	<logger name="org.olf.dcb.ingest.marc.MarcIngestSource" level="WARN"/>
 	<logger name="io.micronaut.security.authentication" level="WARN" />
 	<logger name="io.r2dbc" level="WARN" />
