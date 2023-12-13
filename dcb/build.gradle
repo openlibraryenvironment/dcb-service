@@ -81,6 +81,7 @@ dependencies {
 	implementation("ch.qos.logback:logback-core")
 	implementation("ch.qos.logback:logback-classic")
         runtimeOnly("ch.qos.logback.contrib:logback-json-classic:0.1.5")
+        runtimeOnly("ch.qos.logback.contrib:logback-jackson:0.1.5")
         // runtimeOnly("ch.qos.logback.contrib:logback-json-classic:0.1.5")
 	runtimeOnly("org.slf4j:log4j-over-slf4j")
 
