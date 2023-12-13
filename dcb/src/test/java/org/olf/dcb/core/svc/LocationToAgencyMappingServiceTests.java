@@ -4,10 +4,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyName;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.test.DcbTest;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import jakarta.inject.Inject;
 
@@ -15,6 +17,14 @@ import jakarta.inject.Inject;
 class LocationToAgencyMappingServiceTests {
 	@Inject
 	private LocationToAgencyMappingService locationToAgencyMappingService;
+
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+
+	@BeforeEach
+	void beforeEach() {
+		referenceValueMappingFixture.deleteAll();
+	}
 
 	@Test
 	void shouldTolerateNullLocationWhenEnrichingItemWithAgency() {
