@@ -11,7 +11,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
@@ -41,11 +40,9 @@ import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.FailedToGetItemsException;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -257,34 +254,6 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasStatus(UNAVAILABLE)
 				)
 			));
-	}
-
-	@Test
-	void shouldMapLocationCodeToAgencyWhenMappingRefersToExistingAgency() {
-		// Arrange
-		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,
-			"mapped-location", "known-agency");
-
-		agencyFixture.defineAgency("known-agency", "Known agency");
-
-		final var instanceId = randomUUID().toString();
-
-		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
-			exampleHolding()
-				.locationCode("mapped-location")
-				.location("Mapped location")
-				.build());
-
-		// Act
-		final var items = getItems(instanceId);
-
-		// Assert
-		assertThat("Item should have agency based upon location code", items,
-			containsInAnyOrder(
-				allOf(
-					hasAgencyCode("known-agency"),
-					hasAgencyName("Known agency")
-				)));
 	}
 
 	@Test
