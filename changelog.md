@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 4.0.1
+
+### Changes
+* [Chore]
+	* Add missing dependency for json log formatting
+
+### Fixes
+* [General]
+	* for apparent behaviour of polaris. When passed an itemType in a string, polaris seems to take only the first character of the string as a part of the integer. Changed parameter type to Integer and parse it with parseInt before setting
+
 ## Version 4.0.0
 
 ### Additions
@@ -9,6 +19,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* more polaris logging
 	* Switch logging to json, better message for failed to place supplier hold error
 	* Add logging around URI resolution during FOLIO ingest DCB-774
