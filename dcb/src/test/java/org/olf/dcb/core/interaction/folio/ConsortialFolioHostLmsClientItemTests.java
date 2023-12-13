@@ -47,6 +47,7 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatusCode;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
@@ -62,6 +63,8 @@ class ConsortialFolioHostLmsClientItemTests {
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 
 	private MockFolioFixture mockFolioFixture;
 	private HostLmsClient client;
@@ -71,8 +74,8 @@ class ConsortialFolioHostLmsClientItemTests {
 		final var API_KEY = "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9";
 
 		hostLmsFixture.deleteAll();
-
 		referenceValueMappingFixture.deleteAll();
+		agencyFixture.deleteAll();
 
 		hostLmsFixture.createFolioHostLms(HOST_LMS_CODE, "https://fake-folio",
 			API_KEY, "", "");
