@@ -15,6 +15,7 @@ public class RequestableItemService {
 
 	private final List<String> requestableLocationCodes;
 	private final Boolean locationFilteringEnabled;
+	private static final String NONCIRC = "NONCIRC";
 
 	public RequestableItemService(
 		@Value("${dcb.requestability.location.codes.allowed:}") List<String> requestableLocationCodes,
@@ -30,7 +31,9 @@ public class RequestableItemService {
 	public boolean isRequestable(Item item) {
 		log.debug("isRequestable({})", item);
 
-		return isInAllowedLocation(item) && item.isAvailable();
+		return isInAllowedLocation(item) 
+			&& item.isAvailable()
+			&& ( ( item.getCanonicalItemType() != null ) && ( ! item.getCanonicalItemType().equals(NONCIRC) ) )  ;
 	}
 
 	private Boolean isInAllowedLocation(Item item) {

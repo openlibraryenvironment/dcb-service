@@ -21,7 +21,7 @@ class RequestableItemServiceTests {
 	@Test
 	@DisplayName("Available item at allowed location should be requestable")
 	void availableItemAtAllowedLocationShouldBeRequestable() {
-		final var item = createItem("id", AVAILABLE, "allowed-code");
+		final var item = createItem("id", AVAILABLE, "allowed-code", "BOOK");
 
 		assertThat(requestableItemService.isRequestable(item), is(true));
 	}
@@ -29,7 +29,7 @@ class RequestableItemServiceTests {
 	@Test
 	@DisplayName("Unavailable item at allowed location should not be requestable")
 	void unavailableItemAtAllowedLocationShouldNotBeRequestable() {
-		final var item = createItem("id", UNAVAILABLE, "allowed-code");
+		final var item = createItem("id", UNAVAILABLE, "allowed-code", "BOOK");
 
 		assertThat(requestableItemService.isRequestable(item), is(false));
 	}
@@ -37,7 +37,7 @@ class RequestableItemServiceTests {
 	@Test
 	@DisplayName("Available item at disallowed location should not be requestable")
 	void availableItemAtDisallowedLocationShouldNotBeRequestable() {
-		final var item = createItem("id", AVAILABLE, "disallowed-code");
+		final var item = createItem("id", AVAILABLE, "disallowed-code", "BOOK");
 
 		assertThat(requestableItemService.isRequestable(item), is(false));
 	}
@@ -45,7 +45,7 @@ class RequestableItemServiceTests {
 	@Test
 	@DisplayName("Unavailable item at disallowed location should not be requestable")
 	void unavailableItemAtDisallowedLocationShouldNotBeRequestable() {
-		final var item = createItem("id", UNAVAILABLE, "disallowed-code");
+		final var item = createItem("id", UNAVAILABLE, "disallowed-code", "BOOK");
 
 		assertThat(requestableItemService.isRequestable(item), is(false));
 	}
@@ -55,7 +55,7 @@ class RequestableItemServiceTests {
 	void availableItemShouldBeRequestableWhenLocationFilteringIsDisabled() {
 		final var serviceWithoutConfig = new RequestableItemService(List.of(), false);
 
-		final var item = createItem("id", AVAILABLE, "allowed-code");
+		final var item = createItem("id", AVAILABLE, "allowed-code", "BOOK");
 
 		assertThat(serviceWithoutConfig.isRequestable(item), is(true));
 	}
@@ -65,18 +65,28 @@ class RequestableItemServiceTests {
 	void unavailableItemShouldNotBeRequestableWhenLocationFilteringIsDisabled() {
 		final var serviceWithoutConfig = new RequestableItemService(List.of(), false);
 
-		final var item = createItem("id", UNAVAILABLE, "allowed-code");
+		final var item = createItem("id", UNAVAILABLE, "allowed-code", "BOOK");
 
 		assertThat(serviceWithoutConfig.isRequestable(item), is(false));
 	}
 
-	private static Item createItem(String id, ItemStatusCode statusCode, String locationCode) {
+  @Test
+  @DisplayName("NONCIRC item should not be requestable")
+  void noncircItemShouldNotBeRequestableWhenLocationFilteringIsDisabled() {
+    final var serviceWithoutConfig = new RequestableItemService(List.of(), false);
+		final var item = createItem("id", AVAILABLE, "allowed-code", "NONCIRC");
+    assertThat(serviceWithoutConfig.isRequestable(item), is(false));
+  }
+
+
+	private static Item createItem(String id, ItemStatusCode statusCode, String locationCode, String canonicalItemType) {
 		return Item.builder()
 			.localId(id)
 			.location(Location.builder()
 				.code(locationCode)
 				.build())
 			.status(new ItemStatus(statusCode))
+			.canonicalItemType(canonicalItemType)
 			.build();
 	}
 }
