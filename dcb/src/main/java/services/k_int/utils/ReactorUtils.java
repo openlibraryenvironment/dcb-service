@@ -1,5 +1,6 @@
 package services.k_int.utils;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.reactivestreams.Publisher;
@@ -31,4 +32,13 @@ public interface ReactorUtils {
 		return fluxFromPageableMethod( pub, Pageable.from(1));
 	}
 
+	static <T> Consumer<T> consumeOnSuccess(Runnable onEmpty, Consumer<T> hasValue) {
+		return value -> {
+			if (value == null) {
+				onEmpty.run();
+			} else {
+				hasValue.accept(value);
+			}
+		};
+	}
 }

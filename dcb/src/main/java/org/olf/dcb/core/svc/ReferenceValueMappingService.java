@@ -1,6 +1,7 @@
 package org.olf.dcb.core.svc;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
+import static services.k_int.utils.ReactorUtils.consumeOnSuccess;
 
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
@@ -26,15 +27,10 @@ public class ReferenceValueMappingService {
 
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
 				fromCategory, fromContext, sourceValue, toCategory, toContext))
-			.doOnSuccess(mapping -> {
-				if (mapping == null) {
-					log.warn("No mapping found for from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
-						fromCategory, fromContext, sourceValue, toCategory, toContext);
-				}
-				else {
-					log.debug("Found mapping from {} to {}: {}", fromCategory, toCategory, mapping);
-				}
-			});
+			.doOnSuccess(consumeOnSuccess(
+				() -> log.warn("No mapping found for from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
+					fromCategory, fromContext, sourceValue, toCategory, toContext),
+				mapping -> log.debug("Found mapping from {} to {}: {}", fromCategory, toCategory, mapping)));
 	}
 
 	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String pickupLocationCode) {
@@ -63,13 +59,8 @@ public class ReferenceValueMappingService {
 		return findLocationToAgencyMapping(pickupLocationCode)
 			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(pickupLocationContext, pickupLocationCode)))
 			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(requestorLocalSystemCode, pickupLocationCode)))
-			.doOnSuccess( result -> {
-				if ( result != null ) {
-					log.debug("Found mapping: {}", result);
-				}
-				else {
-					log.info("No pickup location mapping found for {} {} {}",pickupLocationCode,pickupLocationContext,requestorLocalSystemCode);
-				}
-			} );
+			.doOnSuccess(consumeOnSuccess(
+				() -> log.info("No pickup location mapping found for {} {} {}",pickupLocationCode,pickupLocationContext,requestorLocalSystemCode),
+				mapping -> log.debug("Found mapping: {}", mapping)));
 	}
 }
