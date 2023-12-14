@@ -12,7 +12,7 @@ import java.util.List;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -21,10 +21,10 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 public class ItemStatusMapper {
-	private final ReferenceValueMappingRepository referenceValueMappingRepository;
+	private final ReferenceValueMappingService referenceValueMappingService;
 
-	ItemStatusMapper(ReferenceValueMappingRepository referenceValueMappingRepository) {
-		this.referenceValueMappingRepository = referenceValueMappingRepository;
+	ItemStatusMapper(ReferenceValueMappingService referenceValueMappingService) {
+		this.referenceValueMappingService = referenceValueMappingService;
 	}
 
 	public Mono<ItemStatus> mapStatus(String statusCode, String dueDate,
@@ -43,8 +43,8 @@ public class ItemStatusMapper {
 	}
 
 	private Mono<ReferenceValueMapping> fetchReferenceValueMap(String statusCode, String hostLmsCode) {
-		return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToContext(
-				"itemStatus", hostLmsCode, statusCode, "DCB"))
+		return Mono.from(referenceValueMappingService.findMapping("itemStatus",
+				hostLmsCode, statusCode, "DCB"))
 			.doOnSuccess(mapping -> log.debug("Found mapping: {} for status code: {} host LMS: {}", mapping, statusCode, hostLmsCode));
 	}
 
