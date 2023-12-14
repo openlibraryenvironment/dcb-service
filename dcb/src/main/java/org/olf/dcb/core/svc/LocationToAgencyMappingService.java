@@ -27,7 +27,7 @@ public class LocationToAgencyMappingService {
 	}
 
 	public Mono<DataAgency> mapLocationToAgency(String hostLmsCode, String locationCode) {
-		return referenceValueMappingService.findLocationToAgencyMapping(hostLmsCode, locationCode)
+		return findLocationToAgencyMapping(hostLmsCode, locationCode)
 			.flatMap(rvm -> Mono.from(agencyRepository.findOneByCode(rvm.getToValue())))
 			.doOnNext(agency -> log.debug("Found agency for location: {}", agency));
 	}
@@ -49,17 +49,32 @@ public class LocationToAgencyMappingService {
 	private Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
 		String pickupLocationContext, String pickupLocationCode) {
 
-		return referenceValueMappingService.findLocationToAgencyMapping(pickupLocationContext, pickupLocationCode);
+		return findLocationToAgencyMapping(pickupLocationContext, pickupLocationCode);
 	}
 
 	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
 		String pickupLocationCode, String pickupLocationContext, String requestorLocalSystemCode) {
 
-		return referenceValueMappingService.findLocationToAgencyMapping(pickupLocationCode)
+		return findLocationToAgencyMapping(pickupLocationCode)
 			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(pickupLocationContext, pickupLocationCode)))
 			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(requestorLocalSystemCode, pickupLocationCode)))
 			.doOnSuccess(consumeOnSuccess(
 				() -> log.info("No pickup location mapping found for {} {} {}",pickupLocationCode,pickupLocationContext,requestorLocalSystemCode),
 				mapping -> log.debug("Found mapping: {}", mapping)));
+	}
+
+	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String pickupLocationCode) {
+		return findLocationToAgencyMapping("DCB", pickupLocationCode);
+	}
+
+	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String fromContext, String locationCode) {
+		if (isEmpty(fromContext)) {
+			log.warn("Attempting to find mapping from location (code: \"{}\") to agency with empty from context", locationCode);
+
+			return Mono.empty();
+		}
+
+		return referenceValueMappingService.findMapping("Location", fromContext,
+			locationCode, "AGENCY", "DCB");
 	}
 }

@@ -1,6 +1,5 @@
 package org.olf.dcb.core.svc;
 
-import static io.micronaut.core.util.StringUtils.isEmpty;
 import static services.k_int.utils.ReactorUtils.consumeOnSuccess;
 
 import org.olf.dcb.core.model.ReferenceValueMapping;
@@ -31,19 +30,5 @@ public class ReferenceValueMappingService {
 				() -> log.warn("No mapping found for from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
 					fromCategory, fromContext, sourceValue, toCategory, toContext),
 				mapping -> log.debug("Found mapping from {} to {}: {}", fromCategory, toCategory, mapping)));
-	}
-
-	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String pickupLocationCode) {
-		return findLocationToAgencyMapping("DCB", pickupLocationCode);
-	}
-
-	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String fromContext, String locationCode) {
-		if (isEmpty(fromContext)) {
-			log.warn("Attempting to find mapping from location (code: \"{}\") to agency with empty from context", locationCode);
-
-			return Mono.empty();
-		}
-
-		return findMapping("Location", fromContext, locationCode, "AGENCY", "DCB");
 	}
 }

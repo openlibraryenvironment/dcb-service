@@ -7,7 +7,6 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
@@ -25,7 +24,6 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class RequestWorkflowContextHelper {
 	private final SupplierRequestService supplierRequestService;
-	private final ReferenceValueMappingService referenceValueMappingService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 
 	private final SupplierRequestRepository supplierRequestRepository;
@@ -38,7 +36,6 @@ public class RequestWorkflowContextHelper {
 
 	public RequestWorkflowContextHelper(
 		SupplierRequestService supplierRequestService,
-		ReferenceValueMappingService referenceValueMappingService,
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		HostLmsRepository hostLmsRepository,
 		SupplierRequestRepository supplierRequestRepository,
@@ -48,7 +45,6 @@ public class RequestWorkflowContextHelper {
 		AgencyRepository agencyRepository, PatronRepository patronRepository) {
 
 		this.supplierRequestService = supplierRequestService;
-		this.referenceValueMappingService = referenceValueMappingService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.hostLmsRepository = hostLmsRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
@@ -241,7 +237,7 @@ public class RequestWorkflowContextHelper {
 
         private Mono<ReferenceValueMapping> agencyForPickupLocationSymbol(String pickupSymbolNamespace, String symbol) {
                 if ( ( pickupSymbolNamespace != null ) && ( symbol != null ) ) {
-                        return referenceValueMappingService.findLocationToAgencyMapping(pickupSymbolNamespace,symbol);
+                        return locationToAgencyMappingService.findLocationToAgencyMapping(pickupSymbolNamespace,symbol);
                 }
                 else if ( symbol != null ) {
                         return agencyForPickupLocationSymbol(symbol);
@@ -255,11 +251,11 @@ public class RequestWorkflowContextHelper {
                 if ( symbol_components.length == 1 ) {
                         // We have an unscoped pickup location - see if we can hit a uniqie value
                         log.debug("Attempting unscoped location lookup for {}",symbol);
-                        return referenceValueMappingService.findLocationToAgencyMapping(symbol_components[0]);
+                        return locationToAgencyMappingService.findLocationToAgencyMapping(symbol_components[0]);
                 }
                 else if ( symbol_components.length == 2 ) {
                         log.debug("Attempting scoped location lookup for {}",symbol);
-                        return referenceValueMappingService.findLocationToAgencyMapping(symbol_components[0], symbol_components[1]);
+                        return locationToAgencyMappingService.findLocationToAgencyMapping(symbol_components[0], symbol_components[1]);
                 }
 
                 return Mono.error(new RuntimeException("Unable to resolve agency for pickup location code"+symbol));
