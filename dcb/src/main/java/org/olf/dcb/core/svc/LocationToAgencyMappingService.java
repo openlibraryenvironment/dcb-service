@@ -2,12 +2,13 @@ package org.olf.dcb.core.svc;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.trimToNull;
+import static services.k_int.utils.ReactorUtils.consumeOnSuccess;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.AgencyRepository;
 
-import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
@@ -43,5 +44,22 @@ public class LocationToAgencyMappingService {
 		}
 
 		return mapLocationToAgency(hostLmsCode, trimToNull(item.getLocationCode()));
+	}
+
+	private Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
+		String pickupLocationContext, String pickupLocationCode) {
+
+		return referenceValueMappingService.findLocationToAgencyMapping(pickupLocationContext, pickupLocationCode);
+	}
+
+	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
+		String pickupLocationCode, String pickupLocationContext, String requestorLocalSystemCode) {
+
+		return referenceValueMappingService.findLocationToAgencyMapping(pickupLocationCode)
+			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(pickupLocationContext, pickupLocationCode)))
+			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(requestorLocalSystemCode, pickupLocationCode)))
+			.doOnSuccess(consumeOnSuccess(
+				() -> log.info("No pickup location mapping found for {} {} {}",pickupLocationCode,pickupLocationContext,requestorLocalSystemCode),
+				mapping -> log.debug("Found mapping: {}", mapping)));
 	}
 }

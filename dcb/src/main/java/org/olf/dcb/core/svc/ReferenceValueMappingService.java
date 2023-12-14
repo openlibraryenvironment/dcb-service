@@ -46,21 +46,4 @@ public class ReferenceValueMappingService {
 
 		return findMapping("Location", fromContext, locationCode, "AGENCY", "DCB");
 	}
-
-	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
-		String pickupLocationContext, String pickupLocationCode) {
-
-		return findLocationToAgencyMapping(pickupLocationContext, pickupLocationCode);
-	}
-
-	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
-		String pickupLocationCode, String pickupLocationContext, String requestorLocalSystemCode) {
-
-		return findLocationToAgencyMapping(pickupLocationCode)
-			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(pickupLocationContext, pickupLocationCode)))
-			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(requestorLocalSystemCode, pickupLocationCode)))
-			.doOnSuccess(consumeOnSuccess(
-				() -> log.info("No pickup location mapping found for {} {} {}",pickupLocationCode,pickupLocationContext,requestorLocalSystemCode),
-				mapping -> log.debug("Found mapping: {}", mapping)));
-	}
 }
