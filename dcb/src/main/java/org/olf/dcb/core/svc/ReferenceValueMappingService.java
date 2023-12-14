@@ -31,4 +31,13 @@ public class ReferenceValueMappingService {
 					fromCategory, fromContext, sourceValue, toCategory, toContext),
 				mapping -> log.debug("Found mapping from {} to {}: {}", fromCategory, toCategory, mapping)));
 	}
+
+	public Mono<ReferenceValueMapping> findMapping(String sourceCategory,
+		String sourceContext, String sourceValue, String targetContext) {
+
+		log.debug("findMapping targetCtx={} sourceCtx={} value={}",targetContext,sourceContext,sourceValue);
+
+		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToContext(
+			sourceCategory, sourceContext, sourceValue, targetContext));
+	}
 }

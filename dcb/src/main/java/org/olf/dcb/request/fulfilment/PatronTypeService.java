@@ -2,23 +2,22 @@ package org.olf.dcb.request.fulfilment;
 
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
 import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Prototype
 public class PatronTypeService {
-	private static final Logger log = LoggerFactory.getLogger(PatronTypeService.class);
-	private final ReferenceValueMappingRepository referenceValueMappingRepository;
+	private final ReferenceValueMappingService referenceValueMappingService;
 	private final NumericPatronTypeMapper numericPatronTypeMapper;
 
-	public PatronTypeService(ReferenceValueMappingRepository referenceValueMappingRepository,
+	public PatronTypeService(ReferenceValueMappingService referenceValueMappingService,
 		NumericPatronTypeMapper numericPatronTypeMapper) {
 
-		this.referenceValueMappingRepository = referenceValueMappingRepository;
+		this.referenceValueMappingService = referenceValueMappingService;
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
 	}
 
@@ -35,7 +34,7 @@ public class PatronTypeService {
 		// Get the "Spine" mapping
 		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(requesterHostLmsCode,requesterPatronType, requesterLocalId)
 			.doOnNext ( spineMapping -> log.debug("Got spine mapping {}",spineMapping) )
-			.flatMap( spineMapping -> findMapping( supplierHostLmsCode, "DCB", spineMapping ) )
+			.flatMap( spineMapping -> findMapping( supplierHostLmsCode, spineMapping ) )
 			.doOnNext ( targetMapping -> log.debug("Got target mapping {}",targetMapping) )
 			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.error(
@@ -45,19 +44,8 @@ public class PatronTypeService {
 				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode + " because " + cause.getMessage()));
 	}
 
-	private Mono<ReferenceValueMapping> findMapping(String targetContext,
-		String sourceContext, String sourceValue) {
-
-		return findMapping("patronType", sourceContext, sourceValue, targetContext);
-	}
-
-	private Mono<ReferenceValueMapping> findMapping(String sourceCategory,
-		String sourceContext, String sourceValue, String targetContext) {
-
-		log.debug("findMapping targetCtx={} sourceCtx={} value={}",targetContext,sourceContext,sourceValue);
-
-		return Mono.from(
-			referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToContext(
-				sourceCategory, sourceContext, sourceValue, targetContext));
+	private Mono<ReferenceValueMapping> findMapping(String targetContext, String sourceValue) {
+		return referenceValueMappingService.findMapping("patronType", "DCB",
+			sourceValue, targetContext);
 	}
 }
