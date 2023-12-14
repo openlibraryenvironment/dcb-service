@@ -130,16 +130,16 @@ public class BorrowingAgencyService {
 			PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
 			SupplierRequest supplierRequest) {
 
-		log.info("createVirtualItem(...)");
+			log.info("createVirtualItem(...)");
 
-		final String localBibId = patronRequest.getLocalBibId();
-		Objects.requireNonNull(localBibId, "Local bib ID not set on Patron Request");
+			final String localBibId = patronRequest.getLocalBibId();
+			Objects.requireNonNull(localBibId, "Local bib ID not set on Patron Request");
 
-		log.debug("createVirtualItem for localBibId {}/{}", localBibId, supplierRequest.getLocalItemLocationCode());
-		log.debug("slToAgency:{} {} {} {} {}", "Location", supplierRequest.getHostLmsCode(),
+			log.info("createVirtualItem for localBibId {}/{}", localBibId, supplierRequest.getLocalItemLocationCode());
+			log.info("slToAgency:{} {} {} {} {}", "Location", supplierRequest.getHostLmsCode(),
 				supplierRequest.getLocalItemLocationCode(), "AGENCY", "DCB");
 
-		return getAgencyForShelvingLocation(supplierRequest.getHostLmsCode(), supplierRequest.getLocalItemLocationCode())
+			return getAgencyForShelvingLocation(supplierRequest.getHostLmsCode(), supplierRequest.getLocalItemLocationCode())
 				.flatMap(mapping -> {
 					String agencyCode = mapping.getToValue();
 					supplierRequest.setLocalAgency(agencyCode);
