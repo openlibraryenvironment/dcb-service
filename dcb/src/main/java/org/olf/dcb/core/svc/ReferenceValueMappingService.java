@@ -18,26 +18,32 @@ public class ReferenceValueMappingService {
 		this.repository = repository;
 	}
 
-	public Mono<ReferenceValueMapping> findMapping(String fromCategory,
-		String fromContext, String sourceValue, String toCategory, String toContext) {
+	public Mono<ReferenceValueMapping> findMapping(String sourceCategory,
+		String sourceContext, String sourceValue, String targetCategory, String targetContext) {
 
 		log.debug("Attempting to find mapping from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
-			fromCategory, fromContext, sourceValue, toCategory, toContext);
+			sourceCategory, sourceContext, sourceValue, targetCategory, targetContext);
 
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-				fromCategory, fromContext, sourceValue, toCategory, toContext))
+				sourceCategory, sourceContext, sourceValue, targetCategory, targetContext))
 			.doOnSuccess(consumeOnSuccess(
 				() -> log.warn("No mapping found for from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
-					fromCategory, fromContext, sourceValue, toCategory, toContext),
-				mapping -> log.debug("Found mapping from {} to {}: {}", fromCategory, toCategory, mapping)));
+					sourceCategory, sourceContext, sourceValue, targetCategory, targetContext),
+				mapping -> log.debug("Found mapping from {} to {}: {}", sourceCategory, targetCategory, mapping)));
 	}
 
 	public Mono<ReferenceValueMapping> findMapping(String sourceCategory,
 		String sourceContext, String sourceValue, String targetContext) {
 
-		log.debug("findMapping targetCtx={} sourceCtx={} value={}",targetContext,sourceContext,sourceValue);
+		log.debug("Attempting to find mapping from category: {}, from context: {}, source value: {}, to context: {}",
+			sourceCategory, sourceContext, sourceValue, targetContext);
 
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToContext(
-			sourceCategory, sourceContext, sourceValue, targetContext));
+				sourceCategory, sourceContext, sourceValue, targetContext))
+			.doOnSuccess(consumeOnSuccess(
+				() -> log.warn("No mapping found for from category: {}, from context: {}, source value: {}, to context: {}",
+					sourceCategory, sourceContext, sourceValue, targetContext),
+				mapping -> log.debug("Found mapping from category: {} context: {} to context {}: {}", sourceContext,
+					sourceContext, targetContext, mapping)));
 	}
 }
