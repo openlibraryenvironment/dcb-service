@@ -1,9 +1,19 @@
 # Changelog
 
+## Version 4.0.2
+
+### Changes
+* [Chore]
+	* logging adjustments to BorrowingAgencyService
+	* don't pretty print json logs
+* [Feature]
+	* NONCIRC items are not requestable
+
 ## Version 4.0.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add missing dependency for json log formatting
 
 ### Fixes
