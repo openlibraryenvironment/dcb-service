@@ -45,10 +45,19 @@ public class PatronTypeService {
 				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode + " because " + cause.getMessage()));
 	}
 
-	private Mono<ReferenceValueMapping> findMapping(String targetContext, String sourceContext, String sourceValue) {
-                log.debug("findMapping targetCtx={} sourceCtx={} value={}",targetContext,sourceContext,sourceValue);
+	private Mono<ReferenceValueMapping> findMapping(String targetContext,
+		String sourceContext, String sourceValue) {
+
+		return findMapping("patronType", sourceContext, sourceValue, targetContext);
+	}
+
+	private Mono<ReferenceValueMapping> findMapping(String sourceCategory,
+		String sourceContext, String sourceValue, String targetContext) {
+
+		log.debug("findMapping targetCtx={} sourceCtx={} value={}",targetContext,sourceContext,sourceValue);
+
 		return Mono.from(
 			referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToContext(
-				"patronType", sourceContext, sourceValue, targetContext));
+				sourceCategory, sourceContext, sourceValue, targetContext));
 	}
 }
