@@ -16,11 +16,11 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.resolution.SharedIndexService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronIdentityRepository;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
@@ -38,25 +38,25 @@ public class BorrowingAgencyService {
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final SupplierRequestService supplierRequestService;
 	private final SharedIndexService sharedIndexService;
+	private final LocationToAgencyMappingService locationToAgencyMappingService;
 
 	// Provider to prevent circular reference exception by allowing lazy access to
 	// this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
-	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	public BorrowingAgencyService(HostLmsService hostLmsService,
 		PatronIdentityRepository patronIdentityRepository,
 		SupplierRequestService supplierRequestService, SharedIndexService sharedIndexService,
-		ReferenceValueMappingRepository referenceValueMappingRepository,
+		LocationToAgencyMappingService locationToAgencyMappingService,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
 
 		this.hostLmsService = hostLmsService;
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.supplierRequestService = supplierRequestService;
 		this.sharedIndexService = sharedIndexService;
+		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
-		this.referenceValueMappingRepository = referenceValueMappingRepository;
-	}
+    }
 
 	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(PatronRequest patronRequest) {
 		log.info("placePatronRequestAtBorrowingAgency {}", patronRequest.getId());
@@ -156,9 +156,8 @@ public class BorrowingAgencyService {
 	}
 
 	private Mono<ReferenceValueMapping> getAgencyForShelvingLocation(String context, String code) {
-		return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-				"Location", context, code, "AGENCY", "DCB"))
-			.doOnSuccess(rvm -> log.debug("getAgencyForShelvingLocation looked up "+rvm.getToValue()+" for "+context+":"+code))
+		return locationToAgencyMappingService.findLocationToAgencyMapping(context, code)
+			.doOnSuccess(rvm -> log.debug("getAgencyForShelvingLocation looked up "+rvm.getToValue()+" for " + context+":"+code))
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to resolve shelving loc "+context+":"+code+" to agency")));
 	}
 
