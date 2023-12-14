@@ -26,7 +26,15 @@ public class ReferenceValueMappingService {
 
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
 				fromCategory, fromContext, sourceValue, toCategory, toContext))
-			.doOnNext(mapping -> log.debug("Found mapping from {} to {}: {}", fromCategory, toCategory, mapping));
+			.doOnSuccess(mapping -> {
+				if (mapping == null) {
+					log.warn("No mapping found for from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
+						fromCategory, fromContext, sourceValue, toCategory, toContext);
+				}
+				else {
+					log.debug("Found mapping from {} to {}: {}", fromCategory, toCategory, mapping);
+				}
+			});
 	}
 
 	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String pickupLocationCode) {
