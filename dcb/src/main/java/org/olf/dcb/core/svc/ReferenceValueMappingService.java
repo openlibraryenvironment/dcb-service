@@ -18,6 +18,17 @@ public class ReferenceValueMappingService {
 		this.repository = repository;
 	}
 
+	public Mono<ReferenceValueMapping> findMapping(String fromCategory,
+		String fromContext, String sourceValue, String toCategory, String toContext) {
+
+		log.debug("Attempting to find mapping from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
+			fromCategory, fromContext, sourceValue, toCategory, toContext);
+
+		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
+				fromCategory, fromContext, sourceValue, toCategory, toContext))
+			.doOnNext(mapping -> log.debug("Found mapping from {} to {}: {}", fromCategory, toCategory, mapping));
+	}
+
 	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String pickupLocationCode) {
 		return findLocationToAgencyMapping("DCB", pickupLocationCode);
 	}
@@ -29,16 +40,7 @@ public class ReferenceValueMappingService {
 			return Mono.empty();
 		}
 
-		final var fromCategory = "Location";
-		final var toCategory = "AGENCY";
-		final var toContext = "DCB";
-
-		log.debug("Attempting to find mapping from category: {}, from context: {}, location code: {}, to category: {}, to context: {}",
-			fromCategory, fromContext, locationCode, toCategory, toContext);
-
-		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-			fromCategory, fromContext, locationCode, toCategory, toContext))
-			.doOnNext(mapping -> log.debug("Found mapping from location to agency: {}", mapping));
+		return findMapping("Location", fromContext, locationCode, "AGENCY", "DCB");
 	}
 
 	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
