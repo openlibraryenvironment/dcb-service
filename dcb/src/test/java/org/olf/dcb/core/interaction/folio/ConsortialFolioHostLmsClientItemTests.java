@@ -19,6 +19,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasCanonicalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasHoldCount;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
@@ -93,6 +94,9 @@ class ConsortialFolioHostLmsClientItemTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,
 			"CLLA", "known-agency");
 
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeMapping(HOST_LMS_CODE,
+			"book", "canonical-book");
+
 		agencyFixture.defineAgency("known-agency", "Known agency");
 
 		final var instanceId = randomUUID().toString();
@@ -143,6 +147,7 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasHoldCount(1),
 					hasLocalItemType("book"),
 					hasLocalItemTypeCode("book"),
+					hasCanonicalItemType("canonical-book"),
 					hasLocation("Crerar, Lower Level, Bookstacks", "CLLA"),
 					isNotSuppressed(),
 					isNotDeleted(),
@@ -160,6 +165,7 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasHoldCount(2),
 					hasNoLocalItemType(),
 					hasNoLocalItemTypeCode(),
+					hasCanonicalItemType("UNKNOWN"),
 					hasLocation("Social Service Administration", "SSA"),
 					isNotSuppressed(),
 					isNotDeleted(),

@@ -42,7 +42,6 @@ import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.uri.UriBuilder;
-import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -86,6 +85,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private final ItemStatusMapper itemStatusMapper;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
+	private final MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService;
 
 	private final String apiKey;
 	private final URI rootUri;
@@ -102,13 +102,15 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	public ConsortialFolioHostLmsClient(@Parameter HostLms hostLms,
 		@Parameter("client") HttpClient httpClient, ItemStatusMapper itemStatusMapper,
-		LocationToAgencyMappingService locationToAgencyMappingService) {
+		LocationToAgencyMappingService locationToAgencyMappingService,
+		MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
 
 		this.itemStatusMapper = itemStatusMapper;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
+		this.materialTypeToItemTypeMappingService = materialTypeToItemTypeMappingService;
 
 		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
 		this.rootUri = UriBuilder.of(BASE_URL_SETTING.getRequiredConfigValue(hostLms)).build();
@@ -248,7 +250,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.deleted(false)
 				.hostLmsCode(getHostLmsCode())
 				.build())
-			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()));
+			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()))
+			.flatMap(item -> materialTypeToItemTypeMappingService.enrichItemWithMappedItemType(item, getHostLmsCode()));
 	}
 
 	@Override
