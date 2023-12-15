@@ -34,12 +34,13 @@ class LocationToAgencyMappingServiceTests {
 
 	@Test
 	void shouldEnrichItemWithAgencyMappedFromLocationCode() {
-		// Act
+		// Arrange
 		agencyFixture.defineAgency("known-agency", "Known agency");
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping("host-lms",
 			"location-with-mapping", "known-agency");
 
+		// Act
 		final var item = exampleItem(Location.builder()
 			.code("location-with-mapping")
 			.build());
