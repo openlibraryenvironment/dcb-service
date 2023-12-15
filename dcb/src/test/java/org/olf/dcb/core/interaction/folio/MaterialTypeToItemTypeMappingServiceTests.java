@@ -50,6 +50,17 @@ class MaterialTypeToItemTypeMappingServiceTests {
 		assertThat(enrichedItem, hasCanonicalItemType("UNKNOWN"));
 	}
 
+	@Test
+	void shouldTolerateUnmappedLocalItemTypeCodeToUnknown() {
+		// Act
+		final var item = exampleItem("unmapped-type");
+
+		final var enrichedItem = enrichItemWithItemType(item);
+
+		// Assert
+		assertThat(enrichedItem, hasCanonicalItemType("UNKNOWN"));
+	}
+
 	private static Item exampleItem(String materialTypeName) {
 		return Item.builder()
 			.localItemTypeCode(materialTypeName)

@@ -28,16 +28,19 @@ public class MaterialTypeToItemTypeMappingService {
 	}
 
 	private Mono<String> findMapping(Item item, String hostLmsCode) {
+		final var unknownItemType = "UNKNOWN";
+
 		final var localItemTypeCode = getValue(item, Item::getLocalItemTypeCode);
 
 		if (isEmpty(localItemTypeCode)) {
 			log.warn("Attempting to map null / empty local item type code for Host LMS: {}", hostLmsCode);
 
-			return Mono.just("UNKNOWN");
+			return Mono.just(unknownItemType);
 		}
 
 		return referenceValueMappingService.findMapping("ItemType", hostLmsCode,
 				localItemTypeCode, "ItemType", "DCB")
-			.map(ReferenceValueMapping::getToValue);
+			.map(ReferenceValueMapping::getToValue)
+			.defaultIfEmpty(unknownItemType);
 	}
 }
