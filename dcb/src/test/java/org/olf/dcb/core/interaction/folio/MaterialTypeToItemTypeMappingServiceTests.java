@@ -39,6 +39,17 @@ class MaterialTypeToItemTypeMappingServiceTests {
 		assertThat(enrichedItem, hasCanonicalItemType("canonical-book"));
 	}
 
+	@Test
+	void shouldMapNullLocalItemTypeCodeToUnknown() {
+		// Act
+		final var item = exampleItem(null);
+
+		final var enrichedItem = enrichItemWithItemType(item);
+
+		// Assert
+		assertThat(enrichedItem, hasCanonicalItemType("UNKNOWN"));
+	}
+
 	private static Item exampleItem(String materialTypeName) {
 		return Item.builder()
 			.localItemTypeCode(materialTypeName)
