@@ -2,6 +2,7 @@ package org.olf.dcb.core.svc;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.trimToNull;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.ReactorUtils.consumeOnSuccess;
 
 import org.olf.dcb.core.model.DataAgency;
@@ -39,11 +40,13 @@ public class LocationToAgencyMappingService {
 	}
 
 	private Mono<DataAgency> findLocationToAgencyMapping(Item item, String hostLmsCode) {
-		if (isEmpty(item.getLocationCode())) {
+		final var locationCode = trimToNull(getValue(item, Item::getLocationCode));
+
+		if (isEmpty(locationCode)) {
 			return Mono.empty();
 		}
 
-		return mapLocationToAgency(hostLmsCode, trimToNull(item.getLocationCode()));
+		return mapLocationToAgency(hostLmsCode, locationCode);
 	}
 
 	private Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
