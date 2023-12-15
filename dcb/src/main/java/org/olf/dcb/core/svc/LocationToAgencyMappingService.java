@@ -29,7 +29,8 @@ public class LocationToAgencyMappingService {
 
 	public Mono<DataAgency> mapLocationToAgency(String hostLmsCode, String locationCode) {
 		return findLocationToAgencyMapping(hostLmsCode, locationCode)
-			.flatMap(mapping -> Mono.from(agencyRepository.findOneByCode(mapping.getToValue())))
+			.map(ReferenceValueMapping::getToValue)
+			.flatMap(agencyCode -> Mono.from(agencyRepository.findOneByCode(agencyCode)))
 			.doOnNext(agency -> log.debug("Found agency for location: {}", agency));
 	}
 
