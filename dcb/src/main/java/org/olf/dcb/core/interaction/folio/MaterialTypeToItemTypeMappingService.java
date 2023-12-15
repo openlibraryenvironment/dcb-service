@@ -18,9 +18,13 @@ public class MaterialTypeToItemTypeMappingService {
 	}
 
 	public Mono<Item> enrichItemWithMappedItemType(Item item, String hostLmsCode) {
+		return findMapping(item, hostLmsCode)
+			.map(item::setCanonicalItemType);
+	}
+
+	private Mono<String> findMapping(Item item, String hostLmsCode) {
 		return referenceValueMappingService.findMapping("ItemType", hostLmsCode,
 				item.getLocalItemTypeCode(), "ItemType", "DCB")
-			.map(ReferenceValueMapping::getToValue)
-			.map(item::setCanonicalItemType);
+			.map(ReferenceValueMapping::getToValue);
 	}
 }
