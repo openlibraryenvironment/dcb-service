@@ -80,9 +80,13 @@ dependencies {
 
 	implementation("ch.qos.logback:logback-core")
 	implementation("ch.qos.logback:logback-classic")
-        runtimeOnly("ch.qos.logback.contrib:logback-json-classic:0.1.5")
-        runtimeOnly("ch.qos.logback.contrib:logback-jackson:0.1.5")
-        // runtimeOnly("ch.qos.logback.contrib:logback-json-classic:0.1.5")
+  runtimeOnly("ch.qos.logback.contrib:logback-json-classic:0.1.5")
+  runtimeOnly("ch.qos.logback.contrib:logback-jackson:0.1.5")
+  // runtimeOnly("ch.qos.logback.contrib:logback-json-classic:0.1.5")
+
+  // Mostly for AWS Cloudwatch log formatting - enabled by default, see logback.xml for how to change
+  implementation("io.micronaut.aws:micronaut-aws-cloudwatch-logging")
+
 	runtimeOnly("org.slf4j:log4j-over-slf4j")
 
 
