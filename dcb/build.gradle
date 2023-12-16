@@ -85,7 +85,8 @@ dependencies {
   // runtimeOnly("ch.qos.logback.contrib:logback-json-classic:0.1.5")
 
   // Mostly for AWS Cloudwatch log formatting - enabled by default, see logback.xml for how to change
-  implementation("io.micronaut.aws:micronaut-aws-cloudwatch-logging")
+  // Commenting out - tests are failing and this seems to be the reason
+  // implementation("io.micronaut.aws:micronaut-aws-cloudwatch-logging")
 
 	runtimeOnly("org.slf4j:log4j-over-slf4j")
 
