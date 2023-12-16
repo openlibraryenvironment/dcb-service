@@ -20,6 +20,7 @@
 		</encoder>
 	</appender>
 
+  <!--
   <appender name='CLOUDWATCH' class='io.micronaut.aws.cloudwatch.logging.CloudWatchLoggingAppender'>
       <groupName>DCB</groupName>
       <streamName>DCB-Service</streamName>
@@ -30,7 +31,8 @@
           </layout>
       </encoder>
   </appender>
-	
+	-->
+
 	<appender name="STDOUT" class="ch.qos.logback.classic.AsyncAppender">
 		<appender-ref ref="JSON_SYNC" />
 	</appender>
