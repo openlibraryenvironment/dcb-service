@@ -367,17 +367,17 @@ public class DataFetchers {
 	}
 
 	public DataFetcher<CompletableFuture<PatronIdentity>> getVPatronForSupplierRequest() {
-                return env -> {
-                        SupplierRequest sr = (SupplierRequest) env.getSource();
-                        if ( sr.getVirtualIdentity() != null ) {
-                                UUID vpatronid = sr.getVirtualIdentity().getId();
-                                return Mono.from(postgresPatronIdentityRepository.findById(vpatronid)).toFuture();
-                        }
+		return env -> {
+			SupplierRequest sr = (SupplierRequest) env.getSource();
+			if ( sr.getVirtualIdentity() != null ) {
+				UUID vpatronid = sr.getVirtualIdentity().getId();
+				return Mono.from(postgresPatronIdentityRepository.findById(vpatronid)).toFuture();
+			}
 			else {
 				Mono<PatronIdentity> r = Mono.empty();
 				return r.toFuture();
 			}
-                };
+		};
 	}
 
 	public DataFetcher<CompletableFuture<DataAgency>> getAgencyForLocation() {
