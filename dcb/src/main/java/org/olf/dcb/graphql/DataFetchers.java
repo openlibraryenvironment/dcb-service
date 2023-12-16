@@ -366,6 +366,20 @@ public class DataFetchers {
                 };
 	}
 
+  public DataFetcher<CompletableFuture<PatronIdentity>> getPatronIdentityForPatronRequestRequest() {
+    return env -> {
+      PatronRequest pr = (PatronRequest) env.getSource();
+      if ( pr.getRequestingIdentity() != null ) {
+        UUID pid = pr.getRequestingIdentity().getId();
+        return Mono.from(postgresPatronIdentityRepository.findById(pid)).toFuture();
+      }                 
+      else {            
+        Mono<PatronIdentity> r = Mono.empty();
+        return r.toFuture();
+      }                 
+    };          
+  }                     
+
 	public DataFetcher<CompletableFuture<PatronIdentity>> getVPatronForSupplierRequest() {
 		return env -> {
 			SupplierRequest sr = (SupplierRequest) env.getSource();

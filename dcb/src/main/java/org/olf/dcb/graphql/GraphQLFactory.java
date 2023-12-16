@@ -97,7 +97,8 @@ public class GraphQLFactory {
 					typeWiring -> typeWiring
 						.dataFetcher("suppliers", dataFetchers.getSupplierRequestsForPR())
 						.dataFetcher("audit", dataFetchers.getAuditMessagesForPR())
-						.dataFetcher("clusterRecord", dataFetchers.getClusterRecordForPR()))
+						.dataFetcher("clusterRecord", dataFetchers.getClusterRecordForPR())
+						.dataFetcher("requestingIdentity", dataFetchers.getPatronIdentityForPatronRequestRequest()))
 				.type("Location",
 					typeWiring -> typeWiring
 						.dataFetcher("agency", dataFetchers.getAgencyForLocation())
