@@ -33,6 +33,9 @@ DB connection effectively, 2 different connections - with JDBC only being used f
 | DCB_SHEDULED_TASKS_ENABLED               | perform scheduled tasks                                                            | true                                                                                      |
 | REACTOR_DEBUG                            | DEVELOPMENT FLAG! set to the string "true" to enable reactor annotated stack trace | true                                                                                      |
 | POD_NAME                            | In K8S environments, set to metadata.name (And decide if you want deployments or statefulsets). Elsewhere set this to the name you want to appear by this instance of DCB for stats logging. Be aware that multiple instances may be running for load balancing | INGEST-DCB-0001
+| MICRONAUT_METRICS_EXPORT_CLOUDWATCH_ENABLED | In AWS environments set to true to enable cloudwatch metrics export | true |
+| MICRONAUT_METRICS_EXPORT_CLOUDWATCH_NAMESPCE | Cloudwatch namespace | dcb |
+| DCB_LOG_APPENDERS | Optionally change the log appenders -default is both :- "CLOUDWATCH JSON_SYNC" set this to disable one or the other | JSON_SYNC |
 
 # Configuration
 

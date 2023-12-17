@@ -74,31 +74,36 @@ public class GraphQLFactory {
 						.dataFetcher("referenceValueMappings", dataFetchers.getReferenceValueMappingsDataFetcher())
 				)
 				.type("Mutation",
-					typeWiring -> typeWiring.dataFetcher("createAgencyGroup", createAgencyGroupDataFetcher)
-								.dataFetcher("addAgencyToGroup", addAgencyToGroupDataFetcher))
+					typeWiring -> typeWiring
+						.dataFetcher("createAgencyGroup", createAgencyGroupDataFetcher)
+						.dataFetcher("addAgencyToGroup", addAgencyToGroupDataFetcher))
 				.type("AgencyGroup",
-					typeWiring -> typeWiring.dataFetcher("members", dataFetchers.getAgencyGroupMembersDataFetcher()))
+					typeWiring -> typeWiring
+						.dataFetcher("members", dataFetchers.getAgencyGroupMembersDataFetcher()))
 				.type("AgencyGroupMember",
-					typeWiring -> typeWiring.dataFetcher("agency", dataFetchers.getAgencyDataFetcherForGroupMember()))
+					typeWiring -> typeWiring
+						.dataFetcher("agency", dataFetchers.getAgencyDataFetcherForGroupMember()))
 				.type("ClusterRecord",
-					typeWiring -> typeWiring.dataFetcher("members", dataFetchers.getClusterMembersDataFetcher()))
-                                .type("BibRecord",
-                                        typeWiring -> typeWiring.dataFetcher("sourceRecord", dataFetchers.getSourceRecordForBibDataFetcher()))
-                                .type("SupplierRequest",
-                                        typeWiring -> typeWiring.dataFetcher("patronRequest", dataFetchers.getPatronRequestForSupplierRequestDataFetcher())
-								.dataFetcher("virtualPatron", dataFetchers.getVPatronForSupplierRequest()))
-                                .type("PatronRequest",
 					typeWiring -> typeWiring
-                                                .dataFetcher("suppliers", dataFetchers.getSupplierRequestsForPR())
-                                                .dataFetcher("audit", dataFetchers.getAuditMessagesForPR())
-																								.dataFetcher("clusterRecord", dataFetchers.getClusterRecordForPR())
-                                )
-                                .type("Location",
+						.dataFetcher("members", dataFetchers.getClusterMembersDataFetcher()))
+				.type("BibRecord",
 					typeWiring -> typeWiring
-                                                .dataFetcher("agency", dataFetchers.getAgencyForLocation())
-                                                .dataFetcher("hostSystem", dataFetchers.getHostSystemForLocation())
-                                                .dataFetcher("parentLocation", dataFetchers.getParentForLocation())
-                                )
+						.dataFetcher("sourceRecord", dataFetchers.getSourceRecordForBibDataFetcher()))
+				.type("SupplierRequest",
+					typeWiring -> typeWiring
+						.dataFetcher("patronRequest", dataFetchers.getPatronRequestForSupplierRequestDataFetcher())
+						.dataFetcher("virtualPatron", dataFetchers.getVPatronForSupplierRequest()))
+				.type("PatronRequest",
+					typeWiring -> typeWiring
+						.dataFetcher("suppliers", dataFetchers.getSupplierRequestsForPR())
+						.dataFetcher("audit", dataFetchers.getAuditMessagesForPR())
+						.dataFetcher("clusterRecord", dataFetchers.getClusterRecordForPR())
+						.dataFetcher("requestingIdentity", dataFetchers.getPatronIdentityForPatronRequestRequest()))
+				.type("Location",
+					typeWiring -> typeWiring
+						.dataFetcher("agency", dataFetchers.getAgencyForLocation())
+						.dataFetcher("hostSystem", dataFetchers.getHostSystemForLocation())
+						.dataFetcher("parentLocation", dataFetchers.getParentForLocation()))
 				.scalar(ExtendedScalars.Json)
 				.build();
 

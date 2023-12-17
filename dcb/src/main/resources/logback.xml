@@ -1,5 +1,6 @@
 <configuration>
 
+  <!-- This issue is useful: https://github.com/micronaut-projects/micronaut-aws/issues/1687 -->
 	<appender name="JSON_SYNC" class="ch.qos.logback.core.ConsoleAppender">
 		<layout class="ch.qos.logback.contrib.json.classic.JsonLayout">
 			<jsonFormatter class="ch.qos.logback.contrib.jackson.JacksonJsonFormatter">
@@ -18,7 +19,20 @@
 			</pattern>
 		</encoder>
 	</appender>
-	
+
+  <!--
+  <appender name='CLOUDWATCH' class='io.micronaut.aws.cloudwatch.logging.CloudWatchLoggingAppender'>
+      <groupName>DCB</groupName>
+      <streamName>DCB-Service</streamName>
+      <createGroupAndStream>true</createGroupAndStream>
+      <encoder class='ch.qos.logback.core.encoder.LayoutWrappingEncoder'>
+          <layout class='ch.qos.logback.contrib.json.classic.JsonLayout'>
+              <jsonFormatter class='io.micronaut.aws.cloudwatch.logging.CloudWatchJsonFormatter'/>
+          </layout>
+      </encoder>
+  </appender>
+	-->
+
 	<appender name="STDOUT" class="ch.qos.logback.classic.AsyncAppender">
 		<appender-ref ref="JSON_SYNC" />
 	</appender>
@@ -53,6 +67,7 @@
 	<logger name="io.micronaut.security" level="WARN" />
 
 	<root level="info">
-		<appender-ref ref="STDOUT"/>
+		<appender-ref ref="${DCB_LOG_APPENDERS:-STDOUT_SYNC}"/>
 	</root>
+
 </configuration>

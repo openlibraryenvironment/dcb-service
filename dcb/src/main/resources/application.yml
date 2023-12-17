@@ -51,6 +51,10 @@ micronaut:
         enabled: true
         step: PT1M
         descriptions: true
+      cloudwatch:
+        # MICRONAUT_METRICS_EXPORT_CLOUDWATCH_ENABLED=true
+        enabled: true
+        namespace: dcb
 
 endpoints:
   prometheus:

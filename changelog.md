@@ -1,9 +1,23 @@
 # Changelog
 
+## Version 4.0.3
+
+### Changes
+* [Chore]
+	* comment out aws logging jar
+	* Comment out AWS log appender
+* [Feature]
+	* graphql - Add data fetcher for reqesting patron identity
+
+### Fixes
+* [Graphql]
+	* Correct misaligned property name for virtualPatron in SupplierRequest
+
 ## Version 4.0.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* logging adjustments to BorrowingAgencyService
 	* don't pretty print json logs
 * [Feature]
