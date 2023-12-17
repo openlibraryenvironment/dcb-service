@@ -45,10 +45,10 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 
 		assert isApplicableFor(patronRequest);
 
-		log.debug("makeTransition({})", patronRequest);
+		log.info("makeTransition({})", patronRequest);
 		return borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest)
-				.doOnSuccess(pr -> log.debug("Placed patron request to borrowing agency: {}", pr))
-                                .doOnError(error -> log.error("Error occurred during placing a patron request to borrowing agency: {}", error.getMessage()))
+				.doOnSuccess(pr -> log.info("Placed patron request to borrowing agency: {}", pr))
+        .doOnError(error -> log.error("Error occurred during placing a patron request to borrowing agency: {}", error.getMessage()))
 				.flatMap(this::createAuditEntry);
 	}
 
