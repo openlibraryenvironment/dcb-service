@@ -77,10 +77,13 @@ public class TrackingService implements Runnable {
 		final long start = System.currentTimeMillis();
 
 		trackSupplierItems()
+      .flatMap( this::enrichWithPatronRequest )
 			.flatMap( this::checkSupplierItem)
 			.subscribe( 
 				value -> {},
-				error -> log.error("Error: " + error),
+				error -> {
+          log.error("Error: " + error);
+        },
 				() -> log.info("active supplier item tracking complete") );
 
 		trackActiveSupplierHolds()
@@ -191,7 +194,9 @@ public class TrackingService implements Runnable {
 	public Mono<SupplierRequest> checkSupplierItem(SupplierRequest sr) {
 		log.info("TRACKING Check (hostlms) supplierItem from supplier request item={} status={} code={}",sr.getLocalItemId(),sr.getLocalItemStatus(),sr.getHostLmsCode());
 		if ( ( sr.getHostLmsCode() != null ) && ( sr.getLocalItemId() != null ) ) {
-                        log.debug("hostLms code and itemId present.. continue");
+
+      log.debug("hostLms code and itemId present.. continue");
+
 			return hostLmsService.getClientFor(sr.getHostLmsCode())
 				.flatMap( client -> Mono.from(client.getItem(sr.getLocalItemId())) )
                                 .doOnNext( item -> log.debug("Process tracking supplier request item {}",item) )
@@ -216,6 +221,16 @@ public class TrackingService implements Runnable {
 			return Mono.just(sr);
 		}
 	}
+
+  // Look up the patron requst and add it to the supplier request as a full object instead of a stub
+	public Mono<SupplierRequest> enrichWithPatronRequest(SupplierRequest sr) {
+      return Mono.from(patronRequestRepository.findById( sr.getPatronRequest().getId() ) )
+        .flatMap( pr -> { 
+          sr.setPatronRequest(pr); 
+          return Mono.just(sr);
+        } );
+  }
+
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	public Mono<SupplierRequest> checkSupplierRequest(SupplierRequest sr) {
