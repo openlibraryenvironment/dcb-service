@@ -34,6 +34,12 @@ public class ItemStatusMapper {
 	}
 
 	public Mono<ItemStatus> mapStatus(String statusCode, String dueDate,
+		String hostLmsCode, FallbackMapper fallbackMapper) {
+
+		return mapStatus(statusCode, dueDate, hostLmsCode, true, fallbackMapper);
+	}
+
+	public Mono<ItemStatus> mapStatus(String statusCode, String dueDate,
 		String hostLmsCode, boolean checkForDueDate, FallbackMapper fallbackStatusMapping) {
 
 		log.debug("mapStatus(statusCode: {}, dueDate: {} hostLmsCode: {}, checkForDueDate: {}, fallbackStatusMapping: {})",

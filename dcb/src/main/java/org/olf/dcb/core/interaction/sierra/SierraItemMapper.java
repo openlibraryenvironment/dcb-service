@@ -53,7 +53,7 @@ public class SierraItemMapper {
 
 		// Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
 		// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human-readable string at the moment
-		return itemStatusMapper.mapStatus(statusCode, dueDate, hostLmsCode, true, sierraItemStatusFallback())
+		return itemStatusMapper.mapStatus(statusCode, dueDate, hostLmsCode, sierraItemStatusFallback())
 			.map(itemStatus -> Item.builder()
 				.localId(itemResult.getId())
 				.status(itemStatus)
