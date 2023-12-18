@@ -329,7 +329,7 @@ public class RecordClusteringService {
 		return bibRecords.findTop2HighestScoringContributorId( cr )
 			.filter( id -> 
 				ignoreBib
-					.map( ignore -> !id.equals(ignore.getId()) )
+					.map( ignore -> !id.toString().equals(ignore.getId().toString()) )
 					.orElse(Boolean.TRUE))
 			
 			.next()

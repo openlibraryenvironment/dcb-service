@@ -1,6 +1,7 @@
 package org.olf.dcb.core.api.serde;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -22,6 +23,8 @@ import lombok.experimental.Accessors;
 public class ClusterRecordDTO {
 	
 	public ClusterRecordDTO( final ClusterRecord cr ) {
+		
+		final String crSelectedBibId = Objects.toString(cr.getSelectedBib(), null);
 		this
 			.setDateUpdated(cr.getDateUpdated().toString())
 			.setDateCreated(cr.getDateCreated().toString())
@@ -30,12 +33,16 @@ public class ClusterRecordDTO {
 			.setTitle(cr.getTitle())
 			.setSelectedBibId(cr.getSelectedBib())
 		
-		// Also set bibs and the selected bib from the bib collection.
+			// Also set bibs and the selected bib from the bib collection.
 			.setBibs(
 				Stream.ofNullable(cr.getBibs())
 					.flatMap(Set::stream)
 					.map( bib -> {
-						if ( bib.getId().equals(cr.getSelectedBib()) ) {
+						
+						// Need to compare UUIDs as strings.
+						final String thisId = Objects.toString(bib.getId(), null);
+						
+						if ( thisId.equals(crSelectedBibId) ) {
 							this.setSelectedBib( new BibRecordDTO(bib) );
 						}
 						
