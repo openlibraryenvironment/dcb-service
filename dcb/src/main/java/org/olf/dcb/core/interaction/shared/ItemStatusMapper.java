@@ -27,6 +27,12 @@ public class ItemStatusMapper {
 		this.referenceValueMappingService = referenceValueMappingService;
 	}
 
+	public Mono<ItemStatus> mapStatus(String statusCode, String hostLmsCode,
+		FallbackMapper fallbackMapper) {
+
+		return mapStatus(statusCode, null, hostLmsCode, false, fallbackMapper);
+	}
+
 	public Mono<ItemStatus> mapStatus(String statusCode, String dueDate,
 		String hostLmsCode, boolean checkForDueDate, FallbackMapper fallbackStatusMapping) {
 

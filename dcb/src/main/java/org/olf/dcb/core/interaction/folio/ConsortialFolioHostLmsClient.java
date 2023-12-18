@@ -230,8 +230,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private Mono<Item> mapHoldingToItem(Holding holding, String instanceId) {
 		return Mono.justOrEmpty(holding.getStatus())
-			.flatMap(status -> itemStatusMapper.mapStatus(status, null,
-				hostLms.getCode(), false, folioFallback()))
+			.flatMap(status -> itemStatusMapper.mapStatus(status, hostLms.getCode(), folioFallback()))
 			.map(status -> Item.builder()
 				.localId(holding.getId())
 				.localBibId(instanceId)

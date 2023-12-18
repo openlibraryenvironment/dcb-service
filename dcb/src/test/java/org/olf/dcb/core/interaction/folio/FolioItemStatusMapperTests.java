@@ -19,7 +19,6 @@ import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.core.annotation.Nullable;
-import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Inject;
 
 @DcbTest
@@ -113,7 +112,7 @@ class FolioItemStatusMapperTests {
 
 	@Nullable
 	private ItemStatus mapFolioStatus(String statusCode) {
-		return mapper.mapStatus(statusCode, null, HOST_LMS_CODE, false, folioFallback())
+		return mapper.mapStatus(statusCode, HOST_LMS_CODE, folioFallback())
 			.block();
 	}
 }

@@ -48,16 +48,6 @@ class PolarisItemStatusMapperTests {
 		assertThat(mappedStatus.getCode(), is(AVAILABLE));
 	}
 
-	@Test
-	void statusIsAvailableWhenCodeIsInEvenWhenDueDateIsProvided() {
-		final var mappedStatus = mapper.mapStatus("In",
-			"2023-10-05T23:59:59Z", HOST_LMS_CODE, false, polarisFallback())
-			.block();
-
-		assertThat(mappedStatus, is(notNullValue()));
-		assertThat(mappedStatus.getCode(), is(AVAILABLE));
-	}
-
 	@ParameterizedTest
 	@ValueSource(strings = {
 		"Bindery",
@@ -107,7 +97,7 @@ class PolarisItemStatusMapperTests {
 
 	@Nullable
 	private ItemStatus mapPolarisStatus(String statusCode) {
-		return mapper.mapStatus(statusCode, null, HOST_LMS_CODE, true, polarisFallback())
+		return mapper.mapStatus(statusCode, HOST_LMS_CODE, polarisFallback())
 			.block();
 	}
 }
