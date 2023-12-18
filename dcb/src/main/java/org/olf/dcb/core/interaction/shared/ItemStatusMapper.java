@@ -39,17 +39,17 @@ public class ItemStatusMapper {
 		return mapStatus(statusCode, dueDate, hostLmsCode, true, fallbackMapper);
 	}
 
-	public Mono<ItemStatus> mapStatus(String statusCode, String dueDate,
-		String hostLmsCode, boolean checkForDueDate, FallbackMapper fallbackStatusMapping) {
+	private Mono<ItemStatus> mapStatus(String statusCode, String dueDate,
+		String hostLmsCode, boolean checkForDueDate, FallbackMapper fallbackMapper) {
 
-		log.debug("mapStatus(statusCode: {}, dueDate: {} hostLmsCode: {}, checkForDueDate: {}, fallbackStatusMapping: {})",
-			statusCode, dueDate, hostLmsCode, checkForDueDate, fallbackStatusMapping);
+		log.debug("mapStatus(statusCode: {}, dueDate: {} hostLmsCode: {}, checkForDueDate: {}, fallbackMapper: {})",
+			statusCode, dueDate, hostLmsCode, checkForDueDate, fallbackMapper);
 
 		return Mono.justOrEmpty(statusCode)
 			.flatMap(code -> fetchReferenceValueMap(code, hostLmsCode))
 			.map(ReferenceValueMapping::getToValue)
 			.map(ItemStatusCode::valueOf)
-			.defaultIfEmpty(fallbackStatusMapping.map(statusCode))
+			.defaultIfEmpty(fallbackMapper.map(statusCode))
 			.map(itemStatusCode -> checkForDueDate(itemStatusCode, dueDate, checkForDueDate))
 			.map(ItemStatus::new);
 	}
