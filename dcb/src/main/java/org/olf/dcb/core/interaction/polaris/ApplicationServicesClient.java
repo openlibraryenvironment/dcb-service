@@ -5,6 +5,8 @@ import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -124,14 +126,21 @@ class ApplicationServicesClient {
 			  .flatMap(request -> client.retrieve(request, Argument.listOf(PatronBlockGetRow.class)))
         .onErrorResume( error -> {
             log.error("Error attempting to retrieve patron blocks {} : {}", localPatronId, error.getMessage());
-            return Mono.error(
-              Problem.builder()
-                .withType(ERR0210)
-                .withTitle("Unable to retrieve patron blocks from polaris") // : "+error.getMessage())
-                .withDetail(error.getMessage())
-                .with("localPatronId",localPatronId)
-                .build()
-            );
+            if ( ( error instanceof HttpClientResponseException ) && 
+              ( ((HttpClientResponseException)error).getStatus() == HttpStatus.NOT_FOUND ) ) {
+              // Not found is not really an error WRT patron blocks
+              return Mono.empty();
+            }
+            else {
+              return Mono.error(
+                Problem.builder()
+                  .withType(ERR0210)
+                  .withTitle("Unable to retrieve patron blocks from polaris") // : "+error.getMessage())
+                  .withDetail(error.getMessage())
+                  .with("localPatronId",localPatronId)
+                  .build()
+             );
+          }
         });
 
 	}
