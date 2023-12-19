@@ -196,16 +196,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.localId(String.valueOf(itemCreateResponse.getAnswerExtension().getAnswerData().getItemRecord().getItemRecordID()))
 				.status(String.valueOf(itemCreateResponse.getAnswerExtension().getAnswerData().getItemRecord().getItemStatusID()))
 				.build())
-			.onErrorResume( error -> { 
+			.onErrorMap( error -> { 
 				log.error("Error attempting to create item {} : {}", createItemCommand, error.getMessage());
-				return Mono.error(
-					Problem.builder()
+				return Problem.builder()
 						.withType(ERR0211)
 						.withTitle("Unable to create virtual item at polaris") // : "+error.getMessage())
 						.withDetail(error.getMessage())
 						.with("createItemCommand",createItemCommand)
-						.build()                        
-				);                  
+						.build();
 			});
 	}
 

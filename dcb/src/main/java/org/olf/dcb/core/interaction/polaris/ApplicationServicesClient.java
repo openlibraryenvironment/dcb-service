@@ -195,6 +195,12 @@ class ApplicationServicesClient {
 			.flatMap(request -> client.retrieve(request, Argument.of(Integer.class)));
 	}
 
+  public Mono<Integer> mapCanonicalLocationToLocalPolarisInteger(String code) {
+    log.info("mapCanonicalLocationToLocalPolarisInteger({}) - TESTING return 71",code);
+    return Mono.just(Integer.valueOf(6));
+  }
+
+
 	public Mono<ItemCreateResponse> addItemRecord(CreateItemCommand createItemCommand) {
 
 		final var path = createPath("workflow");
@@ -204,7 +210,7 @@ class ApplicationServicesClient {
 		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
 
 		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
-		final var branchid = extractMapValue(servicesMap, SERVICES_ORG_ID, Integer.class);
+		// final var branchid = extractMapValue(servicesMap, SERVICES_ORG_ID, Integer.class);
 		final var workstation = extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class);
 
 		final var itemMap = (Map<String, Object>) conf.get(ITEM);
@@ -217,9 +223,11 @@ class ApplicationServicesClient {
 
 		return createRequest(POST, path, uri -> {})
 			.zipWith(client.getMappedItemType(createItemCommand.getCanonicalItemType()))
+			.zipWith(mapCanonicalLocationToLocalPolarisInteger(createItemCommand.getLocationCode()))
 			.map(tuple -> {
-				final var request = tuple.getT1();
-				final var itemtype = Integer.parseInt(tuple.getT2());
+				final var request = tuple.getT1().getT1();
+				final var itemtype = Integer.parseInt(tuple.getT1().getT2());
+			  final var itemLocationId = tuple.getT2();
 				final var body = WorkflowRequest.builder()
 				.workflowRequestType(itemrecordtype)
 				.txnUserID(user)
@@ -228,17 +236,17 @@ class ApplicationServicesClient {
 				.requestExtension( RequestExtension.builder()
 					.workflowRequestExtensionType(itemrecorddata)
 					.data(RequestExtensionData.builder()
-						.associatedBibRecordID(createItemCommand.getBibId())
+						.associatedBibRecordID(Integer.parseInt(createItemCommand.getBibId()))
 						.barcode(barcodePrefix + createItemCommand.getBarcode())
 						.isNew(TRUE)
 						.displayInPAC(FALSE)
-						.assignedBranchID( branchid ) // needs clarifying
-						.owningBranchID( String.valueOf(branchid) ) // needs clarifying
-						.homeBranchID( branchid ) // needs clarifying
+						.assignedBranchID( itemLocationId ) // needs clarifying
+						.owningBranchID( itemLocationId ) // needs clarifying
+						.homeBranchID( itemLocationId ) // needs clarifying
 						.renewalLimit( extractMapValue(itemMap, RENEW_LIMIT, Integer.class) )
-						.fineCodeID( extractMapValue(itemMap, FINE_CODE_ID, String.class) )
+						.fineCodeID( extractMapValue(itemMap, FINE_CODE_ID, Integer.class) )
 						.itemRecordHistoryActionID( extractMapValue(itemMap, HISTORY_ACTION_ID, Integer.class) )
-						.loanPeriodCodeID( extractMapValue(itemMap, LOAN_PERIOD_CODE_ID, String.class) )
+						.loanPeriodCodeID( extractMapValue(itemMap, LOAN_PERIOD_CODE_ID, Integer.class) )
 						.shelvingSchemeID( extractMapValue(itemMap, SHELVING_SCHEME_ID, Integer.class))
 						.itemStatusID(Available)
 						.materialTypeID(itemtype)
@@ -541,22 +549,28 @@ class ApplicationServicesClient {
 		private Integer itemRecordHistoryActionID;
 		@JsonProperty("ItemStatusID")
 		private Integer itemStatusID;
+
+		// When specified caller must also send  HoldableByPickup HoldPickupBranchID HoldableByPrimaryLender 
+		// ManualBlockID StatisticalCodeID ShelfLocationID AssignedCollectionID
 		@JsonProperty("AssignedBranchID")
-		private Integer assignedBranchID;
+		private Integer assignedBranchID;  
+
 		@JsonProperty("AssociatedBibRecordID")
-		private String associatedBibRecordID;
+		private Integer associatedBibRecordID;
 		@JsonProperty("MaterialTypeID")
 		private Integer materialTypeID;
 		@JsonProperty("RenewalLimit")
 		private Integer renewalLimit;
 		@JsonProperty("LoanPeriodCodeID")
-		private String loanPeriodCodeID;
+		private Integer loanPeriodCodeID;
 		@JsonProperty("FineCodeID")
-		private String fineCodeID;
+		private Integer fineCodeID;
+		// https://qa-polaris.polarislibrary.com/polaris.applicationservices/help/workflow/add_or_update_item_record
+		// Says owningBranchId is an Integer not a String
 		@JsonProperty("OwningBranchID")
-		private String owningBranchID;
+		private Integer owningBranchID;
 		@JsonProperty("HomeBranchID")
-		private Integer homeBranchID;
+		private Integer homeBranchID;  // mandatory when creating a new item
 		@JsonProperty("ShelvingSchemeID")
 		private Integer shelvingSchemeID;
 		@JsonProperty("ItemRecordID")

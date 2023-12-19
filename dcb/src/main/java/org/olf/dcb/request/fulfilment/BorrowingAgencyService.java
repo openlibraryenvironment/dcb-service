@@ -141,21 +141,24 @@ public class BorrowingAgencyService {
 
 			return getAgencyForShelvingLocation(supplierRequest.getHostLmsCode(), supplierRequest.getLocalItemLocationCode())
 				.flatMap(mapping -> {
+					log.info("calling create item - target location mapping is {}",mapping);
 					String agencyCode = mapping.getToValue();
 					supplierRequest.setLocalAgency(agencyCode);
 					return hostLmsClient.createItem(new CreateItemCommand(localBibId, agencyCode,
 							supplierRequest.getLocalItemBarcode(), supplierRequest.getCanonicalItemType()));
-				}).map(HostLmsItem::getLocalId)
+				})
+				.map(HostLmsItem::getLocalId)
 				.map(localItemId -> {
 					patronRequest.setLocalItemId(localItemId);
 					return Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId, localBibId);
-				}).switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));
+				})
+				.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));
 	}
 
 	private Mono<ReferenceValueMapping> getAgencyForShelvingLocation(String context, String code) {
 		return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
 				"Location", context, code, "AGENCY", "DCB"))
-			.doOnSuccess(rvm -> log.debug("looked up "+rvm.getToValue()+" for "+context+":"+code))
+			.doOnSuccess(rvm -> log.debug("getAgencyForShelvingLocation looked up "+rvm.getToValue()+" for "+context+":"+code))
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to resolve shelving loc "+context+":"+code+" to agency")));
 	}
 
