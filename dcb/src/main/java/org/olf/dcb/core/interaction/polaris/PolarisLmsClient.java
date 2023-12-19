@@ -60,6 +60,7 @@ import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.reactivestreams.Publisher;
+import org.zalando.problem.Problem;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -88,9 +89,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
-
-import java.net.URI;
-import org.zalando.problem.Problem;
 
 @Slf4j
 @Prototype
@@ -261,11 +259,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-        public Mono<Patron> getPatronByUsername(String username) {
+	public Mono<Patron> getPatronByUsername(String username) {
 		return patronFind(username);
 	}
-
-
 
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
@@ -339,14 +335,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.map(PolarisItemStatus::getItemStatusID);
 	}
 
-
-        private Mono<Patron> patronFind(String barcode) {
-                return papiClient.patronSearch(barcode)
-                        .map(PAPIClient.PatronSearchRow::getPatronID)
-                        .flatMap(appServicesClient::handlePatronBlock)
-                        .map(String::valueOf)
-                        .flatMap(this::getPatronByLocalId);
-        }
+	private Mono<Patron> patronFind(String barcode) {
+		return papiClient.patronSearch(barcode)
+			.map(PAPIClient.PatronSearchRow::getPatronID)
+			.flatMap(appServicesClient::handlePatronBlock)
+			.map(String::valueOf)
+			.flatMap(this::getPatronByLocalId);
+	}
 
 	private Mono<Patron> patronFind(String uniqueID, String barcode) {
 		return papiClient.patronSearch(barcode, uniqueID)
