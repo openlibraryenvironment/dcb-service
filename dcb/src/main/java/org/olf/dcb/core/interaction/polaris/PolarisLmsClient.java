@@ -149,8 +149,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return placeHoldRequest(parameters);
 	}
 
-	@Override
-	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
+	private Mono<LocalRequest> placeHoldRequest(
+		PlaceHoldRequestParameters parameters) {
 		return getBibIdFromItemId(parameters.getLocalItemId())
 			.flatMap(this::getBib)
 			.map(bib -> HoldRequestParameters.builder()

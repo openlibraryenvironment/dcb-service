@@ -60,11 +60,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
-		return Mono.empty();
-	}
-
-	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		return Mono.empty();
 	}
