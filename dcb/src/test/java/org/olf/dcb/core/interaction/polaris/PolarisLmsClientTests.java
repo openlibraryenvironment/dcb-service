@@ -208,7 +208,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void placeHoldRequest() {
+	public void shouldBeAbleToPlaceRequestAtSupplyingAgency() {
 		// Arrange
 
 		final var recordNumber = "12345";
@@ -230,7 +230,7 @@ public class PolarisLmsClientTests {
 
 		// Act
 		final var localRequest = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.placeHoldRequest(PlaceHoldRequestParameters.builder()
+			.placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters.builder()
 				.localPatronId("1")
 				.localBibId(null)
 				.localItemId(recordNumber)

@@ -2,16 +2,16 @@ package org.olf.dcb.request.fulfilment;
 
 import static reactor.function.TupleUtils.function;
 
+import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
-import java.net.URI;
 
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -19,14 +19,13 @@ import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.zalando.problem.Problem;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
-
-import org.zalando.problem.Problem;
 
 @Prototype
 public class SupplyingAgencyService {
@@ -154,7 +153,7 @@ public class SupplyingAgencyService {
 
 		String note = "Consortial Hold. tno=" + patronRequest.getId();
 
-		return client.placeHoldRequest(PlaceHoldRequestParameters.builder()
+		return client.placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters.builder()
 			.localPatronId(patronIdentityAtSupplier.getLocalId())
 			.localBibId(supplierRequest.getLocalBibId())
 			.localItemId(supplierRequest.getLocalItemId())

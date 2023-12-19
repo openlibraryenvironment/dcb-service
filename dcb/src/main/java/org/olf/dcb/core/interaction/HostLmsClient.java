@@ -15,12 +15,12 @@ public interface HostLmsClient {
 	// local values when encountered via updateRequestStatus
 	enum CanonicalRequestState {
 		PLACED, TRANSIT;
-	}
 
+	}
 	enum CanonicalItemState {
 		AVAILABLE, TRANSIT, OFFSITE, RECEIVED, MISSING, ONHOLDSHELF;
-	}
 
+	}
 	HostLms getHostLms();
 
 	default String getHostLmsCode() {
@@ -38,6 +38,8 @@ public interface HostLmsClient {
 	Mono<String> createPatron(Patron patron);
 
 	Mono<String> createBib(Bib bib);
+
+	Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters);
 
 	Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters);
 

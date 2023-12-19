@@ -91,7 +91,6 @@ import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
-import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
@@ -521,6 +520,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				return Mono.error(new RuntimeException("Error occurred when creating Bib"));
 			})
 			.switchIfEmpty(Mono.error(new RuntimeException("Failed to create bib record at " + lms.getCode())));
+	}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(
+		PlaceHoldRequestParameters parameters) {
+
+		return placeHoldRequest(parameters);
 	}
 
 	@Override
