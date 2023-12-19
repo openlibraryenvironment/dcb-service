@@ -1,9 +1,16 @@
 # Changelog
 
+## Version 4.0.5
+
+### Fixes
+* [Polaris]
+	* Reviewing the polaris docs at https://qa-polaris.polarislibrary.com/polaris.applicationservices/help/workflow/add_or_update_item_record and aligning data types as polaris doesn't like getting integers as strings. We no longer resumeOnError for createItem but instead just return the Problem as an error
+
 ## Version 4.0.4
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Replace spaces with tabs in Polaris host LMS client DCB-490
 	* Enrich supplier request with patron request object when tracking - to enable audit logging
 * [Refactor]
