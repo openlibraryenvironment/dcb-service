@@ -325,6 +325,13 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	@Override
+	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(
+		PlaceHoldRequestParameters parameters) {
+
+		return placeHoldRequest(parameters);
+	}
+
+	@Override
 	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
 		log.info("placeHoldRequest({})", parameters);
 

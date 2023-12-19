@@ -530,6 +530,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
+	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(
+		PlaceHoldRequestParameters parameters) {
+
+		return placeHoldRequest(parameters);
+	}
+
+	@Override
 	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
 		log.debug("placeHoldRequest({})", parameters);
 

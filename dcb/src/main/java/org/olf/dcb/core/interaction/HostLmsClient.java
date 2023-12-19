@@ -41,6 +41,8 @@ public interface HostLmsClient {
 
 	Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters);
 
+	Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters);
+
 	Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters);
 
 	// Look up patron by their internal id - e.g. 1234

@@ -53,6 +53,13 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
+	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(
+		PlaceHoldRequestParameters parameters) {
+
+		return Mono.empty();
+	}
+
+	@Override
 	public Mono<LocalRequest> placeHoldRequest(PlaceHoldRequestParameters parameters) {
 		return Mono.empty();
 	}
