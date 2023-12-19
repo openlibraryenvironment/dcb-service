@@ -1,9 +1,26 @@
 # Changelog
 
+## Version 4.0.4
+
+### Changes
+* [Chore]
+	* Replace spaces with tabs in Polaris host LMS client DCB-490
+	* Enrich supplier request with patron request object when tracking - to enable audit logging
+* [Refactor]
+	* Remove previous method for placing request in host LMS DCB-490
+	* Introduce method for placing request at borrowing agency DCB-490
+	* Introduce method for placing request at supplying agency DCB-490
+
+### Fixes
+* [General]
+	* 404 looking up patron blocks is not an error
+	* Dupe bibs in ingest record view.
+
 ## Version 4.0.3
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* comment out aws logging jar
 	* Comment out AWS log appender
 * [Feature]
