@@ -1,6 +1,8 @@
 package org.olf.dcb.indexing.elasticsearch;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -21,8 +23,8 @@ import org.slf4j.LoggerFactory;
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
 import co.elastic.clients.elasticsearch._types.analysis.Analyzer;
+import co.elastic.clients.elasticsearch._types.analysis.CharFilter;
 import co.elastic.clients.elasticsearch._types.analysis.Normalizer;
-import co.elastic.clients.elasticsearch._types.analysis.NormalizerBuilders;
 import co.elastic.clients.elasticsearch._types.analysis.TokenFilter;
 import co.elastic.clients.elasticsearch._types.mapping.Property;
 import co.elastic.clients.elasticsearch._types.mapping.PropertyBuilders;
@@ -49,10 +51,19 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	
+	private static final String DEFAULT_STOPWORDS = "_english_";
+	private static final String TOKENFILTER_LOWERCASE = "lowercase";
+	private static final String CHARFILTER_FOLD_WHITESPACE = "fold_multiple_whitespace";
+	private static final String CHARFILTER_REMOVE_PUNCTUATION = "spaces_for_punctuation";
 	private static final String STOPWORDS_FILTER_NAME = "dcb_stopwords_filter";
-	private static final String LOWERCASE_FILTER_NAME = "lowercase";
 
-	private static final String LOWERCASE_NORMALIZER = "lowercase_normalizer";
+	private static final String LOWERCASE = TOKENFILTER_LOWERCASE;
+	private static final String WITH_LOWERCASE = "_" + LOWERCASE;
+	private static final String STRIPT_PUNCTUATION_KEYWORD_NORMALIZER = "default_normalizer";
+	private static final String DEFAULT_KEYWORD_NORMALIZER = "preserve_punctuation_normalizer";
+
+	private static final String TOKENFILTER_ASCIIFOLDING = "asciifolding";
+	private static final String TOKENFILTER_TRIM = "trim";
 
 	private final Logger log = LoggerFactory.getLogger(ElasticsearchSharedIndexService.class);
 	
@@ -144,8 +155,27 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 		return settings
 			.analysis(analysis -> analysis
 				.analyzer(getAnalyzersMap())
+				.charFilter(getCharFilters())
 				.filter(getFiltersMap())
 				.normalizer(getNormalizersMap()));
+	}
+	
+	private static Map<String, CharFilter> getCharFilters() {
+		
+		return Map.of(
+			CHARFILTER_REMOVE_PUNCTUATION, CharFilter.of( cf ->
+				cf.definition(cfd -> cfd.patternReplace(pr ->
+					pr.pattern("[^\\w|\\s|\\-]")
+						.replacement(" ")
+						.flags("")))
+					),
+			CHARFILTER_FOLD_WHITESPACE, CharFilter.of( cf ->
+					cf.definition(cfd -> cfd.patternReplace(pr ->
+					pr.pattern("\\s{2,}")
+						.replacement(" ")
+						.flags("")))
+					)
+		);
 	}
 	
 	private static Map<String, Analyzer> getAnalyzersMap() {
@@ -153,7 +183,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 			"default", Analyzer.of( anb -> anb
 			  .custom(cab -> cab
 					.tokenizer("whitespace")
-					.filter(List.of(LOWERCASE_FILTER_NAME, STOPWORDS_FILTER_NAME)))));
+					.filter(List.of(TOKENFILTER_LOWERCASE, STOPWORDS_FILTER_NAME)))));
 	}
 	
 	private static Map<String, TokenFilter> getFiltersMap() {
@@ -161,29 +191,58 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 			STOPWORDS_FILTER_NAME, TokenFilter.of(tf -> tf
 				.definition(def -> def
 					.stop(sb -> sb
-						.ignoreCase(true)))));
+						.ignoreCase(true)
+						.stopwords(DEFAULT_STOPWORDS)))));
 	}
 	
 	private static Map<String, Normalizer> getNormalizersMap() {
-		return Map.of(
-			LOWERCASE_NORMALIZER, NormalizerBuilders
-				.lowercase()
-				.build()
-					._toNormalizer());
+		final var defaults = Map.of(
+			STRIPT_PUNCTUATION_KEYWORD_NORMALIZER, Normalizer.of(norm -> norm
+				.custom( cust -> cust
+					.filter(TOKENFILTER_ASCIIFOLDING)
+					.charFilter(List.of(
+						CHARFILTER_REMOVE_PUNCTUATION,
+						CHARFILTER_FOLD_WHITESPACE))
+					.filter(TOKENFILTER_TRIM))),
+			
+			DEFAULT_KEYWORD_NORMALIZER, Normalizer.of(norm -> norm
+				.custom( cust -> cust
+					.filter(TOKENFILTER_ASCIIFOLDING)
+					.charFilter(List.of(
+						CHARFILTER_FOLD_WHITESPACE))
+					.filter(TOKENFILTER_TRIM))));
+		
+		// Create lowercase variants of the defined Normalizers
+		Map<String, Normalizer> defaults_with_lowercase = new HashMap<>();
+		defaults.forEach( (name, normalizer) -> {
+			defaults_with_lowercase.put(name, normalizer);
+			
+			if (normalizer.isCustom()) {
+				final List<String> charFilters = new ArrayList<> ( normalizer.custom().charFilter() );
+				final List<String> filters = new ArrayList<> ( normalizer.custom().filter() );
+				filters.add(TOKENFILTER_LOWERCASE);
+				
+				final var lowercaseVariant = Normalizer.of(norm -> norm
+					.custom( cust -> cust
+						.charFilter(charFilters)
+						.filter(filters)));
+				
+				// Add the lowercase variant
+				defaults_with_lowercase.put(name + WITH_LOWERCASE, lowercaseVariant);
+			}
+		});
+//		Map<String, Normalizer> defaults_with_lowercase = new HashMap<>();
+		return defaults_with_lowercase;
 	}
 	
-	private Property buildKeyWordFieldTextProperty(final int maxKw, boolean normalizeToLowercase) {
+	private Property buildKeyWordFieldTextProperty(final int maxKw, final String normalizer) {
 		return Property.of(p -> p
 			.text(t -> t
 					
 				.fields("keyword", f -> f
-					.keyword(kw -> {
-						if (normalizeToLowercase) {
-							kw.normalizer(LOWERCASE_NORMALIZER);
-						}
-						
-						return kw.ignoreAbove(maxKw);
-				  }))));
+					.keyword(kw -> kw
+						.ignoreAbove(maxKw)
+						.normalizer(normalizer)))));
 	}
 	
 	private Property defaultKeywordProperty() {
@@ -193,38 +252,38 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	private ObjectBuilder<TypeMapping> getMappings(TypeMapping.Builder m) {
 		return m
 			.properties(
-				"title", buildKeyWordFieldTextProperty(256, true))
+				"title", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER + WITH_LOWERCASE))
 			.properties(
-				"primaryAuthor", buildKeyWordFieldTextProperty(256, true))
+				"primaryAuthor", buildKeyWordFieldTextProperty(256, STRIPT_PUNCTUATION_KEYWORD_NORMALIZER + WITH_LOWERCASE))
 			.properties(
 				"yearOfPublication", new Property(PropertyBuilders.long_().build()))
 			.properties(
-				"bibClusterId", buildKeyWordFieldTextProperty(256, false))
+				"bibClusterId", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER))
 			.properties(
 				"members", mem -> mem
 					.object(mo -> mo
 						.properties(
 							"bibId", defaultKeywordProperty())
 						.properties(
-							"sourceSystem", buildKeyWordFieldTextProperty(256, false))))
+							"sourceSystem", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER))))
 					
 			.properties(
-				"isbn", buildKeyWordFieldTextProperty(256, false))
+				"isbn", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER))
 			.properties(
-				"issn", buildKeyWordFieldTextProperty(256, false))
+				"issn", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER))
 			.properties(
 				"metadata", md -> md
 					.object(mo -> mo
 						.properties(
 							"agents", a -> a
 								.object(ao -> ao
-									.properties("label", buildKeyWordFieldTextProperty(256, false))
+									.properties("label", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER))
 									.properties("subtype", defaultKeywordProperty())))
 								
 						.properties(
 							"subjects", s -> s
 								.object(so -> so
-									.properties("label", buildKeyWordFieldTextProperty(256, true))
+									.properties("label", buildKeyWordFieldTextProperty(256, STRIPT_PUNCTUATION_KEYWORD_NORMALIZER + WITH_LOWERCASE))
 									.properties("subtype", defaultKeywordProperty())))
 						
 						.properties(
