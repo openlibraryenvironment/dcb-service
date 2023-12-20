@@ -5,6 +5,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
@@ -16,9 +17,12 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 class FolioIngestTests {
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private ClusterRecordFixture clusterRecordFixture;
 
 	@BeforeEach
 	void beforeEach() {
+		clusterRecordFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 	}
 
