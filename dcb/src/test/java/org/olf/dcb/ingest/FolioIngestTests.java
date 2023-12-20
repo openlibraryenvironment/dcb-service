@@ -1,7 +1,8 @@
 package org.olf.dcb.ingest;
 
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
+import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,9 @@ class FolioIngestTests {
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
 
+	@Inject
+	private IngestService ingestService;
+
 	@BeforeEach
 	void beforeEach() {
 		clusterRecordFixture.deleteAll();
@@ -28,6 +32,10 @@ class FolioIngestTests {
 
 	@Test
 	void shouldIngestFromFolio() {
-		assertThat(true, is(true));
+		// Act
+		final var ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream());
+
+		// Assert
+		assertThat(ingestedBibRecords, hasSize(0));
 	}
 }
