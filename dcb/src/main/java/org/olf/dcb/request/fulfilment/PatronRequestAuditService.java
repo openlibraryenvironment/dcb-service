@@ -58,7 +58,10 @@ public class PatronRequestAuditService {
 			.fromStatus(from)
 			.toStatus(to);
 
-		message.ifPresent(builder::briefDescription);
+		message.ifPresent(value -> {
+    	String trimmedValue = value.substring(0, Math.min(value.length(), 254));
+    	builder.briefDescription(trimmedValue);
+    });
 
 		PatronRequestAudit pra = builder.build();
 
@@ -84,5 +87,9 @@ public class PatronRequestAuditService {
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, Status from, Throwable error, Map<String,Object> auditData) {
 		log.debug("addErrorAuditEntry");
 		return addAuditEntry(patronRequest, from, Status.ERROR, Optional.ofNullable(error.getMessage()), Optional.ofNullable(auditData));
+	}
+
+  private String trimLongerThan(String s, int maxlen) {
+		return s;
 	}
 }

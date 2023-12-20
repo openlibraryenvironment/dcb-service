@@ -46,8 +46,8 @@ class ApplicationServicesClient {
 	private final ApplicationServicesAuthFilter authFilter;
 	private final String URI_PARAMETERS;
 
-        // ToDo align these URLs
-        private static final URI ERR0210 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0210/Polaris/UnableToLoadPatronBlocks");
+	// ToDo align these URLs
+	private static final URI ERR0210 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0210/Polaris/UnableToLoadPatronBlocks");
 
 	ApplicationServicesClient(
 		PolarisLmsClient client)
@@ -57,6 +57,11 @@ class ApplicationServicesClient {
 		this.URI_PARAMETERS = "/polaris.applicationservices/api" + client.getGeneralUriParameters(APPLICATION_SERVICES);
 	}
 
+	/**
+	 * @see https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/holdrequests/post_holdrequest_local
+	 * @param holdRequestParameters
+	 * @return
+	 */
 	Mono<HoldRequestResponse> addLocalHoldRequest(HoldRequestParameters holdRequestParameters) {
 		final var path = createPath("holds");
 		return createRequest(POST, path, uri -> uri.queryParam("bulkmode", true))
@@ -221,13 +226,14 @@ class ApplicationServicesClient {
 
 		final var Available = 1; // In
 
-		return createRequest(POST, path, uri -> {})
-			.zipWith(client.getMappedItemType(createItemCommand.getCanonicalItemType()))
-			.zipWith(mapCanonicalLocationToLocalPolarisInteger(createItemCommand.getLocationCode()))
-			.map(tuple -> {
-				final var request = tuple.getT1().getT1();
-				final var itemtype = Integer.parseInt(tuple.getT1().getT2());
-			  final var itemLocationId = tuple.getT2();
+		return Mono.zip(createRequest(POST, path, uri -> {}),
+				client.getMappedItemType(createItemCommand.getCanonicalItemType()),
+				mapCanonicalLocationToLocalPolarisInteger(createItemCommand.getLocationCode()))
+				.map(tuple -> {
+
+				final var request = tuple.getT1();
+				final var itemtype = Integer.parseInt(tuple.getT2());
+			  final var itemLocationId = tuple.getT3();
 				final var body = WorkflowRequest.builder()
 				.workflowRequestType(itemrecordtype)
 				.txnUserID(user)
