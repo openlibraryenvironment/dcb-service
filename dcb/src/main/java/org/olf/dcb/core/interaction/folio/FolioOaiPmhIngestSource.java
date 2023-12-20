@@ -133,14 +133,10 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 
 	@Override
 	public IngestRecordBuilder initIngestRecordBuilder(OaiRecord resource) {
-
-		// Use the host LMS as the
 		return IngestRecord.builder()
 				.uuid(uuid5ForOAIResult(resource))
 				.sourceSystem(lms)
 				.sourceRecordId(resource.header().identifier());
-//				.suppressFromDiscovery(resource.suppressed())
-//				.deleted(resource.deleted());
 	}
 
 	@Override
