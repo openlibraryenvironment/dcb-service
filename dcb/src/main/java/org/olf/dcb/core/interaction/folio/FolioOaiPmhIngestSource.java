@@ -133,10 +133,21 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 
 	@Override
 	public IngestRecordBuilder initIngestRecordBuilder(OaiRecord resource) {
-		return IngestRecord.builder()
+		final var oaiIdentifier = resource.header().identifier();
+
+		if (oaiIdentifier.contains("/")) {
+			final var splitsByForward = oaiIdentifier.split("/");
+
+			final var instanceId = splitsByForward[splitsByForward.length - 1];
+
+			return IngestRecord.builder()
 				.uuid(uuid5ForOAIResult(resource))
 				.sourceSystem(lms)
-				.sourceRecordId(resource.header().identifier());
+				.sourceRecordId(instanceId);
+		}
+		else {
+			throw new IllegalArgumentException("OAI identifier \"" + oaiIdentifier + "\" does not contain a forward slash");
+		}
 	}
 
 	@Override

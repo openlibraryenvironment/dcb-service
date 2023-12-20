@@ -68,7 +68,7 @@ class FolioIngestTests {
 
 		assertThat(ingestedBibRecords, containsInAnyOrder(
 			allOf(
-				hasSourceRecordId("oai:folio.org:diku/087b84b3-fe04-4d41-bfa5-ac0d85980d62")
+				hasSourceRecordId("087b84b3-fe04-4d41-bfa5-ac0d85980d62")
 			)
 		));
 	}
