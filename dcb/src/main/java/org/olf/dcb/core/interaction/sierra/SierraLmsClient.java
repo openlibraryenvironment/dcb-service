@@ -454,8 +454,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// If the provided name is present in any of the names coming back from the
 		// client
 		return patronFind("b", barcode)
-			.doOnSuccess(patron -> log.debug("Testing {}/{} to see if {} is present",
-				patron, patron.getLocalNames(), name))
+			.doOnSuccess(patron -> log.info("Testing {}/{} to see if {} is present", patron, patron.getLocalNames(), name))
 			.filter(patron -> patron.getLocalNames().stream()
 				.anyMatch(s -> s.toLowerCase()
 				.startsWith(name.toLowerCase())));
