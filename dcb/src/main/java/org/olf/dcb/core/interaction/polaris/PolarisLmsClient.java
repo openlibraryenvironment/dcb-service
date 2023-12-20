@@ -109,6 +109,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
   // ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
+  private static final URI ERR0212 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0212/Polaris/UnableToCreateItem");
 
 
 	@Creator
@@ -192,10 +193,16 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		return appServicesClient.addItemRecord(createItemCommand)
 			.doOnSuccess( r -> log.info("Got create item response from Polaris: {}",r) )
-			.map(itemCreateResponse -> HostLmsItem.builder()
-				.localId(String.valueOf(itemCreateResponse.getAnswerExtension().getAnswerData().getItemRecord().getItemRecordID()))
-				.status(String.valueOf(itemCreateResponse.getAnswerExtension().getAnswerData().getItemRecord().getItemStatusID()))
-				.build())
+			.map(itemCreateResponse -> {
+				if ( itemCreateResponse.getAnswerExtension() == null ) {
+					String messages = itemCreateResponse.getInformationMessages() != null ? itemCreateResponse.getInformationMessages().toString() : "NO DETAILS";
+					throw new RuntimeException("Missing answer" +messages);
+				}
+				return HostLmsItem.builder()
+					.localId(String.valueOf(itemCreateResponse.getAnswerExtension().getAnswerData().getItemRecord().getItemRecordID()))
+					.status(String.valueOf(itemCreateResponse.getAnswerExtension().getAnswerData().getItemRecord().getItemStatusID()))
+					.build();
+			})
 			.onErrorMap( error -> { 
 				log.error("Error attempting to create item {} : {}", createItemCommand, error.getMessage());
 				return Problem.builder()
