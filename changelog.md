@@ -1,6 +1,26 @@
 # Changelog
 
+## Version 4.0.6
+
+### Changes
+* [Chore]
+	* improve error logging from polaris
+* [Test]
+	* Define single record OAI-PMH response during FOLIO ingest tests DCB-797
+	* Define FOLIO host LMS during ingest tests DCB-797
+	* Trigger ingest during FOLIO ingest tests DCB-797
+	* Delete all cluster records before each FOLIO ingest test DCB-797
+	* Delete all host LMS before each FOLIO ingest test DCB-797
+
+### Fixes
+* [General]
+	* Constrain the message in audit log description strings to max 254 characters
+
 ## Version 4.0.5
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [Polaris]
