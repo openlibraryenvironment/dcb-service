@@ -32,6 +32,10 @@ class FolioIngestTests {
 
 	@Test
 	void shouldIngestFromFolio() {
+		// Arrange
+		hostLmsFixture.createFolioHostLms("folio-host-lms", "https://fake-folio",
+			"api-key", "oai_dc", "marc21_withholdings");
+
 		// Act
 		final var ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream());
 
