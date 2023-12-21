@@ -308,6 +308,7 @@ class ApplicationServicesClient {
 		final var InputRequired = -3;
 		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class))
 			.doOnSuccess( r -> log.info("Got create item response {}",r) )
+			.doOnError( r -> log.info("Error response for create item {} / {}",workflowReq,r) )
 			.filter(workflowResponse -> workflowResponse.getWorkflowStatus() == InputRequired)
 			.map(WorkflowResponse::getWorkflowRequestGuid)
 			.flatMap(this::createItemWorkflowReply)
