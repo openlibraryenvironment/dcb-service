@@ -316,12 +316,14 @@ class ApplicationServicesClient {
 	}
 
 	private Mono<ItemCreateResponse> createItemWorkflowReply(String guid) {
+		log.info("Responding to workflow for create item - uuid={}",guid);
 		final var NoDisplayInPAC = 66;
 		final var Continue = 5;
 		return createRequest(PUT, createPath("workflow", guid), uri -> {})
 			.map(request -> request.body(WorkflowReply.builder()
 				.workflowPromptID(NoDisplayInPAC)
 				.workflowPromptResult(Continue).build()))
+			.doOnError(e -> log.error("Error response to workflow {}",e) )
 			.flatMap(request -> client.retrieve(request, Argument.of(ItemCreateResponse.class)));
 	}
 
