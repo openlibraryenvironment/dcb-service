@@ -63,6 +63,7 @@ public class BorrowingAgencyService {
 
 		return getHoldRequestData(patronRequest)
 			.flatMap(function(this::createVirtualBib))
+			// Have a suspicion that Polaris needs breathing space in between the virtual bib and the virtual item
 			.flatMap(function(this::createVirtualItem))
 			.flatMap(function(this::placeHoldRequest))
 			.map(function(patronRequest::placedAtBorrowingAgency))

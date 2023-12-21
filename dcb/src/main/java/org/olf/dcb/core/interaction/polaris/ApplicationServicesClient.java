@@ -303,10 +303,11 @@ class ApplicationServicesClient {
 	private Mono<ItemCreateResponse> createItemRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
 		final var InputRequired = -3;
 		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class))
+			.doOnSuccess( r -> log.info("Got create item response {}",r) )
 			.filter(workflowResponse -> workflowResponse.getWorkflowStatus() == InputRequired)
 			.map(WorkflowResponse::getWorkflowRequestGuid)
 			.flatMap(this::createItemWorkflowReply)
-			.switchIfEmpty( Mono.error(new PolarisWorkflowException("item request failed: " + workflowReq)) );
+			.switchIfEmpty( Mono.error(new PolarisWorkflowException("item request failed expecting workflow response to: " + workflowReq)) );
 	}
 
 	private Mono<ItemCreateResponse> createItemWorkflowReply(String guid) {
