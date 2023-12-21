@@ -25,11 +25,11 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 
 	
 	public CancelledPatronRequestTransition(
-                BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
-                PatronRequestAuditService patronRequestAuditService
-                ) {
+		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
+    PatronRequestAuditService patronRequestAuditService
+    ) {
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
-                this.patronRequestAuditService = patronRequestAuditService;
+    this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	@Override
@@ -39,9 +39,10 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 
 	@Override
 	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
-                patronRequest.setStatus(Status.COMPLETED);
-                return patronRequestAuditService.addAuditEntry(patronRequest, Status.CANCELLED, Status.COMPLETED)
-                        .map(PatronRequestAudit::getPatronRequest);
+		log.info("CancelledPatronRequestTransition firing for {}",patronRequest);
+    patronRequest.setStatus(Status.COMPLETED);
+    return patronRequestAuditService.addAuditEntry(patronRequest, Status.CANCELLED, Status.COMPLETED)
+      .map(PatronRequestAudit::getPatronRequest);
 	}
 
 	@Override

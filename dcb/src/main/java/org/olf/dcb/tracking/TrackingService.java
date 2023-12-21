@@ -142,7 +142,6 @@ public class TrackingService implements Runnable {
                         .doOnNext( hold -> log.info("Compare patron request {} states: {} and {}",pr.getId(), hold.getStatus(), pr.getLocalRequestStatus()) )
 			.filter ( hold -> !hold.getStatus().equals(pr.getLocalRequestStatus()) )
 			.flatMap( hold -> {
-				log.info("current request status: {}",hold);
 				StateChange sc = StateChange.builder()
 					.resourceType("PatronRequest")
 					.resourceId(pr.getId().toString())
@@ -151,7 +150,7 @@ public class TrackingService implements Runnable {
 					.resource(pr)
 					.build();
 
-				log.info("TRACKING Publishing patron request state change event {}",sc);
+				log.info("TRACKING-EVENT PR state change event {}",sc);
 				return hostLmsReactions.onTrackingEvent(sc)
 					.thenReturn(pr);
 			});
@@ -179,7 +178,7 @@ public class TrackingService implements Runnable {
                                                             .build();
 
 
-                                        log.info("TRACKING Publishing state change event for borrower virtual item {}",sc);
+                log.info("TRACKING-EVENT vitem change event {}",sc);
 				        return hostLmsReactions.onTrackingEvent(sc)
                                                 .thenReturn(pr);
                                 });
@@ -211,7 +210,7 @@ public class TrackingService implements Runnable {
 						.resource(sr)
 						.build();
 
-					log.info("TRACKING Publishing state change event for supplier item record {}",sc);
+					log.info("TRACKING-EVENT supplier-item state change {}",sc);
 					return hostLmsReactions.onTrackingEvent(sc)
 						.thenReturn(sr);
 				});
