@@ -48,18 +48,7 @@ class FolioIngestTests {
 		hostLmsFixture.createFolioHostLms("folio-host-lms", "https://fake-folio",
 			"api-key", "oai_dc", "marc21_withholdings");
 
-		mockServerClient
-			.when(request()
-				.withMethod("GET")
-				.withPath("/oai")
-				.withHeader("host", "fake-folio")
-				.withQueryStringParameter("verb", "ListRecords")
-				.withQueryStringParameter("metadataPrefix", "marc21_withholdings")
-				.withQueryStringParameter("apikey", "api-key"))
-			.respond(response()
-				.withStatusCode(200)
-				.withBody(testResourceLoaderProvider.forBasePath("classpath:mock-responses/folio/")
-					.getResource("example-oai-response.xml"), TEXT_XML));
+		mockOaiResponse(mockServerClient, "fake-folio", "example-oai-response.xml");
 
 		// Act
 		final var ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream());
@@ -80,23 +69,32 @@ class FolioIngestTests {
 		hostLmsFixture.createFolioHostLms("invalid-folio-host-lms", "https://invalid-folio",
 			"api-key", "oai_dc", "marc21_withholdings");
 
-		mockServerClient
-			.when(request()
-				.withMethod("GET")
-				.withPath("/oai")
-				.withHeader("host", "invalid-folio")
-				.withQueryStringParameter("verb", "ListRecords")
-				.withQueryStringParameter("metadataPrefix", "marc21_withholdings")
-				.withQueryStringParameter("apikey", "api-key"))
-			.respond(response()
-				.withStatusCode(200)
-				.withBody(testResourceLoaderProvider.forBasePath("classpath:mock-responses/folio/")
-					.getResource("invalid-identifier-oai-response.xml"), TEXT_XML));
+		mockOaiResponse(mockServerClient, "invalid-folio",
+			"invalid-identifier-oai-response.xml");
 
 		// Act
 		final var ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream());
 
 		// Assert
 		assertThat(ingestedBibRecords, empty());
+	}
+
+	private void mockOaiResponse(MockServerClient mockServerClient,
+		String expectedHost, String responsePath) {
+
+		mockServerClient
+			.when(request()
+				.withMethod("GET")
+				.withPath("/oai")
+				.withHeader("host", expectedHost)
+				.withQueryStringParameter("verb", "ListRecords")
+				.withQueryStringParameter("metadataPrefix",
+					"marc21_withholdings")
+				.withQueryStringParameter("apikey", "api-key"))
+			.respond(response()
+				.withStatusCode(200)
+				.withBody(testResourceLoaderProvider.forBasePath(
+						"classpath:mock-responses/folio/")
+					.getResource(responsePath), TEXT_XML));
 	}
 }
