@@ -3,6 +3,7 @@ package org.olf.dcb.ingest;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
@@ -71,5 +72,31 @@ class FolioIngestTests {
 				hasSourceRecordId("087b84b3-fe04-4d41-bfa5-ac0d85980d62")
 			)
 		));
+	}
+
+	@Test
+	void shouldNotIngestInstanceWithInvalidIdentifier(MockServerClient mockServerClient) {
+		// Arrange
+		hostLmsFixture.createFolioHostLms("invalid-folio-host-lms", "https://invalid-folio",
+			"api-key", "oai_dc", "marc21_withholdings");
+
+		mockServerClient
+			.when(request()
+				.withMethod("GET")
+				.withPath("/oai")
+				.withHeader("host", "invalid-folio")
+				.withQueryStringParameter("verb", "ListRecords")
+				.withQueryStringParameter("metadataPrefix", "marc21_withholdings")
+				.withQueryStringParameter("apikey", "api-key"))
+			.respond(response()
+				.withStatusCode(200)
+				.withBody(testResourceLoaderProvider.forBasePath("classpath:mock-responses/folio/")
+					.getResource("invalid-identifier-oai-response.xml"), TEXT_XML));
+
+		// Act
+		final var ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream());
+
+		// Assert
+		assertThat(ingestedBibRecords, empty());
 	}
 }
