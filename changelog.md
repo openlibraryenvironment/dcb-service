@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 4.2.0
+
+### Additions
+* [General]
+	* Strip punctuation from the subject labels.
+
 ## Version 4.1.0
 
 ### Additions
@@ -12,6 +18,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* more logging when exchanging messages with polaris for create item
 	* logging for failure on create item
 	* extra logging on polaris create item
