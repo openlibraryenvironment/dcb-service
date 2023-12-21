@@ -8,7 +8,7 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationService;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -19,15 +19,15 @@ import reactor.util.function.Tuples;
 @Singleton
 @Requires(property = "dcb.requests.preflight-checks.pickup-location-to-agency-mapping.enabled", defaultValue = "true", notEquals = "false")
 public class PickupLocationToAgencyMappingPreflightCheck implements PreflightCheck {
-	private final ReferenceValueMappingService referenceValueMappingService;
+	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final AgencyService agencyService;
 	private final LocationService locationService;
 
 	public PickupLocationToAgencyMappingPreflightCheck(
-			ReferenceValueMappingService referenceValueMappingService,
-			AgencyService agencyService, LocationService locationService) {
+		LocationToAgencyMappingService locationToAgencyMappingService,
+		AgencyService agencyService, LocationService locationService) {
 
-		this.referenceValueMappingService = referenceValueMappingService;
+		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.agencyService = agencyService;
 		this.locationService = locationService;
 	}
@@ -52,7 +52,7 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 		PlacePatronRequestCommand command) {
 
 		return mapPossibleIdToCode(command.getPickupLocationCode())
-			.flatMap(locationCode -> referenceValueMappingService.findPickupLocationToAgencyMapping(locationCode,
+			.flatMap(locationCode -> locationToAgencyMappingService.findPickupLocationToAgencyMapping(locationCode,
 				command.getPickupLocationContext(), command.getRequestorLocalSystemCode()));
 	}
 

@@ -12,7 +12,6 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.model.ItemStatus;
@@ -21,7 +20,6 @@ import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
-import services.k_int.interaction.sierra.items.Status;
 
 @DcbTest
 public class SierraItemStatusMappingTests {
@@ -94,7 +92,7 @@ public class SierraItemStatusMappingTests {
 
 	@Nullable
 	private ItemStatus mapStatus(String statusCode, String dueDate) {
-		return mapper.mapStatus(statusCode, dueDate, HOST_LMS_CODE, true, sierraItemStatusFallback())
+		return mapper.mapStatus(statusCode, dueDate, HOST_LMS_CODE, sierraItemStatusFallback())
 			.block();
 	}
 }

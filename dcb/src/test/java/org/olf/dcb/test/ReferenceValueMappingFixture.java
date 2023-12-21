@@ -89,19 +89,13 @@ public class ReferenceValueMappingFixture {
 				.build());
 	}
 
-	private void saveReferenceValueMapping(ReferenceValueMapping mapping) {
-		singleValueFrom(referenceValueMappingRepository.save(mapping));
-	}
-
 	public void defineNumericPatronTypeRangeMapping(String fromContext,
-		long lowerBound,
-		long upperBound,
-		String targetContext,
-		String targetValue) { 
+		long lowerBound, long upperBound, String targetContext, String targetValue) {
+
 		singleValueFrom(
 			numericRangeMappingRepository.save(
 				NumericRangeMapping.builder()
-					.id(UUID.randomUUID())
+					.id(randomUUID())
 					.context(fromContext)
 					.domain("patronType")
 					.lowerBound(lowerBound)
@@ -111,5 +105,24 @@ public class ReferenceValueMappingFixture {
 					.build()
 			)
 		);
+	}
+
+	public void defineLocalToCanonicalItemTypeMapping(String hostLmsCode,
+		String localItemType, String canonicalItemType) {
+
+		singleValueFrom(referenceValueMappingRepository.save(ReferenceValueMapping.builder()
+			.id(randomUUID())
+			.fromContext(hostLmsCode)
+			.fromCategory("ItemType")
+			.fromValue(localItemType)
+			.toContext("DCB")
+			.toCategory("ItemType")
+			.toValue(canonicalItemType)
+			.reciprocal(true)
+			.build()));
+	}
+
+	private void saveReferenceValueMapping(ReferenceValueMapping mapping) {
+		singleValueFrom(referenceValueMappingRepository.save(mapping));
 	}
 }

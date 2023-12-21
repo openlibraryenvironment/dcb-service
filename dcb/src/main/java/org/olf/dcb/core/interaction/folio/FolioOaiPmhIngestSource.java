@@ -90,7 +90,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	private final String apiKey;
 
 	private final ProcessStateService processStateService;
-	
+
 	public FolioOaiPmhIngestSource(@Parameter("hostLms") HostLms hostLms, RawSourceRepository rawSourceRepository, HttpClient client, ConversionService conversionService, ProcessStateService processStateService) {
 		this.lms = hostLms;
 		this.rawSourceRepository = rawSourceRepository;
@@ -109,7 +109,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		
 		apiKey = MapUtils.getAsOptionalString(
 			lms.getClientConfig(), CONFIG_API_KEY).get();
-	}
+    }
 	
 	@Override
 	public boolean isEnabled() {
@@ -133,14 +133,23 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 
 	@Override
 	public IngestRecordBuilder initIngestRecordBuilder(OaiRecord resource) {
+		final var oaiIdentifier = resource.header().identifier();
 
-		// Use the host LMS as the
+		if (!oaiIdentifier.contains("/")) {
+			log.warn("OAI identifier \"" + oaiIdentifier + "\" does not contain a forward slash");
+
+			// This return value should be used in a Mono.justOrEmpty to lead to an empty mono
+			return null;
+		}
+
+		final var splitByForwardSlash = oaiIdentifier.split("/");
+
+		final var instanceId = splitByForwardSlash[splitByForwardSlash.length - 1];
+
 		return IngestRecord.builder()
-				.uuid(uuid5ForOAIResult(resource))
-				.sourceSystem(lms)
-				.sourceRecordId(resource.header().identifier());
-//				.suppressFromDiscovery(resource.suppressed())
-//				.deleted(resource.deleted());
+			.uuid(uuid5ForOAIResult(resource))
+			.sourceSystem(lms)
+			.sourceRecordId(instanceId);
 	}
 
 	@Override
@@ -417,7 +426,6 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 
 		return generator_state;
 	}
-
 
 	@Override
 	@Transactional(value = TxType.REQUIRES_NEW)

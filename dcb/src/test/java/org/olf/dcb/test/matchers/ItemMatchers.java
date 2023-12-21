@@ -20,6 +20,10 @@ public class ItemMatchers {
 		return hasProperty("barcode", is(expectedBarcode));
 	}
 
+	public static Matcher<Item> hasNoBarcode() {
+		return hasProperty("barcode", is(nullValue()));
+	}
+
 	public static Matcher<Item> hasStatus(ItemStatusCode expectedStatus) {
 		return hasProperty("status", hasProperty("code", is(expectedStatus)));
 	}
@@ -35,8 +39,19 @@ public class ItemMatchers {
 		));
 	}
 
+	public static Matcher<Item> hasLocation(String expectedName) {
+		return hasProperty("location", allOf(
+			hasProperty("name", is(expectedName)),
+			hasProperty("code", is(nullValue()))
+		));
+	}
+
 	public static Matcher<Item> hasDueDate(String expectedDueDate) {
-		return hasProperty("dueDate", is(Instant.parse(expectedDueDate)));
+		return hasDueDate(Instant.parse(expectedDueDate));
+	}
+
+	public static Matcher<Item> hasDueDate(Instant expectedDueDate) {
+		return hasProperty("dueDate", is(expectedDueDate));
 	}
 
 	public static Matcher<Item> hasNoDueDate() {
@@ -55,8 +70,16 @@ public class ItemMatchers {
 		return hasProperty("localItemType", is(expectedLocalItemType));
 	}
 
+	public static Matcher<Item> hasNoLocalItemType() {
+		return hasProperty("localItemType", is(nullValue()));
+	}
+
 	public static Matcher<Item> hasLocalItemTypeCode(String expectedLocalItemTypeCode) {
 		return hasProperty("localItemTypeCode", is(expectedLocalItemTypeCode));
+	}
+
+	public static Matcher<Item> hasNoLocalItemTypeCode() {
+		return hasProperty("localItemTypeCode", is(nullValue()));
 	}
 
 	public static Matcher<Item> hasCanonicalItemType(String expectedCanonicalItemType) {

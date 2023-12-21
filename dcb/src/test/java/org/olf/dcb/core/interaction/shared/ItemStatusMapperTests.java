@@ -107,7 +107,7 @@ class ItemStatusMapperTests {
 
 	@Nullable
 	private ItemStatus mapStatus(String statusCode, String dueDate) {
-		return mapper.mapStatus(statusCode, dueDate, HOST_LMS_CODE, true, unknownStatusFallback())
+		return mapper.mapStatus(statusCode, dueDate, HOST_LMS_CODE, unknownStatusFallback())
 			.block();
 	}
 

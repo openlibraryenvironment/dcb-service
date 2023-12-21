@@ -53,12 +53,12 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.ingest.marc.MarcIngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.RawSourceRepository;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.tracking.model.LenderTrackingEvent;
 import org.olf.dcb.tracking.model.PatronTrackingEvent;
 import org.olf.dcb.tracking.model.PickupTrackingEvent;
@@ -117,9 +117,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final HostLms lms;
 	private final SierraApiClient client;
 	private final ProcessStateService processStateService;
+	private final ReferenceValueMappingService referenceValueMappingService;
 	private final RawSourceRepository rawSourceRepository;
-	private final ReferenceValueMappingRepository referenceValueMappingRepository;
-	private final NumericPatronTypeMapper numericPatronTypeMapper;
+    private final NumericPatronTypeMapper numericPatronTypeMapper;
 	private final SierraItemMapper itemMapper;
 
 	private final Integer getHoldsRetryAttempts;
@@ -128,7 +128,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		HostLmsSierraApiClientFactory clientFactory,
 		RawSourceRepository rawSourceRepository,
 		ProcessStateService processStateService,
-		ReferenceValueMappingRepository referenceValueMappingRepository,
+		ReferenceValueMappingService referenceValueMappingService,
 		ConversionService conversionService,
 		NumericPatronTypeMapper numericPatronTypeMapper, SierraItemMapper itemMapper) {
 
@@ -141,7 +141,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		client = clientFactory.createClientFor(lms);
 		this.rawSourceRepository = rawSourceRepository;
 		this.processStateService = processStateService;
-		this.referenceValueMappingRepository = referenceValueMappingRepository;
+		this.referenceValueMappingService = referenceValueMappingService;
 		this.conversionService = conversionService;
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
 	}
@@ -357,14 +357,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		if ((targetSystemCode != null) && (itemTypeCode != null)) {
 			// Map from the canonical DCB item type to the appropriate type for the target
 			// system
-			return Mono.from(referenceValueMappingRepository
-					.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-						"ItemType", "DCB", itemTypeCode, "ItemType", targetSystemCode))
-				.map(ReferenceValueMapping::getToValue)
-				.switchIfEmpty(Mono.defer(() -> {
-					log.warn("Unable to map item type {} for target system {} to canonical DCB value",itemTypeCode,targetSystemCode);
-					return Mono.just("UNKNOWN");
-				}));
+
+			return referenceValueMappingService.findMapping("ItemType", "DCB",
+				itemTypeCode, "ItemType", targetSystemCode)
+			.map(ReferenceValueMapping::getToValue)
+			.switchIfEmpty(Mono.defer(() -> {
+				log.warn("Unable to map item type {} for target system {} to canonical DCB value",itemTypeCode,targetSystemCode);
+				return Mono.just("UNKNOWN");
+			}));
 		}
 
 		log.warn("Request to map item type was missing required parameters");
@@ -454,8 +454,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// If the provided name is present in any of the names coming back from the
 		// client
 		return patronFind("b", barcode)
-			.doOnSuccess(patron -> log.debug("Testing {}/{} to see if {} is present",
-				patron, patron.getLocalNames(), name))
+			.doOnSuccess(patron -> log.info("Testing {}/{} to see if {} is present", patron, patron.getLocalNames(), name))
 			.filter(patron -> patron.getLocalNames().stream()
 				.anyMatch(s -> s.toLowerCase()
 				.startsWith(name.toLowerCase())));

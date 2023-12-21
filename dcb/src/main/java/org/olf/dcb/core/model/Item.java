@@ -4,9 +4,12 @@ import static java.util.Comparator.comparing;
 import static java.util.Comparator.naturalOrder;
 import static java.util.Comparator.nullsLast;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.time.Instant;
 import java.util.Comparator;
+
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
@@ -51,9 +54,7 @@ public class Item implements Comparable<Item> {
 	}
 
 	public String getLocationCode() {
-		return location == null
-			? null
-			: location.getCode();
+		return getValue(location, Location::getCode);
 	}
 
 	public Item setAgency(DataAgency agency) {

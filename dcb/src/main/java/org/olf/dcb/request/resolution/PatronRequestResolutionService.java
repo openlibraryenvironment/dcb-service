@@ -10,10 +10,9 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
-import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
 
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
@@ -25,20 +24,18 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class PatronRequestResolutionService {
 	private final LiveAvailabilityService liveAvailabilityService;
-	private final ReferenceValueMappingRepository referenceValueMappingRepository;
-	private final AgencyRepository agencyRepository;
+	private final LocationToAgencyMappingService locationToAgencyMappingService;
+
 	private final List<ResolutionStrategy> allResolutionStrategies;
 	private final String itemResolver;
 
-	public PatronRequestResolutionService(
-		ReferenceValueMappingRepository referenceValueMappingRepository,
-		AgencyRepository agencyRepository, LiveAvailabilityService liveAvailabilityService,
+	public PatronRequestResolutionService(LiveAvailabilityService liveAvailabilityService,
+		LocationToAgencyMappingService locationToAgencyMappingService,
 		@Value("${dcb.itemresolver.code}") String itemResolver,
 		List<ResolutionStrategy> allResolutionStrategies) {
 
-		this.referenceValueMappingRepository = referenceValueMappingRepository;
-		this.agencyRepository = agencyRepository;
 		this.liveAvailabilityService = liveAvailabilityService;
+		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.itemResolver = itemResolver;
 		this.allResolutionStrategies = allResolutionStrategies;
 
@@ -86,11 +83,8 @@ public class PatronRequestResolutionService {
 		log.debug("Attempting to resolveSupplyingAgency(hostSystem={},shelvingLocation={})",
 			host_lms_code, shelving_location);
 
-		return Mono.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-				"Location", host_lms_code, shelving_location, "AGENCY", "DCB"))
-			.flatMap(rvm -> Mono.from(agencyRepository.findOneByCode(rvm.getToValue())));
+		return locationToAgencyMappingService.mapLocationToAgency(host_lms_code, shelving_location);
 	}
-
 
 	// Right now we assume that this is always the first supplier we are talking to.. In the future we need to
 	// be able to handle a supplier failing to deliver and creating a new request for a different supplier.

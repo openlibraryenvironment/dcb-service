@@ -54,11 +54,11 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.ingest.marc.MarcIngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.RawSourceRepository;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
 
@@ -99,18 +99,17 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final ProcessStateService processStateService;
 	private final RawSourceRepository rawSourceRepository;
 	private final ConversionService conversionService;
+	private final ReferenceValueMappingService referenceValueMappingService;
 	private final IngestHelper ingestHelper;
 	private final PolarisItemMapper itemMapper;
 	private final PAPIClient papiClient;
 	private final ApplicationServicesClient appServicesClient;
 	private final List<ApplicationServicesClient.MaterialType> materialTypes = new ArrayList<>();
 	private final List<PolarisItemStatus> statuses = new ArrayList<>();
-	private final ReferenceValueMappingRepository mapping;
 
   // ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
   private static final URI ERR0212 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0212/Polaris/UnableToCreateItem");
-
 
 	@Creator
 	PolarisLmsClient(
@@ -119,13 +118,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		ProcessStateService processStateService,
 		RawSourceRepository rawSourceRepository,
 		ConversionService conversionService,
-		PolarisItemMapper itemMapper,
-		ReferenceValueMappingRepository referenceValueMappingRepository)
+		ReferenceValueMappingService referenceValueMappingService,
+		PolarisItemMapper itemMapper)
 	{
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 		rootUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
 		lms = hostLms;
-		this.mapping = referenceValueMappingRepository;
 		this.appServicesClient = new ApplicationServicesClient(this);
 		this.papiClient = new PAPIClient(this);
 		this.itemMapper = itemMapper;
@@ -133,6 +131,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.processStateService = processStateService;
 		this.rawSourceRepository = rawSourceRepository;
 		this.conversionService = conversionService;
+		this.referenceValueMappingService = referenceValueMappingService;
 		this.client = client;
 	}
 
@@ -572,13 +571,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	Mono<String> getMappedItemType(String itemTypeCode) {
-		if (getHostLmsCode()!= null && itemTypeCode != null) {
-			return Mono.from(mapping.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-					"ItemType", "DCB", itemTypeCode, "ItemType", getHostLmsCode()))
-				.doOnSuccess( r -> log.info("Mapped canonical item type {} to polaris system {} code {}",itemTypeCode,getHostLmsCode(),r) )
-				.map(ReferenceValueMapping::getToValue)
-				.defaultIfEmpty("19")
-				.switchIfEmpty(Mono.fromRunnable(() -> log.warn("Request to map item type was missing required parameters")));
+		if (getHostLmsCode() != null && itemTypeCode != null) {
+			return referenceValueMappingService.findMapping("ItemType", "DCB",
+				itemTypeCode, "ItemType", getHostLmsCode())
+			.map(ReferenceValueMapping::getToValue)
+			.defaultIfEmpty("19");
 		}
 
 		log.warn("Request to map item type was missing required parameters {}/{}", getHostLmsCode(), itemTypeCode);

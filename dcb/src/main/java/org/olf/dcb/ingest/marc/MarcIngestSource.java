@@ -246,7 +246,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 				.concatMap(this::saveRawAndContinue)
 				.doOnError(throwable -> log.warn("ONERROR saving raw record", throwable))
 				.flatMap(resource -> {
-					return Mono.just(initIngestRecordBuilder(resource))
+					return Mono.justOrEmpty(initIngestRecordBuilder(resource))
 							.zipWith(Mono.just( resourceToMarc(resource) ) )
 									// .map( this::createMatchKey ))
 							.map(TupleUtils.function(( ir, marcRecord ) -> {

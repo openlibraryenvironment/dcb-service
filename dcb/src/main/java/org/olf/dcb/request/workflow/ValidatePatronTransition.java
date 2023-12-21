@@ -8,43 +8,40 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Prototype
 public class ValidatePatronTransition implements PatronRequestStateTransition {
-	private static final Logger log = LoggerFactory.getLogger(ValidatePatronTransition.class);
-
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final HostLmsService hostLmsService;
 	private final PatronRequestAuditService patronRequestAuditService;
-	private final ReferenceValueMappingRepository referenceValueMappingRepository;
+	private final ReferenceValueMappingService referenceValueMappingService;
 	private final AgencyRepository agencyRepository;
 
 	// Provider to prevent circular reference exception by allowing lazy access to
 	// this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 
-	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository, HostLmsService hostLmsService,
-			PatronRequestAuditService patronRequestAuditService,
-			ReferenceValueMappingRepository referenceValueMappingRepository,
-			BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
-			AgencyRepository agencyRepository) {
+	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository,
+		HostLmsService hostLmsService, PatronRequestAuditService patronRequestAuditService,
+		ReferenceValueMappingService referenceValueMappingService,
+		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
+		AgencyRepository agencyRepository) {
 
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.hostLmsService = hostLmsService;
 		this.patronRequestAuditService = patronRequestAuditService;
-		this.referenceValueMappingRepository = referenceValueMappingRepository;
+		this.referenceValueMappingService = referenceValueMappingService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.agencyRepository = agencyRepository;
 	}
@@ -101,7 +98,8 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				"findMapping(targetContext=DCB, targetCategory=AGENCY, sourceCategory=Location, sourceContext={}, sourceValue={}",
 				systemCode, homeLibraryCode);
 
-		return findMapping("DCB", "AGENCY", "Location", systemCode, homeLibraryCode)
+		return referenceValueMappingService.findMapping("Location", systemCode,
+				homeLibraryCode, "AGENCY", "DCB")
 			.flatMap(locatedMapping -> {
 				log.debug("Located Loc-to-agency mapping {}", locatedMapping);
 				return Mono.from(agencyRepository.findOneByCode(locatedMapping.getToValue()));
@@ -111,7 +109,8 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				pi.setResolvedAgency(locatedAgency);
 				return Mono.just(pi);
 			})
-                        .switchIfEmpty(Mono.error(new RuntimeException("Unable to resolve patron home library code("+systemCode+"/"+homeLibraryCode+") to an agency")));
+			.switchIfEmpty(Mono.error(new RuntimeException(
+				"Unable to resolve patron home library code(" + systemCode + "/" + homeLibraryCode + ") to an agency")));
 	}
 
 	/**
@@ -120,7 +119,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	 *
 	 * @param patronRequest The patron request to transition.
 	 * @return A Mono that emits the patron request after the transition, or an
-	 *         error if the transition is not possible.
+	 * error if the transition is not possible.
 	 */
 	@Override
 	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
@@ -163,16 +162,6 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	@Override
 	public boolean isApplicableFor(PatronRequest pr) {
 		return pr.getStatus() == Status.SUBMITTED_TO_DCB;
-	}
-
-	private Mono<ReferenceValueMapping> findMapping(String targetContext, String targetCategory, String sourceCategory,
-			String sourceContext, String sourceValue) {
-
-		log.debug("findMapping src ctx={} cat={} val={} target ctx={} cat={}", sourceContext, sourceCategory, sourceValue, targetContext, targetCategory);
-
-		return Mono
-			.from(referenceValueMappingRepository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-					sourceCategory, sourceContext, sourceValue, targetCategory, targetContext));
 	}
 
 	@Override

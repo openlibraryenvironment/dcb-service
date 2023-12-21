@@ -1,6 +1,6 @@
 package org.olf.dcb.core.svc;
 
-import static io.micronaut.core.util.StringUtils.isEmpty;
+import static services.k_int.utils.ReactorUtils.consumeOnSuccess;
 
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
@@ -18,45 +18,32 @@ public class ReferenceValueMappingService {
 		this.repository = repository;
 	}
 
-	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String pickupLocationCode) {
-		return findLocationToAgencyMapping("DCB", pickupLocationCode);
-	}
+	public Mono<ReferenceValueMapping> findMapping(String sourceCategory,
+		String sourceContext, String sourceValue, String targetCategory, String targetContext) {
 
-	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String fromContext, String locationCode) {
-		if (isEmpty(fromContext)) {
-			return Mono.empty();
-		}
-
-		final var fromCategory = "Location";
-		final var toCategory = "AGENCY";
-		final var toContext = "DCB";
-
-		log.debug("Attempting to find mapping from category: {}, from context: {}, location code: {}, to category: {}, to context: {}",
-			fromCategory, fromContext, locationCode, toCategory, toContext);
+		log.debug("Attempting to find mapping from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
+			sourceCategory, sourceContext, sourceValue, targetCategory, targetContext);
 
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
-			fromCategory, fromContext, locationCode, toCategory, toContext));
+				sourceCategory, sourceContext, sourceValue, targetCategory, targetContext))
+			.doOnSuccess(consumeOnSuccess(
+				() -> log.warn("No mapping found for from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
+					sourceCategory, sourceContext, sourceValue, targetCategory, targetContext),
+				mapping -> log.debug("Found mapping from {} to {}: {}", sourceCategory, targetCategory, mapping)));
 	}
 
-	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
-		String pickupLocationContext, String pickupLocationCode) {
+	public Mono<ReferenceValueMapping> findMapping(String sourceCategory,
+		String sourceContext, String sourceValue, String targetContext) {
 
-		return findLocationToAgencyMapping(pickupLocationContext, pickupLocationCode);
-	}
+		log.debug("Attempting to find mapping from category: {}, from context: {}, source value: {}, to context: {}",
+			sourceCategory, sourceContext, sourceValue, targetContext);
 
-	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
-		String pickupLocationCode, String pickupLocationContext, String requestorLocalSystemCode) {
-
-		return findLocationToAgencyMapping(pickupLocationCode)
-			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(pickupLocationContext, pickupLocationCode)))
-			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(requestorLocalSystemCode, pickupLocationCode)))
-			.doOnSuccess( result -> {
-				if ( result != null ) {
-					log.debug("Found mapping: {}", result);
-				}
-				else {
-					log.info("No pickup location mapping found for {} {} {}",pickupLocationCode,pickupLocationContext,requestorLocalSystemCode);
-				}
-			} );
+		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToContext(
+				sourceCategory, sourceContext, sourceValue, targetContext))
+			.doOnSuccess(consumeOnSuccess(
+				() -> log.warn("No mapping found for from category: {}, from context: {}, source value: {}, to context: {}",
+					sourceCategory, sourceContext, sourceValue, targetContext),
+				mapping -> log.debug("Found mapping from category: {} context: {} to context {}: {}", sourceContext,
+					sourceContext, targetContext, mapping)));
 	}
 }

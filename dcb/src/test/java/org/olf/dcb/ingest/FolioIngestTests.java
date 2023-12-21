@@ -3,6 +3,7 @@ package org.olf.dcb.ingest;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
@@ -47,18 +48,7 @@ class FolioIngestTests {
 		hostLmsFixture.createFolioHostLms("folio-host-lms", "https://fake-folio",
 			"api-key", "oai_dc", "marc21_withholdings");
 
-		mockServerClient
-			.when(request()
-				.withMethod("GET")
-				.withPath("/oai")
-				.withHeader("host", "fake-folio")
-				.withQueryStringParameter("verb", "ListRecords")
-				.withQueryStringParameter("metadataPrefix", "marc21_withholdings")
-				.withQueryStringParameter("apikey", "api-key"))
-			.respond(response()
-				.withStatusCode(200)
-				.withBody(testResourceLoaderProvider.forBasePath("classpath:mock-responses/folio/")
-					.getResource("example-oai-response.xml"), TEXT_XML));
+		mockOaiResponse(mockServerClient, "fake-folio", "example-oai-response.xml");
 
 		// Act
 		final var ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream());
@@ -68,8 +58,43 @@ class FolioIngestTests {
 
 		assertThat(ingestedBibRecords, containsInAnyOrder(
 			allOf(
-				hasSourceRecordId("oai:folio.org:diku/087b84b3-fe04-4d41-bfa5-ac0d85980d62")
+				hasSourceRecordId("087b84b3-fe04-4d41-bfa5-ac0d85980d62")
 			)
 		));
+	}
+
+	@Test
+	void shouldNotIngestInstanceWithInvalidIdentifier(MockServerClient mockServerClient) {
+		// Arrange
+		hostLmsFixture.createFolioHostLms("invalid-folio-host-lms", "https://invalid-folio",
+			"api-key", "oai_dc", "marc21_withholdings");
+
+		mockOaiResponse(mockServerClient, "invalid-folio",
+			"invalid-identifier-oai-response.xml");
+
+		// Act
+		final var ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream());
+
+		// Assert
+		assertThat(ingestedBibRecords, empty());
+	}
+
+	private void mockOaiResponse(MockServerClient mockServerClient,
+		String expectedHost, String responsePath) {
+
+		mockServerClient
+			.when(request()
+				.withMethod("GET")
+				.withPath("/oai")
+				.withHeader("host", expectedHost)
+				.withQueryStringParameter("verb", "ListRecords")
+				.withQueryStringParameter("metadataPrefix",
+					"marc21_withholdings")
+				.withQueryStringParameter("apikey", "api-key"))
+			.respond(response()
+				.withStatusCode(200)
+				.withBody(testResourceLoaderProvider.forBasePath(
+						"classpath:mock-responses/folio/")
+					.getResource(responsePath), TEXT_XML));
 	}
 }

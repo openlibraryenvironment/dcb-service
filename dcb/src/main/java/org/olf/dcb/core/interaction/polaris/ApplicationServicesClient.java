@@ -254,6 +254,10 @@ class ApplicationServicesClient {
 						.itemRecordHistoryActionID( extractMapValue(itemMap, HISTORY_ACTION_ID, Integer.class) )
 						.loanPeriodCodeID( extractMapValue(itemMap, LOAN_PERIOD_CODE_ID, Integer.class) )
 						.shelvingSchemeID( extractMapValue(itemMap, SHELVING_SCHEME_ID, Integer.class))
+						.isProvisionalSave(FALSE)
+						.nonCircluating(FALSE)
+						.loneableOutsideSystem(TRUE)
+						.holdable(TRUE)
 						.itemStatusID(Available)
 						.materialTypeID(itemtype)
 						.build())
@@ -588,6 +592,30 @@ class ApplicationServicesClient {
 		private Boolean displayInPAC;
 		@JsonProperty("Barcode")
 		private String barcode;
+
+		@JsonProperty("HoldableByPickup")
+		private Boolean holdableByPickup;
+		@JsonProperty("HoldPickupBranchID")
+		private Integer holdPickupBranchId;
+		@JsonProperty("HoldableByPrimaryLender")
+		private Boolean holdableByPrimaryLender;
+		@JsonProperty("ManualBlockID")
+		private Integer manualBlockId;
+		@JsonProperty("StatisticalCodeID")
+		private Integer statisticalCodeId;
+		@JsonProperty("ShelfLocationID")
+		private Integer shelfLocationId;
+		@JsonProperty("AssignedCollectionID")
+		private Integer assignedCollectionId;
+
+		@JsonProperty("IsProvisionalSave")
+		private Boolean isProvisionalSave;
+		@JsonProperty("NonCirculating")
+		private Boolean nonCircluating;
+		@JsonProperty("LoneableOutsideSystem")
+		private Boolean loneableOutsideSystem;
+		@JsonProperty("Holdable")
+		private Boolean holdable;
 	}
 
 	@Builder
