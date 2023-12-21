@@ -1,9 +1,134 @@
 # Changelog
 
+## Version 4.1.0
+
+### Additions
+* [General]
+	* Map FOLIO material type name to canonical item type DCB-479
+	* Map location to agency for items from FOLIO DCB-479
+	* Fallback mapping for FOLIO item statuses DCB-479
+	* Drop instances with invalid OAI-PMH identifier during FOLIO ingest DCB-797
+	* Parse OAI identifier for instance ID during FOLIO ingest DCB-797
+
+### Changes
+* [Chore]
+	* more logging when exchanging messages with polaris for create item
+	* logging for failure on create item
+	* extra logging on polaris create item
+	* Split finding agency by code and getting mapping value DCB-479
+	* Use property accessor for location code when mapping to agency DCB-479
+	* Unmapped FOLIO item type should be mapped to unknown canonical type DCB-479
+	* Map null FOLIO item type to unknown canonical type DCB-479
+	* Map FOLIO item type to canonical item type DCB-479
+	* Remove unused dependencies for finalise request transition DCB-479
+	* Warn when no reference value mapping found DCB-479
+	* Should tolerate null location when enriching item with agency DCB-479
+	* Use is empty collection method when getting items from FOLIO DCB-479
+	* Use is empty method during FOLIO fallback item status mapping DCB-479
+	* Add warning when attempting to map location to agency with empty from context DCB-479
+	* Include host LMS code for items from FOLIO DCB-479
+	* Map material type name to item type code for FOLIO items
+	* Assume that items from FOLIO are not suppressed DCB-479
+	* Include hold count in items from FOLIO DCB-479
+	* Assume that items from FOLIO are not deleted DCB-479
+	* Use material type rather than loan type for FOLIO item type DCB-479
+	* Include location code in items from FOLIO DCB-479
+	* Include barcode in items from FOLIO DCB-479
+	* Include due date in items from FOLIO DCB-479
+	* Fail when receive multiple outer holdings from RTAC DCB-479
+	* Interpret holdings not found error as zero items assocated with instance DCB-479
+	* Improve error message for likely invalid API key response from RTAC DCB-479
+	* Fail when receive holdings not found error from RTAC DCB-479
+	* Fail when receive instance not found error from RTAC DCB-479
+	* Include errors in RTAC response classes DCB-479
+	* Handle zero inner holdings returned from FOLIO DCB-479
+	* Introduce limited FOLIO fallback mapping DCB-479
+	* Map local FOLIO item status using reference mappings DCB-479
+	* Introduce item status mapper dependency for FOLIO LMS client DCB-479
+	* Add API key to FOLIO settings description DCB-479
+	* Use client config for FOLIO base URL DCB-497
+	* Use client config for FOLIO api key DCB-497
+	* Map holdings from FOLIO to items DCB-479
+	* Delete all host LMS before each FOLIO host LMS client test DCB-479
+	* Remove commented out code when initialising ingest record DCB-797
+	* Added some extra properties to polaris create item workflow request
+	* change log level on auth by barcode+name fail
+* [Refactor]
+	* Make previous status mapping method private DCB-479
+	* Extract method for mapping an item status with a due date DCB-479
+	* Extract method for mapping item status without a due date DCB-479
+	* Extract method for finding item type mapping DCB-479
+	* Use service when mapping item status DCB-479
+	* Improve logging when finding mapping with no target category DCB-479
+	* Move method for finding mapping without target category to service DCB-479
+	* Extract method for finding mapping without target category DCB-479
+	* Use service to map item type when creating an item in Sierra DCB-479
+	* Use service to map item type when creating an item in Polaris DCB-479
+	* Use service to map location when placing a request at borrowing agency DCB-479
+	* Use service to map location to agency during resolution DCB-479
+	* Use service for finding mappings during patron validation DCB-479
+	* Move finding pickup location to agency mapping to service DCB-479
+	* Add location to agency service as workflow context dependency DCB-479
+	* Move mapping pickup location to agency to dedicated service DCB-479
+	* Introduce method for consuming successful reactive stream DCB-479
+	* Extract method for finding reference value mapping DCB-479
+	* Use property access utility to get item location code DCB-479
+	* Add location to agency mapping service dependency for client DCB-479
+	* Move getting property from nullable object to util class
+	* Extract method for whether multiple outer holdings are returned by RTAC DCB-479
+	* Extract method for determining if errors are holdings not found DCB-479
+	* Extract method for whether RTAC response has any outer holdings DCB-479
+	* Move likely invalid API key check to initial response check DCB-479
+	* Extract method for whether RTAC response has no errors DCB-479
+	* Rename method for checking RTAC response DCB-479
+	* Move unknown fallback status mapper to tests only
+	* Extract method for defining mock response for holdings DCB-479
+	* Map a holding to an item using a publisher DCB-479
+	* Move get config value to host LMS property definition DCB-479
+	* Define FOLIO settings as fields DCB-479
+	* Move method for mocking RTAC holdings response to fixture DCB-479
+	* Make get holdings method in FOLIO client private DCB-479
+	* Introduce parameter for instance ID when getting FOLIO holdings DCB-479
+	* Add HTTP client field to FOLIO LMS client DCB-479
+	* Move getting holdings to FOLIO LMS client DCB-479
+	* Introduce parameter for http client when getting holdings DCB-479
+	* Extract method for mocking RTAC holdings response using mock server DCB-479
+	* Move FOLIO RTAC serialisation types to production code DCB-479
+	* Extract method for getting holdings from FOLIO DCB-479
+* [Test]
+	* Should not use item type mapping associated with another host LMS DCB-479
+	* Remove redundant test for agency mapping for items from FOLIO DCB-479
+	* Include agency mapping in general get items from FOLIO test DCB-479
+	* Should enrich item with agency mapped from location code DCB-479
+	* Tolerate absence of agency when enriching item with agency DCB-479
+	* Extract method for enriching an item with an agency DCB-479
+	* Delete all agencies before enriching an item with an agency DCB-479
+	* Tolerate absence of mapping when enriching item with agency DCB-479
+	* Delete all mappings before enriching an item with an agency DCB-479
+	* Tolerate null location code when enriching item with agency DCB-479
+	* Extract method for creating example item DCB-479
+	* Delete all agencies before each FOLIO host LMS client item tests DCB-479
+	* Use single instance for FOLIO host LMS client item tests DCB-479
+	* Check that whether items from FOLIO are suppressed is unknown DCB-479
+	* Replace string literal for RTAC error with serialised class DCB-479
+	* Extract method for JSON mock RTAC response DCB-479
+	* Use unusual mappings when checking FOLIO item status mapping DCB-479
+	* Delete mappings before FOLIO LMS item tests DCB-479
+	* Add test for FOLIO settings description DCB-479
+	* Create FOLIO client before each test DCB-479
+	* Move location without code matcher to item matchers DCB-479
+	* Remove test for directly fetching holdings from FOLIO DCB-479
+	* Create FOLIO client when getting items from FOLIO DCB-479
+	* Create FOLIO host LMS during client tests DCB-479
+	* Use stricter mock expectations when fetching items from FOLIO DCB-479
+	* Initial test for fetching items from FOLIO using mock server for response DCB-479
+	* Extract method for defining mock OAI-PMH response DCB-797
+
 ## Version 4.0.6
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* improve error logging from polaris
 * [Test]
 	* Define single record OAI-PMH response during FOLIO ingest tests DCB-797
