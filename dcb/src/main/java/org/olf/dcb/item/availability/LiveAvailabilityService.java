@@ -53,7 +53,7 @@ public class LiveAvailabilityService {
 
 	private Mono<AvailabilityReport> getItems(BibRecord bib, HostLmsClient client) {
 		return client.getItems(bib)
-			.doOnError(error -> log.error("doOnError occurred fetching items: {}", error))
+			.doOnError(error -> log.error("doOnError occurred fetching items", error))
 			.map(AvailabilityReport::ofItems)
 			.onErrorReturn(AvailabilityReport.ofErrors(mapToError(bib, client.getHostLmsCode())));
 	}

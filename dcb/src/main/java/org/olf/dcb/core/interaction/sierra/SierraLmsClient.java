@@ -395,7 +395,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.filter(result -> nonNull(result.getId()) && nonNull(result.getPatronType()))
 			.flatMap(this::sierraPatronToHostLmsPatron)
 			.onErrorResume(NullPointerException.class, error -> {
-				log.debug("NullPointerException occurred when finding Patron: {}", error.getMessage());
+				log.error("NullPointerException occurred when finding Patron: {}", error.getMessage());
 				return Mono.empty();
 			});
 	}
