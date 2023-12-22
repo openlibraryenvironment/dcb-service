@@ -12,7 +12,6 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.LocationRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
@@ -33,24 +32,20 @@ public class RequestWorkflowContextHelper {
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final AgencyRepository agencyRepository;
 	private final LocationRepository locationRepository;
-	private final HostLmsRepository hostLmsRepository;
 	private final HostLmsService hostLmsService;
 	private final PatronService patronService;
 
 	public RequestWorkflowContextHelper(
 		SupplierRequestService supplierRequestService,
 		LocationToAgencyMappingService locationToAgencyMappingService,
-		HostLmsRepository hostLmsRepository,
 		SupplierRequestRepository supplierRequestRepository,
 		PatronRequestRepository patronRequestRepository,
 		PatronIdentityRepository patronIdentityRepository,
-		LocationRepository locationRepository,
-		AgencyRepository agencyRepository, HostLmsService hostLmsService,
-		PatronService patronService) {
+		LocationRepository locationRepository, AgencyRepository agencyRepository,
+		HostLmsService hostLmsService, PatronService patronService) {
 
 		this.supplierRequestService = supplierRequestService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
-		this.hostLmsRepository = hostLmsRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.patronRequestRepository = patronRequestRepository;
 		this.patronIdentityRepository = patronIdentityRepository;
