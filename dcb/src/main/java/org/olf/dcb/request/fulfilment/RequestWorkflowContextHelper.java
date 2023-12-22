@@ -2,6 +2,7 @@ package org.olf.dcb.request.fulfilment;
 
 import java.util.UUID;
 
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronRequest;
@@ -14,7 +15,6 @@ import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.LocationRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
-import org.olf.dcb.storage.PatronRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 
@@ -34,6 +34,7 @@ public class RequestWorkflowContextHelper {
 	private final AgencyRepository agencyRepository;
 	private final LocationRepository locationRepository;
 	private final HostLmsRepository hostLmsRepository;
+	private final HostLmsService hostLmsService;
 	private final PatronService patronService;
 
 	public RequestWorkflowContextHelper(
@@ -44,7 +45,8 @@ public class RequestWorkflowContextHelper {
 		PatronRequestRepository patronRequestRepository,
 		PatronIdentityRepository patronIdentityRepository,
 		LocationRepository locationRepository,
-		AgencyRepository agencyRepository, PatronService patronService) {
+		AgencyRepository agencyRepository, HostLmsService hostLmsService,
+		PatronService patronService) {
 
 		this.supplierRequestService = supplierRequestService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
@@ -54,6 +56,7 @@ public class RequestWorkflowContextHelper {
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.locationRepository = locationRepository;
 		this.agencyRepository = agencyRepository;
+		this.hostLmsService = hostLmsService;
 		this.patronService = patronService;
 	}
 
