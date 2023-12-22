@@ -175,7 +175,7 @@ class IngestHelper {
 	}
 
 	private Mono<PolarisLmsClient.BibsPagedResult> fetchPage(Instant updateDate, Integer lastId, Integer nrecs) {
-		log.info("Creating subscribeable batch from last id;  {}, {}", lastId, nrecs);
+		log.trace("Creating subscribeable batch from last id;  {}, {}", lastId, nrecs);
 		final var date = formatDateFrom(updateDate);
 		return Mono.from( client.getBibs(date, lastId, nrecs) )
 			//.doOnSuccess(bibsPagedResult -> log.debug("result of bibPagedResult: {}", bibsPagedResult))
