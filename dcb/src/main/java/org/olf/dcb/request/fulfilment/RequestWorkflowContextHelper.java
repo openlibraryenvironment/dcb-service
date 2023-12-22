@@ -8,6 +8,7 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.dcb.request.resolution.SupplierRequestService;
@@ -32,6 +33,7 @@ public class RequestWorkflowContextHelper {
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final AgencyRepository agencyRepository;
 	private final LocationRepository locationRepository;
+	private final LocationService locationService;
 	private final HostLmsService hostLmsService;
 	private final PatronService patronService;
 
@@ -42,7 +44,8 @@ public class RequestWorkflowContextHelper {
 		PatronRequestRepository patronRequestRepository,
 		PatronIdentityRepository patronIdentityRepository,
 		LocationRepository locationRepository, AgencyRepository agencyRepository,
-		HostLmsService hostLmsService, PatronService patronService) {
+		LocationService locationService, HostLmsService hostLmsService,
+		PatronService patronService) {
 
 		this.supplierRequestService = supplierRequestService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
@@ -51,6 +54,7 @@ public class RequestWorkflowContextHelper {
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.locationRepository = locationRepository;
 		this.agencyRepository = agencyRepository;
+		this.locationService = locationService;
 		this.hostLmsService = hostLmsService;
 		this.patronService = patronService;
 	}
