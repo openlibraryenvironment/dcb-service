@@ -22,20 +22,21 @@ import org.slf4j.LoggerFactory;
 import io.micronaut.context.annotation.Prototype;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Prototype
 public class PatronService {
-	private static final Logger log = LoggerFactory.getLogger(PatronService.class);
-
 	private final PatronRepository patronRepository;
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final HostLmsService hostLmsService;
 	private final AgencyRepository agencyRepository;
 
-	public PatronService(PatronRepository patronRepository, PatronIdentityRepository patronIdentityRepository,
-			HostLmsService hostLmsService, AgencyRepository agencyRepository) {
+	public PatronService(PatronRepository patronRepository,
+		PatronIdentityRepository patronIdentityRepository,
+		HostLmsService hostLmsService, AgencyRepository agencyRepository) {
 
 		this.patronRepository = patronRepository;
 		this.patronIdentityRepository = patronIdentityRepository;
@@ -47,27 +48,27 @@ public class PatronService {
 		// log.debug("findPatronFor({}, {})", localSystemCode, localId);
 
 		return fetchDataHostLmsByLocalSystemCode(localSystemCode)
-				.flatMap(hostLms -> fetchPatronIdentityByHomeIdentity(localId, hostLms)).map(PatronId::fromIdentity);
+			.flatMap(hostLms -> fetchPatronIdentityByHomeIdentity(localId, hostLms))
+			.map(PatronId::fromIdentity);
 	}
 
 	public Mono<Patron> findById(PatronId patronId) {
 		// log.debug("findById({})", patronId);
 
-		return Mono.from(patronRepository.findById(patronId.getValue())).zipWhen(this::fetchAllIdentities,
-				this::addIdentities);
+		return Mono.from(patronRepository.findById(patronId.getValue()))
+			.zipWhen(this::fetchAllIdentities, this::addIdentities);
 	}
 
 	public Mono<PatronId> createPatron(String localSystemCode, String localId, String homeLibraryCode) {
-
 		// log.debug("createPatron({}, {}, {})", localSystemCode, localId,
 		// homeLibraryCode);
 
 		return savePatron(createPatron(homeLibraryCode))
-				.flatMap(patron -> savePatronIdentity(patron, localSystemCode, localId)).map(PatronId::fromIdentity);
+			.flatMap(patron -> savePatronIdentity(patron, localSystemCode, localId))
+			.map(PatronId::fromIdentity);
 	}
 
 	private Mono<PatronIdentity> fetchPatronIdentityByHomeIdentity(String localId, DataHostLms hostLms) {
-
 		// log.debug("fetchPatronIdentityByHomeLibrary({}, {})", localId, hostLms);
 
 		return Mono.from(patronIdentityRepository.findOneByLocalIdAndHostLmsAndHomeIdentity(localId, hostLms, true));
@@ -77,33 +78,34 @@ public class PatronService {
 		// log.debug("findAllPatronIdentitiesByPatron({})", patron);
 
 		return Flux.from(patronIdentityRepository.findAllByPatron(patron))
-                                .flatMap(this::addHostLmsToPatronIdentity)
-				.flatMap(this::addResolvedAgencyToPatronIdentity);
+			.flatMap(this::addHostLmsToPatronIdentity)
+			.flatMap(this::addResolvedAgencyToPatronIdentity);
 	}
 
 	private Mono<PatronIdentity> addHostLmsToPatronIdentity(PatronIdentity patronIdentity) {
 		// log.debug("addHostLmsToPatronIdentity({})", patronIdentity);
 
-		return Mono.just(patronIdentity).flatMap(this::getHostLmsOfPatronIdentity);
+		return Mono.just(patronIdentity)
+			.flatMap(this::getHostLmsOfPatronIdentity);
 	}
 
 	private Mono<PatronIdentity> getHostLmsOfPatronIdentity(PatronIdentity patronIdentity) {
 		// log.debug("getHostLmsOfPatronIdentity({})", patronIdentity);
 
-		return hostLmsService.findById(patronIdentity.getHostLms().getId()).doOnNext(patronIdentity::setHostLms)
-				.thenReturn(patronIdentity);
+		return hostLmsService.findById(patronIdentity.getHostLms().getId())
+			.doOnNext(patronIdentity::setHostLms)
+			.thenReturn(patronIdentity);
 	}
 
 	private Mono<PatronIdentity> addResolvedAgencyToPatronIdentity(PatronIdentity patronIdentity) {
-
 		// Exit early if there is no attached resolved agency - we generally only set
 		// resolvedAgency for "Home" identities
 		if (patronIdentity.getResolvedAgency() == null)
 			return Mono.just(patronIdentity);
 
-		return Mono.from( agencyRepository.findById(patronIdentity.getResolvedAgency().getId()) )
-				.map(patronIdentity::setResolvedAgency)
-                                .defaultIfEmpty(patronIdentity);
+		return Mono.from(agencyRepository.findById(patronIdentity.getResolvedAgency().getId()))
+			.map(patronIdentity::setResolvedAgency)
+			.defaultIfEmpty(patronIdentity);
 	}
 
 	private Patron createPatron(String homeLibraryCode) {
@@ -201,10 +203,12 @@ public class PatronService {
 
 	public Mono<PatronIdentity> checkForPatronIdentity(Patron patron, String hostLmsCode, String localId,
 			String localPType, String barcode) {
-		log.debug("checkForPatronIdentity {}, {}, {}, {}", patron.getId(), hostLmsCode, localId);
+		log.debug("checkForPatronIdentity {}, {}, {}, {}, {}",
+			patron, hostLmsCode, localId, localPType, barcode);
 
 		return Mono.justOrEmpty(findIdentityByLocalId(patron, localId))
-				.switchIfEmpty(Mono.defer(() -> createPatronIdentity(patron, localId, localPType, hostLmsCode, false, barcode)));
+			.switchIfEmpty(Mono.defer(() ->
+				createPatronIdentity(patron, localId, localPType, hostLmsCode, false, barcode)));
 	}
 
 	private Mono<List<PatronIdentity>> fetchAllIdentities(Patron patron) {
@@ -213,9 +217,8 @@ public class PatronService {
 
 	public Mono<PatronIdentity> getPatronIdentityById(UUID id) {
 		return Mono.from(patronIdentityRepository.findById(id))
-                                .flatMap(this::addHostLmsToPatronIdentity)
-                                .flatMap(this::addResolvedAgencyToPatronIdentity);
-
+			.flatMap(this::addHostLmsToPatronIdentity)
+			.flatMap(this::addResolvedAgencyToPatronIdentity);
 	}
 
 	@Value
