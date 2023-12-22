@@ -64,6 +64,7 @@ type Agency {
     longitude: Float
     latitude: Float
     hostLms: HostLms
+    locations: [Location]
 }
 
 """

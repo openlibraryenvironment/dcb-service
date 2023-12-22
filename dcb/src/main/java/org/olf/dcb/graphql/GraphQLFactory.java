@@ -77,6 +77,9 @@ public class GraphQLFactory {
 					typeWiring -> typeWiring
 						.dataFetcher("createAgencyGroup", createAgencyGroupDataFetcher)
 						.dataFetcher("addAgencyToGroup", addAgencyToGroupDataFetcher))
+				.type("Agency",
+					typeWiring -> typeWiring
+						.dataFetcher("locations", dataFetchers.getAgencyLocationsDataFetcher()))
 				.type("AgencyGroup",
 					typeWiring -> typeWiring
 						.dataFetcher("members", dataFetchers.getAgencyGroupMembersDataFetcher()))

@@ -35,13 +35,13 @@ public class DataFetchers {
 	private final PostgresSupplierRequestRepository postgresSupplierRequestRepository;
 	private final AgencyGroupMemberRepository agencyGroupMemberRepository;
 	private final PostgresBibRepository postgresBibRepository;
-        private final PostgresRawSourceRepository postgresRawSourceRepository;
-        private final PostgresHostLmsRepository postgresHostLmsRepository;
-        private final PostgresLocationRepository postgresLocationRepository;
-        private final PostgresAgencyGroupRepository postgresAgencyGroupRepository;
-        private final PostgresProcessStateRepository postgresProcessStateRepository;
-        private final PostgresPatronRequestAuditRepository postgresPatronRequestAuditRepository;
-        private final PostgresPatronIdentityRepository postgresPatronIdentityRepository;
+	private final PostgresRawSourceRepository postgresRawSourceRepository;
+	private final PostgresHostLmsRepository postgresHostLmsRepository;
+ 	private final PostgresLocationRepository postgresLocationRepository;
+	private final PostgresAgencyGroupRepository postgresAgencyGroupRepository;
+ 	private final PostgresProcessStateRepository postgresProcessStateRepository;
+	private final PostgresPatronRequestAuditRepository postgresPatronRequestAuditRepository;
+	private final PostgresPatronIdentityRepository postgresPatronIdentityRepository;
 	private final PostgresClusterRecordRepository postgresClusterRecordRepository;
 	private final PostgresReferenceValueMappingRepository postgresReferenceValueMappingRepository;
 	private final PostgresNumericRangeMappingRepository postgresNumericRangeMappingRepository;
@@ -484,4 +484,12 @@ public class DataFetchers {
                         return Mono.from(postgresReferenceValueMappingRepository.findAll(pageable)).toFuture();
                 };
         }
+
+	public DataFetcher<CompletableFuture<List<Location>>> getAgencyLocationsDataFetcher() {
+		return env -> {
+			log.debug("getAgencyLocationsDataFetcher args={}/ctx={}/root={}/src={}", env.getArguments(), env.getGraphQlContext(), env.getRoot(), env.getSource());
+			return Flux.from(postgresLocationRepository.queryAllByAgency(env.getSource())).collectList().toFuture();
+		};
+	}
+
 }
