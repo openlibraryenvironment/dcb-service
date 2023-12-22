@@ -200,12 +200,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				.expand(TupleUtils.function((state, results) -> {
 
 					var bibs = results.entries();
-					log.info("Fetched a chunk of {} records for {}", bibs.size(), lms.getName());
+					log.trace("Fetched a chunk of {} records for {}", bibs.size(), lms.getName());
 
 					state.storred_state.put("lastRequestHRTS", new Date().toString());
 					state.storred_state.put("status", "RUNNING");
 
-					log.info("got page {} of data, containing {} results", state.page_counter++, bibs.size());
+					log.trace("got page {} of data, containing {} results", state.page_counter++, bibs.size());
 					state.possiblyMore = bibs.size() == pageSize;
 
 					// Increment the offset for the next fetch
