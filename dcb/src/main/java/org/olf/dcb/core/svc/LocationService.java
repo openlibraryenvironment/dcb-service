@@ -6,8 +6,10 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.storage.LocationRepository;
 
 import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Singleton
 public class LocationService {
 	private final LocationRepository locationRepository;
@@ -37,7 +39,9 @@ public class LocationService {
 			return findById(parsedId);
 		}
 		// Is not a UUID
-		catch (IllegalArgumentException e) {
+		catch (IllegalArgumentException exception) {
+			log.warn("Location ID: \"{}\" is not a valid UUID", id, exception);
+
 			return Mono.empty();
 		}
 	}

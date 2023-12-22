@@ -227,18 +227,16 @@ public class RequestWorkflowContextHelper {
 		String pickupSymbol = ctx.getPatronRequest().getPickupLocationCode();
 
 		if ( pickupSymbol.length() == 36 ) {
-			final String pcs2 = pickupSymbolContext;
 			// We've been passed a UUID in the pickup location symbol... try to unpick that
 			// Convert the location UUID into a location, extract the code, find the agency for that code and context
-			return Mono.from(locationRepository.findById(UUID.fromString(pickupSymbol)))
-					.flatMap( loc -> getAgencyDirectlyFromLocation(loc) )
+			return locationService.findById(pickupSymbol)
+					.flatMap(this::getAgencyDirectlyFromLocation)
 					// We no longer go via the mapping table for pickup locations - the Location row in the DB MUST be directly attached to an agency
 					// .flatMap( loc -> { return Mono.from(agencyForPickupLocationSymbol(pcs2, loc.getCode())); } )
 					// .flatMap( rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } )
           .flatMap(pickupAgency -> { return Mono.just(ctx.setPickupAgency(pickupAgency)); } )
           .flatMap(ctx2 -> { return Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())); } )
-          .flatMap(ctx2 -> { return Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())); } )
-          ;
+          .flatMap(ctx2 -> { return Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())); } );
 		}
 
 		return agencyForPickupLocationSymbol(pickupSymbolContext, pickupSymbol)
