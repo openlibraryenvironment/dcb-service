@@ -191,7 +191,7 @@ public class RecordClusteringService {
 						yield Mono.just( clusters.iterator().next() );
 					}
 					default -> {
-						log.info("Multiple cluster matched. Use first cluster and merge others");
+						log.trace("Multiple cluster matched. Use first cluster and merge others");
 						
 						// Pop the first item.
 						var items = clusters.iterator();

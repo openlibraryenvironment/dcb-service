@@ -319,7 +319,8 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	
 
 	private Mono<BulkResponse> bulkOperations(
-			Collection<org.olf.dcb.indexing.bulk.IndexOperation<UUID, ClusterRecord>> cr) {
+
+		Collection<org.olf.dcb.indexing.bulk.IndexOperation<UUID, ClusterRecord>> cr) {
 		
 		return Flux.fromIterable(cr)
 			.reduce( new BulkRequest.Builder(), this::addBulkOperation )
