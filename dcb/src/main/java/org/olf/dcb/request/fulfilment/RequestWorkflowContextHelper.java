@@ -152,7 +152,7 @@ public class RequestWorkflowContextHelper {
 
 		// There is a problem here - as per getDataAgencyWithHostLms agencyRepository.findHostLmsById doesn't work directly
 		return Mono.from(agencyRepository.findHostLmsIdById(ctx.getPatronAgency().getId()))
-			.flatMap(hostLmsId -> Mono.from(hostLmsRepository.findById(hostLmsId)))
+			.flatMap(hostLmsService::findById)
 			.flatMap(patronHostLms -> {
 				ctx.setPatronSystem(patronHostLms);
 				ctx.setPatronSystemCode(patronHostLms.getCode());
@@ -299,7 +299,7 @@ public class RequestWorkflowContextHelper {
 
 		return Mono.from(agencyRepository.findOneByCode(code))
 			.flatMap(agency -> Mono.from(agencyRepository.findHostLmsIdById(agency.getId()))
-			.flatMap(hostLmsId -> Mono.from(hostLmsRepository.findById(hostLmsId)))
+			.flatMap(hostLmsService::findById)
 			.flatMap(hostLms -> {
 				agency.setHostLms(hostLms);
 				return Mono.just(agency);
