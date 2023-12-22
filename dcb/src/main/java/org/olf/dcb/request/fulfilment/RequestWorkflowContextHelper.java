@@ -34,7 +34,6 @@ public class RequestWorkflowContextHelper {
 	private final AgencyRepository agencyRepository;
 	private final LocationRepository locationRepository;
 	private final HostLmsRepository hostLmsRepository;
-	private final PatronRepository patronRepository;
 	private final PatronService patronService;
 
 	public RequestWorkflowContextHelper(
@@ -45,8 +44,7 @@ public class RequestWorkflowContextHelper {
 		PatronRequestRepository patronRequestRepository,
 		PatronIdentityRepository patronIdentityRepository,
 		LocationRepository locationRepository,
-		AgencyRepository agencyRepository, PatronRepository patronRepository,
-		PatronService patronService) {
+		AgencyRepository agencyRepository, PatronService patronService) {
 
 		this.supplierRequestService = supplierRequestService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
@@ -56,7 +54,6 @@ public class RequestWorkflowContextHelper {
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.locationRepository = locationRepository;
 		this.agencyRepository = agencyRepository;
-		this.patronRepository = patronRepository;
 		this.patronService = patronService;
 	}
 
