@@ -1,5 +1,7 @@
 package org.olf.dcb.core.svc;
 
+import java.util.UUID;
+
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.storage.AgencyRepository;
 
@@ -16,5 +18,9 @@ public class AgencyService {
 
 	public Mono<DataAgency> findByCode(String code) {
 		return Mono.from(agencyRepository.findOneByCode(code));
+	}
+
+	public Mono<DataAgency> findById(UUID id) {
+		return Mono.from(agencyRepository.findById(id));
 	}
 }

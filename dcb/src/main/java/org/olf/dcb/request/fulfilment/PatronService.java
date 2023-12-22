@@ -13,11 +13,9 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
-import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.PatronRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Prototype;
 import lombok.RequiredArgsConstructor;
@@ -32,16 +30,16 @@ public class PatronService {
 	private final PatronRepository patronRepository;
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final HostLmsService hostLmsService;
-	private final AgencyRepository agencyRepository;
+	private final AgencyService agencyService;
 
 	public PatronService(PatronRepository patronRepository,
 		PatronIdentityRepository patronIdentityRepository,
-		HostLmsService hostLmsService, AgencyRepository agencyRepository) {
+		HostLmsService hostLmsService, AgencyService agencyService) {
 
 		this.patronRepository = patronRepository;
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.hostLmsService = hostLmsService;
-		this.agencyRepository = agencyRepository;
+		this.agencyService = agencyService;
 	}
 
 	public Mono<PatronId> findPatronFor(String localSystemCode, String localId) {
@@ -103,7 +101,7 @@ public class PatronService {
 		if (patronIdentity.getResolvedAgency() == null)
 			return Mono.just(patronIdentity);
 
-		return Mono.from(agencyRepository.findById(patronIdentity.getResolvedAgency().getId()))
+		return agencyService.findById(patronIdentity.getResolvedAgency().getId())
 			.map(patronIdentity::setResolvedAgency)
 			.defaultIfEmpty(patronIdentity);
 	}
