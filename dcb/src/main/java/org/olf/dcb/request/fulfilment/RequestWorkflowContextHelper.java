@@ -8,6 +8,7 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
@@ -90,10 +91,14 @@ public class RequestWorkflowContextHelper {
 			.flatMap(this::report);
 	}
 
-	private <R> Mono<RequestWorkflowContext> decorateWithPatron(RequestWorkflowContext requestWorkflowContext) {
+	private Mono<RequestWorkflowContext> decorateWithPatron(
+		RequestWorkflowContext requestWorkflowContext) {
+
 		// we get the patron id but nothing else on the patron from the patron request.
-		final var patronId = requestWorkflowContext.getPatronRequest().getPatron().getId();
-		return Mono.from(patronRepository.findById(patronId)).map(requestWorkflowContext::setPatron);
+		final var patronId = PatronId.fromPatron(requestWorkflowContext.getPatronRequest().getPatron());
+
+		return patronService.findById(patronId)
+			.map(requestWorkflowContext::setPatron);
 	}
 
 	private Mono<RequestWorkflowContext> decorateContextWithLenderDetails(RequestWorkflowContext ctx) {
