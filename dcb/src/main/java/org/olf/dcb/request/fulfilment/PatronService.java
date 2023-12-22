@@ -10,6 +10,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
@@ -217,6 +218,10 @@ public class PatronService {
 		return Mono.from(patronIdentityRepository.findById(id))
 			.flatMap(this::addHostLmsToPatronIdentity)
 			.flatMap(this::addResolvedAgencyToPatronIdentity);
+	}
+
+	public Mono<DataAgency> findResolvedAgencyByIdentity(PatronIdentity identity) {
+		return Mono.from(patronIdentityRepository.findResolvedAgencyById(identity.getId()));
 	}
 
 	@Value

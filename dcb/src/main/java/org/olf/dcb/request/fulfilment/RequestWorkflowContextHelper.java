@@ -13,7 +13,6 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 
@@ -29,7 +28,6 @@ public class RequestWorkflowContextHelper {
 
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final PatronRequestRepository patronRequestRepository;
-	private final PatronIdentityRepository patronIdentityRepository;
 	private final AgencyRepository agencyRepository;
 
 	private final LocationService locationService;
@@ -41,7 +39,6 @@ public class RequestWorkflowContextHelper {
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		SupplierRequestRepository supplierRequestRepository,
 		PatronRequestRepository patronRequestRepository,
-		PatronIdentityRepository patronIdentityRepository,
 		AgencyRepository agencyRepository, LocationService locationService,
 		HostLmsService hostLmsService, PatronService patronService) {
 
@@ -49,7 +46,6 @@ public class RequestWorkflowContextHelper {
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.patronRequestRepository = patronRequestRepository;
-		this.patronIdentityRepository = patronIdentityRepository;
 		this.agencyRepository = agencyRepository;
 		this.locationService = locationService;
 		this.hostLmsService = hostLmsService;
@@ -127,7 +123,7 @@ public class RequestWorkflowContextHelper {
 		log.info("decorateContextWithPatronAgency");
 
 		if (ctx.getPatronHomeIdentity() != null) {
-			return Mono.from(patronIdentityRepository.findResolvedAgencyById(ctx.getPatronHomeIdentity().getId()))
+			return patronService.findResolvedAgencyByIdentity(ctx.getPatronHomeIdentity())
 				.flatMap(agency -> {
 					log.debug("Found patron agency {}",agency);
 					ctx.setPatronAgency(agency);
