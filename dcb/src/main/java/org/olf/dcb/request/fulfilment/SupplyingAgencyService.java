@@ -17,21 +17,20 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.zalando.problem.Problem;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
+@Slf4j
 @Prototype
 public class SupplyingAgencyService {
-	private static final Logger log = LoggerFactory.getLogger(SupplyingAgencyService.class);
-
-        private static final URI ERR0010 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/2738356304/0010+-+Error+in+place+request+at+supplier");
+	private static final URI ERR0010 = URI.create(
+		"https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/2738356304/0010+-+Error+in+place+request+at+supplier");
 
 	private final HostLmsService hostLmsService;
 	private final SupplierRequestService supplierRequestService;
@@ -42,9 +41,9 @@ public class SupplyingAgencyService {
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 
-	public SupplyingAgencyService(
-		HostLmsService hostLmsService, SupplierRequestService supplierRequestService,
-		PatronService patronService, PatronTypeService patronTypeService,
+	public SupplyingAgencyService(HostLmsService hostLmsService,
+		SupplierRequestService supplierRequestService, PatronService patronService,
+		PatronTypeService patronTypeService,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
 		RequestWorkflowContextHelper requestWorkflowContextHelper) {
 
@@ -82,8 +81,7 @@ public class SupplyingAgencyService {
 			.map(PatronRequest::placedAtSupplyingAgency)
 			// We do this work a level up at PlacePatronRequestAtSupplyingAgencyStateTransition.createAuditEntry
 			// commenting out as of 2023-08-16. If audit log looks good will remove entirely.
-			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest))
-                        ;
+			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
 	}
 
 	public Mono<PatronRequest> cleanUp(PatronRequest patronRequest) {
@@ -103,7 +101,6 @@ public class SupplyingAgencyService {
 	}
 
 	private Mono<RequestWorkflowContext> placeRequestAtSupplier(RequestWorkflowContext psrc) {
-
 		log.debug("placeRequestAtSupplier");
 
 		PatronRequest patronRequest = psrc.getPatronRequest();
@@ -121,25 +118,30 @@ public class SupplyingAgencyService {
 			.flatMap(client -> this.placeHoldRequest(client, psrc) )
 			.map(localRequest -> supplierRequest.placed(localRequest.getLocalId(), localRequest.getLocalStatus()))
 			.thenReturn(psrc)
-                        .onErrorResume( error -> {
-                                log.error("Error in placeRequestAtSupplier {} : {}", psrc, error.getMessage());
-                                return Mono.error(
-                                        Problem.builder()
-                                                .withType(ERR0010)
-                                                .withTitle("Unable to place SUPPLIER hold request for pr="+patronRequest.getId()+" Lpatron="+patronIdentityAtSupplier.getLocalId()+
-							" Litemid="+supplierRequest.getLocalItemId()+" Lit="+supplierRequest.getLocalItemType()+" Lpt="+patronIdentityAtSupplier.getLocalPtype()+" system="+supplierRequest.getHostLmsCode())
-                                                .withDetail(error.getMessage())
-                                                .with("dcbContext",psrc)
-                                                .with("dcbPatronId",patronIdentityAtSupplier.getLocalId())
-                                                .with("dcbLocalItemId",supplierRequest.getLocalItemId())
-                                                .with("dcbLocalItemBarcode",supplierRequest.getLocalItemBarcode())
-                                                .with("dcbLocalItemType",supplierRequest.getLocalItemType())
-                                                .with("dcbLocalPatronType",patronIdentityAtSupplier.getLocalPtype())
-                                                .with("dcbCanonicalPatronType",patronIdentityAtSupplier.getCanonicalPtype())
-                                                .with("dcbLocalPatronBarcode",patronIdentityAtSupplier.getLocalBarcode())
-                                                .build()
-                                );
-                        });
+			.onErrorResume(error -> {
+				log.error("Error in placeRequestAtSupplier {} : {}", psrc, error.getMessage());
+
+				return Mono.error(
+					Problem.builder()
+						.withType(ERR0010)
+						.withTitle(
+							"Unable to place SUPPLIER hold request for pr=" + patronRequest.getId() + " Lpatron=" + patronIdentityAtSupplier.getLocalId() +
+								" Litemid=" + supplierRequest.getLocalItemId() + " Lit=" + supplierRequest.getLocalItemType() + " Lpt=" + patronIdentityAtSupplier.getLocalPtype() + " system=" + supplierRequest.getHostLmsCode())
+						.withDetail(error.getMessage())
+						.with("dcbContext", psrc)
+						.with("dcbPatronId", patronIdentityAtSupplier.getLocalId())
+						.with("dcbLocalItemId", supplierRequest.getLocalItemId())
+						.with("dcbLocalItemBarcode", supplierRequest.getLocalItemBarcode())
+						.with("dcbLocalItemType", supplierRequest.getLocalItemType())
+						.with("dcbLocalPatronType",
+							patronIdentityAtSupplier.getLocalPtype())
+						.with("dcbCanonicalPatronType",
+							patronIdentityAtSupplier.getCanonicalPtype())
+						.with("dcbLocalPatronBarcode",
+							patronIdentityAtSupplier.getLocalBarcode())
+						.build()
+				);
+			});
 	}
 
 	private Mono<LocalRequest> placeHoldRequest(HostLmsClient client,
@@ -211,7 +213,6 @@ public class SupplyingAgencyService {
 
 		PatronRequest patronRequest = psrc.getPatronRequest();
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
-		// log.debug("checkIfPatronExistsAtSupplier req={}, supplierSystemCode={}", patronRequest.getId(), supplierRequest.getHostLmsCode());
 
 		// Get supplier system interface
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
@@ -226,21 +227,27 @@ public class SupplyingAgencyService {
 			.flatMap(patron -> updateLocalPatronIdentityForLmsPatron(patron, patronRequest, supplierRequest));
 	}
 
-	private Mono<PatronIdentity> updateLocalPatronIdentityForLmsPatron(Patron patron, PatronRequest patronRequest, SupplierRequest supplierRequest) {
+	private Mono<PatronIdentity> updateLocalPatronIdentityForLmsPatron(
+		Patron patron, PatronRequest patronRequest, SupplierRequest supplierRequest) {
 
-		String barcodes_as_string = ( ( patron.getLocalBarcodes() != null ) && ( patron.getLocalBarcodes().size() > 0 ) ) ? patron.getLocalBarcodes().toString() : null;
+		String barcodes_as_string = ((patron.getLocalBarcodes() != null)
+				&& (patron.getLocalBarcodes().size() > 0))
+			? patron.getLocalBarcodes().toString()
+			: null;
 
-		if ( barcodes_as_string == null ) {
+		if (barcodes_as_string == null) {
 			log.warn("VPatron will have no barcodes {}/{}",patronRequest,patron);
 		}
 
-		return checkPatronType( patron.getLocalId().get(0), patron.getLocalPatronType(), patronRequest, supplierRequest.getHostLmsCode())
+		return checkPatronType( patron.getLocalId().get(0),
+				patron.getLocalPatronType(), patronRequest, supplierRequest.getHostLmsCode())
 			.flatMap(function((localId, patronType) ->
-                                checkForPatronIdentity(patronRequest, supplierRequest.getHostLmsCode(), localId, patronType, barcodes_as_string)));
+				checkForPatronIdentity(patronRequest, supplierRequest.getHostLmsCode(),
+					localId, patronType, barcodes_as_string)));
 	}
 
-	private Mono<Tuple2<String, String>> checkPatronType(String localId, String patronType,
-			PatronRequest patronRequest, String supplierHostLmsCode) {
+	private Mono<Tuple2<String, String>> checkPatronType(String localId,
+		String patronType, PatronRequest patronRequest, String supplierHostLmsCode) {
 
 		log.debug("checkPatronType {}, {}", localId, patronType);
 
@@ -248,9 +255,9 @@ public class SupplyingAgencyService {
 		return getRequestingIdentity(patronRequest)
 			// Work out the ???
 			.flatMap(requestingIdentity -> determinePatronType(supplierHostLmsCode, requestingIdentity))
-			// don't continue the stream if the local type matches what we have storred
+			// don't continue the stream if the local type matches what we have stored
 			.filter(dcbPatronType -> dcbPatronType.equals(patronType))
-			// if the the returned value and the storred value were different, we have an empty stream, update the vpatron
+			// if the returned value and the stored value were different, we have an empty stream, update the virtual patron
 			.switchIfEmpty(Mono.defer(() -> updateVirtualPatron(supplierHostLmsCode, localId, patronType)))
 			// Construct return tuple
 			.map(updatedPatronType -> Tuples.of(localId, updatedPatronType));
@@ -258,6 +265,7 @@ public class SupplyingAgencyService {
 
 	private Mono<String> updateVirtualPatron(String supplierHostLmsCode, String localId, String patronType) {
 		log.debug("updateVirtualPatron {}, {}", localId, patronType);
+
 		return hostLmsService.getClientFor(supplierHostLmsCode)
 			.flatMap(hostLmsClient -> hostLmsClient.updatePatron(localId, patronType))
 			.map(Patron::getLocalPatronType);
@@ -265,6 +273,7 @@ public class SupplyingAgencyService {
 
 	private Mono<PatronIdentity> getRequestingIdentity(PatronRequest patronRequest) {
 		// log.debug("getRequestingIdentity was called with: {}", patronRequest.getPatron());
+
 		if ((patronRequest != null) &&
 			(patronRequest.getRequestingIdentity() != null)) {
 				// log.debug("Attempting to locate patron identity for {}",patronRequest.getRequestingIdentity().getId());
@@ -276,14 +285,18 @@ public class SupplyingAgencyService {
 		}
 	}
 
-	private Mono<PatronIdentity> createPatronAtSupplier(PatronRequest patronRequest, SupplierRequest supplierRequest) {
+	private Mono<PatronIdentity> createPatronAtSupplier(
+		PatronRequest patronRequest, SupplierRequest supplierRequest) {
+
 		final var hostLmsCode = supplierRequest.getHostLmsCode();
 
-		log.debug("createPatronAtSupplier prid={}, srid={} supplierCode={}", patronRequest.getId(), supplierRequest.getId(),hostLmsCode);
+		log.debug("createPatronAtSupplier prid={}, srid={} supplierCode={}",
+			patronRequest.getId(), supplierRequest.getId(),hostLmsCode);
 
 		return hostLmsService.getClientFor(hostLmsCode)
 			.zipWhen(client -> getRequestingIdentity(patronRequest), Tuples::of)
-			.flatMap(function((client,requestingIdentity) -> createVPatronAndSaveIdentity(client,requestingIdentity,patronRequest,hostLmsCode)));
+			.flatMap(function((client,requestingIdentity) ->
+				createVPatronAndSaveIdentity(client, requestingIdentity,patronRequest,hostLmsCode)));
 	}
 
 	/**
@@ -309,11 +322,12 @@ public class SupplyingAgencyService {
 
 		// Patrons can have multiple barcodes. To keep the domain model sane(ish) we store [b1, b2, b3] (As the result of Objects.toString()
 		// in the field. Here we unpack that structure back into an array of barcodes that the HostLMS can do with as it pleases
-		final List<String> patron_barcodes = (requestingPatronIdentity.getLocalBarcode()!=null) ?
-			Arrays.asList(requestingPatronIdentity.getLocalBarcode()
-				.substring(1, requestingPatronIdentity.getLocalBarcode().length() - 1).split(", ")):null;
+		final List<String> patron_barcodes = (requestingPatronIdentity.getLocalBarcode() != null)
+			? Arrays.asList(requestingPatronIdentity.getLocalBarcode()
+				.substring(1, requestingPatronIdentity.getLocalBarcode().length() - 1).split(", "))
+			: null;
 
-		if ( ( patron_barcodes == null ) || ( patron_barcodes.size() == 0 ) ) {
+		if ((patron_barcodes == null) || (patron_barcodes.size() == 0)) {
 			log.warn("Virtual patron has no barcodes. Source identity {}. Will be unable to check out to this patron",
 				requestingPatronIdentity);
 		}
@@ -324,12 +338,12 @@ public class SupplyingAgencyService {
 				final var patronType = tuple.getT1();
 				final var uniqueId = tuple.getT2();
 				return client.createPatron(
-						Patron.builder()
-							.localBarcodes( patron_barcodes )
-							.localPatronType( patronType )
-							.uniqueIds( stringToList(uniqueId) )
-							.localHomeLibraryCode(requestingPatronIdentity.getLocalHomeLibraryCode())
-							.build())
+					Patron.builder()
+						.localBarcodes( patron_barcodes )
+						.localPatronType( patronType )
+						.uniqueIds( stringToList(uniqueId) )
+						.localHomeLibraryCode(requestingPatronIdentity.getLocalHomeLibraryCode())
+						.build())
 					.map(createdPatron -> Tuples.of(createdPatron, patronType));
 			});
 	}
@@ -350,12 +364,13 @@ public class SupplyingAgencyService {
 			hostLmsCode, localId, localPType, barcode);
 	}
 
-	private Mono<String> determinePatronType(String supplyingHostLmsCode, PatronIdentity requestingIdentity) {
+	private Mono<String> determinePatronType(String supplyingHostLmsCode,
+		PatronIdentity requestingIdentity) {
 
 		log.debug("determinePatronType");
 
-		if (supplyingHostLmsCode == null || requestingIdentity == null || requestingIdentity.getHostLms() == null ||
-			requestingIdentity.getHostLms().getCode() == null) {
+		if (supplyingHostLmsCode == null || requestingIdentity == null
+			|| requestingIdentity.getHostLms() == null || requestingIdentity.getHostLms().getCode() == null) {
 
 			throw new RuntimeException("Missing patron data - unable to determine patron type at supplier:" + supplyingHostLmsCode);
 		}
@@ -371,7 +386,8 @@ public class SupplyingAgencyService {
 
 	public Mono<HostLmsHold> getHold(String hostLmsCode, String holdId) {
 		log.debug("getHold({},{})",hostLmsCode,holdId);
+
 		return hostLmsService.getClientFor(hostLmsCode)
-			.flatMap( client -> client.getHold(holdId) );
+			.flatMap(client -> client.getHold(holdId));
 	}
 }

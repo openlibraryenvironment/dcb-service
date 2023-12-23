@@ -166,7 +166,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private Mono<BibResultSet> fetchPage(Instant since, int offset, int limit) {
-		log.info("Creating subscribable batch;  since={} offset={} limit={}", since, offset, limit);
+		log.trace("Creating subscribable batch;  since={} offset={} limit={}", since, offset, limit);
 		return Mono.from(client.bibs(params -> {
 			params.offset(offset).limit(limit)
 				.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "deleted", "marc", "suppressed", "fixedFields" ));
@@ -174,7 +174,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			if (since != null) {
 				params.updatedDate(dtr -> {
 					LocalDateTime from_as_local_date_time = since.atZone(java.time.ZoneId.of("UTC")).toLocalDateTime();
-					log.info("Setting from date for {} to {}", lms.getName(), from_as_local_date_time);
+					log.trace("Setting from date for {} to {}", lms.getName(), from_as_local_date_time);
 
 					dtr.to(LocalDateTime.now()).fromDate(from_as_local_date_time);
 				});
@@ -200,12 +200,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				.expand(TupleUtils.function((state, results) -> {
 
 					var bibs = results.entries();
-					log.info("Fetched a chunk of {} records for {}", bibs.size(), lms.getName());
+					log.trace("Fetched a chunk of {} records for {}", bibs.size(), lms.getName());
 
 					state.storred_state.put("lastRequestHRTS", new Date().toString());
 					state.storred_state.put("status", "RUNNING");
 
-					log.info("got page {} of data, containing {} results", state.page_counter++, bibs.size());
+					log.trace("got page {} of data, containing {} results", state.page_counter++, bibs.size());
 					state.possiblyMore = bibs.size() == pageSize;
 
 					// Increment the offset for the next fetch
@@ -228,7 +228,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						return Mono.empty();
 
 					} else {
-						log.info("Exhausted current page from {} , prep next", lms.getName());
+						log.trace("Exhausted current page from {} , prep next", lms.getName());
 						// We have finished consuming a page of data, but there is more to come.
 						// Remember where we got up to and stash it in the DB
 						if (state.since != null) {

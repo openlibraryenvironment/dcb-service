@@ -55,12 +55,12 @@ class IngestHelper {
 			.defaultIfEmpty(new HashMap<>())
 			.map(currentStateMap -> {
 				PublisherState generatorState = new PublisherState(currentStateMap);
-				log.info("backpressureAwareBibResultGenerator - state={} lmsid={} thread={}",
+				log.trace("backpressureAwareBibResultGenerator - state={} lmsid={} thread={}",
 					currentStateMap, lms.getId(), Thread.currentThread().getName());
 
 				String cursor = (String) currentStateMap.get("cursor");
 				if (cursor != null) {
-					log.debug("Cursor: " + cursor);
+					log.trace("Cursor: " + cursor);
 					String[] components = cursor.split(":");
 
 					if (components.length > 1) {
@@ -137,8 +137,8 @@ class IngestHelper {
 		return Mono.zip(Mono.just(state.toBuilder().build()), fetchPage(state.since, state.offset, pageSize))
 			.expand(function((currentState, results) -> {
 				var bibs = results.getGetBibsPagedRows();
-				log.info("Fetched a chunk of {} records for {}", bibs.size(), lms.getName());
-				log.info("got page {} of data, containing {} results", currentState.page_counter++, bibs.size());
+				log.trace("Fetched a chunk of {} records for {}", bibs.size(), lms.getName());
+				log.trace("got page {} of data, containing {} results", currentState.page_counter++, bibs.size());
 				currentState.possiblyMore = bibs.size() == pageSize;
 
 				if (!currentState.possiblyMore) {
@@ -148,7 +148,7 @@ class IngestHelper {
 					log.info("No more results to fetch from {}", lms.getName());
 					return Mono.empty();
 				} else {
-					log.info("Exhausted current page from {}, prep next", lms.getName());
+					log.trace("Exhausted current page from {}, prep next", lms.getName());
 					if (currentState.since != null) {
 						currentState.storred_state.put("cursor", "deltaSince:" + currentState.sinceMillis + ":" + currentState.offset);
 					} else {
@@ -175,7 +175,7 @@ class IngestHelper {
 	}
 
 	private Mono<PolarisLmsClient.BibsPagedResult> fetchPage(Instant updateDate, Integer lastId, Integer nrecs) {
-		log.info("Creating subscribeable batch from last id;  {}, {}", lastId, nrecs);
+		log.trace("Creating subscribeable batch from last id;  {}, {}", lastId, nrecs);
 		final var date = formatDateFrom(updateDate);
 		return Mono.from( client.getBibs(date, lastId, nrecs) )
 			//.doOnSuccess(bibsPagedResult -> log.debug("result of bibPagedResult: {}", bibsPagedResult))

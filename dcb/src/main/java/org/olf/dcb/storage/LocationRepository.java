@@ -3,6 +3,7 @@ package org.olf.dcb.storage;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.DataAgency;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
@@ -46,4 +47,8 @@ public interface LocationRepository {
 	Publisher<Location> findOneByCode(String code);
 
 	Publisher<Void> delete(UUID id);
+
+	@NonNull
+	@SingleResult
+	Publisher<Location> queryAllByAgency(@NotNull DataAgency agency);
 }
