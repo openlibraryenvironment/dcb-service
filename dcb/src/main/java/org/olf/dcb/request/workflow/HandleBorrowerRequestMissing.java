@@ -52,13 +52,16 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 		StateChange sc = (StateChange) context.get("StateChange");
 		log.debug("HandleBorrowerRequestMissing {}",sc);
 
+		// This method is called when we detect that the patron request in the borrowing system is no longer present
+
 		PatronRequest pr = (PatronRequest) sc.getResource();
 
 		if (pr != null) {
 			pr.setLocalItemStatus(sc.getToState());
 			return Mono.from(supplierRequestRepository.findByPatronRequest(pr))
 				.map(sr -> {
-					// Patron cancels request, sierra deletes request
+					// Patron cancels request, sierra deletes request to represent the cancellation
+					// IF the item isn't already on the holdshelf then we can cancel
 					if (!Objects.equals(pr.getLocalItemStatus(), ITEM_ON_HOLDSHELF)) {
 						patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), CANCELLED, 
 							Optional.ofNullable("Missing borrower request when local request status was Item on holdshelf"));
@@ -67,18 +70,26 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 					}
 					// Patron cancels request, polaris sets hold status to Cancelled
 					else if (Objects.equals(sr.getLocalStatus(), "CANCELLED")) {
-						patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), CANCELLED,
-							Optional.ofNullable("Local request status was set to cancelled"));
-						log.debug("setting DCB internal status to CANCELLED {}",pr);
-						return pr.setStatus(CANCELLED);
+						if ( pr.getStatus() == FINALISED ) {
+							patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), pr.getStatus(),
+								Optional.ofNullable("The request in the supplier system was CANCELLED or deleted after the DCB request was FINALISED"));
+							// No change
+							return pr;
+						}
+						else {
+							patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), CANCELLED,
+								Optional.ofNullable("Borrower system request MISSING, Supplier request CANCELLED"));
+							log.info("Borrower request MISSING - setting DCB internal status to CANCELLED {}",pr);
+							return pr.setStatus(CANCELLED);
+						}
 					}
 					// item has been returned home from borrowing library
 					else if (Objects.equals(sr.getLocalItemStatus(), ITEM_AVAILABLE)) {
 						patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), COMPLETED, 
 							Optional.ofNullable("Missing borrower request when local local status was AVAILABLE"));
-						log.debug("setting DCB internal status to COMPLETED because item status AVAILABLE {}",pr);
-                                                // ToDo - Consider if this should be BORROWER-COMPLETED to indicate that the return
-                                                // part of the transaction is still to be completed
+						log.info("setting DCB internal status to COMPLETED because item status AVAILABLE {}",pr);
+            // ToDo - Consider if this should be BORROWER-COMPLETED to indicate that the return
+            // part of the transaction is still to be completed
 						return pr.setStatus(COMPLETED);
 					}
 					// item has not been despatched from lending library
