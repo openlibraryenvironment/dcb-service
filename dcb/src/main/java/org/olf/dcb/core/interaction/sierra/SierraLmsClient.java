@@ -80,6 +80,7 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuples;
 import services.k_int.interaction.sierra.FixedField;
+import services.k_int.interaction.sierra.VarField;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResult;
@@ -290,11 +291,31 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public IngestRecordBuilder initIngestRecordBuilder(BibResult resource) {
 
 		// Use the host LMS as the
-		return IngestRecord.builder().uuid(uuid5ForBibResult(resource))
+		IngestRecordBuilder irb =  IngestRecord.builder().uuid(uuid5ForBibResult(resource))
 			.sourceSystem(lms)
 			.sourceRecordId(resource.id())
 			.suppressFromDiscovery(resource.suppressed())
 			.deleted(resource.deleted());
+
+		// log.info("resource id {}",resource.id());
+
+		// If fixedField.get(26) - it's a map with int keys - contains a string "MULTI" then the bib is held at multiple locations
+		if ( resource.fixedFields() != null ) {
+			FixedField location = resource.fixedFields().get(26);
+			// log.info("Got location {}",location);
+			if ( location.getValue() != null ) {
+				if ( location.getValue().toString().equalsIgnoreCase("MULTI")) {
+					// log.info("multi");
+					// The resource is held in multiple locations = SOME of those may be electronic, some may be physical - we need to actually parse the MARC to work out which is which
+				}
+				else {
+					// log.info("Adding single location {}",location.getValue());
+					irb.heldAtLocation(location.getValue().toString());
+				}
+			}
+		}
+
+		return irb;
 	}
 
 	public UUID uuid5ForRawJson(@NotNull final BibResult result) {

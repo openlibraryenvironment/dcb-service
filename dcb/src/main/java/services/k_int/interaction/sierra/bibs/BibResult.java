@@ -14,7 +14,9 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 
 import java.util.Map;
+import java.util.List;
 import services.k_int.interaction.sierra.FixedField;
+import services.k_int.interaction.sierra.VarField;
 
 @Serdeable
 public record BibResult(
@@ -35,6 +37,8 @@ public record BibResult(
 
 	@Nullable Record marc,
 
-	@Nullable Map<Integer, FixedField> fixedFields ) {
+	@Nullable Map<Integer, FixedField> fixedFields,
+
+  @Nullable List<VarField> varFields ) {
 
 }
