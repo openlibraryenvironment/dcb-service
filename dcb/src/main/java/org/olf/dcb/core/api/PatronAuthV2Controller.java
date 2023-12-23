@@ -34,6 +34,13 @@ import java.util.List;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.dcb.core.api.PatronAuthV2Controller.Status.*;
 
+
+/**
+ * BETA Feature: A new way to process authentication requests that encodes the patrons home institution
+ * in their principal identity - which makes the auth payload siginificantly better aligned with most
+ * auth systems and able to pass transparently through (For example) keycloak adapters without needing to
+ * create very specialised identity providers
+ */
 @Validated
 @Secured(SecurityRule.IS_ANONYMOUS)
 @Controller("/v2/patron/auth")
