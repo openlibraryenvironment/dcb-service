@@ -326,15 +326,19 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 			.reduce( new BulkRequest.Builder(), this::addBulkOperation )
 			.flatMap( bops -> Mono.<BulkResponse>create(sink -> {
 					try {
-						client.bulk( bops.index(indexName).build() ).handle((br, ex) -> {
-							if ( ex != null) {
-								sink.error(ex);
-								return ex;
-							}
+						BulkRequest breq = bops.index(indexName).build();
+
+						if ( ! breq.operations().isEmpty() ) {
+							client.bulk( breq ).handle((br, ex) -> {
+								if ( ex != null) {
+									sink.error(ex);
+									return ex;
+								}
 							
-							sink.success(br);
-							return br;
-						});
+								sink.success(br);
+								return br;
+							});
+						}
 					} catch (Exception e) {
 						sink.error(e);
 					}
