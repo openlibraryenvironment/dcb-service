@@ -68,7 +68,7 @@ public class DCBConfigurationService {
 
 	public Mono<ConfigImportResult> importConfiguration(String profile, String url) {
 
-		log.debug("importConfiguration({},{})",profile,url);
+		log.info("importConfiguration({},{})",profile,url);
 
 		return switch ( profile ) {
 			case "numericRangeMappingImport" ->
@@ -79,19 +79,20 @@ public class DCBConfigurationService {
 	}
 
 	private Mono<ConfigImportResult> referenceValueMappingImport(String url) {
-                HttpRequest<?> request = HttpRequest.GET(url);
+		HttpRequest<?> request = HttpRequest.GET(url);
 
-                return Mono.from(httpClient.exchange(request, String.class))
-                                .flatMapMany( this::extractData )
-                                .concatMap( nrmr -> {
-                                        log.debug("Process ref value mapping: {}",nrmr.toString());
-                                        return processReferenceValueMapping(nrmr);
-                                })
-                                .collectList()
-                                .map(recordList -> ConfigImportResult.builder()
-                                        .message("OK")
-                                        .recordsImported(Long.valueOf(recordList.size()))
-                                        .build());
+		return Mono.from(httpClient.exchange(request, String.class))
+			.flatMapMany( this::extractData )
+			.concatMap( nrmr -> {
+				log.debug("Process ref value mapping: {}",nrmr.toString());
+				return processReferenceValueMapping(nrmr);
+			})
+			.collectList()
+			.map(recordList -> ConfigImportResult.builder()
+				.message("OK")
+				.recordsImported(Long.valueOf(recordList.size()))
+				.build())
+			.doOnNext( icr -> log.info("Import completed {}", icr) );
 	}
 
 	// Below are the override methods for uploaded mappings.
@@ -307,10 +308,11 @@ public class DCBConfigurationService {
 					return processNumericRangeMapping(nrmr);
 				})
 				.collectList()
-                                .map(recordList -> ConfigImportResult.builder()
-                                        .message("OK")
-                                        .recordsImported(Long.valueOf(recordList.size()))
-                                        .build());
+				.map(recordList -> ConfigImportResult.builder()
+					.message("OK")
+					.recordsImported(Long.valueOf(recordList.size()))
+					.build())
+				.doOnNext( cir -> log.info("Completed numeric range mapping import {}",cir));
 	}
 
 	private Publisher<String[]> extractData(HttpResponse<String> httpResponse) {

@@ -118,7 +118,7 @@ public class AdminController {
 	@Secured({ "ADMIN" })
 	@Post(uri = "/cfg", produces = APPLICATION_JSON)
 	public Mono<ConfigImportResult> importCfg(@Body @Valid ImportCommand ic) {
-		log.debug("Import configuration {}", ic);
+		log.info("Import configuration request {}", ic);
 		return configurationService.importConfiguration(ic.getProfile(), ic.getUrl());
 	}
 
