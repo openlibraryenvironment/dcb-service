@@ -81,6 +81,8 @@ public class DCBConfigurationService {
 	private Mono<ConfigImportResult> referenceValueMappingImport(String url) {
 		HttpRequest<?> request = HttpRequest.GET(url);
 
+		long start_time = System.currentTimeMillis();
+
 		return Mono.from(httpClient.exchange(request, String.class))
 			.flatMapMany( this::extractData )
 			.concatMap( nrmr -> {
@@ -91,6 +93,7 @@ public class DCBConfigurationService {
 			.map(recordList -> ConfigImportResult.builder()
 				.message("OK")
 				.recordsImported(Long.valueOf(recordList.size()))
+				.elapsed(System.currentTimeMillis() - start_time)
 				.build())
 			.doOnNext( icr -> log.info("Import completed {}", icr) );
 	}
@@ -301,6 +304,8 @@ public class DCBConfigurationService {
 
 		HttpRequest<?> request = HttpRequest.GET(url);
 
+		long start_time = System.currentTimeMillis();
+
 		return Mono.from(httpClient.exchange(request, String.class))
 				.flatMapMany( this::extractData )
 				.concatMap( nrmr -> {
@@ -311,6 +316,7 @@ public class DCBConfigurationService {
 				.map(recordList -> ConfigImportResult.builder()
 					.message("OK")
 					.recordsImported(Long.valueOf(recordList.size()))
+					.elapsed(System.currentTimeMillis() - start_time)
 					.build())
 				.doOnNext( cir -> log.info("Completed numeric range mapping import {}",cir));
 	}
@@ -365,6 +371,7 @@ public class DCBConfigurationService {
 	public static class ConfigImportResult {
 		String message;
 		Long recordsImported;
+		Long elapsed;
 	}
 
 	@Data

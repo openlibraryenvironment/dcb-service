@@ -35,6 +35,6 @@ public record BibResult(
 
 	@Nullable Record marc,
 
-	@Nullable Map<Integer, FixedField> fixedFields) {
+	@Nullable Map<Integer, FixedField> fixedFields ) {
 
 }

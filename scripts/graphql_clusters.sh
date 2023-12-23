@@ -4,6 +4,7 @@
 TARGET="http://localhost:8080"
 
 TOKEN=`./login`
+# "lq" : "title:*irm*"
 
 echo List clusters
 echo
@@ -11,7 +12,7 @@ echo
 curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "$TARGET/graphql" -d '{ 
   "query": "query($lq: String) { instanceClusters(query: $lq) { totalSize, pageable { number, offset }, content { id, title, members { id, title, canonicalMetadata, sourceRecord { id, json } } } } }",
   "variables": {
-    "lq" : "title:*irm*"
+    "lq" : "title:*"
   }
 }' | jq
 echo

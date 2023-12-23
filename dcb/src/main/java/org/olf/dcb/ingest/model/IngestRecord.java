@@ -75,8 +75,12 @@ public class IngestRecord implements CoreBibliographicMetadata {
 	Map<String, Object> canonicalMetadata;
 	
 	@Nullable
-        Integer metadataScore;
+  Integer metadataScore;
 
+	// Some bib records can give us an indication of where the items are held (E.g. Sierra fixed field 026 and Variable field LOCATIONS)
+	// This field lets us communicate those values downstream
+	@Singular
+	Set<String> heldAtLocations;
 
 //  @Nullable String edition();
 //  List<PublicationInformation> publicationInformation();
