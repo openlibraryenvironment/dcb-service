@@ -443,7 +443,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		final var patronValidationRequest = PatronValidation.builder()
 			.barcode(principal)
 			.pin(pin)
-			.caseSensitivity(Boolean.TRUE)
+			.caseSensitivity(Boolean.FALSE)
 			.build();
 
 		log.info("Attempt client patron validation : {}", patronValidationRequest);
