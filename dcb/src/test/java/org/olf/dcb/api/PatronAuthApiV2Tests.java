@@ -115,6 +115,7 @@ public class PatronAuthApiV2Tests {
 
 		VerificationResponse verificationResponse = response.getBody().get();
 		assertThat(verificationResponse.status, is("VALID"));
+		assertThat(verificationResponse.username, is("ab7/3100222227777"));
 		assertThat(verificationResponse.localPatronId.get(0), is("1000002"));
 		assertThat(verificationResponse.agencyCode, is("ab7"));
 		assertThat(verificationResponse.systemCode, is("patron-auth-api-tests"));
@@ -135,6 +136,7 @@ public class PatronAuthApiV2Tests {
 	@Builder
 	public static class VerificationResponse {
 		String status;
+		String username;
 		@Nullable List<String> localPatronId;
 		@Nullable String agencyCode;
 		@Nullable String systemCode;
