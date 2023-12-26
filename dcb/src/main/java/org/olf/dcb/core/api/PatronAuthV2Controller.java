@@ -185,6 +185,8 @@ public class PatronAuthV2Controller {
 			.flatMap(hostLmsClient -> hostLmsClient.getPatronByUsername( username ))
 			.map(patron -> LocalPatronDetails.builder()
 				.status(VALID)
+        .id(patron.getLocalId().get(0))
+        .username(username)
 				.localPatronId(patron.getLocalId())
 				.agencyCode(agency.getCode())
 				.systemCode(agency.getHostLms().code)
