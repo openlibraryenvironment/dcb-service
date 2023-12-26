@@ -105,7 +105,7 @@ public class PatronAuthV2Controller {
 				.status(VALID)
 				.id(patron.getLocalId().get(0))
 				.username(creds.getPrincipal())
-				.localPatronId(patron.getLocalId())
+        .uniqueIds(patron.getLocalId())
 				.agencyCode(agency.getCode())
 				.systemCode(agency.getHostLms().code)
 				.homeLocationCode(patron.getLocalHomeLibraryCode())
@@ -137,10 +137,14 @@ public class PatronAuthV2Controller {
 		String id;
 		String username;
 		Status status;
-		List<String> localPatronId;
 		String agencyCode;
 		String systemCode;
 		String homeLocationCode;
+
+		List<String> barcodes;
+		List<String> uniqueIds;
+		List<String> nameParts;
+
 		private boolean isValid() {
 			return VALID.equals(status);
 		}
@@ -188,7 +192,7 @@ public class PatronAuthV2Controller {
         .id(patron.getLocalId().get(0))
 				// we return the username as it is known outside the DCB boundary - I.E. AGENCY/username 
         .username(creds.getPrincipal())
-				.localPatronId(patron.getLocalId())
+        .uniqueIds(patron.getLocalId())
 				.agencyCode(agency.getCode())
 				.systemCode(agency.getHostLms().code)
 				.homeLocationCode(patron.getLocalHomeLibraryCode())
