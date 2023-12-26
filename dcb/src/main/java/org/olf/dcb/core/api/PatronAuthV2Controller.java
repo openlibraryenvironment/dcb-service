@@ -104,7 +104,7 @@ public class PatronAuthV2Controller {
 			.map(patron -> LocalPatronDetails.builder()
 				.status(VALID)
 				.id(patron.getLocalId().get(0))
-				.username(username)
+				.username(creds.getPrincipal())
 				.localPatronId(patron.getLocalId())
 				.agencyCode(agency.getCode())
 				.systemCode(agency.getHostLms().code)
