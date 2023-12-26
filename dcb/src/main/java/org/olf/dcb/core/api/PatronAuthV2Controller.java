@@ -103,6 +103,8 @@ public class PatronAuthV2Controller {
 			.flatMap(hostLmsClient -> hostLmsClient.patronAuth( agency.getAuthProfile(), username, creds.getCredentials()))
 			.map(patron -> LocalPatronDetails.builder()
 				.status(VALID)
+				.id(patron.getLocalId().get(0))
+				.username(username)
 				.localPatronId(patron.getLocalId())
 				.agencyCode(agency.getCode())
 				.systemCode(agency.getHostLms().code)
@@ -132,6 +134,8 @@ public class PatronAuthV2Controller {
 	@AllArgsConstructor
 	@Serdeable
 	public static class LocalPatronDetails {
+		String id;
+		String username;
 		Status status;
 		List<String> localPatronId;
 		String agencyCode;
