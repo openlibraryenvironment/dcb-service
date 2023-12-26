@@ -82,6 +82,9 @@ public class PatronAuthV2Controller {
 	public Mono<HttpResponse<LocalPatronDetails>> patronAuth(@Body @Valid V2PatronCredentials request) {
 		log.info("RESTv2, verify patron {}", request);
 
+		if ( ( request.getPrincipal() == null ) || ( request.getPrincipal().length() < 1 ) || ( request.getPrincipal().indexOf('/') == -1 ) )
+			return Mono.empty();
+
 		String[] principalComponents = request.getPrincipal().split("/");
 		String agencyCode = principalComponents[0];
 		String username = principalComponents[1];
