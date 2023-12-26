@@ -186,7 +186,8 @@ public class PatronAuthV2Controller {
 			.map(patron -> LocalPatronDetails.builder()
 				.status(VALID)
         .id(patron.getLocalId().get(0))
-        .username(username)
+				// we return the username as it is known outside the DCB boundary - I.E. AGENCY/username 
+        .username(creds.getPrincipal())
 				.localPatronId(patron.getLocalId())
 				.agencyCode(agency.getCode())
 				.systemCode(agency.getHostLms().code)
