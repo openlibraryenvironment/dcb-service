@@ -63,6 +63,8 @@ public class PatronAuthV2Controller {
 		this.hostLmsRepository = hostLmsRepository;
 	}
 
+  // API Is available to users with role ADMIN or INTERNAL_API
+ 	@Secured({ "ADMIN", "INTERNAL_API" })
 	@Post(consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
 	@Operation(
 		summary = "Verify Patron Credentials",
@@ -150,7 +152,7 @@ public class PatronAuthV2Controller {
 	/**
  	 * A secured endpoint to look up a user record by their ID in a remote system.
 	 */
- 	@Secured({ "ADMIN" })
+ 	@Secured({ "ADMIN", "INTERNAL_API" })
  	@Post(value="/lookup", consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
 	public Mono<HttpResponse<LocalPatronDetails>> getUserByLocalPrincipal(@Body @Valid V2PatronCredentials c) {
 
