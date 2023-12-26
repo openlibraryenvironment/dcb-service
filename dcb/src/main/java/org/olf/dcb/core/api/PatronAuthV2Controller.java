@@ -78,9 +78,9 @@ public class PatronAuthV2Controller {
 			required = true
 		))
 	public Mono<HttpResponse<LocalPatronDetails>> patronAuth(@Body @Valid V2PatronCredentials request) {
-		log.info("REST, verify patron {}", request);
-		String[] principalComponents = request.getPrincipal().split("/");
+		log.info("RESTv2, verify patron {}", request);
 
+		String[] principalComponents = request.getPrincipal().split("/");
 		String agencyCode = principalComponents[0];
 		String username = principalComponents[1];
 
@@ -151,7 +151,7 @@ public class PatronAuthV2Controller {
  	 * A secured endpoint to look up a user record by their ID in a remote system.
 	 */
  	@Secured({ "ADMIN" })
- 	@Post(uri="/lookup", consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
+ 	@Post(value="/lookup", consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
 	public Mono<HttpResponse<LocalPatronDetails>> getUserByLocalPrincipal(@Body @Valid V2PatronCredentials c) {
 
 		log.info("PatronAuthController::getUserByLocalPrincipal({})",c);
