@@ -94,6 +94,14 @@ public class SierraPatronsAPIFixture {
 			.respond(successfulPatron());
 	}
 
+	public void verifyUpdatePatronRequestMade(String expectedPatronId) {
+		mockServer.verify(putPatron(expectedPatronId), once());
+	}
+
+	private RequestDefinition putPatron(String patronId) {
+		return sierraMockServerRequests.put("/" + patronId);
+	}
+
 	public void patronResponseForUniqueId(String tag, String content) {
 		mockServer
 			.when(findPatron(tag, content))
@@ -236,10 +244,6 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerRequests.get("/" + patronId);
 	}
 
-	private RequestDefinition putPatron(String patronId) {
-		return sierraMockServerRequests.put("/" + patronId);
-	}
-
 	private HttpResponse sierraPatronRecord(String patronId) {
 		return sierraMockServerResponses.jsonSuccess("patrons/patron/"+ patronId +".json");
 	}
@@ -254,6 +258,7 @@ public class SierraPatronsAPIFixture {
 				.names(List.of("Bob"))
 				.build());
 	}
+
 
 	@Data
 	@Serdeable

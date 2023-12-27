@@ -7,7 +7,6 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockserver.model.HttpRequest.request;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 
@@ -140,6 +139,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertSuccessfulTransitionAudit(pr);
 
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("872321@ab6");
+		sierraPatronsAPIFixture.verifyUpdatePatronRequestMade("1000002");
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
