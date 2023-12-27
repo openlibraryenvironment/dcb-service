@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.sierra;
 
 import static org.mockserver.model.JsonBody.json;
+import static org.mockserver.verify.VerificationTimes.once;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -111,6 +112,16 @@ public class SierraPatronsAPIFixture {
 			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
+	public void verifyFindPatronRequestMade(String expectedVarFieldContent) {
+		mockServer.verify(findPatron("u", expectedVarFieldContent), once());
+	}
+
+	private HttpRequest findPatron(String tag, String content) {
+		return sierraMockServerRequests.get("/find")
+			.withQueryStringParameter("varFieldTag", tag)
+			.withQueryStringParameter("varFieldContent", content);
+	}
+
 	public void patronHoldRequestResponse(String patronId,
 		String expectedRecordType, Integer expectedRecordNumber) {
 
@@ -205,12 +216,6 @@ public class SierraPatronsAPIFixture {
 			.build();
 
 		return sierraMockServerRequests.post(patronPatch);
-	}
-
-	private HttpRequest findPatron(String tag, String content) {
-		return sierraMockServerRequests.get("/find")
-			.withQueryStringParameter("varFieldTag", tag)
-			.withQueryStringParameter("varFieldContent", content);
 	}
 
 	private HttpRequest postPatronHoldRequest(String patronId,

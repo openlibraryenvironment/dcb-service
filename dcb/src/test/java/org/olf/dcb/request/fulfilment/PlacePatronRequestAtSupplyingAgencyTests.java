@@ -8,7 +8,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpRequest.request;
-import static org.mockserver.verify.VerificationTimes.once;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 
@@ -109,7 +108,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 	@DisplayName("patron is known to supplier and places patron request with the unexpected patron type")
 	@Test
-	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithAnUnexpectedPtype(MockServerClient mockServerClient) {
+	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithAnUnexpectedPtype() {
 		// Arrange
 
 		final var localId = "872321";
@@ -140,12 +139,12 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		assertSuccessfulTransitionAudit(pr);
 
-		verifyFindPatronRequestMade(mockServerClient, "872321@ab6");
+		sierraPatronsAPIFixture.verifyFindPatronRequestMade("872321@ab6");
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
 	@Test
-	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithTheExpectedPtype(MockServerClient mockServerClient) {
+	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithTheExpectedPtype() {
 		// Arrange
 		final var localId = "32453";
 		final var patronRequestId = randomUUID();
@@ -173,12 +172,13 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		assertSuccessfulTransitionAudit(pr);
 
-		verifyFindPatronRequestMade(mockServerClient, "32453@ab6");
+		sierraPatronsAPIFixture.verifyFindPatronRequestMade("32453@ab6"
+		);
 	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
 	@Test
-	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsNotKnownToSupplier(MockServerClient mockServerClient) {
+	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsNotKnownToSupplier() {
 		// Arrange
 		final var localId = "546730";
 		final var patronRequestId = randomUUID();
@@ -208,7 +208,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		assertSuccessfulTransitionAudit(pr);
 
-		verifyFindPatronRequestMade(mockServerClient, "546730@ab6");
+		sierraPatronsAPIFixture.verifyFindPatronRequestMade("546730@ab6"
+		);
 	}
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")
@@ -374,13 +375,4 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "123456", "ab6");
 	}
 
-	private static MockServerClient verifyFindPatronRequestMade(
-		MockServerClient mockServerClient, String expectedVarFieldContent) {
-
-		return mockServerClient.verify(
-			request()
-				.withPath("/iii/sierra-api/v6/patrons/find")
-				.withQueryStringParameter("varFieldContent", expectedVarFieldContent),
-			once());
-	}
 }
