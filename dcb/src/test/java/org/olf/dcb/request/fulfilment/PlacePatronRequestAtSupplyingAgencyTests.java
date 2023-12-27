@@ -12,7 +12,6 @@ import static org.mockserver.verify.VerificationTimes.once;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 
-import java.util.Arrays;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -141,11 +140,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		assertSuccessfulTransitionAudit(pr);
 
-		mockServerClient.verify(
-			request()
-				.withPath("/iii/sierra-api/v6/patrons/find")
-				.withQueryStringParameter("varFieldContent", "872321@ab6"),
-			once());
+		verifyFindPatronRequestMade(mockServerClient, "872321@ab6");
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
@@ -178,11 +173,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		assertSuccessfulTransitionAudit(pr);
 
-		mockServerClient.verify(
-			request()
-				.withPath("/iii/sierra-api/v6/patrons/find")
-				.withQueryStringParameter("varFieldContent", "32453@ab6"),
-			once());
+		verifyFindPatronRequestMade(mockServerClient, "32453@ab6");
 	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
@@ -217,11 +208,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		assertSuccessfulTransitionAudit(pr);
 
-		mockServerClient.verify(
-			request()
-				.withPath("/iii/sierra-api/v6/patrons/find")
-				.withQueryStringParameter("varFieldContent", "546730@ab6"),
-			once());
+		verifyFindPatronRequestMade(mockServerClient, "546730@ab6");
 	}
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")
@@ -385,5 +372,15 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	private void saveHomeLibraryMappings() {
 		// Tell systems how to convert supplying-agency-service-tests:123456 to ab6
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "123456", "ab6");
+	}
+
+	private static MockServerClient verifyFindPatronRequestMade(
+		MockServerClient mockServerClient, String expectedVarFieldContent) {
+
+		return mockServerClient.verify(
+			request()
+				.withPath("/iii/sierra-api/v6/patrons/find")
+				.withQueryStringParameter("varFieldContent", expectedVarFieldContent),
+			once());
 	}
 }
