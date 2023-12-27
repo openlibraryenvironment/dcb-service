@@ -249,6 +249,13 @@ public class RequestWorkflowContextHelper {
 			.flatMap ( agencyId -> Mono.from(agencyRepository.findById(agencyId)));
 	}
 
+	// Attempt to look up a data agency using the pickup location mappings instead of a direct reference
+	private Mono<DataAgency> getAgencyFromPickupLocationMappingTable(String pickupSymbolContext, String pickupSymbol) {
+		return agencyForPickupLocationSymbol(pickupSymbolContext, pickupSymbol)
+      .switchIfEmpty(Mono.error(new RuntimeException("RWCH No mapping found for pickup location \""+pickupSymbolContext+":"+pickupSymbol+"\"")))
+      .flatMap(rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } );
+	}
+
 	private Mono<ReferenceValueMapping> agencyForPickupLocationSymbol(String pickupSymbolNamespace, String symbol) {
 		if ( ( pickupSymbolNamespace != null ) && ( symbol != null ) ) {
       return locationToAgencyMappingService.findLocationToAgencyMapping(pickupSymbolNamespace,symbol);
