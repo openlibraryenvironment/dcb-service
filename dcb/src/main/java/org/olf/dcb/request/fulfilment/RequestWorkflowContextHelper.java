@@ -3,6 +3,7 @@ package org.olf.dcb.request.fulfilment;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -42,7 +43,8 @@ public class RequestWorkflowContextHelper {
 		PatronRequestRepository patronRequestRepository,
 		PatronIdentityRepository patronIdentityRepository,
 		LocationRepository locationRepository,
-		AgencyRepository agencyRepository, PatronRepository patronRepository) {
+		AgencyRepository agencyRepository, 
+		PatronRepository patronRepository) {
 
 		this.supplierRequestService = supplierRequestService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
@@ -203,48 +205,59 @@ public class RequestWorkflowContextHelper {
 	// it is tempting to think that resolving patron and lending systems could be coalesced into a single function, but
 	// this is problematic due to the semantic difference. Please think carefully before attempting this (Desireable) consolidation
 	private Mono<RequestWorkflowContext> resolvePickupLocationAgency(RequestWorkflowContext ctx) {
-		log.debug("resolvePickupLocationAgency");
-                // ToDo: WARNING - this is a short term bridge - for the "2-legged" scenario - we default the context of the pickup location code to the
-                // System of the patron - assuming the patron will pick up from one of their "Local" libraries. This will NOT work for PUA requests
-                // We set pickupSymbolContext to the explicit code in the patron request - if it's not there we fall back to the patrons home system code
-                String pickupSymbolContext = ctx.getPatronRequest().getPickupLocationCodeContext();
-                if ( pickupSymbolContext == null )
-                        pickupSymbolContext = ctx.getPatronRequest().getPatronHostlmsCode();
+		log.info("resolvePickupLocationAgency ctx={} code={} hostLms={}",
+			ctx.getPatronRequest().getPickupLocationCodeContext(),
+			ctx.getPatronRequest().getPickupLocationCode(),
+			ctx.getPatronRequest().getPatronHostlmsCode());
 
-                String pickupSymbol = ctx.getPatronRequest().getPickupLocationCode();
+		// ToDo: WARNING - this is a short term bridge - for the "2-legged" scenario - we default the context of the pickup location code to the
+		// System of the patron - assuming the patron will pick up from one of their "Local" libraries. This will NOT work for PUA requests
+		// We set pickupSymbolContext to the explicit code in the patron request - if it's not there we fall back to the patrons home system code
+		String pickupSymbolContext = ctx.getPatronRequest().getPickupLocationCodeContext();
+
+		if ( pickupSymbolContext == null )
+			pickupSymbolContext = ctx.getPatronRequest().getPatronHostlmsCode();
+
+		String pickupSymbol = ctx.getPatronRequest().getPickupLocationCode();
 
 		if ( pickupSymbol.length() == 36 ) {
 			final String pcs2 = pickupSymbolContext;
 			// We've been passed a UUID in the pickup location symbol... try to unpick that
 			// Convert the location UUID into a location, extract the code, find the agency for that code and context
 			return Mono.from(locationRepository.findById(UUID.fromString(pickupSymbol)))
-				.flatMap( loc -> { return Mono.from(agencyForPickupLocationSymbol(pcs2, loc.getCode())); } )
-				.flatMap( rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } )
-                        	.flatMap(pickupAgency -> { return Mono.just(ctx.setPickupAgency(pickupAgency)); } )
-                        	.flatMap(ctx2 -> { return Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())); } )
-                        	.flatMap(ctx2 -> { return Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())); } )
-                        	;
+					.flatMap( loc -> { return Mono.from(agencyForPickupLocationSymbol(pcs2, loc.getCode())); } )
+					.flatMap( rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } )
+          .flatMap(pickupAgency -> { return Mono.just(ctx.setPickupAgency(pickupAgency)); } )
+          .flatMap(ctx2 -> { return Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())); } )
+          .flatMap(ctx2 -> { return Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())); } )
+          ;
 		}
 
-                return agencyForPickupLocationSymbol(pickupSymbolContext, pickupSymbol)
-                        .switchIfEmpty(Mono.error(new RuntimeException("RWCH No mapping found for pickup location \""+pickupSymbolContext+":"+pickupSymbol+"\""))) 
-                        .flatMap(rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } )
-                        .flatMap(pickupAgency -> { return Mono.just(ctx.setPickupAgency(pickupAgency)); } )
-                        .flatMap(ctx2 -> { return Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())); } )
-                        .flatMap(ctx2 -> { return Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())); } )
-                        ;
-        }
+		return agencyForPickupLocationSymbol(pickupSymbolContext, pickupSymbol)
+			.switchIfEmpty(Mono.error(new RuntimeException("RWCH No mapping found for pickup location \""+pickupSymbolContext+":"+pickupSymbol+"\""))) 
+			.flatMap(rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } )
+			.flatMap(pickupAgency -> { return Mono.just(ctx.setPickupAgency(pickupAgency)); } )
+			.flatMap(ctx2 -> { return Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())); } )
+			.flatMap(ctx2 -> { return Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())); } )
+			;
+	}
 
-        private Mono<ReferenceValueMapping> agencyForPickupLocationSymbol(String pickupSymbolNamespace, String symbol) {
-                if ( ( pickupSymbolNamespace != null ) && ( symbol != null ) ) {
-                        return locationToAgencyMappingService.findLocationToAgencyMapping(pickupSymbolNamespace,symbol);
-                }
-                else if ( symbol != null ) {
-                        return agencyForPickupLocationSymbol(symbol);
-                }
+	// If an agency has been directly attached to the location then return it by just walking the model
+	private Mono<DataAgency> getAgencyDirectlyFromLocation(Location l) {
+		return Mono.just(l.getAgency())
+			.flatMap ( agency -> Mono.just(agency.getId()) )
+			.flatMap ( agencyId -> Mono.from(agencyRepository.findById(agencyId)));
+	}
 
-                return Mono.error(new RuntimeException("No pickup location code present"));
-        }
+	private Mono<ReferenceValueMapping> agencyForPickupLocationSymbol(String pickupSymbolNamespace, String symbol) {
+		if ( ( pickupSymbolNamespace != null ) && ( symbol != null ) ) {
+      return locationToAgencyMappingService.findLocationToAgencyMapping(pickupSymbolNamespace,symbol);
+		}
+		else if ( symbol != null ) {
+			return agencyForPickupLocationSymbol(symbol);
+		}
+		return Mono.error(new RuntimeException("No pickup location code present"));
+	}
 
         private Mono<ReferenceValueMapping> agencyForPickupLocationSymbol(String symbol) {
                 String[] symbol_components = symbol.split(":");
