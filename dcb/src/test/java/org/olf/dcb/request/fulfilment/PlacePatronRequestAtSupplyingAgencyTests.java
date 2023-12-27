@@ -172,8 +172,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		assertSuccessfulTransitionAudit(pr);
 
-		sierraPatronsAPIFixture.verifyFindPatronRequestMade("32453@ab6"
-		);
+		sierraPatronsAPIFixture.verifyFindPatronRequestMade("32453@ab6");
+		sierraPatronsAPIFixture.verifyUpdatePatronRequestNotMade("1000002");
 	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
@@ -208,8 +208,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		assertSuccessfulTransitionAudit(pr);
 
-		sierraPatronsAPIFixture.verifyFindPatronRequestMade("546730@ab6"
-		);
+		sierraPatronsAPIFixture.verifyFindPatronRequestMade("546730@ab6");
 	}
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")

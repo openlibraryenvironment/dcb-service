@@ -1,6 +1,8 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import static java.util.Arrays.asList;
 import static org.mockserver.model.JsonBody.json;
+import static org.mockserver.verify.VerificationTimes.never;
 import static org.mockserver.verify.VerificationTimes.once;
 
 import java.util.ArrayList;
@@ -11,13 +13,16 @@ import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.mockserver.model.JsonBody;
 import org.mockserver.model.RequestDefinition;
+import org.mockserver.verify.VerificationTimes;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @AllArgsConstructor
 public class SierraPatronsAPIFixture {
 	private final MockServerClient mockServer;
@@ -95,7 +100,20 @@ public class SierraPatronsAPIFixture {
 	}
 
 	public void verifyUpdatePatronRequestMade(String expectedPatronId) {
-		mockServer.verify(putPatron(expectedPatronId), once());
+		verifyUpdatePatronRequest(expectedPatronId, once());
+	}
+
+	public void verifyUpdatePatronRequestNotMade(String expectedPatronId) {
+		verifyUpdatePatronRequest(expectedPatronId, never());
+	}
+
+	private void verifyUpdatePatronRequest(String expectedPatronId, VerificationTimes times) {
+		final var updateRequest = putPatron(expectedPatronId);
+
+		log.info("Update patron requests recorded: {}",
+			asList(mockServer.retrieveRecordedRequests(updateRequest)));
+
+		mockServer.verify(updateRequest, times);
 	}
 
 	private RequestDefinition putPatron(String patronId) {
