@@ -38,10 +38,13 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 
 		String pickupLocationCode = command.getPickupLocationCode();
 
-		// return getAgencyForPickupLocation(pickupLocationCode)
-		// 	.map( agency -> CheckResult.passed() )
-		// 	.defaultIfEmpty("Pickup location \"" + pickupLocationCode + "\" is not mapped to an agency")
-		// 	.map(List::of);
+
+		if ( 1==1 ) {
+			return getAgencyForPickupLocation(pickupLocationCode)
+				.map( agency -> CheckResult.passed() )
+				.defaultIfEmpty(CheckResult.failed("Pickup location \"" + pickupLocationCode + "\" is not mapped to an agency"))
+				.map(List::of);
+		}
 
 		return checkMapping(command)
 			.flatMap(function(this::checkAgencyWhenPreviousCheckPassed))
