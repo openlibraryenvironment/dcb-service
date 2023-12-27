@@ -4,6 +4,7 @@ import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.AgencyService;
@@ -37,6 +38,13 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 		return checkMapping(command)
 			.flatMap(function(this::checkAgencyWhenPreviousCheckPassed))
 			.map(List::of);
+	}
+
+	private Mono<DataAgency> getAgencyForPickupLocation(String locationCode) {
+		return locationService.findById(locationCode)
+			.map( location -> location.getAgency() )
+			.map( agency -> agency.getId() )
+			.flatMap ( agencyId -> agencyService.findById(agencyId) );
 	}
 
 	private Mono<Tuple3<CheckResult, String, String>> checkMapping(PlacePatronRequestCommand command) {
