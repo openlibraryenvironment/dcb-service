@@ -1,13 +1,18 @@
 package org.olf.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockserver.model.HttpRequest.request;
+import static org.mockserver.verify.VerificationTimes.once;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -30,16 +35,16 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
+import org.zalando.problem.DefaultProblem;
 
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
-import org.zalando.problem.DefaultProblem;
-
+@Slf4j
 @MockServerMicronautTest
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 class PlacePatronRequestAtSupplyingAgencyTests {
 	private static final String HOST_LMS_CODE = "supplying-agency-service-tests";
 	private static final String INVALID_HOLD_POLICY_HOST_LMS_CODE = "invalid-hold-policy";
@@ -105,8 +110,9 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 	@DisplayName("patron is known to supplier and places patron request with the unexpected patron type")
 	@Test
-	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithAnUnexpectedPtype() {
+	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithAnUnexpectedPtype(MockServerClient mockServerClient) {
 		// Arrange
+
 		final var localId = "872321";
 		final var patronRequestId = randomUUID();
 		final var clusterRecordId = createClusterRecord();
@@ -117,7 +123,6 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		// sierraPatronsAPIFixture.patronResponseForUniqueId("872321@123456");
 		// sierraPatronsAPIFixture.patronResponseForUniqueId("u", "DCB:872321@ab6");
 		sierraPatronsAPIFixture.patronResponseForUniqueId("u", "872321@ab6");
-
 
 		// The unexpected Ptype will use this mock to update the virtual patron
 		sierraPatronsAPIFixture.updatePatron("1000002");
@@ -132,13 +137,20 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
-		assertThat("Status wasn't expected.", pr.getStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		assertThat("Status wasn't expected.", pr.getStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+
 		assertSuccessfulTransitionAudit(pr);
+
+		mockServerClient.verify(
+			request()
+				.withPath("/iii/sierra-api/v6/patrons/find")
+				.withQueryStringParameter("varFieldContent", "872321@ab6"),
+			once());
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
 	@Test
-	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithTheExpectedPtype() {
+	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithTheExpectedPtype(MockServerClient mockServerClient) {
 		// Arrange
 		final var localId = "32453";
 		final var patronRequestId = randomUUID();
@@ -162,14 +174,20 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
-		assertThat("Status wasn't expected.", pr.getStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		assertThat("Status wasn't expected.", pr.getStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 
 		assertSuccessfulTransitionAudit(pr);
+
+		mockServerClient.verify(
+			request()
+				.withPath("/iii/sierra-api/v6/patrons/find")
+				.withQueryStringParameter("varFieldContent", "32453@ab6"),
+			once());
 	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
 	@Test
-	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsNotKnownToSupplier() {
+	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsNotKnownToSupplier(MockServerClient mockServerClient) {
 		// Arrange
 		final var localId = "546730";
 		final var patronRequestId = randomUUID();
@@ -195,8 +213,15 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		// Assert
 		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
-		assertThat("Status wasn't expected.", pr.getStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		assertThat("Status wasn't expected.", pr.getStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+
 		assertSuccessfulTransitionAudit(pr);
+
+		mockServerClient.verify(
+			request()
+				.withPath("/iii/sierra-api/v6/patrons/find")
+				.withQueryStringParameter("varFieldContent", "546730@ab6"),
+			once());
 	}
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")
@@ -283,7 +308,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertThat("Patron Request audit should have from state",
 			fetchedAudit.getFromStatus(), is(Status.RESOLVED));
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 	}
 
 	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
