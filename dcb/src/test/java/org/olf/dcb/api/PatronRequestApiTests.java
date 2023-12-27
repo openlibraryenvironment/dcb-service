@@ -166,6 +166,9 @@ class PatronRequestApiTests {
 
 		sierraPatronsAPIFixture.addPatronGetExpectation("43546");
 		sierraPatronsAPIFixture.addPatronGetExpectation(KNOWN_PATRON_LOCAL_ID);
+
+		// AGENCY1 has 1 PICKUP location of PICKUP_LOCATION_CODE (ABC123)
+		locationFixture.createPickupLocation(UUID.fromString("0f102b5a-e300-41c8-9aca-afd170e17921"), PICKUP_LOCATION_CODE, PICKUP_LOCATION_CODE, da);
 	}
 
 	@BeforeEach
@@ -185,7 +188,6 @@ class PatronRequestApiTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping( HOST_LMS_CODE, "tstce", SUPPLYING_LOCATION_CODE);
 		referenceValueMappingFixture.defineLocationToAgencyMapping( HOST_LMS_CODE, "tstr", SUPPLYING_LOCATION_CODE);
 
-		locationFixture.createPickupLocation(PICKUP_LOCATION_CODE, PICKUP_LOCATION_CODE);
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, PICKUP_LOCATION_CODE, "AGENCY1");
 		referenceValueMappingFixture.defineLocationToAgencyMapping(PICKUP_LOCATION_CODE, "AGENCY1");
 	}
