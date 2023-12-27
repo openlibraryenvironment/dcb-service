@@ -35,9 +35,17 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
+
+		String pickupLocationCode = command.getPickupLocationCode();
+
+		// return getAgencyForPickupLocation(pickupLocationCode)
+		// 	.map( agency -> CheckResult.passed() )
+		// 	.defaultIfEmpty("Pickup location \"" + pickupLocationCode + "\" is not mapped to an agency")
+		// 	.map(List::of);
+
 		return checkMapping(command)
 			.flatMap(function(this::checkAgencyWhenPreviousCheckPassed))
-			.map(List::of);
+		 	.map(List::of);
 	}
 
 	private Mono<DataAgency> getAgencyForPickupLocation(String locationCode) {
