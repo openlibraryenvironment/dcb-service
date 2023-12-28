@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 
 import java.util.UUID;
 
@@ -23,7 +24,6 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtSupplyingAgencyStateTransition;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -109,20 +109,19 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	@Test
 	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithAnUnexpectedPtype() {
 		// Arrange
-
 		final var localId = "872321";
 		final var patronRequestId = randomUUID();
 		final var clusterRecordId = createClusterRecord();
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var patron = createPatron(localId, hostLms);
-		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
-		saveSupplierRequest(patronRequest, hostLms.code);
-		// sierraPatronsAPIFixture.patronResponseForUniqueId("872321@123456");
-		// sierraPatronsAPIFixture.patronResponseForUniqueId("u", "DCB:872321@ab6");
+		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
+		saveSupplierRequest(patronRequest, hostLms.getCode());
+
 		sierraPatronsAPIFixture.patronResponseForUniqueId("u", "872321@ab6");
 
-		// The unexpected Ptype will use this mock to update the virtual patron
+		// The unexpected patron type will trigger a request to update the virtual patron
 		sierraPatronsAPIFixture.updatePatron("1000002");
+
 		sierraPatronsAPIFixture.patronHoldResponse("1000002",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
 			"Consortial Hold. tno="+patronRequest.getId());
@@ -152,10 +151,9 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var clusterRecordId = createClusterRecord();
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var patron = createPatron(localId, hostLms);
-		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
-		saveSupplierRequest(patronRequest, hostLms.code);
-		// sierraPatronsAPIFixture.patronResponseForUniqueIdExpectedPtype("32453@123456");
-		// sierraPatronsAPIFixture.patronResponseForUniqueIdExpectedPtype("u", "DCB:32453@ab6");
+		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
+		saveSupplierRequest(patronRequest, hostLms.getCode());
+
 		sierraPatronsAPIFixture.patronResponseForUniqueIdExpectedPtype("u", "32453@ab6");
 
 		sierraPatronsAPIFixture.patronHoldResponse("1000002",
@@ -187,13 +185,10 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var clusterRecordId = createClusterRecord();
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var patron = createPatron(localId, hostLms);
-		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
-		saveSupplierRequest(patronRequest, hostLms.code);
-		// sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("546730@123456");
-		// sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "DCB:546730@ab6");
+		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
+		saveSupplierRequest(patronRequest, hostLms.getCode());
+
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "546730@ab6");
-		// sierraPatronsAPIFixture.postPatronResponse("546730@123456", 1000003);
-		// sierraPatronsAPIFixture.postPatronResponse("DCB:546730@ab6", 1000003);
 		sierraPatronsAPIFixture.postPatronResponse("546730@ab6", 1000003);
 		sierraPatronsAPIFixture.patronHoldResponse("1000003",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864905",
@@ -223,18 +218,14 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var clusterRecordId = createClusterRecord();
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 		final var patron = createPatron(localId, hostLms);
+		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
+		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
-		saveSupplierRequest(patronRequest, hostLms.code);
-
-		// sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "DCB:931824@ab6");
 		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "931824@ab6");
-		// sierraPatronsAPIFixture.postPatronResponse("DCB:931824@ab6", 1000001);
 		sierraPatronsAPIFixture.postPatronResponse("931824@ab6", 1000001);
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", "b");
 
 		// Act
-		// final var exception = assertThrows(HttpClientResponseException.class,
 		final var exception = assertThrows(DefaultProblem.class,
 			() -> placePatronRequestAtSupplyingAgencyStateTransition.attempt(patronRequest).block());
 
@@ -262,7 +253,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var clusterRecordId = createClusterRecord();
 		final var hostLms = hostLmsFixture.findByCode(INVALID_HOLD_POLICY_HOST_LMS_CODE);
 		final var patron = createPatron(localId, hostLms);
-		var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
+		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, INVALID_HOLD_POLICY_HOST_LMS_CODE);
 
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
@@ -293,10 +284,11 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
 		assertThat("Patron Request audit should NOT have brief description",
-			fetchedAudit.getBriefDescription(),
-			is(nullValue()));
+			fetchedAudit.getBriefDescription(), is(nullValue()));
+
 		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(Status.RESOLVED));
+			fetchedAudit.getFromStatus(), is(RESOLVED));
+
 		assertThat("Patron Request audit should have to state",
 			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 	}
@@ -305,7 +297,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
 		assertThat("Patron Request audit should have brief description", fetchedAudit.getBriefDescription(), containsString(description));
-		assertThat("Patron Request audit should have from state", fetchedAudit.getFromStatus(), is(Status.RESOLVED));
+		assertThat("Patron Request audit should have from state", fetchedAudit.getFromStatus(), is(RESOLVED));
 		assertThat("Patron Request audit should have to state", fetchedAudit.getToStatus(), is(ERROR));
 	}
 
@@ -339,7 +331,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			.requestingIdentity(requestingIdentity)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
-			.status(Status.RESOLVED)
+			.status(RESOLVED)
 			.build();
 		patronRequestsFixture.savePatronRequest(patronRequest);
 		return patronRequest;
@@ -376,5 +368,4 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		// Tell systems how to convert supplying-agency-service-tests:123456 to ab6
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "123456", "ab6");
 	}
-
 }
