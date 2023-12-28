@@ -139,6 +139,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertSuccessfulTransitionAudit(pr);
 
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("872321@ab6");
+		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("872321@ab6");
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestMade("1000002");
 	}
 
@@ -173,6 +174,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertSuccessfulTransitionAudit(pr);
 
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("32453@ab6");
+		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("32453@ab6");
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestNotMade("1000002");
 	}
 

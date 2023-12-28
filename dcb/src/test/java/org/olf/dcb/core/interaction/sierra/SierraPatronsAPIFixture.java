@@ -66,6 +66,10 @@ public class SierraPatronsAPIFixture {
 		mockServer.verify(postPatronRequest(uniqueId), once());
 	}
 
+	public void verifyCreatePatronRequestNotMade(String uniqueId) {
+		mockServer.verify(postPatronRequest(uniqueId), never());
+	}
+
 	private HttpRequest postPatronRequest(String uniqueId) {
 		final var patronPatch = PatronPatch.builder()
 			.uniqueIds(List.of(uniqueId))
@@ -280,7 +284,6 @@ public class SierraPatronsAPIFixture {
 				.names(List.of("Bob"))
 				.build());
 	}
-
 
 	@Data
 	@Serdeable
