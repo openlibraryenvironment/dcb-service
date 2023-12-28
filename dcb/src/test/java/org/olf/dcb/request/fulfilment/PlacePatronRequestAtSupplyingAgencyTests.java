@@ -302,11 +302,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	}
 
 	private UUID createClusterRecord() {
-		final UUID clusterRecordId = randomUUID();
-
-		clusterRecordFixture.createClusterRecord(clusterRecordId, null);
-
-		return clusterRecordId;
+		return clusterRecordFixture.createClusterRecord(randomUUID(), null).getId();
 	}
 
 	private Patron createPatron(String localId, DataHostLms hostLms) {
