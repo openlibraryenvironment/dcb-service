@@ -128,12 +128,6 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerRequests.put("/" + patronId);
 	}
 
-	public void patronFoundResponse(String tag, String content) {
-		mockServer
-			.when(findPatron(tag, content))
-			.respond(patronFoundResponse());
-	}
-
 	public void patronFoundResponse(String tag, String uniqueId, Patron patron) {
 		mockServer
 			.when(findPatron(tag, uniqueId))
@@ -225,10 +219,6 @@ public class SierraPatronsAPIFixture {
 	public void addPatronGetExpectation(String patronId) {
 		mockServer.when(getPatron(patronId))
 			.respond(sierraPatronRecord(patronId));
-	}
-
-	private HttpResponse patronFoundResponse() {
-		return sierraMockServerResponses.jsonSuccess("patrons/sierra-api-patron-found.json");
 	}
 
 	private HttpResponse successfulPatron(Patron patron) {

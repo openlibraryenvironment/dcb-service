@@ -119,7 +119,13 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronFoundResponse("u", "872321@supplying-agency");
+		sierraPatronsAPIFixture.patronFoundResponse("u", "872321@supplying-agency",
+			SierraPatronsAPIFixture.Patron.builder()
+				.id(1000002)
+				.patronType(22)
+				.names(List.of("Joe Bloggs"))
+				.homeLibraryCode("testbbb")
+				.build());
 
 		// The unexpected patron type will trigger a request to update the virtual patron
 		sierraPatronsAPIFixture.updatePatron("1000002");
