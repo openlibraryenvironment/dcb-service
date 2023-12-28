@@ -238,15 +238,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		assertThat("Should report exception message", exception.getMessage(), containsString(expectedMessage));
 
-		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
-
-		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(ERROR));
-
-		assertThat("Request should have error message afterwards",
-			fetchedPatronRequest.getErrorMessage(), containsString(expectedMessage));
-
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedMessage);
+		patronRequestHasError(patronRequest, expectedMessage);
 	}
 
 	@Test
@@ -273,15 +265,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertThat("Should have invalid hold policy message",
 			exception.getMessage(), containsString(expectedErrorMessage));
 
-		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
-
-		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(ERROR));
-
-		assertThat("Request should have error message afterwards",
-			fetchedPatronRequest.getErrorMessage(), containsString(expectedErrorMessage));
-
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
+		patronRequestHasError(patronRequest, expectedErrorMessage);
 	}
 
 	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
@@ -294,7 +278,19 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		));
 	}
 
-	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
+	private void patronRequestHasError(PatronRequest patronRequest, String expectedErrorMessage) {
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat("Request should have error status afterwards",
+			fetchedPatronRequest.getStatus(), is(ERROR));
+
+		assertThat("Request should have error message afterwards",
+			fetchedPatronRequest.getErrorMessage(), containsString(expectedErrorMessage));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
+	}
+
+	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
 		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
 		assertThat(onlyAuditEntry, allOf(
