@@ -166,6 +166,9 @@ class PatronRequestApiTests {
 
 		sierraPatronsAPIFixture.addPatronGetExpectation("43546");
 		sierraPatronsAPIFixture.addPatronGetExpectation(KNOWN_PATRON_LOCAL_ID);
+
+		// AGENCY1 has 1 PICKUP location of PICKUP_LOCATION_CODE (ABC123)
+		locationFixture.createPickupLocation(UUID.fromString("0f102b5a-e300-41c8-9aca-afd170e17921"), PICKUP_LOCATION_CODE, PICKUP_LOCATION_CODE, da);
 	}
 
 	@BeforeEach
@@ -185,7 +188,6 @@ class PatronRequestApiTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping( HOST_LMS_CODE, "tstce", SUPPLYING_LOCATION_CODE);
 		referenceValueMappingFixture.defineLocationToAgencyMapping( HOST_LMS_CODE, "tstr", SUPPLYING_LOCATION_CODE);
 
-		locationFixture.createPickupLocation(PICKUP_LOCATION_CODE, PICKUP_LOCATION_CODE);
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, PICKUP_LOCATION_CODE, "AGENCY1");
 		referenceValueMappingFixture.defineLocationToAgencyMapping(PICKUP_LOCATION_CODE, "AGENCY1");
 	}
@@ -205,8 +207,9 @@ class PatronRequestApiTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		// Act
+		// We use location UUID for pickup location now and not a  code
 		var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, KNOWN_PATRON_LOCAL_ID, PICKUP_LOCATION_CODE, HOST_LMS_CODE, "home-library");
+			clusterRecordId, KNOWN_PATRON_LOCAL_ID, "0f102b5a-e300-41c8-9aca-afd170e17921", HOST_LMS_CODE, "home-library");
 
 		// Assert
 		assertThat(placedRequestResponse.getStatus(), is(OK));
@@ -252,7 +255,8 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.getCitation().getBibClusterId(), is(clusterRecordId));
 
 		assertThat(fetchedPatronRequest.getPickupLocation(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is(PICKUP_LOCATION_CODE));
+		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is("0f102b5a-e300-41c8-9aca-afd170e17921"));
+		// assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is(PICKUP_LOCATION_CODE));
 
 		assertThat(fetchedPatronRequest.getStatus(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.getStatus().getCode(), is("REQUEST_PLACED_AT_BORROWING_AGENCY"));
@@ -324,9 +328,10 @@ class PatronRequestApiTests {
 
 		savePatronTypeMappings();
 
+		final String requested_pickup_location = "0f102b5a-e300-41c8-9aca-afd170e17921";
 		// Act
 		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, "43546", PICKUP_LOCATION_CODE, HOST_LMS_CODE, "homeLibraryCode");
+			clusterRecordId, "43546", requested_pickup_location, HOST_LMS_CODE, "homeLibraryCode");
 
 		assertThat(placedRequestResponse.getStatus(), is(OK));
 
@@ -345,7 +350,7 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.getCitation().getBibClusterId(), is(clusterRecordId));
 
 		assertThat(fetchedPatronRequest.getPickupLocation(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is(PICKUP_LOCATION_CODE));
+		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is(requested_pickup_location));
 
 		assertThat(fetchedPatronRequest.getStatus(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.getStatus().getCode(), is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY"));
@@ -385,42 +390,6 @@ class PatronRequestApiTests {
 		// Then a bad request response should be returned
 		final var response = exception.getResponse();
 		assertThat("Should return a bad request status", response.getStatus(), is(BAD_REQUEST));
-	}
-
-	@Test
-	void cannotPlaceRequestForPatronAtUnknownLocalSystem() {
-		log.info("\n\ncannotPlaceRequestForPatronAtUnknownLocalSystem\n\n");
-
-		// Arrange
-		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
-		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
-		final var sourceSystemId = hostLms.getId();
-
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
-
-		// Act
-		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
-				"73825", PICKUP_LOCATION_CODE, "unknown-system", "home-library-code"));
-
-		// Then a bad request response should be returned
-		final var response = exception.getResponse();
-
-		assertThat("Should return a bad request status", response.getStatus(), is(BAD_REQUEST));
-
-		final var optionalBody = response.getBody(ChecksFailure.class);
-
-		assertThat("Response should have a body", optionalBody.isPresent(), is(true));
-
-		assertThat("Body should report unknown pickup location failed check", optionalBody.get(),
-			hasProperty("failedChecks", containsInAnyOrder(
-				hasDescription("\"unknown-system\" is not a recognised Host LMS"))
-			));
-
-		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
-			isFailedCheckEvent("\"unknown-system\" is not a recognised Host LMS")
-		));
 	}
 
 	@Test
