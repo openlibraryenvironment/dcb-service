@@ -76,7 +76,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
-	private DataAgency agency_ab6 = null;
+	private DataAgency supplyingAgency = null;
 
 	@BeforeEach
 	public void beforeEach(MockServerClient mockServerClient) {
@@ -97,10 +97,10 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		hostLmsFixture.createSierraHostLms(INVALID_HOLD_POLICY_HOST_LMS_CODE,
 			KEY, SECRET, BASE_URL, "invalid");
 
-		this.agency_ab6 = agencyFixture.saveAgency(DataAgency.builder()
+		this.supplyingAgency = agencyFixture.saveAgency(DataAgency.builder()
 			.id(randomUUID())
-			.code("ab6")
-			.name("name")
+			.code("supplying-agency")
+			.name("Supplying Agency")
 			.hostLms(sierraHostLms)
 			.build());
 
@@ -123,7 +123,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronResponseForUniqueId("u", "872321@ab6");
+		sierraPatronsAPIFixture.patronResponseForUniqueId("u", "872321@supplying-agency");
 
 		// The unexpected patron type will trigger a request to update the virtual patron
 		sierraPatronsAPIFixture.updatePatron("1000002");
@@ -142,8 +142,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		// Assert
 		patronRequestWasPlaced(placedPatronRequest, patronRequestId);
 
-		sierraPatronsAPIFixture.verifyFindPatronRequestMade("872321@ab6");
-		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("872321@ab6");
+		sierraPatronsAPIFixture.verifyFindPatronRequestMade("872321@supplying-agency");
+		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("872321@supplying-agency");
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestMade("1000002");
 	}
 
@@ -159,7 +159,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronResponseForUniqueIdExpectedPtype("u", "32453@ab6");
+		sierraPatronsAPIFixture.patronResponseForUniqueIdExpectedPtype("u", "32453@supplying-agency");
 
 		sierraPatronsAPIFixture.patronHoldResponse("1000002",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
@@ -175,8 +175,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		// Assert
 		patronRequestWasPlaced(placedPatronRequest, patronRequestId);
 
-		sierraPatronsAPIFixture.verifyFindPatronRequestMade("32453@ab6");
-		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("32453@ab6");
+		sierraPatronsAPIFixture.verifyFindPatronRequestMade("32453@supplying-agency");
+		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("32453@supplying-agency");
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestNotMade("1000002");
 	}
 
@@ -192,8 +192,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "546730@ab6");
-		sierraPatronsAPIFixture.postPatronResponse("546730@ab6", 1000003);
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "546730@supplying-agency");
+		sierraPatronsAPIFixture.postPatronResponse("546730@supplying-agency", 1000003);
 		sierraPatronsAPIFixture.patronHoldResponse("1000003",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864905",
 			"Consortial Hold. tno="+patronRequest.getId());
@@ -208,8 +208,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		// Assert
 		patronRequestWasPlaced(placedPatronRequest, patronRequestId);
 
-		sierraPatronsAPIFixture.verifyFindPatronRequestMade("546730@ab6");
-		sierraPatronsAPIFixture.verifyCreatePatronRequestMade("546730@ab6");
+		sierraPatronsAPIFixture.verifyFindPatronRequestMade("546730@supplying-agency");
+		sierraPatronsAPIFixture.verifyCreatePatronRequestMade("546730@supplying-agency");
 	}
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")
@@ -224,8 +224,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "931824@ab6");
-		sierraPatronsAPIFixture.postPatronResponse("931824@ab6", 1000001);
+		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "931824@supplying-agency");
+		sierraPatronsAPIFixture.postPatronResponse("931824@supplying-agency", 1000001);
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", "b");
 
 		// Act
@@ -252,7 +252,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		saveSupplierRequest(patronRequest, INVALID_HOLD_POLICY_HOST_LMS_CODE);
 
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
-			"ab6", "9849123490", INVALID_HOLD_POLICY_HOST_LMS_CODE);
+			"supplying-agency", "9849123490", INVALID_HOLD_POLICY_HOST_LMS_CODE);
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
@@ -312,12 +312,13 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	}
 
 	private Patron createPatron(String localId, DataHostLms hostLms) {
-		if (agency_ab6 == null) {
-			throw new RuntimeException("Fixtures have not properly initialised data agency ab6");
+		if (supplyingAgency == null) {
+			throw new RuntimeException("Fixtures have not properly initialised data agency supplying-agency");
 		}
 
 		final Patron patron = patronFixture.savePatron("123456");
-		patronFixture.saveIdentity(patron, hostLms, localId, true, "1", "123456", agency_ab6);
+		patronFixture.saveIdentity(patron, hostLms, localId, true, "1", "123456",
+			supplyingAgency);
 		patronFixture.saveIdentity(patron, hostLms, localId, false, "1", null, null);
 		patron.setPatronIdentities(patronService.findAllPatronIdentitiesByPatron(patron).collectList().block());
 		return patron;
@@ -343,7 +344,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	private void saveSupplierRequest(PatronRequest patronRequest, String hostLmsCode) {
 		supplierRequestsFixture.saveSupplierRequest(
 			randomUUID(), patronRequest, "563653", "7916922",
-			"ab6", "9849123490", hostLmsCode);
+			"supplying-agency", "9849123490", hostLmsCode);
 	}
 
 	private void savePatronTypeMappings() {
@@ -364,11 +365,11 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		referenceValueMappingFixture.definePatronTypeMapping(
 			"DCB", "SQUIGGLE", INVALID_HOLD_POLICY_HOST_LMS_CODE, "15");
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", "supplying-agency");
 	}
 
 	private void saveHomeLibraryMappings() {
-		// Tell systems how to convert supplying-agency-service-tests:123456 to ab6
-		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "123456", "ab6");
+		// Tell systems how to convert supplying-agency-service-tests:123456 to supplying-agency
+		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "123456", "supplying-agency");
 	}
 }
