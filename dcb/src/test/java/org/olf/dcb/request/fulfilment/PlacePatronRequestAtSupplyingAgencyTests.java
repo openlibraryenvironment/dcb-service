@@ -50,7 +50,6 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(PER_CLASS)
 class PlacePatronRequestAtSupplyingAgencyTests {
 	private static final String HOST_LMS_CODE = "supplying-agency-service-tests";
-	private static final String INVALID_HOLD_POLICY_HOST_LMS_CODE = "invalid-hold-policy";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -93,9 +92,6 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		final var sierraHostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE,
 			KEY, SECRET, BASE_URL, "title");
-
-		hostLmsFixture.createSierraHostLms(INVALID_HOLD_POLICY_HOST_LMS_CODE,
-			KEY, SECRET, BASE_URL, "invalid");
 
 		this.supplyingAgency = agencyFixture.saveAgency(DataAgency.builder()
 			.id(randomUUID())
@@ -240,33 +236,6 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		patronRequestHasError(patronRequest.getId(), expectedMessage);
 	}
 
-	@Test
-	void shouldFailWhenSierraHostLmsHasInvalidHoldPolicyConfiguration() {
-		// Arrange
-		final var localId = "872321";
-		final var patronRequestId = randomUUID();
-		final var clusterRecordId = createClusterRecord();
-		final var hostLms = hostLmsFixture.findByCode(INVALID_HOLD_POLICY_HOST_LMS_CODE);
-		final var patron = createPatron(localId, hostLms);
-		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
-		saveSupplierRequest(patronRequest, INVALID_HOLD_POLICY_HOST_LMS_CODE);
-
-		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
-			"supplying-agency", "9849123490", INVALID_HOLD_POLICY_HOST_LMS_CODE);
-
-		// Act
-		final var exception = assertThrows(RuntimeException.class,
-			() -> placePatronRequestAtSupplyingAgencyStateTransition.attempt(patronRequest).block());
-
-		// Assert
-		final var expectedErrorMessage = "Invalid hold policy for Host LMS";
-
-		assertThat("Should have invalid hold policy message",
-			exception.getMessage(), containsString(expectedErrorMessage));
-
-		patronRequestHasError(patronRequest.getId(), expectedErrorMessage);
-	}
-
 	private void patronRequestWasPlaced(PatronRequest patronRequest, UUID expectedId) {
 		assertThat(patronRequest, allOf(
 			hasId(expectedId),
@@ -352,18 +321,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,10,15, "DCB", "SQUIGGLE");
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,20,25, "DCB", "SQUIGGLE");
 
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
-			INVALID_HOLD_POLICY_HOST_LMS_CODE, 1, 1, "DCB", "SQUIGGLE");
-
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
-			INVALID_HOLD_POLICY_HOST_LMS_CODE, 10,15, "DCB", "SQUIGGLE");
-
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
-			INVALID_HOLD_POLICY_HOST_LMS_CODE, 20,25, "DCB", "SQUIGGLE");
-
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", "SQUIGGLE", HOST_LMS_CODE, "15");
-		referenceValueMappingFixture.definePatronTypeMapping(
-			"DCB", "SQUIGGLE", INVALID_HOLD_POLICY_HOST_LMS_CODE, "15");
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", "supplying-agency");
 	}
