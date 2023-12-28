@@ -131,9 +131,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002", "b", 563653);
 
 		// Act
-		final var placedPatronRequest = placePatronRequestAtSupplyingAgencyStateTransition
-			.attempt(patronRequest)
-			.block();
+		final var placedPatronRequest = placeAtSupplyingAgency(patronRequest);
 
 		// Assert
 		patronRequestWasPlaced(placedPatronRequest, patronRequestId);
@@ -164,9 +162,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002", "b", 563653);
 
 		// Act
-		final var placedPatronRequest = placePatronRequestAtSupplyingAgencyStateTransition
-			.attempt(patronRequest)
-			.block();
+		final var placedPatronRequest = placeAtSupplyingAgency(patronRequest);
 
 		// Assert
 		patronRequestWasPlaced(placedPatronRequest, patronRequestId);
@@ -197,9 +193,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.patronHoldRequestResponse("1000003", "b", 563653);
 
 		// Act
-		final var placedPatronRequest = placePatronRequestAtSupplyingAgencyStateTransition
-			.attempt(patronRequest)
-			.block();
+		final var placedPatronRequest = placeAtSupplyingAgency(patronRequest);
 
 		// Assert
 		patronRequestWasPlaced(placedPatronRequest, patronRequestId);
@@ -226,7 +220,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		// Act
 		final var exception = assertThrows(DefaultProblem.class,
-			() -> placePatronRequestAtSupplyingAgencyStateTransition.attempt(patronRequest).block());
+			() -> placeAtSupplyingAgency(patronRequest));
 
 		// Assert
 		final var expectedMessage = "Internal server error: Invalid configuration - [109 / 0]";
@@ -314,6 +308,10 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		supplierRequestsFixture.saveSupplierRequest(
 			randomUUID(), patronRequest, "563653", "7916922",
 			"supplying-agency", "9849123490", hostLmsCode);
+	}
+
+	private PatronRequest placeAtSupplyingAgency(PatronRequest patronRequest) {
+		return placePatronRequestAtSupplyingAgencyStateTransition.attempt(patronRequest).block();
 	}
 
 	private void savePatronTypeMappings() {
