@@ -226,7 +226,20 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		assertThat("Should report exception message", exception.getMessage(), containsString(expectedMessage));
 
-		patronRequestHasError(patronRequest.getId(), expectedMessage);
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat(fetchedPatronRequest, allOf(
+			hasStatus(ERROR),
+			hasErrorMessage(expectedMessage)
+		));
+
+		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(fetchedPatronRequest);
+
+		assertThat(onlyAuditEntry, allOf(
+			briefDescriptionContains(expectedMessage),
+			hasFromStatus(RESOLVED),
+			hasToStatus(ERROR)
+		));
 	}
 
 	private void patronRequestWasPlaced(PatronRequest patronRequest, UUID expectedId) {
@@ -235,37 +248,12 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			hasStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 		));
 
-		assertSuccessfulTransitionAudit(patronRequest);
-	}
-
-	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
 		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
 		assertThat(onlyAuditEntry, allOf(
 			hasNoBriefDescription(),
 			hasFromStatus(RESOLVED),
 			hasToStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
-		));
-	}
-
-	private void patronRequestHasError(UUID patronRequestId, String expectedErrorMessage) {
-		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequestId);
-
-		assertThat(fetchedPatronRequest, allOf(
-			hasStatus(ERROR),
-			hasErrorMessage(expectedErrorMessage)
-		));
-
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
-	}
-
-	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
-		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
-
-		assertThat(onlyAuditEntry, allOf(
-			briefDescriptionContains(description),
-			hasFromStatus(RESOLVED),
-			hasToStatus(ERROR)
 		));
 	}
 
