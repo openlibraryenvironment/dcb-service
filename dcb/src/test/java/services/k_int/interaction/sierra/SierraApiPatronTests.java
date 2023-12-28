@@ -112,7 +112,7 @@ class SierraApiPatronTests {
 		// Arrange
 		var uniqueId = "1234567890";
 
-		sierraPatronsAPIFixture.patronResponseForUniqueId("u", uniqueId);
+		sierraPatronsAPIFixture.patronFoundResponse("u", uniqueId);
 
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
@@ -133,7 +133,14 @@ class SierraApiPatronTests {
 		// Arrange
 		var uniqueId = "6748687";
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(uniqueId);
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(uniqueId,
+                SierraPatronsAPIFixture.Patron.builder()
+                        .id(1000002)
+                        .patronType(15)
+                        .homeLibraryCode("testccc")
+                        .barcodes(List.of("647647746"))
+                        .names(List.of("Bob"))
+                        .build());
 
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
@@ -153,7 +160,7 @@ class SierraApiPatronTests {
 	public void testPatronFindReturns107() {
 		// Arrange
 		final var uniqueId = "018563984";
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", uniqueId);
+		sierraPatronsAPIFixture.patronNotFoundResponse("u", uniqueId);
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act

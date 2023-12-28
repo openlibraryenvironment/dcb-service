@@ -131,7 +131,7 @@ class PatronRequestApiTests {
 			.build()));
 
 		// patron service
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "872321@ab6");
+		sierraPatronsAPIFixture.patronNotFoundResponse("u", "872321@ab6");
 		sierraPatronsAPIFixture.postPatronResponse("872321@ab6", 2745326);
 
 		// supplying agency service

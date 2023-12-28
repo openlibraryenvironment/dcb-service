@@ -11,7 +11,6 @@ import java.util.List;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
-import org.mockserver.model.JsonBody;
 import org.mockserver.model.RequestDefinition;
 import org.mockserver.verify.VerificationTimes;
 import org.olf.dcb.test.TestResourceLoaderProvider;
@@ -78,23 +77,10 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerRequests.post(patronPatch);
 	}
 
-	public void getPatronByLocalIdSuccessResponse(String id) {
+	public void getPatronByLocalIdSuccessResponse(String id, Patron patron) {
 		mockServer
 			.when(getPatron(id))
-			.respond(successfulPatron());
-	}
-
-	public void getPatronByLocalIdWithoutPatronTypeSuccessResponse(String id) {
-		mockServer
-			.when(getPatron(id))
-			.respond(sierraMockServerResponses.jsonSuccess(json(
-				Patron.builder()
-					.id(Integer.parseInt(id))
-					.patronType(null)
-					.homeLibraryCode("testccc")
-					.barcodes(List.of("647647746"))
-					.names(List.of("Bob"))
-					.build())));
+			.respond(successfulPatron(patron));
 	}
 
 	public void noRecordsFoundWhenGettingPatronByLocalId(String patronId) {
@@ -112,7 +98,13 @@ public class SierraPatronsAPIFixture {
 	public void updatePatron(String patronId) {
 		mockServer
 			.when(putPatron(patronId))
-			.respond(successfulPatron());
+			.respond(successfulPatron(Patron.builder()
+				.id(1000002)
+				.patronType(15)
+				.homeLibraryCode("testccc")
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build()));
 	}
 
 	public void verifyUpdatePatronRequestMade(String expectedPatronId) {
@@ -136,19 +128,19 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerRequests.put("/" + patronId);
 	}
 
-	public void patronResponseForUniqueId(String tag, String content) {
+	public void patronFoundResponse(String tag, String content) {
 		mockServer
 			.when(findPatron(tag, content))
 			.respond(patronFoundResponse());
 	}
 
-	public void patronResponseForUniqueIdExpectedPtype(String tag, String uniqueId) {
+	public void patronFoundResponse(String tag, String uniqueId, Patron patron) {
 		mockServer
 			.when(findPatron(tag, uniqueId))
-			.respond(successfulPatron());
+			.respond(successfulPatron(patron));
 	}
 
-	public void patronNotFoundResponseForUniqueId(String tag, String content) {
+	public void patronNotFoundResponse(String tag, String content) {
 		mockServer
 			.when(findPatron(tag, content))
 			.respond(sierraMockServerResponses.noRecordsFound());
@@ -239,8 +231,8 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerResponses.jsonSuccess("patrons/sierra-api-patron-found.json");
 	}
 
-	private HttpResponse successfulPatron() {
-		return sierraMockServerResponses.jsonSuccess(examplePatron());
+	private HttpResponse successfulPatron(Patron patron) {
+		return sierraMockServerResponses.jsonSuccess(json(patron));
 	}
 
 	private HttpResponse patronPlacedResponse(int patronId) {
@@ -272,17 +264,6 @@ public class SierraPatronsAPIFixture {
 
 	private HttpResponse sierraPatronRecord(String patronId) {
 		return sierraMockServerResponses.jsonSuccess("patrons/patron/"+ patronId +".json");
-	}
-
-	private static JsonBody examplePatron() {
-		return json(
-			Patron.builder()
-				.id(1000002)
-				.patronType(15)
-				.homeLibraryCode("testccc")
-				.barcodes(List.of("647647746"))
-				.names(List.of("Bob"))
-				.build());
 	}
 
 	@Data

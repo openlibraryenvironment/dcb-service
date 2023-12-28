@@ -17,6 +17,7 @@ import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasId;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -118,7 +119,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronResponseForUniqueId("u", "872321@supplying-agency");
+		sierraPatronsAPIFixture.patronFoundResponse("u", "872321@supplying-agency");
 
 		// The unexpected patron type will trigger a request to update the virtual patron
 		sierraPatronsAPIFixture.updatePatron("1000002");
@@ -152,7 +153,14 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronResponseForUniqueIdExpectedPtype("u", "32453@supplying-agency");
+		sierraPatronsAPIFixture.patronFoundResponse("u", "32453@supplying-agency",
+			SierraPatronsAPIFixture.Patron.builder()
+				.id(1000002)
+				.patronType(15)
+				.homeLibraryCode("testccc")
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build());
 
 		sierraPatronsAPIFixture.patronHoldResponse("1000002",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
@@ -183,7 +191,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "546730@supplying-agency");
+		sierraPatronsAPIFixture.patronNotFoundResponse("u", "546730@supplying-agency");
 		sierraPatronsAPIFixture.postPatronResponse("546730@supplying-agency", 1000003);
 		sierraPatronsAPIFixture.patronHoldResponse("1000003",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864905",
@@ -213,7 +221,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", "931824@supplying-agency");
+		sierraPatronsAPIFixture.patronNotFoundResponse("u", "931824@supplying-agency");
 		sierraPatronsAPIFixture.postPatronResponse("931824@supplying-agency", 1000001);
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", "b");
 

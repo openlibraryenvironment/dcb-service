@@ -34,7 +34,6 @@ import jakarta.inject.Inject;
 import lombok.Builder;
 import lombok.Data;
 import services.k_int.interaction.sierra.SierraTestUtils;
-import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
 import services.k_int.interaction.sierra.patrons.PatronValidation;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -103,7 +102,7 @@ public class PatronAuthApiV2Tests {
       .barcode("3100222227777").pin("76trombones").build())))
       .respond(HttpResponse.response().withStatusCode(200));
 
-    sierraPatronsAPIFixture.patronResponseForUniqueId("b", "3100222227777");
+    sierraPatronsAPIFixture.patronFoundResponse("b", "3100222227777");
     savePatronTypeMappings();
 
 		// Act

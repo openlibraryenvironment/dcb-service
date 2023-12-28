@@ -2,6 +2,9 @@ package org.olf.dcb.request.fulfilment;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture.Patron;
+
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,7 +61,14 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(LOCAL_ID);
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(LOCAL_ID,
+			Patron.builder()
+				.id(1000002)
+				.patronType(15)
+				.homeLibraryCode("testccc")
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build());
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			HOST_LMS_CODE, 10, 25, "DCB", "15");
@@ -109,7 +119,14 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(LOCAL_ID);
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(LOCAL_ID,
+			Patron.builder()
+				.id(1000002)
+				.patronType(15)
+				.homeLibraryCode("testccc")
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build());
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -133,7 +150,12 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
-		sierraPatronsAPIFixture.getPatronByLocalIdWithoutPatronTypeSuccessResponse(LOCAL_ID);
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(LOCAL_ID, Patron.builder()
+			.id(Integer.parseInt(LOCAL_ID))
+			.homeLibraryCode("testccc")
+			.barcodes(List.of("647647746"))
+			.names(List.of("Bob"))
+			.build());
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
