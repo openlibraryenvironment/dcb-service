@@ -62,6 +62,18 @@ public class SierraPatronsAPIFixture {
 			.respond(sierraMockServerResponses.badRequestError());
 	}
 
+	public void verifyCreatePatronRequestMade(String uniqueId) {
+		mockServer.verify(postPatronRequest(uniqueId), once());
+	}
+
+	private HttpRequest postPatronRequest(String uniqueId) {
+		final var patronPatch = PatronPatch.builder()
+			.uniqueIds(List.of(uniqueId))
+			.build();
+
+		return sierraMockServerRequests.post(patronPatch);
+	}
+
 	public void getPatronByLocalIdSuccessResponse(String id) {
 		mockServer
 			.when(getPatron(id))
@@ -234,14 +246,6 @@ public class SierraPatronsAPIFixture {
 
 	private HttpResponse patronHoldFoundResponse() {
 		return sierraMockServerResponses.jsonSuccess("patrons/sierra-api-patron-hold.json");
-	}
-
-	private HttpRequest postPatronRequest(String uniqueId) {
-		final var patronPatch = PatronPatch.builder()
-			.uniqueIds(List.of(uniqueId))
-			.build();
-
-		return sierraMockServerRequests.post(patronPatch);
 	}
 
 	private HttpRequest postPatronHoldRequest(String patronId,

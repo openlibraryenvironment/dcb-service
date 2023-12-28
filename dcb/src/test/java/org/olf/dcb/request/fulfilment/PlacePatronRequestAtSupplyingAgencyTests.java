@@ -209,6 +209,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertSuccessfulTransitionAudit(pr);
 
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("546730@ab6");
+		sierraPatronsAPIFixture.verifyCreatePatronRequestMade("546730@ab6");
 	}
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")
