@@ -3,7 +3,6 @@ package org.olf.dcb.request.fulfilment;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -39,7 +38,6 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
-import org.olf.dcb.test.matchers.PatronRequestMatchers;
 import org.zalando.problem.DefaultProblem;
 
 import jakarta.inject.Inject;
@@ -140,12 +138,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			.block();
 
 		// Assert
-		assertThat(placedPatronRequest, allOf(
-			hasId(patronRequestId),
-			hasStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
-		));
-
-		assertSuccessfulTransitionAudit(placedPatronRequest);
+		patronRequestWasPlaced(placedPatronRequest, patronRequestId);
 
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("872321@ab6");
 		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("872321@ab6");
@@ -176,12 +169,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			.block();
 
 		// Assert
-		assertThat(placedPatronRequest, allOf(
-			hasId(patronRequestId),
-			hasStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
-		));
-
-		assertSuccessfulTransitionAudit(placedPatronRequest);
+		patronRequestWasPlaced(placedPatronRequest, patronRequestId);
 
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("32453@ab6");
 		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("32453@ab6");
@@ -212,12 +200,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			.block();
 
 		// Assert
-		assertThat(placedPatronRequest, allOf(
-			hasId(patronRequestId),
-			hasStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
-		));
-
-		assertSuccessfulTransitionAudit(placedPatronRequest);
+		patronRequestWasPlaced(placedPatronRequest, patronRequestId);
 
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("546730@ab6");
 		sierraPatronsAPIFixture.verifyCreatePatronRequestMade("546730@ab6");
@@ -278,7 +261,16 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		patronRequestHasError(patronRequest.getId(), expectedErrorMessage);
 	}
 
-	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
+	private void patronRequestWasPlaced(PatronRequest patronRequest, UUID expectedId) {
+		assertThat(patronRequest, allOf(
+			hasId(expectedId),
+			hasStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+		));
+
+		assertSuccessfulTransitionAudit(patronRequest);
+	}
+
+	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
 		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
 		assertThat(onlyAuditEntry, allOf(
