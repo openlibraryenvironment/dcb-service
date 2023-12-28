@@ -4,6 +4,7 @@ import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.AgencyService;
@@ -34,9 +35,27 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
+
+		String pickupLocationCode = command.getPickupLocationCode();
+
+
+		if ( 1==1 ) {
+			return getAgencyForPickupLocation(pickupLocationCode)
+				.map( agency -> CheckResult.passed() )
+				.defaultIfEmpty(CheckResult.failed("Pickup location \"" + pickupLocationCode + "\" is not mapped to an agency"))
+				.map(List::of);
+		}
+
 		return checkMapping(command)
 			.flatMap(function(this::checkAgencyWhenPreviousCheckPassed))
-			.map(List::of);
+		 	.map(List::of);
+	}
+
+	private Mono<DataAgency> getAgencyForPickupLocation(String locationCode) {
+		return locationService.findById(locationCode)
+			.map( location -> location.getAgency() )
+			.map( agency -> agency.getId() )
+			.flatMap ( agencyId -> agencyService.findById(agencyId) );
 	}
 
 	private Mono<Tuple3<CheckResult, String, String>> checkMapping(PlacePatronRequestCommand command) {

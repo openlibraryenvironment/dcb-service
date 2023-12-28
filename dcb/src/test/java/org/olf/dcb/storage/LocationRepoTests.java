@@ -19,6 +19,11 @@ import jakarta.inject.Inject;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+
+
+import org.olf.dcb.test.LocationFixture;
+
+
 @DcbTest
 class LocationRepoTests {
 
@@ -32,8 +37,12 @@ class LocationRepoTests {
 	@Inject
 	LocationSymbolRepository locationSymbolRepository;
 
+  @Inject
+  private LocationFixture locationFixture;
+
 	@BeforeEach
 	void beforeEach() {
+    locationFixture.deleteAll();
 	}
 
 	@Test

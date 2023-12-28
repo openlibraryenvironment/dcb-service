@@ -5,6 +5,7 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.storage.LocationRepository;
 
 import io.micronaut.context.annotation.Prototype;
@@ -32,4 +33,15 @@ public class LocationFixture {
 				.type("PICKUP")
 				.build()));
 	}
+
+  public Location createPickupLocation(UUID uuid, String name, String code, DataAgency da) {
+    return singleValueFrom(locationRepository.save(Location.builder()
+        .id(uuid)
+        .name(name)
+        .code(code)
+        .type("PICKUP")
+				.agency(da)
+        .build()));
+  }
+
 }
