@@ -1,15 +1,19 @@
 package org.olf.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.briefDescriptionContains;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNoBriefDescription;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
 
 import java.util.UUID;
 
@@ -281,24 +285,23 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	}
 
 	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
-		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
+		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
-		assertThat("Patron Request audit should NOT have brief description",
-			fetchedAudit.getBriefDescription(), is(nullValue()));
-
-		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(RESOLVED));
-
-		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		assertThat(onlyAuditEntry, allOf(
+			hasNoBriefDescription(),
+			hasFromStatus(RESOLVED),
+			hasToStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+		));
 	}
 
 	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
-		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
+		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
-		assertThat("Patron Request audit should have brief description", fetchedAudit.getBriefDescription(), containsString(description));
-		assertThat("Patron Request audit should have from state", fetchedAudit.getFromStatus(), is(RESOLVED));
-		assertThat("Patron Request audit should have to state", fetchedAudit.getToStatus(), is(ERROR));
+		assertThat(onlyAuditEntry, allOf(
+			briefDescriptionContains(description),
+			hasFromStatus(RESOLVED),
+			hasToStatus(ERROR)
+		));
 	}
 
 	private UUID createClusterRecord() {
