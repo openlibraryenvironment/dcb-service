@@ -5,7 +5,6 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
@@ -15,6 +14,9 @@ import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.briefDescript
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNoBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasId;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 
 import java.util.UUID;
 
@@ -37,6 +39,7 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
+import org.olf.dcb.test.matchers.PatronRequestMatchers;
 import org.zalando.problem.DefaultProblem;
 
 import jakarta.inject.Inject;
@@ -132,15 +135,17 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			"Consortial Hold. tno="+patronRequest.getId());
 
 		// Act
-		final var pr = placePatronRequestAtSupplyingAgencyStateTransition
+		final var placedPatronRequest = placePatronRequestAtSupplyingAgencyStateTransition
 			.attempt(patronRequest)
 			.block();
 
 		// Assert
-		assertThat(pr, hasProperty("id", is(patronRequestId)));
-		assertThat(pr, hasProperty("status", is(REQUEST_PLACED_AT_SUPPLYING_AGENCY)));
+		assertThat(placedPatronRequest, allOf(
+			hasId(patronRequestId),
+			hasStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+		));
 
-		assertSuccessfulTransitionAudit(pr);
+		assertSuccessfulTransitionAudit(placedPatronRequest);
 
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("872321@ab6");
 		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("872321@ab6");
@@ -166,15 +171,17 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			"Consortial Hold. tno="+patronRequest.getId());
 
 		// Act
-		final var pr = placePatronRequestAtSupplyingAgencyStateTransition
+		final var placedPatronRequest = placePatronRequestAtSupplyingAgencyStateTransition
 			.attempt(patronRequest)
 			.block();
 
 		// Assert
-		assertThat(pr, hasProperty("id", is(patronRequestId)));
-		assertThat(pr, hasProperty("status", is(REQUEST_PLACED_AT_SUPPLYING_AGENCY)));
+		assertThat(placedPatronRequest, allOf(
+			hasId(patronRequestId),
+			hasStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+		));
 
-		assertSuccessfulTransitionAudit(pr);
+		assertSuccessfulTransitionAudit(placedPatronRequest);
 
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("32453@ab6");
 		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("32453@ab6");
@@ -200,15 +207,17 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			"Consortial Hold. tno="+patronRequest.getId());
 
 		// Act
-		final var pr = placePatronRequestAtSupplyingAgencyStateTransition
+		final var placedPatronRequest = placePatronRequestAtSupplyingAgencyStateTransition
 			.attempt(patronRequest)
 			.block();
 
 		// Assert
-		assertThat(pr, hasProperty("id", is(patronRequestId)));
-		assertThat(pr, hasProperty("status", is(REQUEST_PLACED_AT_SUPPLYING_AGENCY)));
+		assertThat(placedPatronRequest, allOf(
+			hasId(patronRequestId),
+			hasStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+		));
 
-		assertSuccessfulTransitionAudit(pr);
+		assertSuccessfulTransitionAudit(placedPatronRequest);
 
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("546730@ab6");
 		sierraPatronsAPIFixture.verifyCreatePatronRequestMade("546730@ab6");
@@ -283,8 +292,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequestId);
 
 		assertThat(fetchedPatronRequest, allOf(
-			hasProperty("status", is(ERROR)),
-			hasProperty("errorMessage", containsString(expectedErrorMessage))
+			hasStatus(ERROR),
+			hasErrorMessage(expectedErrorMessage)
 		));
 
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
