@@ -325,6 +325,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		UUID clusterRecordId) {
 
 		final var requestingIdentity = patron.getPatronIdentities().get(1);
+
 		var patronRequest = PatronRequest.builder()
 			.id(patronRequestId)
 			.patron(patron)
@@ -333,8 +334,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			.pickupLocationCode("ABC123")
 			.status(RESOLVED)
 			.build();
-		patronRequestsFixture.savePatronRequest(patronRequest);
-		return patronRequest;
+
+		return patronRequestsFixture.savePatronRequest(patronRequest);
 	}
 
 	private void saveSupplierRequest(PatronRequest patronRequest, String hostLmsCode) {
