@@ -19,7 +19,7 @@ import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -78,8 +78,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 	private DataAgency agency_ab6 = null;
 
-	@BeforeAll
-	public void beforeAll(MockServerClient mockServerClient) {
+	@BeforeEach
+	public void beforeEach(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://supplying-agency-service-tests.com";
 		final String KEY = "supplying-agency-service-key";
@@ -89,16 +89,20 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		hostLmsFixture.deleteAll();
+		referenceValueMappingFixture.deleteAll();
 
-		DataHostLms sierraHostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE,
+		final var sierraHostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE,
 			KEY, SECRET, BASE_URL, "title");
 
 		hostLmsFixture.createSierraHostLms(INVALID_HOLD_POLICY_HOST_LMS_CODE,
 			KEY, SECRET, BASE_URL, "invalid");
 
-		this.agency_ab6 = agencyFixture.saveAgency(
-			DataAgency.builder().id(randomUUID()).code("ab6").name("name").hostLms(sierraHostLms).build());
-		referenceValueMappingFixture.deleteAll();
+		this.agency_ab6 = agencyFixture.saveAgency(DataAgency.builder()
+			.id(randomUUID())
+			.code("ab6")
+			.name("name")
+			.hostLms(sierraHostLms)
+			.build());
 
 		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
