@@ -104,7 +104,6 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		// add patron type mappings
 		savePatronTypeMappings();
-		saveHomeLibraryMappings();
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the unexpected patron type")
@@ -322,10 +321,5 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", "SQUIGGLE", HOST_LMS_CODE, "15");
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", "supplying-agency");
-	}
-
-	private void saveHomeLibraryMappings() {
-		// Tell systems how to convert supplying-agency-service-tests:123456 to supplying-agency
-		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "123456", "supplying-agency");
 	}
 }
