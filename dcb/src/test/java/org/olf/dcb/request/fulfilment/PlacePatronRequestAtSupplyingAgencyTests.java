@@ -5,6 +5,7 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
@@ -136,8 +137,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			.block();
 
 		// Assert
-		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
-		assertThat("Status wasn't expected.", pr.getStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		assertThat(pr, hasProperty("id", is(patronRequestId)));
+		assertThat(pr, hasProperty("status", is(REQUEST_PLACED_AT_SUPPLYING_AGENCY)));
 
 		assertSuccessfulTransitionAudit(pr);
 
@@ -170,8 +171,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			.block();
 
 		// Assert
-		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
-		assertThat("Status wasn't expected.", pr.getStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		assertThat(pr, hasProperty("id", is(patronRequestId)));
+		assertThat(pr, hasProperty("status", is(REQUEST_PLACED_AT_SUPPLYING_AGENCY)));
 
 		assertSuccessfulTransitionAudit(pr);
 
@@ -204,8 +205,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			.block();
 
 		// Assert
-		assertThat("Patron request id wasn't expected.", pr.getId(), is(patronRequestId));
-		assertThat("Status wasn't expected.", pr.getStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		assertThat(pr, hasProperty("id", is(patronRequestId)));
+		assertThat(pr, hasProperty("status", is(REQUEST_PLACED_AT_SUPPLYING_AGENCY)));
 
 		assertSuccessfulTransitionAudit(pr);
 
@@ -238,7 +239,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		assertThat("Should report exception message", exception.getMessage(), containsString(expectedMessage));
 
-		patronRequestHasError(patronRequest, expectedMessage);
+		patronRequestHasError(patronRequest.getId(), expectedMessage);
 	}
 
 	@Test
@@ -265,7 +266,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		assertThat("Should have invalid hold policy message",
 			exception.getMessage(), containsString(expectedErrorMessage));
 
-		patronRequestHasError(patronRequest, expectedErrorMessage);
+		patronRequestHasError(patronRequest.getId(), expectedErrorMessage);
 	}
 
 	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
@@ -278,14 +279,13 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		));
 	}
 
-	private void patronRequestHasError(PatronRequest patronRequest, String expectedErrorMessage) {
-		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+	private void patronRequestHasError(UUID patronRequestId, String expectedErrorMessage) {
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequestId);
 
-		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(ERROR));
-
-		assertThat("Request should have error message afterwards",
-			fetchedPatronRequest.getErrorMessage(), containsString(expectedErrorMessage));
+		assertThat(fetchedPatronRequest, allOf(
+			hasProperty("status", is(ERROR)),
+			hasProperty("errorMessage", containsString(expectedErrorMessage))
+		));
 
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
 	}
