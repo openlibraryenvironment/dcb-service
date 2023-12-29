@@ -143,11 +143,13 @@ public class PatronRequestWorkflowService {
 		
 		final Status fromState = patronRequest.getStatus();
 		
+
 		return ( Publisher<PatronRequest> pub  ) -> Flux.from(pub)
-				.onErrorResume( throwable -> {
+			.onErrorResume( throwable -> {
+				return Mono.defer(() -> {
                                         
 					// If we don't do this, then a subsequent save of the patron request can overwrite the status we explicitly set
-          patronRequest.setStatus(Status.ERROR);
+		       patronRequest.setStatus(Status.ERROR);
 
 					final UUID prId = patronRequest.getId();
 					if (prId == null) return Mono.error(throwable);
@@ -157,10 +159,10 @@ public class PatronRequestWorkflowService {
 
 					log.error("update patron request {} to error state ({}) - {}",prId,throwable.getMessage(),throwable.getClass().getName());
 
-          Map<String,Object> auditData = null;
-          if ( throwable instanceof DefaultProblem ) {
-            auditData = ((DefaultProblem)throwable).getParameters();
-          }
+		       Map<String,Object> auditData = null;
+		      if ( throwable instanceof DefaultProblem ) {
+			      auditData = ((DefaultProblem)throwable).getParameters();
+				  }
 					
 					return Mono.from(patronRequestRepository.updateStatusWithError(prId, throwable.getMessage()))
 						.then(patronRequestAuditService.addErrorAuditEntry(patronRequest, fromState, throwable, auditData))
@@ -170,5 +172,7 @@ public class PatronRequestWorkflowService {
 						})
 						.then(Mono.error(throwable));
 				});
+			});
 	}
+
 }

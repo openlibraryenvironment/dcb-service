@@ -21,6 +21,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.test.clients.ChecksFailure.Check.hasDescription;
 
 import java.util.List;
@@ -375,7 +376,7 @@ class PatronRequestApiTests {
 		assertThat(lastAudit.getPatronRequestId(), is(fetchedPatronRequest.getId().toString()));
 		assertThat(lastAudit.getDescription(), is(nullValue()));
 		assertThat(lastAudit.getFromStatus(), is(PATRON_VERIFIED));
-		assertThat(lastAudit.getToStatus(), is(RESOLVED));
+		assertThat(lastAudit.getToStatus(), is(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
 		assertThat(lastAudit.getDate(), is(notNullValue()));
 	}
 

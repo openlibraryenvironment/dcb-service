@@ -114,7 +114,10 @@ public class ClusterRecordIndexDoc {
 				.filter(bib ->
 				  // Filter out primary bib this time if there is one.
 					Optional.ofNullable(cluster.getSelectedBib())
-						.map( id -> id.equals(bib.getId()) )
+						.map( id -> {
+							// Only include entries which are NOT the selected bib (Because we already added it)
+							return !(id.equals(bib.getId())); 
+						} )
 						.orElse(true))
 	  		.map( NestedBibIndexDoc::new ))
   			.toList();
