@@ -107,14 +107,14 @@ public class ClusterRecordIndexDoc {
 	}
 	
 	// Lets just add all the bibs
-  public List<NestedBibIndexDoc> getMembers() {
+  public List<NestedBibIndexDoc> getMembersOld() {
 	  	return Stream.ofNullable(cluster.getBibs())
 				.flatMap( Set::stream )
 	  		.map( NestedBibIndexDoc::new )
   			.toList();
 	}
 
-  public List<NestedBibIndexDoc> getMembersOld() {
+  public List<NestedBibIndexDoc> getMembers() {
   	return Stream.concat(
   	  getSelectedBib().stream().map( primaryBib -> new NestedBibIndexDoc(primaryBib, true)), // Add the selected bib first
 	  	Stream.ofNullable(cluster.getBibs())
