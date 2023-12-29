@@ -11,6 +11,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -36,10 +37,17 @@ import lombok.SneakyThrows;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PatronRequestResolutionTests {
+
 	private final String HOST_LMS_CODE = "resolution-local-system";
+
+	private static final Logger log = LoggerFactory.getLogger(PatronRequestResolutionTests.class);
 
 	@Inject
 	private PatronRequestResolutionStateTransition patronRequestResolutionStateTransition;
@@ -65,6 +73,9 @@ class PatronRequestResolutionTests {
 	@BeforeAll
 	@SneakyThrows
 	public void beforeAll(MockServerClient mockServer) {
+
+		log.info("beforeAll\n\n");
+
 		final String HOST_LMS_BASE_URL = "https://resolution-tests.com";
 		final String HOST_LMS_TOKEN = "resolution-system-token";
 		final String HOST_LMS_KEY = "resolution-system-key";
@@ -85,6 +96,7 @@ class PatronRequestResolutionTests {
 
 	@BeforeEach
 	void beforeEach() {
+		log.info("beforeEach\n\n");
 		clusterRecordFixture.deleteAll();
 	}
 
@@ -149,7 +161,7 @@ class PatronRequestResolutionTests {
 		assertThat("Should not have local status",
 			onlySupplierRequest.getLocalStatus(), is(nullValue()));
 
-		assertSuccessfulTransitionAudit(fetchedPatronRequest);
+		assertSuccessfulTransitionAudit(fetchedPatronRequest, RESOLVED);
 	}
 
 	@Test
@@ -193,11 +205,14 @@ class PatronRequestResolutionTests {
 		assertThat("Should not find any supplier requests",
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
 
-		assertSuccessfulTransitionAudit(fetchedPatronRequest);
+		assertSuccessfulTransitionAudit(fetchedPatronRequest, NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
 	}
 
 	@Test
 	void shouldFailToResolveVerifiedRequestWhenClusterRecordCannotBeFound() {
+
+		log.info("shouldFailToResolveVerifiedRequestWhenClusterRecordCannotBeFound - entering\n\n");
+
 		// Arrange
 		final var patron = patronFixture.savePatron("757646");
 		patronFixture.saveIdentity(patron, hostLms, "86848", true, "-", "757646", null);
@@ -236,6 +251,8 @@ class PatronRequestResolutionTests {
 
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest,
 			"Cannot find cluster record for: " + clusterRecordId);
+
+		log.info("shouldFailToResolveVerifiedRequestWhenClusterRecordCannotBeFound - exiting\n\n");
 	}
 
 	@Test
@@ -274,7 +291,7 @@ class PatronRequestResolutionTests {
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
 	}
 
-	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
+	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest, Status expectedToStatus) {
 		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
 		assertThat("Patron Request audit should NOT have brief description",
@@ -285,7 +302,7 @@ class PatronRequestResolutionTests {
 			fetchedAudit.getFromStatus(), is(PATRON_VERIFIED));
 
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(RESOLVED));
+			fetchedAudit.getToStatus(), is(expectedToStatus));
 	}
 
 	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
@@ -295,8 +312,9 @@ class PatronRequestResolutionTests {
 			fetchedAudit.getBriefDescription(),
 			is(description));
 
-		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
+		// If we failed to look up a bib record then we're moving from patron verified to error
+		assertThat("Patron Request audit should have from state ",
+			fetchedAudit.getFromStatus(), is(PATRON_VERIFIED));
 
 		assertThat("Patron Request audit should have to state",
 			fetchedAudit.getToStatus(), is(ERROR));

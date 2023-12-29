@@ -22,6 +22,7 @@ echo confirm
 curl $TARGET/health
 curl $TARGET/info
 
+
 echo Dummy1
 curl -X POST $TARGET/hostlmss -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
   "id":"'`uuidgen --sha1 -n $HOSTLMS_NS_UUID --name DUMMY1`'", 

@@ -28,8 +28,7 @@ public class PatronRequestAuditService {
 	}
 
 	private void log(PatronRequestAudit auditEntry) {
-		log.debug("{}: {}", auditEntry.getToStatus() == Status.ERROR ? "Unsuccessful transition" : "Successful transition",
-				auditEntry);
+		log.debug("AUDIT LOG {}: {}", auditEntry.getToStatus() == Status.ERROR ? "Unsuccessful transition" : "Successful transition", auditEntry);
 	}
 
 	public Mono<PatronRequestAudit> addAuditEntry(PatronRequest patronRequest, Status from, Status to) {
@@ -65,11 +64,10 @@ public class PatronRequestAuditService {
 
 		PatronRequestAudit pra = builder.build();
 
-		this.log(pra);
-
 		return Mono.just(pra)
-				.flatMap(auditEntry -> Mono.from(patronRequestAuditRepository.save(auditEntry)).cast(PatronRequestAudit.class))
-				.doOnSuccess(this::log);
+			.flatMap(auditEntry -> Mono.from(patronRequestAuditRepository.save(auditEntry)).cast(PatronRequestAudit.class))
+			.doOnSuccess(this::log)
+			.doOnError( error -> log.error("Error attempting to write audit for"+pra.toString(), error));
 	}
 
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, String message) {
@@ -85,7 +83,6 @@ public class PatronRequestAuditService {
         }
 
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, Status from, Throwable error, Map<String,Object> auditData) {
-		log.debug("addErrorAuditEntry");
 		return addAuditEntry(patronRequest, from, Status.ERROR, Optional.ofNullable(error.getMessage()), Optional.ofNullable(auditData));
 	}
 

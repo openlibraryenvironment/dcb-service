@@ -61,10 +61,15 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	}
 
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
-		
+
+		// If we are already in an ERROR state, then just don't do anything more
 		if (patronRequest.getStatus() == Status.ERROR) return Mono.just(patronRequest);
 		
-		return patronRequestAuditService.addAuditEntry(patronRequest, PATRON_VERIFIED, getTargetStatus().get()).thenReturn(patronRequest);
+		// Regardless of what the outcome was, set the audit record to VERIFIED -> RESOLVED that seems not right... Because
+		// The result of patronRequestResolutionService.resolvePatronRequest may be NO_ITEMS_AVAILABLE_AT_ANY_LENDER...
+		log.debug("createAuditEntry {} {}-> {}",patronRequest.getId(),PATRON_VERIFIED, patronRequest.getStatus());
+
+		return patronRequestAuditService.addAuditEntry(patronRequest, PATRON_VERIFIED, patronRequest.getStatus()).thenReturn(patronRequest);
 	}
 	
 	private Mono<Resolution> updatePatronRequest(Resolution resolution) {
@@ -104,6 +109,10 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		return pr.getStatus() == PATRON_VERIFIED;
 	}
 
+	// getTargetStatus tells us where we're trying to get to BUT be aware that the transitions can have error states so the Status
+	// outcome can be OTHER than the status listed here. This is used for goal-seeking when trying to work out which transitions to
+	// apply - it's not a statement of what the status WILL be after applying the transition. n this case - NO_ITEMS_AT_ANY_SUPPLIER can
+	// happen
 	@Override
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(RESOLVED);
