@@ -27,7 +27,7 @@ public class ReferenceValueMappingService {
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
 				sourceCategory, sourceContext, sourceValue, targetCategory, targetContext))
 			.doOnSuccess(consumeOnSuccess(
-				() -> log.warn("No mapping found for from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
+				() -> log.warn("No mapping(1) found for from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
 					sourceCategory, sourceContext, sourceValue, targetCategory, targetContext),
 				mapping -> log.debug("Found mapping from {} to {}: {}", sourceCategory, targetCategory, mapping)));
 	}
@@ -41,7 +41,7 @@ public class ReferenceValueMappingService {
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToContext(
 				sourceCategory, sourceContext, sourceValue, targetContext))
 			.doOnSuccess(consumeOnSuccess(
-				() -> log.warn("No mapping found for from category: {}, from context: {}, source value: {}, to context: {}",
+				() -> log.warn("No mapping(2) found for from category: {}, from context: {}, source value: {}, to context: {}",
 					sourceCategory, sourceContext, sourceValue, targetContext),
 				mapping -> log.debug("Found mapping from category: {} context: {} to context {}: {}", sourceContext,
 					sourceContext, targetContext, mapping)));

@@ -55,7 +55,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 		// We have a patron id from elsewhere, call the patrons home system to get a record which describes
 		// the patron.
-		log.info("CIRC validatePatronIdentity by calling out to host LMS - PI is {} host lms client is {}", pi, pi.getHostLms());
+		log.info("ValidatePatronTransition CIRC validatePatronIdentity by calling out to host LMS - PI is {} host lms client is {}", pi, pi.getHostLms());
 
 		return hostLmsService.getClientFor(pi.getHostLms()).flatMap(client -> client.getPatronByLocalId(pi.getLocalId()))
 				.flatMap(hostLmsPatron -> {

@@ -47,7 +47,8 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 	@Override
 	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
-		log.debug("attempt({})", patronRequest);
+
+		log.info("PatronRequestResolutionStateTransition attempt for {}", patronRequest);
 
 		return patronRequestResolutionService.resolvePatronRequest(patronRequest)
 			.doOnSuccess(resolution -> log.debug("Resolved to: {}", resolution))

@@ -43,7 +43,7 @@ public class FinaliseCompletedRequestTransition implements PatronRequestStateTra
 	 */
 	@Override
 	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
-		log.debug("finalizeRequest {}", patronRequest);
+		log.debug("FinaliseCompletedRequestTransition firing for {}", patronRequest);
 
 		assert isApplicableFor(patronRequest);
 

@@ -44,7 +44,8 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 		// assert the correct state.
 		assert isApplicableFor(patronRequest);
 
-		log.debug("makeTransition({})", patronRequest);
+		log.debug("PlacePatronRequestAtSupplyingAgencyStateTransition firing for {}", patronRequest);
+
 		return supplyingAgencyService.placePatronRequestAtSupplyingAgency(patronRequest)
 				.doOnSuccess(pr -> log.debug("Placed patron request to supplier: pr={}", pr))
 				.doOnError(error -> log.error("Error occurred during placing a patron request to supplier: {}", error.getMessage()))
