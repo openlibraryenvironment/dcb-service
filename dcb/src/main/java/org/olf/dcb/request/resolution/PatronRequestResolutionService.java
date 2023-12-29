@@ -58,7 +58,10 @@ public class PatronRequestResolutionService {
 			.orElseThrow(() -> new RuntimeException("No resolver with code " + this.itemResolver));
 
 		return liveAvailabilityService.getAvailableItems(clusterRecordId)
-			.onErrorMap(NoBibsForClusterRecordException.class, error -> new UnableToResolvePatronRequest(error.getMessage()))
+			.onErrorMap(NoBibsForClusterRecordException.class, error -> {
+				log.error("Something went wrong with liveAvailabilityService.getAvailableItems",error);
+				return new UnableToResolvePatronRequest(error.getMessage());
+			})
 			.map(AvailabilityReport::getItems)
 			.flatMap(items -> resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest))
 			.doOnNext(item -> log.debug("Selected item {}",item))

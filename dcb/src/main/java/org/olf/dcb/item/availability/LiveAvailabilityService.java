@@ -41,9 +41,16 @@ public class LiveAvailabilityService {
 			.flatMap(this::getItems)
 			.doOnNext ( b -> log.debug("getAvailableItems got items, progress to availability check") )
 			.map(this::determineRequestability)
+			.doOnNext ( b -> log.debug("Requestability check result == {}",b) )
 			.reduce(emptyReport(), AvailabilityReport::combineReports)
+			.doOnNext ( b -> log.debug("Sorting..."))
 			.map(AvailabilityReport::sortItems)
-			.switchIfEmpty(Mono.error(new RuntimeException("Failed to resolve items for cluster record " + clusteredBibId)));
+			.switchIfEmpty(
+				Mono.defer(() -> {
+					log.error("getAvailableItems resulted in an empty stream");
+					return Mono.error(new RuntimeException("Failed to resolve items for cluster record " + clusteredBibId));
+				})
+			);
 	}
 
 	private Mono<AvailabilityReport> getItems(BibRecord bib) {
