@@ -29,21 +29,43 @@ public class RequestableItemService {
 	}
 
 	public boolean isRequestable(Item item) {
-		log.debug("isRequestable({})", item);
+		log.debug("about to perform isRequestable check for {}", item);
 
-		return isInAllowedLocation(item) 
-			&& item.isAvailable()
-			&& ( ( item.getCanonicalItemType() != null ) && ( ! item.getCanonicalItemType().equals(NONCIRC) ) )  ;
+		if ( !isInAllowedLocation(item) ) {
+			log.debug("Item is NOT in an allowed location - reject");
+			return false;
+		}
+
+		if ( ! item.isAvailable() ) {
+			log.debug("Item is NOT available - reject");
+			return false;
+		}
+
+		if ( item.getCanonicalItemType() == null ) {	
+			log.debug("Item has no canonical type - reject");
+			return false;
+		}
+
+		if ( item.getCanonicalItemType().equals(NONCIRC) ) {
+			log.debug("Item is NON-CIRCULATING - reject");
+			return false;
+		}
+
+		log.debug("isRequestable passed");
+
+		return true;
 	}
 
 	private Boolean isInAllowedLocation(Item item) {
 
 		final var locationCode = item.getLocationCode();
-		log.debug("isInAllowedLocation({})", locationCode);
+
 
 		// location filtering only evaluated if value set to true in config
 		// if not set, all locations are allowed
 		if (!locationFilteringEnabled) return true;
+
+		log.debug("location filtering is enabled - isInAllowedLocation({})", locationCode);
 
 		final var allowedLocation = requestableLocationCodes.contains(locationCode);
 
