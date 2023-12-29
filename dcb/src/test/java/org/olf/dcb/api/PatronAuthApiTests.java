@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.JsonBody.json;
+import static org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture.*;
 
 import java.util.List;
 
@@ -34,7 +35,6 @@ import jakarta.inject.Inject;
 import lombok.Builder;
 import lombok.Data;
 import services.k_int.interaction.sierra.SierraTestUtils;
-import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
 import services.k_int.interaction.sierra.patrons.PatronValidation;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -105,7 +105,14 @@ public class PatronAuthApiTests {
                         .respond(HttpResponse.response().withStatusCode(200));
 
 		// I don't understand what this is doing here
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("23945734234");
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("23945734234",
+			Patron.builder()
+				.id(1000002)
+				.patronType(15)
+				.homeLibraryCode("testccc")
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build());
 		// Or this
                 savePatronTypeMappings();
 
@@ -137,8 +144,15 @@ public class PatronAuthApiTests {
 		final var patronCredentials = PatronCredentials.builder().agencyCode("ab6")
 			.patronPrinciple("3100222227777").secret("Joe Bloggs").build();
 		final var postPatronAuthRequest = HttpRequest.POST("/patron/auth", patronCredentials).bearerAuth(accessToken);
-		sierraPatronsAPIFixture.patronResponseForUniqueId("b", "3100222227777");
 		savePatronTypeMappings();
+
+		sierraPatronsAPIFixture.patronFoundResponse("b", "3100222227777",
+			Patron.builder()
+				.id(1000002)
+				.patronType(22)
+				.names(List.of("Joe Bloggs"))
+				.homeLibraryCode("testbbb")
+				.build());
 
 		// Act
 		final var response = blockingClient.exchange(postPatronAuthRequest, Argument.of(VerificationResponse.class));

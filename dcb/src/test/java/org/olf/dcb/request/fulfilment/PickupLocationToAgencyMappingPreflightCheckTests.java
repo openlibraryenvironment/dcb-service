@@ -8,8 +8,10 @@ import org.junit.jupiter.api.Test;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.LocationFixture;
+import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-
+import java.util.UUID;
+import org.olf.dcb.core.model.DataAgency;
 import jakarta.inject.Inject;
 
 @DcbTest
@@ -23,10 +25,13 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 	private AgencyFixture agencyFixture;
 	@Inject
 	private LocationFixture locationFixture;
+	@Inject
+	private HostLmsFixture hostLmsFixture;
 
 	@BeforeEach
 	void beforeEach() {
 		referenceValueMappingFixture.deleteAll();
+		locationFixture.deleteAll();
 		agencyFixture.deleteAll();
 		locationFixture.deleteAll();
 	}
@@ -34,67 +39,20 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 	@Test
 	void shouldPassWhenPickupLocationIsMappedToAnAgencyInDcbContext() {
 		// Arrange
-		agencyFixture.defineAgency("known-agency");
+    final var hostLms = hostLmsFixture.createSierraHostLms("TESTHOST", "1234", "5678", "http://nowhere.com/");
 
-		definePickupLocationToAgencyMapping("DCB", "known-pickup-location", "known-agency");
+    final var da = agencyFixture.saveAgency(DataAgency.builder()
+      .id(UUID.randomUUID())
+      .code("known-agency")
+      .name("Test AGENCY1")
+      .hostLms(hostLms)
+      .build());
 
-		// Act
-		final var command = placeRequestCommand("known-pickup-location",
-			"pickup-context", "requester-host-lms-code");
-
-		final var results = check.check(command).block();
-
-		// Assert
-		assertThat(results, containsInAnyOrder(passedCheck()));
-	}
-
-	@Test
-	void shouldPassWhenPickupLocationIsMappedToAnAgencyInExplicitContext() {
-		// Arrange
-		agencyFixture.defineAgency("known-agency");
-
-		definePickupLocationToAgencyMapping("pickup-context", "known-pickup-location", "known-agency");
+    // AGENCY1 has 1 PICKUP location of PICKUP_LOCATION_CODE (ABC123)
+    locationFixture.createPickupLocation(UUID.fromString("0f102b5a-e300-41c8-9aca-afd170e17921"), "PickupLocationName", "PickupLocationCode", da);
 
 		// Act
-		final var command = placeRequestCommand("known-pickup-location",
-			"pickup-context", "requester-host-lms-code");
-
-		final var results = check.check(command).block();
-
-		// Assert
-		assertThat(results, containsInAnyOrder(passedCheck()));
-	}
-
-	@Test
-	void shouldPassWhenPickupLocationIsMappedToAnAgencyInRequestorHostLmsContext() {
-		// Arrange
-		agencyFixture.defineAgency("known-agency");
-
-		definePickupLocationToAgencyMapping("requester-host-lms-code", "known-pickup-location", "known-agency");
-
-		// Act
-		final var command = placeRequestCommand("known-pickup-location",
-			null, "requester-host-lms-code");
-
-		final var results = check.check(command).block();
-
-		// Assert
-		assertThat(results, containsInAnyOrder(passedCheck()));
-	}
-
-	@Test
-	void shouldPassWhenPickupLocationIdIsProvidedAsTheCodeAndIsMappedToAnAgencyInDcbContext() {
-		// Arrange
-		agencyFixture.defineAgency("known-agency");
-
-		final var pickupLocation = locationFixture.createPickupLocation(
-			"Known pickup location", "known-pickup-location");
-
-		definePickupLocationToAgencyMapping("DCB", "known-pickup-location", "known-agency");
-
-		// Act
-		final var command = placeRequestCommand(pickupLocation.getId().toString(),
-			"pickup-context", "requester-host-lms-code");
+		final var command = placeRequestCommand("0f102b5a-e300-41c8-9aca-afd170e17921", null, "requester-host-lms-code");
 
 		final var results = check.check(command).block();
 
@@ -105,33 +63,11 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 	@Test
 	void shouldFailWhenPickupLocationIsNotMappedToAnAgency() {
 		// Act
-		final var command = placeRequestCommand("known-pickup-location",
-			"pickup-context", "requester-host-lms-code");
-
+		final var command = placeRequestCommand("known-pickup-location", "pickup-context", "requester-host-lms-code");
 		final var results = check.check(command).block();
 
 		// Assert
-		assertThat(results, containsInAnyOrder(
-			failedCheck("Pickup location \"known-pickup-location\" is not mapped to an agency")));
+		assertThat(results, containsInAnyOrder(failedCheck("Pickup location \"known-pickup-location\" is not mapped to an agency")));
 	}
 
-	@Test
-	void shouldFailWhenPickupLocationIsMappedToUnrecognisedAgency() {
-		// Arrange
-		definePickupLocationToAgencyMapping("DCB", "pickup-location", "unknown-agency");
-
-		// Act
-		final var command = placeRequestCommand("pickup-location",
-			"pickup-context", "requester-host-lms-code");
-
-		final var results = check.check(command).block();
-
-		// Assert
-		assertThat(results, containsInAnyOrder(
-			failedCheck("Pickup location \"pickup-location\" is mapped to \"unknown-agency\" which is not a recognised agency")));
-	}
-
-	private void definePickupLocationToAgencyMapping(String fromContext, String locationCode, String agencyCode) {
-		referenceValueMappingFixture.defineLocationToAgencyMapping(fromContext, locationCode, agencyCode);
-	}
 }

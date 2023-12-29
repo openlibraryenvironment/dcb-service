@@ -3,6 +3,7 @@ package org.olf.dcb.test;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
 import java.util.UUID;
@@ -14,7 +15,6 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import org.reactivestreams.Publisher;
 
 import jakarta.inject.Singleton;
-import reactor.core.publisher.Mono;
 
 @Singleton
 public class PatronRequestsFixture {
@@ -56,11 +56,11 @@ public class PatronRequestsFixture {
 	}
 
 	public PatronRequest findById(UUID id) {
-		return Mono.from(patronRequestRepository.findById(id)).block();
+		return singleValueFrom(patronRequestRepository.findById(id));
 	}
 
-	public void savePatronRequest(PatronRequest patronRequest){
-		Mono.from(patronRequestRepository.save(patronRequest)).block();
+	public PatronRequest savePatronRequest(PatronRequest patronRequest){
+		return singleValueFrom(patronRequestRepository.save(patronRequest));
 	}
 
 	public PatronRequestAudit findOnlyAuditEntry(PatronRequest patronRequest) {
@@ -72,7 +72,6 @@ public class PatronRequestsFixture {
 	}
 
 	private List<PatronRequestAudit> findAuditEntries(PatronRequest patronRequest) {
-		return manyValuesFrom(patronRequestAuditRepository
-			.findByPatronRequest(patronRequest));
+		return manyValuesFrom(patronRequestAuditRepository.findByPatronRequest(patronRequest));
 	}
 }
