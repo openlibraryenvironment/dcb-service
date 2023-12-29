@@ -47,6 +47,7 @@ public class PatronRequestResolutionService {
 	}
 
 	public Mono<Resolution> resolvePatronRequest(PatronRequest patronRequest) {
+
 		log.debug("resolvePatronRequest(id={}) current status ={} resolver={}",
 			patronRequest.getId(), patronRequest.getStatus(), itemResolver);
 
@@ -68,7 +69,7 @@ public class PatronRequestResolutionService {
 			.flatMap(item -> createSupplierRequest(item, patronRequest))
 			.map(PatronRequestResolutionService::mapToResolution)
 			.onErrorReturn(NoItemsRequestableAtAnyAgency.class, resolveToNoItemsAvailable(patronRequest))
-			.switchIfEmpty(Mono.just(resolveToNoItemsAvailable(patronRequest)));
+			.switchIfEmpty(Mono.defer(() -> Mono.just(resolveToNoItemsAvailable(patronRequest))));
 	}
 
 	private Mono<SupplierRequest> createSupplierRequest(Item item, PatronRequest patronRequest) {

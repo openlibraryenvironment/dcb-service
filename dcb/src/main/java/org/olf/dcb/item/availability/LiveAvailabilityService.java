@@ -64,7 +64,10 @@ public class LiveAvailabilityService {
 		return client.getItems(bib)
 			.doOnError(error -> log.error("doOnError occurred fetching items", error))
 			.map(AvailabilityReport::ofItems)
-			.onErrorReturn(AvailabilityReport.ofErrors(mapToError(bib, client.getHostLmsCode())));
+			// .onErrorReturn(AvailabilityReport.ofErrors(mapToError(bib, client.getHostLmsCode())));
+			.onErrorResume ( error -> {
+				return Mono.defer(() -> Mono.just(AvailabilityReport.ofErrors(mapToError(bib, client.getHostLmsCode()))));
+			});
 	}
 
 	private AvailabilityReport determineRequestability(AvailabilityReport report) {
@@ -73,7 +76,7 @@ public class LiveAvailabilityService {
 	}
 
 	private static AvailabilityReport.Error mapToError(BibRecord bib, String hostLmsCode) {
-		log.error("Errpt : Failed to fetch items for bib: {} from host: {}",
+		log.error("Generate error report : Failed to fetch items for bib: {} from host: {}",
 			bib.getSourceRecordId(), hostLmsCode);
 
 		return AvailabilityReport.Error.builder()
