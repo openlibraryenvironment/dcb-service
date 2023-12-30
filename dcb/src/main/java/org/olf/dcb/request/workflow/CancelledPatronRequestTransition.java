@@ -40,9 +40,10 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	@Override
 	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
 		log.info("CancelledPatronRequestTransition firing for {}",patronRequest);
+		Status old_state = patronRequest.getStatus();
     patronRequest.setStatus(Status.COMPLETED);
-    return patronRequestAuditService.addAuditEntry(patronRequest, Status.CANCELLED, Status.COMPLETED)
-      .map(PatronRequestAudit::getPatronRequest);
+    return patronRequestAuditService.addAuditEntry(patronRequest, old_state, Status.COMPLETED)
+      .thenReturn(patronRequest);
 	}
 
 	@Override
