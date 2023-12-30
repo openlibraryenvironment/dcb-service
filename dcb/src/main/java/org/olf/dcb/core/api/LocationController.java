@@ -78,58 +78,45 @@ public class LocationController {
         }
 
 
-        /*
-	@Operation(
-		summary = "Fetch all locations"
-	)
-	@Get("/")
-	Mono<Page<Location>> list() {
-		return Mono.just(
-			Page.of(
-				LOCATIONS_TEMP,
-				Pageable.from(1, LOCATIONS_TEMP.size()),
-				LOCATIONS_TEMP.size()));
-	}
-        */
+	// TODO: Convert return Location to LocationDTO
+	@Post("/")
+	public Mono<Location> postLocation(@Body LocationDTO location) {
 
-        // TODO: Convert return Location to LocationDTO
-        @Post("/")
-        public Mono<Location> postLocation(@Body LocationDTO location) {
+		log.debug("postLocation {}",location.toString());
 
-                log.debug("postLocation {}",location.toString());
+		// Look up any agency if given on the incoming DTO
+		DataAgency agency = location.agency() != null ? Mono.from(agencyRepository.findById(location.agency())).block() : null;
 
-                // Look up any agency if given on the incoming DTO
-                DataAgency agency = location.agency() != null ? Mono.from(agencyRepository.findById(location.agency())).block() : null;
+		DataHostLms hostSystem = location.hostLms() != null ? Mono.from(hostLmsRepository.findById(location.hostLms())).block() : null;
 
-        	DataHostLms hostSystem = location.hostLms() != null ? Mono.from(hostLmsRepository.findById(location.hostLms())).block() : null;
-
-		if ( ( location.agency() != null ) && ( agency != null ) ) {
+		// We allow HUB locations which are not attached to an agency
+		if ( ( location.type().equals("HUB") ) || ( location.agency() != null ) && ( agency != null ) ) {
 			// If we weren't given an host system, see if we can infer one from the agency.
-		        if ( ( hostSystem == null ) && ( agency != null ) )
+			if ( ( hostSystem == null ) && ( agency != null ) )
 				hostSystem = agency.getHostLms();
 
 			// Convert AgencyDTO into DataAgency with correctly linked HostLMS
 			Location l = Location.builder()
-                                    .id(location.id())
-                                    .code(location.code())
-                                    .name(location.name())
-                                    .type(location.type())
-                                    .agency(agency)
-				    .hostSystem(hostSystem)
-                                    .isPickup(location.isPickup())
-                                    .longitude(location.longitude())
-                                    .latitude(location.latitude())
-                                    .deliveryStops(location.deliveryStops())
-                                    .printLabel(location.printLabel())
-                                    .build();
+				.id(location.id())
+				.code(location.code())
+				.name(location.name())
+				.type(location.type())
+				.agency(agency)
+				.hostSystem(hostSystem)
+				.isPickup(location.isPickup())
+				.longitude(location.longitude())
+				.latitude(location.latitude())
+				.deliveryStops(location.deliveryStops())
+				.printLabel(location.printLabel())
+				.build();
 
-                	return Mono.from(locationRepository.existsById(l.getId()))
+			return Mono.from(locationRepository.existsById(l.getId()))
 				.flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)));
 		}
 		else {
 			log.warn("Client upload a location {} with an unknown agency UUID",location);
 			return Mono.empty();
 		}
-        }
+	}
 
 }
