@@ -71,8 +71,7 @@ public class DCBConfigurationService {
 		log.info("importConfiguration({},{})",profile,url);
 
 		return switch ( profile ) {
-			case "numericRangeMappingImport" ->
-				numericRangeImport(url);
+			case "numericRangeMappingImport" -> numericRangeImport(url);
 			case "referenceValueMappingImport" -> referenceValueMappingImport(url);
 			default -> Mono.just(ConfigImportResult.builder().message("ERROR").build());
 		};
@@ -85,9 +84,9 @@ public class DCBConfigurationService {
 
 		return Mono.from(httpClient.exchange(request, String.class))
 			.flatMapMany( this::extractData )
-			.concatMap( nrmr -> {
-				log.debug("Process ref value mapping: {}",nrmr.toString());
-				return processReferenceValueMapping(nrmr);
+			.concatMap( rvm -> {
+				log.debug("Process ref value mapping from {}: {}",url,rvm.toString());
+				return processReferenceValueMapping(rvm);
 			})
 			.collectList()
 			.map(recordList -> ConfigImportResult.builder()
@@ -279,6 +278,7 @@ public class DCBConfigurationService {
 			.lastImported(Instant.now())
 			.deleted(false)
 			.build();
+		log.debug("process referece value mapping {}",rvmd);
 		return Mono.from(referenceValueMappingRepository.saveOrUpdate(rvmd));
 	}
 
@@ -328,11 +328,13 @@ public class DCBConfigurationService {
 		CSVParser parser = new CSVParserBuilder().withSeparator('\t').build();
 		CSVReader csvReader = new CSVReaderBuilder(reader).withSkipLines(1).withCSVParser(parser).build();
 		List<String[]> all_Rows = null;
-                try { 
+		try { 
 			all_Rows = csvReader.readAll();
 			reader.close(); 
-		} catch (Exception e) { }
-                return Flux.fromIterable(all_Rows);
+		} catch (Exception e) { 
+			log.warn("Error reading stream",e);
+		}
+		return Flux.fromIterable(all_Rows);
 	}
 
 	private Mono<ReferenceValueMapping> processReferenceValueMapping(String[] rvm) {

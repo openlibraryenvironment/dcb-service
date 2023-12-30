@@ -68,7 +68,8 @@ public class PatronRequestController {
 	
 	public PatronRequest ensureValidStateForTransition( final PatronRequest patronRequest ) {
 		return switch (patronRequest.getStatus()) {
-			case ERROR -> throw new IllegalStateException("Cannot transition errored requests");
+			// we want to be able to clean up errored requests, so am removing this for now
+			// case ERROR -> throw new IllegalStateException("Cannot transition errored requests");
 			case CANCELLED -> throw new IllegalStateException("Cannot transition cancelled requests");
 			
 			default -> patronRequest;
@@ -105,7 +106,7 @@ public class PatronRequestController {
 	 * overhaul to the whole system.
 	 */
 	@SingleResult
-	@Post(value = "/{patronRequestId}/transtion/cleanup", consumes = APPLICATION_JSON)
+	@Post(value = "/{patronRequestId}/transition/cleanup", consumes = APPLICATION_JSON)
 	public Mono<PatronRequest> cleanupPatronRequest(@NotNull final UUID patronRequestId) {
 		return patronRequestService
 			.findById( patronRequestId )
