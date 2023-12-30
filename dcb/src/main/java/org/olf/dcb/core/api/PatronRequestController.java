@@ -108,11 +108,15 @@ public class PatronRequestController {
 	@SingleResult
 	@Post(value = "/{patronRequestId}/transition/cleanup", consumes = APPLICATION_JSON)
 	public Mono<PatronRequest> cleanupPatronRequest(@NotNull final UUID patronRequestId) {
+
+		log.info("Request cleanup for {}",patronRequestId);
+
 		return patronRequestService
 			.findById( patronRequestId )
 			.map( this::ensureValidStateForTransition )
 			.zipWhen( (req) -> Mono.just(new CleanupPatronRequestTransition()))
 			.flatMapMany( TupleUtils.function(workflowService::progressUsing ))
+			.doOnError(error -> log.error("Problem attempting to clean up request",error))
 		.last();
 	}
 
