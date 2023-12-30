@@ -21,7 +21,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	// Provider to prevent circular reference exception by allowing lazy access to
 	// this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
-        private final PatronRequestAuditService patronRequestAuditService;
+	private final PatronRequestAuditService patronRequestAuditService;
 
 	
 	public CancelledPatronRequestTransition(

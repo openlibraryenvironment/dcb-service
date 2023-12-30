@@ -58,12 +58,16 @@ public class PatronRequestController {
 	private final PatronRequestService patronRequestService;
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestWorkflowService workflowService;
+	private final CleanupPatronRequestTransition cleanupPatronRequestTransition;
 
 	public PatronRequestController(PatronRequestService patronRequestService,
-			PatronRequestRepository patronRequestRepository, PatronRequestWorkflowService workflowService) {
+			PatronRequestRepository patronRequestRepository, 
+			PatronRequestWorkflowService workflowService,
+			CleanupPatronRequestTransition cleanupPatronRequestTransition) {
 		this.patronRequestService = patronRequestService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.workflowService = workflowService;
+		this.cleanupPatronRequestTransition = cleanupPatronRequestTransition;
 	}
 	
 	public PatronRequest ensureValidStateForTransition( final PatronRequest patronRequest ) {
@@ -114,7 +118,7 @@ public class PatronRequestController {
 		return patronRequestService
 			.findById( patronRequestId )
 			.map( this::ensureValidStateForTransition )
-			.zipWhen( (req) -> Mono.just(new CleanupPatronRequestTransition()))
+			.zipWhen( (req) -> Mono.just(cleanupPatronRequestTransition))
 			.flatMapMany( TupleUtils.function(workflowService::progressUsing ))
 			.doOnError(error -> log.error("Problem attempting to clean up request",error))
 		.last();
