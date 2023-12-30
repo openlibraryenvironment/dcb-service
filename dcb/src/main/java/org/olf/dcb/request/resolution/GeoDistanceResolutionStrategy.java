@@ -41,11 +41,16 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 
 		log.debug("chooseItem(array of size {},{},{})", items.size(),clusterRecordId,patronRequest);
 
-		if ( patronRequest.getPickupLocationCode() == null )
+		if ( patronRequest.getPickupLocationCode() == null ) {
+			log.error("The patron request has no pickup location code");
 			return Mono.error(new RuntimeException("No pickup location code"));
+		}
+
+		UUID pickup_location_id = UUID.fromString(patronRequest.getPickupLocationCode());
 
 		// Look up location by code
-		return Mono.from(locationRepository.findOneByCode(patronRequest.getPickupLocationCode()))
+		// return Mono.from(locationRepository.findOneByCode(patronRequest.getPickupLocationCode()))
+		return Mono.from(locationRepository.findById(pickup_location_id))
 			// Create an ItemWithDistance for each item that calculates the distance to pickup_location
 			.flatMapMany(pickup_location ->
 				Flux.fromIterable(items)
@@ -66,7 +71,7 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 	}
 
 	// Decorate the ItemWithDistance with the agency that holds the item (And hence, the location of that agency)
-        private Mono<ItemWithDistance> decorateWithAgency(ItemWithDistance iwd) {
+  private Mono<ItemWithDistance> decorateWithAgency(ItemWithDistance iwd) {
 		log.debug("decorateWithAgency({})",iwd.getItem().getAgencyCode());
 		return Mono.from(agencyRepository.findOneByCode(iwd.getItem().getAgencyCode()))
 			.map ( agency -> {
@@ -75,27 +80,28 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 	}
 
 	// Do the actual distance calculation
-        private Mono<ItemWithDistance> calculateDistance(ItemWithDistance iwd) {
+  private Mono<ItemWithDistance> calculateDistance(ItemWithDistance iwd) {
 		log.debug("calculateDistance({},{})",iwd.getItemAgency(),iwd.getPickupLocation());
 
-	        if ( ( iwd.getItemAgency() != null ) &&
-	             ( iwd.getItemAgency().getLatitude() != null ) &&
-	             ( iwd.getItemAgency().getLongitude() != null ) &&
-                     ( iwd.getPickupLocation() != null ) &&
-                     ( iwd.getPickupLocation().getLatitude() != null ) &&
-                     ( iwd.getPickupLocation().getLongitude() != null ) ) {
-	                // Item has a geo location so calculate distance for real
-                        iwd.setDistance(distance(
-                                iwd.getItemAgency().getLatitude().doubleValue(), 
-                                iwd.getItemAgency().getLongitude().doubleValue(),
-                                iwd.getPickupLocation().getLatitude().doubleValue(), 
-                                iwd.getPickupLocation().getLongitude().doubleValue(), "K" ) );
-	        }
-	        else {
-                        // No distance available - put to the back of the queue
-                        iwd.setDistance(10000000);
-                }
-                log.debug("Distance:{}",iwd.getDistance());
+	  if ( ( iwd.getItemAgency() != null ) &&
+	    ( iwd.getItemAgency().getLatitude() != null ) &&
+	    ( iwd.getItemAgency().getLongitude() != null ) &&
+      ( iwd.getPickupLocation() != null ) &&
+      ( iwd.getPickupLocation().getLatitude() != null ) &&
+      ( iwd.getPickupLocation().getLongitude() != null ) ) {
+	      // Item has a geo location so calculate distance for real
+        iwd.setDistance(distance(
+          iwd.getItemAgency().getLatitude().doubleValue(), 
+          iwd.getItemAgency().getLongitude().doubleValue(),
+          iwd.getPickupLocation().getLatitude().doubleValue(), 
+          iwd.getPickupLocation().getLongitude().doubleValue(), "K" ) );
+	  }
+	  else {
+      // No distance available - put to the back of the queue
+			log.warn("Agency has no location data... Unable to calculate");
+      iwd.setDistance(10000000);
+    }
+    log.debug("Distance:{}",iwd.getDistance());
 
 		return Mono.just(iwd);
 	}
