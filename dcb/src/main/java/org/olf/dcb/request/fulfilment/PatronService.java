@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataAgency;
@@ -181,23 +180,7 @@ public class PatronService {
 	}
 
 	public Mono<String> getUniqueIdStringFor(Patron patron) {
-		return Mono.just(getUniqueId(patron));
-	}
-
-	public static String getUniqueId(Patron patron) {
-		return patron.getPatronIdentities().stream()
-			.filter(PatronIdentity::getHomeIdentity)
-			.map(pi -> {
-				if (pi.getResolvedAgency() == null) {
-					throw new RuntimeException(
-						"No resolved agency for patron " + patron.getId() +
-							"homeLibraryCode was " + patron.getHomeLibraryCode());
-				}
-
-				// return "DCB:" + pi.getLocalId() + "@" + pi.getResolvedAgency().getCode();
-				return pi.getLocalId() + "@" + pi.getResolvedAgency().getCode();
-			})
-			.collect(Collectors.joining());
+		return Mono.just(patron.getUniqueId());
 	}
 
 	public Optional<PatronIdentity> findIdentityByLocalId(Patron patron, String localId) {
