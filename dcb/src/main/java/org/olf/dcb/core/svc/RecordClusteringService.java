@@ -112,6 +112,7 @@ public class RecordClusteringService {
 	
 	@Transactional
 	public Mono<Void> softDelete(ClusterRecord theRecord) {
+		log.debug("Soft delete {}",theRecord.getId());
 		return Mono.justOrEmpty(theRecord)
 			.filter( cr -> Objects.nonNull(cr.getId()) )
 			.map( current -> 
