@@ -336,23 +336,19 @@ public class SupplyingAgencyService {
 		}
 
 		return determinePatronType(supplierHostLmsCode, requestingPatronIdentity)
-			.zipWith( determineUniqueId(patronRequest.getPatron()) )
+			.zipWith(Mono.just(patronRequest.getPatron()))
 			.flatMap(tuple -> {
 				final var patronType = tuple.getT1();
-				final var uniqueId = tuple.getT2();
+				final var uniqueId = tuple.getT2().getUniqueId();
 				return client.createPatron(
 					Patron.builder()
-						.localBarcodes( patron_barcodes )
-						.localPatronType( patronType )
-						.uniqueIds( stringToList(uniqueId) )
+						.localBarcodes(patron_barcodes)
+						.localPatronType(patronType)
+						.uniqueIds(stringToList(uniqueId))
 						.localHomeLibraryCode(requestingPatronIdentity.getLocalHomeLibraryCode())
 						.build())
 					.map(createdPatron -> Tuples.of(createdPatron, patronType));
 			});
-	}
-
-	private Mono<String> determineUniqueId(org.olf.dcb.core.model.Patron patron) {
-		return patronService.getUniqueIdStringFor(patron);
 	}
 
 	private List<String> stringToList(String string) {

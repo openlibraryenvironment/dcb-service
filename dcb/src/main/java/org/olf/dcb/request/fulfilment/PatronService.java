@@ -179,10 +179,6 @@ public class PatronService {
 		return patron;
 	}
 
-	public Mono<String> getUniqueIdStringFor(Patron patron) {
-		return Mono.just(patron.getUniqueId());
-	}
-
 	public Optional<PatronIdentity> findIdentityByLocalId(Patron patron, String localId) {
 		return patron.getPatronIdentities().stream().filter(pi -> pi.getLocalId().equals(localId)).findFirst();
 	}
