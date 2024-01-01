@@ -181,12 +181,11 @@ public class PatronService {
 	}
 
 	public Mono<String> getUniqueIdStringFor(Patron patron) {
-		return fetchAllIdentities(patron)
-			.map(identities -> getUniqueId(patron, identities));
+		return Mono.just(getUniqueId(patron));
 	}
 
-	public static String getUniqueId(Patron patron, List<PatronIdentity> identities) {
-		return identities.stream()
+	public static String getUniqueId(Patron patron) {
+		return patron.getPatronIdentities().stream()
 			.filter(PatronIdentity::getHomeIdentity)
 			.map(pi -> {
 				if (pi.getResolvedAgency() == null) {
