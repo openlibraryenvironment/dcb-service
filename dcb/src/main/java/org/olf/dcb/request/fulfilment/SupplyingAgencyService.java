@@ -218,12 +218,8 @@ public class SupplyingAgencyService {
 		// Get supplier system interface
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
 			// Look up virtual patron using generated unique ID string
-			.flatMap(hostLmsClient -> {
-				final var uniqueId = psrc.getPatron().getUniqueId();
-
-				return hostLmsClient.patronAuth("UNIQUE-ID", uniqueId,
-					psrc.getPatronHomeIdentity().getLocalBarcode());
-			})
+			.flatMap(hostLmsClient -> hostLmsClient.findVirtualPatron(
+				psrc.getPatronHomeIdentity().getLocalBarcode(), psrc.getPatron()))
       // Ensure that we have a local patronIdentity record to track the patron in the supplying ILS
 			.flatMap(patron -> updateLocalPatronIdentityForLmsPatron(patron, patronRequest, supplierRequest));
 	}

@@ -80,7 +80,6 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuples;
 import services.k_int.interaction.sierra.FixedField;
-import services.k_int.interaction.sierra.VarField;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResult;
