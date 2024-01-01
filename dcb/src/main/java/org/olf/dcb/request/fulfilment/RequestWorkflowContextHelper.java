@@ -1,7 +1,5 @@
 package org.olf.dcb.request.fulfilment;
 
-import java.util.UUID;
-
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Location;

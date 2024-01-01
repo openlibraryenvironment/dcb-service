@@ -210,18 +210,16 @@ public class SupplyingAgencyService {
 	}
 
 	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(RequestWorkflowContext psrc) {
-		log.debug("checkIfPatronExistsAtSupplier");
+		log.debug("checkIfPatronExistsAtSupplier({})", psrc);
 
-		PatronRequest patronRequest = psrc.getPatronRequest();
-		SupplierRequest supplierRequest = psrc.getSupplierRequest();
+		final var patronRequest = psrc.getPatronRequest();
+		final var supplierRequest = psrc.getSupplierRequest();
 
 		// Get supplier system interface
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
-			.zipWith(Mono.just(psrc.getPatron()))
 			// Look up virtual patron using generated unique ID string
-			.flatMap(tuple -> {
-				final var hostLmsClient = tuple.getT1();
-				final var uniqueId = tuple.getT2().getUniqueId();
+			.flatMap(hostLmsClient -> {
+				final var uniqueId = psrc.getPatron().getUniqueId();
 
 				return hostLmsClient.patronAuth("UNIQUE-ID", uniqueId,
 					psrc.getPatronHomeIdentity().getLocalBarcode());
