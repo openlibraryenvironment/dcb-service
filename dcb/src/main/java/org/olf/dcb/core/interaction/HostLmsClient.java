@@ -1,7 +1,5 @@
 package org.olf.dcb.core.interaction;
 
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-
 import java.util.List;
 import java.util.Map;
 
@@ -17,14 +15,14 @@ public interface HostLmsClient {
 	// local values when encountered via updateRequestStatus
 	enum CanonicalRequestState {
 		PLACED, TRANSIT;
-
-
 	}
+
 	enum CanonicalItemState {
 		AVAILABLE, TRANSIT, OFFSITE, RECEIVED, MISSING, ONHOLDSHELF;
-
 	}
+
 	HostLms getHostLms();
+
 	default String getHostLmsCode() {
 		return getHostLms().getCode();
 	}
@@ -37,13 +35,9 @@ public interface HostLmsClient {
 
 	Mono<List<Item>> getItems(BibRecord bibRecord);
 
+	Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron, String localBarcode);
+
 	Mono<String> createPatron(Patron patron);
-
-	default Mono<Patron> findVirtualPatron(String localBarcode, org.olf.dcb.core.model.Patron patron) {
-		final var uniqueId = getValue(patron, org.olf.dcb.core.model.Patron::getUniqueId);
-
-		return patronAuth("UNIQUE-ID", uniqueId, localBarcode);
-	}
 
 	Mono<String> createBib(Bib bib);
 

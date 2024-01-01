@@ -23,6 +23,7 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WOR
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.TRANSFERRED;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
 import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.net.URI;
 import java.time.Instant;
@@ -252,6 +253,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.map(status -> mapItemStatus(HOST_LMS_TO_POLARIS, status))
 			.flatMap(this::getCircStatusId)
 			.flatMap(fromStatus -> appServicesClient.updateItemRecord(itemId, fromStatus, toStatus));
+	}
+
+	@Override
+	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron, String localBarcode) {
+		final var uniqueId = getValue(patron, org.olf.dcb.core.model.Patron::getUniqueId);
+
+		return patronAuth("UNIQUE-ID", uniqueId, localBarcode);
 	}
 
 	@Override

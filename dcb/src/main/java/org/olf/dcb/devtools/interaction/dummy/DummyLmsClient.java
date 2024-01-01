@@ -3,6 +3,7 @@ package org.olf.dcb.devtools.interaction.dummy;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.io.StringWriter;
 import java.time.Instant;
@@ -149,6 +150,13 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
+	@Override
+	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron, String localBarcode) {
+		final var uniqueId = getValue(patron, org.olf.dcb.core.model.Patron::getUniqueId);
+
+		return patronAuth("UNIQUE-ID", uniqueId, localBarcode);
+	}
+
 	public Mono<String> createPatron(Patron patron) {
 		log.info("Create patron {}", patron);
 		String newPatronUUID = UUID.randomUUID().toString();
@@ -200,9 +208,9 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		log.info("updateItemStatus({},{})", itemId, crs);
 		return Mono.just("Dummy");
 	}
-
 	// WARNING We might need to make this accept a patronIdentity - as different
 	// systems might take different ways to identify the patron
+
 	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
 		log.info("checkOutItemToPatron({},{})", itemId, patronBarcode);
 		return Mono.just("DUMMY");

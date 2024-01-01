@@ -13,6 +13,7 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.integerProp
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
 
 import java.text.SimpleDateFormat;
@@ -109,7 +110,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	private static final IntegerHostLmsPropertyDefinition PAGE_SIZE_PROPERTY = integerPropertyDefinition(
 		"page-size", "How many items to retrieve in each page", FALSE);
-	
+
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
 	private static final Integer FIXED_FIELD_158 = 158;
 
@@ -119,7 +120,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final ProcessStateService processStateService;
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final RawSourceRepository rawSourceRepository;
-    private final NumericPatronTypeMapper numericPatronTypeMapper;
+	private final NumericPatronTypeMapper numericPatronTypeMapper;
 	private final SierraItemMapper itemMapper;
 
 	private final Integer getHoldsRetryAttempts;
@@ -183,7 +184,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				since, offset, limit));
 	}
 
-	
 	@Override
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Mono<PublisherState> saveState(@NonNull UUID id, @NonNull String processName, @NonNull PublisherState state) {
@@ -484,6 +484,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
+	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron, String localBarcode) {
+		final var uniqueId = getValue(patron, org.olf.dcb.core.model.Patron::getUniqueId);
+
+		return patronAuth("UNIQUE-ID", uniqueId, localBarcode);
+	}
+
+	@Override
 	public Mono<String> createPatron(Patron patron) {
 		log.debug("postPatron({})", patron);
 
@@ -590,7 +597,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.pickupLocation(parameters.getPickupLocation())
 			.note(parameters.getNote())
 			.build();
-		
+
 		// Ian: NOTE... SIERRA needs time between placeHoldRequest and
 		// getPatronHoldRequestId completing... Either
 		// we need retries or a delay.
@@ -974,8 +981,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.flatMap(sh -> Mono.just(sierraPatronHoldToHostLmsHold(sh)))
 			.defaultIfEmpty(new HostLmsHold(holdId, "MISSING"));
 	}
-	// II: We need to talk about this in a review session
 
+	// II: We need to talk about this in a review session
 	@Override
 	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
 		log.debug("updateItemStatus({},{})", itemId, crs);
@@ -1015,8 +1022,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			log.warn("Detected a sierra item with null status: {}",si);
 		}
 
-		String resolved_status = si.getStatus() != null 
-			? mapSierraItemStatusToDCBHoldStatus(si.getStatus()) 
+		String resolved_status = si.getStatus() != null
+			? mapSierraItemStatusToDCBHoldStatus(si.getStatus())
 			: (si.getDeleted() ? "MISSING" : "UNKNOWN");
 
 		return HostLmsItem.builder()
@@ -1033,8 +1040,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.flatMap(sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)))
 			.defaultIfEmpty(HostLmsItem.builder().localId(itemId).status("MISSING").build());
 	}
-	// WARNING We might need to make this accept a patronIdentity - as different
 
+	// WARNING We might need to make this accept a patronIdentity - as different
 	// systems might take different ways to identify the patron
 	@Override
 	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
