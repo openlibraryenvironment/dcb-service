@@ -65,9 +65,10 @@ public class Patron {
 	private List<PatronIdentity> patronIdentities;
 
 	@Transient
+	@Nullable
 	public String getUniqueId() {
 		if (isEmpty(patronIdentities)) {
-			return "";
+			return null;
 		}
 
 		return patronIdentities.stream()
