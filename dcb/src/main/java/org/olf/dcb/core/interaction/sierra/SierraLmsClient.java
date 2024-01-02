@@ -430,7 +430,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return switch (authProfile) {
 			case "BASIC/BARCODE+PIN" -> validatePatronCredentials(patronPrinciple, secret, "b");
 			case "BASIC/BARCODE+NAME" -> validatePatronByBarcodeAndName(patronPrinciple, secret);
-			case "UNIQUE-ID" -> patronFind("u", patronPrinciple);
 			case "BASIC/UNIQUE-ID+PIN" -> validatePatronCredentials(patronPrinciple, secret,"u");
 			default -> Mono.empty();
 		};
