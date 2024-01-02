@@ -90,6 +90,6 @@ public class Patron {
 
 				return pi.getLocalId() + "@" + pi.getResolvedAgency().getCode();
 			})
-			.orElseThrow(() -> new RuntimeException("Patron \"" + id + "\" has no home identity"));
+			.orElseThrow(() -> new NoHomeIdentityException(id));
 	}
 }
