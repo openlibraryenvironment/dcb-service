@@ -4,8 +4,8 @@ import static io.micronaut.core.util.CollectionUtils.isEmpty;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
@@ -65,14 +65,22 @@ public class Patron {
 	private List<PatronIdentity> patronIdentities;
 
 	@Transient
-	@Nullable
-	public String getUniqueId() {
+	public Optional<PatronIdentity> getHomeIdentity() {
 		if (isEmpty(patronIdentities)) {
-			return null;
+			return Optional.empty();
 		}
 
 		return patronIdentities.stream()
 			.filter(PatronIdentity::getHomeIdentity)
+			.findFirst();
+	}
+
+	@Transient
+	@Nullable
+	public String determineUniqueId() {
+		// This property is called determine instead of get to avoid the exceptions
+		// causing a Jakarta validation exception
+		return getHomeIdentity()
 			.map(pi -> {
 				if (pi.getResolvedAgency() == null) {
 					throw new RuntimeException(
@@ -82,6 +90,6 @@ public class Patron {
 
 				return pi.getLocalId() + "@" + pi.getResolvedAgency().getCode();
 			})
-			.collect(Collectors.joining());
+			.orElseThrow(() -> new RuntimeException("Patron \"" + id + "\" has no home identity"));
 	}
 }

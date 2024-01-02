@@ -333,7 +333,7 @@ public class SupplyingAgencyService {
 			.zipWith(Mono.just(patronRequest.getPatron()))
 			.flatMap(tuple -> {
 				final var patronType = tuple.getT1();
-				final var uniqueId = tuple.getT2().getUniqueId();
+				final var uniqueId = tuple.getT2().determineUniqueId();
 				return client.createPatron(
 					Patron.builder()
 						.localBarcodes(patron_barcodes)

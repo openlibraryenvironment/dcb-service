@@ -257,7 +257,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron, String localBarcode) {
-		final var uniqueId = getValue(patron, org.olf.dcb.core.model.Patron::getUniqueId);
+		final var uniqueId = getValue(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
 
 		return patronAuth("UNIQUE-ID", uniqueId, localBarcode);
 	}
