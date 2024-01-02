@@ -183,8 +183,13 @@ public class PolarisLmsClientTests {
 	@Test
 	public void shouldBeAbleToFindVirtualPatron() {
 		// Arrange
+		final var agencyCode = "known-agency";
+		final var localId = "1255193";
+		final var localBarcode = "0077777777";
+
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
-				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/search/patrons/boolean*"))
+				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/search/patrons/boolean*")
+				.withQueryStringParameter("q", "PATNF=" + localBarcode + " AND PATNL=" + localId + "@" + agencyCode))
 			.respond(okJson(resourceLoader.getResource("patron-search.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
@@ -201,10 +206,10 @@ public class PolarisLmsClientTests {
 			.id(randomUUID())
 			.patronIdentities(List.of(
 				PatronIdentity.builder()
-					.localId("1255193")
-					.localBarcode("0077777777")
+					.localId(localId)
+					.localBarcode(localBarcode)
 					.resolvedAgency(DataAgency.builder()
-						.code("known-agency")
+						.code(agencyCode)
 						.build())
 					.homeIdentity(true)
 					.build()
@@ -217,9 +222,9 @@ public class PolarisLmsClientTests {
 
 		// Assert
 		assertThat(foundPatron, is(notNullValue()));
-		assertThat(foundPatron.getLocalId(), is(List.of("1255193")));
+		assertThat(foundPatron.getLocalId(), is(List.of(localId)));
 		assertThat(foundPatron.getLocalPatronType(), is("3"));
-		assertThat(foundPatron.getLocalBarcodes(), is(List.of("0077777777")));
+		assertThat(foundPatron.getLocalBarcodes(), is(List.of(localBarcode)));
 		assertThat(foundPatron.getLocalHomeLibraryCode(), is("39"));
 	}
 
