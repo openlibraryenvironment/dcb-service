@@ -261,7 +261,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		final var uniqueId = getValue(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
 		final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
-		return patronAuth("UNIQUE-ID", uniqueId, barcode);
+		return papiClient.patronSearch(barcode, uniqueId)
+			.map(PAPIClient.PatronSearchRow::getPatronID)
+			.flatMap(appServicesClient::handlePatronBlock)
+			.map(String::valueOf)
+			.flatMap(this::getPatronByLocalId);
 	}
 
 	@Override
@@ -296,7 +300,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return switch (authProfile) {
 			case "BASIC/BARCODE+PIN" -> papiClient.patronValidate(patronPrinciple, secret);
 			case "BASIC/BARCODE+PASSWORD" -> papiClient.patronValidate(patronPrinciple, secret);
-			case "UNIQUE-ID" -> patronFind(patronPrinciple, secret);
 			default -> Mono.empty();
 		};
 	}
