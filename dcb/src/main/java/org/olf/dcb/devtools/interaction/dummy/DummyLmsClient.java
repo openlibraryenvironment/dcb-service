@@ -152,10 +152,22 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
+		log.info("findVirtualPatron({})", patron);
+
 		final var uniqueId = getValue(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
 		final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
-		return patronAuth("UNIQUE-ID", uniqueId, barcode);
+		// Pretend that we already know everything about all patrons, this will skip the
+		// patron create step
+		// when placing a request - at least for now.
+		return Mono.just(Patron.builder()
+			.localId(List.of(uniqueId))
+			.localNames(List.of("Dummy Name"))
+			.localBarcodes(List.of(barcode))
+			.uniqueIds(List.of(uniqueId))
+			.localPatronType("STD")
+			.localHomeLibraryCode("TR")
+			.build());
 	}
 
 	public Mono<String> createPatron(Patron patron) {
