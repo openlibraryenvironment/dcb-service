@@ -169,16 +169,16 @@ public class PAPIClient {
 			.map(ItemGetResponse::getItemGetRows);
 	}
 
-        public Mono<PatronSearchRow> patronSearch(String barcode) {
-                final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
-                final var ccl = "PATNF=" + barcode;
-                return createRequest(GET, path, uri -> uri.queryParam("q", ccl))
-                        .flatMap(authFilter::ensureStaffAuth)
-                        .flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronSearchResult.class))))
-                        .filter(patronSearchResult -> patronSearchResult.getTotalRecordsFound() == 1)
-                        .map(PatronSearchResult::getPatronSearchRows)
-                        .map(patronSearchRows -> patronSearchRows.get(0));
-        }
+	public Mono<PatronSearchRow> patronSearch(String barcode) {
+		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
+		final var ccl = "PATB=" + barcode + " OR PATNF=" + barcode;
+		return createRequest(GET, path, uri -> uri.queryParam("q", ccl))
+			.flatMap(authFilter::ensureStaffAuth)
+			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronSearchResult.class))))
+			.filter(patronSearchResult -> patronSearchResult.getTotalRecordsFound() == 1)
+			.map(PatronSearchResult::getPatronSearchRows)
+			.map(patronSearchRows -> patronSearchRows.get(0));
+	}
 
 	public Mono<PatronSearchRow> patronSearch(String barcode, String uniqueID) {
 		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
