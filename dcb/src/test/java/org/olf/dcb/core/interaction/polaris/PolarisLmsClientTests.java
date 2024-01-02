@@ -42,6 +42,7 @@ import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -180,7 +181,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void patronFind() {
+	public void shouldBeAbleToFindVirtualPatron() {
 		// Arrange
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/search/patrons/boolean*"))
@@ -196,15 +197,30 @@ public class PolarisLmsClientTests {
 			.respond(okJson(resourceLoader.getResource("get-patron-by-local-id.json")));
 
 		// Act
-		final var patron = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.patronAuth("UNIQUE-ID", "dcb_unique_Id", null).block();
+		final var patron = org.olf.dcb.core.model.Patron.builder()
+			.id(randomUUID())
+			.patronIdentities(List.of(
+				PatronIdentity.builder()
+					.localId("1255193")
+					.localBarcode("0077777777")
+					.resolvedAgency(DataAgency.builder()
+						.code("known-agency")
+						.build())
+					.homeIdentity(true)
+					.build()
+			))
+			.build();
+
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
 
 		// Assert
-		assertThat(patron, is(notNullValue()));
-		assertThat(patron.getLocalId(), is(List.of("1255193")));
-		assertThat(patron.getLocalPatronType(), is("3"));
-		assertThat(patron.getLocalBarcodes(), is(List.of("0077777777")));
-		assertThat(patron.getLocalHomeLibraryCode(), is("39"));
+		assertThat(foundPatron, is(notNullValue()));
+		assertThat(foundPatron.getLocalId(), is(List.of("1255193")));
+		assertThat(foundPatron.getLocalPatronType(), is("3"));
+		assertThat(foundPatron.getLocalBarcodes(), is(List.of("0077777777")));
+		assertThat(foundPatron.getLocalHomeLibraryCode(), is("39"));
 	}
 
 	@Test
