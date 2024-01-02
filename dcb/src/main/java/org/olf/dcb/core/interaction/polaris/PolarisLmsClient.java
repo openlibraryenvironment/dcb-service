@@ -288,7 +288,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<Patron> getPatronByUsername(String username) {
-		return patronFind(username);
+		return patronFind(username).switchIfEmpty( Mono.error(patronNotFound(username, getHostLmsCode())) );
 	}
 
 	@Override
