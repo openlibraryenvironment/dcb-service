@@ -35,7 +35,7 @@ public interface HostLmsClient {
 
 	Mono<List<Item>> getItems(BibRecord bibRecord);
 
-	Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron, String localBarcode);
+	Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron);
 
 	Mono<String> createPatron(Patron patron);
 

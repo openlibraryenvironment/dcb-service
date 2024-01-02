@@ -278,7 +278,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron, String localBarcode) {
+	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
 		return Mono.empty();
 	}
 

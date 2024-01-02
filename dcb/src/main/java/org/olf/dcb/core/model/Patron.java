@@ -81,15 +81,25 @@ public class Patron {
 		// This property is called determine instead of get to avoid the exceptions
 		// causing a Jakarta validation exception
 		return getHomeIdentity()
-			.map(pi -> {
-				if (pi.getResolvedAgency() == null) {
+			.map(identity -> {
+				if (identity.getResolvedAgency() == null) {
 					throw new RuntimeException(
 						"No resolved agency for patron " + getId() +
 							"homeLibraryCode was " + getHomeLibraryCode());
 				}
 
-				return pi.getLocalId() + "@" + pi.getResolvedAgency().getCode();
+				return identity.getLocalId() + "@" + identity.getResolvedAgency().getCode();
 			})
+			.orElseThrow(() -> new NoHomeIdentityException(id));
+	}
+
+	@Transient
+	@Nullable
+	public String determineHomeIdentityBarcode() {
+		// This property is called determine instead of get to avoid the exceptions
+		// causing a Jakarta validation exception
+		return getHomeIdentity()
+			.map(PatronIdentity::getLocalBarcode)
 			.orElseThrow(() -> new NoHomeIdentityException(id));
 	}
 }
