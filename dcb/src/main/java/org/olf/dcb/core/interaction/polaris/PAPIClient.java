@@ -219,7 +219,8 @@ public class PAPIClient {
 			.logonBranchID( logonBranchID )
 			.logonUserID(extractMapValue(conf, LOGON_USER_ID, Integer.class))
 			.logonWorkstationID(extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class))
-			.patronBranchID( getPatronBranchID(patron, logonBranchID) )
+			// .patronBranchID( getPatronBranchID(patron, logonBranchID) )
+			.patronBranchID( extractMapValue(servicesMap, SERVICES_DEFAULT_PATRON_HOME_LOCATION_CODE, Integer.class) )
 			.nameFirst(patron.getLocalBarcodes().get(0))
 			.nameLast(patron.getUniqueIds().get(0))
 			.userName(patron.getUniqueIds().get(0))
@@ -233,17 +234,17 @@ public class PAPIClient {
 			.build();
 	}
 
-	private static Integer getPatronBranchID(Patron patron, Integer logonBranchID) {
-		try {
-			return Optional.ofNullable(patron.getLocalHomeLibraryCode())
-				.map(Integer::valueOf)
-				.orElseThrow(() -> new NumberFormatException("Invalid number format"));
-		} catch (NumberFormatException e) {
-			log.error("Cannot use localHomeLibraryCode for patronBranchID: {}.", patron, e);
-			log.warn("Falling back to logon branch ID: '{}' as the patron's branch ID.", logonBranchID);
-			return logonBranchID;
-		}
-	}
+	// private static Integer getPatronBranchID(Patron patron, Integer logonBranchID) {
+		// try {
+		// 	return Optional.ofNullable(patron.getLocalHomeLibraryCode())
+		// 		.map(Integer::valueOf)
+		// 		.orElseThrow(() -> new NumberFormatException("Invalid number format"));
+		// } catch (NumberFormatException e) {
+		// 	log.error("Cannot use localHomeLibraryCode for patronBranchID: {}.", patron, e);
+		// 	log.warn("Falling back to logon branch ID: '{}' as the patron's branch ID.", logonBranchID);
+		// 	return logonBranchID;
+		// }
+	// }
 
 	@Builder
 	@Data
