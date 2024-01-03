@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction.folio;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
@@ -38,8 +39,8 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.type.Argument;
-import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.uri.UriBuilder;
 import lombok.extern.slf4j.Slf4j;
@@ -140,16 +141,13 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<OuterHoldings> getHoldings(String instanceId) {
-		final var relativeUri = UriBuilder.of("/rtac").build();
-
-		final var request = HttpRequest.create(HttpMethod.GET, resolve(relativeUri).toString())
+		final var authorisedRequest = authorisedRequest("/rtac");
+		final var request = authorisedRequest
 			.uri(uriBuilder -> uriBuilder
 				.queryParam("instanceIds", instanceId)
 				// Full periodicals refers to items, without this parameter holdings will be returned instead of items
 				.queryParam("fullPeriodicals", true)
 			)
-			// Base 64 encoded API key
-			.header("Authorization", apiKey)
 			// MUST explicitly accept JSON otherwise XML will be returned
 			.accept(APPLICATION_JSON);
 
@@ -292,11 +290,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private Mono<UserCollection> findUsers(String barcode) {
 		// Duplication in path due to way edge-users is namespaced
-		final var relativeUri = UriBuilder.of("/users/users").build();
-
-		final var request = HttpRequest.create(HttpMethod.GET, resolve(relativeUri).toString())
-			// Base 64 encoded API key
-			.header("Authorization", apiKey)
+		final var request = authorisedRequest("/users/users")
 			.uri(uriBuilder -> uriBuilder.queryParam("query", "barcode==\"" + barcode + "\""));
 
 		return Mono.from(httpClient.retrieve(request, Argument.of(UserCollection.class)));
@@ -359,6 +353,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> deleteBib(String id) {
 		return Mono.just("DUMMY");
+	}
+
+	private MutableHttpRequest<Object> authorisedRequest(String path) {
+		final var relativeUri = UriBuilder.of(path).build();
+
+		return HttpRequest.create(GET, resolve(relativeUri).toString())
+			// Base 64 encoded API key
+			.header("Authorization", apiKey);
 	}
 
 	private URI resolve(URI relativeURI) {
