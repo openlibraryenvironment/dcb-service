@@ -43,6 +43,7 @@ import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.uri.UriBuilder;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -356,7 +357,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private <T, R> Mono<T> makeRequest(@NonNull MutableHttpRequest<R> request,
 		@NonNull Argument<T> bodyType) {
 
-		return Mono.from(httpClient.retrieve(request, bodyType));
+		log.trace("Making request: {}", request);
+
+		return Mono.from(httpClient.retrieve(request, bodyType))
+			.doOnSuccess(response -> log.trace("Received response: {}", response))
+			.doOnError(HttpClientResponseException.class,
+				error -> log.trace("Received error response", error));
 	}
 
 	private MutableHttpRequest<Object> authorisedRequest(String path) {
