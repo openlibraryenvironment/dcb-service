@@ -264,6 +264,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
+
 		// Look up virtual patron using generated unique ID string
 		final var uniqueId = getValue(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
 		final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
@@ -277,6 +278,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<String> createPatron(Patron patron) {
+
+		log.info("createPatron({}) at {}",patron,lms);
+
 		return papiClient.patronRegistrationCreate(patron)
 			.map(PAPIClient.PatronRegistrationCreateResult::getPatronID)
 			.flatMap(appServicesClient::handlePatronBlock)
