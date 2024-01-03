@@ -81,12 +81,16 @@ public class PAPIClient {
 	}
 
 	public Mono<PatronRegistrationCreateResult> patronRegistrationCreate(Patron patron) {
+
+		log.info("patronRegistrationCreate {}", patron);
+
 		final var path = createPath(PUBLIC_PARAMETERS, "patron");
 		// passing empty patron credentials will allow public requests without patron auth
 		final var empty = PatronCredentials.builder().build();
 		final PatronRegistration body = getPatronRegistration(patron);
 		return createRequest(POST, path, uri -> {})
 			.map(request -> request.body(body))
+			.doOnSuccess(req -> log.debug("patronRegistrationCreate body: {}", req.getBody()))
 			.flatMap( req -> authFilter.ensurePatronAuth(req, empty, FALSE) )
 			.flatMap(request -> client.retrieve(request, Argument.of(PatronRegistrationCreateResult.class)));
 	}
