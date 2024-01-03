@@ -154,15 +154,22 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		PlaceHoldRequestParameters parameters) {
 		return getBibIdFromItemId(parameters.getLocalItemId())
 			.flatMap(this::getBib)
-			.map(bib -> HoldRequestParameters.builder()
-				.localPatronId(parameters.getLocalPatronId())
-				.recordNumber(parameters.getLocalItemId())
-				.title(bib.getBrowseTitle())
-				.primaryMARCTOMID(bib.getPrimaryMARCTOMID())
-				.pickupLocation(parameters.getPickupLocation())
-				.note(parameters.getNote())
-				.dcbPatronRequestId(parameters.getPatronRequestId())
-				.build())
+			.zipWith( papiClient.synch_ItemGet(parameters.getLocalItemId()) )
+			.map(tuple -> {
+				final var bib = tuple.getT1();
+				final var item = tuple.getT2();
+
+				return HoldRequestParameters.builder()
+					.localPatronId(parameters.getLocalPatronId())
+					.recordNumber(parameters.getLocalItemId())
+					.title(bib.getBrowseTitle())
+					.primaryMARCTOMID(bib.getPrimaryMARCTOMID())
+					.pickupLocation(parameters.getPickupLocation())
+					.note(parameters.getNote())
+					.dcbPatronRequestId(parameters.getPatronRequestId())
+					.localItemLocationId(item.getLocationID())
+					.build();
+			})
 			.flatMap(appServicesClient::addLocalHoldRequest)
 			.map(ApplicationServicesClient.HoldRequestResponse::getHoldRequestID)
 			.flatMap(this::getPlaceHoldRequestData);

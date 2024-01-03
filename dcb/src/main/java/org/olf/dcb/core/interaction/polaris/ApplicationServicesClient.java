@@ -370,17 +370,17 @@ class ApplicationServicesClient {
 			.itemRecordID(Optional.ofNullable(data.getRecordNumber()).map(Integer::valueOf).orElse(null))
 			.title(data.getTitle())
 			.mARCTOMID(data.getPrimaryMARCTOMID())
+			.nonPublicNotes("PickupLoc: "+data.getPickupLocation()+"\r\nTrackingID: "+data.getDcbPatronRequestId())
 			.build());
 	}
 
 	private static Integer checkPickupBranchID(HoldRequestParameters data) {
-		log.debug("checking pickup branch id from passed pickup location: '{}'", data.getPickupLocation());
+		log.debug("checking pickup branch id from passed pickup location: '{}'", data.getLocalItemLocationId());
 		try {
-			return Optional.ofNullable(data.getPickupLocation())
-				.map(Integer::valueOf)
+			return Optional.ofNullable(data.getLocalItemLocationId())
 				.orElseThrow(() -> new NumberFormatException("Invalid number format"));
 		} catch (NumberFormatException e) {
-			throw new HoldRequestException("Cannot use pickup location '"+data.getPickupLocation()+"' for pickupBranchID.");
+			throw new HoldRequestException("Cannot use pickup location '"+data.getLocalItemLocationId()+"' for pickupBranchID.");
 		}
 	}
 
@@ -925,6 +925,10 @@ class ApplicationServicesClient {
 		private String title;
 		@JsonProperty("MARCTOMID")
 		private Integer mARCTOMID;
+		@JsonProperty("StaffDisplayNotes")
+		private String staffDisplayNotes;
+		@JsonProperty("NonPublicNotes")
+		private String nonPublicNotes;
 	}
 
 	@Builder
