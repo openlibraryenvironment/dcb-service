@@ -8,10 +8,7 @@ import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_BRANCH_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_USER_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WORKSTATION_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
 
@@ -216,7 +213,7 @@ public class PAPIClient {
 	private PatronRegistration getPatronRegistration(Patron patron) {
 		final var conf = client.getConfig();
 		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
-
+		final var patronBarcodePrefix = extractMapValue(servicesMap, PATRON_BARCODE_PREFIX, String.class);
 		final var logonBranchID = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
 		return PatronRegistration.builder()
 			.logonBranchID( logonBranchID )
@@ -232,6 +229,7 @@ public class PAPIClient {
 			.streetOne("1412 S Spoede")
 			.city("SAINT LOUIS")
 			.state("MO")
+			.barcode(patronBarcodePrefix + patron.getLocalBarcodes().get(0))
 			.build();
 	}
 
