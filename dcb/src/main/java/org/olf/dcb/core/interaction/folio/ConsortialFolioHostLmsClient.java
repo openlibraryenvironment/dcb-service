@@ -141,15 +141,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<OuterHoldings> getHoldings(String instanceId) {
-		final var authorisedRequest = authorisedRequest("/rtac");
-		final var request = authorisedRequest
+		final var request = authorisedRequest("/rtac")
 			.uri(uriBuilder -> uriBuilder
 				.queryParam("instanceIds", instanceId)
 				// Full periodicals refers to items, without this parameter holdings will be returned instead of items
 				.queryParam("fullPeriodicals", true)
-			)
-			// MUST explicitly accept JSON otherwise XML will be returned
-			.accept(APPLICATION_JSON);
+			);
 
 		return Mono.from(httpClient.retrieve(request, Argument.of(OuterHoldings.class)));
 	}
@@ -360,7 +357,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		return HttpRequest.create(GET, resolve(relativeUri).toString())
 			// Base 64 encoded API key
-			.header("Authorization", apiKey);
+			.header("Authorization", apiKey)
+			// MUST explicitly accept JSON for edge-rtac otherwise XML will be returned
+			// for other edge APIs it's only good form
+			.accept(APPLICATION_JSON);
 	}
 
 	private URI resolve(URI relativeURI) {

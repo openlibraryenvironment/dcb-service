@@ -42,12 +42,12 @@ public class MockFolioFixture {
 	void mockHoldingsByInstanceId(String instanceId, JsonBody json) {
 		mockServerClient
 			.when(org.mockserver.model.HttpRequest.request()
-				.withHeader("Accept", APPLICATION_JSON)
 				.withHeader("Host", host)
 				.withHeader("Authorization", apiKey)
+				.withHeader("Accept", APPLICATION_JSON)
+				.withPath("/rtac")
 				.withQueryStringParameter("fullPeriodicals", "true")
-				.withQueryStringParameter("instanceIds", instanceId)
-				.withPath("/rtac"))
+				.withQueryStringParameter("instanceIds", instanceId))
 			.respond(response()
 				.withStatusCode(200)
 				.withBody(json));
@@ -58,6 +58,7 @@ public class MockFolioFixture {
 			.when(org.mockserver.model.HttpRequest.request()
 				.withHeader("Host", host)
 				.withHeader("Authorization", apiKey)
+				.withHeader("Accept", APPLICATION_JSON)
 				.withPath("/users/users")
 				.withQueryStringParameter("query", "barcode==\"" + barcode + "\""))
 			.respond(response()
