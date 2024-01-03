@@ -215,6 +215,8 @@ public class PAPIClient {
 		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
 		final var patronBarcodePrefix = extractMapValue(servicesMap, PATRON_BARCODE_PREFIX, String.class);
 		final var logonBranchID = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+		final var SLCL_INN_Reach = 32;
+
 		return PatronRegistration.builder()
 			.logonBranchID( logonBranchID )
 			.logonUserID(extractMapValue(conf, LOGON_USER_ID, Integer.class))
@@ -223,7 +225,7 @@ public class PAPIClient {
 			.nameFirst(patron.getLocalBarcodes().get(0))
 			.nameLast(patron.getUniqueIds().get(0))
 			.userName(patron.getUniqueIds().get(0))
-			.patronCode( parseInt(patron.getLocalPatronType()) )
+			.patronCode( SLCL_INN_Reach )
 			.birthdate("1999-11-01")
 			.postalCode("63131")
 			.streetOne("1412 S Spoede")
