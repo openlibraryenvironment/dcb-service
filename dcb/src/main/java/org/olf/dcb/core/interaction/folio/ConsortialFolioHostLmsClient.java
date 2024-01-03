@@ -279,20 +279,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
 		return findUsers(barcode)
-			.flatMap(response -> {
-				final var users = getValue(response, UserCollection::getUsers);
-
-				if (isEmpty(users)) {
-					return Mono.empty();
-				}
-
-				return Mono.just(users.stream()
-					.findFirst()
-					.map(user -> Patron.builder()
-						.localId(List.of(user.getId()))
-						.build())
-					.orElseThrow());
-			});
+			.flatMap(this::mapFirstUserToPatron);
 	}
 
 	private Mono<UserCollection> findUsers(String barcode) {
@@ -301,6 +288,21 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.uri(uriBuilder -> uriBuilder.queryParam("query", "barcode==\"" + barcode + "\""));
 
 		return makeRequest(request, Argument.of(UserCollection.class));
+	}
+
+	private Mono<Patron> mapFirstUserToPatron(UserCollection response) {
+		final var users = getValue(response, UserCollection::getUsers);
+
+		if (isEmpty(users)) {
+			return Mono.empty();
+		}
+
+		return Mono.just(users.stream()
+			.findFirst()
+			.map(user -> Patron.builder()
+				.localId(List.of(user.getId()))
+				.build())
+			.orElseThrow());
 	}
 
 	@Override
