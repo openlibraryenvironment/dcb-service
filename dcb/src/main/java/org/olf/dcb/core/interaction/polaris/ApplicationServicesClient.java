@@ -63,12 +63,14 @@ class ApplicationServicesClient {
 	 * @return
 	 */
 	Mono<HoldRequestResponse> addLocalHoldRequest(HoldRequestParameters holdRequestParameters) {
+		log.debug("addLocalHoldRequest with holdRequestParameters {}", holdRequestParameters);
 		final var path = createPath("holds");
 		return createRequest(POST, path, uri -> uri.queryParam("bulkmode", true))
 			.zipWith( getLocalRequestBody(holdRequestParameters) )
 			.map(tuple -> {
 				final var request = tuple.getT1();
 				final var body = tuple.getT2();
+				log.debug("trying addLocalHoldRequest with body {}", body);
 				return request.body(body);
 			})
 			.flatMap(request -> client.exchange(request, HoldRequestResponse.class))
