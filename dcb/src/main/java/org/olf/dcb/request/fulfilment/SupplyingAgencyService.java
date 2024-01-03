@@ -339,7 +339,8 @@ public class SupplyingAgencyService {
 						.uniqueIds(stringToList(uniqueId))
 						.localHomeLibraryCode(requestingPatronIdentity.getLocalHomeLibraryCode())
 						.build())
-					.map(createdPatron -> Tuples.of(createdPatron, patronType));
+					.map(createdPatron -> Tuples.of(createdPatron, patronType))
+					.doOnSuccess( t -> log.debug("determinePatronType ended with success {}",t) );
 			});
 	}
 
