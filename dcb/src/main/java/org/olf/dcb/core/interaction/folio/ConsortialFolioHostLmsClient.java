@@ -38,6 +38,7 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MutableHttpRequest;
@@ -148,7 +149,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.queryParam("fullPeriodicals", true)
 			);
 
-		return Mono.from(httpClient.retrieve(request, Argument.of(OuterHoldings.class)));
+		return makeRequest(request, Argument.of(OuterHoldings.class));
 	}
 
 	private static Mono<OuterHoldings> checkResponse(OuterHoldings outerHoldings, String instanceId) {
@@ -290,7 +291,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var request = authorisedRequest("/users/users")
 			.uri(uriBuilder -> uriBuilder.queryParam("query", "barcode==\"" + barcode + "\""));
 
-		return Mono.from(httpClient.retrieve(request, Argument.of(UserCollection.class)));
+		return makeRequest(request, Argument.of(UserCollection.class));
 	}
 
 	@Override
@@ -350,6 +351,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> deleteBib(String id) {
 		return Mono.just("DUMMY");
+	}
+
+	private <T, R> Mono<T> makeRequest(@NonNull MutableHttpRequest<R> request,
+		@NonNull Argument<T> bodyType) {
+
+		return Mono.from(httpClient.retrieve(request, bodyType));
 	}
 
 	private MutableHttpRequest<Object> authorisedRequest(String path) {
