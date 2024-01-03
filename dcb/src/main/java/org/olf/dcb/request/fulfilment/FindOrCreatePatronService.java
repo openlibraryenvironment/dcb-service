@@ -23,7 +23,11 @@ public class FindOrCreatePatronService {
 		log.debug("findOrCreatePatron({}, {}, {})", localSystemCode, localId, homeLibraryCode);
 
 		return patronService.findPatronFor(localSystemCode, localId)
-			.switchIfEmpty(createPatron(localSystemCode, localId, homeLibraryCode))
+			// .switchIfEmpty(createPatron(localSystemCode, localId, homeLibraryCode))
+			.switchIfEmpty(Mono.defer(() -> { 
+				log.info("Create new patron {},{},{}", localSystemCode, localId, homeLibraryCode);
+				return createPatron(localSystemCode, localId, homeLibraryCode); 
+			}))
 			.flatMap(patronService::findById)
 			.doOnSuccess(patron -> log.debug("Found or created patron: {}", patron))
 			.doOnError(error -> log.debug("Error when finding or creating patron"));

@@ -22,7 +22,7 @@ public class PickupLocationPreflightCheck implements PreflightCheck {
 		final var pickupLocationCode = command.getPickupLocationCode();
 
 		return locationService.findByCode(pickupLocationCode)
-			.switchIfEmpty(locationService.findById(pickupLocationCode))
+			.switchIfEmpty(Mono.defer(() -> { return locationService.findById(pickupLocationCode); }))
 			.map(location -> CheckResult.passed())
 			.defaultIfEmpty(CheckResult.failed("\"" + pickupLocationCode + "\" is not a recognised pickup location code"))
 			.map(List::of);
