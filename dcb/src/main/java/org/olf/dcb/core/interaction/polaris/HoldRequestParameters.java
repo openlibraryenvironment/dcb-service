@@ -13,4 +13,5 @@ class HoldRequestParameters {
 	String dcbPatronRequestId;
 	String note;
 	Integer primaryMARCTOMID;
+	Integer localItemLocationId;
 }
