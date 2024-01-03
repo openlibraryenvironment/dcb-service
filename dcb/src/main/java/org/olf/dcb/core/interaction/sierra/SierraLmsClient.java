@@ -452,19 +452,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.flatMap( result -> patronFind(principalType,principal));
 	}
 
-	private Mono<Patron> validatePatronByUniqueIdAndSecret(String uniqueId, String credentials) {
-		final var patronValidation = PatronValidation.builder()
-			.barcode(uniqueId)
-			.pin(credentials)
-			.build();
-
-		log.debug("Attempt client patron validation : {}", patronValidation);
-
-		return patronFind("u", uniqueId)
-			.doOnSuccess(patron -> log.debug("Testing {}/{} to see if {} is present", patron, patron.getLocalNames(), credentials))
-			.filter(patron -> patron.getLocalNames().stream().anyMatch(s -> s.toLowerCase().startsWith(credentials.toLowerCase())));
-	}
-
 	// The correct URL for validating patrons in sierra is
 	// "/iii/sierra-api/v6/patrons/validate";
 	private Mono<Patron> validatePatronByBarcodeAndName(String barcode, String name) {
