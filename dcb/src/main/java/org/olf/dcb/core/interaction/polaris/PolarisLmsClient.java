@@ -282,11 +282,25 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		log.info("createPatron({}) at {}",patron,lms);
 
 		return papiClient.patronRegistrationCreate(patron)
+			.flatMap(this::validateCreatePatronResult)
 			.doOnSuccess(res -> log.debug("Successful result creating patron {}",res) )
 			.doOnError(error -> log.error("Problem trying to create patron {}",error) )
 			.map(PAPIClient.PatronRegistrationCreateResult::getPatronID)
 			.flatMap(appServicesClient::handlePatronBlock)
 			.map(String::valueOf);
+	}
+
+	private Mono<PAPIClient.PatronRegistrationCreateResult> validateCreatePatronResult(PAPIClient.PatronRegistrationCreateResult result) {
+		// Perform a test on result.papiErrorCode 
+		if ( result.getPapiErrorCode() != 0 )
+			return Mono.error(
+				Problem.builder()
+						.withType(ERR0211)
+						.withTitle("Unable to create virtual patron at polaris - errorcode:"+result.getPapiErrorCode())
+						.withDetail(result.getErrorMessage())
+						.build() );
+
+		return Mono.just(result);
 	}
 
 	@Override
