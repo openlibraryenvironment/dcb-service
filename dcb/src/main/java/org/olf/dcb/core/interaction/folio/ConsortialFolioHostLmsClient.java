@@ -281,6 +281,16 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
 		final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
+		return findUsers(barcode)
+			.map(response -> response.getUsers().stream()
+					.findFirst()
+					.map(user -> Patron.builder()
+						.localId(List.of(user.getId()))
+						.build())
+					.orElseThrow());
+	}
+
+	private Mono<UserCollection> findUsers(String barcode) {
 		// Duplication in path due to way edge-users is namespaced
 		final var relativeUri = UriBuilder.of("/users/users").build();
 
@@ -289,13 +299,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.header("Authorization", apiKey)
 			.uri(uriBuilder -> uriBuilder.queryParam("query", "barcode==\"" + barcode + "\""));
 
-		return Mono.from(httpClient.retrieve(request, Argument.of(UserCollection.class)))
-			.map(response -> response.getUsers().stream()
-					.findFirst()
-					.map(user -> Patron.builder()
-						.localId(List.of(user.getId()))
-						.build())
-					.orElseThrow());
+		return Mono.from(httpClient.retrieve(request, Argument.of(UserCollection.class)));
 	}
 
 	@Override
