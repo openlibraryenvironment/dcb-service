@@ -50,7 +50,10 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		final var localId = UUID.randomUUID().toString();
 
-		mockFolioFixture.mockFindUserByBarcode("67375297", localId);
+		mockFolioFixture.mockFindUsersByBarcode("67375297",
+			User.builder()
+				.id(localId)
+				.build());
 
 		// Act
 		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));

@@ -53,7 +53,7 @@ public class MockFolioFixture {
 				.withBody(json));
 	}
 
-	void mockFindUserByBarcode(String barcode, String localId) {
+	void mockFindUsersByBarcode(String barcode, User... users) {
 		mockServerClient
 			.when(org.mockserver.model.HttpRequest.request()
 				.withHeader("Host", host)
@@ -65,10 +65,7 @@ public class MockFolioFixture {
 				.withStatusCode(200)
 				.withBody(json(
 					UserCollection.builder()
-						.users(List.of(
-							User.builder()
-								.id(localId)
-								.build()))
+						.users(List.of(users))
 					.build())));
 	}
 }
