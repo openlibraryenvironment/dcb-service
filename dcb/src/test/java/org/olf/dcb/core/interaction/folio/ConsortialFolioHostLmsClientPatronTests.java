@@ -1,6 +1,8 @@
 package org.olf.dcb.core.interaction.folio;
 
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalId;
@@ -44,7 +46,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 	}
 
 	@Test
-	void shouldBeAbleToFindPatronByBarcode() {
+	void shouldBeAbleToFindOnlyUserByBarcode() {
 		// Arrange
 		final var patron = createPatron("67375297");
 
@@ -62,6 +64,20 @@ class ConsortialFolioHostLmsClientPatronTests {
 		assertThat(foundPatron, allOf(
 			hasLocalId(localId)
 		));
+	}
+
+	@Test
+	void shouldBeEmptyWhenNoUserFoundForBarcode() {
+		// Arrange
+		final var patron = createPatron("47683763");
+
+		mockFolioFixture.mockFindUsersByBarcode("47683763");
+
+		// Act
+		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
+
+		// Assert
+		assertThat(foundPatron, is(nullValue()));
 	}
 
 	private static Patron createPatron(String localBarcode) {

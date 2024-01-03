@@ -279,12 +279,20 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
 		return findUsers(barcode)
-			.map(response -> response.getUsers().stream()
+			.mapNotNull(response -> {
+				final var users = getValue(response, UserCollection::getUsers);
+
+				if (isEmpty(users)) {
+					return null;
+				}
+
+				return users.stream()
 					.findFirst()
 					.map(user -> Patron.builder()
 						.localId(List.of(user.getId()))
 						.build())
-					.orElseThrow());
+					.orElseThrow();
+			});
 	}
 
 	private Mono<UserCollection> findUsers(String barcode) {
