@@ -58,7 +58,8 @@ public class MockFolioFixture {
 			.when(org.mockserver.model.HttpRequest.request()
 				.withHeader("Host", host)
 				.withHeader("Authorization", apiKey)
-				.withPath("/users/users"))
+				.withPath("/users/users")
+				.withQueryStringParameter("query", "barcode==\"" + barcode + "\""))
 			.respond(response()
 				.withStatusCode(200)
 				.withBody(json(
