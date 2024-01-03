@@ -279,7 +279,20 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
-		return Mono.empty();
+		// Duplication in path due to way edge-users is namespaced
+		final var relativeUri = UriBuilder.of("/users/users").build();
+
+		final var request = HttpRequest.create(HttpMethod.GET, resolve(relativeUri).toString())
+			// Base 64 encoded API key
+			.header("Authorization", apiKey);
+
+		return Mono.from(httpClient.retrieve(request, Argument.of(UserCollection.class)))
+			.map(response -> response.getUsers().stream()
+					.findFirst()
+					.map(user -> Patron.builder()
+						.localId(List.of(user.getId()))
+						.build())
+					.orElseThrow());
 	}
 
 	@Override

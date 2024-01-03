@@ -1,8 +1,9 @@
 package org.olf.dcb.core.interaction.folio;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
@@ -48,11 +49,17 @@ class ConsortialFolioHostLmsClientPatronTests {
 		// Arrange
 		final var patron = createPatron("67375297");
 
+		final var localId = UUID.randomUUID().toString();
+
+		mockFolioFixture.mockFindUserByBarcode("67375297", localId);
+
 		// Act
 		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
 
 		// Assert
-		assertThat("Should be empty as unimplemented", foundPatron, is(nullValue()));
+		assertThat(foundPatron, allOf(
+			hasProperty("localId", containsInAnyOrder(localId))
+		));
 	}
 
 	private static Patron createPatron(String localBarcode) {

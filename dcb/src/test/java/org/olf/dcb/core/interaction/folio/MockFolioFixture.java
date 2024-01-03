@@ -52,4 +52,21 @@ public class MockFolioFixture {
 				.withStatusCode(200)
 				.withBody(json));
 	}
+
+	void mockFindUserByBarcode(String barcode, String localId) {
+		mockServerClient
+			.when(org.mockserver.model.HttpRequest.request()
+				.withHeader("Host", host)
+				.withHeader("Authorization", apiKey)
+				.withPath("/users/users"))
+			.respond(response()
+				.withStatusCode(200)
+				.withBody(json(
+					UserCollection.builder()
+						.users(List.of(
+							User.builder()
+								.id(localId)
+								.build()))
+					.build())));
+	}
 }
