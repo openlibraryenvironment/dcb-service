@@ -2,9 +2,8 @@ package org.olf.dcb.core.interaction.folio;
 
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalId;
 
 import java.util.List;
 import java.util.UUID;
@@ -58,7 +57,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		// Assert
 		assertThat(foundPatron, allOf(
-			hasProperty("localId", containsInAnyOrder(localId))
+			hasLocalId(localId)
 		));
 	}
 
