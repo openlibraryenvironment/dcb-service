@@ -4,6 +4,7 @@ import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static io.micronaut.http.HttpMethod.GET;
+import static io.micronaut.http.HttpStatus.UNAUTHORIZED;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
@@ -292,7 +293,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var request = authorisedRequest("/users/users")
 			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
-		return makeRequest(request, Argument.of(UserCollection.class));
+		return makeRequest(request, Argument.of(UserCollection.class))
+			.onErrorMap(this::isUnauthorisedResponse, InvalidApiKeyException::new);
 	}
 
 	private Mono<Patron> mapFirstUserToPatron(UserCollection response,
@@ -413,5 +415,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private URI resolve(URI relativeURI) {
 		return RelativeUriResolver.resolve(rootUri, relativeURI);
+	}
+
+	private boolean isUnauthorisedResponse(Throwable error) {
+		if (error instanceof HttpClientResponseException httpError) {
+			return httpError.getStatus() == UNAUTHORIZED;
+		}
+		else {
+			return false;
+		}
 	}
 }

@@ -7,7 +7,12 @@ import static org.mockserver.model.JsonBody.json;
 import java.util.List;
 
 import org.mockserver.client.MockServerClient;
+import org.mockserver.model.HttpResponse;
 import org.mockserver.model.JsonBody;
+
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Value;
 
 public class MockFolioFixture {
 	private final MockServerClient mockServerClient;
@@ -54,6 +59,15 @@ public class MockFolioFixture {
 	}
 
 	void mockFindUsersByBarcode(String barcode, User... users) {
+		mockFindUsersByBarcode(barcode, response()
+			.withStatusCode(200)
+			.withBody(json(
+				UserCollection.builder()
+					.users(List.of(users))
+				.build())));
+	}
+
+	public void mockFindUsersByBarcode(String barcode, HttpResponse httpResponse) {
 		mockServerClient
 			.when(org.mockserver.model.HttpRequest.request()
 				.withHeader("Host", host)
@@ -61,11 +75,14 @@ public class MockFolioFixture {
 				.withHeader("Accept", APPLICATION_JSON)
 				.withPath("/users/users")
 				.withQueryStringParameter("query", "barcode==\"" + barcode + "\""))
-			.respond(response()
-				.withStatusCode(200)
-				.withBody(json(
-					UserCollection.builder()
-						.users(List.of(users))
-					.build())));
+			.respond(httpResponse);
+	}
+
+	@Serdeable
+	@Builder
+	@Value
+	public static class ErrorResponse {
+		Integer code;
+		String errorMessage;
 	}
 }

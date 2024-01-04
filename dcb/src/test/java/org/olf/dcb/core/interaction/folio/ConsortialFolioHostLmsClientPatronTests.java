@@ -4,7 +4,11 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockserver.model.HttpResponse.response;
+import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarcodes;
@@ -28,6 +32,7 @@ import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.test.HostLmsFixture;
 
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -150,6 +155,37 @@ class ConsortialFolioHostLmsClientPatronTests {
 		// Assert
 		assertThat(exception, hasMessage(
 			"Multiple users found in Host LMS: \"folio-lms-client-patron-tests\" for query: \"barcode==\"6349673\"\""));
+	}
+
+	@Test
+	void shouldFailWhenApiKeyIsInvalid(MockServerClient mockServerClient) {
+		// Arrange
+		final var barcode = "1227264";
+		final var apiKey = "eyJzIjoidTBxaEZjWFd1YiIsInQiOiJpbnZhbGlkVGVuYW50IiwidSI6ImludmFsaWRVc2VyIn0=";
+
+		final var mockInvalidFolioFixture = new MockFolioFixture(mockServerClient, "invalid-folio", apiKey);
+
+		final var patron = createPatron(barcode);
+
+		hostLmsFixture.createFolioHostLms("INVALID-FOLIO", "https://invalid-folio",
+			apiKey, "", "");
+
+		mockInvalidFolioFixture.mockFindUsersByBarcode(barcode, response()
+			.withStatusCode(401)
+			.withBody(json(MockFolioFixture.ErrorResponse.builder()
+				.code(401)
+				.errorMessage("Cannot get system connection properties for user with name: invalidUser, for tenant: invalidTenant")
+				.build())));
+
+		// Act
+		final var client = hostLmsFixture.createClient("INVALID-FOLIO");
+
+		final var exception = assertThrows(InvalidApiKeyException.class, () ->
+			singleValueFrom(client.findVirtualPatron(patron)));
+
+		// Assert
+		assertThat(exception, hasProperty("cause",
+			instanceOf(HttpClientResponseException.class)));
 	}
 
 	private static Patron createPatron(String localBarcode) {
