@@ -279,15 +279,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
 		final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
-		return findUsers(barcode)
+		return findUsers(exactEqualityQuery("barcode", barcode))
 			.flatMap(this::mapFirstUserToPatron);
 	}
 
-	private Mono<UserCollection> findUsers(String barcode) {
+	private Mono<UserCollection> findUsers(CqlQuery query) {
 		// Duplication in path due to way edge-users is namespaced
 		final var request = authorisedRequest("/users/users")
-			.uri(uriBuilder -> uriBuilder.queryParam("query",
-				exactEqualityQuery("barcode", barcode)));
+			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
 		return makeRequest(request, Argument.of(UserCollection.class));
 	}
