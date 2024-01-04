@@ -8,6 +8,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture.*;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.SierraErrorMatchers.getResponseBody;
 import static org.olf.dcb.test.matchers.SierraErrorMatchers.isBadJsonError;
@@ -112,7 +113,13 @@ class SierraApiPatronTests {
 		// Arrange
 		var uniqueId = "1234567890";
 
-		sierraPatronsAPIFixture.patronResponseForUniqueId("u", uniqueId);
+		sierraPatronsAPIFixture.patronFoundResponse("u", uniqueId,
+			Patron.builder()
+				.id(1000002)
+				.patronType(22)
+				.names(List.of("Joe Bloggs"))
+				.homeLibraryCode("testbbb")
+				.build());
 
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
@@ -125,7 +132,6 @@ class SierraApiPatronTests {
 		assertThat("Should have expected patron type", response.getPatronType(), is(22));
 		assertThat("Should have expected home library code", response.getHomeLibraryCode(), is("testbbb"));
 		assertThat("Should have no barcodes", response.getBarcodes(), is(nullValue()));
-		//assertThat("Should have no names", response.getNames(), is(nullValue()));
 	}
 
 	@Test
@@ -133,7 +139,14 @@ class SierraApiPatronTests {
 		// Arrange
 		var uniqueId = "6748687";
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(uniqueId);
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(uniqueId,
+			Patron.builder()
+				.id(1000002)
+				.patronType(15)
+				.homeLibraryCode("testccc")
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build());
 
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
@@ -153,7 +166,7 @@ class SierraApiPatronTests {
 	public void testPatronFindReturns107() {
 		// Arrange
 		final var uniqueId = "018563984";
-		sierraPatronsAPIFixture.patronNotFoundResponseForUniqueId("u", uniqueId);
+		sierraPatronsAPIFixture.patronNotFoundResponse("u", uniqueId);
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act

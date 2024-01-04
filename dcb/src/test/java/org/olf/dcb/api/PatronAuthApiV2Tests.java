@@ -4,7 +4,6 @@ import static io.micronaut.http.HttpStatus.OK;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.JsonBody.json;
 
@@ -34,7 +33,6 @@ import jakarta.inject.Inject;
 import lombok.Builder;
 import lombok.Data;
 import services.k_int.interaction.sierra.SierraTestUtils;
-import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
 import services.k_int.interaction.sierra.patrons.PatronValidation;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -103,7 +101,14 @@ public class PatronAuthApiV2Tests {
       .barcode("3100222227777").pin("76trombones").build())))
       .respond(HttpResponse.response().withStatusCode(200));
 
-    sierraPatronsAPIFixture.patronResponseForUniqueId("b", "3100222227777");
+		sierraPatronsAPIFixture.patronFoundResponse("b", "3100222227777",
+			SierraPatronsAPIFixture.Patron.builder()
+				.id(1000002)
+				.patronType(22)
+				.names(List.of("Joe Bloggs"))
+				.homeLibraryCode("testbbb")
+				.build());
+
     savePatronTypeMappings();
 
 		// Act

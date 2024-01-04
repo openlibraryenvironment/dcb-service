@@ -14,6 +14,7 @@ import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNoBriefDes
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasLocalPatronType;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
@@ -76,7 +78,14 @@ public class ValidatePatronTests {
 
 		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("467295");
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("467295",
+			SierraPatronsAPIFixture.Patron.builder()
+				.id(1000002)
+				.patronType(15)
+				.homeLibraryCode("testccc")
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build());
 
 		referenceValueMappingFixture.deleteAll();
 
@@ -197,7 +206,14 @@ public class ValidatePatronTests {
 
 		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localId);
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localId,
+			SierraPatronsAPIFixture.Patron.builder()
+				.id(1000002)
+				.patronType(15)
+				.homeLibraryCode("testccc")
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build());
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,

@@ -25,6 +25,9 @@ public class CleanupPatronRequestTransition implements PatronRequestStateTransit
 
 	@Override
 	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
+
+    log.info("CleanupPatronRequestTransition firing for {}",patronRequest);
+
 		
 		// Remove the hold at the Lender (LenderRequest)
 		// - Remove virtual Patron if not associated with another request
