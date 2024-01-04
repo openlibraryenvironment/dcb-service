@@ -2,6 +2,7 @@ package org.olf.dcb.test.matchers.interaction;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasProperty;
 
@@ -27,5 +28,9 @@ public class PatronMatchers {
 
 	public static Matcher<Patron> hasLocalPatronType(String expectedPatronGroup) {
 		return hasProperty("localPatronType", is(expectedPatronGroup));
+	}
+
+	public static Matcher<Patron> hasLocalNames(String... expectedNames) {
+		return hasProperty("localNames", contains(expectedNames));
 	}
 }

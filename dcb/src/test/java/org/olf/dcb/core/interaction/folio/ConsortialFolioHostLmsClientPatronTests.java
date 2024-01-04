@@ -7,9 +7,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarcodes;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalIds;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalNames;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoHomeLibraryCode;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoLocalNames;
 
 import java.util.List;
 import java.util.UUID;
@@ -63,6 +63,12 @@ class ConsortialFolioHostLmsClientPatronTests {
 				.id(localId)
 				.patronGroup(patronGroup)
 				.barcode(barcode)
+				.personal(User.Personal.builder()
+					.firstName("first name")
+					.middleName("middle name")
+					.lastName("last name")
+					.preferredFirstName("preferred first name")
+					.build())
 				.build());
 
 		// Act
@@ -74,7 +80,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 			hasLocalPatronType(patronGroup),
 			hasLocalBarcodes(barcode),
 			hasNoHomeLibraryCode(),
-			hasNoLocalNames()
+			hasLocalNames("first name", "middle name", "last name", "preferred first name")
 		));
 	}
 
