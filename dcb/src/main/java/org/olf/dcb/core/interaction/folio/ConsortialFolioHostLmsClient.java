@@ -281,8 +281,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
 		final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
-		return findUsers(exactEqualityQuery("barcode", barcode))
-			.flatMap(this::mapFirstUserToPatron);
+		final var query = exactEqualityQuery("barcode", barcode);
+
+		return findUsers(query)
+			.flatMap(response -> mapFirstUserToPatron(response, query));
 	}
 
 	private Mono<UserCollection> findUsers(CqlQuery query) {
@@ -293,11 +295,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return makeRequest(request, Argument.of(UserCollection.class));
 	}
 
-	private Mono<Patron> mapFirstUserToPatron(UserCollection response) {
+	private Mono<Patron> mapFirstUserToPatron(UserCollection response,
+		CqlQuery query) {
+
 		final var users = getValue(response, UserCollection::getUsers);
 
 		if (isEmpty(users)) {
 			return Mono.empty();
+		}
+
+		if (users.size() > 1) {
+			return Mono.error(new MultipleUsersFoundException(getHostLmsCode(), query));
 		}
 
 		return Mono.just(users.stream()

@@ -4,7 +4,9 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarcodes;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalIds;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalNames;
@@ -91,9 +93,11 @@ class ConsortialFolioHostLmsClientPatronTests {
 	@Test
 	void shouldBeEmptyWhenNoUserFoundForBarcode() {
 		// Arrange
-		final var patron = createPatron("47683763");
+		final var barcode = "47683763";
 
-		mockFolioFixture.mockFindUsersByBarcode("47683763");
+		final var patron = createPatron(barcode);
+
+		mockFolioFixture.mockFindUsersByBarcode(barcode);
 
 		// Act
 		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
@@ -122,6 +126,30 @@ class ConsortialFolioHostLmsClientPatronTests {
 			hasNoHomeLibraryCode(),
 			hasNoLocalNames()
 		));
+	}
+
+	@Test
+	void shouldFailWhenMultipleUsersFoundForBarcode() {
+		// Arrange
+		final var barcode = "6349673";
+
+		final var patron = createPatron(barcode);
+
+		mockFolioFixture.mockFindUsersByBarcode(barcode,
+			User.builder()
+				.id(UUID.randomUUID().toString())
+				.build(),
+			User.builder()
+				.id(UUID.randomUUID().toString())
+				.build());
+
+		// Act
+		final var exception = assertThrows(MultipleUsersFoundException.class, () ->
+			singleValueFrom(client.findVirtualPatron(patron)));
+
+		// Assert
+		assertThat(exception, hasMessage(
+			"Multiple users found in Host LMS: \"folio-lms-client-patron-tests\" for query: \"barcode==\"6349673\"\""));
 	}
 
 	private static Patron createPatron(String localBarcode) {
