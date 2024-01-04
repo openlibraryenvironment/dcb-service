@@ -285,6 +285,11 @@ public class PolarisLmsClientTests {
 	@Test
 	public void createPatron() {
 		// Arrange
+		final var localItemId = "3512742";
+		mockPolaris.whenRequest(req -> req.withMethod("GET")
+				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/" + localItemId))
+			.respond(okJson(resourceLoader.getResource("items-get.json")));
+
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/PAPIService/REST/public/v1/1033/100/1/patron"))
 			.respond(okJson(resourceLoader.getResource("create-patron.json")));
@@ -296,7 +301,8 @@ public class PolarisLmsClientTests {
 		final var uniqueId = "dcb_unique_Id";
 		final var patron = Patron.builder().uniqueIds(List.of(uniqueId))
 			.localPatronType("1").localHomeLibraryCode("39")
-			.localBarcodes(List.of("0088888888")).build();
+			.localBarcodes(List.of("0088888888"))
+			.localItemId(localItemId).build();
 
 		// Act
 		final var response = hostLmsFixture.createClient(HOST_LMS_CODE).createPatron(patron).block();
