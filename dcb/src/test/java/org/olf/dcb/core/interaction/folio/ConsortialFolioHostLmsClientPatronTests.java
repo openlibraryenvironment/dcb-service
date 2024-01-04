@@ -4,6 +4,7 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalId;
@@ -49,15 +50,17 @@ class ConsortialFolioHostLmsClientPatronTests {
 	@Test
 	void shouldBeAbleToFindOnlyUserByBarcode() {
 		// Arrange
-		final var patron = createPatron("67375297");
-
+		final var barcode = "67375297";
 		final var localId = UUID.randomUUID().toString();
 		final var patronGroup = UUID.randomUUID().toString();
 
-		mockFolioFixture.mockFindUsersByBarcode("67375297",
+		final var patron = createPatron(barcode);
+
+		mockFolioFixture.mockFindUsersByBarcode(barcode,
 			User.builder()
 				.id(localId)
 				.patronGroup(patronGroup)
+				.barcode(barcode)
 				.build());
 
 		// Act
@@ -66,7 +69,8 @@ class ConsortialFolioHostLmsClientPatronTests {
 		// Assert
 		assertThat(foundPatron, allOf(
 			hasLocalId(localId),
-			hasProperty("localPatronType", is(patronGroup))
+			hasProperty("localPatronType", is(patronGroup)),
+			hasProperty("localBarcodes", containsInAnyOrder(barcode))
 		));
 	}
 

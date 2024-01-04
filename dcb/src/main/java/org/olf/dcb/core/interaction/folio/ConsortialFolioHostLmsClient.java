@@ -304,10 +304,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.orElseThrow());
 	}
 
-	private Patron mapUserToPatron(User user) {
+	private Patron mapUserToPatron(@NonNull User user) {
 		return Patron.builder()
 			.localId(List.of(user.getId()))
 			.localPatronType(user.getPatronGroup())
+			.localBarcodes(List.of(user.getBarcode()))
 			.build();
 	}
 
