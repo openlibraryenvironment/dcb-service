@@ -4,10 +4,12 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarcodes;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalIds;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoHomeLibraryCode;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoLocalNames;
 
 import java.util.List;
 import java.util.UUID;
@@ -68,11 +70,11 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		// Assert
 		assertThat(foundPatron, allOf(
-			hasLocalId(localId),
-			hasProperty("localPatronType", is(patronGroup)),
-			hasProperty("localBarcodes", containsInAnyOrder(barcode)),
-			hasProperty("localHomeLibraryCode", nullValue()),
-			hasProperty("localNames", nullValue())
+			hasLocalIds(localId),
+			hasLocalPatronType(patronGroup),
+			hasLocalBarcodes(barcode),
+			hasNoHomeLibraryCode(),
+			hasNoLocalNames()
 		));
 	}
 
