@@ -18,8 +18,6 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Stream;
 
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
@@ -39,6 +37,7 @@ import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.utils.CollectionUtils;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -311,22 +310,16 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var personalDetails = user.getPersonal();
 
 		return Patron.builder()
-			.localId(nonNullValuesList(user.getId()))
+			.localId(CollectionUtils.nonNullValuesList(user.getId()))
 			.localPatronType(user.getPatronGroup())
-			.localBarcodes(nonNullValuesList(user.getBarcode()))
-			.localNames(nonNullValuesList(
+			.localBarcodes(CollectionUtils.nonNullValuesList(user.getBarcode()))
+			.localNames(CollectionUtils.nonNullValuesList(
 				getValue(personalDetails, PersonalDetails::getFirstName),
 				getValue(personalDetails, PersonalDetails::getMiddleName),
 				getValue(personalDetails, PersonalDetails::getLastName),
 				getValue(personalDetails, PersonalDetails::getPreferredFirstName)
 			))
 			.build();
-	}
-
-	private static <T> List<T> nonNullValuesList(T... values) {
-		return Stream.of(values)
-			.filter(Objects::nonNull)
-			.toList();
 	}
 
 	@Override
