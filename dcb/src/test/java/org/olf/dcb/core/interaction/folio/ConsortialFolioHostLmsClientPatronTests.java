@@ -71,7 +71,8 @@ class ConsortialFolioHostLmsClientPatronTests {
 			hasLocalId(localId),
 			hasProperty("localPatronType", is(patronGroup)),
 			hasProperty("localBarcodes", containsInAnyOrder(barcode)),
-			hasProperty("localHomeLibraryCode", nullValue())
+			hasProperty("localHomeLibraryCode", nullValue()),
+			hasProperty("localNames", nullValue())
 		));
 	}
 
