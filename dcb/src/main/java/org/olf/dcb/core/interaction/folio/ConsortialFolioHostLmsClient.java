@@ -300,11 +300,15 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		return Mono.just(users.stream()
 			.findFirst()
-			.map(user -> Patron.builder()
-				.localId(List.of(user.getId()))
-				.localPatronType(user.getPatronGroup())
-				.build())
+			.map(this::mapUserToPatron)
 			.orElseThrow());
+	}
+
+	private Patron mapUserToPatron(User user) {
+		return Patron.builder()
+			.localId(List.of(user.getId()))
+			.localPatronType(user.getPatronGroup())
+			.build();
 	}
 
 	@Override
