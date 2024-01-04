@@ -32,6 +32,7 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
@@ -43,6 +44,8 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
 	private MockFolioFixture mockFolioFixture;
 	private HostLmsClient client;
@@ -52,6 +55,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		final var API_KEY = "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9";
 
 		hostLmsFixture.deleteAll();
+		referenceValueMappingFixture.deleteAll();
 
 		hostLmsFixture.createFolioHostLms(HOST_LMS_CODE, "https://fake-folio",
 			API_KEY, "", "");
