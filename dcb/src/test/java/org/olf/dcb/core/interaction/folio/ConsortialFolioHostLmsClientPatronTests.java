@@ -70,7 +70,8 @@ class ConsortialFolioHostLmsClientPatronTests {
 		assertThat(foundPatron, allOf(
 			hasLocalId(localId),
 			hasProperty("localPatronType", is(patronGroup)),
-			hasProperty("localBarcodes", containsInAnyOrder(barcode))
+			hasProperty("localBarcodes", containsInAnyOrder(barcode)),
+			hasProperty("localHomeLibraryCode", nullValue())
 		));
 	}
 
