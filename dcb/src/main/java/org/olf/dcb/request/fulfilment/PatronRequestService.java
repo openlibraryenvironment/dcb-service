@@ -73,6 +73,9 @@ public class PatronRequestService {
 
 		log.debug("mapToPatronRequest({}, {})", command, patron);
 
+		String rawDescription = command.getDescription();
+		String trimmedDescription = rawDescription != null ? rawDescription.substring(0, Math.min(rawDescription.length(), 254)) : null;
+
 		return PatronRequest.builder()
 			.id(id)
 			.patron(patron)
@@ -80,7 +83,7 @@ public class PatronRequestService {
 			.pickupLocationCodeContext(command.getPickupLocationContext())
 			.pickupLocationCode(command.getPickupLocationCode())
 			.status(SUBMITTED_TO_DCB)
-			.description(command.getDescription())
+			.description(trimmedDescription)
 			.build();
 	}
 

@@ -54,7 +54,7 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 			// Create an ItemWithDistance for each item that calculates the distance to pickup_location
 			.flatMapMany(pickup_location ->
 				Flux.fromIterable(items)
-					.filter( item -> ( item.getIsRequestable() && item.hasNoHolds() ) )
+					.filter( item -> ( item.getIsRequestable() && item.hasNoHolds() && ( item.getAgencyCode() != null ) ) )
 					.map ( item -> {
 						return ItemWithDistance.builder()
 							.item(item)
