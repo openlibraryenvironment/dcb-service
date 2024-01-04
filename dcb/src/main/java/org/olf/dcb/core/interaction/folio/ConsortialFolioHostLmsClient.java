@@ -8,6 +8,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
@@ -286,13 +287,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		// Duplication in path due to way edge-users is namespaced
 		final var request = authorisedRequest("/users/users")
 			.uri(uriBuilder -> uriBuilder.queryParam("query",
-				constructQuery("barcode", barcode)));
+				exactEqualityQuery("barcode", barcode)));
 
 		return makeRequest(request, Argument.of(UserCollection.class));
-	}
-
-	private static CqlQuery constructQuery(String index, String value) {
-		return new CqlQuery(index + "==\"" + value + "\"");
 	}
 
 	private Mono<Patron> mapFirstUserToPatron(UserCollection response) {
