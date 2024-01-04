@@ -291,8 +291,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return makeRequest(request, Argument.of(UserCollection.class));
 	}
 
-	private static String constructQuery(String index, String value) {
-		return index + "==\"" + value + "\"";
+	private static CqlQuery constructQuery(String index, String value) {
+		return new CqlQuery(index + "==\"" + value + "\"");
 	}
 
 	private Mono<Patron> mapFirstUserToPatron(UserCollection response) {
