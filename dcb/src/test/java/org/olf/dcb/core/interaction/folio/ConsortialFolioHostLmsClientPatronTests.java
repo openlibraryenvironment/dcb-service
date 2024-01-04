@@ -10,6 +10,10 @@ import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalIds;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalNames;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoHomeLibraryCode;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoLocalBarcodes;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoLocalIds;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoLocalNames;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoLocalPatronType;
 
 import java.util.List;
 import java.util.UUID;
@@ -63,7 +67,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 				.id(localId)
 				.patronGroup(patronGroup)
 				.barcode(barcode)
-				.personal(User.Personal.builder()
+				.personal(User.PersonalDetails.builder()
 					.firstName("first name")
 					.middleName("middle name")
 					.lastName("last name")
@@ -96,6 +100,28 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		// Assert
 		assertThat(foundPatron, is(nullValue()));
+	}
+
+	@Test
+	void shouldTolerateUserWithMissingProperties() {
+		// Arrange
+		final var barcode = "7848675";
+
+		final var patron = createPatron(barcode);
+
+		mockFolioFixture.mockFindUsersByBarcode(barcode, User.builder().build());
+
+		// Act
+		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
+
+		// Assert
+		assertThat(foundPatron, allOf(
+			hasNoLocalIds(),
+			hasNoLocalPatronType(),
+			hasNoLocalBarcodes(),
+			hasNoHomeLibraryCode(),
+			hasNoLocalNames()
+		));
 	}
 
 	private static Patron createPatron(String localBarcode) {

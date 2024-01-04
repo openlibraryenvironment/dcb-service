@@ -12,12 +12,12 @@ public class User {
 	@Nullable String id;
 	@Nullable String patronGroup;
 	@Nullable String barcode;
-	@Nullable Personal personal;
+	@Nullable User.PersonalDetails personal;
 
 	@Serdeable
 	@Builder
 	@Data
-	public static class Personal {
+	public static class PersonalDetails {
 		@Nullable String firstName;
 		@Nullable String lastName;
 		@Nullable String middleName;

@@ -18,6 +18,8 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
@@ -30,6 +32,7 @@ import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.folio.User.PersonalDetails;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
@@ -305,17 +308,25 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Patron mapUserToPatron(@NonNull User user) {
+		final var personalDetails = user.getPersonal();
+
 		return Patron.builder()
-			.localId(List.of(user.getId()))
+			.localId(nonNullValuesList(user.getId()))
 			.localPatronType(user.getPatronGroup())
-			.localBarcodes(List.of(user.getBarcode()))
-			.localNames(List.of(
-				user.getPersonal().getFirstName(),
-				user.getPersonal().getMiddleName(),
-				user.getPersonal().getLastName(),
-				user.getPersonal().getPreferredFirstName()
+			.localBarcodes(nonNullValuesList(user.getBarcode()))
+			.localNames(nonNullValuesList(
+				getValue(personalDetails, PersonalDetails::getFirstName),
+				getValue(personalDetails, PersonalDetails::getMiddleName),
+				getValue(personalDetails, PersonalDetails::getLastName),
+				getValue(personalDetails, PersonalDetails::getPreferredFirstName)
 			))
 			.build();
+	}
+
+	private static <T> List<T> nonNullValuesList(T... values) {
+		return Stream.of(values)
+			.filter(Objects::nonNull)
+			.toList();
 	}
 
 	@Override
