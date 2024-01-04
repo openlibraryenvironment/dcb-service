@@ -10,4 +10,5 @@ import lombok.Data;
 @Data
 public class User {
 	@Nullable String id;
+	@Nullable String patronGroup;
 }

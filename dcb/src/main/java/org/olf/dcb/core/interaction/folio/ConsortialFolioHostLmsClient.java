@@ -302,6 +302,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.findFirst()
 			.map(user -> Patron.builder()
 				.localId(List.of(user.getId()))
+				.localPatronType(user.getPatronGroup())
 				.build())
 			.orElseThrow());
 	}

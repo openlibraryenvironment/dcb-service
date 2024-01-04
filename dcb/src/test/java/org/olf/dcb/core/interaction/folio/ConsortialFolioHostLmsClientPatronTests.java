@@ -4,6 +4,7 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalId;
 
@@ -51,10 +52,12 @@ class ConsortialFolioHostLmsClientPatronTests {
 		final var patron = createPatron("67375297");
 
 		final var localId = UUID.randomUUID().toString();
+		final var patronGroup = UUID.randomUUID().toString();
 
 		mockFolioFixture.mockFindUsersByBarcode("67375297",
 			User.builder()
 				.id(localId)
+				.patronGroup(patronGroup)
 				.build());
 
 		// Act
@@ -62,7 +65,8 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		// Assert
 		assertThat(foundPatron, allOf(
-			hasLocalId(localId)
+			hasLocalId(localId),
+			hasProperty("localPatronType", is(patronGroup))
 		));
 	}
 
