@@ -281,7 +281,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		log.info("createPatron({}) at {}",patron,lms);
 
-		return papiClient.patronRegistrationCreate(patron)
+		return papiClient.synch_ItemGet(patron.getLocalItemId())
+			.map(itemGetRow -> patron.setLocalItemLocationId(itemGetRow.getLocationID()))
+			.flatMap(papiClient::patronRegistrationCreate)
 			.flatMap(this::validateCreatePatronResult)
 			.doOnSuccess(res -> log.debug("Successful result creating patron {}",res) )
 			.doOnError(error -> log.error("Problem trying to create patron {}",error) )

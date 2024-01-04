@@ -291,7 +291,7 @@ public class SupplyingAgencyService {
 		return hostLmsService.getClientFor(hostLmsCode)
 			.zipWhen(client -> getRequestingIdentity(patronRequest), Tuples::of)
 			.flatMap(function((client,requestingIdentity) ->
-				createVPatronAndSaveIdentity(client, requestingIdentity,patronRequest,hostLmsCode)));
+				createVPatronAndSaveIdentity(client, requestingIdentity,patronRequest,hostLmsCode,supplierRequest)));
 	}
 
 	/**
@@ -301,15 +301,17 @@ public class SupplyingAgencyService {
 		HostLmsClient client, 
 		PatronIdentity requestingIdentity, 
 		PatronRequest patronRequest, 
-		String hostLmsCode) {
+		String hostLmsCode,
+		SupplierRequest supplierRequest) {
 
-		return createPatronAtSupplier(patronRequest, client, requestingIdentity, hostLmsCode)
+		return createPatronAtSupplier(patronRequest, client, requestingIdentity, hostLmsCode, supplierRequest)
 			.flatMap(function((localId, patronType) -> checkForPatronIdentity(patronRequest, hostLmsCode, localId, patronType, requestingIdentity.getLocalBarcode())));
 	}
 
 	private Mono<Tuple2<String, String>> createPatronAtSupplier(
 		PatronRequest patronRequest, HostLmsClient client,
-		PatronIdentity requestingPatronIdentity, String supplierHostLmsCode) {
+		PatronIdentity requestingPatronIdentity, String supplierHostLmsCode,
+		SupplierRequest supplierRequest) {
 		// Using the patron type from the patrons "Home" patronIdentity, look up what the equivalent patron type is at
 		// the supplying system. Then create a patron in the supplying system using that type value.
 
@@ -338,6 +340,7 @@ public class SupplyingAgencyService {
 						.localPatronType(patronType)
 						.uniqueIds(stringToList(uniqueId))
 						.localHomeLibraryCode(requestingPatronIdentity.getLocalHomeLibraryCode())
+						.localItemId(supplierRequest.getLocalItemId())
 						.build())
 					.map(createdPatron -> Tuples.of(createdPatron, patronType))
 					.doOnSuccess( t -> log.debug("determinePatronType ended with success {}",t) );
