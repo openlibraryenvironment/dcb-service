@@ -285,9 +285,13 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private Mono<UserCollection> findUsers(String barcode) {
 		// Duplication in path due to way edge-users is namespaced
 		final var request = authorisedRequest("/users/users")
-			.uri(uriBuilder -> uriBuilder.queryParam("query", "barcode==\"" + barcode + "\""));
+			.uri(uriBuilder -> uriBuilder.queryParam("query", constructQuery(barcode)));
 
 		return makeRequest(request, Argument.of(UserCollection.class));
+	}
+
+	private static String constructQuery(String barcode) {
+		return "barcode==\"" + barcode + "\"";
 	}
 
 	private Mono<Patron> mapFirstUserToPatron(UserCollection response) {
