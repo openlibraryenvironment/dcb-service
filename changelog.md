@@ -1,10 +1,137 @@
 # Changelog
 
+## Version 4.3.0
+
+### Additions
+* [General]
+	* add a barcode field when creating a patron in polaris
+
+### Changes
+* [Chore]
+	* Extra error checking around POLARIS create patron - validate the response and check for a nonzero error code
+	* Add some defers to empty handling to prevent premature side effects
+	* Extra logging on polaris createPatron
+	* add logging for creating patron in polaris
+	* add log before local hold request is made (polaris)
+	* Removed unused code in Sierra host LMS client DCB-490
+	* Replace spaces with tabs in patron class DCB-490
+	* log when supplying agency service clean up is called
+	* refactor cancelled action a little
+	* re Added hazelcast, added doOnError to cancel api endpoint for logging
+	* toggle bib record creation - both work
+	* Explore alternate way of populating member bibs for indexing
+	* refactor some error scenarios to defer invoking the onError until it's actually needed
+	* instrument item availability checks
+	* Better logging on availability status checks
+	* Disable case sensitivity for sierra userId lookup
+	* tidy public interface for authv2 - use uniqueIds as a parallel for sierra
+	* Check username returned by authV2 interface is aligned with public API
+	* align auth and lookup methods on AuthV2 API
+	* The AuthV2 iterface should return the username as it is known at the DCB boundary - i.e. prefixed with the agency
+	* Additional info returning DCB patron info
+	* Extra validation on authv2 methods
+	* info logging on config import
+	* Don't cancel a request after it's been finalised if we detect a missing hold
+	* Add tests for AuthAPI v2
+	* More logging refinements
+	* more logging changes
+	* tone down ingest logging
+	* log level adjustments, some ingest infos change to trace
+	* Reformat patron service DCB-490
+	* Replace spaces with tabs in supplying agency service DCB-490
+	* more logging refinements
+* [Feature]
+	* Fill out cleanup transition
+	* domain class for delivery network edge
+	* Allow a HUB location type to be posted which does not have an attached agency. Tidy up some spacing in Location model class
+	* Replace mapping table handling of pickup locations ONLY with direct references to UUIDs from the Location table
+	* Return username and userid in Authv2 LocalPatronDetails
+	* Add variable field support to sierra adapter and request varFields when fetching bibs
+	* Add v2 auth api which provides domain style login identities
+	* Add auth v2 controller
+	* graphql - Add locations to agency
+* [Refactor]
+	* pass along local item id when creating patron [DCB-809]
+	* revert patron code back in polaris client
+	* add default patron code when creating a patron in Polaris
+	* add the item location id during the place hold request
+	* Remove unique ID path from Sierra patron auth DCB-490
+	* Inline patron auth when finding Sierra virtual patron DCB-490
+	* Separate pathon auth and finding virtual patron in dummy host LMS DCB-490
+	* Remove patron find path from patron auth DCB-490
+	* Get local barcode from home identity when finding virtual patron DCB-490
+	* Throw specific exception when patron does not have home identity DCB-490
+	* Extract method for getting home identity DCB-490
+	* Return null unique ID when no home identity DCB-490
+	* Push find virtual patron implementation down to each client DCB-490
+	* Introduce method for finding virtual patron in host LMS client DCB-490
+	* Remove redundant zip when finding virtual patron DCB-490
+	* Remove intermediary unique ID method when creating virtual patron DCB-490
+	* Remove intermediary unique ID method when checking virtual patron exists DCB-490
+	* Move getting unique ID to patron class DCB-490
+	* Use identities from patron when determining unique ID DCB-490
+	* Extract method for determining unique ID for patron DCB-490
+	* Move finding resolved agency from identity to service DCB-490
+	* Remove location repository dependency from context helper DCB-490
+	* Use service to find pickup location in context DCB-490
+	* Add location service dependency to context helper DCB-490
+	* Remove host LMS repository dependency from context helper DCB-490
+	* Use service to find host LMS for agency in context DCB-490
+	* Add host LMS service dependency to context helper DCB-490
+	* Remove patron repository dependency from context helper DCB-490
+	* Use service to find patron for context DCB-490
+	* Add patron service dependency to context helper DCB-490
+	* Move finding agency by ID to service DCB-490
+* [Test]
+	* Use stricter mock expectations when finding Polaris virtual patron DCB-490
+	* Use find virtual patron method instead of auth in Polaris tests DCB-490
+	* Use serialisation instead of json file for find patron response DCB-490
+	* Introduce parameter for mock response when finding patron DCB-490
+	* Inline single use assertion methods when placing supplying request DCB-490
+	* Remove unecessary home library mapping when placing supplying request DCB-490
+	* Extract method for placing request at supplying agency DCB-490
+	* Remove test for invalid hold policy when placing supplying request DCB-490
+	* Check invalid hold polcy in host LMS client test DCB-490
+	* Rename supplying agency when placing request DCB-490
+	* Change before all to before each place request at supplying agency DCB-490
+	* Move defining mock fetch hold response to tests that need it DCB-490
+	* Extract method for checking the patron request was placed at supplying agency DCB-490
+	* Extract methods for patron request property matchers DCB-490
+	* Use property matchers for checking patron request DCB-490
+	* Extract method for checking patron request has error DCB-490
+	* Use property matchers for audit entries when placing supplying request DCB-490
+	* Return created cluster record ID DCB-490
+	* Return saved patron request from fixture DCB-490
+	* Remove commented out code from place supplying request tests DCB-490
+	* Verify that create patron request was not made when placing a request at supplying agency DCB-490
+	* Verify that create patron request was made when placing a request at supplying agency DCB-490
+	* Verify that update patron request was not made when placing a request at supplying agency DCB-490
+	* Verify that update patron request was made when placing a request at supplying agency DCB-490
+	* Move verify find patron request method to fixture DCB-490
+	* Extract method for verifying that find patron request was made DCB-490
+	* Verify that find patron request was made when placing a request at supplying agency DCB-490
+
+### Fixes
+* [General]
+	* DCB-807 description is not trimmed to 254 characters and can lead to exceptions inserting PR
+	* createPatron test in PolarisLmsClientTests
+	* for POLARIS only, Use a default patron home location code defined in the HostLMS config instead of trying to map the requestingPatron home location
+	* use PATB for looking up patron barcode in polaris adaptor
+	* comment out old getMembersOld method
+	* path name for /transtion/cleanup to /transition/cleanup, also allow user to request cleanup on ERROR states
+	* Aling geo-distance filter with requirement to use only location UUID for pickup location
+	* use equals for comparing selected bib to members when generating index record. populate location for some sierra records
+	* Don't attempt to post a bulk request unless there are actually ops in the queue
+
 ## Version 4.2.0
 
 ### Additions
 * [General]
 	* Strip punctuation from the subject labels.
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ## Version 4.1.0
 
