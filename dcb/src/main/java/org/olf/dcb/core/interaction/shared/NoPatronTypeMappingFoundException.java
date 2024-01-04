@@ -5,13 +5,13 @@ import lombok.Getter;
 @Getter
 public class NoPatronTypeMappingFoundException extends RuntimeException {
 	private final String hostLmsCode;
-	private final String localPatronTypeCode;
+	private final String localPatronType;
 
 	public NoPatronTypeMappingFoundException(String message, String hostLmsCode,
-		String localPatronTypeCode) {
+		String localPatronType) {
 
 		super(message);
 		this.hostLmsCode = hostLmsCode;
-		this.localPatronTypeCode = localPatronTypeCode;
+		this.localPatronType = localPatronType;
 	}
 }

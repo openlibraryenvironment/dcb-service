@@ -31,6 +31,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.test.HostLmsFixture;
@@ -123,7 +124,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 	}
 
 	@Test
-	void shouldTolerateMissingPatronTypeMapping() {
+	void shouldFailWhenPatronTypeMappingIsMissing() {
 		// Arrange
 		final var barcode = "34746725";
 
@@ -135,13 +136,13 @@ class ConsortialFolioHostLmsClientPatronTests {
 			.build());
 
 		// Act
-		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
+		final var exception = assertThrows(
+			NoPatronTypeMappingFoundException.class,
+			() -> singleValueFrom(client.findVirtualPatron(patron)));
 
 		// Assert
-		assertThat(foundPatron, allOf(
-			hasLocalPatronType("unknown-patron-group"),
-			hasNoCanonicalPatronType()
-		));
+		assertThat(exception, hasMessage(
+			"Unable to map patron type \"unknown-patron-group\" on Host LMS: \"folio-lms-client-patron-tests\" to canonical value"));
 	}
 
 	@Test

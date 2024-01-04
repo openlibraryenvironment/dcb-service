@@ -1,5 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
@@ -56,6 +57,9 @@ public class PatronTypeService {
 
 		return referenceValueMappingService.findMapping("patronType",
 				hostLmsCode, localPatronType, "patronType", "DCB")
-			.map(ReferenceValueMapping::getToValue);
+			.map(ReferenceValueMapping::getToValue)
+			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
+				"Unable to map patron type \"" + localPatronType + "\" on Host LMS: \"" + hostLmsCode + "\" to canonical value",
+				hostLmsCode, localPatronType)));
 	}
 }

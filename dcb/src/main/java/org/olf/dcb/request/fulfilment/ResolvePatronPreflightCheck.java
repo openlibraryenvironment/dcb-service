@@ -32,7 +32,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 				error -> Mono.just(CheckResult.failed(error.getMessage())))
 			.onErrorResume(NoPatronTypeMappingFoundException.class,
 				error -> Mono.just(CheckResult.failed(
-					"Local patron type \"" + error.getLocalPatronTypeCode()
+					"Local patron type \"" + error.getLocalPatronType()
 						+ "\" from \"" + error.getHostLmsCode() + "\" is not mapped to a DCB canonical patron type")))
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class,
 				error -> Mono.just(CheckResult.failed(
