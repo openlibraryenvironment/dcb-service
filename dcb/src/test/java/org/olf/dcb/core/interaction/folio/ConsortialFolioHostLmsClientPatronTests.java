@@ -12,10 +12,12 @@ import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasCanonicalPatronType;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarcodes;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalIds;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalNames;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoCanonicalPatronType;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoHomeLibraryCode;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoLocalBarcodes;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoLocalIds;
@@ -72,6 +74,9 @@ class ConsortialFolioHostLmsClientPatronTests {
 		final var localId = randomUUID().toString();
 		final var patronGroup = randomUUID().toString();
 
+		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
+			patronGroup, "DCB", "canonical-patron-type");
+
 		final var patron = createPatron(randomUUID(), barcode);
 
 		mockFolioFixture.mockFindUsersByBarcode(barcode,
@@ -94,6 +99,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		assertThat(foundPatron, allOf(
 			hasLocalIds(localId),
 			hasLocalPatronType(patronGroup),
+			hasCanonicalPatronType("canonical-patron-type"),
 			hasLocalBarcodes(barcode),
 			hasNoHomeLibraryCode(),
 			hasLocalNames("first name", "middle name", "last name", "preferred first name")
@@ -117,6 +123,28 @@ class ConsortialFolioHostLmsClientPatronTests {
 	}
 
 	@Test
+	void shouldTolerateMissingPatronTypeMapping() {
+		// Arrange
+		final var barcode = "34746725";
+
+		final var patron = createPatron(randomUUID(), barcode);
+
+		mockFolioFixture.mockFindUsersByBarcode(barcode, User.builder()
+			.patronGroup("unknown-patron-group")
+			.barcode(barcode)
+			.build());
+
+		// Act
+		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
+
+		// Assert
+		assertThat(foundPatron, allOf(
+			hasLocalPatronType("unknown-patron-group"),
+			hasNoCanonicalPatronType()
+		));
+	}
+
+	@Test
 	void shouldTolerateUserWithMissingProperties() {
 		// Arrange
 		final var barcode = "7848675";
@@ -132,6 +160,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		assertThat(foundPatron, allOf(
 			hasNoLocalIds(),
 			hasNoLocalPatronType(),
+			hasNoCanonicalPatronType(),
 			hasNoLocalBarcodes(),
 			hasNoHomeLibraryCode(),
 			hasNoLocalNames()

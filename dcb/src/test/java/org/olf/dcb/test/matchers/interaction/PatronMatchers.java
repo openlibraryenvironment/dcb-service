@@ -47,4 +47,12 @@ public class PatronMatchers {
 	public static Matcher<Patron> hasNoLocalPatronType() {
 		return hasProperty("localPatronType", is(nullValue()));
 	}
+
+	public static Matcher<Patron> hasCanonicalPatronType(String expectedPatronType) {
+		return hasProperty("canonicalPatronType", is(expectedPatronType));
+	}
+
+	public static Matcher<Patron> hasNoCanonicalPatronType() {
+		return hasProperty("canonicalPatronType", anyOf(nullValue(), empty()));
+	}
 }

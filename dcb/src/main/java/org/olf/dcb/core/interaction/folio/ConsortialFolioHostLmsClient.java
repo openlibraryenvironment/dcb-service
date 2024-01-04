@@ -14,6 +14,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+import static org.olf.dcb.utils.CollectionUtils.nonNullValuesList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.net.URI;
@@ -40,7 +41,7 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.NoHomeBarcodeException;
 import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.utils.CollectionUtils;
+import org.olf.dcb.request.fulfilment.PatronTypeService;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -95,6 +96,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private final ItemStatusMapper itemStatusMapper;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService;
+	private final PatronTypeService patronTypeService;
 
 	private final String apiKey;
 	private final URI rootUri;
@@ -112,7 +114,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public ConsortialFolioHostLmsClient(@Parameter HostLms hostLms,
 		@Parameter("client") HttpClient httpClient, ItemStatusMapper itemStatusMapper,
 		LocationToAgencyMappingService locationToAgencyMappingService,
-		MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService) {
+		MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService,
+		PatronTypeService patronTypeService) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
@@ -120,6 +123,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		this.itemStatusMapper = itemStatusMapper;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.materialTypeToItemTypeMappingService = materialTypeToItemTypeMappingService;
+		this.patronTypeService = patronTypeService;
 
 		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
 		this.rootUri = UriBuilder.of(BASE_URL_SETTING.getRequiredConfigValue(hostLms)).build();
@@ -317,26 +321,35 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			return Mono.error(new MultipleUsersFoundException(getHostLmsCode(), query));
 		}
 
-		return Mono.just(users.stream()
-			.findFirst()
-			.map(this::mapUserToPatron)
-			.orElseThrow());
+		return Mono.just(users.stream().findFirst().orElseThrow())
+			.flatMap(this::mapUserToPatron);
 	}
 
-	private Patron mapUserToPatron(@NonNull User user) {
+	private Mono<Patron> mapUserToPatron(@NonNull User user) {
 		final var personalDetails = user.getPersonal();
 
-		return Patron.builder()
-			.localId(CollectionUtils.nonNullValuesList(user.getId()))
+		return Mono.just(Patron.builder()
+			.localId(nonNullValuesList(user.getId()))
 			.localPatronType(user.getPatronGroup())
-			.localBarcodes(CollectionUtils.nonNullValuesList(user.getBarcode()))
-			.localNames(CollectionUtils.nonNullValuesList(
+			.localBarcodes(nonNullValuesList(user.getBarcode()))
+			.localNames(nonNullValuesList(
 				getValue(personalDetails, PersonalDetails::getFirstName),
 				getValue(personalDetails, PersonalDetails::getMiddleName),
 				getValue(personalDetails, PersonalDetails::getLastName),
 				getValue(personalDetails, PersonalDetails::getPreferredFirstName)
 			))
-			.build();
+			.build())
+			.flatMap(this::enrichWithCanonicalPatronType);
+	}
+
+	private Mono<Patron> enrichWithCanonicalPatronType(Patron incomingPatron) {
+		return Mono.just(incomingPatron)
+			.zipWhen(this::findPatronType, Patron::setCanonicalPatronType)
+			.defaultIfEmpty(incomingPatron);
+	}
+
+	private Mono<String> findPatronType(Patron patron) {
+		return patronTypeService.findCanonicalPatronType(getHostLmsCode(), patron.getLocalPatronType());
 	}
 
 	@Override

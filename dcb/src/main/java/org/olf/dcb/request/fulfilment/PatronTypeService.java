@@ -48,4 +48,14 @@ public class PatronTypeService {
 		return referenceValueMappingService.findMapping("patronType", "DCB",
 			sourceValue, targetContext);
 	}
+
+	public Mono<String> findCanonicalPatronType(String hostLmsCode, String localPatronType) {
+		if (localPatronType == null) {
+			return Mono.empty();
+		}
+
+		return referenceValueMappingService.findMapping("patronType",
+				hostLmsCode, localPatronType, "patronType", "DCB")
+			.map(ReferenceValueMapping::getToValue);
+	}
 }
