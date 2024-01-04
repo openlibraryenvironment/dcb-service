@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -64,10 +65,10 @@ class ConsortialFolioHostLmsClientPatronTests {
 	void shouldBeAbleToFindOnlyUserByBarcode() {
 		// Arrange
 		final var barcode = "67375297";
-		final var localId = UUID.randomUUID().toString();
-		final var patronGroup = UUID.randomUUID().toString();
+		final var localId = randomUUID().toString();
+		final var patronGroup = randomUUID().toString();
 
-		final var patron = createPatron(barcode);
+		final var patron = createPatron(randomUUID(), barcode);
 
 		mockFolioFixture.mockFindUsersByBarcode(barcode,
 			User.builder()
@@ -100,7 +101,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		// Arrange
 		final var barcode = "47683763";
 
-		final var patron = createPatron(barcode);
+		final var patron = createPatron(randomUUID(), barcode);
 
 		mockFolioFixture.mockFindUsersByBarcode(barcode);
 
@@ -116,7 +117,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		// Arrange
 		final var barcode = "7848675";
 
-		final var patron = createPatron(barcode);
+		final var patron = createPatron(randomUUID(), barcode);
 
 		mockFolioFixture.mockFindUsersByBarcode(barcode, User.builder().build());
 
@@ -138,14 +139,14 @@ class ConsortialFolioHostLmsClientPatronTests {
 		// Arrange
 		final var barcode = "6349673";
 
-		final var patron = createPatron(barcode);
+		final var patron = createPatron(randomUUID(), barcode);
 
 		mockFolioFixture.mockFindUsersByBarcode(barcode,
 			User.builder()
-				.id(UUID.randomUUID().toString())
+				.id(randomUUID().toString())
 				.build(),
 			User.builder()
-				.id(UUID.randomUUID().toString())
+				.id(randomUUID().toString())
 				.build());
 
 		// Act
@@ -158,6 +159,22 @@ class ConsortialFolioHostLmsClientPatronTests {
 	}
 
 	@Test
+	void shouldFailWhenPatronHasNoBarcode() {
+		// Arrange
+		final var patronId = randomUUID();
+
+		final var patron = createPatron(patronId, null);
+
+		// Act
+		final var exception = assertThrows(FailedToFindVirtualPatronException.class, () ->
+			singleValueFrom(client.findVirtualPatron(patron)));
+
+		// Assert
+		assertThat(exception, hasMessage(
+			"Cannot find virtual patron because requesting patron: \"" + patronId + "\" has no barcode"));
+	}
+
+	@Test
 	void shouldFailWhenApiKeyIsInvalid(MockServerClient mockServerClient) {
 		// Arrange
 		final var barcode = "1227264";
@@ -165,7 +182,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		final var mockInvalidFolioFixture = new MockFolioFixture(mockServerClient, "invalid-folio", apiKey);
 
-		final var patron = createPatron(barcode);
+		final var patron = createPatron(randomUUID(), barcode);
 
 		hostLmsFixture.createFolioHostLms("INVALID-FOLIO", "https://invalid-folio",
 			apiKey, "", "");
@@ -188,9 +205,9 @@ class ConsortialFolioHostLmsClientPatronTests {
 			instanceOf(HttpClientResponseException.class)));
 	}
 
-	private static Patron createPatron(String localBarcode) {
+	private static Patron createPatron(UUID id, String localBarcode) {
 		return Patron.builder()
-			.id(UUID.randomUUID())
+			.id(id)
 			.patronIdentities(List.of(
 				PatronIdentity.builder()
 					.homeIdentity(true)

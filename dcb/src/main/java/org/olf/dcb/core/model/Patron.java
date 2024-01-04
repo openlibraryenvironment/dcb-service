@@ -100,6 +100,6 @@ public class Patron {
 		// causing a Jakarta validation exception
 		return getHomeIdentity()
 			.map(PatronIdentity::getLocalBarcode)
-			.orElseThrow(() -> new NoHomeIdentityException(id));
+			.orElseThrow(() -> new NoHomeBarcodeException(id));
 	}
 }

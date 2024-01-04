@@ -37,6 +37,8 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.NoHomeBarcodeException;
+import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.utils.CollectionUtils;
 
@@ -280,12 +282,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
-		final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
+		try {
+			final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
-		final var query = exactEqualityQuery("barcode", barcode);
+			final var query = exactEqualityQuery("barcode", barcode);
 
-		return findUsers(query)
-			.flatMap(response -> mapFirstUserToPatron(response, query));
+			return findUsers(query)
+				.flatMap(response -> mapFirstUserToPatron(response, query));
+		} catch (NoHomeIdentityException | NoHomeBarcodeException e) {
+			return Mono.error(new FailedToFindVirtualPatronException(
+				getValue(patron, org.olf.dcb.core.model.Patron::getId)));
+		}
 	}
 
 	private Mono<UserCollection> findUsers(CqlQuery query) {
