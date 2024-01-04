@@ -36,4 +36,6 @@ public class Patron {
 	// and pass back the mapped type here, rather than forcing the caller to know how to convert.
 	private String canonicalPatronType;
 	private Date expiryDate; // To be formatted as needed by any system
+	private String localItemId;
+	private Integer localItemLocationId;
 }
