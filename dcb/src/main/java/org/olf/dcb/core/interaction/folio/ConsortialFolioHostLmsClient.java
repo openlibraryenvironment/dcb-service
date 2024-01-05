@@ -21,6 +21,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.FailedToGetItemsException;
@@ -264,24 +265,24 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(
 		PlaceHoldRequestParameters parameters) {
 
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Placing hold request at supplying agency is not currently implemented for FOLIO"));
 	}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(
 		PlaceHoldRequestParameters parameters) {
 
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Placing hold request at borrowing agency is not currently implemented for FOLIO"));
 	}
 
 	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Get patron by local ID is not currently implemented for FOLIO"));
 	}
 
 	@Override
 	public Mono<Patron> getPatronByUsername(String localUsername) {
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Get patron by username is not currently implemented for FOLIO"));
 	}
 
 	@Override
@@ -354,61 +355,60 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> createPatron(Patron patron) {
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Creating virtual patron is not currently implemented for FOLIO"));
 	}
 
 	@Override
 	public Mono<String> createBib(Bib bib) {
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Creating virtual bib is not currently implemented for FOLIO"));
 	}
 
 	@Override
 	public Mono<Patron> updatePatron(String localId, String patronType) {
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Updating virtual patron is not currently implemented for FOLIO"));
 	}
 
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String barcode, String secret) {
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Patron authentication is not currently implemented for FOLIO"));
 	}
 
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Creating virtual item is not currently implemented for FOLIO"));
 	}
 
 	@Override
 	public Mono<HostLmsHold> getHold(String holdId) {
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Getting hold request is not currently implemented for FOLIO"));
 	}
 
 	@Override
 	public Mono<HostLmsItem> getItem(String itemId) {
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Getting item is not currently implemented for FOLIO"));
 	}
 
 	@Override
 	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
-		return Mono.just("Dummy");
+		return Mono.error(new NotImplementedException("Update item status is not currently implemented for FOLIO"));
 	}
-
-	// WARNING We might need to make this accept a patronIdentity - as different
-
-	// systems might take different ways to identify the patron
 
 	@Override
 	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
-		return Mono.just("DUMMY");
+		// WARNING We might need to make this accept a patronIdentity - as different
+		// systems might take different ways to identify the patron
+
+		return Mono.error(new NotImplementedException("Check out item to patron is not currently implemented for FOLIO"));
 	}
 
 	@Override
 	public Mono<String> deleteItem(String id) {
-		return Mono.just("DUMMY");
+		return Mono.error(new NotImplementedException("Delete virtual item is not currently implemented for FOLIO"));
 	}
 
 	@Override
 	public Mono<String> deleteBib(String id) {
-		return Mono.just("DUMMY");
+		return Mono.error(new NotImplementedException("Delete virtual bib is not currently implemented for FOLIO"));
 	}
 
 	private <T, R> Mono<T> makeRequest(@NonNull MutableHttpRequest<R> request,
