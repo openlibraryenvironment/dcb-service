@@ -69,7 +69,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 	}
 
 	@Test
-	void shouldBeAbleToFindOnlyUserByBarcode() {
+	void findVirtualPatronShouldFindOnlyUserByBarcode() {
 		// Arrange
 		final var barcode = "67375297";
 		final var localId = randomUUID().toString();
@@ -108,7 +108,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 	}
 
 	@Test
-	void shouldBeEmptyWhenNoUserFoundForBarcode() {
+	void findVirtualPatronShouldReturnEmptyWhenNoUsersFoundForBarcode() {
 		// Arrange
 		final var barcode = "47683763";
 
@@ -124,7 +124,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 	}
 
 	@Test
-	void shouldFailWhenPatronTypeMappingIsMissing() {
+	void findVirtualPatronShouldFailWhenPatronTypeMappingIsMissing() {
 		// Arrange
 		final var barcode = "34746725";
 
@@ -146,7 +146,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 	}
 
 	@Test
-	void shouldTolerateUserWithMissingProperties() {
+	void findVirtualPatronShouldTolerateFindingUserWithMissingProperties() {
 		// Arrange
 		final var barcode = "7848675";
 
@@ -169,7 +169,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 	}
 
 	@Test
-	void shouldFailWhenMultipleUsersFoundForBarcode() {
+	void findVirtualPatronShouldFailWhenMultipleUsersFoundForBarcode() {
 		// Arrange
 		final var barcode = "6349673";
 
@@ -193,7 +193,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 	}
 
 	@Test
-	void shouldFailWhenPatronHasNoBarcode() {
+	void findVirtualPatronShouldFailWhenRequestingPatronHasNoBarcode() {
 		// Arrange
 		final var patronId = randomUUID();
 
@@ -209,7 +209,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 	}
 
 	@Test
-	void shouldFailWhenApiKeyIsInvalid(MockServerClient mockServerClient) {
+	void findVirtualPatronShouldFailWhenApiKeyIsInvalid(MockServerClient mockServerClient) {
 		// Arrange
 		final var barcode = "1227264";
 		final var apiKey = "eyJzIjoidTBxaEZjWFd1YiIsInQiOiJpbnZhbGlkVGVuYW50IiwidSI6ImludmFsaWRVc2VyIn0=";
