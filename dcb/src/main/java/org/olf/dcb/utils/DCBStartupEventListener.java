@@ -5,6 +5,8 @@ import static services.k_int.utils.UUIDUtils.nameUUIDFromNamespaceAndString;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Optional;
 
 import org.olf.dcb.core.model.DataHostLms;
@@ -24,6 +26,9 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
 
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.map.IMap;
+import jakarta.annotation.PreDestroy;
 
 @Slf4j
 @Singleton
@@ -33,18 +38,21 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	private final StatusCodeRepository statusCodeRepository;
 	private final GrantRepository grantRepository;
 	private final Collection<ConfigHostLms> configHosts;
+	private final HazelcastInstance hazelcastInstance;
 
 	private static final String REACTOR_DEBUG_VAR = "REACTOR_DEBUG";
 
 	public DCBStartupEventListener(Environment environment,
 		HostLmsRepository hostLmsRepository, StatusCodeRepository statusCodeRepository,
-		GrantRepository grantRepository, List<ConfigHostLms> configHosts) {
+		GrantRepository grantRepository, List<ConfigHostLms> configHosts,
+		HazelcastInstance hazelcastInstance) {
 
 		this.environment = environment;
 		this.statusCodeRepository = statusCodeRepository;
 		this.hostLmsRepository = hostLmsRepository;
 		this.grantRepository = grantRepository;
 		this.configHosts = configHosts;
+		this.hazelcastInstance = hazelcastInstance;
 	}
 
 	@Override
@@ -74,6 +82,8 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		configHosts.forEach(this::saveConfigHostLms);
 
 		bootstrapStatusCodes();
+
+		registerNode();
 
 		log.info("Exit onApplicationEvent");
 	}
@@ -159,4 +169,36 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 
 		return statusCodeRepository.saveOrUpdate(statusCode);
 	}
+
+	/**
+	 * Create a distributed map controlled by hazelcast and add this node to the node info structure.
+	 */
+	private void registerNode() {
+		try {
+			IMap<String,Map<String,String>> dcbNodeInfo = hazelcastInstance.getMap("DCBNodes");
+			String thisNodeUUID = hazelcastInstance.getCluster().getLocalMember().getUuid().toString();
+
+			Map<String,String> nodeInfo = new HashMap();
+			nodeInfo.put("name",hazelcastInstance.getName().toString());
+
+			dcbNodeInfo.put(thisNodeUUID, nodeInfo);
+		}
+		catch ( Exception e ) {
+			log.error("problem",e);
+		}
+	}
+
+	@PreDestroy
+	private void preDestroy() {
+		try {
+			log.info("preDestroy");
+			IMap<String,Map<String,String>> dcbNodeInfo = hazelcastInstance.getMap("DCBNodes");
+			String thisNodeUUID = hazelcastInstance.getCluster().getLocalMember().getUuid().toString();
+			dcbNodeInfo.remove(thisNodeUUID);
+		}
+		catch ( Exception e ) {
+			log.error("problem",e);
+		}
+	}
+
 }
