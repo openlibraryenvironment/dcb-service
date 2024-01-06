@@ -82,18 +82,21 @@ public class DcbInfoSource implements InfoSource {
 	}
 
 	private Mono<Map<String, Object>> getDCBNodes() {
-		IMap<String,Map<String,String>> dcbNodeInfo = hazelcastInstance.getMap("DCBNodes");
-		// log.debug("Got dcbNode info {}",dcbNodeInfo);
-
 		Map<String, Object> props = new HashMap<>();
-		Map<String, Map<String,String>> nodeinfo = new HashMap<>();
 
-		for ( Map.Entry n : dcbNodeInfo ) {
-			Map<String, String> m = (Map<String, String>) n.getValue();
-			nodeinfo.put(n.getKey().toString(), m);
+		if ( hazelcastInstance != null ) {
+			IMap<String,Map<String,String>> dcbNodeInfo = hazelcastInstance.getMap("DCBNodes");
+			// log.debug("Got dcbNode info {}",dcbNodeInfo);
+
+			Map<String, Map<String,String>> nodeinfo = new HashMap<>();
+
+			for ( Map.Entry n : dcbNodeInfo ) {
+				Map<String, String> m = (Map<String, String>) n.getValue();
+				nodeinfo.put(n.getKey().toString(), m);
+			}
+
+			props.put("dcbNodes", nodeinfo);
 		}
-
-		props.put("dcbNodes", nodeinfo);
 
 		return Mono.just( props );
 	}
