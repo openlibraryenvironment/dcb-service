@@ -25,8 +25,7 @@ public class HazelcastFactory {
 	@Bean(preDestroy = "shutdown")
 	public HazelcastInstance hazelcastInstance() {
 		log.debug("creating hazelcast instance");
-		//return Hazelcast.newHazelcastInstance();
-    return null;
+		return Hazelcast.newHazelcastInstance();
 	}
 
 }
