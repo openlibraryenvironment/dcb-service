@@ -4,4 +4,4 @@ hazelcast:
       multicast:
         enabled: false
       kubernetes:
-        enabled: true
+        enabled: false
