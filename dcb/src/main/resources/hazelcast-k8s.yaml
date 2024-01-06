@@ -1,0 +1,10 @@
+hazelcast:
+  cluster-name: dcb-service-cluster
+  network: 
+    join:
+      multicast:
+        enabled: false
+      kubernetes:
+        enabled: true
+        service-label-name: hazelcastCluster
+        service-label-value: dcb
