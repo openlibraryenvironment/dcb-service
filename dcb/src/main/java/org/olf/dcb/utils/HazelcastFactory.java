@@ -23,9 +23,8 @@ public class HazelcastFactory {
 	@Singleton
 	@Named("hazelcastInstance")
 	@Bean(preDestroy = "shutdown")
-	public HazelcastInstance hazelcastInstance(Config config) {
+	public HazelcastInstance hazelcastInstance() {
 		log.debug("creating hazelcast instance");
-		// return Hazelcast.newHazelcastInstance(config);
 		return Hazelcast.newHazelcastInstance();
 	}
 
