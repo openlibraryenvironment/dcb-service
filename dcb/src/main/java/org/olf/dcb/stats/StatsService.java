@@ -8,13 +8,19 @@ import org.olf.dcb.core.svc.BibRecordService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-// import com.hazelcast.config.Config;
-// import com.hazelcast.core.Hazelcast;
-// import com.hazelcast.core.HazelcastInstance;
-// import com.hazelcast.map.IMap;
+
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.cluster.Member;
+import com.hazelcast.map.IMap;
+import jakarta.annotation.PreDestroy;
+
+import io.micronaut.scheduling.annotation.Scheduled;
+
 
 /**
  * The purpose of this class is to collect statistics across this instance of DCB. Devs should be
@@ -25,12 +31,18 @@ import java.util.Map;
  * Because many instances of DCB may be running, we store the stats in a distributed map.
  */
 @Singleton
-public class StatsService {
+public class StatsService implements Runnable{
 
 	private static final Logger log = LoggerFactory.getLogger(StatsService.class);
+	private static final String HEARTBEAT_KEY = "lastHeartbeat";
 
-  // private HazelcastInstance instance = null;
+  private final HazelcastInstance hazelcastInstance;
+
   // private IMap<String, StatCounter> stat_counters = null;
+
+	public StatsService( HazelcastInstance hazelcastInstance ) {
+		this.hazelcastInstance = hazelcastInstance;
+	}
 
 	// This needs to be a hazelcast map ideally
 	Map<String, StatCounter> stat_counters = new HashMap<String, StatCounter>();
@@ -38,8 +50,6 @@ public class StatsService {
 
   @jakarta.annotation.PostConstruct
   public void init() {
-    // Config cfg = new Config("DCB");
-    // instance = Hazelcast.getOrCreateHazelcastInstance(cfg);
     // stat_counters = instance.getMap("stats");
   }
 
@@ -92,4 +102,60 @@ public class StatsService {
 			return counters;
 		}
 	}
+
+	/**
+	 * Periodic tasks to publish stats about this node so we can get a view over the whole cluster
+	 * from one place;
+	 */
+  @Override
+  @Scheduled(initialDelay = "2m", fixedDelay = "${dcb.stats.interval:5m}")
+  public void run() {
+    log.debug("DCB Stats Service run");
+    String thisNodeUUID = hazelcastInstance.getCluster().getLocalMember().getUuid().toString();
+		long now = System.currentTimeMillis();
+    try {
+      IMap<String,Map<String,String>> dcbNodeInfo = hazelcastInstance.getMap("DCBNodes");
+			Map<String,String> nodeInfo = dcbNodeInfo.get(thisNodeUUID);
+      nodeInfo.put(HEARTBEAT_KEY, String.valueOf(now));
+      dcbNodeInfo.put(thisNodeUUID, nodeInfo);
+
+
+			if ( amITheLeader() ) {
+				List evict_list = new ArrayList();
+				for ( var entry : dcbNodeInfo.entrySet() ) {
+					log.debug("Eviction testing {} / {}",entry.getKey(), entry.getValue() );
+					if ( ! isLive(entry.getKey() ) ) {
+						evict_list.add(entry.getKey());
+					}
+				}
+
+				if ( evict_list.size() > 0 )	 {
+					log.debug("Evicting zombie nodes: {}",evict_list);
+					for ( var k : evict_list )
+						dcbNodeInfo.remove(k);
+				}
+			}
+    }
+    catch ( Exception e ) {
+      log.error("problem",e);
+    }
+	}
+
+	public boolean amITheLeader() {
+		Member oldestMember = hazelcastInstance.getCluster().getMembers().iterator().next();
+		return oldestMember.localMember();
+	}
+
+	public boolean isLive(String nodeid) {
+		log.debug("test liveliness {}",nodeid);
+		boolean result = false;
+		for ( var m : hazelcastInstance.getCluster().getMembers() ) {
+			String member_id_as_string = m.getUuid().toString();
+			log.debug("Test {} == {} - {}",nodeid,member_id_as_string,nodeid.equals(member_id_as_string));
+			if ( nodeid.equals(member_id_as_string) )
+				result = true;
+		}
+		return result;
+	}
+
 }
