@@ -30,6 +30,8 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.map.IMap;
 import jakarta.annotation.PreDestroy;
 
+import org.olf.dcb.core.AppConfig;
+
 @Slf4j
 @Singleton
 public class DCBStartupEventListener implements ApplicationEventListener<StartupEvent> {
@@ -39,13 +41,15 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	private final GrantRepository grantRepository;
 	private final Collection<ConfigHostLms> configHosts;
 	private final HazelcastInstance hazelcastInstance;
+	private final AppConfig appConfig;
 
 	private static final String REACTOR_DEBUG_VAR = "REACTOR_DEBUG";
 
 	public DCBStartupEventListener(Environment environment,
 		HostLmsRepository hostLmsRepository, StatusCodeRepository statusCodeRepository,
 		GrantRepository grantRepository, List<ConfigHostLms> configHosts,
-		HazelcastInstance hazelcastInstance) {
+		HazelcastInstance hazelcastInstance,
+		AppConfig appConfig) {
 
 		this.environment = environment;
 		this.statusCodeRepository = statusCodeRepository;
@@ -53,6 +57,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		this.grantRepository = grantRepository;
 		this.configHosts = configHosts;
 		this.hazelcastInstance = hazelcastInstance;
+		this.appConfig = appConfig;
 	}
 
 	@Override
@@ -180,6 +185,8 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 
 			Map<String,String> nodeInfo = new HashMap();
 			nodeInfo.put("name",hazelcastInstance.getName().toString());
+			nodeInfo.put("nodeStart",new java.util.Date().toString());
+			nodeInfo.put("scheduledTasks", String.valueOf(appConfig.getScheduledTasks().isEnabled()));
 
 			dcbNodeInfo.put(thisNodeUUID, nodeInfo);
 		}
