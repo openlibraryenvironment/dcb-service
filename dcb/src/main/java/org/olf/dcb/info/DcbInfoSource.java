@@ -19,6 +19,7 @@ import reactor.core.publisher.Mono;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.cluster.Member;
 import com.hazelcast.map.IMap;
+import org.olf.dcb.stats.StatCounter;
 
 @Singleton
 @Requires(beans = InfoEndpoint.class)
@@ -95,7 +96,10 @@ public class DcbInfoSource implements InfoSource {
 				nodeinfo.put(n.getKey().toString(), m);
 			}
 
+		  IMap<String, StatCounter> stat_counters =  hazelcastInstance.getMap("stats");
+
 			props.put("dcbNodes", nodeinfo);
+			props.put("stats", stat_counters);
 		}
 
 		return Mono.just( props );

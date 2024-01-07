@@ -7,8 +7,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+@EqualsAndHashCode(callSuper=false)
 @Builder
 @Data
 @NoArgsConstructor
@@ -19,13 +21,13 @@ public class StateChange  extends TrackingRecord {
 
 	public static final String STATE_CHANGE_RECORD = "STATE_CHANGE";
 
-        private String resourceType;
-        private String resourceId;
-        private String fromState;
-        private String toState;
+	private String resourceType;
+	private String resourceId;
+	private String fromState;
+	private String toState;
 
 	@ToString.Exclude
-        private Object resource;
+	private Object resource;
 
 	@Override
 	public String getTrackigRecordType() {

@@ -38,19 +38,19 @@ public class StatsService implements Runnable{
 
   private final HazelcastInstance hazelcastInstance;
 
-  // private IMap<String, StatCounter> stat_counters = null;
 
 	public StatsService( HazelcastInstance hazelcastInstance ) {
 		this.hazelcastInstance = hazelcastInstance;
 	}
 
 	// This needs to be a hazelcast map ideally
-	Map<String, StatCounter> stat_counters = new HashMap<String, StatCounter>();
+	// Map<String, StatCounter> stat_counters = new HashMap<String, StatCounter>();
+  private IMap<String, StatCounter> stat_counters = null;
 
 
   @jakarta.annotation.PostConstruct
   public void init() {
-    // stat_counters = instance.getMap("stats");
+    stat_counters = hazelcastInstance.getMap("stats");
   }
 
 	private StatCounter getCounter(String id) {
