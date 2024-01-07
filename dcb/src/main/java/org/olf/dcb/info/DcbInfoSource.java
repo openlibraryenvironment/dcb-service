@@ -96,9 +96,10 @@ public class DcbInfoSource implements InfoSource {
 				nodeinfo.put(n.getKey().toString(), m);
 			}
 
+			/*
 		  IMap<String, StatCounter> stat_counters =  hazelcastInstance.getMap("stats");
-
 			props.put("dcbNodes", nodeinfo);
+			*/
 			props.put("stats", stat_counters);
 		}
 
