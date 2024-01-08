@@ -21,6 +21,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.cp.lock.FencedLock;
 
 //@Refreshable
 @Singleton
@@ -40,12 +42,20 @@ public class IngestService implements Runnable {
 	private final List<IngestSourcesProvider> sourceProviders;
 	private final PublisherTransformationService publisherTransformationService;
 	private final RecordClusteringService recordClusteringService;
+	private final HazelcastInstance hazelcastInstance;
+	private FencedLock lock;
 
-	IngestService(BibRecordService bibRecordService, List<IngestSourcesProvider> sourceProviders, PublisherTransformationService publisherHooksService, RecordClusteringService recordClusteringService, ConversionService conversionService) {
+	IngestService(BibRecordService bibRecordService, 
+		List<IngestSourcesProvider> sourceProviders, 
+		PublisherTransformationService publisherHooksService, 
+		RecordClusteringService recordClusteringService, 
+		HazelcastInstance hazelcastInstance,
+		ConversionService conversionService) {
 		this.bibRecordService = bibRecordService;
 		this.sourceProviders = sourceProviders;
 		this.publisherTransformationService = publisherHooksService;
 		this.recordClusteringService = recordClusteringService;
+		this.hazelcastInstance = hazelcastInstance;
 	}
 
 
@@ -110,6 +120,8 @@ public class IngestService implements Runnable {
 	@AppTask
 	public void run() {
 
+		// Need to work out how this works with Hazelcast FencedLock
+		// lock = hazelcastInstance.getCPSubsystem().getLock("DCBIngestLock");
 		if (this.mutex != null && !this.mutex.isDisposed()) {
 			log.info("Ingest already running skipping. Mutex: {}", this.mutex);
 			return;
