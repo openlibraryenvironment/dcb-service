@@ -20,6 +20,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.interaction.Bib;
@@ -355,7 +356,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> createPatron(Patron patron) {
-		return Mono.error(new NotImplementedException("Creating virtual patron is not currently implemented for FOLIO"));
+		// edge-dcb creates the virtual patron on DCB's behalf when creating the transaction
+		// DCB has no means to do this via other alternative edge modules
+		// hence needs to trigger this mechanism by generating a new ID
+		// (that should not already be present in the FOLIO tenant)
+		return Mono.just(UUID.randomUUID().toString());
 	}
 
 	@Override

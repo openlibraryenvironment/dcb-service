@@ -2,7 +2,10 @@ package org.olf.dcb.core.interaction.folio;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.equalToObject;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
@@ -237,6 +240,27 @@ class ConsortialFolioHostLmsClientPatronTests {
 		// Assert
 		assertThat(exception, hasProperty("cause",
 			instanceOf(HttpClientResponseException.class)));
+	}
+
+	@Test
+	void createVirtualPatronShouldAlwaysReturnNewId() {
+		// Arrange
+		final var virtualPatronToCreate = org.olf.dcb.core.interaction.Patron.builder()
+			.build();
+
+		// Act
+		final var firstGeneratedPatronId = singleValueFrom(client.createPatron(virtualPatronToCreate));
+		final var secondGeneratedPatronId = singleValueFrom(client.createPatron(virtualPatronToCreate));
+
+		// Assert
+		assertThat("First patron ID should not be null",
+			firstGeneratedPatronId, is(notNullValue()));
+
+		assertThat("Second patron ID should not be null",
+			secondGeneratedPatronId, is(notNullValue()));
+
+		assertThat("Generated patron IDs should be different",
+			firstGeneratedPatronId, not(equalToObject(secondGeneratedPatronId)));
 	}
 
 	private static Patron createPatron(UUID id, String localBarcode) {
