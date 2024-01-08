@@ -106,7 +106,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 			hasCanonicalPatronType("canonical-patron-type"),
 			hasLocalBarcodes(barcode),
 			hasNoHomeLibraryCode(),
-			hasLocalNames("first name", "middle name", "last name", "preferred first name")
+			hasLocalNames("first name", "middle name", "last name")
 		));
 	}
 
@@ -297,7 +297,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 			hasCanonicalPatronType("canonical-patron-type"),
 			hasLocalBarcodes(barcode),
 			hasNoHomeLibraryCode(),
-			hasLocalNames("first name", "middle name", "last name", "preferred first name")
+			hasLocalNames("first name", "middle name", "last name")
 		));
 	}
 

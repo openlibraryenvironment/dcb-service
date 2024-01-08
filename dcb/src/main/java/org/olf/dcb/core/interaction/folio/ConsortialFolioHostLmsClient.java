@@ -337,8 +337,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.localNames(nonNullValuesList(
 				getValue(personalDetails, PersonalDetails::getFirstName),
 				getValue(personalDetails, PersonalDetails::getMiddleName),
-				getValue(personalDetails, PersonalDetails::getLastName),
-				getValue(personalDetails, PersonalDetails::getPreferredFirstName)
+				getValue(personalDetails, PersonalDetails::getLastName)
 			))
 			.build())
 			.flatMap(this::enrichWithCanonicalPatronType);
