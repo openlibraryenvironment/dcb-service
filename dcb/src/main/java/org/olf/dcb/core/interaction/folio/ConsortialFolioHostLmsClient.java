@@ -294,9 +294,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			final var query = exactEqualityQuery("barcode", barcode);
 
 			return findUsers(query)
-				.flatMap(response -> mapFirstUserToPatron(response, query));
+				.flatMap(response -> mapFirstUserToPatron(response, query, Mono.empty()));
 		} catch (NoHomeIdentityException | NoHomeBarcodeException e) {
-			return Mono.error(new FailedToFindVirtualPatronException(
+			return Mono.error(FailedToFindVirtualPatronException.noBarcode(
 				getValue(patron, org.olf.dcb.core.model.Patron::getId)));
 		}
 	}
@@ -311,12 +311,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<Patron> mapFirstUserToPatron(UserCollection response,
-		CqlQuery query) {
+		CqlQuery query, Mono<Patron> emptyReturnValue) {
 
 		final var users = getValue(response, UserCollection::getUsers);
 
 		if (isEmpty(users)) {
-			return Mono.empty();
+			return emptyReturnValue;
 		}
 
 		if (users.size() > 1) {
@@ -357,7 +357,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> createPatron(Patron patron) {
 		// edge-dcb creates the virtual patron on DCB's behalf when creating the transaction
-		// DCB has no means to do this via other alternative edge modules
+		// DCB has no means to do this via other / alternative edge modules
 		// hence needs to trigger this mechanism by generating a new ID
 		// (that should not already be present in the FOLIO tenant)
 		return Mono.just(UUID.randomUUID().toString());
@@ -370,7 +370,16 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> updatePatron(String localId, String patronType) {
-		return Mono.error(new NotImplementedException("Updating virtual patron is not currently implemented for FOLIO"));
+		// DCB has no means to update users via the available edge modules
+		// and edge-dcb does not do this on DCB's behalf when creating the transaction
+
+		// Finding the existing user by ID is the easiest way to support the current
+		// host LMS client interface
+		final var query = exactEqualityQuery("id", localId);
+
+		return findUsers(query)
+			.flatMap(response -> mapFirstUserToPatron(response, query,
+				Mono.error(FailedToFindVirtualPatronException.notFound(localId, getHostLmsCode()))));
 	}
 
 	@Override

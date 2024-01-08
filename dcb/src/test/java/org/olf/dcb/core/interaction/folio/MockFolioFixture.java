@@ -78,7 +78,23 @@ public class MockFolioFixture {
 			.respond(httpResponse);
 	}
 
-	@Serdeable
+	public void mockFindUsersById(String localId, User... users) {
+		mockServerClient
+			.when(org.mockserver.model.HttpRequest.request()
+				.withHeader("Host", host)
+				.withHeader("Authorization", apiKey)
+				.withHeader("Accept", APPLICATION_JSON)
+				.withPath("/users/users")
+				.withQueryStringParameter("query", "id==\"" + localId + "\""))
+			.respond(response()
+				.withStatusCode(200)
+				.withBody(json(
+					UserCollection.builder()
+						.users(List.of(users))
+						.build())));
+	}
+
+    @Serdeable
 	@Builder
 	@Value
 	public static class ErrorResponse {

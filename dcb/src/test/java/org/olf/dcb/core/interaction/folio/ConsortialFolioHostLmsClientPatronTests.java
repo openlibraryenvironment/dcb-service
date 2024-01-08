@@ -263,6 +263,91 @@ class ConsortialFolioHostLmsClientPatronTests {
 			firstGeneratedPatronId, not(equalToObject(secondGeneratedPatronId)));
 	}
 
+	@Test
+	void updateVirtualPatronShouldSucceedWhenUserFoundById() {
+		// Arrange
+		final var localId = UUID.randomUUID().toString();
+		final var barcode = "6847672185";
+		final var patronGroup = randomUUID().toString();
+
+		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
+			patronGroup, "DCB", "canonical-patron-type");
+
+		mockFolioFixture.mockFindUsersById(localId,
+			User.builder()
+				.id(localId)
+				.patronGroup(patronGroup)
+				.barcode(barcode)
+				.personal(User.PersonalDetails.builder()
+					.firstName("first name")
+					.middleName("middle name")
+					.lastName("last name")
+					.preferredFirstName("preferred first name")
+					.build())
+				.build());
+
+		// Act
+		final var updatedPatron = singleValueFrom(client.updatePatron(localId, ""));
+
+		// Assert
+		assertThat(updatedPatron, allOf(
+			is(notNullValue()),
+			hasLocalIds(localId),
+			hasLocalPatronType(patronGroup),
+			hasCanonicalPatronType("canonical-patron-type"),
+			hasLocalBarcodes(barcode),
+			hasNoHomeLibraryCode(),
+			hasLocalNames("first name", "middle name", "last name", "preferred first name")
+		));
+	}
+
+	@Test
+	void updateVirtualPatronShouldFailWhenNoUserIsFound() {
+		// Arrange
+		final var localId = UUID.randomUUID().toString();
+		final var patronGroup = randomUUID().toString();
+
+		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
+			patronGroup, "DCB", "canonical-patron-type");
+
+		mockFolioFixture.mockFindUsersById(localId);
+
+		// Act
+		final var exception = assertThrows(FailedToFindVirtualPatronException.class,
+			() -> singleValueFrom(client.updatePatron(localId, patronGroup)));
+
+		// Assert
+		assertThat(exception, hasMessage(
+			"Cannot find virtual patron because no local record was found with ID: \"" + localId
+				+ "\" in Host LMS: \"folio-lms-client-patron-tests\""));
+	}
+
+	@Test
+	void updateVirtualPatronShouldFailWhenMultipleUsersFound() {
+		// Arrange
+		final var localId = UUID.randomUUID().toString();
+		final var patronGroup = randomUUID().toString();
+
+		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
+			patronGroup, "DCB", "canonical-patron-type");
+
+		mockFolioFixture.mockFindUsersById(localId,
+			User.builder()
+				.id(randomUUID().toString())
+				.build(),
+			User.builder()
+				.id(randomUUID().toString())
+				.build());
+
+		// Act
+		final var exception = assertThrows(MultipleUsersFoundException.class,
+			() -> singleValueFrom(client.updatePatron(localId, patronGroup)));
+
+		// Assert
+		assertThat(exception, hasMessage(
+			"Multiple users found in Host LMS: \"folio-lms-client-patron-tests\" for query: \"id==\"" + localId + "\"\""));
+	}
+
 	private static Patron createPatron(UUID id, String localBarcode) {
 		return Patron.builder()
 			.id(id)
