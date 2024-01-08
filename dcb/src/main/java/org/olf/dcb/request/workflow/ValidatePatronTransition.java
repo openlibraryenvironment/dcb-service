@@ -57,28 +57,29 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		// the patron.
 		log.info("ValidatePatronTransition CIRC validatePatronIdentity by calling out to host LMS - PI is {} host lms client is {}", pi, pi.getHostLms());
 
-		return hostLmsService.getClientFor(pi.getHostLms()).flatMap(client -> client.getPatronByLocalId(pi.getLocalId()))
-				.flatMap(hostLmsPatron -> {
-					log.info("CIRC update patron identity with latest info from host {}", hostLmsPatron);
+		return hostLmsService.getClientFor(pi.getHostLms())
+			.flatMap(client -> client.getPatronByLocalId(pi.getLocalId()))
+			.flatMap(hostLmsPatron -> {
+				log.info("CIRC update patron identity with latest info from host {}", hostLmsPatron);
 
-					// Update the patron identity with the current patron type and set the last
-					// validated date to now()
-					pi.setLocalPtype(hostLmsPatron.getLocalPatronType());
-					pi.setCanonicalPtype(hostLmsPatron.getCanonicalPatronType());
-					pi.setLastValidated(Instant.now());
-					pi.setLocalBarcode(Objects.toString(hostLmsPatron.getLocalBarcodes(), null));
-					pi.setLocalNames(Objects.toString(hostLmsPatron.getLocalNames(), null));
+				// Update the patron identity with the current patron type and set the last
+				// validated date to now()
+				pi.setLocalPtype(hostLmsPatron.getLocalPatronType());
+				pi.setCanonicalPtype(hostLmsPatron.getCanonicalPatronType());
+				pi.setLastValidated(Instant.now());
+				pi.setLocalBarcode(Objects.toString(hostLmsPatron.getLocalBarcodes(), null));
+				pi.setLocalNames(Objects.toString(hostLmsPatron.getLocalNames(), null));
 
-					log.debug("setLocalHomeLibraryCode({})", hostLmsPatron.getLocalHomeLibraryCode());
-					pi.setLocalHomeLibraryCode(hostLmsPatron.getLocalHomeLibraryCode());
+				log.debug("setLocalHomeLibraryCode({})", hostLmsPatron.getLocalHomeLibraryCode());
+				pi.setLocalHomeLibraryCode(hostLmsPatron.getLocalHomeLibraryCode());
 
-					if ( hostLmsPatron.getLocalBarcodes() == null )
-						log.warn("Patron does not have barcodes.. Will not be able to circulate items");
+				if ( hostLmsPatron.getLocalBarcodes() == null )
+					log.warn("Patron does not have barcodes.. Will not be able to circulate items");
 
-					// pi.setResolvedAgency(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(),
-					// hostLmsPatron.getLocalHomeLibraryCode()));
-					return Mono.just(pi);
-				}).flatMap(updatedPatronIdentity -> {
+				// pi.setResolvedAgency(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(),
+				// hostLmsPatron.getLocalHomeLibraryCode()));
+				return Mono.just(pi);
+			}).flatMap(updatedPatronIdentity -> {
 					return Mono.fromDirect(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(),
 							pi.getLocalHomeLibraryCode(), pi));
 				}).flatMap(updatedPatronIdentity -> {

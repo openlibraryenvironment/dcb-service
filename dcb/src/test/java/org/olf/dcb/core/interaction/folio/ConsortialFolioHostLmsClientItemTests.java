@@ -37,6 +37,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasNoLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
+import static org.olf.dcb.test.matchers.ItemMatchers.isSuppressed;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -111,6 +112,7 @@ class ConsortialFolioHostLmsClientItemTests {
 				.locationCode("CLLA")
 				.status("Available")
 				.totalHoldRequests(1)
+				.suppressFromDiscovery(true)
 				.permanentLoanType("stks")
 				.materialType(MaterialType.builder()
 					.name("book")
@@ -124,6 +126,7 @@ class ConsortialFolioHostLmsClientItemTests {
 				.locationCode("SSA")
 				.status("Checked out")
 				.totalHoldRequests(2)
+				.suppressFromDiscovery(false)
 				.dueDate(dueDate)
 				.permanentLoanType("stks")
 				.build()
@@ -149,7 +152,7 @@ class ConsortialFolioHostLmsClientItemTests {
 					hasLocalItemTypeCode("book"),
 					hasCanonicalItemType("canonical-book"),
 					hasLocation("Crerar, Lower Level, Bookstacks", "CLLA"),
-					isNotSuppressed(),
+					isSuppressed(),
 					isNotDeleted(),
 					hasHostLmsCode(HOST_LMS_CODE),
 					hasAgencyCode("known-agency"),

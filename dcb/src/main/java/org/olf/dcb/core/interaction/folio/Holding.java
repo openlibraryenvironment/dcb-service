@@ -21,4 +21,5 @@ public class Holding {
 	@Nullable String permanentLoanType;
 	@Nullable MaterialType materialType;
 	@Nullable Integer totalHoldRequests;
+	@Nullable Boolean suppressFromDiscovery;
 }
