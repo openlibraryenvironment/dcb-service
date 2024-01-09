@@ -48,7 +48,7 @@ public class HandleBorrowerItemUnhandledState implements WorkflowAction {
                         pr.setErrorMessage("Virtual item status set to "+sc.getToState()+" (was "+sc.getFromState()+") - Unhandled");
 
                         // We don't take any special action, but we do record the fact that the locat item state has been updated
-                        pr.setLocalItemState(sc.getToState());
+                        pr.setLocalItemStatus(sc.getToState());
 
                         return Mono.from(patronRequestRepository.saveOrUpdate(pr))
                                 .thenReturn(context);
