@@ -21,6 +21,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.interaction.Bib;
@@ -49,7 +50,9 @@ import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.type.Argument;
+import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -165,29 +168,31 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return makeRequest(request, Argument.of(OuterHoldings.class));
 	}
 
-	private static Mono<OuterHoldings> checkResponse(OuterHoldings outerHoldings, String instanceId) {
+	private Mono<OuterHoldings> checkResponse(OuterHoldings outerHoldings, String instanceId) {
 		if (hasNoErrors(outerHoldings)) {
 			if (hasNoOuterHoldings(outerHoldings)) {
-				log.error("No errors or outer holdings returned from RTAC for instance ID: {}, response: {}, likely to be invalid API key",
-					instanceId, outerHoldings);
+				log.error("No errors or outer holdings returned from RTAC for instance ID: {}, response: {}, "
+						+ "likely to be invalid API key for host LMS: {}",
+					instanceId, outerHoldings, getHostLmsCode());
 
 				// RTAC returns no outer holdings (instances) when the API key is invalid
-				return Mono.error(new LikelyInvalidApiKeyException(instanceId));
+				return Mono.error(new LikelyInvalidApiKeyException(instanceId, getHostLmsCode()));
 			} else {
 				if (hasMultipleOuterHoldings(outerHoldings)) {
-					log.error("Unexpected outer holdings (instances) received from RTAC for instance ID: {}, response: {}",
-						instanceId, outerHoldings);
+					log.error("Unexpected outer holdings (instances) received from RTAC for instance ID: {} from Host LMS: {}, response: {}",
+						instanceId, getHostLmsCode(), outerHoldings);
 
 					// DCB only asks for holdings for a single instance at a time
 					// RTAC should never respond with multiple outer holdings (instances)
-					return Mono.error(new UnexpectedOuterHoldingException(instanceId));
+					return Mono.error(new UnexpectedOuterHoldingException(instanceId, getHostLmsCode()));
 				}
 				else {
 					return Mono.just(outerHoldings);
 				}
 			}
 		} else {
-			log.debug("Errors received from RTAC: {}", outerHoldings.getErrors());
+			log.debug("Errors received from RTAC: {} for instance ID: {} for Host LMS: {}",
+				outerHoldings.getErrors(), instanceId, getHostLmsCode());
 
 			// DCB cannot know in advance whether an instance has any associated holdings / items
 			// Holdings not being found for an instance is a false negative
@@ -195,10 +200,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				return Mono.just(outerHoldings);
 			}
 			else {
-				log.error("Failed to get items for instance ID: {}, errors: {}",
-					instanceId, outerHoldings.getErrors());
+				log.error("Failed to get items for instance ID: {} from Host LMS: {}, errors: {}",
+					instanceId, getHostLmsCode(), outerHoldings.getErrors());
 
-				return Mono.error(new FailedToGetItemsException(instanceId));
+				return Mono.error(new FailedToGetItemsException(instanceId, getHostLmsCode()));
 			}
 		}
 	}
@@ -320,7 +325,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		}
 
 		if (users.size() > 1) {
-			return Mono.error(new MultipleUsersFoundException(getHostLmsCode(), query));
+			return Mono.error(new MultipleUsersFoundException(query, getHostLmsCode()));
 		}
 
 		return Mono.just(users.stream().findFirst().orElseThrow())
@@ -427,12 +432,32 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private <T, R> Mono<T> makeRequest(@NonNull MutableHttpRequest<R> request,
 		@NonNull Argument<T> bodyType) {
 
-		log.trace("Making request: {}", request);
+		log.trace("Making request: {} to Host LMS: {}", request, getHostLmsCode());
 
 		return Mono.from(httpClient.retrieve(request, bodyType))
-			.doOnSuccess(response -> log.trace("Received response: {}", response))
+			.doOnSuccess(response -> log.trace(
+				"Received response: {} from Host LMS: {}", response, getHostLmsCode()))
 			.doOnError(HttpClientResponseException.class,
-				error -> log.trace("Received error response", error));
+				error -> log.trace("Received error response: {} from Host LMS: {}",
+					toLogOutput(error.getResponse()), getHostLmsCode()));
+	}
+
+	private String toLogOutput(HttpResponse<?> response) {
+		if (response == null) {
+			return "No response included in error";
+		}
+
+		return "Status: \"%s\"\nHeaders: %s\nBody: %s\n".formatted(
+			getValue(response, HttpResponse::getStatus),
+			toLogOutput(response.getHeaders()),
+			response.getBody(Argument.of(String.class))
+		);
+	}
+
+	private String toLogOutput(HttpHeaders headers) {
+		return headers.asMap().entrySet().stream()
+			.map(entry -> "%s: %s".formatted(entry.getKey(), entry.getValue()))
+			.collect(Collectors.joining("; "));
 	}
 
 	private MutableHttpRequest<Object> authorisedRequest(String path) {
