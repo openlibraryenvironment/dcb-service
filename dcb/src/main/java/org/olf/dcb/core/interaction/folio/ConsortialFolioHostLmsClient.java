@@ -325,7 +325,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		}
 
 		if (users.size() > 1) {
-			return Mono.error(new MultipleUsersFoundException(getHostLmsCode(), query));
+			return Mono.error(new MultipleUsersFoundException(query, getHostLmsCode()));
 		}
 
 		return Mono.just(users.stream().findFirst().orElseThrow())
