@@ -159,16 +159,16 @@ public class TrackingService implements Runnable {
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	public Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
 		log.info("TRACKING Check (local) virtualItem from patron request {} {} {}",pr.getLocalItemId(),pr.getLocalItemStatus(),pr.getPatronHostlmsCode());
-                if ( ( pr.getPatronHostlmsCode() != null ) && ( pr.getLocalItemId() != null ) ) {
-                        return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
-                                .flatMap( client -> Mono.from(client.getItem(pr.getLocalItemId())) )
-                                .filter ( item -> ( 
-						    ( ( item.getStatus() == null ) && ( pr.getLocalItemStatus() != null ) ) ||
-						    ( ( item.getStatus() != null ) && ( pr.getLocalItemStatus() == null ) ) ||
-						    ( !item.getStatus().equals(pr.getLocalItemStatus()) ) 
-				) )
-                                .flatMap ( item -> {
-                                        log.debug("Detected borrowing system - virtual item status change {} to {}",pr.getLocalItemStatus(),item.getStatus());
+			if ( ( pr.getPatronHostlmsCode() != null ) && ( pr.getLocalItemId() != null ) ) {
+				return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
+					.flatMap( client -> Mono.from(client.getItem(pr.getLocalItemId())) )
+					.filter ( item -> ( 
+						( ( item.getStatus() == null ) && ( pr.getLocalItemStatus() != null ) ) ||
+						( ( item.getStatus() != null ) && ( pr.getLocalItemStatus() == null ) ) ||
+						( !item.getStatus().equals(pr.getLocalItemStatus()) ) 
+					) )
+					.flatMap ( item -> {
+						log.debug("Detected borrowing system - virtual item status change {} to {}",pr.getLocalItemStatus(),item.getStatus());
                                         StateChange sc = StateChange.builder()
                                                             .resourceType("BorrowerVirtualItem")
                                                             .resourceId(pr.getId().toString())

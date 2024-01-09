@@ -198,6 +198,7 @@ public class PAPIClient {
 			.flatMap(authFilter::ensureStaffAuth)
 			.flatMap(request -> client.retrieve(request, Argument.of(ItemGetResponse.class)))
 			.map(ItemGetResponse::getItemGetRows)
+			.filter ( itemGetRows -> itemGetRows.size() > 0 )
 			.map(itemGetRows -> itemGetRows.get(0));
 	}
 
