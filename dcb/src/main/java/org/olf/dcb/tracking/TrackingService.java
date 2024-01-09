@@ -82,7 +82,7 @@ public class TrackingService implements Runnable {
 			.subscribe( 
 				value -> {},
 				error -> {
-          log.error("TrackingError: " + error);
+          log.error("TrackingError (SupplierItem): ", error);
         },
 				() -> log.info("active supplier item tracking complete") );
 
@@ -90,14 +90,14 @@ public class TrackingService implements Runnable {
 			.flatMap( this::checkSupplierRequest)
 			.subscribe( 
 				value -> {},
-				error -> log.error("TrackingError: " + error),
+				error -> log.error("TrackingError (SupplierHold): ", error),
 				() -> log.info("active supplier hold tracking complete") );
 
 		trackVirtualItems()
 			.flatMap( this::checkVirtualItem)
 			.subscribe( 
 				value -> {},
-				error -> log.error("TrackingError: " + error),
+				error -> log.error("TrackingError (VirtualItem): ", error),
 				() -> log.info("active borrower virtual item tracking complete") );
 
 		// Do this last - to advance requests before dealing with any cancellations
@@ -105,7 +105,7 @@ public class TrackingService implements Runnable {
 			.flatMap( this::checkPatronRequest)
 			.subscribe( 
 				value -> {},
-				error -> log.error("TrackingError: " + error),
+				error -> log.error("TrackingError (PatronHold): ", error),
 				() -> log.info("active borrower request tracking complete") );
 
 	}

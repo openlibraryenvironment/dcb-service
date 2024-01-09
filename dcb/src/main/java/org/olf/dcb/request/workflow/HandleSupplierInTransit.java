@@ -56,7 +56,7 @@ public class HandleSupplierInTransit implements WorkflowAction {
                         return requestWorkflowContextHelper.fromSupplierRequest(sr)
                                 .flatMap( this::updateUpstreamSystems )
                                 // If we managed to update other systems, then update the supplier request
-				// This will cause st.setLocalStatus("TRANSIT") above to be saved and mean our local state is aligned with the supplier req
+								                // This will cause st.setLocalStatus("TRANSIT") above to be saved and mean our local state is aligned with the supplier req
                                 .flatMap( this::saveSupplierRequest )
                                 .flatMap( this::updatePatronRequest )
                                 .thenReturn(context);
