@@ -48,7 +48,7 @@ public interface PatronRequestRepository {
 	Publisher<PatronRequest> findTrackedPatronHolds();
 
 
-        // Find all the virtual items that we need to track
+	// Find all the virtual items that we need to track
 	@Query(value = "SELECT p.* from patron_request p  where p.local_item_id is not null and ( p.local_item_status is null or p.local_item_status in ( select code from status_code where model = 'VirtualItem' and tracked = true ) )", nativeQuery = true)
 	Publisher<PatronRequest> findTrackedVirtualItems();
 

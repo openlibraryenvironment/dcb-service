@@ -145,7 +145,7 @@ public class BorrowingAgencyService {
 					log.info("calling create item - target location mapping is {}",mapping);
 					String agencyCode = mapping.getToValue();
 					supplierRequest.setLocalAgency(agencyCode);
-					return hostLmsClient.createItem(new CreateItemCommand(localBibId, agencyCode,
+					return hostLmsClient.createItem(new CreateItemCommand(patronRequest.getId(), localBibId, agencyCode,
 							supplierRequest.getLocalItemBarcode(), supplierRequest.getCanonicalItemType()));
 				})
 				.map(HostLmsItem::getLocalId)

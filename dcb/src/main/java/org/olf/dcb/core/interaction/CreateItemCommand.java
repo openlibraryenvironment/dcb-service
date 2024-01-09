@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import io.micronaut.core.annotation.Nullable;
+import java.util.UUID;
 
 @Builder
 @Data
@@ -17,17 +18,22 @@ import io.micronaut.core.annotation.Nullable;
 @ExcludeFromGeneratedCoverageReport
 public class CreateItemCommand {
 
-        @Nullable
-        String bibId;
+	// Added to enable tracking and reporting - this field isn't used functionally in the create item 
+	// operation but it is useful for display when things go wrong.
+	@Nullable
+	UUID patronRequestId;
 
-        @Nullable
-        String locationCode;
+	@Nullable
+	String bibId;
 
-        @Nullable
-        String barcode;
+	@Nullable
+	String locationCode;
 
-        @Nullable
-        String canonicalItemType;
+	@Nullable
+	String barcode;
+
+	@Nullable
+	String canonicalItemType;
 }
 
 

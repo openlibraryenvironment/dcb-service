@@ -117,8 +117,8 @@ public class HostLmsReactions {
 				if (sc.getToState().equals("AVAILABLE")) {
 					handler = "SupplierRequestItemAvailable";
 				} else {
-                                        // A noop handler that just updates the tracked state so we know what it has changed to.
-                                        handler = "SupplierRequestItemStateChange";
+					// A noop handler that just updates the tracked state so we know what it has changed to.
+					handler = "SupplierRequestItemStateChange";
 				}
 			}
 			else {
@@ -129,11 +129,10 @@ public class HostLmsReactions {
 			log.warn("Unhandled tracking record type {}",trackingRecord.getTrackigRecordType());
 		}
 
-
 		// https://stackoverflow.com/questions/74183112/how-to-select-the-correct-transactionmanager-when-using-r2dbc-together-with-flyw
-                log.debug("Detected handler: {}",handler);
+		log.debug("Detected handler: {}",handler);
 		if ( handler != null ) {
-                        log.debug("Attempt to resolve bean");
+			log.debug("Attempt to resolve bean");
 			WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
 			if ( action != null ) {
 				log.debug("Invoke {}",action.getClass().getName());
@@ -146,11 +145,11 @@ public class HostLmsReactions {
 				throw new RuntimeException("Missing qualified WorkflowAction for handler "+handler);
 			}
 		}
-                else {
-                        log.debug("No handler");
-                }
+		else {
+			log.debug("No handler");
+		}
 
-                log.debug("onTrackingEvent {} complete",trackingRecord);
+		log.debug("onTrackingEvent {} complete",trackingRecord);
 		return Mono.just(context);
 	}
 
