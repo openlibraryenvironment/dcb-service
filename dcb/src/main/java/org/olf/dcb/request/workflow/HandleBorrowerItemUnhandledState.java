@@ -45,7 +45,11 @@ public class HandleBorrowerItemUnhandledState implements WorkflowAction {
 
                 PatronRequest pr = (PatronRequest) sc.getResource();
                 if ( pr != null ) {
-                        pr.setErrorMessage("Virtual item set to "+sc.getToState()+" (was "+sc.getFromState()+") - Unhandled");
+                        pr.setErrorMessage("Virtual item status set to "+sc.getToState()+" (was "+sc.getFromState()+") - Unhandled");
+
+                        // We don't take any special action, but we do record the fact that the locat item state has been updated
+                        pr.setLocalItemState(sc.getToState());
+
                         return Mono.from(patronRequestRepository.saveOrUpdate(pr))
                                 .thenReturn(context);
                 }
