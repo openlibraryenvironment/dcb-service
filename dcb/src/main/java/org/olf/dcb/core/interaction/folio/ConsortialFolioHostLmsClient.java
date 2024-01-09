@@ -21,6 +21,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.interaction.Bib;
@@ -49,7 +50,9 @@ import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.type.Argument;
+import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -435,7 +438,26 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.doOnSuccess(response -> log.trace(
 				"Received response: {} from Host LMS: {}", response, getHostLmsCode()))
 			.doOnError(HttpClientResponseException.class,
-				error -> log.trace("Received error response from Host LMS: {}", getHostLmsCode(), error));
+				error -> log.trace("Received error response: {} from Host LMS: {}",
+					toLogOutput(error.getResponse()), getHostLmsCode()));
+	}
+
+	private String toLogOutput(HttpResponse<?> response) {
+		if (response == null) {
+			return "No response included in error";
+		}
+
+		return "Status: \"%s\"\nHeaders: %s\nBody: %s\n".formatted(
+			getValue(response, HttpResponse::getStatus),
+			toLogOutput(response.getHeaders()),
+			response.getBody(Argument.of(String.class))
+		);
+	}
+
+	private String toLogOutput(HttpHeaders headers) {
+		return headers.asMap().entrySet().stream()
+			.map(entry -> "%s: %s".formatted(entry.getKey(), entry.getValue()))
+			.collect(Collectors.joining("; "));
 	}
 
 	private MutableHttpRequest<Object> authorisedRequest(String path) {
