@@ -184,7 +184,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 					// DCB only asks for holdings for a single instance at a time
 					// RTAC should never respond with multiple outer holdings (instances)
-					return Mono.error(new UnexpectedOuterHoldingException(instanceId));
+					return Mono.error(new UnexpectedOuterHoldingException(instanceId, getHostLmsCode()));
 				}
 				else {
 					return Mono.just(outerHoldings);
@@ -203,7 +203,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				log.error("Failed to get items for instance ID: {} from Host LMS: {}, errors: {}",
 					instanceId, getHostLmsCode(), outerHoldings.getErrors());
 
-				return Mono.error(new FailedToGetItemsException(instanceId));
+				return Mono.error(new FailedToGetItemsException(instanceId, getHostLmsCode()));
 			}
 		}
 	}
