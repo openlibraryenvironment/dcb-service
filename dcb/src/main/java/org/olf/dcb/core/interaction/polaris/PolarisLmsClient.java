@@ -459,12 +459,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<String> deleteItem(String id) {
-		return Mono.empty();
+		// workflow POST delete
+		// workflow PUT continue delete
+		// workflow PUT don't delete bib if last item
+		// ERROR PolarisWorkflowException
+		return appServicesClient.deleteItemRecord(id).thenReturn("OK").defaultIfEmpty("ERROR");
 	}
 
 	@Override
 	public Mono<String> deleteBib(String id) {
-		return Mono.empty();
+		// workflow POST delete
+		// workflow PUT continue delete
+		// ERROR PolarisWorkflowException
+		return appServicesClient.deleteBibliographicRecord(id).thenReturn("OK").defaultIfEmpty("ERROR");
 	}
 
 	@Override
