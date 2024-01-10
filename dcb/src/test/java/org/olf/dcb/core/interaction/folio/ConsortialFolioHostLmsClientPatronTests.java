@@ -172,6 +172,75 @@ class ConsortialFolioHostLmsClientPatronTests {
 	}
 
 	@Test
+	void successfulPatronAuthentication() {
+		// Arrange
+		final var barcode = "4295753";
+		final var patronGroup = "bdc2b6d4-5ceb-4a12-ab46-249b9a68473e";
+
+		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
+			patronGroup, "DCB", "canonical-patron-type");
+
+		mockFolioFixture.mockPatronAuth(barcode, User.builder()
+			.id("9c2e859d-e923-450d-85e3-b425cfa9f938")
+			.patronGroup(patronGroup)
+			.barcode(barcode)
+			.personal(User.PersonalDetails.builder()
+				.firstName("First")
+				.lastName("Special Pin Test")
+				.middleName("Middle")
+				.build())
+			.build());
+
+		// Act
+		final var verifiedPatron = singleValueFrom(client.patronAuth("BASIC/BARCODE+PIN", barcode, "1234"));
+
+		// Assert
+		assertThat(verifiedPatron, allOf(
+			hasLocalIds("9c2e859d-e923-450d-85e3-b425cfa9f938"),
+			hasLocalPatronType("bdc2b6d4-5ceb-4a12-ab46-249b9a68473e"),
+			hasCanonicalPatronType("canonical-patron-type"),
+			hasLocalBarcodes("4295753"),
+			hasNoHomeLibraryCode(),
+			hasLocalNames("First", "Middle", "Special Pin Test")
+		));
+	}
+
+	@Test
+	void successfullyGetPatronByUsername() {
+		// Arrange
+		final var username = "special-pin-test";
+		final var patronGroup = "bdc2b6d4-5ceb-4a12-ab46-249b9a68473e";
+
+		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
+			patronGroup, "DCB", "canonical-patron-type");
+
+		mockFolioFixture.mockGetPatronByUsername(username, User.builder()
+			.id("9c2e859d-e923-450d-85e3-b425cfa9f938")
+			.patronGroup(patronGroup)
+			.barcode("2093487")
+			.username(username)
+			.personal(User.PersonalDetails.builder()
+				.firstName("First")
+				.lastName("Special Pin Test")
+				.middleName("Middle")
+				.build())
+			.build());
+
+		// Act
+		final var fetchedPatron = singleValueFrom(client.getPatronByUsername(username));
+
+		// Assert
+		assertThat(fetchedPatron, allOf(
+			hasLocalIds("9c2e859d-e923-450d-85e3-b425cfa9f938"),
+			hasLocalPatronType("bdc2b6d4-5ceb-4a12-ab46-249b9a68473e"),
+			hasCanonicalPatronType("canonical-patron-type"),
+			hasLocalBarcodes("2093487"),
+			hasNoHomeLibraryCode(),
+			hasLocalNames("First", "Middle", "Special Pin Test")
+		));
+	}
+
+	@Test
 	void findVirtualPatronShouldFailWhenMultipleUsersFoundForBarcode() {
 		// Arrange
 		final var barcode = "6349673";
