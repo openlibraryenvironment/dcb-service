@@ -1,9 +1,13 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static io.micronaut.core.type.Argument.VOID;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static io.micronaut.http.HttpMethod.GET;
+import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.HttpStatus.*;
+
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
@@ -22,6 +26,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.exceptions.HttpStatusException;
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
@@ -52,7 +59,6 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -158,7 +164,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<OuterHoldings> getHoldings(String instanceId) {
-		final var request = authorisedRequest("/rtac")
+		final var request = authorisedRequest(GET, "/rtac")
 			.uri(uriBuilder -> uriBuilder
 				.queryParam("instanceIds", instanceId)
 				// Full periodicals refers to items, without this parameter holdings will be returned instead of items
@@ -288,7 +294,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> getPatronByUsername(String localUsername) {
-		return Mono.error(new NotImplementedException("Get patron by username is not currently implemented for FOLIO"));
+		final var query = exactEqualityQuery("username", localUsername);
+
+			return findUsers(query)
+				.flatMap(response -> mapFirstUserToPatron(response, query, Mono.empty()))
+				.doOnError(error -> log.error("Error occurred while fetching patron by username: {}", localUsername, error));
 	}
 
 	@Override
@@ -308,7 +318,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private Mono<UserCollection> findUsers(CqlQuery query) {
 		// Duplication in path due to way edge-users is namespaced
-		final var request = authorisedRequest("/users/users")
+		final var request = authorisedRequest(GET, "/users/users")
 			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
 		return makeRequest(request, Argument.of(UserCollection.class))
@@ -388,7 +398,31 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String barcode, String secret) {
-		return Mono.error(new NotImplementedException("Patron authentication is not currently implemented for FOLIO"));
+
+		if (!isValidAuthProfile(authProfile)) {
+			return Mono.error(() -> new HttpStatusException(BAD_REQUEST, "Invalid authProfile: " + authProfile));
+		}
+
+		return findPatronByBarcode(barcode)
+			.flatMap(patron -> verifyPatronPin(patron, secret))
+			.doOnError(error -> log.error("Error occurred while handling patron authentication: {}", barcode, error));
+	}
+
+	private Mono<Patron> findPatronByBarcode(String barcode) {
+		final var query = exactEqualityQuery("barcode", barcode);
+		return findUsers(query).flatMap(collection -> mapFirstUserToPatron(collection, query, Mono.empty()));
+	}
+
+	private Mono<Patron> verifyPatronPin(Patron patron, String pin) {
+		final var localID = patron.getLocalId().stream().findFirst().orElseThrow();
+		final var request = authorisedRequest(POST, "/users/patron-pin/verify")
+			.body(VerifyPatron.builder().id(localID).pin(pin).build());
+
+		return makeRequest(request, VOID).thenReturn(patron);
+	}
+
+	private Boolean isValidAuthProfile(String authProfile) {
+		return authProfile.equals("BASIC/BARCODE+PIN");
 	}
 
 	@Override
@@ -460,10 +494,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.collect(Collectors.joining("; "));
 	}
 
-	private MutableHttpRequest<Object> authorisedRequest(String path) {
+	private MutableHttpRequest<Object> authorisedRequest(HttpMethod method, String path) {
 		final var relativeUri = UriBuilder.of(path).build();
 
-		return HttpRequest.create(GET, resolve(relativeUri).toString())
+		return HttpRequest.create(method, resolve(relativeUri).toString())
 			// Base 64 encoded API key
 			.header("Authorization", apiKey)
 			// MUST explicitly accept JSON for edge-rtac otherwise XML will be returned

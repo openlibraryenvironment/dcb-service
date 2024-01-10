@@ -58,6 +58,28 @@ public class MockFolioFixture {
 				.withBody(json));
 	}
 
+	void mockPatronAuth(String barcode, User user) {
+		mockFindUsersByBarcode(barcode, response()
+			.withStatusCode(200)
+			.withBody(json(
+				UserCollection.builder()
+					.users(List.of(user))
+					.build())));
+
+		mockPatronVerify(response()
+			.withStatusCode(200));
+	}
+
+	private void mockPatronVerify(HttpResponse response) {
+		mockServerClient
+			.when(org.mockserver.model.HttpRequest.request()
+				.withHeader("Host", host)
+				.withHeader("Authorization", apiKey)
+				.withHeader("Accept", APPLICATION_JSON)
+				.withPath("/users/patron-pin/verify"))
+			.respond(response);
+	}
+
 	void mockFindUsersByBarcode(String barcode, User... users) {
 		mockFindUsersByBarcode(barcode, response()
 			.withStatusCode(200)
@@ -78,12 +100,30 @@ public class MockFolioFixture {
 			.respond(httpResponse);
 	}
 
+	public void mockGetPatronByUsername(String username, User... users) {
+		mockServerClient
+			.when(org.mockserver.model.HttpRequest.request()
+				.withHeader("Host", host)
+				.withHeader("Authorization", apiKey)
+				.withHeader("Accept", APPLICATION_JSON)
+
+				.withPath("/users/users")
+				.withQueryStringParameter("query", "username==\"" + username + "\""))
+			.respond(response()
+				.withStatusCode(200)
+				.withBody(json(
+					UserCollection.builder()
+						.users(List.of(users))
+						.build())));
+	}
+
 	public void mockFindUsersById(String localId, User... users) {
 		mockServerClient
 			.when(org.mockserver.model.HttpRequest.request()
 				.withHeader("Host", host)
 				.withHeader("Authorization", apiKey)
 				.withHeader("Accept", APPLICATION_JSON)
+
 				.withPath("/users/users")
 				.withQueryStringParameter("query", "id==\"" + localId + "\""))
 			.respond(response()
