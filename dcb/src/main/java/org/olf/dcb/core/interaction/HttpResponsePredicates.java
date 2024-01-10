@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction;
 
+import static io.micronaut.http.HttpStatus.NOT_FOUND;
 import static io.micronaut.http.HttpStatus.UNAUTHORIZED;
 
 import java.util.function.Predicate;
@@ -10,7 +11,15 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 
 public class HttpResponsePredicates {
 	public static boolean isUnauthorised(Throwable throwable) {
-		return isClientResponseException(throwable, isStatus(UNAUTHORIZED));
+		return isClientResponseException(throwable, isUnauthorised());
+	}
+
+	public static Predicate<HttpResponse<?>> isUnauthorised() {
+		return isStatus(UNAUTHORIZED);
+	}
+
+	public static Predicate<HttpResponse<?>> isNotFound() {
+		return isStatus(NOT_FOUND);
 	}
 
 	public static Predicate<HttpResponse<?>> isStatus(HttpStatus status) {

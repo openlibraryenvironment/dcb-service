@@ -1,8 +1,7 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static io.micronaut.http.HttpStatus.NOT_FOUND;
 import static org.olf.dcb.core.interaction.HttpResponsePredicates.isClientResponseException;
-import static org.olf.dcb.core.interaction.HttpResponsePredicates.isStatus;
+import static org.olf.dcb.core.interaction.HttpResponsePredicates.isNotFound;
 
 import java.util.function.Predicate;
 
@@ -11,7 +10,7 @@ import services.k_int.interaction.sierra.SierraError;
 
 class SierraResponseErrorMatcher {
 	boolean isNoRecordsError(Throwable throwable) {
-		return isClientResponseException(throwable, isStatus(NOT_FOUND).and(isNoRecordsFoundError()));
+		return isClientResponseException(throwable, isNotFound().and(isNoRecordsFoundError()));
 	}
 
 	private Predicate<HttpResponse<?>> isNoRecordsFoundError() {
