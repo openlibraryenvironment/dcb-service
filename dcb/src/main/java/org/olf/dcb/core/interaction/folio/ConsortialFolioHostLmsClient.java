@@ -4,7 +4,6 @@ import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static io.micronaut.http.HttpMethod.GET;
-import static io.micronaut.http.HttpStatus.UNAUTHORIZED;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
@@ -31,6 +30,7 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HttpResponsePredicates;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
@@ -312,7 +312,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
 		return makeRequest(request, Argument.of(UserCollection.class))
-			.onErrorMap(this::isUnauthorisedResponse, InvalidApiKeyException::new);
+			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new);
 	}
 
 	private Mono<Patron> mapFirstUserToPatron(UserCollection response,
@@ -473,14 +473,5 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private URI resolve(URI relativeURI) {
 		return RelativeUriResolver.resolve(rootUri, relativeURI);
-	}
-
-	private boolean isUnauthorisedResponse(Throwable error) {
-		if (error instanceof HttpClientResponseException httpError) {
-			return httpError.getStatus() == UNAUTHORIZED;
-		}
-		else {
-			return false;
-		}
 	}
 }
