@@ -33,6 +33,10 @@ import static java.lang.String.valueOf;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.util.Collections.singletonList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.*;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Continue;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Retain;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.APPLICATION_SERVICES;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
@@ -207,6 +211,38 @@ class ApplicationServicesClient {
     return Mono.just(Integer.valueOf(6));
   }
 
+	public Mono<WorkflowResponse> deleteBibliographicRecord(String id) {
+		final var path = createPath("workflow");
+
+		final var conf = client.getConfig();
+		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
+		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+
+		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
+		final var workstation = extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class);
+
+		final var DeleteBibRecord = 11;
+		final var DeleteBibRecordData = 10;
+		final var body = WorkflowRequest.builder()
+			.workflowRequestType(DeleteBibRecord)
+			.txnUserID(user)
+			.txnBranchID(branch)
+			.txnWorkstationID(workstation)
+			.requestExtension(RequestExtension.builder()
+				.workflowRequestExtensionType(DeleteBibRecordData)
+				.data(RequestExtensionData.builder()
+					.bibRecordIDs( singletonList(Integer.valueOf(id)) )
+					.build())
+				.build())
+			.build();
+		return createRequest(POST, path, uri -> {
+		})
+			.map(request -> request.body(body))
+			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)))
+			.flatMap(resp -> handlePolarisWorkflow(resp, ConfirmBibRecordDelete, Continue))
+			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)));
+	}
+
 
 	public Mono<ItemCreateResponse> addItemRecord(CreateItemCommand createItemCommand) {
 
@@ -306,6 +342,55 @@ class ApplicationServicesClient {
 			.then();
 	}
 
+	public Mono<WorkflowResponse> deleteItemRecord(String id) {
+		final var path = createPath("workflow");
+
+		final var conf = client.getConfig();
+		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
+		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+
+		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
+		final var workstation = extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class);
+
+		final var DeleteItemRecord = 10;
+		final var DeleteItemRecordData = 8;
+		final var body = WorkflowRequest.builder()
+			.workflowRequestType(DeleteItemRecord)
+			.txnUserID(user)
+			.txnBranchID(branch)
+			.txnWorkstationID(workstation)
+			.requestExtension(RequestExtension.builder()
+				.workflowRequestExtensionType(DeleteItemRecordData)
+				.data(RequestExtensionData.builder()
+					.isAutoDelete(FALSE)
+					.itemRecordIDs( singletonList(Integer.valueOf(id)) )
+					.build())
+				.build())
+			.build();
+		return createRequest(POST, path, uri -> {
+		})
+			.map(request -> request.body(body))
+			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)))
+			.flatMap(resp -> handlePolarisWorkflow(resp, ConfirmItemRecordDelete, Continue))
+			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)))
+			.flatMap(response -> {
+				if (Objects.equals(response.getWorkflowStatus(), InputRequired)) {
+					return handlePolarisWorkflow(response, LastCopyOrRecordOptions, Retain)
+						.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)));
+				}
+				return Mono.just(response);
+			});
+	}
+
+	private Mono<MutableHttpRequest<WorkflowReply>> handlePolarisWorkflow(WorkflowResponse response, Integer promptID, Integer promptResult) {
+		return Mono.just(response)
+			.filter(workflowResponse -> workflowResponse.getPrompt() != null)
+			.filter(workflowResponse -> Objects.equals(workflowResponse.getPrompt().getWorkflowPromptID(), promptID))
+			.flatMap(resp -> createItemWorkflowReply(resp.getWorkflowRequestGuid(), promptID, promptResult))
+			.switchIfEmpty(Mono.error(new PolarisWorkflowException("Failed to handle polaris workflow. " +
+				"Response was: " + response + ". Expected to reply to promptID: " + promptID + " with reply: " + promptResult)));
+	}
+
 	private Mono<ItemCreateResponse> createItemRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
 		final var InputRequired = -3;
 		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class))
@@ -315,6 +400,13 @@ class ApplicationServicesClient {
 			.map(WorkflowResponse::getWorkflowRequestGuid)
 			.flatMap(this::createItemWorkflowReply)
 			.switchIfEmpty( Mono.error(new PolarisWorkflowException("item request failed expecting workflow response to: " + workflowReq)) );
+	}
+
+	private Mono<MutableHttpRequest<WorkflowReply>> createItemWorkflowReply(String guid, Integer promptID, Integer promptResult) {
+		return createRequest(PUT, createPath("workflow", guid), uri -> {})
+			.map(request -> request.body(WorkflowReply.builder()
+				.workflowPromptID(promptID)
+				.workflowPromptResult(promptResult).build()));
 	}
 
 	private Mono<ItemCreateResponse> createItemWorkflowReply(String guid) {
@@ -395,11 +487,15 @@ class ApplicationServicesClient {
 		return URI_PARAMETERS + "/" + Arrays.stream(pathSegments).map(Object::toString).collect(Collectors.joining("/"));
 	}
 
+	// https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/overview
 	@Builder
 	@Data
 	@AllArgsConstructor
 	@Serdeable
 	static class WorkflowReply {
+		// Prompt Results
+		public static final Integer Continue = 5;
+		public static final Integer Retain = 11;
 		@JsonProperty("WorkflowPromptID")
 		private Integer workflowPromptID;
 		@JsonProperty("WorkflowPromptResult")
@@ -411,10 +507,32 @@ class ApplicationServicesClient {
 	@AllArgsConstructor
 	@Serdeable
 	static class WorkflowResponse {
+		public static final Integer CompletedSuccessfully = 1;
+		public static final Integer InputRequired = -3;
 		@JsonProperty("WorkflowRequestGuid")
 		private String workflowRequestGuid;
 		@JsonProperty("WorkflowStatus")
 		private Integer workflowStatus;
+		@JsonProperty("Prompt")
+		private Prompt prompt;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class Prompt {
+		// Prompt Identifiers
+		public static final Integer NoDisplayInPAC = 66;
+		public static final Integer ConfirmItemRecordDelete = 73;
+		public static final Integer ConfirmBibRecordDelete = 79;
+		public static final Integer LastCopyOrRecordOptions = 82;
+		@JsonProperty("WorkflowPromptID")
+		private Integer WorkflowPromptID;
+		@JsonProperty("Title")
+		private String title;
+		@JsonProperty("Message")
+		private String message;
 	}
 
 	@Builder
@@ -621,6 +739,16 @@ class ApplicationServicesClient {
 		private Boolean loneableOutsideSystem;
 		@JsonProperty("Holdable")
 		private Boolean holdable;
+
+		// item delete fields
+		@JsonProperty("IsAutoDelete")
+		private Boolean isAutoDelete;
+		@JsonProperty("ItemRecordIDs")
+		private List<Integer> itemRecordIDs;
+
+		// delete bib fields
+		@JsonProperty("BibRecordIDs")
+		private List<Integer> bibRecordIDs;
 	}
 
 	@Builder
