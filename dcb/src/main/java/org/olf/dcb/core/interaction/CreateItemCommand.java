@@ -26,6 +26,8 @@ public class CreateItemCommand {
 	@Nullable
 	String bibId;
 
+	// This is the location code of the LENDING agency - it is used to give the borrowing library information about where the item
+	// should be returned to.
 	@Nullable
 	String locationCode;
 
@@ -34,6 +36,11 @@ public class CreateItemCommand {
 
 	@Nullable
 	String canonicalItemType;
+
+	// This is the code for the patron home location. This is needed for POLARIS systems to properly process a CreateItemCommand as items
+	// need to be created with the borrowing patrons home location. Likely ignored by other implementations.
+	@Nullable
+	String patronHomeLocation;
 }
 
 

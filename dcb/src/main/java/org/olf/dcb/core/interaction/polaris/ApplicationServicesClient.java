@@ -246,6 +246,8 @@ class ApplicationServicesClient {
 
 	public Mono<ItemCreateResponse> addItemRecord(CreateItemCommand createItemCommand) {
 
+		// https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/overview
+		// https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/add_or_update_item_record
 		final var path = createPath("workflow");
 
 		final var conf = client.getConfig();
@@ -264,14 +266,26 @@ class ApplicationServicesClient {
 
 		final var Available = 1; // In
 
+		// The createItemCommand for polaris should use the home location of the patron placing the request
+		// So that the request can be routed appropriately in house
 		return Mono.zip(createRequest(POST, path, uri -> {}),
-				client.getMappedItemType(createItemCommand.getCanonicalItemType()),
-				mapCanonicalLocationToLocalPolarisInteger(createItemCommand.getLocationCode()))
+				client.getMappedItemType(createItemCommand.getCanonicalItemType())
+				// mapCanonicalLocationToLocalPolarisInteger(createItemCommand.getLocationCode())
+				)
 				.map(tuple -> {
 
 				final var request = tuple.getT1();
 				final var itemtype = Integer.parseInt(tuple.getT2());
-			  final var itemLocationId = tuple.getT3();
+
+				String strPatronHomeLocation = createItemCommand.getPatronHomeLocation();
+
+				if ( strPatronHomeLocation == null )
+					throw new RuntimeException("Missing patron home location for sierra user - createItemCommand="+createItemCommand);
+
+				// Ian: 2024-01-10 We use the patrons home location for these values - see the note in Borrowing Library Services
+			  // final var itemLocationId = tuple.getT3();
+				final Integer itemLocationId = Integer.valueOf(strPatronHomeLocation);
+				
 				final var body = WorkflowRequest.builder()
 				.workflowRequestType(itemrecordtype)
 				.txnUserID(user)
@@ -284,9 +298,9 @@ class ApplicationServicesClient {
 						.barcode(barcodePrefix + createItemCommand.getBarcode())
 						.isNew(TRUE)
 						.displayInPAC(FALSE)
-						.assignedBranchID( itemLocationId ) // needs clarifying
-						.owningBranchID( itemLocationId ) // needs clarifying
-						.homeBranchID( itemLocationId ) // needs clarifying
+						.assignedBranchID( itemLocationId )
+						.owningBranchID( itemLocationId )
+						.homeBranchID( itemLocationId )
 						.renewalLimit( extractMapValue(itemMap, RENEW_LIMIT, Integer.class) )
 						.fineCodeID( extractMapValue(itemMap, FINE_CODE_ID, Integer.class) )
 						.itemRecordHistoryActionID( extractMapValue(itemMap, HISTORY_ACTION_ID, Integer.class) )

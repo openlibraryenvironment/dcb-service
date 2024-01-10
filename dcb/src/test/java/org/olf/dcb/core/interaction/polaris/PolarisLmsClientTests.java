@@ -413,7 +413,7 @@ public class PolarisLmsClientTests {
 
 		// Act
 		final var item = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.createItem(CreateItemCommand.builder().bibId("1203065").barcode("3430470102").build()).block();
+			.createItem(CreateItemCommand.builder().bibId("1203065").barcode("3430470102").patronHomeLocation("37").build()).block();
 
 		// Assert
 		assertThat(item, is(notNullValue()));

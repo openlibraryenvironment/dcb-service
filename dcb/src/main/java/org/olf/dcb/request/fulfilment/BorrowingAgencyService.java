@@ -140,13 +140,27 @@ public class BorrowingAgencyService {
 			log.info("slToAgency:{} {} {} {} {}", "Location", supplierRequest.getHostLmsCode(),
 				supplierRequest.getLocalItemLocationCode(), "AGENCY", "DCB");
 
+
+			// So far, when creating items, we have used the supplying library code as the location for the item. This is so that
+			// the borrowing library knows where to return the item. We pass this as locationCode in the CreateItemCommand.
+			// POLARIS however needs the location code to be a real location in the local POLARIS System and expects the location
+			// of the item to be the patrons home library (Because there is no PUA currently). A note is used for routing details
+			// so the borrowing library knows where to return the item. We don't want to switch system type here - instead we should
+			// be passing enough detail at this point for any implementation to have the information it needs to populate the request.
+			// patronIdentity.getLocalHomeLibraryCode is added to CreateItemCommand as patronHomeLocation
 			return getAgencyForShelvingLocation(supplierRequest.getHostLmsCode(), supplierRequest.getLocalItemLocationCode())
 				.flatMap(mapping -> {
 					log.info("calling create item - target location mapping is {}",mapping);
 					String agencyCode = mapping.getToValue();
 					supplierRequest.setLocalAgency(agencyCode);
-					return hostLmsClient.createItem(new CreateItemCommand(patronRequest.getId(), localBibId, agencyCode,
-							supplierRequest.getLocalItemBarcode(), supplierRequest.getCanonicalItemType()));
+					return hostLmsClient.createItem(
+						new CreateItemCommand(
+							patronRequest.getId(), 
+							localBibId, 
+							agencyCode,
+							supplierRequest.getLocalItemBarcode(), 
+							supplierRequest.getCanonicalItemType(),
+							patronIdentity.getLocalHomeLibraryCode()));
 				})
 				.map(HostLmsItem::getLocalId)
 				.map(localItemId -> {
@@ -163,13 +177,13 @@ public class BorrowingAgencyService {
 	}
 
 	private Mono<Tuple2<String, String>> placeHoldRequest(PatronRequest patronRequest,
-		PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
+		PatronIdentity patronIdentityAtBorrowingSystem, HostLmsClient hostLmsClient,
 		String localItemId, String localBibId) {
 
 		String note = "Consortial Hold. tno=" + patronRequest.getId();
 
 		return hostLmsClient.placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters.builder()
-				.localPatronId(patronIdentity.getLocalId())
+				.localPatronId(patronIdentityAtBorrowingSystem.getLocalId())
 				.localBibId(localBibId)
 				.localItemId(localItemId)
 				.pickupLocation(patronRequest.getPickupLocationCode())
