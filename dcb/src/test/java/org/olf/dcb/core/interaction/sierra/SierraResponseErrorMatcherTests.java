@@ -5,6 +5,7 @@ import static io.micronaut.http.HttpResponse.ok;
 import static io.micronaut.http.HttpResponse.unauthorized;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.olf.dcb.core.interaction.HttpResponsePredicates.isUnauthorised;
 
 import org.junit.jupiter.api.Test;
 
@@ -54,14 +55,14 @@ class SierraResponseErrorMatcherTests {
 	void shouldNotBeUnauthorisedWhenStatusCodeIsAnythingExceptUnauthorised() {
 		final var exception = new HttpClientResponseException("", ok());
 
-		assertThat(errorMatcher.isUnauthorised(exception), is(false));
+		assertThat(isUnauthorised(exception), is(false));
 	}
 
 	@Test
 	void shouldBeUnauthorisedWhenStatusCodeIsUnauthorised() {
 		final var exception = new HttpClientResponseException("", unauthorized());
 
-		assertThat(errorMatcher.isUnauthorised(exception), is(true));
+		assertThat(isUnauthorised(exception), is(true));
 	}
 
 	private static SierraError createSierraError(int code) {

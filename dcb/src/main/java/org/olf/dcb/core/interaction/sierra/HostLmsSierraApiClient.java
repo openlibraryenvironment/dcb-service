@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import org.olf.dcb.core.interaction.HttpResponsePredicates;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.model.HostLms;
 import org.reactivestreams.Publisher;
@@ -297,7 +298,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		// .transform(this::handle404AsEmpty)
 		// Immediately after current, but some downstream chains rely upon the 404 so
 		// for now we use .transform directly in the caller
-		return current.doOnError(sierraResponseErrorMatcher::isUnauthorised, _t -> clearToken());
+		return current.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken());
 	}
 
 	private void clearToken() {
