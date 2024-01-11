@@ -1,5 +1,84 @@
 # Changelog
 
+## Version 4.4.0
+
+### Additions
+* [General]
+	* handle patron authentication for folio [DCB-765]
+	* implement polaris client override methods deleteItem and deleteBib [DCB-789]
+
+### Changes
+* [Chore]
+	* defensive code in polaris adapter to make sure items array length > 0
+	* correct local item status name
+	* Extra info to make grepping for onTrackingEvent more meaningful when watching a specific flow
+	* adjust error logging in tracking code
+	* Pass host LMS code as last parameter for multiple users error DCB-490
+	* Include host LMS code in failed to get items exceptions DCB-479
+	* Include host LMS code in FOLIO client log entries DCB-479 DCB-490
+	* Include host LMS code in likely API key error DCB-479
+	* Add patron request id to create item command so we can give more informative logging in failure scenarios
+	* Map suppress from discovery for FOLIO items DCB-479
+	* Remove preferred first name from FOLIO virtual patron's local names DCB-490
+	* Generate new ID only when creating FOLIO virtual patron DCB-490
+	* Rename variable for created virtual patron ID DCB-490
+	* backout stats counter
+	* default hazelcast constructor
+	* Try specifying hazelcast servicelabelname in yaml file
+	* remove unneeded hz config object
+	* null detection around hazelcast
+	* trying alternate hazelcast config
+	* Return explict error for non-implemented FOLIO host LMS client methods DCB-490
+	* Fail when no patron group to type mapping found DCB-490
+	* Map FOLIO user patron group to canonical patron type DCB-490
+	* Fail finding a virtual patron when requesting patron has no barcode DCB-490
+	* Fail finding FOLIO users when API key is invalid DCB-490
+	* Fail finding virtual patron in FOLIO when multiple users found DCB-490
+	* Tolerate missing properties when mapping FOLIO user to patron DCB-490
+	* Map all FOLIO user's names to local names DCB-490
+	* Map FOLIO user's barcode DCB-490
+	* Map FOLIO user's patron group to local patron type DCB-490
+	* Return empty when no user found for barcode DCB-490
+	* Include trace level request logging for FOLIO client DCB-490
+	* Only accept JSON when finding users in FOLIO DCB-490
+	* Use CQL to find FOLIO virtual patron by barcode DCB-490
+	* Fetch users from FOLIO when finding virtual patron DCB-490
+* [Feature]
+	* trial adding stats to indo endpoint
+	* evict member info if we detect a node is no longer present. Trialling leader election for cluster operation
+	* Add the node start date and if the node is running scheduled tasks to the cluster information shared via hazelcast. Subsequently, these should now appear in the app info endpoint giving the admin app visibility of all DCB nodes
+	* Use hazelcast initially to maintain a map of DCB nodes which are reported back in the info endpoint
+* [Refactor]
+	* Use common predicate for detecting unauthorized response from FOLIO DCB-490
+	* Extract methods for HTTP status predicates DCB-490
+	* Move common HTTP response predicates to separate class DCB-490
+	* Move non-null values list method to collection utils class DCB-490
+	* Extract method for mapping FOLIO user to patron DCB-490
+	* Introduce parameter for query when finding FOLIO users DCB-490
+	* Move method for creating exact equality query DCB-490
+	* Introduce CQL Query class DCB-490
+	* Extract method for constructing CQL query to find users DCB-490
+	* Extract method for mapping first FOLIO user to patron DCB-490
+	* Use flat map to map FOLIO users to a patron DCB-490
+	* Extract method for making HTTP requests in FOLIO client DCB-490
+	* Extract method for defining authorised FOLIO request DCB-490
+	* Extract method for finding users in FOLIO DCB-490
+* [Test]
+	* Remove duplicate tests for unauthorized status code predicate DCB-490
+	* Make test names specific to finding a virtual patron DCB-490
+	* Delete reference value mappings before each FOLIO host LMS client patron tests DCB-490
+	* Move patron matchers to separate class DCB-490
+	* Check no mapping for FOLIO patron's names DCB-490
+	* Check no mapping for FOLIO patron's home library code DCB-490
+	* Introduce parameter for users when mocking find users DCB-490
+	* Move patron local IDs matcher to separate class DCB-490
+	* Add class for FOLIO host LMS client patron tests DCB-490
+
+### Fixes
+* [General]
+	* Use patron home location for item location when creating an item for POLARIS
+	* Rely on declarative config for hazelcast
+
 ## Version 4.3.0
 
 ### Additions
@@ -8,6 +87,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Extra error checking around POLARIS create patron - validate the response and check for a nonzero error code
 	* Add some defers to empty handling to prevent premature side effects
 	* Extra logging on polaris createPatron
