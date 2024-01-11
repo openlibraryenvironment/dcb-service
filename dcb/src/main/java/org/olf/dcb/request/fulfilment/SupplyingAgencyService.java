@@ -18,6 +18,7 @@ import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
@@ -133,33 +134,20 @@ public class SupplyingAgencyService {
 		if ((patronRequest == null) ||
 			(supplierRequest == null) ||
 			(patronIdentityAtSupplier == null) ||
-			(psrc.getPickupAgencyCode() == null))
+			(psrc.getPickupAgencyCode() == null)) {
+
 			throw new RuntimeException("Invalid RequestWorkflowContext " + psrc);
+		}
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
-			.flatMap(client -> this.placeHoldRequest(client, psrc) )
+			.flatMap(client -> this.placeHoldRequest(client, psrc))
 			.map(localRequest -> supplierRequest.placed(localRequest.getLocalId(), localRequest.getLocalStatus()))
 			.thenReturn(psrc)
 			.onErrorResume(error -> {
 				log.error("Error in placeRequestAtSupplier {} : {}", psrc, error.getMessage());
 
-				return Mono.error(
-					Problem.builder()
-						.withType(ERR0010)
-						.withTitle(
-							"Unable to place SUPPLIER hold request for pr=" + patronRequest.getId() + " Lpatron=" + patronIdentityAtSupplier.getLocalId() +
-								" Litemid=" + supplierRequest.getLocalItemId() + " Lit=" + supplierRequest.getLocalItemType() + " Lpt=" + patronIdentityAtSupplier.getLocalPtype() + " system=" + supplierRequest.getHostLmsCode())
-						.withDetail(error.getMessage())
-						.with("dcbContext", psrc)
-						.with("dcbPatronId", patronIdentityAtSupplier.getLocalId())
-						.with("dcbLocalItemId", supplierRequest.getLocalItemId())
-						.with("dcbLocalItemBarcode", supplierRequest.getLocalItemBarcode())
-						.with("dcbLocalItemType", supplierRequest.getLocalItemType())
-						.with("dcbLocalPatronType", patronIdentityAtSupplier.getLocalPtype())
-						.with("dcbCanonicalPatronType", patronIdentityAtSupplier.getCanonicalPtype())
-						.with("dcbLocalPatronBarcode", patronIdentityAtSupplier.getLocalBarcode())
-						.build()
-				);
+				return Mono.error(unableToPlaceRequestAtSupplyingAgencyProblem(psrc, error,
+					patronRequest, patronIdentityAtSupplier, supplierRequest));
 			});
 	}
 
@@ -182,6 +170,27 @@ public class SupplyingAgencyService {
 			.note(note)
 			.patronRequestId(patronRequest.getId().toString())
 			.build());
+	}
+
+	private static ThrowableProblem unableToPlaceRequestAtSupplyingAgencyProblem(
+		RequestWorkflowContext context, Throwable error, PatronRequest patronRequest,
+		PatronIdentity patronIdentityAtSupplier, SupplierRequest supplierRequest) {
+
+		return Problem.builder()
+			.withType(ERR0010)
+			.withTitle(
+				"Unable to place SUPPLIER hold request for pr=" + patronRequest.getId() + " Lpatron=" + patronIdentityAtSupplier.getLocalId() +
+					" Litemid=" + supplierRequest.getLocalItemId() + " Lit=" + supplierRequest.getLocalItemType() + " Lpt=" + patronIdentityAtSupplier.getLocalPtype() + " system=" + supplierRequest.getHostLmsCode())
+			.withDetail(error.getMessage())
+			.with("dcbContext", context)
+			.with("dcbPatronId", patronIdentityAtSupplier.getLocalId())
+			.with("dcbLocalItemId", supplierRequest.getLocalItemId())
+			.with("dcbLocalItemBarcode", supplierRequest.getLocalItemBarcode())
+			.with("dcbLocalItemType", supplierRequest.getLocalItemType())
+			.with("dcbLocalPatronType", patronIdentityAtSupplier.getLocalPtype())
+			.with("dcbCanonicalPatronType", patronIdentityAtSupplier.getCanonicalPtype())
+			.with("dcbLocalPatronBarcode", patronIdentityAtSupplier.getLocalBarcode())
+			.build();
 	}
 
 	private Mono<PatronRequest> updateSupplierRequest(RequestWorkflowContext psrc) {
