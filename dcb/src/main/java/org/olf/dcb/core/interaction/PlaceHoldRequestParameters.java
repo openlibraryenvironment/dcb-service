@@ -7,6 +7,8 @@ import lombok.Value;
 @Builder
 public class PlaceHoldRequestParameters {
 	String localPatronId;
+	String localPatronBarcode;
+	String localPatronType;
 	String localBibId;
 	String localItemId;
 	String pickupLocation;

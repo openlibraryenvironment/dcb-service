@@ -12,6 +12,7 @@ import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -160,16 +161,29 @@ public class SupplyingAgencyService {
 		final var supplierRequest = context.getSupplierRequest();
 		final var patronIdentityAtSupplier = context.getPatronVirtualIdentity();
 
+		final var patron = patronRequest.getPatron();
+
+		final var homeIdentity = patron.getHomeIdentity()
+			.orElseThrow(() -> new NoHomeIdentityException(patron.getId()));
+
 		String note = "Consortial Hold. tno=" + patronRequest.getId();
 
-		return client.placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters.builder()
-			.localPatronId(patronIdentityAtSupplier.getLocalId())
-			.localBibId(supplierRequest.getLocalBibId())
-			.localItemId(supplierRequest.getLocalItemId())
-			.pickupLocation(context.getPickupAgencyCode())
-			.note(note)
-			.patronRequestId(patronRequest.getId().toString())
-			.build());
+		// The patron type and barcode are needed by FOLIO
+		// due to how edge-dcb creates a virtual patron on DCB's behalf
+		// Have to use the values from the home identity as cannot trust
+		// that the values on the virtual identity are correct when they get here
+		return determinePatronType(client.getHostLmsCode(), homeIdentity)
+			.flatMap(patronTypeAtSupplyingAgency -> client.placeHoldRequestAtSupplyingAgency(
+				PlaceHoldRequestParameters.builder()
+					.localPatronId(patronIdentityAtSupplier.getLocalId())
+					.localPatronType(patronTypeAtSupplyingAgency)
+					.localPatronBarcode(homeIdentity.getLocalBarcode())
+					.localBibId(supplierRequest.getLocalBibId())
+					.localItemId(supplierRequest.getLocalItemId())
+					.pickupLocation(context.getPickupAgencyCode())
+					.note(note)
+					.patronRequestId(patronRequest.getId().toString())
+					.build()));
 	}
 
 	private static ThrowableProblem unableToPlaceRequestAtSupplyingAgencyProblem(
