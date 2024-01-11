@@ -58,6 +58,7 @@ public class PatronIdentity {
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private Patron patron;
 
+	@ToString.Include
 	@Nullable
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private DataHostLms hostLms;
@@ -72,6 +73,7 @@ public class PatronIdentity {
 	@NonNull
 	private Boolean homeIdentity;
 
+	@ToString.Include
 	@Nullable
 	private String localBarcode;
 
@@ -95,7 +97,7 @@ public class PatronIdentity {
 	private Instant lastValidated;
 
 	@Nullable
-        @Relation(value = Relation.Kind.MANY_TO_ONE)
+	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private DataAgency resolvedAgency;
 
 }
