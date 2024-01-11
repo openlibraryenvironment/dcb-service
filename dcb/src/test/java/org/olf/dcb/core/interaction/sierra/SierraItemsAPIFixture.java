@@ -37,7 +37,8 @@ public class SierraItemsAPIFixture {
 	public void getItemById(String itemId) {
 		mockServer
 			.when(sierraMockServerRequests.get("/"+itemId))
-			.respond(sierraMockServerResponses.jsonSuccess("items/1088431.json"));
+			.respond(sierraMockServerResponses.jsonSuccess("items/"+itemId+".json"));
+			// .respond(sierraMockServerResponses.jsonSuccess("items/1088431.json"));
 	}
 
 	public void itemsForBibId(String bibId, List<org.olf.dcb.core.interaction.sierra.SierraItem> items) {

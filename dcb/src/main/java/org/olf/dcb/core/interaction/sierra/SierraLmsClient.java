@@ -357,11 +357,20 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					61, FixedField.builder().label("DCB-" + itemType).value(itemType).build(),
 					88, FixedField.builder().label("REQUEST").value("&").build());
 
-				return Mono.from(client.createItem(ItemPatch.builder().bibIds(List.of(Integer.parseInt(cic.getBibId())))
-					.location(cic.getLocationCode()).barcodes(List.of(cic.getBarcode())).fixedFields(fixedFields).build()));
+				return Mono.from(
+					client.createItem(
+						ItemPatch.builder()
+							.bibIds(List.of(Integer.parseInt(cic.getBibId())))
+							.location(cic.getLocationCode())
+							.barcodes(List.of(cic.getBarcode()))
+							.fixedFields(fixedFields).build()));
 			})
 			.doOnSuccess(result -> log.debug("the result of createItem({})", result))
-			.map(result -> deRestify(result.getLink())).map(localId -> HostLmsItem.builder().localId(localId).build())
+			.map(result -> deRestify(result.getLink()))
+			// .map(result -> deRestify(result.getLink())).map(localId -> HostLmsItem.builder().localId(localId).build())
+			// Try to read back the created item until we succeed or reach max retries - Sierra returns an ID but the ID is not ready for consumption
+			// immediately.
+      .flatMap(itemId -> Mono.defer(() -> getItem(itemId) ).retry(getHoldsRetryAttempts))
 			.switchIfEmpty(Mono.error(new RuntimeException("Unable to map canonical item type " + cic.getCanonicalItemType() + " for " + lms.getCode() + " context")));
 	}
 
