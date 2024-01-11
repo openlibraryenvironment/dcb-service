@@ -83,7 +83,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		final var patron = createPatron(randomUUID(), barcode);
 
-		mockFolioFixture.mockFindUsersByBarcode(barcode,
+		mockFolioFixture.mockGetUsersWithQuery("barcode", barcode,
 			User.builder()
 				.id(localId)
 				.patronGroup(patronGroup)
@@ -117,7 +117,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		final var patron = createPatron(randomUUID(), barcode);
 
-		mockFolioFixture.mockFindUsersByBarcode(barcode);
+		mockFolioFixture.mockGetUsersWithQuery("barcode", barcode);
 
 		// Act
 		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
@@ -133,7 +133,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		final var patron = createPatron(randomUUID(), barcode);
 
-		mockFolioFixture.mockFindUsersByBarcode(barcode, User.builder()
+		mockFolioFixture.mockGetUsersWithQuery("barcode", barcode, User.builder()
 			.patronGroup("unknown-patron-group")
 			.barcode(barcode)
 			.build());
@@ -155,7 +155,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		final var patron = createPatron(randomUUID(), barcode);
 
-		mockFolioFixture.mockFindUsersByBarcode(barcode, User.builder().build());
+		mockFolioFixture.mockGetUsersWithQuery("barcode", barcode, User.builder().build());
 
 		// Act
 		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
@@ -214,7 +214,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
 			patronGroup, "DCB", "canonical-patron-type");
 
-		mockFolioFixture.mockGetPatronByUsername(username, User.builder()
+		mockFolioFixture.mockGetUsersWithQuery("username", username, User.builder()
 			.id("9c2e859d-e923-450d-85e3-b425cfa9f938")
 			.patronGroup(patronGroup)
 			.barcode("2093487")
@@ -241,13 +241,47 @@ class ConsortialFolioHostLmsClientPatronTests {
 	}
 
 	@Test
+	void successfullyGetPatronByLocalId() {
+		// Arrange
+		final var id = "9c2e859d-e923-450d-85e3-b425cfa9f938";
+		final var patronGroup = "bdc2b6d4-5ceb-4a12-ab46-249b9a68473e";
+
+		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
+			patronGroup, "DCB", "canonical-patron-type");
+
+		mockFolioFixture.mockGetUsersWithQuery("id", id, User.builder()
+			.id("9c2e859d-e923-450d-85e3-b425cfa9f938")
+			.patronGroup(patronGroup)
+			.barcode("2093487")
+			.personal(User.PersonalDetails.builder()
+				.firstName("First")
+				.lastName("Special Pin Test")
+				.middleName("Middle")
+				.build())
+			.build());
+
+		// Act
+		final var fetchedPatron = singleValueFrom(client.getPatronByLocalId(id));
+
+		// Assert
+		assertThat(fetchedPatron, allOf(
+			hasLocalIds("9c2e859d-e923-450d-85e3-b425cfa9f938"),
+			hasLocalPatronType("bdc2b6d4-5ceb-4a12-ab46-249b9a68473e"),
+			hasCanonicalPatronType("canonical-patron-type"),
+			hasLocalBarcodes("2093487"),
+			hasNoHomeLibraryCode(),
+			hasLocalNames("First", "Middle", "Special Pin Test")
+		));
+	}
+
+	@Test
 	void findVirtualPatronShouldFailWhenMultipleUsersFoundForBarcode() {
 		// Arrange
 		final var barcode = "6349673";
 
 		final var patron = createPatron(randomUUID(), barcode);
 
-		mockFolioFixture.mockFindUsersByBarcode(barcode,
+		mockFolioFixture.mockGetUsersWithQuery("barcode", barcode,
 			User.builder()
 				.id(randomUUID().toString())
 				.build(),
@@ -293,7 +327,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		hostLmsFixture.createFolioHostLms("INVALID-FOLIO", "https://invalid-folio",
 			apiKey, "", "");
 
-		mockInvalidFolioFixture.mockFindUsersByBarcode(barcode, response()
+		mockInvalidFolioFixture.mockGetUsersWithQuery("barcode", barcode, response()
 			.withStatusCode(401)
 			.withBody(json(MockFolioFixture.ErrorResponse.builder()
 				.code(401)
@@ -342,7 +376,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
 			patronGroup, "DCB", "canonical-patron-type");
 
-		mockFolioFixture.mockFindUsersById(localId,
+		mockFolioFixture.mockGetUsersWithQuery("id", localId,
 			User.builder()
 				.id(localId)
 				.patronGroup(patronGroup)
@@ -379,7 +413,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
 			patronGroup, "DCB", "canonical-patron-type");
 
-		mockFolioFixture.mockFindUsersById(localId);
+		mockFolioFixture.mockGetUsersWithQuery("id", localId);
 
 		// Act
 		final var exception = assertThrows(FailedToFindVirtualPatronException.class,
@@ -400,7 +434,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
 			patronGroup, "DCB", "canonical-patron-type");
 
-		mockFolioFixture.mockFindUsersById(localId,
+		mockFolioFixture.mockGetUsersWithQuery("id", localId,
 			User.builder()
 				.id(randomUUID().toString())
 				.build(),

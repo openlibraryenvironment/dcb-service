@@ -79,7 +79,8 @@ public class HostLmsFixture {
 			"secret", password,
 			"base-url", baseUrl,
 			"holdPolicy", holdPolicy,
-			"get-holds-retry-attempts", "1"));
+			"get-holds-retry-attempts", "1",
+			"default-agency-code", "default-agency-code"));
 	}
 
 	private DataHostLms createSierraHostLms(String code, Map<String, Object> config) {
