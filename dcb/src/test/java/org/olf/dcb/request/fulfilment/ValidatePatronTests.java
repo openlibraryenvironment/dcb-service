@@ -1,8 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
@@ -13,6 +12,7 @@ import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNoBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasLocalPatronType;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolvedAgency;
 
 import java.util.List;
 import java.util.UUID;
@@ -87,6 +87,15 @@ public class ValidatePatronTests {
 				.names(List.of("Bob"))
 				.build());
 
+		// mock for no home library code
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("248303",
+			SierraPatronsAPIFixture.Patron.builder()
+				.id(1000002)
+				.patronType(15)
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build());
+
 		referenceValueMappingFixture.deleteAll();
 
 		agencyFixture.deleteAll();
@@ -104,7 +113,7 @@ public class ValidatePatronTests {
 		final var patronRequestId = randomUUID();
 		final var localId = "467295";
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
-		final var patron = createPatron(localId, hostLms);
+		final var patron = createPatron(localId, hostLms, "123456");
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			"validate-patron-transition-tests", 10, 25, "DCB", "15");
@@ -124,13 +133,42 @@ public class ValidatePatronTests {
 	}
 
 	@Test
+	void shouldUseDefaultAgencyFallbackWhenNoHomeLibrary() {
+		// Arrange
+		final var patronRequestId = randomUUID();
+		final var localId = "248303";
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var patron = createPatron(localId, hostLms, null);
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			"validate-patron-transition-tests", 10, 25, "DCB", "15");
+
+		final var agency = agencyFixture.saveAgency(DataAgency.builder()
+			.id(UUID.randomUUID())
+			.code("default-agency-code")
+			.name("Default Agency")
+			.hostLms(hostLms)
+			.build());
+
+		var patronRequest = savePatronRequest(patronRequestId, patron);
+
+		// Act
+		final var validatedPatronRequest = validatePatronTransition.attempt(patronRequest).block();
+
+		// Assert
+		assertThat(validatedPatronRequest, is(notNullValue()));
+		assertThat(validatedPatronRequest, hasResolvedAgency(agency));
+		assertSuccessfulTransitionAudit(patronRequest);
+	}
+
+	@Test
 	void shouldFailWhenSierraRespondsWithNotFound(MockServerClient mockServerClient) {
 		// Arrange
 		final var LOCAL_ID = "672954";
 		final var patronRequestId = randomUUID();
 
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
-		final var patron = createPatron(LOCAL_ID, hostLms);
+		final var patron = createPatron(LOCAL_ID, hostLms, "123456");
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
@@ -164,7 +202,7 @@ public class ValidatePatronTests {
 		final var patronRequestId = randomUUID();
 		final var localId = "236462";
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
-		final var patron = createPatron(localId, hostLms);
+		final var patron = createPatron(localId, hostLms, "123456");
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
@@ -200,7 +238,7 @@ public class ValidatePatronTests {
 
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
 
-		final var patron = createPatron(localId, hostLms);
+		final var patron = createPatron(localId, hostLms, "123456");
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
@@ -235,10 +273,10 @@ public class ValidatePatronTests {
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedError);
 	}
 
-	private Patron createPatron(String localId, DataHostLms hostLms) {
-		final Patron patron = patronFixture.savePatron("123456");
+	private Patron createPatron(String localId, DataHostLms hostLms, String homeLibraryCode) {
+		final Patron patron = patronFixture.savePatron(homeLibraryCode);
 
-		patronFixture.saveIdentity(patron, hostLms, localId, true, "-", "123456", null);
+		patronFixture.saveIdentity(patron, hostLms, localId, true, "-", homeLibraryCode, null);
 
 		patron.setPatronIdentities(patronService.findAllPatronIdentitiesByPatron(patron).collectList().block());
 

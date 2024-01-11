@@ -289,7 +289,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
-		return Mono.error(new NotImplementedException("Get patron by local ID is not currently implemented for FOLIO"));
+		final var query = exactEqualityQuery("id", localPatronId);
+
+		return findUsers(query)
+			.flatMap(response -> mapFirstUserToPatron(response, query, Mono.empty()))
+			.doOnError(error -> log.error("Error occurred while fetching patron by local id: {}", localPatronId, error));
 	}
 
 	@Override
