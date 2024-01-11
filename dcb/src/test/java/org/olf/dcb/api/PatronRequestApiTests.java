@@ -131,6 +131,8 @@ class PatronRequestApiTests {
 				.holdCount(0)
 			.build()));
 
+		sierraItemsAPIFixture.getItemById("7916922");
+
 		// patron service
 		sierraPatronsAPIFixture.patronNotFoundResponse("u", "872321@ab6");
 		sierraPatronsAPIFixture.postPatronResponse("872321@ab6", 2745326);
