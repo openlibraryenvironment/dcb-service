@@ -225,18 +225,19 @@ public class RequestWorkflowContextHelper {
 					// We no longer go via the mapping table for pickup locations - the Location row in the DB MUST be directly attached to an agency
 					// .flatMap( loc -> { return Mono.from(agencyForPickupLocationSymbol(pcs2, loc.getCode())); } )
 					// .flatMap( rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } )
-          .flatMap(pickupAgency -> { return Mono.just(ctx.setPickupAgency(pickupAgency)); } )
-          .flatMap(ctx2 -> { return Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())); } )
-          .flatMap(ctx2 -> { return Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())); } );
+				.flatMap(pickupAgency -> Mono.just(ctx.setPickupAgency(pickupAgency)))
+				.flatMap(ctx2 -> Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())))
+				.flatMap(ctx2 -> Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())))
+					.switchIfEmpty(Mono.error(new RuntimeException("No agency found for pickup location: %s".formatted(pickupSymbol))));
 		}
 
 		return agencyForPickupLocationSymbol(pickupSymbolContext, pickupSymbol)
 			.switchIfEmpty(Mono.error(new RuntimeException("RWCH No mapping found for pickup location \""+pickupSymbolContext+":"+pickupSymbol+"\""))) 
-			.flatMap(rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } )
-			.flatMap(pickupAgency -> { return Mono.just(ctx.setPickupAgency(pickupAgency)); } )
-			.flatMap(ctx2 -> { return Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())); } )
-			.flatMap(ctx2 -> { return Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())); } )
-			;
+			.flatMap(rvm -> Mono.from(getDataAgencyWithHostLms(rvm.getToValue())))
+			.flatMap(pickupAgency -> Mono.just(ctx.setPickupAgency(pickupAgency)))
+			.flatMap(ctx2 -> Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())))
+			.flatMap(ctx2 -> Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())))
+			.switchIfEmpty(Mono.error(new RuntimeException("No agency found for pickup location: %s".formatted(pickupSymbol))));
 	}
 
 	// If an agency has been directly attached to the location then return it by just walking the model
