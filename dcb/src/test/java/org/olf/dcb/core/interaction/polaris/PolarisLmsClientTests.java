@@ -86,6 +86,7 @@ public class PolarisLmsClientTests {
 
 		resourceLoader = testResourceLoaderProvider.forBasePath("classpath:mock-responses/polaris/");
 
+		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY,

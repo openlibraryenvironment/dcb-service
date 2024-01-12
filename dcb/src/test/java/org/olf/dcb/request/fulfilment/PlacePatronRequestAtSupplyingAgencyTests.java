@@ -77,7 +77,6 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
 	private DataAgency supplyingAgency;
-	private DataAgency borrowingAgency;
 
 	@BeforeEach
 	public void beforeEach(MockServerClient mockServerClient) {
@@ -102,7 +101,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			.hostLms(sierraHostLms)
 			.build());
 
-		borrowingAgency = agencyFixture.saveAgency(DataAgency.builder()
+		agencyFixture.saveAgency(DataAgency.builder()
 			.id(randomUUID())
 			.code("borrowing-agency")
 			.name("Borrowing Agency")
