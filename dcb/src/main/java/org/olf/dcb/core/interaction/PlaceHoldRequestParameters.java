@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction;
 
+import org.olf.dcb.core.model.Agency;
+
 import lombok.Builder;
 import lombok.Value;
 
@@ -12,6 +14,7 @@ public class PlaceHoldRequestParameters {
 	String localBibId;
 	String localItemId;
 	String pickupLocation;
+	Agency pickupAgency;
 	String note;
 	String patronRequestId;
 }
