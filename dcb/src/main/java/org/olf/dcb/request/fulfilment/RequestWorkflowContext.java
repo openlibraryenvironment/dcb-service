@@ -6,7 +6,7 @@ import lombok.Data;
 
 /**
  * Core attributes needed for workflow steps.
- * Many rquesting workflow steps require the same core set of data objects to progress a request.
+ * Many requesting workflow steps require the same core set of data objects to progress a request.
  * This class creates a reusable context that can be initialised and passed between different
  * requesting workflow steps.
  * The core idea is to gather together all the classes needed to aggregate these objects into a
@@ -17,7 +17,6 @@ import lombok.Data;
 @Data
 @Accessors(chain=true)
 public class RequestWorkflowContext {
-
 	String patronAgencyCode;
 	String patronSystemCode;
 	Agency patronAgency;
