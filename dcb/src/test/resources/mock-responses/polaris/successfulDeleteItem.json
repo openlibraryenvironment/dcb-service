@@ -1,0 +1,32 @@
+{
+	"WorkflowRequestGuid":"c457e0b8-3d89-45dc-abcd-a389f0993203",
+	"WorkflowRequestType":10,
+	"WorkflowStatus":1,
+	"Prompt":null,
+	"InformationMessages":[
+		{
+			"Type":1,
+			"Title":"",
+			"Message":"1 item record(s) deleted successfully"
+		},
+		{
+			"Type":4,
+			"Title":"",
+			"Message":"1 item record(s) were not deleted"
+		}
+	],
+	"AnswerExtension":{
+		"WorkflowAnswerExtensionType":6,
+		"Data":{
+			"RecordSetID":0,
+			"ReportTitle":null,
+			"ReportURL":null,
+			"DeletedRecordIDs":[457573],
+			"BlockedRecordIDs":[1966208]
+		}
+	},
+	"CircTranType":0,
+	"ReceiptType":0,
+	"ReceiptUrl":"",
+	"FineEReceiptSent":false
+}
