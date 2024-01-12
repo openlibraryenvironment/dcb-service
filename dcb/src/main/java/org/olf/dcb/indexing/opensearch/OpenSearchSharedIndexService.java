@@ -331,16 +331,27 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 		return Flux.fromIterable(cr)
 			.reduce( new BulkRequest.Builder(), this::addBulkOperation )
 			.flatMap( bops -> Mono.<BulkResponse>create(sink -> {
+				try {
+					
+					BulkRequest breq = null;
 					try {
-						client.bulk( bops.index(indexName).build() ).handle((br, ex) -> {
-							if ( ex != null) {
-								sink.error(ex);
-								return ex;
-							}
-							
-							sink.success(br);
-							return br;
-						});
+					
+						breq = bops.index(indexName).build();
+						} catch (Exception e) {
+							log.error("Invalid bulk request. Skipping", e);
+						}
+	
+						if ( breq != null ) {
+							client.bulk( bops.index(indexName).build() ).handle((br, ex) -> {
+								if ( ex != null) {
+									sink.error(ex);
+									return ex;
+								}
+								
+								sink.success(br);
+								return br;
+							});
+						}
 					} catch (Exception e) {
 						sink.error(e);
 					}

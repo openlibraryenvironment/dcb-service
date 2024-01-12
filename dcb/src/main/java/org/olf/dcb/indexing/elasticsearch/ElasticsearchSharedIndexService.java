@@ -326,9 +326,16 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 			.reduce( new BulkRequest.Builder(), this::addBulkOperation )
 			.flatMap( bops -> Mono.<BulkResponse>create(sink -> {
 					try {
-						BulkRequest breq = bops.index(indexName).build();
+						
+						BulkRequest breq = null;
+						try {
+						
+							breq = bops.index(indexName).build();
+						} catch (Exception e) {
+							log.error("Invalid bulk request. Skipping", e);
+						}
 
-						if ( ! breq.operations().isEmpty() ) {
+						if ( breq != null ) {
 							client.bulk( breq ).handle((br, ex) -> {
 								if ( ex != null) {
 									sink.error(ex);
