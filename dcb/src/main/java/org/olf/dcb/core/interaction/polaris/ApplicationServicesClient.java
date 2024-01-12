@@ -79,6 +79,7 @@ class ApplicationServicesClient {
 			})
 			.flatMap(request -> client.exchange(request, HoldRequestResponse.class))
 			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
+			.map(this::validateHoldResponse)
 			.onErrorResume(Exception.class, error -> {
 				if (error instanceof HoldRequestException) {
 					return Mono.error(error);
@@ -87,6 +88,15 @@ class ApplicationServicesClient {
 					return Mono.error(new HoldRequestException("Error occurred when creating a hold"));
 				}
 			});
+	}
+
+	private HoldRequestResponse validateHoldResponse(HoldRequestResponse holdResponse) {
+		if (!holdResponse.getSuccess()) {
+			log.error(holdResponse.getMessage());
+			throw new HoldRequestException(holdResponse.getMessage());
+		}
+
+		return holdResponse;
 	}
 
 	Mono<LibraryHold> getLocalHoldRequest(Integer id) {
@@ -1082,14 +1092,8 @@ class ApplicationServicesClient {
 	static class HoldRequestResponse {
 		@JsonProperty("Answer")
 		private Integer answer;
-		@JsonProperty("DesignationsOrVolumes")
-		private String designationsOrVolumes;
-		@JsonProperty("DuplicateHoldRequests")
-		private String duplicateHoldRequests;
 		@JsonProperty("HoldRequestID")
 		private Integer holdRequestID;
-		@JsonProperty("LinkedPatronBlocks")
-		private String linkedPatronBlocks;
 		@JsonProperty("MaxHoldMaterialTypes")
 		private List<Integer> maxHoldMaterialTypes;
 		@JsonProperty("Message")
@@ -1110,8 +1114,6 @@ class ApplicationServicesClient {
 		private Integer papiReturnCode;
 		@JsonProperty("PAPIStopType")
 		private Integer papiStopType;
-		@JsonProperty("PatronBlocks")
-		private String patronBlocks;
 		@JsonProperty("ProcedureStep")
 		private String procedureStep;
 		@JsonProperty("ReceiptType")
