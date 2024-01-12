@@ -76,7 +76,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
-	private DataAgency supplyingAgency = null;
+	private DataAgency supplyingAgency;
+	private DataAgency borrowingAgency;
 
 	@BeforeEach
 	public void beforeEach(MockServerClient mockServerClient) {
@@ -94,14 +95,22 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		final var sierraHostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE,
 			KEY, SECRET, BASE_URL, "title");
 
-		this.supplyingAgency = agencyFixture.saveAgency(DataAgency.builder()
+		supplyingAgency = agencyFixture.saveAgency(DataAgency.builder()
 			.id(randomUUID())
 			.code("supplying-agency")
 			.name("Supplying Agency")
 			.hostLms(sierraHostLms)
 			.build());
 
-		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		borrowingAgency = agencyFixture.saveAgency(DataAgency.builder()
+			.id(randomUUID())
+			.code("borrowing-agency")
+			.name("Borrowing Agency")
+			// Any agency associated with a pickup location MUST also be associated with a host LMS
+			.hostLms(sierraHostLms)
+			.build());
+
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		// add patron type mappings
 		savePatronTypeMappings();
@@ -147,7 +156,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestMade("1000002");
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
-			563653, "supplying-agency");
+			563653, "borrowing-agency");
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
@@ -188,7 +197,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestNotMade("1000002");
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
-			563653, "supplying-agency");
+			563653, "borrowing-agency");
 	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
@@ -221,7 +230,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.verifyCreatePatronRequestMade("546730@supplying-agency");
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000003", "b",
-			563653, "supplying-agency");
+			563653, "borrowing-agency");
 	}
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")
@@ -266,6 +275,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 	}
 
 	private void patronRequestWasPlaced(PatronRequest patronRequest, UUID expectedId) {
+		log.debug("Patron request from transition: {}", patronRequest);
+
 		assertThat(patronRequest, allOf(
 			hasId(expectedId),
 			hasStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
@@ -331,6 +342,6 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", "SQUIGGLE", HOST_LMS_CODE, "15");
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", "supplying-agency");
+		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", "borrowing-agency");
 	}
 }
