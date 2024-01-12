@@ -154,31 +154,36 @@ public class SierraPatronsAPIFixture {
 		String expectedRecordType, Integer expectedRecordNumber) {
 
 		mockServer
-			.when(postPatronHoldRequest(patronId, expectedRecordType, expectedRecordNumber))
+			.when(postPatronHoldRequest(patronId, PatronHoldPost.builder()
+				.recordType(expectedRecordType)
+				.recordNumber(expectedRecordNumber)
+				.build()))
 			.respond(sierraMockServerResponses.noContent());
 	}
 
 	public void patronHoldRequestErrorResponse(String patronId, String expectedRecordType) {
 		mockServer
-			.when(postPatronHoldRequest(patronId, expectedRecordType, null))
+			.when(postPatronHoldRequest(patronId, PatronHoldPost.builder()
+				.recordType(expectedRecordType)
+				.recordNumber(null)
+				.build()))
 			.respond(sierraMockServerResponses.serverError());
 	}
 
 	public void verifyPlaceHoldRequestMade(String expectedPatronId,
-		String expectedRecordType, int expectedRecordNumber) {
+		String expectedRecordType, int expectedRecordNumber, String expectedPickupLocation) {
 
 		mockServer.verify(postPatronHoldRequest(expectedPatronId,
-			expectedRecordType, expectedRecordNumber));
-	}
-
-	private HttpRequest postPatronHoldRequest(String patronId,
-		String expectedRecordType, Integer expectedRecordNumber) {
-
-		return sierraMockServerRequests.post("/" + patronId + "/holds/requests")
-			.withBody(json(PatronHoldPost.builder()
+			PatronHoldPost.builder()
 				.recordType(expectedRecordType)
 				.recordNumber(expectedRecordNumber)
+				.pickupLocation(expectedPickupLocation)
 				.build()));
+	}
+
+	private HttpRequest postPatronHoldRequest(String patronId, PatronHoldPost holdRequest) {
+		return sierraMockServerRequests.post("/" + patronId + "/holds/requests")
+			.withBody(json(holdRequest));
 	}
 
 	public void patronHoldResponse(String id) {
