@@ -180,7 +180,9 @@ public class SupplyingAgencyService {
 					.localPatronBarcode(homeIdentity.getLocalBarcode())
 					.localBibId(supplierRequest.getLocalBibId())
 					.localItemId(supplierRequest.getLocalItemId())
+					// Have to pass both because Sierra and Polaris still use code only
 					.pickupLocation(context.getPickupAgencyCode())
+					.pickupAgency(context.getPickupAgency())
 					.note(note)
 					.patronRequestId(patronRequest.getId().toString())
 					.build()));
