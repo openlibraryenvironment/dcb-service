@@ -295,7 +295,7 @@ class ApplicationServicesClient {
 					.workflowRequestExtensionType(itemrecorddata)
 					.data(RequestExtensionData.builder()
 						.associatedBibRecordID(Integer.parseInt(createItemCommand.getBibId()))
-						.barcode(barcodePrefix + createItemCommand.getBarcode())
+						.barcode((barcodePrefix!=null?barcodePrefix:"") + createItemCommand.getBarcode())
 						.isNew(TRUE)
 						.displayInPAC(FALSE)
 						.assignedBranchID( itemLocationId )
