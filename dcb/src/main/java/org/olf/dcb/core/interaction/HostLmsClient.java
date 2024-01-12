@@ -70,4 +70,14 @@ public interface HostLmsClient {
 	Mono<String> deleteItem(String id);
 
 	Mono<String> deleteBib(String id);
+
+	/**
+	 * Return a boolean value which tests if an agency is able to act as a supplier for an item identified
+	 * via RTAC. Should test if the canonical item and patron types needed to fulfil the role can be mapped.
+	 * Note that a primary concern is also if the item and patron types can be mapped back to the borrowing
+	 * system. For example, when requesting Nonagon Infinity from STLouis the local item type is 9. We must be
+	 * able to sensibly map this into a canonical item type and from the canonical item type into a type for
+	 * the patron home agency.
+	 */
+	Mono<Boolean> supplierPreflight(String borrowingAgency, String supplyingAgency, String supplyingAgencyItemType);
 }
