@@ -145,6 +145,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("872321@supplying-agency");
 		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("872321@supplying-agency");
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestMade("1000002");
+
+		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b", 563653);
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
@@ -183,6 +185,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("32453@supplying-agency");
 		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("32453@supplying-agency");
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestNotMade("1000002");
+
+		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b", 563653);
 	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
@@ -213,6 +217,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("546730@supplying-agency");
 		sierraPatronsAPIFixture.verifyCreatePatronRequestMade("546730@supplying-agency");
+
+		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000003", "b", 563653);
 	}
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")
