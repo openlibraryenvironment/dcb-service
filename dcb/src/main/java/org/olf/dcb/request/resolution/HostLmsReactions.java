@@ -72,7 +72,8 @@ public class HostLmsReactions {
 					case "TRANSIT" -> handler = "SupplierRequestInTransit";
 					case "MISSING" -> handler = "SupplierRequestMissing";
 					case "PLACED" -> handler = "SupplierRequestPlaced";
-					default -> log.error("Unhandled SupplierRequest ToState:{}", sc);
+					case "CANCELLED" -> handler = "SupplierRequestCancelled";
+					default -> handler = "SupplierRequestUnhandledState";
 				}
 			}
 			else if ( sc.getResourceType().equals("PatronRequest") ) {
@@ -130,8 +131,8 @@ public class HostLmsReactions {
 		}
 
 		// https://stackoverflow.com/questions/74183112/how-to-select-the-correct-transactionmanager-when-using-r2dbc-together-with-flyw
-		log.debug("onTrackingEvent Detected handler: {}",handler);
 		if ( handler != null ) {
+		  log.debug("onTrackingEvent Detected handler: {}",handler);
 			log.debug("Attempt to resolve bean");
 			WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
 			if ( action != null ) {
@@ -146,7 +147,7 @@ public class HostLmsReactions {
 			}
 		}
 		else {
-			log.debug("No handler");
+			log.warn("No handler for state change {}",trackingRecord);
 		}
 
 		log.debug("onTrackingEvent {} complete",trackingRecord);
