@@ -347,6 +347,11 @@ public class DCBConfigurationService {
 			.toCategory(rvm[4])
 			.toValue(rvm[5])
 			.build();
+
+		// If there was an optional label, set it
+		if ( rvm.length > 6 )
+			rvmd.setLabel(rvm[6]);
+
 		return Mono.from(referenceValueMappingRepository.saveOrUpdate(rvmd));
 	}
 	private Mono<NumericRangeMapping> processNumericRangeMapping(String[] nrmr) {
