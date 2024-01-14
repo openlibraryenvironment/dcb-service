@@ -140,8 +140,14 @@ public class HostLmsReactions {
 			if ( action != null ) {
 				log.debug("Invoke {}",action.getClass().getName());
 				return action.execute(context)
-					.doOnNext(ctx -> log.debug("Action completed - we should write an audit here:"+ctx))
-					.doOnError(error -> log.error("Problem in reaction - we should write an audit here",error))
+					.onErrorResume( error -> Mono.defer(() -> {
+						log.error("Problem in reaction - we should write an audit here",error);
+						return Mono.empty();
+					}))
+					.flatMap ( ctx -> {
+					  log.debug("Action completed - we should write an audit here:"+ctx);
+						return Mono.just(ctx);
+					})
 					.thenReturn(context);
 			}
 			else {
