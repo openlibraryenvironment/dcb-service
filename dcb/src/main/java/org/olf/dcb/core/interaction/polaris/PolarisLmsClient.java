@@ -182,10 +182,18 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.map(status -> HostLmsHold.builder().localId(holdId).status( checkHoldStatus(status) ).build());
 	}
 
+	/**
+	 * See: https://qa-polaris.polarislibrary.com/polaris.applicationservices/help/sysholdstatuses/get_syshold_statuses
+	 */
 	private String checkHoldStatus(String status) {
 		log.debug("Checking hold status: {}", status);
-		if ("Cancelled".equals(status)) return HostLmsHold.HOLD_CANCELLED;
-		return status;
+		return switch (status) {
+			case "Cancelled" -> HostLmsHold.HOLD_CANCELLED;
+			case "Pending" -> HostLmsHold.HOLD_PLACED;
+			case "Held" -> HostLmsHold.HOLD_READY;
+			case "Shipped" -> HostLmsHold.HOLD_TRANSIT;
+			default -> status;
+		};
 	}
 
 	@Override
