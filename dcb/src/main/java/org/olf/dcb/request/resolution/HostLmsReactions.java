@@ -60,6 +60,8 @@ public class HostLmsReactions {
 	public Mono<Map<String,Object>> onTrackingEvent(TrackingRecord trackingRecord) {
 		log.debug("onTrackingEvent {}",trackingRecord);
 		String handler = null;
+
+		// ToDo: This method should absolutely write a patron_request_audit record noting that the change was detected.
 		Map<String,Object> context = new HashMap();
 
 		if ( trackingRecord.getTrackigRecordType().equals(StateChange.STATE_CHANGE_RECORD) ) {
@@ -138,8 +140,8 @@ public class HostLmsReactions {
 			if ( action != null ) {
 				log.debug("Invoke {}",action.getClass().getName());
 				return action.execute(context)
-					.doOnNext(ctx -> log.debug("Action completed:"+ctx))
-					.doOnError(error -> log.error("Problem in reaction",error))
+					.doOnNext(ctx -> log.debug("Action completed - we should write an audit here:"+ctx))
+					.doOnError(error -> log.error("Problem in reaction - we should write an audit here",error))
 					.thenReturn(context);
 			}
 			else {

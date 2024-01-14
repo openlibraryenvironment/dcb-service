@@ -87,6 +87,7 @@ public class TrackingService implements Runnable {
 				() -> log.info("active supplier item tracking complete") );
 
 		trackActiveSupplierHolds()
+      .flatMap( this::enrichWithPatronRequest )
 			.flatMap( this::checkSupplierRequest)
 			.subscribe( 
 				value -> {},
@@ -143,6 +144,7 @@ public class TrackingService implements Runnable {
 			.filter ( hold -> !hold.getStatus().equals(pr.getLocalRequestStatus()) )
 			.flatMap( hold -> {
 				StateChange sc = StateChange.builder()
+					.patronRequestId(pr.getId())
 					.resourceType("PatronRequest")
 					.resourceId(pr.getId().toString())
 					.fromState(pr.getLocalRequestStatus())
@@ -170,6 +172,7 @@ public class TrackingService implements Runnable {
 				.flatMap ( item -> {
 					log.debug("Detected borrowing system - virtual item status change {} to {}",pr.getLocalItemStatus(),item.getStatus());
 					StateChange sc = StateChange.builder()
+						.patronRequestId(pr.getId())
 						.resourceType("BorrowerVirtualItem")
 						.resourceId(pr.getId().toString())
 						.fromState(pr.getLocalItemStatus())
@@ -203,6 +206,7 @@ public class TrackingService implements Runnable {
 				.flatMap ( item -> {
 					log.debug("Detected supplying system - supplier item status change {} to {}",sr.getLocalItemStatus(),item.getStatus());
 					StateChange sc = StateChange.builder()
+						.patronRequestId(sr.getPatronRequest().getId())
 						.resourceType("SupplierItem")
 						.resourceId(sr.getId().toString())
 						.fromState(sr.getLocalItemStatus())
@@ -252,6 +256,7 @@ public class TrackingService implements Runnable {
 			.flatMap( hold -> {
 				log.debug("current request status: {}",hold);
 				StateChange sc = StateChange.builder()
+					.patronRequestId(sr.getPatronRequest().getId())
 					.resourceType("SupplierRequest")
 					.resourceId(sr.getId().toString())
 					.fromState(sr.getLocalStatus())
