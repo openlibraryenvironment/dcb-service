@@ -438,8 +438,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return switch (authProfile) {
 			case "BASIC/BARCODE+PIN" -> validatePatronCredentials(patronPrinciple, secret, "b");
-			case "BASIC/BARCODE+NAME" -> validatePatronByBarcodeAndName(patronPrinciple, secret);
+			case "BASIC/BARCODE+NAME" -> validatePatronByIDAndName(patronPrinciple, secret, "b");
 			case "BASIC/UNIQUE-ID+PIN" -> validatePatronCredentials(patronPrinciple, secret,"u");
+			case "BASIC/UNIQUE-ID+NAME" -> validatePatronByIDAndName(patronPrinciple, secret, "u");
 			default -> Mono.empty();
 		};
 	}
@@ -463,15 +464,16 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	// The correct URL for validating patrons in sierra is
 	// "/iii/sierra-api/v6/patrons/validate";
-	private Mono<Patron> validatePatronByBarcodeAndName(String barcode, String name) {
-		log.debug("validatePatronByBarcodeAndName({},{})", barcode, name);
+	// If field is b we will lookup by barcode before attempting name check, if u it will be unique ID
+	private Mono<Patron> validatePatronByIDAndName(String principal, String name, String principalField) {
+		log.debug("validatePatronByIDAndName({},{},{})", principal, name, principalField);
 
 		if ((name == null) || (name.length() < 4))
 			return Mono.empty();
 
 		// If the provided name is present in any of the names coming back from the
 		// client
-		return patronFind("b", barcode)
+		return patronFind(principalField, principal)
 			.doOnSuccess(patron -> log.info("Testing {}/{} to see if {} is present", patron, patron.getLocalNames(), name))
 			.filter(patron -> patron.getLocalNames().stream()
 				.anyMatch(s -> s.toLowerCase()
