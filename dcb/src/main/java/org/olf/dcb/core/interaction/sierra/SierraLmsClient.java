@@ -394,7 +394,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				itemTypeCode, "ItemType", targetSystemCode)
 			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.defer(() -> {
-				log.warn("Unable to map item type {} for target system {} to canonical DCB value",itemTypeCode,targetSystemCode);
+				log.warn("Unable to map item type DCB:{} to target system {}",itemTypeCode,targetSystemCode);
 				return Mono.just("UNKNOWN");
 			}));
 		}
