@@ -79,5 +79,5 @@ public interface HostLmsClient {
 	 * able to sensibly map this into a canonical item type and from the canonical item type into a type for
 	 * the patron home agency.
 	 */
-	Mono<Boolean> supplierPreflight(String borrowingAgency, String supplyingAgency, String supplyingAgencyItemType);
+	Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType);
 }

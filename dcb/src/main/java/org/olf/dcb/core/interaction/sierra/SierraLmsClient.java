@@ -1115,4 +1115,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private static RuntimeException patronNotFound(String localId, String hostLmsCode) {
 		return new PatronNotFoundInHostLmsException(localId, hostLmsCode);
 	}
+
+	public Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType) {
+		return Mono.just(Boolean.TRUE);
+	}
+
 }
