@@ -139,7 +139,8 @@ public class HostLmsReactions {
 			WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
 			if ( action != null ) {
 				log.debug("Invoke {}",action.getClass().getName());
-				return action.execute(context)
+				return auditEventIndication(context, trackingRecord)
+					.flatMap(ctx -> action.execute(ctx))
 					.onErrorResume( error -> Mono.defer(() -> {
 						log.error("Problem in reaction - we should write an audit here",error);
 						return Mono.empty();
@@ -162,5 +163,19 @@ public class HostLmsReactions {
 		return Mono.just(context);
 	}
 
+	private Mono<Map<String,Object>> auditEventIndication(Map<String,Object> context, TrackingRecord tr) {
+		log.debug("Audit event indication");
+		StateChange sc = (StateChange) tr;
+		String msg = "Downstream change to "+sc.getResourceType()+"("+sc.getResourceId()+") from "+sc.getToState()+" to "+sc.getFromState();
+		Map<String,Object> auditData = new HashMap();
+		auditData.put("patronRequestId",sc.getPatronRequestId());
+		auditData.put("resourceType",sc.getResourceType());
+		auditData.put("resourceId",sc.getResourceId());
+		auditData.put("fromState",sc.getFromState());
+		auditData.put("toState",sc.getToState());
+
+		return patronRequestAuditService.addAuditEntry(sc.getPatronRequestId(), msg, auditData)
+			.thenReturn(context);
+	}
 }
 

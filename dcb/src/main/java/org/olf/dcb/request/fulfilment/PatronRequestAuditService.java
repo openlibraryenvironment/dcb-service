@@ -75,9 +75,9 @@ public class PatronRequestAuditService {
 			.doOnError( error -> log.error("Error attempting to write audit for"+pra.toString(), error));
 	}
 
-	public Mono<PatronRequestAudit> addAuditEntry(UUID patronRequestId, String message) {
+	public Mono<PatronRequestAudit> addAuditEntry(UUID patronRequestId, String message, Map<String,Object> auditData) {
 		return Mono.from(patronRequestRepository.findById(patronRequestId))
-			.flatMap( pr -> this.addAuditEntry(pr, pr.getStatus(), pr.getStatus(), Optional.ofNullable(message), Optional.empty()));
+			.flatMap( pr -> this.addAuditEntry(pr, pr.getStatus(), pr.getStatus(), Optional.ofNullable(message), Optional.ofNullable(auditData)));
 	}
 
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, String message) {
@@ -96,7 +96,4 @@ public class PatronRequestAuditService {
 		return addAuditEntry(patronRequest, from, Status.ERROR, Optional.ofNullable(error.getMessage()), Optional.ofNullable(auditData));
 	}
 
-  private String trimLongerThan(String s, int maxlen) {
-		return s;
-	}
 }
