@@ -430,4 +430,9 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		// TODO Auto-generated method stub
 		return null;
 	}
+
+  public Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType) {
+    return Mono.just(Boolean.TRUE);
+  }
+
 }
