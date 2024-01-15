@@ -60,6 +60,8 @@ public class HostLmsReactions {
 	public Mono<Map<String,Object>> onTrackingEvent(TrackingRecord trackingRecord) {
 		log.debug("onTrackingEvent {}",trackingRecord);
 		String handler = null;
+
+		// ToDo: This method should absolutely write a patron_request_audit record noting that the change was detected.
 		Map<String,Object> context = new HashMap();
 
 		if ( trackingRecord.getTrackigRecordType().equals(StateChange.STATE_CHANGE_RECORD) ) {
@@ -72,7 +74,8 @@ public class HostLmsReactions {
 					case "TRANSIT" -> handler = "SupplierRequestInTransit";
 					case "MISSING" -> handler = "SupplierRequestMissing";
 					case "PLACED" -> handler = "SupplierRequestPlaced";
-					default -> log.error("Unhandled SupplierRequest ToState:{}", sc);
+					case "CANCELLED" -> handler = "SupplierRequestCancelled";
+					default -> handler = "SupplierRequestUnhandledState";
 				}
 			}
 			else if ( sc.getResourceType().equals("PatronRequest") ) {
@@ -130,15 +133,22 @@ public class HostLmsReactions {
 		}
 
 		// https://stackoverflow.com/questions/74183112/how-to-select-the-correct-transactionmanager-when-using-r2dbc-together-with-flyw
-		log.debug("onTrackingEvent Detected handler: {}",handler);
 		if ( handler != null ) {
+		  log.debug("onTrackingEvent Detected handler: {}",handler);
 			log.debug("Attempt to resolve bean");
 			WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
 			if ( action != null ) {
 				log.debug("Invoke {}",action.getClass().getName());
-				return action.execute(context)
-					.doOnNext(ctx -> log.debug("Action completed:"+ctx))
-					.doOnError(error -> log.error("Problem in reaction",error))
+				return auditEventIndication(context, trackingRecord)
+					.flatMap(ctx -> action.execute(ctx))
+					.onErrorResume( error -> Mono.defer(() -> {
+						log.error("Problem in reaction - we should write an audit here",error);
+						return Mono.empty();
+					}))
+					.flatMap ( ctx -> {
+					  log.debug("Action completed - we should write an audit here:"+ctx);
+						return Mono.just(ctx);
+					})
 					.thenReturn(context);
 			}
 			else {
@@ -146,12 +156,26 @@ public class HostLmsReactions {
 			}
 		}
 		else {
-			log.debug("No handler");
+			log.warn("No handler for state change {}",trackingRecord);
 		}
 
 		log.debug("onTrackingEvent {} complete",trackingRecord);
 		return Mono.just(context);
 	}
 
+	private Mono<Map<String,Object>> auditEventIndication(Map<String,Object> context, TrackingRecord tr) {
+		log.debug("Audit event indication");
+		StateChange sc = (StateChange) tr;
+		String msg = "Downstream change to "+sc.getResourceType()+"("+sc.getResourceId()+") from "+sc.getToState()+" to "+sc.getFromState();
+		Map<String,Object> auditData = new HashMap();
+		auditData.put("patronRequestId",sc.getPatronRequestId());
+		auditData.put("resourceType",sc.getResourceType());
+		auditData.put("resourceId",sc.getResourceId());
+		auditData.put("fromState",sc.getFromState());
+		auditData.put("toState",sc.getToState());
+
+		return patronRequestAuditService.addAuditEntry(sc.getPatronRequestId(), msg, auditData)
+			.thenReturn(context);
+	}
 }
 

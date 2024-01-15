@@ -8,6 +8,7 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.storage.PatronRequestAuditRepository;
+import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +16,7 @@ import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Singleton
 public class PatronRequestAuditService {
@@ -22,9 +24,12 @@ public class PatronRequestAuditService {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestAuditService.class);
 
 	private final PatronRequestAuditRepository patronRequestAuditRepository;
+	private final PatronRequestRepository patronRequestRepository;
 
-	public PatronRequestAuditService(PatronRequestAuditRepository patronRequestAuditRepository) {
+	public PatronRequestAuditService(PatronRequestAuditRepository patronRequestAuditRepository,
+		PatronRequestRepository patronRequestRepository) {
 		this.patronRequestAuditRepository = patronRequestAuditRepository;
+		this.patronRequestRepository = patronRequestRepository;
 	}
 
 	private void log(PatronRequestAudit auditEntry) {
@@ -70,6 +75,11 @@ public class PatronRequestAuditService {
 			.doOnError( error -> log.error("Error attempting to write audit for"+pra.toString(), error));
 	}
 
+	public Mono<PatronRequestAudit> addAuditEntry(UUID patronRequestId, String message, Map<String,Object> auditData) {
+		return Mono.from(patronRequestRepository.findById(patronRequestId))
+			.flatMap( pr -> this.addAuditEntry(pr, pr.getStatus(), pr.getStatus(), Optional.ofNullable(message), Optional.ofNullable(auditData)));
+	}
+
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, String message) {
 		return addAuditEntry(patronRequest, patronRequest.getStatus(), Status.ERROR, Optional.ofNullable(message), Optional.empty());
 	}
@@ -86,7 +96,4 @@ public class PatronRequestAuditService {
 		return addAuditEntry(patronRequest, from, Status.ERROR, Optional.ofNullable(error.getMessage()), Optional.ofNullable(auditData));
 	}
 
-  private String trimLongerThan(String s, int maxlen) {
-		return s;
-	}
 }
