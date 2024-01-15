@@ -63,6 +63,7 @@ public class PatronRequestResolutionService {
 				log.error("Something went wrong with liveAvailabilityService.getAvailableItems",error);
 				return new UnableToResolvePatronRequest(error.getMessage());
 			})
+			// ToDo ROTA : Filter the list by any suppliers we have already tried for this request
 			.map(AvailabilityReport::getItems)
 			.flatMap(items -> resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest))
 			.doOnNext(item -> log.debug("Selected item {}",item))
