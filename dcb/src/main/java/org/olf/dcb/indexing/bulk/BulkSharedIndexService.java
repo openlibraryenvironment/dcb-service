@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.javaparser.quality.NotNull;
 
+import graphql.com.google.common.base.Predicates;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Pageable;
@@ -72,7 +73,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 			.doOnNext( bulk -> {
 				if (log.isDebugEnabled()) log.debug("Got list of {} index items", bulk.size());
 			})
-			
+			.delayElements( Duration.ofSeconds(2) )
 			.transform(this::expandAndProcess)
 			.doOnComplete(() -> log.info("Subscription finalised"))
 			.retry(10)
@@ -85,6 +86,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	public Publisher<List<IndexOperation<UUID, ClusterRecord>>> expandAndProcess( Flux<List<UUID>> idFlux ) {
 		return idFlux
 			.concatMap( this::manifestCluster )
+			.filter( Predicates.not( List::isEmpty ) )
 			.concatMap(ops -> this.offloadToImplementation(ops)
 				.onErrorResume(e -> {
 					

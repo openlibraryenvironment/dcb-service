@@ -8,6 +8,7 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.storage.PatronRequestAuditRepository;
+import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +16,7 @@ import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Singleton
 public class PatronRequestAuditService {
@@ -22,9 +24,12 @@ public class PatronRequestAuditService {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestAuditService.class);
 
 	private final PatronRequestAuditRepository patronRequestAuditRepository;
+	private final PatronRequestRepository patronRequestRepository;
 
-	public PatronRequestAuditService(PatronRequestAuditRepository patronRequestAuditRepository) {
+	public PatronRequestAuditService(PatronRequestAuditRepository patronRequestAuditRepository,
+		PatronRequestRepository patronRequestRepository) {
 		this.patronRequestAuditRepository = patronRequestAuditRepository;
+		this.patronRequestRepository = patronRequestRepository;
 	}
 
 	private void log(PatronRequestAudit auditEntry) {
@@ -68,6 +73,11 @@ public class PatronRequestAuditService {
 			.flatMap(auditEntry -> Mono.from(patronRequestAuditRepository.save(auditEntry)).cast(PatronRequestAudit.class))
 			.doOnSuccess(this::log)
 			.doOnError( error -> log.error("Error attempting to write audit for"+pra.toString(), error));
+	}
+
+	public Mono<PatronRequestAudit> addAuditEntry(UUID patronRequestId, String message) {
+		return Mono.from(patronRequestRepository.findById(patronRequestId))
+			.flatMap( pr -> this.addAuditEntry(pr, pr.getStatus(), pr.getStatus(), Optional.ofNullable(message), Optional.empty()));
 	}
 
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, String message) {

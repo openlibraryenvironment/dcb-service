@@ -21,6 +21,9 @@ public class StateChange  extends TrackingRecord {
 
 	public static final String STATE_CHANGE_RECORD = "STATE_CHANGE";
 
+	// We note the patron request that this change lives under for logging
+	private UUID patronRequestId;
+
 	private String resourceType;
 	private String resourceId;
 	private String fromState;
