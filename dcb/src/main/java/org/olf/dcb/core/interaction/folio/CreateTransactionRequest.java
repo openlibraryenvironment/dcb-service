@@ -25,5 +25,6 @@ class CreateTransactionRequest {
 	@Serdeable
 	static class Patron {
 		String id;
+		String barcode;
 	}
 }

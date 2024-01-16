@@ -55,6 +55,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		final var itemBarcode = "68526614";
 
 		final var patronId = UUID.randomUUID().toString();
+		final var patronBarcode = "67129553";
 
 		mockFolioFixture.mockCreateTransaction(CreateTransactionResponse.builder()
 			.status("CREATED")
@@ -66,6 +67,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.localItemId(itemId)
 					.localItemBarcode(itemBarcode)
 					.localPatronId(patronId)
+					.localPatronBarcode(patronBarcode)
 					.build()));
 
 		// Assert
@@ -83,6 +85,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 				.build())
 			.patron(CreateTransactionRequest.Patron.builder()
 				.id(patronId)
+				.barcode(patronBarcode)
 				.build())
 			.build());
 	}
