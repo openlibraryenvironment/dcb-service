@@ -281,6 +281,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var request = authorisedRequest(POST, "dcbService/transactions/" + transactionId)
 			.body(CreateTransactionRequest.builder()
+				.role("LENDER")
 				.item(CreateTransactionRequest.Item.builder()
 					.id(parameters.getLocalItemId())
 					.build())

@@ -8,6 +8,7 @@ import lombok.Data;
 @Builder
 @Serdeable
 class CreateTransactionRequest {
+	String role;
 	Item item;
 
 	@Data

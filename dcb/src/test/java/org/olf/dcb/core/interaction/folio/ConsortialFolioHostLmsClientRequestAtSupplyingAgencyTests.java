@@ -71,6 +71,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		assertThat(placedRequest, hasLocalStatus(HOLD_PLACED));
 
 		mockFolioFixture.verifyCreateTransaction(CreateTransactionRequest.builder()
+			.role("LENDER")
 			.item(CreateTransactionRequest.Item.builder()
 				.id(itemId)
 				.build())
