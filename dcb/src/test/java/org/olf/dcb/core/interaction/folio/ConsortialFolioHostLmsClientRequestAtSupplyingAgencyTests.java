@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
@@ -19,6 +20,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 
 	private MockFolioFixture mockFolioFixture;
 	private HostLmsClient client;
@@ -28,6 +31,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		final var API_KEY = "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9";
 
 		hostLmsFixture.deleteAll();
+		agencyFixture.deleteAll();
 
 		hostLmsFixture.createFolioHostLms(HOST_LMS_CODE, "https://fake-folio",
 			API_KEY, "", "");
@@ -39,6 +43,12 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 
 	@Test
 	void shouldInstantiateProperties() {
+		// Arrange
+
+		// Act
+
+		// Assert
+
 		assertThat("FOLIO mock fixture should not be null", mockFolioFixture, is(notNullValue()));
 		assertThat("FOLIO client should not be null", client, is(notNullValue()));
 	}
