@@ -105,7 +105,7 @@ public class MockFolioFixture {
 			.respond(httpResponse);
 	}
 
-	public void mockCreateTransaction(CreateTransactionResponse response) {
+	void mockCreateTransaction(CreateTransactionResponse response) {
 		mockServerClient
 			.when(createTransactionRequest())
 			.respond(response()
@@ -113,8 +113,9 @@ public class MockFolioFixture {
 				.withBody(json(response)));
 	}
 
-	public void verifyCreateTransaction() {
-		mockServerClient.verify(createTransactionRequest(), once());
+	void verifyCreateTransaction(CreateTransactionRequest request) {
+		mockServerClient.verify(createTransactionRequest()
+			.withBody(json(request)), once());
 	}
 
 	private HttpRequest createTransactionRequest() {

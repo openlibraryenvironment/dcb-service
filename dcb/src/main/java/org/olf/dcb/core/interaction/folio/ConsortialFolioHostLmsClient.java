@@ -279,7 +279,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var transactionId = UUID.randomUUID().toString();
 
-		final var request = authorisedRequest(POST, "dcbService/transactions/" + transactionId);
+		final var request = authorisedRequest(POST, "dcbService/transactions/" + transactionId)
+			.body(CreateTransactionRequest.builder()
+				.item(CreateTransactionRequest.Item.builder()
+					.id(parameters.getLocalItemId())
+					.build())
+				.build());
 
 		return makeRequest(request, Argument.of(CreateTransactionResponse.class))
 			.map(response -> LocalRequest.builder()

@@ -8,6 +8,8 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
@@ -49,6 +51,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 	@Test
 	void shouldPlaceRequestSuccessfully() {
 		// Arrange
+		final var itemId = UUID.randomUUID().toString();
+
 		mockFolioFixture.mockCreateTransaction(CreateTransactionResponse.builder()
 			.status("CREATED")
 			.build());
@@ -56,6 +60,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		// Act
 		final var placedRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
+					.localItemId(itemId)
 					.build()));
 
 		// Assert
@@ -65,6 +70,10 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 
 		assertThat(placedRequest, hasLocalStatus(HOLD_PLACED));
 
-		mockFolioFixture.verifyCreateTransaction();
+		mockFolioFixture.verifyCreateTransaction(CreateTransactionRequest.builder()
+			.item(CreateTransactionRequest.Item.builder()
+				.id(itemId)
+				.build())
+			.build());
 	}
 }

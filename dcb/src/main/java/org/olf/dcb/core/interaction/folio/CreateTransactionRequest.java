@@ -7,6 +7,13 @@ import lombok.Data;
 @Data
 @Builder
 @Serdeable
-public class CreateTransactionResponse {
-	String status;
+class CreateTransactionRequest {
+	Item item;
+
+	@Data
+	@Builder
+	@Serdeable
+	static class Item {
+		String id;
+	}
 }
