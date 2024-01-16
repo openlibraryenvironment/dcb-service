@@ -18,26 +18,26 @@ import lombok.Data;
 @Accessors(chain=true)
 public class RequestWorkflowContext {
 
-        String patronAgencyCode;
-        String patronSystemCode;
-        Agency patronAgency;
+	String patronAgencyCode;
+	String patronSystemCode;
+	Agency patronAgency;
 	DataHostLms patronSystem;
 
-        String pickupAgencyCode;
-        String pickupSystemCode;
-        Agency pickupAgency;
+	String pickupAgencyCode;
+	String pickupSystemCode;
+	Agency pickupAgency;
 
-        String lenderAgencyCode;
-        String lenderSystemCode;
-        Agency lenderAgency;
+	String lenderAgencyCode;
+	String lenderSystemCode;
+	Agency lenderAgency;
 
-        PatronIdentity patronHomeIdentity;
-        PatronIdentity patronVirtualIdentity;
+	PatronIdentity patronHomeIdentity;
+	PatronIdentity patronVirtualIdentity;
 
-        PatronRequest patronRequest;
-        SupplierRequest supplierRequest;
-        String supplierHoldId;
-        String supplierHoldStatus;
-				Patron patron;
+	PatronRequest patronRequest;
+	SupplierRequest supplierRequest;
+	String supplierHoldId;
+	String supplierHoldStatus;
+	Patron patron;
 }
 
