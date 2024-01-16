@@ -286,6 +286,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.id(parameters.getLocalItemId())
 					.barcode(parameters.getLocalItemBarcode())
 					.build())
+				.patron(CreateTransactionRequest.Patron.builder()
+					.id(parameters.getLocalPatronId())
+					.build())
 				.build());
 
 		return makeRequest(request, Argument.of(CreateTransactionResponse.class))

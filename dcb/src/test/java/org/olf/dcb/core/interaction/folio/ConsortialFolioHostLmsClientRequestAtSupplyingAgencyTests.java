@@ -54,6 +54,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		final var itemId = UUID.randomUUID().toString();
 		final var itemBarcode = "68526614";
 
+		final var patronId = UUID.randomUUID().toString();
+
 		mockFolioFixture.mockCreateTransaction(CreateTransactionResponse.builder()
 			.status("CREATED")
 			.build());
@@ -63,6 +65,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 				PlaceHoldRequestParameters.builder()
 					.localItemId(itemId)
 					.localItemBarcode(itemBarcode)
+					.localPatronId(patronId)
 					.build()));
 
 		// Assert
@@ -77,6 +80,9 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 			.item(CreateTransactionRequest.Item.builder()
 				.id(itemId)
 				.barcode(itemBarcode)
+				.build())
+			.patron(CreateTransactionRequest.Patron.builder()
+				.id(patronId)
 				.build())
 			.build());
 	}

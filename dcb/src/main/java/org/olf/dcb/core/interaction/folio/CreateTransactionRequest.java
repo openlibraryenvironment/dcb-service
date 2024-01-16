@@ -10,6 +10,7 @@ import lombok.Data;
 class CreateTransactionRequest {
 	String role;
 	Item item;
+	Patron patron;
 
 	@Data
 	@Builder
@@ -17,5 +18,12 @@ class CreateTransactionRequest {
 	static class Item {
 		String id;
 		String barcode;
+	}
+
+	@Data
+	@Builder
+	@Serdeable
+	static class Patron {
+		String id;
 	}
 }
