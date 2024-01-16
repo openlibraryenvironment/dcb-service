@@ -293,6 +293,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.build())
 				.pickup(CreateTransactionRequest.Pickup.builder()
 					.servicePointName(getValue(parameters.getPickupAgency(), Agency::getName))
+					.libraryCode(getValue(parameters.getPickupAgency(), Agency::getCode))
 					.build())
 				.build());
 

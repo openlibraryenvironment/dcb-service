@@ -34,5 +34,6 @@ class CreateTransactionRequest {
 	@Serdeable
 	static class Pickup {
 		String servicePointName;
+		String libraryCode;
 	}
 }

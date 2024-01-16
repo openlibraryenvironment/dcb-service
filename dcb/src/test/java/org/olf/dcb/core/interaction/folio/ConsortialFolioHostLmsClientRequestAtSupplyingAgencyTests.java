@@ -92,6 +92,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 				.build())
 			.pickup(CreateTransactionRequest.Pickup.builder()
 				.servicePointName("Pickup Agency")
+				.libraryCode("pickup-agency")
 				.build())
 			.build());
 	}
