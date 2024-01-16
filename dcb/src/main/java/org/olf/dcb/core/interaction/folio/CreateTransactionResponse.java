@@ -7,6 +7,6 @@ import lombok.Data;
 @Data
 @Builder
 @Serdeable
-public class CreateTransactionResponse {
+class CreateTransactionResponse {
 	String status;
 }

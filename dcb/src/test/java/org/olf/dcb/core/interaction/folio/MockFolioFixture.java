@@ -105,14 +105,12 @@ public class MockFolioFixture {
 			.respond(httpResponse);
 	}
 
-	public void mockCreateTransaction() {
+	public void mockCreateTransaction(CreateTransactionResponse response) {
 		mockServerClient
 			.when(createTransactionRequest())
 			.respond(response()
 				.withStatusCode(201)
-				.withBody(json(CreateTransactionResponse.builder()
-					.status("CREATED")
-					.build())));
+				.withBody(json(response)));
 	}
 
 	public void verifyCreateTransaction() {

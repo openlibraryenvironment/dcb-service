@@ -276,11 +276,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(
 		PlaceHoldRequestParameters parameters) {
 
-		final var request = authorisedRequest(POST,
-			"dcbService/transactions/" + UUID.randomUUID());
+		final var transactionId = UUID.randomUUID().toString();
+
+		final var request = authorisedRequest(POST, "dcbService/transactions/" + transactionId);
 
 		return makeRequest(request, Argument.of(CreateTransactionResponse.class))
-			.map(response -> LocalRequest.builder().build());
+			.map(response -> LocalRequest.builder()
+				.localId(transactionId)
+				.build());
 	}
 
 	@Override
