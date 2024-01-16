@@ -52,6 +52,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 	void shouldPlaceRequestSuccessfully() {
 		// Arrange
 		final var itemId = UUID.randomUUID().toString();
+		final var itemBarcode = "68526614";
 
 		mockFolioFixture.mockCreateTransaction(CreateTransactionResponse.builder()
 			.status("CREATED")
@@ -61,6 +62,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		final var placedRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
 					.localItemId(itemId)
+					.localItemBarcode(itemBarcode)
 					.build()));
 
 		// Assert
@@ -74,6 +76,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 			.role("LENDER")
 			.item(CreateTransactionRequest.Item.builder()
 				.id(itemId)
+				.barcode(itemBarcode)
 				.build())
 			.build());
 	}

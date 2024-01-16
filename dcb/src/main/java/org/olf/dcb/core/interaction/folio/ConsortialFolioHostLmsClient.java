@@ -284,6 +284,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.role("LENDER")
 				.item(CreateTransactionRequest.Item.builder()
 					.id(parameters.getLocalItemId())
+					.barcode(parameters.getLocalItemBarcode())
 					.build())
 				.build());
 

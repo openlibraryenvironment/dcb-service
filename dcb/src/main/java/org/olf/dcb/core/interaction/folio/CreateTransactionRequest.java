@@ -16,5 +16,6 @@ class CreateTransactionRequest {
 	@Serdeable
 	static class Item {
 		String id;
+		String barcode;
 	}
 }
