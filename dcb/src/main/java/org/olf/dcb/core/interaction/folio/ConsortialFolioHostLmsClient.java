@@ -281,6 +281,16 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var transactionId = UUID.randomUUID().toString();
 
+		return createTransaction(transactionId, parameters)
+			.map(response -> LocalRequest.builder()
+				.localId(transactionId)
+				.localStatus(HOLD_PLACED)
+				.build());
+	}
+
+	private Mono<CreateTransactionResponse> createTransaction(String transactionId,
+		PlaceHoldRequestParameters parameters) {
+
 		final var agencyCode = getValue(parameters.getPickupAgency(), Agency::getCode);
 
 		final var request = authorisedRequest(POST, "dcbService/transactions/" + transactionId)
@@ -301,11 +311,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.build())
 				.build());
 
-		return makeRequest(request, Argument.of(CreateTransactionResponse.class))
-			.map(response -> LocalRequest.builder()
-				.localId(transactionId)
-				.localStatus(HOLD_PLACED)
-				.build());
+		return makeRequest(request,
+			Argument.of(CreateTransactionResponse.class));
 	}
 
 	@Override
