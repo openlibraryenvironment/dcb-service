@@ -33,6 +33,7 @@ class CreateTransactionRequest {
 	@Builder
 	@Serdeable
 	static class Pickup {
+		String servicePointId;
 		String servicePointName;
 		String libraryCode;
 	}

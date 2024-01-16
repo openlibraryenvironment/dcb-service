@@ -7,6 +7,7 @@ import static org.olf.dcb.core.interaction.HostLmsHold.HOLD_PLACED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
+import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.util.UUID;
 
@@ -91,6 +92,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 				.barcode(patronBarcode)
 				.build())
 			.pickup(CreateTransactionRequest.Pickup.builder()
+				.servicePointId(dnsUUID("FolioServicePoint:" + pickupAgency.getCode()).toString())
 				.servicePointName("Pickup Agency")
 				.libraryCode("pickup-agency")
 				.build())

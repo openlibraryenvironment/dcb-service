@@ -19,6 +19,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.utils.CollectionUtils.nonNullValuesList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.net.URI;
 import java.util.List;
@@ -280,6 +281,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var transactionId = UUID.randomUUID().toString();
 
+		final var agencyCode = getValue(parameters.getPickupAgency(), Agency::getCode);
+
 		final var request = authorisedRequest(POST, "dcbService/transactions/" + transactionId)
 			.body(CreateTransactionRequest.builder()
 				.role("LENDER")
@@ -292,8 +295,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.barcode(parameters.getLocalPatronBarcode())
 					.build())
 				.pickup(CreateTransactionRequest.Pickup.builder()
+					.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
 					.servicePointName(getValue(parameters.getPickupAgency(), Agency::getName))
-					.libraryCode(getValue(parameters.getPickupAgency(), Agency::getCode))
+					.libraryCode(agencyCode)
 					.build())
 				.build());
 
