@@ -3,8 +3,10 @@ package org.olf.dcb.core.interaction.folio;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.olf.dcb.core.interaction.HostLmsHold.HOLD_PLACED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,6 +62,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		assertThat("Placed request is not null", placedRequest, is(notNullValue()));
 		assertThat("Should be transaction ID but cannot be explicit",
 			placedRequest, hasLocalId());
+
+		assertThat(placedRequest, hasLocalStatus(HOLD_PLACED));
 
 		mockFolioFixture.verifyCreateTransaction();
 	}

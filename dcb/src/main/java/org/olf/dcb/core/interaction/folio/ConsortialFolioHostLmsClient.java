@@ -9,6 +9,7 @@ import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.interaction.HostLmsHold.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
@@ -283,6 +284,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return makeRequest(request, Argument.of(CreateTransactionResponse.class))
 			.map(response -> LocalRequest.builder()
 				.localId(transactionId)
+				.localStatus(HOLD_PLACED)
 				.build());
 	}
 
