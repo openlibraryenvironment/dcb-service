@@ -14,12 +14,20 @@ public class HttpResponsePredicates {
 		return isClientResponseException(throwable, isUnauthorised());
 	}
 
+	public static boolean isUnprocessableContent(Throwable throwable) {
+		return isClientResponseException(throwable, isUnprocessableContent());
+	}
+
 	public static Predicate<HttpResponse<?>> isUnauthorised() {
 		return isStatus(UNAUTHORIZED);
 	}
 
 	public static Predicate<HttpResponse<?>> isNotFound() {
 		return isStatus(NOT_FOUND);
+	}
+
+	public static Predicate<HttpResponse<?>> isUnprocessableContent() {
+		return isStatus(HttpStatus.valueOf(422));
 	}
 
 	public static Predicate<HttpResponse<?>> isStatus(HttpStatus status) {

@@ -106,11 +106,18 @@ public class MockFolioFixture {
 	}
 
 	void mockCreateTransaction(CreateTransactionResponse response) {
+		mockCreateTransaction(response()
+			.withStatusCode(201)
+			.withBody(json(response)));
+	}
+
+	void mockCreateTransaction(HttpResponse response) {
+		// Have to remove previous expectations as there is no way to match specifically
+		mockServerClient.clear(createTransactionRequest());
+
 		mockServerClient
 			.when(createTransactionRequest())
-			.respond(response()
-				.withStatusCode(201)
-				.withBody(json(response)));
+			.respond(response);
 	}
 
 	void verifyCreateTransaction(CreateTransactionRequest request) {

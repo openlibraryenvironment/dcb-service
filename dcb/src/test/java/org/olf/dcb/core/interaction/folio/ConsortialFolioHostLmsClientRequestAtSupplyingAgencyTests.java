@@ -3,17 +3,23 @@ package org.olf.dcb.core.interaction.folio;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockserver.model.HttpResponse.response;
+import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.core.interaction.HostLmsHold.HOLD_PLACED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.CannotPlaceRequestException;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.test.AgencyFixture;
@@ -97,5 +103,35 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 				.libraryCode("pickup-agency")
 				.build())
 			.build());
+	}
+
+	@Test
+	void shouldFailWhenTransactionCreationReturnsValidationError() {
+		// Arrange
+		mockFolioFixture.mockCreateTransaction(response()
+			.withStatusCode(422)
+			.withBody(json(ConsortialFolioHostLmsClient.ValidationError.builder()
+				.errors(List.of(ConsortialFolioHostLmsClient.ValidationError.Error.builder()
+					.message("Something went wrong")
+					.type("-1")
+					.code("VALIDATION_ERROR")
+					.build()))
+				.build())));
+
+		final var pickupAgency = agencyFixture.defineAgency("pickup-agency", "Pickup Agency");
+
+		// Act
+		final var exception = assertThrows(CannotPlaceRequestException.class,
+			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+				PlaceHoldRequestParameters.builder()
+					.localItemId(UUID.randomUUID().toString())
+					.localItemBarcode("6736583")
+					.localPatronId(UUID.randomUUID().toString())
+					.localPatronBarcode("8847474")
+					.pickupAgency(pickupAgency)
+					.build())));
+
+		// Assert
+		assertThat(exception, hasMessage("Something went wrong"));
 	}
 }

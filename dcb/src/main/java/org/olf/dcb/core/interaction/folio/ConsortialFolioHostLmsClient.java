@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CannotPlaceRequestException;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.FailedToGetItemsException;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -65,6 +66,9 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -311,8 +315,22 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.build())
 				.build());
 
-		return makeRequest(request,
-			Argument.of(CreateTransactionResponse.class));
+		return makeRequest(request, Argument.of(CreateTransactionResponse.class))
+			.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError);
+	}
+
+	private CannotPlaceRequestException interpretValidationError(Throwable error) {
+		if (error instanceof HttpClientResponseException clientResponseException) {
+			return clientResponseException
+				.getResponse()
+				.getBody(Argument.of(ValidationError.class))
+				.map(ValidationError::getFirstError)
+				.map(CannotPlaceRequestException::new)
+				.orElse(new CannotPlaceRequestException("Unknown validation error"));
+		}
+		else {
+			return new CannotPlaceRequestException("Unknown validation error");
+		}
 	}
 
 	@Override
@@ -562,4 +580,27 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
     log.debug("CONSORIAL FOLIO Supplier Preflight {} {} {} {}",borrowingAgencyCode,supplyingAgencyCode,canonicalItemType,canonicalPatronType);
     return Mono.just(Boolean.TRUE);
   }
+
+	@Data
+	@Builder
+	@Serdeable
+	static class ValidationError {
+		List<Error> errors;
+
+		private String getFirstError() {
+			return getErrors().stream()
+				.findFirst()
+				.map(Error::getMessage)
+				.orElse("Unknown validation error");
+		}
+
+		@Data
+		@Builder
+		@Serdeable
+		static class Error {
+			String message;
+			String type;
+			String code;
+		}
+	}
 }
