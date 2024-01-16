@@ -13,6 +13,7 @@ public class PlaceHoldRequestParameters {
 	String localPatronType;
 	String localBibId;
 	String localItemId;
+	String localItemBarcode;
 	String pickupLocation;
 	Agency pickupAgency;
 	String note;

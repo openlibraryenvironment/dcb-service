@@ -179,7 +179,9 @@ public class SupplyingAgencyService {
 					.localPatronType(patronTypeAtSupplyingAgency)
 					.localPatronBarcode(homeIdentity.getLocalBarcode())
 					.localBibId(supplierRequest.getLocalBibId())
+					// FOLIO needs both the ID and barcode to cross-check the item identity
 					.localItemId(supplierRequest.getLocalItemId())
+					.localItemBarcode(supplierRequest.getLocalItemBarcode())
 					// Have to pass both because Sierra and Polaris still use code only
 					.pickupLocation(context.getPickupAgencyCode())
 					.pickupAgency(context.getPickupAgency())
