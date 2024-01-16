@@ -61,6 +61,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 			.status("CREATED")
 			.build());
 
+		final var pickupAgency = agencyFixture.defineAgency("pickup-agency", "Pickup Agency");
+
 		// Act
 		final var placedRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
@@ -68,6 +70,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.localItemBarcode(itemBarcode)
 					.localPatronId(patronId)
 					.localPatronBarcode(patronBarcode)
+					.pickupAgency(pickupAgency)
 					.build()));
 
 		// Assert
@@ -86,6 +89,9 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 			.patron(CreateTransactionRequest.Patron.builder()
 				.id(patronId)
 				.barcode(patronBarcode)
+				.build())
+			.pickup(CreateTransactionRequest.Pickup.builder()
+				.servicePointName("Pickup Agency")
 				.build())
 			.build());
 	}

@@ -11,6 +11,7 @@ class CreateTransactionRequest {
 	String role;
 	Item item;
 	Patron patron;
+	Pickup pickup;
 
 	@Data
 	@Builder
@@ -26,5 +27,12 @@ class CreateTransactionRequest {
 	static class Patron {
 		String id;
 		String barcode;
+	}
+
+	@Data
+	@Builder
+	@Serdeable
+	static class Pickup {
+		String servicePointName;
 	}
 }

@@ -28,12 +28,8 @@ public class AgencyFixture {
 		return singleValueFrom(agencyRepository.save(agency));
 	}
 
-	public void defineAgency(String code) {
-		defineAgency(code, "An agency");
-	}
-
-	public void defineAgency(String code, String name) {
-		saveAgency(DataAgency.builder()
+	public DataAgency defineAgency(String code, String name) {
+		return saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
 			.code(code)
 			.name(name)

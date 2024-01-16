@@ -41,6 +41,7 @@ import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.folio.User.PersonalDetails;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
+import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
@@ -289,6 +290,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.patron(CreateTransactionRequest.Patron.builder()
 					.id(parameters.getLocalPatronId())
 					.barcode(parameters.getLocalPatronBarcode())
+					.build())
+				.pickup(CreateTransactionRequest.Pickup.builder()
+					.servicePointName(getValue(parameters.getPickupAgency(), Agency::getName))
 					.build())
 				.build());
 
