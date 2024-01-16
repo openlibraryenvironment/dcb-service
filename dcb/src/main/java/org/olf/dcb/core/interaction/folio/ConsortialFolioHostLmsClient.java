@@ -276,7 +276,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(
 		PlaceHoldRequestParameters parameters) {
 
-		return Mono.error(new NotImplementedException("Placing hold request at supplying agency is not currently implemented for FOLIO"));
+		final var request = authorisedRequest(POST,
+			"dcbService/transactions/" + UUID.randomUUID());
+
+		return makeRequest(request, Argument.of(CreateTransactionResponse.class))
+			.map(response -> LocalRequest.builder().build());
 	}
 
 	@Override

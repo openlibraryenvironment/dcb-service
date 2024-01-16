@@ -3,11 +3,13 @@ package org.olf.dcb.core.interaction.folio;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
@@ -42,14 +44,18 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 	}
 
 	@Test
-	void shouldInstantiateProperties() {
+	void shouldPlaceRequestSuccessfully() {
 		// Arrange
+		mockFolioFixture.mockCreateTransaction();
 
 		// Act
+		final var placedRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+				PlaceHoldRequestParameters.builder()
+					.build()));
 
 		// Assert
+		assertThat("Placed request is not null", placedRequest, is(notNullValue()));
 
-		assertThat("FOLIO mock fixture should not be null", mockFolioFixture, is(notNullValue()));
-		assertThat("FOLIO client should not be null", client, is(notNullValue()));
+		mockFolioFixture.verifyCreateTransaction();
 	}
 }
