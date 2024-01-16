@@ -171,13 +171,15 @@ public class SierraPatronsAPIFixture {
 	}
 
 	public void verifyPlaceHoldRequestMade(String expectedPatronId,
-		String expectedRecordType, int expectedRecordNumber, String expectedPickupLocation) {
+		String expectedRecordType, int expectedRecordNumber, String expectedPickupLocation,
+		String expectedNote) {
 
 		mockServer.verify(postPatronHoldRequest(expectedPatronId,
 			PatronHoldPost.builder()
 				.recordType(expectedRecordType)
 				.recordNumber(expectedRecordNumber)
 				.pickupLocation(expectedPickupLocation)
+				.note(expectedNote)
 				.build()));
 	}
 
@@ -293,6 +295,7 @@ public class SierraPatronsAPIFixture {
 		String recordType;
 		Integer recordNumber;
 		String pickupLocation;
+		String note;
 	}
 
 	@Data

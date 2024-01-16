@@ -177,7 +177,11 @@ class PlaceRequestAtBorrowingAgencyTests {
 		assertThat("Status code wasn't expected.", pr.getStatus(), is(Status.REQUEST_PLACED_AT_BORROWING_AGENCY));
 		assertThat("Local request id wasn't expected.", pr.getLocalRequestId(), is("864902"));
 		assertThat("Local request status wasn't expected.", pr.getLocalRequestStatus(), is("PLACED"));
+
 		assertSuccessfulTransitionAudit(pr);
+
+		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("872321", "b",
+			7916921, "ABC123", "Consortial Hold. tno=" + pr.getId());
 	}
 
 	@Test

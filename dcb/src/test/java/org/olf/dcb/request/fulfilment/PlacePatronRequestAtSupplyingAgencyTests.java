@@ -155,7 +155,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestMade("1000002");
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
-			563653, "borrowing-agency");
+			563653, "borrowing-agency",
+			"Consortial Hold. tno=" + patronRequest.getId());
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
@@ -196,7 +197,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestNotMade("1000002");
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
-			563653, "borrowing-agency");
+			563653, "borrowing-agency",
+			"Consortial Hold. tno=" + patronRequest.getId());
 	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
@@ -229,7 +231,8 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.verifyCreatePatronRequestMade("546730@supplying-agency");
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000003", "b",
-			563653, "borrowing-agency");
+			563653, "borrowing-agency",
+			"Consortial Hold. tno=" + patronRequest.getId());
 	}
 
 	@DisplayName("request cannot be placed in supplying agency’s local system")
