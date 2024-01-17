@@ -1,10 +1,10 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,9 +53,6 @@ class SierraHostLmsClientPlaceRequestTests {
 				PlaceHoldRequestParameters.builder().build())));
 
 		// Assert
-		final var expectedErrorMessage = "Invalid hold policy for Host LMS";
-
-		assertThat("Should have invalid hold policy message",
-			exception.getMessage(), containsString(expectedErrorMessage));
+		assertThat(exception, messageContains("Invalid hold policy for Host LMS"));
 	}
 }

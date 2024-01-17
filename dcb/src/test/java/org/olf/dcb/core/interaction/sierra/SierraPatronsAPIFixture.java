@@ -154,14 +154,38 @@ public class SierraPatronsAPIFixture {
 		String expectedRecordType, Integer expectedRecordNumber) {
 
 		mockServer
-			.when(postPatronHoldRequest(patronId, expectedRecordType, expectedRecordNumber))
+			.when(postPatronHoldRequest(patronId, PatronHoldPost.builder()
+				.recordType(expectedRecordType)
+				.recordNumber(expectedRecordNumber)
+				.build()))
 			.respond(sierraMockServerResponses.noContent());
 	}
 
 	public void patronHoldRequestErrorResponse(String patronId, String expectedRecordType) {
 		mockServer
-			.when(postPatronHoldRequest(patronId, expectedRecordType, null))
+			.when(postPatronHoldRequest(patronId, PatronHoldPost.builder()
+				.recordType(expectedRecordType)
+				.recordNumber(null)
+				.build()))
 			.respond(sierraMockServerResponses.serverError());
+	}
+
+	public void verifyPlaceHoldRequestMade(String expectedPatronId,
+		String expectedRecordType, int expectedRecordNumber, String expectedPickupLocation,
+		String expectedNote) {
+
+		mockServer.verify(postPatronHoldRequest(expectedPatronId,
+			PatronHoldPost.builder()
+				.recordType(expectedRecordType)
+				.recordNumber(expectedRecordNumber)
+				.pickupLocation(expectedPickupLocation)
+				.note(expectedNote)
+				.build()));
+	}
+
+	private HttpRequest postPatronHoldRequest(String patronId, PatronHoldPost holdRequest) {
+		return sierraMockServerRequests.post("/" + patronId + "/holds/requests")
+			.withBody(json(holdRequest));
 	}
 
 	public void patronHoldResponse(String id) {
@@ -234,16 +258,6 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerResponses.jsonSuccess("patrons/sierra-api-patron-hold.json");
 	}
 
-	private HttpRequest postPatronHoldRequest(String patronId,
-		String expectedRecordType, Integer expectedRecordNumber) {
-
-		return sierraMockServerRequests.post("/" + patronId + "/holds/requests")
-			.withBody(json(PatronHoldPost.builder()
-				.recordType(expectedRecordType)
-				.recordNumber(expectedRecordNumber)
-				.build()));
-	}
-
 	private HttpRequest getPatronHolds(String patronId) {
 		return sierraMockServerRequests.get("/" + patronId + "/holds");
 	}
@@ -281,6 +295,7 @@ public class SierraPatronsAPIFixture {
 		String recordType;
 		Integer recordNumber;
 		String pickupLocation;
+		String note;
 	}
 
 	@Data

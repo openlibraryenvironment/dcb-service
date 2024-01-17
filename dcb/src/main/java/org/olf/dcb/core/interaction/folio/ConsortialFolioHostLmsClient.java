@@ -512,4 +512,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private URI resolve(URI relativeURI) {
 		return RelativeUriResolver.resolve(rootUri, relativeURI);
 	}
+
+  public Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType) {
+    log.debug("CONSORIAL FOLIO Supplier Preflight {} {} {} {}",borrowingAgencyCode,supplyingAgencyCode,canonicalItemType,canonicalPatronType);
+    return Mono.just(Boolean.TRUE);
+  }
 }

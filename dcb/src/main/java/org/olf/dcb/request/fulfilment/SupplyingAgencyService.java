@@ -12,12 +12,14 @@ import org.olf.dcb.core.interaction.HostLmsHold;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
@@ -25,6 +27,8 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
+import reactor.function.TupleUtils;
+
 
 @Slf4j
 @Prototype
@@ -74,14 +78,33 @@ public class SupplyingAgencyService {
 		// 4. PUA - Lender, Pickup and Borrower systems are all different.
 
 		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-			.flatMap(this::checkAndCreatePatronAtSupplier)
-			.flatMap(this::placeRequestAtSupplier)
-			.flatMap(this::setPatronRequestWorkflow)
-			.flatMap(this::updateSupplierRequest)
-			.map(PatronRequest::placedAtSupplyingAgency)
-			// We do this work a level up at PlacePatronRequestAtSupplyingAgencyStateTransition.createAuditEntry
-			// commenting out as of 2023-08-16. If audit log looks good will remove entirely.
-			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
+			.zipWhen(psrc -> performSupplierPreflight(psrc) )
+			.flatMap(TupleUtils.function((psrc, preflightResult) -> reactToPreflight(preflightResult, psrc) ) )
+      // We do this work a level up at PlacePatronRequestAtSupplyingAgencyStateTransition.createAuditEntry
+      // commenting out as of 2023-08-16. If audit log looks good will remove entirely.
+      .transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
+	}
+
+	public Mono<Boolean> performSupplierPreflight(RequestWorkflowContext psrc) {
+
+		SupplierRequest supplierRequest = psrc.getSupplierRequest();
+
+		// We need to be sure that we are able to map the canonical patron type to something this supplier can understand
+		// We also would like to know that we can map the local item type at the supplier to our canonical values
+		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
+			.flatMap( client -> client.supplierPreflight(
+				psrc.getPatronAgencyCode(),
+				psrc.getLenderAgencyCode(),
+				psrc.getSupplierRequest().getLocalItemType(),
+				psrc.getPatronRequest().getRequestingIdentity().getCanonicalPtype()));
+	}
+
+	public Mono<PatronRequest> reactToPreflight(Boolean preflightResult, RequestWorkflowContext psrc) {
+		return checkAndCreatePatronAtSupplier(psrc)
+	    .flatMap(this::placeRequestAtSupplier)
+      .flatMap(this::setPatronRequestWorkflow)
+      .flatMap(this::updateSupplierRequest)
+      .map(PatronRequest::placedAtSupplyingAgency);
 	}
 
 	public Mono<PatronRequest> cleanUp(PatronRequest patronRequest) {
@@ -112,36 +135,20 @@ public class SupplyingAgencyService {
 		if ((patronRequest == null) ||
 			(supplierRequest == null) ||
 			(patronIdentityAtSupplier == null) ||
-			(psrc.getPickupAgencyCode() == null))
+			(psrc.getPickupAgencyCode() == null)) {
+
 			throw new RuntimeException("Invalid RequestWorkflowContext " + psrc);
+		}
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
-			.flatMap(client -> this.placeHoldRequest(client, psrc) )
+			.flatMap(client -> this.placeHoldRequest(client, psrc))
 			.map(localRequest -> supplierRequest.placed(localRequest.getLocalId(), localRequest.getLocalStatus()))
 			.thenReturn(psrc)
 			.onErrorResume(error -> {
 				log.error("Error in placeRequestAtSupplier {} : {}", psrc, error.getMessage());
 
-				return Mono.error(
-					Problem.builder()
-						.withType(ERR0010)
-						.withTitle(
-							"Unable to place SUPPLIER hold request for pr=" + patronRequest.getId() + " Lpatron=" + patronIdentityAtSupplier.getLocalId() +
-								" Litemid=" + supplierRequest.getLocalItemId() + " Lit=" + supplierRequest.getLocalItemType() + " Lpt=" + patronIdentityAtSupplier.getLocalPtype() + " system=" + supplierRequest.getHostLmsCode())
-						.withDetail(error.getMessage())
-						.with("dcbContext", psrc)
-						.with("dcbPatronId", patronIdentityAtSupplier.getLocalId())
-						.with("dcbLocalItemId", supplierRequest.getLocalItemId())
-						.with("dcbLocalItemBarcode", supplierRequest.getLocalItemBarcode())
-						.with("dcbLocalItemType", supplierRequest.getLocalItemType())
-						.with("dcbLocalPatronType",
-							patronIdentityAtSupplier.getLocalPtype())
-						.with("dcbCanonicalPatronType",
-							patronIdentityAtSupplier.getCanonicalPtype())
-						.with("dcbLocalPatronBarcode",
-							patronIdentityAtSupplier.getLocalBarcode())
-						.build()
-				);
+				return Mono.error(unableToPlaceRequestAtSupplyingAgencyProblem(psrc, error,
+					patronRequest, patronIdentityAtSupplier, supplierRequest));
 			});
 	}
 
@@ -154,16 +161,54 @@ public class SupplyingAgencyService {
 		final var supplierRequest = context.getSupplierRequest();
 		final var patronIdentityAtSupplier = context.getPatronVirtualIdentity();
 
+		final var patron = patronRequest.getPatron();
+
+		final var homeIdentity = patron.getHomeIdentity()
+			.orElseThrow(() -> new NoHomeIdentityException(patron.getId()));
+
 		String note = "Consortial Hold. tno=" + patronRequest.getId();
 
-		return client.placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters.builder()
-			.localPatronId(patronIdentityAtSupplier.getLocalId())
-			.localBibId(supplierRequest.getLocalBibId())
-			.localItemId(supplierRequest.getLocalItemId())
-			.pickupLocation(context.getPickupAgencyCode())
-			.note(note)
-			.patronRequestId(patronRequest.getId().toString())
-			.build());
+		// The patron type and barcode are needed by FOLIO
+		// due to how edge-dcb creates a virtual patron on DCB's behalf
+		// Have to use the values from the home identity as cannot trust
+		// that the values on the virtual identity are correct when they get here
+		return determinePatronType(client.getHostLmsCode(), homeIdentity)
+			.flatMap(patronTypeAtSupplyingAgency -> client.placeHoldRequestAtSupplyingAgency(
+				PlaceHoldRequestParameters.builder()
+					.localPatronId(patronIdentityAtSupplier.getLocalId())
+					.localPatronType(patronTypeAtSupplyingAgency)
+					.localPatronBarcode(homeIdentity.getLocalBarcode())
+					.localBibId(supplierRequest.getLocalBibId())
+					// FOLIO needs both the ID and barcode to cross-check the item identity
+					.localItemId(supplierRequest.getLocalItemId())
+					.localItemBarcode(supplierRequest.getLocalItemBarcode())
+					// Have to pass both because Sierra and Polaris still use code only
+					.pickupLocation(context.getPickupAgencyCode())
+					.pickupAgency(context.getPickupAgency())
+					.note(note)
+					.patronRequestId(patronRequest.getId().toString())
+					.build()));
+	}
+
+	private static ThrowableProblem unableToPlaceRequestAtSupplyingAgencyProblem(
+		RequestWorkflowContext context, Throwable error, PatronRequest patronRequest,
+		PatronIdentity patronIdentityAtSupplier, SupplierRequest supplierRequest) {
+
+		return Problem.builder()
+			.withType(ERR0010)
+			.withTitle(
+				"Unable to place SUPPLIER hold request for pr=" + patronRequest.getId() + " Lpatron=" + patronIdentityAtSupplier.getLocalId() +
+					" Litemid=" + supplierRequest.getLocalItemId() + " Lit=" + supplierRequest.getLocalItemType() + " Lpt=" + patronIdentityAtSupplier.getLocalPtype() + " system=" + supplierRequest.getHostLmsCode())
+			.withDetail(error.getMessage())
+			.with("dcbContext", context)
+			.with("dcbPatronId", patronIdentityAtSupplier.getLocalId())
+			.with("dcbLocalItemId", supplierRequest.getLocalItemId())
+			.with("dcbLocalItemBarcode", supplierRequest.getLocalItemBarcode())
+			.with("dcbLocalItemType", supplierRequest.getLocalItemType())
+			.with("dcbLocalPatronType", patronIdentityAtSupplier.getLocalPtype())
+			.with("dcbCanonicalPatronType", patronIdentityAtSupplier.getCanonicalPtype())
+			.with("dcbLocalPatronBarcode", patronIdentityAtSupplier.getLocalBarcode())
+			.build();
 	}
 
 	private Mono<PatronRequest> updateSupplierRequest(RequestWorkflowContext psrc) {

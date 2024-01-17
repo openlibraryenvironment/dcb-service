@@ -8,21 +8,20 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.annotation.Id;
 
 public interface Agency {
-
 	@NonNull
 	@Id
-	public UUID getId();
+	UUID getId();
 
 	@NonNull
-	public String getCode();
+	String getCode();
 
 	@NonNull
-	public String getName();
+	String getName();
 
 	@NonNull
-	public <T extends HostLms> T getHostLms();
+	<T extends HostLms> T getHostLms();
 
-	public static DataAgencyBuilder builder() {
+	static DataAgencyBuilder builder() {
 		return DataAgency.builder();
 	}
 }

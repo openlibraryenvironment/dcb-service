@@ -40,6 +40,7 @@ public class SupplierRequestServiceTests {
                                              .localItemBarcode("itemBarcode")
                                              .localItemLocationCode("ItemLocationCode")
                                              .hostLmsCode("supplierHostLmsCode")
+                                             .isActive(Boolean.TRUE)
                                              .build();
 		// Save the patronRequest and initialSupplierRequest
 		Mono.from(patronRequestRepository.save(patronRequest)).block();

@@ -22,7 +22,8 @@ public class SupplierRequestService {
 	}
 
 	public Mono<List<SupplierRequest>> findAllSupplierRequestsFor(PatronRequest patronRequest) {
-		return Flux.from(supplierRequestRepository.findAllByPatronRequest(patronRequest))
+		return Flux.from(supplierRequestRepository.findAllByPatronRequestAndIsActive(patronRequest, Boolean.TRUE))
+		// return Flux.from(supplierRequestRepository.findAllByPatronRequest(patronRequest))
 			.collectList();
 	}
 

@@ -25,6 +25,8 @@ public interface SupplierRequestRepository {
 	@NonNull
 	Publisher<SupplierRequest> findAllByPatronRequest(@NotNull PatronRequest pr);
 
+	Publisher<SupplierRequest> findAllByPatronRequestAndIsActive(@NotNull PatronRequest pr, Boolean isActive);
+
 	@NonNull
 	Publisher<SupplierRequest> findByPatronRequest(@NotNull PatronRequest pr);
 

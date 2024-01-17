@@ -29,9 +29,18 @@ public class SupplierRequestsFixture {
 		this.supplierRequestService = supplierRequestService;
 	}
 
+
 	public void saveSupplierRequest(UUID supplierRequestId, PatronRequest patronRequest,
 		String localBibId, String localItemId, String localLocationCode, String localItemBarcode,
 		String hostLmsCode) {
+
+		saveSupplierRequest(supplierRequestId,patronRequest,localBibId,localItemId,localLocationCode,localItemBarcode,hostLmsCode, Boolean.TRUE);
+
+	}
+
+	public void saveSupplierRequest(UUID supplierRequestId, PatronRequest patronRequest,
+		String localBibId, String localItemId, String localLocationCode, String localItemBarcode,
+		String hostLmsCode, Boolean isActive) {
 
 		Mono.from(supplierRequestRepository.save(
 				SupplierRequest
@@ -43,6 +52,7 @@ public class SupplierRequestsFixture {
 					.localItemLocationCode(localLocationCode)
 					.localItemBarcode(localItemBarcode)
 					.hostLmsCode(hostLmsCode)
+					.isActive(isActive)
 					.build()))
 			.block();
 	}

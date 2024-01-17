@@ -53,8 +53,9 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		return patronRequestResolutionService.resolvePatronRequest(patronRequest)
 			.doOnSuccess(resolution -> log.debug("Resolved to: {}", resolution))
 			.doOnError(error -> log.error("Error occurred during resolution: {}", error.getMessage()))
-			.flatMap(this::updatePatronRequest)
+			// Trail switching these so we can set current supplier request on patron request
 			.flatMap(this::saveSupplierRequest)
+			.flatMap(this::updatePatronRequest)
 			.map(Resolution::getPatronRequest)
 			.flatMap(this::createAuditEntry)
 			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
