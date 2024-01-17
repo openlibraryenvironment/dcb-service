@@ -317,7 +317,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		return makeRequest(request, Argument.of(CreateTransactionResponse.class))
 			.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
-			.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError);
+			.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError)
+			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new);
 	}
 
 	private CannotPlaceRequestException interpretValidationError(Throwable error) {
@@ -603,5 +604,15 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			String type;
 			String code;
 		}
+	}
+
+	@Data
+	@Builder
+	@Serdeable
+	static class TransactionUnauthorisedResponse {
+		Integer status;
+		String error;
+		String path;
+		String timestamp;
 	}
 }
