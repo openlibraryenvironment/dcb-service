@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -27,9 +28,11 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 public class ClusterRecordIndexDoc {
 	
 	private final ClusterRecord cluster;
+	private final Function<UUID, String> hostLmsIdToCodeResolver;
 	
-	public ClusterRecordIndexDoc(@NonNull ClusterRecord cluster) {
+	public ClusterRecordIndexDoc(@NonNull ClusterRecord cluster, @NonNull Function<UUID, String> hostLmsIdToCodeResolver) {
 		this.cluster = cluster;
+		this.hostLmsIdToCodeResolver = hostLmsIdToCodeResolver;
 	}
 	
 	public String getTitle() {
@@ -108,10 +111,13 @@ public class ClusterRecordIndexDoc {
 	
 	// Lets just add all the bibs
   public List<NestedBibIndexDoc> getMembers() {
-	  	return Stream.ofNullable(cluster.getBibs())
-				.flatMap( Set::stream )
-	  		.map( NestedBibIndexDoc::new )
-  			.toList();
+  	return Stream.ofNullable(cluster.getBibs())
+			.flatMap( Set::stream )
+  		.map( bib -> {
+  			String lmsCode = hostLmsIdToCodeResolver.apply(bib.getSourceSystemId());
+  			return new NestedBibIndexDoc(bib, lmsCode);
+  		})
+			.toList();
 	}
 
   /*

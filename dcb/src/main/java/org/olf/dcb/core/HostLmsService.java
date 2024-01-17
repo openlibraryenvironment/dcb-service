@@ -1,6 +1,9 @@
 package org.olf.dcb.core;
 
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
@@ -26,6 +29,19 @@ public class HostLmsService implements IngestSourcesProvider {
 	HostLmsService(BeanContext context, HostLmsRepository hostLmsRepository) {
 		this.hostLmsRepository = hostLmsRepository;
 		this.context = context;
+	}
+	
+	private final Map<String, String> idToCodeCache = new ConcurrentHashMap<>();
+	
+	public Mono<String> idToCode( UUID id ) {
+		return Mono.justOrEmpty( Objects.toString(id, null) )
+			.mapNotNull( idToCodeCache::get )
+			.switchIfEmpty( Mono.from(hostLmsRepository.findById( id ))
+				.map( lms -> {
+					var theCode = lms.getCode();
+					idToCodeCache.put(id.toString() , theCode);
+					return theCode;
+				}));
 	}
 	
 	public Mono<DataHostLms> findById(UUID id) {

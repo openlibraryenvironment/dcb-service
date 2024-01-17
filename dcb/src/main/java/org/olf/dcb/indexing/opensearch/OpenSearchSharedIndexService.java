@@ -45,6 +45,7 @@ import jakarta.inject.Singleton;
 import lombok.Setter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import services.k_int.micronaut.PublisherTransformationService;
 
 @Order(OpenSearchSharedIndexService.OS_INDEXER_PRIORITY)
 @Setter
@@ -75,13 +76,15 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	private final OpenSearchAsyncClient client;
 	private final ConversionService conversionService;
 	
-	private final String indexName; 
+	private final String indexName;
+	private final PublisherTransformationService pubs;
 	
-	public OpenSearchSharedIndexService(SharedIndexConfiguration conf, OpenSearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, SharedIndexQueueRepository sharedIndexQueueRepository) {
+	public OpenSearchSharedIndexService(SharedIndexConfiguration conf, OpenSearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, SharedIndexQueueRepository sharedIndexQueueRepository, PublisherTransformationService pubs) {
 		super(recordClusteringService, sharedIndexQueueRepository);
 		this.client = client;
 		this.conversionService = conversionService;
 		this.indexName = conf.name();
+		this.pubs = pubs;
 	}
 	
 	@PostConstruct
@@ -272,7 +275,9 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 						.properties(
 							"bibId", defaultKeywordProperty())
 						.properties(
-							"sourceSystem", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER))))
+							"sourceSystem", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER))
+						.properties(
+							"sourceSystemCode", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER + WITH_LOWERCASE))))
 					
 			.properties(
 				"isbn", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER))
@@ -323,8 +328,6 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 		};
 	}
 	
-	
-
 	private Mono<BulkResponse> bulkOperations(
 			Collection<org.olf.dcb.indexing.bulk.IndexOperation<UUID, ClusterRecord>> cr) {
 		
@@ -356,6 +359,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 						sink.error(e);
 					}
 				})
+				.transform(pubs::executeOnBlockingThreadPool)
 				.onErrorMap(e -> new DcbError("Error communicating with OpenSearch", e))
 			)
 			.doOnNext( resp -> {

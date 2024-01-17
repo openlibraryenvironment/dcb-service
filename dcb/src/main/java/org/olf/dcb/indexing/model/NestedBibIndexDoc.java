@@ -13,14 +13,16 @@ public class NestedBibIndexDoc {
 
 	private final boolean primary;
 	private final BibRecord bib;
+	private final String hostLmsCode;
 
-	protected NestedBibIndexDoc(BibRecord bib, boolean primary) {
+	protected NestedBibIndexDoc(BibRecord bib, String hostLmsCode, boolean primary) {
 		this.bib = bib;
 		this.primary = primary;
+		this.hostLmsCode = hostLmsCode;
 	}
 
-	public NestedBibIndexDoc(BibRecord bib) {
-		this(bib, false);
+	public NestedBibIndexDoc(BibRecord bib, String hostLmsCode) {
+		this(bib, hostLmsCode, false);
 	}
 
 	UUID getBibId() {
@@ -41,5 +43,9 @@ public class NestedBibIndexDoc {
 
 	boolean isPrimary() {
 		return primary;
+	}
+
+	String getSourceSystemCode() {
+		return hostLmsCode;
 	}
 }

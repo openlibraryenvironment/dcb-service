@@ -44,6 +44,7 @@ import jakarta.inject.Singleton;
 import lombok.Setter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import services.k_int.micronaut.PublisherTransformationService;
 
 @Setter
 @Requires(bean = ElasticsearchAsyncClient.class)
@@ -69,14 +70,16 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	
 	private final ElasticsearchAsyncClient client;
 	private final ConversionService conversionService;
+	private final PublisherTransformationService pubs;
 	
 	private final String indexName; 
 	
-	public ElasticsearchSharedIndexService(SharedIndexConfiguration conf, ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, SharedIndexQueueRepository sharedIndexQueueRepository) {
+	public ElasticsearchSharedIndexService(SharedIndexConfiguration conf, ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, SharedIndexQueueRepository sharedIndexQueueRepository, PublisherTransformationService pubs) {
 		super(recordClusteringService, sharedIndexQueueRepository);
 		this.client = client;
 		this.conversionService = conversionService;
 		this.indexName = conf.name();
+		this.pubs = pubs;
 	}
 	
 	@PostConstruct
@@ -265,7 +268,9 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 						.properties(
 							"bibId", defaultKeywordProperty())
 						.properties(
-							"sourceSystem", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER))))
+							"sourceSystem", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER))
+						.properties(
+							"sourceSystemCode", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER + WITH_LOWERCASE))))
 					
 			.properties(
 				"isbn", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER))
@@ -316,8 +321,6 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 		};
 	}
 	
-	
-
 	private Mono<BulkResponse> bulkOperations(
 
 		Collection<org.olf.dcb.indexing.bulk.IndexOperation<UUID, ClusterRecord>> cr) {
@@ -350,6 +353,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 						sink.error(e);
 					}
 				})
+				.transform(pubs::executeOnBlockingThreadPool)
 				.onErrorMap(e -> new DcbError("Error communicating with Elasticearch", e))
 			)
 			.doOnNext( resp -> {
