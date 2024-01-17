@@ -125,6 +125,8 @@ public class AdminController {
 	@Secured({ "ADMIN" })
 	@Post(uri = "/reindex", produces = APPLICATION_JSON)
 	public Mono<MutableHttpResponse<Object>> reindex() {
+
+		log.info("reindex request... starting");
 		
 		return Mono.justOrEmpty(sharedIndexUpdater)
 			.flatMap( indexService -> 

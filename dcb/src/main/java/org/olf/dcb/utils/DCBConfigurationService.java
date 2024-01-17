@@ -85,7 +85,7 @@ public class DCBConfigurationService {
 		return Mono.from(httpClient.exchange(request, String.class))
 			.flatMapMany( this::extractData )
 			.concatMap( rvm -> {
-				log.debug("Process ref value mapping from {}: {}",url,rvm.toString());
+				log.debug("Process ref value mapping from {}: {}",url,Arrays.toString(rvm));
 				return processReferenceValueMapping(rvm);
 			})
 			.collectList()
