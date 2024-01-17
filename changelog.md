@@ -1,5 +1,52 @@
 # Changelog
 
+## Version 4.5.0
+
+### Additions
+* [General]
+	* Add code to index document template.
+	* validate patron in folio borrowing system [DCB-766]
+
+### Changes
+* [Chore]
+	* Pass item barcode when placing request at supplying agency DCB-490
+	* Add fallback error for when pickup location to agency mapping fails DCB-490
+	* Pass pickup agency when placing request at supplying agency DCB-490
+	* Add pickup agency to place request parameters DCB-490
+	* Remove redundant modifiers for agency properties DCB-490
+	* Replace spaces with tabs in workflow context DCB-490
+	* Pass paron type and barcode when placing request at supplying agency DCB-490
+	* Add barcode and host LMS to patron identity to string contents DCB-490
+	* Incremental refactor preparing for supplier preflight
+	* take heed of isActive flag on supplier request
+	* more meaningful message when unable to map item type
+	* Add patron request UUID to tracking record in preparation for writing audit records with respect to tracking events
+	* Change hold status handling in polaris client to switch, add translations for Shipped to IN_TRANSIT, tidy indenting in tracking service
+	* Factor in patron request when looking for tracked requests - don't watch anything in an ERROR state
+	* Null-safe protection on patron barcode prefix for polaris
+* [Feature]
+	* Implement tracking service audit logging
+	* Add UniqueID+NAME authentication to sierra host lms for WASHU
+	* Added handlers for supplier request cancelled and for unhandled state transitions in supplier requests - a noop that will just update the supplier request record
+	* Understand label / comment field in reference data import
+	* When creating an item in SIERRA, Read back sierra create item before contunuing
+* [Refactor]
+	* Extract method for creating unable to place request problem DCB-490
+* [Test]
+	* Check hold is placed at borrowing agency DCB-490
+	* Delete all agencies before Polaris host LMS client tests DCB-490
+	* Pickup location should be associated with borrowing agency DCB-490
+	* Verify pickup location sent to Sierra when placing supplying request DCB-490
+	* Verify that hold request was made to Sierra during supplying agency tests DCB-490
+	* Use property matcher for Sierra invalid hold policy message DCB-490
+	* polaris delete item and delete bib override methods [DCB-789]
+
+### Fixes
+* [General]
+	* Stop attempting to bulk update on empty lists
+	* validate a polaris hold response success [DCB-832]
+	* Guard code around invalid bulk operation.
+
 ## Version 4.4.0
 
 ### Additions
@@ -9,6 +56,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* defensive code in polaris adapter to make sure items array length > 0
 	* correct local item status name
 	* Extra info to make grepping for onTrackingEvent more meaningful when watching a specific flow
