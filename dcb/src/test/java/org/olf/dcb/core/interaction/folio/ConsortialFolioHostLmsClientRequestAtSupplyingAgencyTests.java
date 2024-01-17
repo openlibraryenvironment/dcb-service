@@ -134,4 +134,34 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		// Assert
 		assertThat(exception, hasMessage("Something went wrong"));
 	}
+
+	@Test
+	void shouldFailWhenTransactionCreationReturnsNotFoundError() {
+		// Arrange
+		mockFolioFixture.mockCreateTransaction(response()
+			.withStatusCode(404)
+			.withBody(json(ConsortialFolioHostLmsClient.ValidationError.builder()
+				.errors(List.of(ConsortialFolioHostLmsClient.ValidationError.Error.builder()
+					.message("Patron group not found with name unknown group")
+					.type("-1")
+					.code("NOT_FOUND_ERROR")
+					.build()))
+				.build())));
+
+		final var pickupAgency = agencyFixture.defineAgency("pickup-agency", "Pickup Agency");
+
+		// Act
+		final var exception = assertThrows(CannotPlaceRequestException.class,
+			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+				PlaceHoldRequestParameters.builder()
+					.localItemId(UUID.randomUUID().toString())
+					.localItemBarcode("4759385")
+					.localPatronId(UUID.randomUUID().toString())
+					.localPatronBarcode("2365865")
+					.pickupAgency(pickupAgency)
+					.build())));
+
+		// Assert
+		assertThat(exception, hasMessage("Patron group not found with name unknown group"));
+	}
 }

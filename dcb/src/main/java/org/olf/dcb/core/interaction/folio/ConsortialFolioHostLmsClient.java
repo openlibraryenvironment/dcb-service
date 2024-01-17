@@ -316,7 +316,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.build());
 
 		return makeRequest(request, Argument.of(CreateTransactionResponse.class))
-			.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError);
+			.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
+			.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError);
 	}
 
 	private CannotPlaceRequestException interpretValidationError(Throwable error) {

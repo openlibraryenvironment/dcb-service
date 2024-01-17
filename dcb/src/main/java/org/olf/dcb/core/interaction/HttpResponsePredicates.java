@@ -10,6 +10,10 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 
 public class HttpResponsePredicates {
+	public static boolean isNotFound(Throwable throwable) {
+		return isClientResponseException(throwable, isNotFound());
+	}
+
 	public static boolean isUnauthorised(Throwable throwable) {
 		return isClientResponseException(throwable, isUnauthorised());
 	}
