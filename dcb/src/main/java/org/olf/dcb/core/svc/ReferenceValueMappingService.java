@@ -46,4 +46,11 @@ public class ReferenceValueMappingService {
 				mapping -> log.debug("Found mapping from category: {} context: {} to context {}: {}", sourceContext,
 					sourceContext, targetContext, mapping)));
 	}
+
+	public Mono<ReferenceValueMapping> findReciprocalMapping(String targetCategory,
+		String targetContext, String targetValue, String sourceCategory, String sourceContext) {
+
+		return Mono.from(repository.findOneByFromCategoryAndFromContextAndToCategoryAndToContextAndToValue(
+			sourceCategory, sourceContext, targetCategory, targetContext, targetValue));
+	}
 }

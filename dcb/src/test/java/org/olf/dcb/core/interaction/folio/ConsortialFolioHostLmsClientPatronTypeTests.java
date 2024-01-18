@@ -48,6 +48,24 @@ class ConsortialFolioHostLmsClientPatronTypeTests {
 	}
 
 	@Test
+	void shouldDetermineLocalPatronTypeBasedUponCanonicalPatronType() {
+		// Arrange
+		final var hostLms = createFolioHostLms();
+
+		referenceValueMappingFixture.definePatronTypeMapping(hostLms.getCode(),
+			"local-patron-type", "DCB", "canonical-patron-type");
+
+		// Act
+		final var client = hostLmsFixture.createClient(hostLms.getCode());
+
+		final var localPatronType = singleValueFrom(
+			client.findLocalPatronType("canonical-patron-type"));
+
+		// Assert
+		assertThat(localPatronType, is("local-patron-type"));
+	}
+
+	@Test
 	void shouldFailToDetermineCanonicalPatronTypeWhenNoMappingIsDefined() {
 		// Arrange
 		final var hostLms = createFolioHostLms();
@@ -61,6 +79,49 @@ class ConsortialFolioHostLmsClientPatronTypeTests {
 		// Assert
 		assertThat(exception, hasMessage(
 			"Unable to map patron type \"local-patron-type\" on Host LMS: \"folio-host-lms\" to canonical value"));
+	}
+
+	@Test
+	void shouldFailToDetermineLocalPatronTypeWhenNoMappingIsDefined() {
+		// Arrange
+		final var hostLms = createFolioHostLms();
+
+		// Act
+		final var client = hostLmsFixture.createClient(hostLms.getCode());
+
+		final var exception = assertThrows(NoPatronTypeMappingFoundException.class,
+			() -> singleValueFrom(client.findLocalPatronType("canonical-patron-type")));
+
+		// Assert
+		assertThat(exception, hasMessage(
+			"Unable to map canonical patron type \"canonical-patron-type\" to a patron type on Host LMS: \"folio-host-lms\""));
+	}
+
+	@Test
+	void shouldFailToDetermineLocalPatronTypeWhenOnlyMappingFromLocalToCanonicalIsDefined() {
+		// This is counter-intuitive
+		// At the moment, this only checks for a mapping from local to canonical
+		// and uses the source value (rather than the target value)
+		//
+		// Meaning it will fail even if a canonical to local mapping is defined
+		//
+		// This is intended to deter folks from defining duplicate mappings in both directions
+
+		// Arrange
+		final var hostLms = createFolioHostLms();
+
+		referenceValueMappingFixture.definePatronTypeMapping(
+			"DCB", "canonical-patron-type", hostLms.getCode(), "local-patron-type");
+
+		// Act
+		final var client = hostLmsFixture.createClient(hostLms.getCode());
+
+		final var exception = assertThrows(NoPatronTypeMappingFoundException.class,
+			() -> singleValueFrom(client.findLocalPatronType("canonical-patron-type")));
+
+		// Assert
+		assertThat(exception, hasMessage(
+			"Unable to map canonical patron type \"canonical-patron-type\" to a patron type on Host LMS: \"folio-host-lms\""));
 	}
 
 	private DataHostLms createFolioHostLms() {

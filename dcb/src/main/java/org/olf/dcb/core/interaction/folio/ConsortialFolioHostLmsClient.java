@@ -43,6 +43,7 @@ import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.folio.User.PersonalDetails;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
@@ -50,7 +51,9 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.NoHomeBarcodeException;
 import org.olf.dcb.core.model.NoHomeIdentityException;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.request.fulfilment.PatronTypeService;
 
 import io.micronaut.context.annotation.Parameter;
@@ -114,6 +117,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService;
 	private final PatronTypeService patronTypeService;
+	private final ReferenceValueMappingService referenceValueMappingService;
 
 	private final String apiKey;
 	private final URI rootUri;
@@ -132,7 +136,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		@Parameter("client") HttpClient httpClient, ItemStatusMapper itemStatusMapper,
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService,
-		PatronTypeService patronTypeService) {
+		PatronTypeService patronTypeService,
+		ReferenceValueMappingService referenceValueMappingService) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
@@ -141,6 +146,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.materialTypeToItemTypeMappingService = materialTypeToItemTypeMappingService;
 		this.patronTypeService = patronTypeService;
+		this.referenceValueMappingService = referenceValueMappingService;
 
 		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
 		this.rootUri = UriBuilder.of(BASE_URL_SETTING.getRequiredConfigValue(hostLms)).build();
@@ -344,7 +350,16 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> findLocalPatronType(String canonicalPatronType) {
-		return Mono.error(new NotImplementedException("Find local patron type is not currently implemented for FOLIO"));
+		if (canonicalPatronType == null) {
+			return Mono.empty();
+		}
+
+		return referenceValueMappingService.findReciprocalMapping("patronType",
+				"DCB", canonicalPatronType, "patronType", getHostLmsCode())
+			.map(ReferenceValueMapping::getFromValue)
+			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
+				"Unable to map canonical patron type \"" + canonicalPatronType + "\" to a patron type on Host LMS: \"" + getHostLmsCode() + "\"",
+				getHostLmsCode(), canonicalPatronType)));
 	}
 
 	@Override
