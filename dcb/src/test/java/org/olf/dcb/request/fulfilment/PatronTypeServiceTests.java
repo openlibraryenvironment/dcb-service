@@ -9,6 +9,7 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.test.DcbTest;
+import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import jakarta.inject.Inject;
@@ -20,10 +21,13 @@ class PatronTypeServiceTests {
 
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private HostLmsFixture hostLmsFixture;
 
 	@BeforeEach
 	public void beforeEach() {
 		referenceValueMappingFixture.deleteAll();
+		hostLmsFixture.deleteAll();
 	}
 
 	@Test
