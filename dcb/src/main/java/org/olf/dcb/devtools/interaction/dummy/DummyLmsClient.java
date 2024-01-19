@@ -126,9 +126,9 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	@Override
-	public Mono<String> findLocalPatronType(String supplierHostLmsCode, String canonicalPatronType) {
+	public Mono<String> findLocalPatronType(String canonicalPatronType) {
 		return referenceValueMappingService.findMapping("patronType", "DCB",
-				canonicalPatronType, supplierHostLmsCode)
+				canonicalPatronType, getHostLmsCode())
 			.map(ReferenceValueMapping::getToValue);
 	}
 

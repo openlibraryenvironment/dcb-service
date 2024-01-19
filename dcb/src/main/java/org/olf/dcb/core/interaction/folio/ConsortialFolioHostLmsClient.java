@@ -287,7 +287,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<String> findLocalPatronType(String supplierHostLmsCode, String canonicalPatronType) {
+	public Mono<String> findLocalPatronType(String canonicalPatronType) {
 		return Mono.error(new NotImplementedException("Find local patron type is not currently implemented for FOLIO"));
 	}
 
