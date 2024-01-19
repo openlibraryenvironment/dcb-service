@@ -345,7 +345,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 						}
 	
 						if ( breq != null ) {
-							client.bulk( bops.index(indexName).build() ).handle((br, ex) -> {
+							client.bulk( breq ).handle((br, ex) -> {
 								if ( ex != null) {
 									sink.error(ex);
 									return ex;
