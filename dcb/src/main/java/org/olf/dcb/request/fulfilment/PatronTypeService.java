@@ -46,8 +46,8 @@ public class PatronTypeService {
 		String canonicalPatronType) {
 
 		return hostLmsService.getClientFor(supplierHostLmsCode)
-			.flatMap(client -> findMapping(supplierHostLmsCode, canonicalPatronType)
-				.map(ReferenceValueMapping::getToValue));
+			.flatMap(client -> client.findLocalPatronType(supplierHostLmsCode, canonicalPatronType,
+				referenceValueMappingService));
 	}
 
 	private Mono<String> findCanonicalPatronType(String requesterHostLmsCode,
@@ -55,11 +55,6 @@ public class PatronTypeService {
 
 		return hostLmsService.getClientFor(requesterHostLmsCode)
 			.flatMap(client -> client.findCanonicalPatronType(requesterPatronType, requesterLocalId));
-	}
-
-	private Mono<ReferenceValueMapping> findMapping(String targetContext, String sourceValue) {
-		return referenceValueMappingService.findMapping("patronType", "DCB",
-			sourceValue, targetContext);
 	}
 
 	public Mono<String> findCanonicalPatronType(String hostLmsCode, String localPatronType) {
