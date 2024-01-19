@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.olf.dcb.core.api.serde.ImportCommand;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.indexing.SharedIndexLiveUpdater;
+import org.olf.dcb.indexing.SharedIndexLiveUpdater.ReindexOp;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.stats.StatsService;
@@ -123,16 +124,20 @@ public class AdminController {
 	}
 
 	@Secured({ "ADMIN" })
-	@Post(uri = "/reindex", produces = APPLICATION_JSON)
-	public Mono<MutableHttpResponse<Object>> reindex() {
+	@Post(uri = "/reindex{/operation}", produces = APPLICATION_JSON)
+	public Mono<MutableHttpResponse<Object>> reindex(Optional<ReindexOp> operation) {
+		
+		ReindexOp op = operation.orElse(ReindexOp.START);
 
-		log.info("reindex request... starting");
+		log.info("reindex request... {}", op);
 		
 		return Mono.justOrEmpty(sharedIndexUpdater)
-			.flatMap( indexService -> 
+			.zipWith(Mono.just(op))
+			
+			.flatMap( TupleUtils.function((indexService, theOp) -> 
 				indexService
-					.reindexAllClusters()
-					.thenReturn(HttpResponse.accepted()))
+					.reindexAllClusters(op)
+					.thenReturn(HttpResponse.accepted())))
 			
 			.defaultIfEmpty(HttpResponse.notFound());
 	}

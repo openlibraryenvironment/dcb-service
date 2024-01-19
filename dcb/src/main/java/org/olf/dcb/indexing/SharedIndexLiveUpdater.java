@@ -25,6 +25,7 @@ import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
+import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 
@@ -32,6 +33,11 @@ import reactor.core.publisher.MonoSink;
 @ExecuteOn(TaskExecutors.BLOCKING)
 @Singleton
 public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupEvent>, EntityEventListener<ClusterRecord> {
+	
+	public static  enum ReindexOp {
+		START,
+		STOP
+	}
 	
 	private final SharedIndexService sharedIndexService;
 	private final RecordClusteringService clusters;
@@ -66,6 +72,8 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 		// To make this more passive, we should try/catch. 
 		Mono.from(sharedIndexService.initialize()).block();
 	}
+	
+	private Disposable reindexTask = null;
 
 	@ExecuteOn(TaskExecutors.BLOCKING)
 	protected void doAndReportReindex( @NonNull MonoSink<Void> startedSignal ) {
@@ -73,7 +81,7 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 		
 		final Instant start = Instant.now();
 		
-		clusters.findNext1000UpdatedBefore(start, Pageable.from(0, 1000))
+		reindexTask = clusters.findNext1000UpdatedBefore(start, Pageable.from(0, 1000))
 			.doOnSuccess(_v -> startedSignal.success() )
 			.doOnError( startedSignal::error )
 			.expand(p -> {
@@ -126,8 +134,31 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 	
 	private Mono<Void> jobMono;
 
+	public Mono<Void> cancelReindexJob() {
+		log.debug("Cancel reindex job");
+		if (reindexTask == null) {
+			log.debug("Job not running NOOP");
+			return Mono.empty();
+		}
+		synchronized (this) {
+			if (reindexTask == null) {
+				return Mono.empty();
+			}
+			try {
+				reindexTask.dispose();
+			} finally {
+				jobMono = null;
+			}
+			return Mono.empty();
+		}
+	}
+	
 	@Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
-	public Mono<Void> reindexAllClusters() {
+	public Mono<Void> reindexAllClusters( @NonNull ReindexOp op ) {
+		
+		if (op == ReindexOp.STOP) {
+			return this.cancelReindexJob();
+		}
 		
 		if (jobMono == null) {
 			synchronized (this) {
