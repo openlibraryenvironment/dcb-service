@@ -59,7 +59,8 @@ public class HostLmsFixture {
 	}
 
 	public DataHostLms createSierraHostLms(String code) {
-		return createSierraHostLms(code, Map.of());
+		// These parameters have to be defined in order for the client to be instantiable
+		return createSierraHostLms(code,"some-username", "some-password", "http://some-sierra-system");
 	}
 
 	public DataHostLms createSierraHostLms(String code, String username,
