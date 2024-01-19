@@ -931,9 +931,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<String> findLocalPatronType(String supplierHostLmsCode, String canonicalPatronType,
-		ReferenceValueMappingService referenceValueMappingService) {
-
+	public Mono<String> findLocalPatronType(String supplierHostLmsCode, String canonicalPatronType) {
 		return referenceValueMappingService.findMapping("patronType", "DCB",
 				canonicalPatronType, supplierHostLmsCode)
 			.map(ReferenceValueMapping::getToValue);

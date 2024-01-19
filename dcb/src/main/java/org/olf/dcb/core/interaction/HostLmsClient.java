@@ -6,7 +6,6 @@ import java.util.Map;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
 import reactor.core.publisher.Mono;
 
@@ -46,8 +45,7 @@ public interface HostLmsClient {
 
 	Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters);
 
-	Mono<String> findLocalPatronType(String supplierHostLmsCode, String canonicalPatronType,
-		ReferenceValueMappingService referenceValueMappingService);
+	Mono<String> findLocalPatronType(String supplierHostLmsCode, String canonicalPatronType);
 
 	Mono<String> findCanonicalPatronType(String localPatronType, String localId);
 

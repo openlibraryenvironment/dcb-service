@@ -47,7 +47,6 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.NoHomeBarcodeException;
 import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.request.fulfilment.PatronTypeService;
 
 import io.micronaut.context.annotation.Parameter;
@@ -288,9 +287,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<String> findLocalPatronType(String supplierHostLmsCode,
-		String canonicalPatronType, ReferenceValueMappingService referenceValueMappingService) {
-
+	public Mono<String> findLocalPatronType(String supplierHostLmsCode, String canonicalPatronType) {
 		return Mono.error(new NotImplementedException("Find local patron type is not currently implemented for FOLIO"));
 	}
 

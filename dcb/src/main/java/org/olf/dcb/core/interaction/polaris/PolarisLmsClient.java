@@ -324,9 +324,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<String> findLocalPatronType(String supplierHostLmsCode, String canonicalPatronType,
-		ReferenceValueMappingService referenceValueMappingService) {
-
+	public Mono<String> findLocalPatronType(String supplierHostLmsCode, String canonicalPatronType) {
 		return referenceValueMappingService.findMapping("patronType", "DCB",
 				canonicalPatronType, supplierHostLmsCode)
 			.map(ReferenceValueMapping::getToValue);

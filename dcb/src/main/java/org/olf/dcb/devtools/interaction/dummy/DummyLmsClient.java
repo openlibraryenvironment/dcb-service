@@ -67,18 +67,21 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	private final ProcessStateService processStateService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final NumericPatronTypeMapper numericPatronTypeMapper;
+	private final ReferenceValueMappingService referenceValueMappingService;
 
 	private static final String[] titleWords = { "Science", "Philosophy", "Music", "Art", "Nonsense", "Dialectic",
 			"FlipDeBoop", "FlopLehoop", "Affdgerandunique", "Literacy" };
 
 	public DummyLmsClient(@Parameter HostLms lms, ProcessStateService processStateService,
 		LocationToAgencyMappingService locationToAgencyMappingService,
-		NumericPatronTypeMapper numericPatronTypeMapper) {
+		NumericPatronTypeMapper numericPatronTypeMapper,
+		ReferenceValueMappingService referenceValueMappingService) {
 
 		this.lms = lms;
 		this.processStateService = processStateService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
+		this.referenceValueMappingService = referenceValueMappingService;
 	}
 
 	@Override
@@ -123,9 +126,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	@Override
-	public Mono<String> findLocalPatronType(String supplierHostLmsCode,
-		String canonicalPatronType, ReferenceValueMappingService referenceValueMappingService) {
-
+	public Mono<String> findLocalPatronType(String supplierHostLmsCode, String canonicalPatronType) {
 		return referenceValueMappingService.findMapping("patronType", "DCB",
 				canonicalPatronType, supplierHostLmsCode)
 			.map(ReferenceValueMapping::getToValue);
