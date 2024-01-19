@@ -35,10 +35,9 @@ public class PatronTypeService {
 			supplierHostLmsCode, requesterHostLmsCode, requesterPatronType);
 
 		return hostLmsService.getClientFor(requesterHostLmsCode)
-			.flatMap(client -> client.findCanonicalPatronType(
-				requesterHostLmsCode, requesterPatronType, requesterLocalId))
+			.flatMap(client -> client.findCanonicalPatronType(requesterPatronType, requesterLocalId))
 			.flatMap(spineMapping -> findMapping(supplierHostLmsCode, spineMapping))
-			.doOnNext (targetMapping -> log.debug("Got target mapping {}", targetMapping))
+			.doOnNext(targetMapping -> log.debug("Got target mapping {}", targetMapping))
 			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.error(new PatronTypeMappingNotFound("No mapping found from ptype " +
 				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode)))

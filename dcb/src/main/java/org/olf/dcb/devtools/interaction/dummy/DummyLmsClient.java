@@ -121,11 +121,9 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	@Override
-	public Mono<String> findCanonicalPatronType(String requesterHostLmsCode,
-		String requesterPatronType, String requesterLocalId) {
-
+	public Mono<String> findCanonicalPatronType(String localPatronType, String localId) {
 		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(
-			requesterHostLmsCode, requesterPatronType, requesterLocalId);
+			getHostLmsCode(), localPatronType, localId);
 	}
 
 	@Override
