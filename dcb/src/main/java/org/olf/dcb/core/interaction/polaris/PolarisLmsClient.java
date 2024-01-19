@@ -50,6 +50,7 @@ import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
@@ -101,6 +102,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final RawSourceRepository rawSourceRepository;
 	private final ConversionService conversionService;
 	private final ReferenceValueMappingService referenceValueMappingService;
+	private final NumericPatronTypeMapper numericPatronTypeMapper;
 	private final IngestHelper ingestHelper;
 	private final PolarisItemMapper itemMapper;
 	private final PAPIClient papiClient;
@@ -113,18 +115,16 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
   private static final URI ERR0212 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0212/Polaris/UnableToCreateItem");
 
 	@Creator
-	PolarisLmsClient(
-		@Parameter("hostLms") HostLms hostLms,
-		@Parameter("client") HttpClient client,
-		ProcessStateService processStateService,
-		RawSourceRepository rawSourceRepository,
-		ConversionService conversionService,
-		ReferenceValueMappingService referenceValueMappingService,
-		PolarisItemMapper itemMapper)
-	{
+	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,
+		ProcessStateService processStateService, RawSourceRepository rawSourceRepository,
+		ConversionService conversionService, ReferenceValueMappingService referenceValueMappingService,
+		NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper) {
+
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
+
 		rootUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
 		lms = hostLms;
+
 		this.appServicesClient = new ApplicationServicesClient(this);
 		this.papiClient = new PAPIClient(this);
 		this.itemMapper = itemMapper;
@@ -133,6 +133,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.rawSourceRepository = rawSourceRepository;
 		this.conversionService = conversionService;
 		this.referenceValueMappingService = referenceValueMappingService;
+		this.numericPatronTypeMapper = numericPatronTypeMapper;
 		this.client = client;
 	}
 
