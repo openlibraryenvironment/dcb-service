@@ -1,5 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.model.ReferenceValueMapping;
@@ -12,12 +13,15 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Prototype
 public class PatronTypeService {
+	private final HostLmsService hostLmsService;
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final NumericPatronTypeMapper numericPatronTypeMapper;
 
-	public PatronTypeService(ReferenceValueMappingService referenceValueMappingService,
+	public PatronTypeService(HostLmsService hostLmsService,
+		ReferenceValueMappingService referenceValueMappingService,
 		NumericPatronTypeMapper numericPatronTypeMapper) {
 
+		this.hostLmsService = hostLmsService;
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
 	}
