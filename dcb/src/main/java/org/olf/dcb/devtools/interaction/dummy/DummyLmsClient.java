@@ -33,7 +33,9 @@ import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
@@ -118,6 +120,15 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		}
 
 		return Mono.empty();
+	}
+
+	@Override
+	public Mono<String> findLocalPatronType(String supplierHostLmsCode,
+		String canonicalPatronType, ReferenceValueMappingService referenceValueMappingService) {
+
+		return referenceValueMappingService.findMapping("patronType", "DCB",
+				canonicalPatronType, supplierHostLmsCode)
+			.map(ReferenceValueMapping::getToValue);
 	}
 
 	@Override

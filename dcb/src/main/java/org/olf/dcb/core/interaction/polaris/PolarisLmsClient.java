@@ -324,6 +324,15 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
+	public Mono<String> findLocalPatronType(String supplierHostLmsCode, String canonicalPatronType,
+		ReferenceValueMappingService referenceValueMappingService) {
+
+		return referenceValueMappingService.findMapping("patronType", "DCB",
+				canonicalPatronType, supplierHostLmsCode)
+			.map(ReferenceValueMapping::getToValue);
+	}
+
+	@Override
 	public Mono<String> findCanonicalPatronType(String localPatronType, String localId) {
 		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(
 			getHostLmsCode(), localPatronType, localId);
@@ -646,6 +655,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		log.warn("Request to map item type was missing required parameters {}/{}", getHostLmsCode(), itemTypeCode);
 		return Mono.just("19");
 	}
+
 	@Builder
 	@Data
 	@AllArgsConstructor
