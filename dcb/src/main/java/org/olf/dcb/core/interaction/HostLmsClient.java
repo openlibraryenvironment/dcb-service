@@ -45,6 +45,9 @@ public interface HostLmsClient {
 
 	Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters);
 
+	Mono<String> findCanonicalPatronType(String requesterHostLmsCode,
+		String requesterPatronType, String requesterLocalId);
+
 	// Look up patron by their internal id - e.g. 1234
 	Mono<Patron> getPatronByLocalId(String localPatronId);
 

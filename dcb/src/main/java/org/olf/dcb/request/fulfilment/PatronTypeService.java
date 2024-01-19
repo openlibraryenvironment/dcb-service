@@ -2,7 +2,6 @@ package org.olf.dcb.request.fulfilment;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
-import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
@@ -15,15 +14,12 @@ import reactor.core.publisher.Mono;
 public class PatronTypeService {
 	private final HostLmsService hostLmsService;
 	private final ReferenceValueMappingService referenceValueMappingService;
-	private final NumericPatronTypeMapper numericPatronTypeMapper;
 
 	public PatronTypeService(HostLmsService hostLmsService,
-		ReferenceValueMappingService referenceValueMappingService,
-		NumericPatronTypeMapper numericPatronTypeMapper) {
+		ReferenceValueMappingService referenceValueMappingService) {
 
 		this.hostLmsService = hostLmsService;
 		this.referenceValueMappingService = referenceValueMappingService;
-		this.numericPatronTypeMapper = numericPatronTypeMapper;
 	}
 
 	/**
@@ -39,7 +35,8 @@ public class PatronTypeService {
 			supplierHostLmsCode, requesterHostLmsCode, requesterPatronType);
 
 		return hostLmsService.getClientFor(requesterHostLmsCode)
-			.flatMap(client -> findCanonicalPatronType(requesterHostLmsCode, requesterPatronType, requesterLocalId))
+			.flatMap(client -> client.findCanonicalPatronType(
+				requesterHostLmsCode, requesterPatronType, requesterLocalId))
 			.flatMap(spineMapping -> findMapping(supplierHostLmsCode, spineMapping))
 			.doOnNext (targetMapping -> log.debug("Got target mapping {}", targetMapping))
 			.map(ReferenceValueMapping::getToValue)
@@ -47,13 +44,6 @@ public class PatronTypeService {
 				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode)))
 			.onErrorMap(cause -> new PatronTypeMappingNotFound("No mapping found from ptype " +
 				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode + " because " + cause.getMessage()));
-	}
-
-	private Mono<String> findCanonicalPatronType(String requesterHostLmsCode,
-		String requesterPatronType, String requesterLocalId) {
-
-		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(
-			requesterHostLmsCode, requesterPatronType, requesterLocalId);
 	}
 
 	private Mono<ReferenceValueMapping> findMapping(String targetContext, String sourceValue) {

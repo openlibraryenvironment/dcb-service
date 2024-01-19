@@ -121,6 +121,14 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	@Override
+	public Mono<String> findCanonicalPatronType(String requesterHostLmsCode,
+		String requesterPatronType, String requesterLocalId) {
+
+		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(
+			requesterHostLmsCode, requesterPatronType, requesterLocalId);
+	}
+
+	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		log.info("getPatronByLocalId({})", localPatronId);
 		Patron result = Patron.builder().localId(List.of(localPatronId)).localNames(List.of("Dummy Name"))
@@ -438,5 +446,4 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
   public Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType) {
     return Mono.just(Boolean.TRUE);
   }
-
 }

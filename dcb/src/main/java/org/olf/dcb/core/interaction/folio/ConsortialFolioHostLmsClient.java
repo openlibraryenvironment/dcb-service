@@ -6,8 +6,7 @@ import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.HttpMethod.POST;
-import static io.micronaut.http.HttpStatus.*;
-
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
@@ -26,9 +25,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.exceptions.HttpStatusException;
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
@@ -58,10 +54,13 @@ import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpHeaders;
+import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.http.uri.UriBuilder;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -285,6 +284,13 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		PlaceHoldRequestParameters parameters) {
 
 		return Mono.error(new NotImplementedException("Placing hold request at borrowing agency is not currently implemented for FOLIO"));
+	}
+
+	@Override
+	public Mono<String> findCanonicalPatronType(String requesterHostLmsCode,
+		String requesterPatronType, String requesterLocalId) {
+
+		return Mono.error(new NotImplementedException("Find canonical patron type is not currently implemented for FOLIO"));
 	}
 
 	@Override
