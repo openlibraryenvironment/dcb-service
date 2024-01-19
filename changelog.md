@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 4.5.1
+
+### Fixes
+* [General]
+	* Reusing builder in Opensearch causes immediate error.
+
 ## Version 4.5.0
 
 ### Additions
@@ -9,6 +15,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Pass item barcode when placing request at supplying agency DCB-490
 	* Add fallback error for when pickup location to agency mapping fails DCB-490
 	* Pass pickup agency when placing request at supplying agency DCB-490
