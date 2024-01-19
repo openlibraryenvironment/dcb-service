@@ -209,8 +209,8 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 				}
 
 				params
-					.queryParam(PARAM_METADATA_PREFIX, metadataPrefix)
-					.queryParam(PARAM_RECORD_SYNTAX, recordSyntax);
+					.queryParam(PARAM_METADATA_PREFIX, metadataPrefix);
+					// .queryParam(PARAM_RECORD_SYNTAX, recordSyntax);
 			});
 			
 		}))
