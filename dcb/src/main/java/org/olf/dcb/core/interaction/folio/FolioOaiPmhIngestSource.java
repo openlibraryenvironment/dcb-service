@@ -35,6 +35,7 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
+import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MediaType;
@@ -209,8 +210,10 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 				}
 
 				params
+					.queryParam(PARAM_RECORD_SYNTAX, recordSyntax)
 					.queryParam(PARAM_METADATA_PREFIX, metadataPrefix);
-					// .queryParam(PARAM_RECORD_SYNTAX, recordSyntax);
+
+				log.info("Final FOLIO OAI params:{}",params);
 			});
 			
 		}))
@@ -300,8 +303,9 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	}
 
 	private void defaultParams ( UriBuilder uri ) {
-		uri
-			.queryParam(PARAM_API_KEY, apiKey);
+		// Suppply API Key as a header rather than a parameter
+		// uri
+		//   .queryParam(PARAM_API_KEY, apiKey);
 	}
 	
 	private <T> Mono<T> get(String path, Argument<T> argumentType,
@@ -309,6 +313,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 
 		return createRequest(GET, path)
 			.map(req -> req
+					.header(HttpHeaders.AUTHORIZATION, apiKey)
 					.uri(this::defaultParams)
 					.uri(uriBuilderConsumer))
 			.flatMap(req -> doRetrieve(req, argumentType));

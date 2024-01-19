@@ -87,10 +87,11 @@ class FolioIngestTests {
 				.withMethod("GET")
 				.withPath("/oai")
 				.withHeader("host", expectedHost)
+				.withHeader("Authorization", "api-key")
 				.withQueryStringParameter("verb", "ListRecords")
-				.withQueryStringParameter("metadataPrefix",
-					"marc21_withholdings")
-				.withQueryStringParameter("apikey", "api-key"))
+				.withQueryStringParameter("metadataPrefix", "marc21_withholdings")
+				// .withQueryStringParameter("apikey", "api-key")
+			)
 			.respond(response()
 				.withStatusCode(200)
 				.withBody(testResourceLoaderProvider.forBasePath(
