@@ -38,7 +38,8 @@ public class PatronTypeService {
 		log.debug("determinePatronType supplier={} requester={} ptype={}",
 			supplierHostLmsCode, requesterHostLmsCode, requesterPatronType);
 
-		return findCanonicalPatronType(requesterHostLmsCode, requesterPatronType, requesterLocalId)
+		return hostLmsService.getClientFor(requesterHostLmsCode)
+			.flatMap(client -> findCanonicalPatronType(requesterHostLmsCode, requesterPatronType, requesterLocalId))
 			.flatMap(spineMapping -> findMapping(supplierHostLmsCode, spineMapping))
 			.doOnNext (targetMapping -> log.debug("Got target mapping {}", targetMapping))
 			.map(ReferenceValueMapping::getToValue)
