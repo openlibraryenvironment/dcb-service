@@ -32,19 +32,20 @@ public class PatronTypeService {
 	 * and then from the spine to the target. We label our spine context "DCB" and this should be considered the canonical
 	 * context over the DCB system.
 	 */
-	public Mono<String> determinePatronType(String supplierHostLmsCode, String requesterHostLmsCode,
-		String requesterPatronType, String requesterLocalId) {
+	public Mono<String> determinePatronType(String supplierHostLmsCode,
+		String requesterHostLmsCode, String requesterPatronType, String requesterLocalId) {
 
-		log.debug("determinePatronType supplier={} requester={} ptype={}",supplierHostLmsCode,requesterHostLmsCode,requesterPatronType);
-		// Get the "Spine" mapping
-		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(requesterHostLmsCode,requesterPatronType, requesterLocalId)
-			.doOnNext ( spineMapping -> log.debug("Got spine mapping {}",spineMapping) )
-			.flatMap( spineMapping -> findMapping( supplierHostLmsCode, spineMapping ) )
-			.doOnNext ( targetMapping -> log.debug("Got target mapping {}",targetMapping) )
+		log.debug("determinePatronType supplier={} requester={} ptype={}",
+			supplierHostLmsCode, requesterHostLmsCode, requesterPatronType);
+
+		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(
+				requesterHostLmsCode, requesterPatronType, requesterLocalId)
+			.doOnNext(spineMapping -> log.debug("Got spine mapping {}", spineMapping))
+			.flatMap(spineMapping -> findMapping(supplierHostLmsCode, spineMapping))
+			.doOnNext (targetMapping -> log.debug("Got target mapping {}", targetMapping))
 			.map(ReferenceValueMapping::getToValue)
-			.switchIfEmpty(Mono.error(
-				new PatronTypeMappingNotFound("No mapping found from ptype " +
-					requesterHostLmsCode+":" +requesterPatronType+" to "+supplierHostLmsCode)))
+			.switchIfEmpty(Mono.error(new PatronTypeMappingNotFound("No mapping found from ptype " +
+				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode)))
 			.onErrorMap(cause -> new PatronTypeMappingNotFound("No mapping found from ptype " +
 				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode + " because " + cause.getMessage()));
 	}
