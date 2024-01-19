@@ -4,6 +4,7 @@ import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMappe
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
@@ -18,6 +19,7 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.FixedField;
+import services.k_int.interaction.sierra.VarField;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
 
@@ -51,6 +53,9 @@ public class SierraItemMapper {
 		final var statusCode = PropertyAccessUtils.getValue(itemResult.getStatus(), Status::getCode);
 		final var dueDate = PropertyAccessUtils.getValue(itemResult.getStatus(), Status::getDuedate);
 
+		final String rawVolumeStatement = extractRawVolumeStatement(itemResult.getVarFields());
+		final String parsedVolumeStatement = parseVolumeStatement(rawVolumeStatement);
+
 		// Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
 		// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human-readable string at the moment
 		return itemStatusMapper.mapStatus(statusCode, dueDate, hostLmsCode, sierraItemStatusFallback())
@@ -71,6 +76,8 @@ public class SierraItemMapper {
 				.localItemTypeCode(determineLocalItemTypeCode(itemResult.getFixedFields()))
 				.deleted(itemResult.getDeleted())
 				.suppressed(itemResult.getSuppressed())
+				.rawVolumeStatement(rawVolumeStatement)
+				.parsedVolumeStatement(parsedVolumeStatement)
 				.build())
 			.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item, hostLmsCode))
 			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode));
@@ -99,5 +106,41 @@ public class SierraItemMapper {
 		}
 
 		return localItemTypeCode;
+	}
+
+	private String extractRawVolumeStatement(List<VarField> varFields) {
+
+		String result = null;
+
+		if ( varFields != null ) {
+			// Volume information can be found in a varField with fieldTag="v" and the value is in the "content" field
+			Optional<VarField> volumeVarField = varFields.stream()
+				.filter(varField -> varField.getFieldTag() == 'c')
+				.findFirst();
+
+			if (volumeVarField.isPresent()) {
+				VarField foundObject = volumeVarField.get();
+				result = foundObject.getContent();
+			}
+		}
+
+		return result;
+	}
+
+	private String parseVolumeStatement(String volumeStatement) {
+
+		// \b(?:Vol\.? ?|v)(\d+)(?:,? ?Item \d+)?\b
+		// Explanation:
+    //   \b: Word boundary to ensure that the pattern is matched as a whole word.
+    //   (?:Vol\.? ?|v): Non-capturing group to match either "Vol", "Vol.", "v" or "v" followed by an optional period and space.
+    //   (\d+): Capturing group to match one or more digits representing the volume.
+    //   (?:,? ?Item \d+)?: Optional non-capturing group to match an optional comma, optional space, "Item", a space, and one or more digits. This is to handle cases like "Vol 1, Item 1".
+    //   \b: Word boundary to complete the pattern matching.
+
+		String result = null;
+		if ( volumeStatement != null ) {
+			result = volumeStatement;
+		}
+		return result;
 	}
 }

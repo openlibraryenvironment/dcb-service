@@ -45,6 +45,11 @@ public class Item implements Comparable<Item> {
 	private String agencyCode;
 	private String agencyName;
 
+	// If this item has attached volume information use these two fields to stash the raw
+	// and the processed volume statement. parsed volume statement
+	private String rawVolumeStatement;
+	private String parsedVolumeStatement;
+
 	public boolean isAvailable() {
 		return getStatus().getCode() == AVAILABLE;
 	}

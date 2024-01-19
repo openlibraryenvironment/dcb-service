@@ -1,12 +1,14 @@
 package services.k_int.interaction.sierra.items;
 
 import java.util.Map;
+import java.util.List;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
 import services.k_int.interaction.sierra.FixedField;
+import services.k_int.interaction.sierra.VarField;
 
 @Data
 @Builder
@@ -44,8 +46,8 @@ public class SierraItem {
 	Integer copyNo;
 	@Nullable
 	Integer holdCount;
-//	fixedFields (map[integer, FixedField]): the fixed-length fields from the item record,
-//	varFields (array[VarField]): the variable-length fields from the item record
-        Map<Integer, FixedField> fixedFields;
-
+	@Nullable
+  Map<Integer, FixedField> fixedFields;
+	@Nullable
+	List<VarField> varFields;
 }
