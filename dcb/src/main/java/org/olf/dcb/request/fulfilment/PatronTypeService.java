@@ -38,9 +38,7 @@ public class PatronTypeService {
 		log.debug("determinePatronType supplier={} requester={} ptype={}",
 			supplierHostLmsCode, requesterHostLmsCode, requesterPatronType);
 
-		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(
-				requesterHostLmsCode, requesterPatronType, requesterLocalId)
-			.doOnNext(spineMapping -> log.debug("Got spine mapping {}", spineMapping))
+		return findCanonicalPatronType(requesterHostLmsCode, requesterPatronType, requesterLocalId)
 			.flatMap(spineMapping -> findMapping(supplierHostLmsCode, spineMapping))
 			.doOnNext (targetMapping -> log.debug("Got target mapping {}", targetMapping))
 			.map(ReferenceValueMapping::getToValue)
@@ -48,6 +46,13 @@ public class PatronTypeService {
 				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode)))
 			.onErrorMap(cause -> new PatronTypeMappingNotFound("No mapping found from ptype " +
 				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode + " because " + cause.getMessage()));
+	}
+
+	private Mono<String> findCanonicalPatronType(String requesterHostLmsCode,
+		String requesterPatronType, String requesterLocalId) {
+
+		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(
+			requesterHostLmsCode, requesterPatronType, requesterLocalId);
 	}
 
 	private Mono<ReferenceValueMapping> findMapping(String targetContext, String sourceValue) {
