@@ -11,6 +11,7 @@ import lombok.Data;
 public class User {
 	@Nullable String id;
 	@Nullable String patronGroup;
+	@Nullable String patronGroupName;
 	@Nullable String barcode;
 	@Nullable String username;
 	@Nullable User.PersonalDetails personal;

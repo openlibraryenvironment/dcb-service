@@ -87,6 +87,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 			User.builder()
 				.id(localId)
 				.patronGroup(patronGroup)
+				.patronGroupName("undergraduate")
 				.barcode(barcode)
 				.personal(User.PersonalDetails.builder()
 					.firstName("first name")
@@ -135,6 +136,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		mockFolioFixture.mockGetUsersWithQuery("barcode", barcode, User.builder()
 			.patronGroup("unknown-patron-group")
+			.patronGroupName("unknown")
 			.barcode(barcode)
 			.build());
 
@@ -183,6 +185,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		mockFolioFixture.mockPatronAuth(barcode, User.builder()
 			.id("9c2e859d-e923-450d-85e3-b425cfa9f938")
 			.patronGroup(patronGroup)
+			.patronGroupName("undergraduate")
 			.barcode(barcode)
 			.personal(User.PersonalDetails.builder()
 				.firstName("First")
@@ -217,6 +220,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		mockFolioFixture.mockGetUsersWithQuery("username", username, User.builder()
 			.id("9c2e859d-e923-450d-85e3-b425cfa9f938")
 			.patronGroup(patronGroup)
+			.patronGroupName("undergraduate")
 			.barcode("2093487")
 			.username(username)
 			.personal(User.PersonalDetails.builder()
@@ -252,6 +256,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		mockFolioFixture.mockGetUsersWithQuery("id", id, User.builder()
 			.id("9c2e859d-e923-450d-85e3-b425cfa9f938")
 			.patronGroup(patronGroup)
+			.patronGroupName("undergraduate")
 			.barcode("2093487")
 			.personal(User.PersonalDetails.builder()
 				.firstName("First")
@@ -380,6 +385,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 			User.builder()
 				.id(localId)
 				.patronGroup(patronGroup)
+				.patronGroupName("undergraduate")
 				.barcode(barcode)
 				.personal(User.PersonalDetails.builder()
 					.firstName("first name")
