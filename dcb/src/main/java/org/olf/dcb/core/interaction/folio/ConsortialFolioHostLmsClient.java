@@ -54,7 +54,6 @@ import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
-import org.olf.dcb.request.fulfilment.PatronTypeService;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -438,7 +437,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		return Mono.just(Patron.builder()
 			.localId(nonNullValuesList(user.getId()))
-			.localPatronType(user.getPatronGroup())
+			.localPatronType(user.getPatronGroupName())
 			.localBarcodes(nonNullValuesList(user.getBarcode()))
 			.localNames(nonNullValuesList(
 				getValue(personalDetails, PersonalDetails::getFirstName),

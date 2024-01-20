@@ -77,9 +77,10 @@ class ConsortialFolioHostLmsClientPatronTests {
 		final var barcode = "67375297";
 		final var localId = randomUUID().toString();
 		final var patronGroup = randomUUID().toString();
+		final var patronGroupName = "undergraduate";
 
 		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
-			patronGroup, "DCB", "canonical-patron-type");
+			patronGroupName, "DCB", "canonical-patron-type");
 
 		final var patron = createPatron(randomUUID(), barcode);
 
@@ -87,7 +88,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 			User.builder()
 				.id(localId)
 				.patronGroup(patronGroup)
-				.patronGroupName("undergraduate")
+				.patronGroupName(patronGroupName)
 				.barcode(barcode)
 				.personal(User.PersonalDetails.builder()
 					.firstName("first name")
@@ -103,7 +104,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		// Assert
 		assertThat(foundPatron, allOf(
 			hasLocalIds(localId),
-			hasLocalPatronType(patronGroup),
+			hasLocalPatronType(patronGroupName),
 			hasCanonicalPatronType("canonical-patron-type"),
 			hasLocalBarcodes(barcode),
 			hasNoHomeLibraryCode(),
@@ -147,7 +148,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		// Assert
 		assertThat(exception, hasMessage(
-			"Unable to map patron type \"unknown-patron-group\" on Host LMS: \"folio-lms-client-patron-tests\" to canonical value"));
+			"Unable to map patron type \"unknown\" on Host LMS: \"folio-lms-client-patron-tests\" to canonical value"));
 	}
 
 	@Test
@@ -178,14 +179,15 @@ class ConsortialFolioHostLmsClientPatronTests {
 		// Arrange
 		final var barcode = "4295753";
 		final var patronGroup = "bdc2b6d4-5ceb-4a12-ab46-249b9a68473e";
+		final var patronGroupName = "undergraduate";
 
 		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
-			patronGroup, "DCB", "canonical-patron-type");
+			patronGroupName, "DCB", "canonical-patron-type");
 
 		mockFolioFixture.mockPatronAuth(barcode, User.builder()
 			.id("9c2e859d-e923-450d-85e3-b425cfa9f938")
 			.patronGroup(patronGroup)
-			.patronGroupName("undergraduate")
+			.patronGroupName(patronGroupName)
 			.barcode(barcode)
 			.personal(User.PersonalDetails.builder()
 				.firstName("First")
@@ -200,7 +202,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		// Assert
 		assertThat(verifiedPatron, allOf(
 			hasLocalIds("9c2e859d-e923-450d-85e3-b425cfa9f938"),
-			hasLocalPatronType("bdc2b6d4-5ceb-4a12-ab46-249b9a68473e"),
+			hasLocalPatronType(patronGroupName),
 			hasCanonicalPatronType("canonical-patron-type"),
 			hasLocalBarcodes("4295753"),
 			hasNoHomeLibraryCode(),
@@ -213,14 +215,15 @@ class ConsortialFolioHostLmsClientPatronTests {
 		// Arrange
 		final var username = "special-pin-test";
 		final var patronGroup = "bdc2b6d4-5ceb-4a12-ab46-249b9a68473e";
+		final var patronGroupName = "undergraduate";
 
 		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
-			patronGroup, "DCB", "canonical-patron-type");
+			patronGroupName, "DCB", "canonical-patron-type");
 
 		mockFolioFixture.mockGetUsersWithQuery("username", username, User.builder()
 			.id("9c2e859d-e923-450d-85e3-b425cfa9f938")
 			.patronGroup(patronGroup)
-			.patronGroupName("undergraduate")
+			.patronGroupName(patronGroupName)
 			.barcode("2093487")
 			.username(username)
 			.personal(User.PersonalDetails.builder()
@@ -236,7 +239,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		// Assert
 		assertThat(fetchedPatron, allOf(
 			hasLocalIds("9c2e859d-e923-450d-85e3-b425cfa9f938"),
-			hasLocalPatronType("bdc2b6d4-5ceb-4a12-ab46-249b9a68473e"),
+			hasLocalPatronType(patronGroupName),
 			hasCanonicalPatronType("canonical-patron-type"),
 			hasLocalBarcodes("2093487"),
 			hasNoHomeLibraryCode(),
@@ -249,14 +252,15 @@ class ConsortialFolioHostLmsClientPatronTests {
 		// Arrange
 		final var id = "9c2e859d-e923-450d-85e3-b425cfa9f938";
 		final var patronGroup = "bdc2b6d4-5ceb-4a12-ab46-249b9a68473e";
+		final var patronGroupName = "undergraduate";
 
 		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
-			patronGroup, "DCB", "canonical-patron-type");
+			patronGroupName, "DCB", "canonical-patron-type");
 
 		mockFolioFixture.mockGetUsersWithQuery("id", id, User.builder()
 			.id("9c2e859d-e923-450d-85e3-b425cfa9f938")
 			.patronGroup(patronGroup)
-			.patronGroupName("undergraduate")
+			.patronGroupName(patronGroupName)
 			.barcode("2093487")
 			.personal(User.PersonalDetails.builder()
 				.firstName("First")
@@ -271,7 +275,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		// Assert
 		assertThat(fetchedPatron, allOf(
 			hasLocalIds("9c2e859d-e923-450d-85e3-b425cfa9f938"),
-			hasLocalPatronType("bdc2b6d4-5ceb-4a12-ab46-249b9a68473e"),
+			hasLocalPatronType(patronGroupName),
 			hasCanonicalPatronType("canonical-patron-type"),
 			hasLocalBarcodes("2093487"),
 			hasNoHomeLibraryCode(),
@@ -377,15 +381,16 @@ class ConsortialFolioHostLmsClientPatronTests {
 		final var localId = UUID.randomUUID().toString();
 		final var barcode = "6847672185";
 		final var patronGroup = randomUUID().toString();
+		final var patronGroupName = "undergraduate";
 
 		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
-			patronGroup, "DCB", "canonical-patron-type");
+			patronGroupName, "DCB", "canonical-patron-type");
 
 		mockFolioFixture.mockGetUsersWithQuery("id", localId,
 			User.builder()
 				.id(localId)
 				.patronGroup(patronGroup)
-				.patronGroupName("undergraduate")
+				.patronGroupName(patronGroupName)
 				.barcode(barcode)
 				.personal(User.PersonalDetails.builder()
 					.firstName("first name")
@@ -402,7 +407,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		assertThat(updatedPatron, allOf(
 			is(notNullValue()),
 			hasLocalIds(localId),
-			hasLocalPatronType(patronGroup),
+			hasLocalPatronType(patronGroupName),
 			hasCanonicalPatronType("canonical-patron-type"),
 			hasLocalBarcodes(barcode),
 			hasNoHomeLibraryCode(),
