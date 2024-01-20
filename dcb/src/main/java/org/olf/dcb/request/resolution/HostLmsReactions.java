@@ -166,7 +166,7 @@ public class HostLmsReactions {
 	private Mono<Map<String,Object>> auditEventIndication(Map<String,Object> context, TrackingRecord tr) {
 		log.debug("Audit event indication");
 		StateChange sc = (StateChange) tr;
-		String msg = "Downstream change to "+sc.getResourceType()+"("+sc.getResourceId()+") from "+sc.getToState()+" to "+sc.getFromState();
+		String msg = "Downstream change to "+sc.getResourceType()+"("+sc.getResourceId()+") to "+sc.getToState()+" from "+sc.getFromState();
 		Map<String,Object> auditData = new HashMap();
 		auditData.put("patronRequestId",sc.getPatronRequestId());
 		auditData.put("resourceType",sc.getResourceType());
