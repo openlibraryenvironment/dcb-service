@@ -40,6 +40,8 @@ public class PolarisItemMapper {
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(
 		PAPIClient.ItemGetRow itemGetRow, String hostLmsCode, String localBibId) {
 
+		log.debug("map polaris item {} {} {}",itemGetRow,hostLmsCode,localBibId);
+
 		return itemStatusMapper.mapStatus(itemGetRow.getCircStatusName(),
 				hostLmsCode, polarisFallback())
 			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()

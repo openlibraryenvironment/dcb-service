@@ -146,7 +146,13 @@ public class SierraItemMapper {
 
 		String result = null;
 		if ( volumeStatement != null ) {
-			result = volumeStatement;
+
+			// v.1, p:1 -> v1p1
+			result = volumeStatement
+				.replaceAll("\\p{Punct}", " ")	// remove punctuation
+				.replaceAll(" ", "")	// remove spaces
+				;
+			// result = volumeStatement;
 		}
 		return result;
 	}
