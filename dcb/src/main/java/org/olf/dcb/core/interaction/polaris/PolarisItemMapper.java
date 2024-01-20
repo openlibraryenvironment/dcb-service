@@ -63,8 +63,8 @@ public class PolarisItemMapper {
 				.localItemTypeCode(itemGetRow.getMaterialTypeID())
 				.suppressed(!itemGetRow.getIsDisplayInPAC())
 				.deleted(false)
-        .rawVolumeStatement(itemGetRow.getHoldingsStatement())
-        .parsedVolumeStatement(parseVolumeStatement(itemGetRow.getCallNumber()))
+        .rawVolumeStatement(itemGetRow.getVolumeNumber())
+        .parsedVolumeStatement(parseVolumeStatement(itemGetRow.getVolumeNumber()))
 				.build())
 				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
 				.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item, hostLmsCode));
@@ -92,17 +92,17 @@ public class PolarisItemMapper {
 		}
 	}
 
-  private String parseVolumeStatement(String callNumber) {
+  private String parseVolumeStatement(String vol) {
 
 		// In polaris, the volume statement can appear in the call number as Vol [ nn ] Pt [ nn ]
 		// this regex "(Vol|Pt)\\s*\\[\\s*(\\d+)\\s*\\]" can extract those statements
 
     String result = null;
-    if ( callNumber != null ) {
+    if ( vol != null ) {
 			String regex = "(Vol|Pt)\\s*\\[\\s*(\\d+)\\s*\\]";
 
 			Pattern pattern = Pattern.compile(regex);
-			Matcher matcher = pattern.matcher(callNumber);
+			Matcher matcher = pattern.matcher(vol);
 
 			while (matcher.find()) {
 				String type = matcher.group(1);
