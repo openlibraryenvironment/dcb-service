@@ -14,21 +14,25 @@ import lombok.Data;
 @Data
 @Serdeable
 public class AvailabilityResponseView {
-	private final List<Item> itemList;
+	private final List<ARVItem> itemList;
 	private final List<Error> errors;
 	private final UUID clusteredBibId;
 
 	public static AvailabilityResponseView from(AvailabilityReport report,
 		UUID clusteredBibId) {
 
-		final var mappedItems = report.getItems().stream()
-			.map(item -> new Item(item.getLocalId(),
+		final List<ARVItem> mappedItems = report.getItems().stream()
+			.map(item -> new ARVItem(item.getLocalId(),
 				new Status(item.getStatus().getCode().name()), item.getDueDate(),
 				new Location(item.getLocation().getCode(), item.getLocation().getName()),
 				item.getBarcode(), item.getCallNumber(), item.getHostLmsCode(),
 				item.getIsRequestable(), item.getHoldCount(), item.getLocalItemType(),
-				item.getCanonicalItemType(), item.getLocalItemTypeCode(),
-				new Agency(item.getAgencyCode(), item.getAgencyName())))
+				item.getCanonicalItemType(), 
+				item.getLocalItemTypeCode(),
+				new Agency(item.getAgencyCode(), item.getAgencyName()),
+				item.getRawVolumeStatement(),
+				item.getParsedVolumeStatement()
+			))
 			.toList();
 
 		final var mappedErrors = report.getErrors().stream()
@@ -42,7 +46,7 @@ public class AvailabilityResponseView {
 
 	@Data
 	@Serdeable
-	public static class Item {
+	public static class ARVItem {
 		private final String id;
 		private final Status status;
 		@Nullable
@@ -58,6 +62,10 @@ public class AvailabilityResponseView {
 		private final String localItemTypeCode;
 		@Schema(description = "The items specific institution")
 		private final Agency agency;
+		@Nullable
+    private final String rawVolumeStatement;
+		@Nullable
+    private final String parsedVolumeStatement;
 	}
 
 	@Data

@@ -233,6 +233,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<List<Item>> getItems(BibRecord bib) {
 		final var localBibId = bib.getSourceRecordId();
 
+		// @see: https://documentation.iii.com/polaris/PAPI/7.1/PAPIService/Synch_ItemsByBibIDGet.htm
 		return papiClient.synch_ItemGetByBibID(localBibId)
 			.flatMapMany(Flux::fromIterable)
 			.flatMap(this::setCircStatus)

@@ -50,13 +50,14 @@ public class SierraItemMapper {
 
 	public Mono<Item> mapResultToItem(SierraItem itemResult, String hostLmsCode, String localBibId) {
 
+		log.debug("mapResultToItem({}, {}, {})", itemResult, hostLmsCode, localBibId);
+
 		final var statusCode = PropertyAccessUtils.getValue(itemResult.getStatus(), Status::getCode);
 		final var dueDate = PropertyAccessUtils.getValue(itemResult.getStatus(), Status::getDuedate);
 
 		final String rawVolumeStatement = extractRawVolumeStatement(itemResult.getVarFields());
 		final String parsedVolumeStatement = parseVolumeStatement(rawVolumeStatement);
 
-		log.debug("mapResultToItem({}, {}, {}) {}", itemResult, hostLmsCode, localBibId, rawVolumeStatement);
 
 		// Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
 		// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human-readable string at the moment
@@ -122,14 +123,14 @@ public class SierraItemMapper {
 
 			if (volumeVarField.isPresent()) {
 				VarField foundObject = volumeVarField.get();
-				log.debug("Extracting {}",foundObject);
+				// log.debug("Extracting {}",foundObject);
 				result = foundObject.getContent();
 			}
 			else {
 			}
 		}
 
-		log.debug("Result of volume extraction {}",result);
+		// log.debug("Result of volume extraction {}",result);
 		return result;
 	}
 

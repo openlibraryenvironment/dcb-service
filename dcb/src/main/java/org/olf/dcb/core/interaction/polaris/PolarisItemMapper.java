@@ -58,6 +58,8 @@ public class PolarisItemMapper {
 				.localItemTypeCode(itemGetRow.getMaterialTypeID())
 				.suppressed(!itemGetRow.getIsDisplayInPAC())
 				.deleted(false)
+        .rawVolumeStatement(itemGetRow.getHoldingsStatement())
+        .parsedVolumeStatement(parseVolumeStatement(itemGetRow.getHoldingsStatement()))
 				.build())
 				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
 				.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item, hostLmsCode));
@@ -84,4 +86,22 @@ public class PolarisItemMapper {
 			return null;
 		}
 	}
+
+  private String parseVolumeStatement(String volumeStatement) {
+
+    // \b(?:Vol\.? ?|v)(\d+)(?:,? ?Item \d+)?\b
+    // Explanation:
+    //   \b: Word boundary to ensure that the pattern is matched as a whole word.
+    //   (?:Vol\.? ?|v): Non-capturing group to match either "Vol", "Vol.", "v" or "v" followed by an optional period and space.
+    //   (\d+): Capturing group to match one or more digits representing the volume.
+    //   (?:,? ?Item \d+)?: Optional non-capturing group to match an optional comma, optional space, "Item", a space, and one or more digits. This is to handle cases like "Vol 1, Item 1".
+    //   \b: Word boundary to complete the pattern matching.
+
+    String result = null;
+    if ( volumeStatement != null ) {
+      result = volumeStatement;
+    }
+    return result;
+  }
+
 }
