@@ -116,8 +116,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private final ItemStatusMapper itemStatusMapper;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService;
-	private final PatronTypeService patronTypeService;
-	private final ReferenceValueMappingService referenceValueMappingService;
+    private final ReferenceValueMappingService referenceValueMappingService;
 
 	private final String apiKey;
 	private final URI rootUri;
@@ -136,7 +135,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		@Parameter("client") HttpClient httpClient, ItemStatusMapper itemStatusMapper,
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService,
-		PatronTypeService patronTypeService,
 		ReferenceValueMappingService referenceValueMappingService) {
 
 		this.hostLms = hostLms;
@@ -145,7 +143,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		this.itemStatusMapper = itemStatusMapper;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.materialTypeToItemTypeMappingService = materialTypeToItemTypeMappingService;
-		this.patronTypeService = patronTypeService;
 		this.referenceValueMappingService = referenceValueMappingService;
 
 		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
@@ -364,7 +361,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> findCanonicalPatronType(String localPatronType, String localId) {
-		return patronTypeService.findCanonicalPatronType(getHostLmsCode(), localPatronType);
+		String hostLmsCode = getHostLmsCode();
+		if (localPatronType == null) {
+			return Mono.empty();
+		}
+
+		return referenceValueMappingService.findMapping("patronType",
+				hostLmsCode, localPatronType, "patronType", "DCB")
+			.map(ReferenceValueMapping::getToValue)
+			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
+				"Unable to map patron type \"" + localPatronType + "\" on Host LMS: \"" + hostLmsCode + "\" to canonical value",
+				hostLmsCode, localPatronType)));
 	}
 
 	@Override

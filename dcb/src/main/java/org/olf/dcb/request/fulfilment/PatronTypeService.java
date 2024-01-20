@@ -1,9 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
@@ -13,13 +10,9 @@ import reactor.core.publisher.Mono;
 @Prototype
 public class PatronTypeService {
 	private final HostLmsService hostLmsService;
-	private final ReferenceValueMappingService referenceValueMappingService;
 
-	public PatronTypeService(HostLmsService hostLmsService,
-		ReferenceValueMappingService referenceValueMappingService) {
-
+	public PatronTypeService(HostLmsService hostLmsService) {
 		this.hostLmsService = hostLmsService;
-		this.referenceValueMappingService = referenceValueMappingService;
 	}
 
 	/**
@@ -54,18 +47,5 @@ public class PatronTypeService {
 
 		return hostLmsService.getClientFor(requesterHostLmsCode)
 			.flatMap(client -> client.findCanonicalPatronType(requesterPatronType, requesterLocalId));
-	}
-
-	public Mono<String> findCanonicalPatronType(String hostLmsCode, String localPatronType) {
-		if (localPatronType == null) {
-			return Mono.empty();
-		}
-
-		return referenceValueMappingService.findMapping("patronType",
-				hostLmsCode, localPatronType, "patronType", "DCB")
-			.map(ReferenceValueMapping::getToValue)
-			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
-				"Unable to map patron type \"" + localPatronType + "\" on Host LMS: \"" + hostLmsCode + "\" to canonical value",
-				hostLmsCode, localPatronType)));
 	}
 }
