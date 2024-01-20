@@ -17,6 +17,9 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 @Slf4j
 @Singleton
 public class PolarisItemMapper {
@@ -61,7 +64,7 @@ public class PolarisItemMapper {
 				.suppressed(!itemGetRow.getIsDisplayInPAC())
 				.deleted(false)
         .rawVolumeStatement(itemGetRow.getHoldingsStatement())
-        .parsedVolumeStatement(parseVolumeStatement(itemGetRow.getHoldingsStatement()))
+        .parsedVolumeStatement(parseVolumeStatement(itemGetRow.getCallNumber()))
 				.build())
 				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
 				.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item, hostLmsCode));
@@ -89,19 +92,34 @@ public class PolarisItemMapper {
 		}
 	}
 
-  private String parseVolumeStatement(String volumeStatement) {
+  private String parseVolumeStatement(String callNumber) {
 
-    // \b(?:Vol\.? ?|v)(\d+)(?:,? ?Item \d+)?\b
-    // Explanation:
-    //   \b: Word boundary to ensure that the pattern is matched as a whole word.
-    //   (?:Vol\.? ?|v): Non-capturing group to match either "Vol", "Vol.", "v" or "v" followed by an optional period and space.
-    //   (\d+): Capturing group to match one or more digits representing the volume.
-    //   (?:,? ?Item \d+)?: Optional non-capturing group to match an optional comma, optional space, "Item", a space, and one or more digits. This is to handle cases like "Vol 1, Item 1".
-    //   \b: Word boundary to complete the pattern matching.
+		// In polaris, the volume statement can appear in the call number as Vol [ nn ] Pt [ nn ]
+		// this regex "(Vol|Pt)\\s*\\[\\s*(\\d+)\\s*\\]" can extract those statements
 
     String result = null;
-    if ( volumeStatement != null ) {
-      result = volumeStatement;
+    if ( callNumber != null ) {
+			String regex = "(Vol|Pt)\\s*\\[\\s*(\\d+)\\s*\\]";
+
+			Pattern pattern = Pattern.compile(regex);
+			Matcher matcher = pattern.matcher(callNumber);
+
+			while (matcher.find()) {
+				String type = matcher.group(1);
+				int number = Integer.parseInt(matcher.group(2));
+				log.debug(type + ": " + number);
+				if ( result == null )
+					result = "";
+
+				switch ( type ) {
+					case "Vol":
+						result = result + "v" + number;
+						break;
+					case "Pt":
+						result = result + "p" + number;
+						break;
+				}
+			}
     }
     return result;
   }
