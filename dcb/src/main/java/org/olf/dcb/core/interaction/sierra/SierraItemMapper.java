@@ -120,15 +120,15 @@ public class SierraItemMapper {
 				.findFirst();
 
 			if (volumeVarField.isPresent()) {
-				log.debug("Volume is present - extract");
 				VarField foundObject = volumeVarField.get();
+				log.debug("Extracting {}",foundObject);
 				result = foundObject.getContent();
 			}
 			else {
-				log.debug("no volume");
 			}
 		}
 
+		log.debug("Result of volume extraction {}",result);
 		return result;
 	}
 
