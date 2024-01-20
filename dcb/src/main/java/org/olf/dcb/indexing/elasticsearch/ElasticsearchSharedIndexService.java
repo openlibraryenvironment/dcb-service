@@ -339,6 +339,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 						}
 
 						if ( breq != null ) {
+							log.info("attempt index bulk operation {} items",breq.operations().size());
 							client.bulk( breq ).handle((br, ex) -> {
 								if ( ex != null) {
 									sink.error(ex);
