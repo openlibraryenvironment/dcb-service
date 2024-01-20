@@ -29,6 +29,7 @@ public class SierraItemMapper {
 	private final ItemStatusMapper itemStatusMapper;
 	private final NumericItemTypeMapper itemTypeMapper;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
+	private final Character VOLUME_FIELD_TAG='v';
 
 	/**
 	 Status is interpreted based upon
@@ -116,7 +117,7 @@ public class SierraItemMapper {
 		if ( varFields != null ) {
 			// Volume information can be found in a varField with fieldTag="v" and the value is in the "content" field
 			Optional<VarField> volumeVarField = varFields.stream()
-				.filter(varField -> varField.getFieldTag() == 'c')
+				.filter(varField -> varField.getFieldTag().equals(VOLUME_FIELD_TAG) )
 				.findFirst();
 
 			if (volumeVarField.isPresent()) {
