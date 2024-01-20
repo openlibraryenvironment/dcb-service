@@ -99,11 +99,11 @@ public class PolarisItemMapper {
 
     String result = null;
     if ( vol != null ) {
-			String regex = "(Vol|Pt)\\s*\\[\\s*(\\d+)\\s*\\]";
 
+			// Extract Vol and Pt statements
+			String regex = "(Vol|Pt)\\s*\\[\\s*(\\d+)\\s*\\]";
 			Pattern pattern = Pattern.compile(regex);
 			Matcher matcher = pattern.matcher(vol);
-
 			while (matcher.find()) {
 				String type = matcher.group(1);
 				int number = Integer.parseInt(matcher.group(2));
@@ -119,6 +119,18 @@ public class PolarisItemMapper {
 						result = result + "p" + number;
 						break;
 				}
+			}
+
+			// Check for a 4 digit year at the end of the volume statement
+			String year_regex = "\\d{4}$";
+			Pattern p2 = Pattern.compile(year_regex);
+
+      Matcher m2 = p2.matcher(vol);
+			if ( m2.find() ) {
+				if ( result == null )
+				  result = "y"+m2.group(1);
+				else
+					result = result + "y" + m2.group(1);
 			}
     }
     return result;

@@ -149,8 +149,10 @@ public class SierraItemMapper {
 
 			// v.1, p:1 -> v1p1
 			result = volumeStatement
+				.toLowerCase()
 				.replaceAll("\\p{Punct}", " ")	// remove punctuation
 				.replaceAll(" ", "")	// remove spaces
+				.replaceAll("pt", "p") // pt->p
 				;
 			// result = volumeStatement;
 		}
