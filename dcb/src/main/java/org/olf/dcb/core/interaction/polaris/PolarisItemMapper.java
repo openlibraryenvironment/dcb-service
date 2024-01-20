@@ -128,9 +128,9 @@ public class PolarisItemMapper {
       Matcher m2 = p2.matcher(vol);
 			if ( m2.find() ) {
 				if ( result == null )
-				  result = "y"+m2.group(1);
+				  result = "y"+m2.group();
 				else
-					result = result + "y" + m2.group(1);
+					result = result + "y" + m2.group();
 			}
     }
     return result;
