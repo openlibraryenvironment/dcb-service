@@ -32,14 +32,14 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 	private PatronRequestRepository patronRequestRepository;
 	private SupplierRequestRepository supplierRequestRepository;
 	private PatronRequestAuditService patronRequestAuditService;
-        // Provider to prevent circular reference exception by allowing lazy access to this singleton.
-        private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
+	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
+	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 
 	public HandleBorrowerRequestMissing(
 		PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
 		PatronRequestAuditService patronRequestAuditService,
-                BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider)
+		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider)
 	{
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
@@ -107,7 +107,9 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 					return pr;
 				})
 				.map(patronRequest -> {
-					if (Objects.equals(patronRequest.getLocalRequestStatus(), "CANCELLED")) return patronRequest;
+					if (Objects.equals(patronRequest.getLocalRequestStatus(), "CANCELLED")) 
+						return patronRequest;
+
 					return patronRequest.setLocalRequestStatus("MISSING");
 				})
 				.doOnNext(patronRequest -> log.debug("setLocalRequestStatus to {}", patronRequest.getLocalRequestStatus()))

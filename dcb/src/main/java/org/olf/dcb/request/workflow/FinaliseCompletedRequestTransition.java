@@ -47,6 +47,8 @@ public class FinaliseCompletedRequestTransition implements PatronRequestStateTra
 
 		assert isApplicableFor(patronRequest);
 
+// auditService.addAuditEntry(pr, "Supplier Item Available - Infer item back on the shelf after loan. Completing request");
+
 		return Mono.just(patronRequest)
 			.flatMap(supplyingAgencyService::cleanUp)
 			.flatMap(borrowingAgencyService::cleanUp)
