@@ -81,6 +81,7 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuples;
 import services.k_int.interaction.sierra.FixedField;
+import services.k_int.interaction.sierra.VarField;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResult;
@@ -999,10 +1000,19 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		if (status != null) {
 			final var messages = new ArrayList<String>();
+			final var var_fields = new ArrayList<VarField>();
+			var_fields.add(
+				VarField.builder()
+					.fieldTag('m')
+					.content("-")
+					.build()
+			);
+
 			final var ip = ItemPatch.builder()
 				.status(status)
-				.itemMessage("-")
+				// .itemMessage("-") - 21-01-2024 TA asked to have this field (Sierra FixedField) NOT updated by this call
 				.messages(messages)
+				.varFields(var_fields) // - 21-01-2024 Trying this instead to clear in transit status
 				.build();
 
 			return Mono.from(client.updateItem(itemId, ip))

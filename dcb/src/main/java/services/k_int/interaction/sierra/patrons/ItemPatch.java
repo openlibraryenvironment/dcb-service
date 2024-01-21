@@ -6,6 +6,9 @@ import lombok.Data;
 import java.util.List;
 import java.util.Map;
 import services.k_int.interaction.sierra.FixedField;
+import services.k_int.interaction.sierra.VarField;
+import io.micronaut.core.annotation.Nullable;
+
 
 @Data
 @Serdeable
@@ -15,8 +18,9 @@ public class ItemPatch {
 	Integer itemType;
 	String location;
 	String status;
-        String itemMessage;
+	String itemMessage;
 	List<String> messages;
 	List<String> barcodes;
-        Map<Integer, FixedField> fixedFields;
+	@Nullable Map<Integer, FixedField> fixedFields;
+	@Nullable List<VarField> varFields;
 }
