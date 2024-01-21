@@ -31,7 +31,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 		final var patron = patronRequest.getPatron();
 
 		return new PatronRequestAdminView(patronRequest.getId(),
-			new Citation(patronRequest.getBibClusterId()),
+			new Citation(patronRequest.getBibClusterId(), patronRequest.getRequestedVolumeDesignation()),
 			new PickupLocation(patronRequest.getPickupLocationCode()),
 			new Requestor(patron.getId().toString(), patron.getHomeLibraryCode(),
 				Identity.fromList(patron.getPatronIdentities())),
@@ -48,7 +48,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	record PickupLocation(String code) { }
 
 	@Serdeable
-	record Citation(UUID bibClusterId) { }
+	record Citation(UUID bibClusterId, String volumeDesignator) { }
 
 	@Serdeable
 	record Requestor(String id, String homeLibraryCode,

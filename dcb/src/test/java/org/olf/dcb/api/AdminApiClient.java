@@ -41,6 +41,7 @@ class AdminApiClient {
 		@Value
 		public static class Citation {
 			@Nullable UUID bibClusterId;
+			@Nullable String volumeDesignator;
 		}
 
 		@Serdeable

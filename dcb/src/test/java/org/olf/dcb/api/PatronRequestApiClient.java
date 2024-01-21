@@ -27,6 +27,12 @@ class PatronRequestApiClient {
 	HttpResponse<PlacedPatronRequest> placePatronRequest(UUID bibClusterId,
 		String localId, String pickupLocationCode, String localSystemCode,
 		String homeLibraryCode) {
+		return placePatronRequest(bibClusterId,localId,pickupLocationCode,localSystemCode,homeLibraryCode,null);
+	}
+
+	HttpResponse<PlacedPatronRequest> placePatronRequest(UUID bibClusterId,
+		String localId, String pickupLocationCode, String localSystemCode,
+		String homeLibraryCode, String volumeDesignation) {
 
 		return placePatronRequest(PlacePatronRequestCommand.builder()
 			.requestor(Requestor.builder()
@@ -36,6 +42,7 @@ class PatronRequestApiClient {
 				.build())
 			.citation(Citation.builder()
 				.bibClusterId(bibClusterId)
+				.volumeDesignator(volumeDesignation)
 				.build())
 			.pickupLocation(PickupLocation.builder()
 				.code(pickupLocationCode)
@@ -93,6 +100,7 @@ class PatronRequestApiClient {
 	@Builder
 	public static class Citation {
 		@Nullable UUID bibClusterId;
+		@Nullable String volumeDesignator;
 	}
 
 	@Serdeable

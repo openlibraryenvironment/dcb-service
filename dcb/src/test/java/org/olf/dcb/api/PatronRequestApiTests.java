@@ -256,6 +256,7 @@ class PatronRequestApiTests {
 
 		assertThat(fetchedPatronRequest.getCitation(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.getCitation().getBibClusterId(), is(clusterRecordId));
+		assertThat(fetchedPatronRequest.getCitation().getVolumeDesignator(), is(nullValue()));
 
 		assertThat(fetchedPatronRequest.getPickupLocation(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is("0f102b5a-e300-41c8-9aca-afd170e17921"));
