@@ -1,6 +1,100 @@
 # Changelog
 
+## Version 4.6.0
+
+### Additions
+* [General]
+	* Place request at FOLIO supplying agency
+	* Add check for year as volume from polaris
+	* Add ability to stop reindex job
+
+### Changes
+* [Chore]
+	* Adjust oai parameter logging
+	* Add some fields to error logging on Folio OAI source
+	* Throw exception when relative URI does not start with a forward slash DCB-490
+	* Log validation error when placing request at FOLIO supplying agency DCB-490
+	* Log body of requests to FOLIO DCB-490
+	* Log parameters when placing request at FOLIO supplying agency DCB-490
+	* Pass patron group name when creating a FOLIO transaction DCB-490
+	* Remove patron group ID from FOLIO user representation DCB-490
+	* Map patron group name from FOLIO to local patron type DCB-490
+	* Find local FOLIO patron type from canonical patron type DCB-490
+	* Find canonical patron type for local FOLIO patron type DCB-490
+	* Raise error when creating FOLIO transaction returns unauthorised response DCB-490
+	* Raise error when creating FOLIO transaction returns not found response DCB-490
+	* Raise error when creating FOLIO transaction returns validation response DCB-490
+	* Pass generated service point ID based upon pickup agency code when creating a FOLIO transaction DCB-490
+	* Pass pickup agency code as library code when creating a FOLIO transaction DCB-490
+	* Pass pickup agency name as service point name when creating a FOLIO transaction DCB-490
+	* Pass patron barcode when creating a FOLIO transaction DCB-490
+	* Pass patron ID when creating a FOLIO transaction DCB-490
+	* Pass item barcode when creating FOLIO transaction DCB-490
+	* Supplying request in FOLIO uses lender role DCB-490
+	* Pass item ID to FOLIO create transaction API DCB-490
+	* Return hold placed local status for FOLIO requests DCB-490
+	* Return transaction ID as local ID of FOLIO request DCB-490
+	* Make basic request to create FOLIO DCB transaction DCB-490
+	* Reformat determine patron type method DCB-490
+	* Replace spaces with tabs in patron type service tests DCB-490
+	* Try setting varFields messages when issuing sierra ItemPatch to clear in transit status per DCB-795
+	* Change to polaris explicit volume field
+	* logging around polaris item mapper, first pass volume normalisation in sierra
+	* refactor extraciton of volume statement in sierra
+	* refactor sierra item mapping logging
+	* logging around index bulk ops and volume processing
+	* Change apikey to header rather than parameter for FOLIO OAI - per EBSCO request today
+* [Feature]
+	* Add sort direction to GraphQL [DCB-480]
+	* sierra - When parsing volume statements, handle no. as number and normalise to n in parsed volume statement
+	* Improve audit logging on circulation of home item to vpatron for DCB-838
+	* Order audit rows by date in graphql patron request response
+	* Add volume designator to various API responses and DTOs
+	* first pass at parsing polaris call numbers containing volume information
+	* Collect raw sierra volume var field and attach to Item records
+* [Refactor]
+	* Move finding canonical FOLIO patron type implementation to client DCB-490
+	* Extract method for creating FOLIO transaction DCB-490
+	* Remove supplier host LMS code parameter DCB-490
+	* Remove reference value mapping service parameter DCB-490
+	* Push find local patron type implementation down to specific clients DCB-490
+	* Move finding local patron type to host LMS client interface DCB-490
+	* Get supplying host LMS client before mapping patron type DCB-490
+	* Extract method for finding local patron type DCB-490
+	* Extract method for finding canonical patron type DCB-490
+	* Remove host LMS code parameter for finding canonical patron type DCB-490
+	* Move finding canonical patron type to host LMS client DCB-490
+	* Introduce patron type mapper dependency to Dummy host LMS client DCB-490
+	* Introduce patron type mapper dependency to Polaris host LMS client DCB-490
+	* get requesting host LMS client before finding patron type DCB-490
+	* Introduce host LMS service dependency for patron type service DCB-490
+* [Test]
+	* Enable negative flow tests for placing at FOLIO supplying agency DCB-490
+	* Enable positive flow test for placing at FOLIO supplying agency DCB-490
+	* Disable positive flow test for placing at FOLIO supplying agency DCB-490
+	* Disable negative flow tests for placing at FOLIO supplying agency DCB-490
+	* Use single instance for testing place request at FOLIO supplying agency DCB-490
+	* Use separate client for each place at FOLIO supplying agency test DCB-490
+	* Remove patron group ID from mock FOLIO users DCB-490
+	* Include patron group name in mock FOLIO users DCB-490
+	* Delete all agencies prior to placing request at FOLIO supplying agency DCB-490
+	* Introduce class for placing request at FOLIO supplying agency tests DCB-490
+	* Define host LMS during patron type tests DCB-490
+	* Delete all host LMS before each patron service test DCB-490
+	* Define required parameters for all Sierra host LMS DCB-490
+
+### Fixes
+* [General]
+	* Trim empty resumption token.
+	* Add forward slash to path for creating FOLIO transaction DCB-490
+	* Error in accessing year regex mapper
+	* label on state change was wrong way round
+
 ## Version 4.5.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
