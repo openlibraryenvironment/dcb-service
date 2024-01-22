@@ -13,6 +13,11 @@ public class RelativeUriResolver {
 
 		URI thisUri = baseUri;
 
+		if (!relativeUri.getPath().startsWith("/")) {
+			throw new IllegalArgumentException(
+				"Relative URI: \"%s\" must contain a leading forward slash".formatted(relativeUri));
+		}
+
 		// if the URI features credentials strip this out
 		if (StringUtils.isNotEmpty(thisUri.getUserInfo())) {
 			try {
