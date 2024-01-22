@@ -58,7 +58,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		mockFolioFixture = new MockFolioFixture(mockServerClient, "fake-folio", API_KEY);
 	}
 
-	@Disabled
+	
 	@Test
 	void shouldPlaceRequestSuccessfully() {
 		// Arrange
