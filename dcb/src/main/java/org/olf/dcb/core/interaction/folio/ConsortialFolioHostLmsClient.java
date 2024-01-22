@@ -301,7 +301,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var agencyCode = getValue(parameters.getPickupAgency(), Agency::getCode);
 
-		final var request = authorisedRequest(POST, "dcbService/transactions/" + transactionId)
+		final var request = authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
 			.body(CreateTransactionRequest.builder()
 				.role("LENDER")
 				.item(CreateTransactionRequest.Item.builder()
