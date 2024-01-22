@@ -344,7 +344,7 @@ public class DataFetchers {
                 return env -> {
 			PatronRequest parent = env.getSource();
                         log.debug("getAuditMessagesForPR {}",parent);
-                        return Flux.from(postgresPatronRequestAuditRepository.findAllByPatronRequest(parent))
+                        return Flux.from(postgresPatronRequestAuditRepository.findAllByPatronRequestOrderByAuditDate(parent))
 				.collectList()
 				.toFuture();
                 };
