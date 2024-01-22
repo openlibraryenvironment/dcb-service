@@ -22,7 +22,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.CannotPlaceRequestException;
-import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -41,7 +40,6 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 	private AgencyFixture agencyFixture;
 
 	private MockFolioFixture mockFolioFixture;
-	private HostLmsClient client;
 
 	@BeforeEach
 	void beforeEach(MockServerClient mockServerClient) {
@@ -54,8 +52,6 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 			API_KEY, "", "");
 
 		mockFolioFixture = new MockFolioFixture(mockServerClient, "fake-folio", API_KEY);
-
-		client = hostLmsFixture.createClient(HOST_LMS_CODE);
 	}
 
 	@Test
@@ -74,6 +70,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		final var pickupAgency = agencyFixture.defineAgency("pickup-agency", "Pickup Agency");
 
 		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
 		final var placedRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
 					.localItemId(itemId)
@@ -126,6 +124,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		final var pickupAgency = agencyFixture.defineAgency("pickup-agency", "Pickup Agency");
 
 		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
 		final var exception = assertThrows(CannotPlaceRequestException.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
@@ -157,6 +157,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		final var pickupAgency = agencyFixture.defineAgency("pickup-agency", "Pickup Agency");
 
 		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
 		final var exception = assertThrows(CannotPlaceRequestException.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
@@ -189,6 +191,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		final var pickupAgency = agencyFixture.defineAgency("pickup-agency", "Pickup Agency");
 
 		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
 		final var exception = assertThrows(InvalidApiKeyException.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
