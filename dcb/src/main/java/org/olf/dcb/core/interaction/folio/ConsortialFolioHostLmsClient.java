@@ -285,6 +285,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(
 		PlaceHoldRequestParameters parameters) {
 
+		log.debug("placeHoldRequestAtSupplyingAgency({})", parameters);
+
 		final var transactionId = UUID.randomUUID().toString();
 
 		return createTransaction(transactionId, parameters)
