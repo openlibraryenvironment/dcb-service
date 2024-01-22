@@ -6,6 +6,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.core.interaction.HostLmsHold.HOLD_PLACED;
@@ -20,6 +21,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.CannotPlaceRequestException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
@@ -30,6 +32,7 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+@TestInstance(PER_CLASS)
 @MockServerMicronautTest
 class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 	private static final String HOST_LMS_CODE = "folio-supplying-request-tests";
@@ -107,7 +110,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 				.build())
 			.build());
 	}
-
+	
 	@Test
 	void shouldFailWhenTransactionCreationReturnsValidationError() {
 		// Arrange
