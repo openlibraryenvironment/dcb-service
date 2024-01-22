@@ -1,19 +1,19 @@
 scalar JSON
 
 type Query {
-    agencies(query: String, pageno: Int, pagesize: Int, order: String): AgencyPage!
-    hostLms(query: String, pageno:Int, pagesize: Int, order: String): HostLmsPage!
-    locations(query: String, pageno:Int, pagesize: Int, order: String): LocationPage!
-    patronRequests(query: String, pageno:Int, pagesize: Int, order: String): PatronRequestPage
-    supplierRequests(query: String, pageno:Int, pagesize: Int, order: String): SupplierRequestPage!
-    agencyGroups(query: String, pageno:Int, pagesize: Int, order: String): AgencyGroupPage!
-    instanceClusters(query: String, pageno: Int, pagesize: Int, order: String): ClusterRecordPage!
-    sourceBibs(query: String, pageno:Int, pagesize: Int, order: String): BibRecordPage!
-    processStates(query: String, pageno:Int, pagesize: Int, order: String): ProcessStatePage!
-    audits(query: String, pageno:Int, pagesize: Int, order: String): PatronRequestAuditPage!
-    patronIdentities(query: String, pageno:Int, pagesize: Int, order: String): PatronIdentityPage!
-    numericRangeMappings(query: String, pageno:Int, pagesize: Int, order: String): NumericRangeMappingPage!
-    referenceValueMappings(query: String, pageno:Int, pagesize: Int, order: String): ReferenceValueMappingPage!
+    agencies(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): AgencyPage!
+    hostLms(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): HostLmsPage!
+    locations(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): LocationPage!
+    patronRequests(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): PatronRequestPage
+    supplierRequests(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): SupplierRequestPage!
+    agencyGroups(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): AgencyGroupPage!
+    instanceClusters(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): ClusterRecordPage!
+    sourceBibs(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): BibRecordPage!
+    processStates(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): ProcessStatePage!
+    audits(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): PatronRequestAuditPage!
+    patronIdentities(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): PatronIdentityPage!
+    numericRangeMappings(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): NumericRangeMappingPage!
+    referenceValueMappings(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): ReferenceValueMappingPage!
 }
 
 type Mutation {
