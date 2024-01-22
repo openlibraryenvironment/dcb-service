@@ -46,10 +46,10 @@ public class HostLmsFixture {
 		this.agencyFixture = agencyFixture;
 	}
 
-	public void createFolioHostLms(String code,
-		String baseUrl, String apiKey, String recordSyntax, String metadataPrefix) {
+	public DataHostLms createFolioHostLms(String code, String baseUrl,
+		String apiKey, String recordSyntax, String metadataPrefix) {
 
-		createHostLms(randomUUID(), code, ConsortialFolioHostLmsClient.class,
+		return createHostLms(randomUUID(), code, ConsortialFolioHostLmsClient.class,
 			Optional.of(FolioOaiPmhIngestSource.class), Map.of(
 				"base-url", baseUrl,
 				"apikey", apiKey,
@@ -59,7 +59,8 @@ public class HostLmsFixture {
 	}
 
 	public DataHostLms createSierraHostLms(String code) {
-		return createSierraHostLms(code, Map.of());
+		// These parameters have to be defined in order for the client to be instantiable
+		return createSierraHostLms(code,"some-username", "some-password", "http://some-sierra-system");
 	}
 
 	public DataHostLms createSierraHostLms(String code, String username,

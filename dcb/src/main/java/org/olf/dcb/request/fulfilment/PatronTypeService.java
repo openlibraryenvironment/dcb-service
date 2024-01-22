@@ -1,9 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
-import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
-import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.olf.dcb.core.HostLmsService;
 
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
@@ -12,14 +9,10 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Prototype
 public class PatronTypeService {
-	private final ReferenceValueMappingService referenceValueMappingService;
-	private final NumericPatronTypeMapper numericPatronTypeMapper;
+	private final HostLmsService hostLmsService;
 
-	public PatronTypeService(ReferenceValueMappingService referenceValueMappingService,
-		NumericPatronTypeMapper numericPatronTypeMapper) {
-
-		this.referenceValueMappingService = referenceValueMappingService;
-		this.numericPatronTypeMapper = numericPatronTypeMapper;
+	public PatronTypeService(HostLmsService hostLmsService) {
+		this.hostLmsService = hostLmsService;
 	}
 
 	/**
@@ -28,38 +21,31 @@ public class PatronTypeService {
 	 * and then from the spine to the target. We label our spine context "DCB" and this should be considered the canonical
 	 * context over the DCB system.
 	 */
-	public Mono<String> determinePatronType(String supplierHostLmsCode, String requesterHostLmsCode,
-		String requesterPatronType, String requesterLocalId) {
+	public Mono<String> determinePatronType(String supplierHostLmsCode,
+		String requesterHostLmsCode, String requesterPatronType, String requesterLocalId) {
 
-		log.debug("determinePatronType supplier={} requester={} ptype={}",supplierHostLmsCode,requesterHostLmsCode,requesterPatronType);
-		// Get the "Spine" mapping
-		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(requesterHostLmsCode,requesterPatronType, requesterLocalId)
-			.doOnNext ( spineMapping -> log.debug("Got spine mapping {}",spineMapping) )
-			.flatMap( spineMapping -> findMapping( supplierHostLmsCode, spineMapping ) )
-			.doOnNext ( targetMapping -> log.debug("Got target mapping {}",targetMapping) )
-			.map(ReferenceValueMapping::getToValue)
-			.switchIfEmpty(Mono.error(
-				new PatronTypeMappingNotFound("No mapping found from ptype " +
-					requesterHostLmsCode+":" +requesterPatronType+" to "+supplierHostLmsCode)))
+		log.debug("determinePatronType supplier={} requester={} ptype={}",
+			supplierHostLmsCode, requesterHostLmsCode, requesterPatronType);
+
+		return findCanonicalPatronType(requesterHostLmsCode, requesterPatronType, requesterLocalId)
+			.flatMap(canonicalPatronType -> findLocalPatronType(supplierHostLmsCode, canonicalPatronType))
+			.switchIfEmpty(Mono.error(new PatronTypeMappingNotFound("No mapping found from ptype " +
+				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode)))
 			.onErrorMap(cause -> new PatronTypeMappingNotFound("No mapping found from ptype " +
 				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode + " because " + cause.getMessage()));
 	}
 
-	private Mono<ReferenceValueMapping> findMapping(String targetContext, String sourceValue) {
-		return referenceValueMappingService.findMapping("patronType", "DCB",
-			sourceValue, targetContext);
+	private Mono<String> findLocalPatronType(String supplierHostLmsCode,
+		String canonicalPatronType) {
+
+		return hostLmsService.getClientFor(supplierHostLmsCode)
+			.flatMap(client -> client.findLocalPatronType(canonicalPatronType));
 	}
 
-	public Mono<String> findCanonicalPatronType(String hostLmsCode, String localPatronType) {
-		if (localPatronType == null) {
-			return Mono.empty();
-		}
+	private Mono<String> findCanonicalPatronType(String requesterHostLmsCode,
+		String requesterPatronType, String requesterLocalId) {
 
-		return referenceValueMappingService.findMapping("patronType",
-				hostLmsCode, localPatronType, "patronType", "DCB")
-			.map(ReferenceValueMapping::getToValue)
-			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
-				"Unable to map patron type \"" + localPatronType + "\" on Host LMS: \"" + hostLmsCode + "\" to canonical value",
-				hostLmsCode, localPatronType)));
+		return hostLmsService.getClientFor(requesterHostLmsCode)
+			.flatMap(client -> client.findCanonicalPatronType(requesterPatronType, requesterLocalId));
 	}
 }

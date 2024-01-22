@@ -6,10 +6,10 @@ import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.HttpMethod.POST;
-import static io.micronaut.http.HttpStatus.*;
-
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.interaction.HostLmsHold.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
@@ -19,6 +19,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.utils.CollectionUtils.nonNullValuesList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.net.URI;
 import java.util.List;
@@ -26,11 +27,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.exceptions.HttpStatusException;
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CannotPlaceRequestException;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.FailedToGetItemsException;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -44,25 +43,34 @@ import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.folio.User.PersonalDetails;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
+import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.NoHomeBarcodeException;
 import org.olf.dcb.core.model.NoHomeIdentityException;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.request.fulfilment.PatronTypeService;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpHeaders;
+import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -107,7 +115,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private final ItemStatusMapper itemStatusMapper;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService;
-	private final PatronTypeService patronTypeService;
+    private final ReferenceValueMappingService referenceValueMappingService;
 
 	private final String apiKey;
 	private final URI rootUri;
@@ -126,7 +134,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		@Parameter("client") HttpClient httpClient, ItemStatusMapper itemStatusMapper,
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService,
-		PatronTypeService patronTypeService) {
+		ReferenceValueMappingService referenceValueMappingService) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
@@ -134,7 +142,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		this.itemStatusMapper = itemStatusMapper;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.materialTypeToItemTypeMappingService = materialTypeToItemTypeMappingService;
-		this.patronTypeService = patronTypeService;
+		this.referenceValueMappingService = referenceValueMappingService;
 
 		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
 		this.rootUri = UriBuilder.of(BASE_URL_SETTING.getRequiredConfigValue(hostLms)).build();
@@ -277,7 +285,59 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(
 		PlaceHoldRequestParameters parameters) {
 
-		return Mono.error(new NotImplementedException("Placing hold request at supplying agency is not currently implemented for FOLIO"));
+		log.debug("placeHoldRequestAtSupplyingAgency({})", parameters);
+
+		final var transactionId = UUID.randomUUID().toString();
+
+		return createTransaction(transactionId, parameters)
+			.map(response -> LocalRequest.builder()
+				.localId(transactionId)
+				.localStatus(HOLD_PLACED)
+				.build());
+	}
+
+	private Mono<CreateTransactionResponse> createTransaction(String transactionId,
+		PlaceHoldRequestParameters parameters) {
+
+		final var agencyCode = getValue(parameters.getPickupAgency(), Agency::getCode);
+
+		final var request = authorisedRequest(POST, "dcbService/transactions/" + transactionId)
+			.body(CreateTransactionRequest.builder()
+				.role("LENDER")
+				.item(CreateTransactionRequest.Item.builder()
+					.id(parameters.getLocalItemId())
+					.barcode(parameters.getLocalItemBarcode())
+					.build())
+				.patron(CreateTransactionRequest.Patron.builder()
+					.id(parameters.getLocalPatronId())
+					.barcode(parameters.getLocalPatronBarcode())
+					.group(parameters.getLocalPatronType())
+					.build())
+				.pickup(CreateTransactionRequest.Pickup.builder()
+					.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
+					.servicePointName(getValue(parameters.getPickupAgency(), Agency::getName))
+					.libraryCode(agencyCode)
+					.build())
+				.build());
+
+		return makeRequest(request, Argument.of(CreateTransactionResponse.class))
+			.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
+			.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError)
+			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new);
+	}
+
+	private CannotPlaceRequestException interpretValidationError(Throwable error) {
+		if (error instanceof HttpClientResponseException clientResponseException) {
+			return clientResponseException
+				.getResponse()
+				.getBody(Argument.of(ValidationError.class))
+				.map(ValidationError::getFirstError)
+				.map(CannotPlaceRequestException::new)
+				.orElse(new CannotPlaceRequestException("Unknown validation error"));
+		}
+		else {
+			return new CannotPlaceRequestException("Unknown validation error");
+		}
 	}
 
 	@Override
@@ -285,6 +345,35 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		PlaceHoldRequestParameters parameters) {
 
 		return Mono.error(new NotImplementedException("Placing hold request at borrowing agency is not currently implemented for FOLIO"));
+	}
+
+	@Override
+	public Mono<String> findLocalPatronType(String canonicalPatronType) {
+		if (canonicalPatronType == null) {
+			return Mono.empty();
+		}
+
+		return referenceValueMappingService.findReciprocalMapping("patronType",
+				"DCB", canonicalPatronType, "patronType", getHostLmsCode())
+			.map(ReferenceValueMapping::getFromValue)
+			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
+				"Unable to map canonical patron type \"" + canonicalPatronType + "\" to a patron type on Host LMS: \"" + getHostLmsCode() + "\"",
+				getHostLmsCode(), canonicalPatronType)));
+	}
+
+	@Override
+	public Mono<String> findCanonicalPatronType(String localPatronType, String localId) {
+		String hostLmsCode = getHostLmsCode();
+		if (localPatronType == null) {
+			return Mono.empty();
+		}
+
+		return referenceValueMappingService.findMapping("patronType",
+				hostLmsCode, localPatronType, "patronType", "DCB")
+			.map(ReferenceValueMapping::getToValue)
+			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
+				"Unable to map patron type \"" + localPatronType + "\" on Host LMS: \"" + hostLmsCode + "\" to canonical value",
+				hostLmsCode, localPatronType)));
 	}
 
 	@Override
@@ -351,7 +440,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		return Mono.just(Patron.builder()
 			.localId(nonNullValuesList(user.getId()))
-			.localPatronType(user.getPatronGroup())
+			.localPatronType(user.getPatronGroupName())
 			.localBarcodes(nonNullValuesList(user.getBarcode()))
 			.localNames(nonNullValuesList(
 				getValue(personalDetails, PersonalDetails::getFirstName),
@@ -369,7 +458,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<String> findPatronType(Patron patron) {
-		return patronTypeService.findCanonicalPatronType(getHostLmsCode(), patron.getLocalPatronType());
+		return findCanonicalPatronType(patron.getLocalPatronType(), null);
 	}
 
 	@Override
@@ -470,7 +559,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private <T, R> Mono<T> makeRequest(@NonNull MutableHttpRequest<R> request,
 		@NonNull Argument<T> bodyType) {
 
-		log.trace("Making request: {} to Host LMS: {}", request, getHostLmsCode());
+		log.trace("Making request: {} to Host LMS: {}", toLogOutput(request), getHostLmsCode());
 
 		return Mono.from(httpClient.retrieve(request, bodyType))
 			.doOnSuccess(response -> log.trace(
@@ -478,6 +567,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.doOnError(HttpClientResponseException.class,
 				error -> log.trace("Received error response: {} from Host LMS: {}",
 					toLogOutput(error.getResponse()), getHostLmsCode()));
+	}
+
+	private <T> String toLogOutput(MutableHttpRequest<T> request) {
+		if (request == null) {
+			return "Request is null";
+		}
+
+		return request + " with body: \"" + request.getBody(Argument.of(String.class)) + "\"";
 	}
 
 	private String toLogOutput(HttpResponse<?> response) {
@@ -517,4 +614,37 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
     log.debug("CONSORIAL FOLIO Supplier Preflight {} {} {} {}",borrowingAgencyCode,supplyingAgencyCode,canonicalItemType,canonicalPatronType);
     return Mono.just(Boolean.TRUE);
   }
+
+	@Data
+	@Builder
+	@Serdeable
+	static class ValidationError {
+		List<Error> errors;
+
+		private String getFirstError() {
+			return getErrors().stream()
+				.findFirst()
+				.map(Error::getMessage)
+				.orElse("Unknown validation error");
+		}
+
+		@Data
+		@Builder
+		@Serdeable
+		static class Error {
+			String message;
+			String type;
+			String code;
+		}
+	}
+
+	@Data
+	@Builder
+	@Serdeable
+	static class TransactionUnauthorisedResponse {
+		Integer status;
+		String error;
+		String path;
+		String timestamp;
+	}
 }

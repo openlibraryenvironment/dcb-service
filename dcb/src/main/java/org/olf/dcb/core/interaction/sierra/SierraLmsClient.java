@@ -930,6 +930,19 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.defaultIfEmpty(p);
 	}
 
+	@Override
+	public Mono<String> findLocalPatronType(String canonicalPatronType) {
+		return referenceValueMappingService.findMapping("patronType", "DCB",
+				canonicalPatronType, getHostLmsCode())
+			.map(ReferenceValueMapping::getToValue);
+	}
+
+	@Override
+	public Mono<String> findCanonicalPatronType(String localPatronType, String localId) {
+		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(
+			getHostLmsCode(), localPatronType, localId);
+	}
+
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		log.debug("getPatronByLocalId({})", localPatronId);
 
@@ -1130,5 +1143,4 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
     log.debug("SIERRA Supplier Preflight {} {} {} {}",borrowingAgencyCode,supplyingAgencyCode,canonicalItemType,canonicalPatronType);
 		return Mono.just(Boolean.TRUE);
 	}
-
 }

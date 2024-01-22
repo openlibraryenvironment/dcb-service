@@ -80,15 +80,12 @@ public interface ReferenceValueMappingRepository {
 		@NonNull String targetCategory,
 		@NonNull String targetContext);
 
-        /**
-         * Used to try to find a mapping when it's possible for the source value to be globally unique - as we thought
-         * was the case for pickup locations (And later turned out not to be true)
-         */
-	Publisher<ReferenceValueMapping> findOneByFromCategoryAndFromValueAndToCategoryAndToContext(
+	Publisher<ReferenceValueMapping> findOneByFromCategoryAndFromContextAndToCategoryAndToContextAndToValue(
 		@NonNull String sourceCategory,
-		@NonNull String sourceValue,
+		@NonNull String sourceContext,
 		@NonNull String targetCategory,
-		@NonNull String targetContext);
+		@NonNull String targetContext,
+		@NonNull String targetValue);
 
 	@SingleResult
 	@NonNull

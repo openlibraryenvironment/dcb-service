@@ -26,13 +26,16 @@ import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
@@ -63,16 +66,22 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	private final HostLms lms;
 	private final ProcessStateService processStateService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
+	private final NumericPatronTypeMapper numericPatronTypeMapper;
+	private final ReferenceValueMappingService referenceValueMappingService;
 
 	private static final String[] titleWords = { "Science", "Philosophy", "Music", "Art", "Nonsense", "Dialectic",
 			"FlipDeBoop", "FlopLehoop", "Affdgerandunique", "Literacy" };
 
 	public DummyLmsClient(@Parameter HostLms lms, ProcessStateService processStateService,
-		LocationToAgencyMappingService locationToAgencyMappingService) {
+		LocationToAgencyMappingService locationToAgencyMappingService,
+		NumericPatronTypeMapper numericPatronTypeMapper,
+		ReferenceValueMappingService referenceValueMappingService) {
 
 		this.lms = lms;
 		this.processStateService = processStateService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
+		this.numericPatronTypeMapper = numericPatronTypeMapper;
+		this.referenceValueMappingService = referenceValueMappingService;
 	}
 
 	@Override
@@ -114,6 +123,19 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		}
 
 		return Mono.empty();
+	}
+
+	@Override
+	public Mono<String> findLocalPatronType(String canonicalPatronType) {
+		return referenceValueMappingService.findMapping("patronType", "DCB",
+				canonicalPatronType, getHostLmsCode())
+			.map(ReferenceValueMapping::getToValue);
+	}
+
+	@Override
+	public Mono<String> findCanonicalPatronType(String localPatronType, String localId) {
+		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(
+			getHostLmsCode(), localPatronType, localId);
 	}
 
 	@Override
@@ -434,5 +456,4 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
   public Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType) {
     return Mono.just(Boolean.TRUE);
   }
-
 }

@@ -1,12 +1,15 @@
 package org.olf.dcb.core.interaction.folio;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
+import static org.mockserver.verify.VerificationTimes.once;
 
 import java.util.List;
 
 import org.mockserver.client.MockServerClient;
+import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.mockserver.model.JsonBody;
 
@@ -46,7 +49,7 @@ public class MockFolioFixture {
 
 	void mockHoldingsByInstanceId(String instanceId, JsonBody json) {
 		mockServerClient
-			.when(org.mockserver.model.HttpRequest.request()
+			.when(request()
 				.withHeader("Host", host)
 				.withHeader("Authorization", apiKey)
 				.withHeader("Accept", APPLICATION_JSON)
@@ -67,7 +70,7 @@ public class MockFolioFixture {
 
 	private void mockPatronVerify(HttpResponse response) {
 		mockServerClient
-			.when(org.mockserver.model.HttpRequest.request()
+			.when(request()
 				.withHeader("Host", host)
 				.withHeader("Authorization", apiKey)
 				.withHeader("Accept", APPLICATION_JSON)
@@ -77,7 +80,7 @@ public class MockFolioFixture {
 
 	public void mockGetUsersWithQuery(String queryField, String queryValue, User... users) {
 		mockServerClient
-			.when(org.mockserver.model.HttpRequest.request()
+			.when(request()
 				.withHeader("Host", host)
 				.withHeader("Authorization", apiKey)
 				.withHeader("Accept", APPLICATION_JSON)
@@ -93,13 +96,43 @@ public class MockFolioFixture {
 
 	public void mockGetUsersWithQuery(String queryField, String queryValue, HttpResponse httpResponse) {
 		mockServerClient
-			.when(org.mockserver.model.HttpRequest.request()
+			.when(request()
 				.withHeader("Host", host)
 				.withHeader("Authorization", apiKey)
 				.withHeader("Accept", APPLICATION_JSON)
 				.withPath("/users/users")
 				.withQueryStringParameter("query", queryField + "==\"" + queryValue + "\""))
 			.respond(httpResponse);
+	}
+
+	void mockCreateTransaction(CreateTransactionResponse response) {
+		mockCreateTransaction(response()
+			.withStatusCode(201)
+			.withBody(json(response)));
+	}
+
+	void mockCreateTransaction(HttpResponse response) {
+		// Have to remove previous expectations as there is no way to match specifically
+		mockServerClient.clear(createTransactionRequest());
+
+		mockServerClient
+			.when(createTransactionRequest())
+			.respond(response);
+	}
+
+	void verifyCreateTransaction(CreateTransactionRequest request) {
+		mockServerClient.verify(createTransactionRequest()
+			.withBody(json(request)), once());
+	}
+
+	private HttpRequest createTransactionRequest() {
+		return request()
+			.withMethod("POST")
+			.withHeader("Host", host)
+			.withHeader("Authorization", apiKey)
+			.withHeader("Accept", APPLICATION_JSON)
+			// This has to be unspecific as the transaction ID is generated internally
+			.withPath("/dcbService/transactions/.*");
 	}
 
 	@Serdeable

@@ -26,7 +26,7 @@ public class NumericPatronTypeMapper {
 				Long l = Long.valueOf(localPatronTypeCode);
 				log.debug("Look up patron type {}", l);
 				return Mono.from(numericRangeMappingRepository.findMappedValueFor(system, "patronType", "DCB", l))
-					.doOnNext(nrm -> log.debug("nrm: {}", nrm))
+					.doOnNext(mapping -> log.debug("Found mapping: {}", mapping))
 					.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
 						"Unable to map patronType "+system+":"+l+" To DCB context", system,
 						localPatronTypeCode)));
