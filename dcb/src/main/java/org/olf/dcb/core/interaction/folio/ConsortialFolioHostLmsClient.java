@@ -559,7 +559,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private <T, R> Mono<T> makeRequest(@NonNull MutableHttpRequest<R> request,
 		@NonNull Argument<T> bodyType) {
 
-		log.trace("Making request: {} to Host LMS: {}", request, getHostLmsCode());
+		log.trace("Making request: {} to Host LMS: {}", toLogOutput(request), getHostLmsCode());
 
 		return Mono.from(httpClient.retrieve(request, bodyType))
 			.doOnSuccess(response -> log.trace(
@@ -567,6 +567,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.doOnError(HttpClientResponseException.class,
 				error -> log.trace("Received error response: {} from Host LMS: {}",
 					toLogOutput(error.getResponse()), getHostLmsCode()));
+	}
+
+	private <T> String toLogOutput(MutableHttpRequest<T> request) {
+		if (request == null) {
+			return "Request is null";
+		}
+
+		return request + " with body: \"" + request.getBody(Argument.of(String.class)) + "\"";
 	}
 
 	private String toLogOutput(HttpResponse<?> response) {
