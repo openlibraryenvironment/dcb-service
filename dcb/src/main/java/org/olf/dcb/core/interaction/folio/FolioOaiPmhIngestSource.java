@@ -199,21 +199,22 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		return Mono.from(this.get("/oai", Argument.of( Response.class ), params -> {
 			
 			params.queryParam("verb", "ListRecords");
-			
-			resumptionToken.ifPresentOrElse(val -> {
-				params.queryParam("resumptionToken", val);
-			}, () -> {
-				
-				// Exclude when resumption token present.
-				if (since != null) {
-					params.queryParam("from", since.truncatedTo(ChronoUnit.SECONDS).toString());
-				}
-
-				params
-					.queryParam(PARAM_RECORD_SYNTAX, recordSyntax)
-					.queryParam(PARAM_METADATA_PREFIX, metadataPrefix);
-
-			});
+			resumptionToken
+				.filter(StringUtils::hasText)
+				.ifPresentOrElse(val -> {
+					params.queryParam("resumptionToken", val);
+				}, () -> {
+					
+					// Exclude when resumption token present.
+					if (since != null) {
+						params.queryParam("from", since.truncatedTo(ChronoUnit.SECONDS).toString());
+					}
+	
+					params
+						.queryParam(PARAM_RECORD_SYNTAX, recordSyntax)
+						.queryParam(PARAM_METADATA_PREFIX, metadataPrefix);
+	
+				});
 
 			log.info("Final FOLIO OAI params:{}",params);
 			
