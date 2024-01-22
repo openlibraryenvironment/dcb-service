@@ -153,6 +153,7 @@ public class SierraItemMapper {
 				.replaceAll("\\p{Punct}", " ")	// remove punctuation
 				.replaceAll(" ", "")	// remove spaces
 				.replaceAll("pt", "p") // pt->p
+				.replaceAll("no", "n") // no->n
 				;
 			// result = volumeStatement;
 		}
