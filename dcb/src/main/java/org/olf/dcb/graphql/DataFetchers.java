@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.reactivestreams.Publisher;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
+import io.micronaut.data.model.Sort;
 
 import graphql.schema.DataFetcher;
 import io.micronaut.core.annotation.TypeHint;
@@ -89,13 +90,13 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
                         
                         if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "name";
 
-                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
-				.order(order);
+                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
                 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, DataAgency.class);
@@ -126,14 +127,14 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-                        
-                        if ( pageno == null ) pageno = Integer.valueOf(0);
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "dateCreated";
 
                         Pageable pageable = Pageable
                                 .from(pageno.intValue(), pagesize.intValue())
-                                .order(order);
+                                .order(order, orderBy);
                 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, PatronRequest.class);
@@ -151,14 +152,14 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-
-                        if ( pageno == null ) pageno = Integer.valueOf(0);
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "auditDate";
 
                         Pageable pageable = Pageable
 				.from(pageno.intValue(), pagesize.intValue())
-                                .order(order);
+                                .order(order, orderBy);
 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, PatronRequestAudit.class);
@@ -176,8 +177,8 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-                        
-                        if ( pageno == null ) pageno = Integer.valueOf(0);
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
 
                         Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
@@ -197,14 +198,14 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-                        
-                        if ( pageno == null ) pageno = Integer.valueOf(0);
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "dateCreated";
 
                         Pageable pageable = Pageable
                                 .from(pageno.intValue(), pagesize.intValue())
-                                .order(order);
+                                .order(order, orderBy);
                 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, SupplierRequest.class);
@@ -220,11 +221,12 @@ public class DataFetchers {
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
-                        
-                        if ( pageno == null ) pageno = Integer.valueOf(0);
+												String order = env.getArgument("order");
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
 
-                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
+                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, AgencyGroup.class);
@@ -259,14 +261,13 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-
-                        if ( pageno == null ) pageno = Integer.valueOf(0);
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "name";
 
                         log.debug("InstanceClusterDataFetcher::get({},{},{})", pageno,pagesize,query);
-                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
-				.order(order);
+                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, Location.class);
@@ -284,15 +285,15 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-
-                        if ( pageno == null ) pageno = Integer.valueOf(0);
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "code";
 
                         log.debug("InstanceClusterDataFetcher::get({},{},{})", pageno,pagesize,query);
                         Pageable pageable = Pageable
                                 .from(pageno.intValue(), pagesize.intValue())
-                                .order(order)
+                                .order(order, orderBy)
                                 ;
 
                         if ((query != null) && (query.length() > 0)) {
@@ -312,8 +313,8 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-
-                        if ( pageno == null ) pageno = Integer.valueOf(0);
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
 
                         log.debug("ProcessStateDataFetcher::get({},{},{})", pageno,pagesize,query);
@@ -445,13 +446,13 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-
-                        if ( pageno == null ) pageno = Integer.valueOf(0);
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "id";
 
                         Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
-                                .order(order);
+                                .order(order, orderBy);
 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, NumericRangeMapping.class);
@@ -468,13 +469,13 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-
-                        if ( pageno == null ) pageno = Integer.valueOf(0);
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "id";
 
                         Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
-                                .order(order);
+                                .order(order, orderBy);
 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, ReferenceValueMapping.class);
