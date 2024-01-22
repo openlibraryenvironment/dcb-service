@@ -213,8 +213,9 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 					.queryParam(PARAM_RECORD_SYNTAX, recordSyntax)
 					.queryParam(PARAM_METADATA_PREFIX, metadataPrefix);
 
-				log.info("Final FOLIO OAI params:{}",params);
 			});
+
+			log.info("Final FOLIO OAI params:{}",params);
 			
 		}))
 		.transform( this::handleErrors )
@@ -234,6 +235,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	}
 	
 	private Publisher<OaiRecord> pageAllResults() {
+
 		return Mono.from( getInitialState(lms.getId(), "ingest") )
 			.map(state -> state.toBuilder().build())
 			.zipWhen(state -> {
@@ -253,8 +255,8 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 				final String resumptionToken = response.resumptionToken();
 				
 				if (resumptionToken == null) {
-					log.info("{} ingest Terminating cleanly - run out of bib results - new timestamp is {}", lms.getName(),
-							state.request_start_time);
+
+					log.info("{} ingest Terminating cleanly - run out of bib results - new timestamp is {}", lms.getName(), state.request_start_time);
 	
 					// Make a note of the time at which we started this run, so we know where
 					// to pick up from next time
