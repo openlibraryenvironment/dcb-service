@@ -161,11 +161,11 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 				.map(Metadata::record)
 				.isPresent())
 			.onErrorResume(t -> {
-				log.error("Error ingesting data {}", t.getMessage());
+				log.error("Error ingesting data from {}/{} : {}",  lms.getCode(), rootUri, t.getMessage());
 				t.printStackTrace();
 				return Mono.empty();
 			}).switchIfEmpty(Mono.fromCallable(() -> {
-				log.info("No results returned. Stopping");
+				log.info("No results returned {}/{}. Stopping", lms.getCode(),rootUri);
 				return null;
 		}));
 	}
@@ -194,7 +194,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	}
 	
 	protected Mono<ListRecordsResponse> fetchPage(Instant since, Optional<String> resumptionToken) {
-		log.info("Creating subscribeable batch;  since={}, resumptionToken={}", since, resumptionToken);
+		log.info("Creating subscribeable batch;  root={}/{} since={}, resumptionToken={}",  lms.getCode(), rootUri, since, resumptionToken);
 	
 		return Mono.from(this.get("/oai", Argument.of( Response.class ), params -> {
 			
