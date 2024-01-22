@@ -328,7 +328,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private CannotPlaceRequestException interpretValidationError(Throwable error) {
 		log.debug("Received validation error", error);
-		
+
 		if (error instanceof HttpClientResponseException clientResponseException) {
 			return clientResponseException
 				.getResponse()
