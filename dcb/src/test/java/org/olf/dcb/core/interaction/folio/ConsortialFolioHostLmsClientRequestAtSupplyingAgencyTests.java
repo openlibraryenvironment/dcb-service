@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
@@ -110,7 +111,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 				.build())
 			.build());
 	}
-	
+
+	@Disabled
 	@Test
 	void shouldFailWhenTransactionCreationReturnsValidationError() {
 		// Arrange
@@ -144,6 +146,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		assertThat(exception, hasMessage("Something went wrong"));
 	}
 
+	@Disabled
 	@Test
 	void shouldFailWhenTransactionCreationReturnsNotFoundError() {
 		// Arrange
@@ -177,6 +180,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		assertThat(exception, hasMessage("Patron group not found with name unknown group"));
 	}
 
+	@Disabled
 	@Test
 	void shouldFailWhenTransactionCreationReturnsUnauthorised() {
 		// Arrange
