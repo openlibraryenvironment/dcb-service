@@ -27,6 +27,7 @@ class CreateTransactionRequest {
 	static class Patron {
 		String id;
 		String barcode;
+		String group;
 	}
 
 	@Data

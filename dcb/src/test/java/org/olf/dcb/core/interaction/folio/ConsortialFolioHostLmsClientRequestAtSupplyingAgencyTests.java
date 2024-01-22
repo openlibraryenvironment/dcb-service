@@ -80,6 +80,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.localItemBarcode(itemBarcode)
 					.localPatronId(patronId)
 					.localPatronBarcode(patronBarcode)
+					.localPatronType("undergrad")
 					.pickupAgency(pickupAgency)
 					.build()));
 
@@ -99,6 +100,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 			.patron(CreateTransactionRequest.Patron.builder()
 				.id(patronId)
 				.barcode(patronBarcode)
+				.group("undergrad")
 				.build())
 			.pickup(CreateTransactionRequest.Pickup.builder()
 				.servicePointId(dnsUUID("FolioServicePoint:" + pickupAgency.getCode()).toString())
@@ -131,6 +133,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.localItemBarcode("6736583")
 					.localPatronId(UUID.randomUUID().toString())
 					.localPatronBarcode("8847474")
+					.localPatronType("undergrad")
 					.pickupAgency(pickupAgency)
 					.build())));
 
@@ -161,6 +164,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.localItemBarcode("4759385")
 					.localPatronId(UUID.randomUUID().toString())
 					.localPatronBarcode("2365865")
+					.localPatronType("undergrad")
 					.pickupAgency(pickupAgency)
 					.build())));
 
@@ -192,6 +196,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.localItemBarcode("7837315")
 					.localPatronId(UUID.randomUUID().toString())
 					.localPatronBarcode("5486193")
+					.localPatronType("undergrad")
 					.pickupAgency(pickupAgency)
 					.build())));
 

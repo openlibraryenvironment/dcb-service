@@ -309,6 +309,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.patron(CreateTransactionRequest.Patron.builder()
 					.id(parameters.getLocalPatronId())
 					.barcode(parameters.getLocalPatronBarcode())
+					.group(parameters.getLocalPatronType())
 					.build())
 				.pickup(CreateTransactionRequest.Pickup.builder()
 					.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
