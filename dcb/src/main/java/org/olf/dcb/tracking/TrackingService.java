@@ -1,61 +1,47 @@
 package org.olf.dcb.tracking;
 
-import io.micronaut.runtime.context.scope.Refreshable;
-import io.micronaut.scheduling.annotation.Scheduled;
-import jakarta.inject.Singleton;
-
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.resolution.HostLmsReactions;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import io.micronaut.runtime.context.scope.Refreshable;
+import io.micronaut.scheduling.annotation.Scheduled;
+import jakarta.inject.Singleton;
+import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.micronaut.scheduling.processor.AppTask;
-import java.time.Instant;
 
-import jakarta.transaction.Transactional;
-import org.olf.dcb.request.resolution.HostLmsReactions;
-import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
-
+@Slf4j
 @Refreshable
 @Singleton
 public class TrackingService implements Runnable {
-
   private Disposable mutex = null;
-  private Instant lastRun = null;
-
-  private static Logger log = LoggerFactory.getLogger(TrackingService.class);
 
 	private PatronRequestRepository patronRequestRepository;
 	private SupplierRequestRepository supplierRequestRepository;
 	private SupplyingAgencyService supplyingAgencyService;
-        private final HostLmsService hostLmsService;
+	private final HostLmsService hostLmsService;
 	private HostLmsReactions hostLmsReactions;
-	private PatronRequestWorkflowService patronRequestWorkflowService;
-	private PatronRequestAuditService patronRequestAuditService;
 
-	TrackingService( PatronRequestRepository patronRequestRepository,
-			 SupplierRequestRepository supplierRequestRepository,
-                         SupplyingAgencyService supplyingAgencyService,
-                         HostLmsService hostLmsService,
-                         HostLmsReactions hostLmsReactions,
-                         PatronRequestWorkflowService patronRequestWorkflowService,
-                         PatronRequestAuditService patronRequestAuditService
-                        ) {
+	TrackingService(PatronRequestRepository patronRequestRepository,
+		SupplierRequestRepository supplierRequestRepository,
+		SupplyingAgencyService supplyingAgencyService,
+		HostLmsService hostLmsService,
+		HostLmsReactions hostLmsReactions) {
+
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplyingAgencyService = supplyingAgencyService;
 		this.hostLmsService = hostLmsService;
 		this.hostLmsReactions = hostLmsReactions;
-		this.patronRequestWorkflowService = patronRequestWorkflowService;
-		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	@jakarta.annotation.PostConstruct
