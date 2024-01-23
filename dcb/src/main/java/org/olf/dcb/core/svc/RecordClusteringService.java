@@ -38,6 +38,8 @@ import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
+import io.micrometer.core.annotation.Timed;
+
 @Singleton
 public class RecordClusteringService {
 
@@ -214,6 +216,7 @@ public class RecordClusteringService {
 		
 	}
 	
+	@Timed("bib.cluster.matchAndMerge")
 	@Transactional
 	protected Mono<ClusterRecord> saveMatchPointsAndMergeClusters(List<MatchPoint> matchPoints, List<ClusterRecord> clusters) {
 		return Flux.from( matchPointRepository.saveAll(matchPoints) )
@@ -247,6 +250,7 @@ public class RecordClusteringService {
 						.build());
 	}
 	
+	@Timed("bib.cluster.minimal")
 	@Transactional
 	public Mono<ClusterRecord> createMinimalCluster( BibRecord bib ) {
 		var cluster = ClusterRecord.builder()
@@ -277,6 +281,7 @@ public class RecordClusteringService {
 		return Mono.from ( clusterRecords.update(cluster) ).thenReturn(cluster);
 	}
 
+	@Timed("bib.cluster")
 	@Retryable
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Mono<BibRecord> clusterBib ( final BibRecord bib ) {

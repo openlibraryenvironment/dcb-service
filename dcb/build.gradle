@@ -40,6 +40,7 @@ dependencies {
 	annotationProcessor("io.micronaut.security:micronaut-security-annotations")
 	annotationProcessor("io.micronaut.validation:micronaut-validation-processor")
 	annotationProcessor('io.micronaut:micronaut-graal')
+  annotationProcessor("io.micronaut.micrometer:micronaut-micrometer-annotation")
 
 	compileOnly("org.graalvm.nativeimage:svm")
 	compileOnly("io.micronaut:micronaut-inject-java")
@@ -278,8 +279,6 @@ tasks {
 
 	dockerBuildNative {
 		images = nativImageNames
-    buildArgs.add('-H:+AddAllCharsets')
-                // buildArgs.add('-march=x86-64-v2')
 	}
 
 	jacocoTestReport {

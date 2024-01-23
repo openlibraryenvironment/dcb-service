@@ -34,6 +34,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
+import io.micrometer.core.annotation.Timed;
+
+
 @Singleton
 public class BibRecordService {
 	
@@ -190,6 +193,7 @@ public class BibRecordService {
 			.flatMap(Mono::from);
 	}
 	
+	@Timed("bib.process")
 	@SingleResult
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Publisher<BibRecord> process(final IngestRecord source) {
