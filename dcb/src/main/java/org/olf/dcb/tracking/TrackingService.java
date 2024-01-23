@@ -23,13 +23,13 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 @Refreshable
 @Singleton
 public class TrackingService implements Runnable {
-  private Disposable mutex = null;
+	private final Disposable mutex = null;
 
-	private PatronRequestRepository patronRequestRepository;
-	private SupplierRequestRepository supplierRequestRepository;
-	private SupplyingAgencyService supplyingAgencyService;
+	private final PatronRequestRepository patronRequestRepository;
+	private final SupplierRequestRepository supplierRequestRepository;
+	private final SupplyingAgencyService supplyingAgencyService;
 	private final HostLmsService hostLmsService;
-	private HostLmsReactions hostLmsReactions;
+	private final HostLmsReactions hostLmsReactions;
 
 	TrackingService(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
