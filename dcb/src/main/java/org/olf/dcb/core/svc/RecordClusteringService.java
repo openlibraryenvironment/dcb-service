@@ -324,6 +324,7 @@ public class RecordClusteringService {
 	}
 	
 
+	@Timed("bib.cluster.elect")
 	@Transactional
 	public Mono<ClusterRecord> electSelectedBib( final ClusterRecord cr ) {
 		return this.electSelectedBib(cr, Optional.empty());
