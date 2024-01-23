@@ -1,5 +1,21 @@
 # Changelog
 
+## Version 4.6.1
+
+### Changes
+* [Chore]
+	* Refactoring around sort order
+	* Make tracking service field final
+	* Reformat tracking service
+	* Remove empty init method from tracking service
+	* Remove unused fields from tracking service
+	* Attempt to address UnsupportedCharsetException: UTF-32BE in native exec by adding docker-native build option -H:+AddAllCharsets
+
+### Fixes
+* [General]
+	* Don't explode when not provided with a orderBy sort direction in graphql
+	* Default sort direction if not specified in patron request data fetcher
+
 ## Version 4.6.0
 
 ### Additions
@@ -10,6 +26,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Adjust oai parameter logging
 	* Add some fields to error logging on Folio OAI source
 	* Throw exception when relative URI does not start with a forward slash DCB-490
