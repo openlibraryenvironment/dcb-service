@@ -136,7 +136,7 @@ public class DataFetchers {
 												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "dateCreated";
-                        if ( direction == null ) order = "ASC";
+                        if ( direction == null ) direction = "ASC";
 
 												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
 
@@ -153,30 +153,34 @@ public class DataFetchers {
                 };
         }
 
-        public DataFetcher<CompletableFuture<Page<PatronRequestAudit>>> getAuditsDataFetcher() {
-                return env -> {
-                        log.debug("getAuditsDataFetcher {}",env);
-                        Integer pageno = env.getArgument("pageno");
-                        Integer pagesize = env.getArgument("pagesize");
-                        String query = env.getArgument("query");
-                        String order = env.getArgument("order");
-												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
-												if ( pageno == null ) pageno = Integer.valueOf(0);
-                        if ( pagesize == null ) pagesize = Integer.valueOf(10);
-                        if ( order == null ) order = "auditDate";
+	public DataFetcher<CompletableFuture<Page<PatronRequestAudit>>> getAuditsDataFetcher() {
+		return env -> {
+			log.debug("getAuditsDataFetcher {}",env);
+			Integer pageno = env.getArgument("pageno");
+			Integer pagesize = env.getArgument("pagesize");
+			String query = env.getArgument("query");
+			String order = env.getArgument("order");
+			String direction = env.getArgument("orderBy");
 
-                        Pageable pageable = Pageable
+			if ( pageno == null ) pageno = Integer.valueOf(0);
+			if ( pagesize == null ) pagesize = Integer.valueOf(10);
+			if ( order == null ) order = "auditDate";
+			if ( direction == null ) direction = "ASC";
+
+			Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
+
+			Pageable pageable = Pageable
 				.from(pageno.intValue(), pagesize.intValue())
-                                .order(order, orderBy);
+				.order(order, orderBy);
 
-                        if ((query != null) && (query.length() > 0)) {
-                                var spec = qs.evaluate(query, PatronRequestAudit.class);
-                                return Mono.from(postgresPatronRequestAuditRepository.findAll(spec, pageable)).toFuture();
-                        }
+			if ((query != null) && (query.length() > 0)) {
+				var spec = qs.evaluate(query, PatronRequestAudit.class);
+				return Mono.from(postgresPatronRequestAuditRepository.findAll(spec, pageable)).toFuture();
+			}
 
-                        return Mono.from(postgresPatronRequestAuditRepository.findAll(pageable)).toFuture();
-                };
-        }
+			return Mono.from(postgresPatronRequestAuditRepository.findAll(pageable)).toFuture();
+		};
+	}
 
 
         public DataFetcher<CompletableFuture<Page<PatronIdentity>>> getPatronIdentitiesDataFetcher() {
