@@ -318,6 +318,7 @@ graalvmNative {
     binaries {
         main {
             buildArgs.add('-march=x86-64-v2')
+            buildArgs.add('-H:+AddAllCharsets')
         }
     }
 }
