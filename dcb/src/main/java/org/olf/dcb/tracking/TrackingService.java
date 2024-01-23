@@ -44,10 +44,6 @@ public class TrackingService implements Runnable {
 		this.hostLmsReactions = hostLmsReactions;
 	}
 
-	@jakarta.annotation.PostConstruct
-	private void init() {
-	}
-
 	@AppTask
 	@Override
 	@Scheduled(initialDelay = "2m", fixedDelay = "${dcb.tracking.interval:5m}")
