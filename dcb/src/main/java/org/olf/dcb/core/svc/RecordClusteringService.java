@@ -153,6 +153,7 @@ public class RecordClusteringService {
 	}
 	
 	// Remove the items in a new transaction.
+	@Timed("bib.cluster.merge")
 	@Transactional
 	protected Mono<ClusterRecord> mergeClusterRecords( ClusterRecord to, Collection<ClusterRecord> from ) {
 		
