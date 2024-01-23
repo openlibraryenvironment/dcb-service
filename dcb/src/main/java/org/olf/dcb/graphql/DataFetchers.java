@@ -90,11 +90,15 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+                        String direction = env.getArgument("orderBy");
+
                         
                         if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "name";
+                        if ( direction == null ) direction = "ASC";
+
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
 
                         Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
                 
@@ -181,9 +185,15 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+                        String direction = env.getArgument("orderBy");
+
+
 												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
+                        if ( order == null ) order = "";
+                        if ( direction == null ) direction = "ASC";
+
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
 
                         Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
                 
@@ -202,10 +212,14 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+                        String direction = env.getArgument("orderBy");
+
 												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "dateCreated";
+                        if ( direction == null ) direction = "ASC";
+
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
 
                         Pageable pageable = Pageable
                                 .from(pageno.intValue(), pagesize.intValue())
@@ -226,9 +240,14 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
 												String order = env.getArgument("order");
-												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+												String direction = env.getArgument("orderBy");
+
 												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
+                        if ( order == null ) order = "name";
+                        if ( direction == null ) direction = "ASC";
+
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
 
                         Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
 
@@ -265,10 +284,14 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+                        String direction = env.getArgument("orderBy");
+
 												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "name";
+                        if ( direction == null ) direction = "ASC";
+
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
 
                         log.debug("InstanceClusterDataFetcher::get({},{},{})", pageno,pagesize,query);
                         Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
@@ -289,10 +312,14 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+                        String direction = env.getArgument("orderBy");
+
 												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "code";
+                        if ( direction == null ) direction = "ASC";
+
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
 
                         log.debug("InstanceClusterDataFetcher::get({},{},{})", pageno,pagesize,query);
                         Pageable pageable = Pageable
@@ -450,10 +477,14 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+                        String direction = env.getArgument("orderBy");
+
 												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "id";
+                        if ( direction == null ) direction = "ASC";
+
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
 
                         Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
                                 .order(order, orderBy);
@@ -473,11 +504,14 @@ public class DataFetchers {
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
                         String order = env.getArgument("order");
-												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+                        String direction = env.getArgument("orderBy");
+
 												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
                         if ( order == null ) order = "id";
+                        if ( direction == null ) direction = "ASC";
 
+												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
                         Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
                                 .order(order, orderBy);
 
