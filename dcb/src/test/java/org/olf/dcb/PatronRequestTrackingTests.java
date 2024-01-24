@@ -82,20 +82,7 @@ public class PatronRequestTrackingTests {
 	@Test
 	void shouldCancelRequestWhenHoldDoesNotExistAndNotOnHoldShelf() {
 		// Arrange
-		final var patron = patronFixture.savePatron("homeLibraryCode");
-
-		// host LMS item status can not be on hold shelf
-		final var patronRequest = patronRequestsFixture.savePatronRequest(
-			PatronRequest.builder()
-				.id(randomUUID())
-				.localRequestId("11890")
-				.localItemId("1088431")
-				.localItemStatus("")
-				.patronHostlmsCode(HOST_LMS_CODE)
-				.localRequestStatus("PLACED")
-				.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
-				.patron(patron)
-				.build());
+		final var patronRequest = createPatronRequest();
 
 		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
 				.id(randomUUID())
@@ -120,19 +107,7 @@ public class PatronRequestTrackingTests {
 	@Test
 	void shouldFinaliseRequestWhenSupplierHostlmsHoldIsPLACED() {
 		// Arrange
-		final var patron = patronFixture.savePatron("homeLibraryCode");
-
-		final var patronRequest = patronRequestsFixture.savePatronRequest(
-			PatronRequest.builder()
-				.id(randomUUID())
-				.localRequestId("11890")
-				.localItemId("1088431")
-				.localItemStatus("")
-				.patronHostlmsCode(HOST_LMS_CODE)
-				.localRequestStatus("PLACED")
-				.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
-				.patron(patron)
-				.build());
+		final var patronRequest = createPatronRequest();
 
 		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
 				// local status has to be PLACED
@@ -189,6 +164,23 @@ public class PatronRequestTrackingTests {
 
 		// Assert
 		waitUntilPatronRequestIsFinalised(patronRequest);
+	}
+
+	private PatronRequest createPatronRequest() {
+		final var patron = patronFixture.savePatron("homeLibraryCode");
+
+		// host LMS item status can not be on hold shelf
+		return patronRequestsFixture.savePatronRequest(
+			PatronRequest.builder()
+				.id(randomUUID())
+				.localRequestId("11890")
+				.localItemId("1088431")
+				.localItemStatus("")
+				.patronHostlmsCode(HOST_LMS_CODE)
+				.localRequestStatus("PLACED")
+				.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
+				.patron(patron)
+				.build());
 	}
 
 	private void waitUntilPatronRequestIsFinalised(PatronRequest patronRequest) {
