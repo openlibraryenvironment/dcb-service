@@ -21,7 +21,6 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.StatusCodeRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.test.HostLmsFixture;
@@ -44,8 +43,6 @@ public class PatronRequestTrackingTests {
 
 	@Inject
 	TrackingService trackingService;
-	@Inject
-	PatronRequestRepository patronRequestRepository;
 	@Inject
 	SupplierRequestRepository supplierRequestRepository;
 	@Inject
@@ -203,6 +200,6 @@ public class PatronRequestTrackingTests {
 	}
 
 	private PatronRequest getPatronRequest(UUID patronRequestId) {
-		return singleValueFrom(patronRequestRepository.findById(patronRequestId));
+		return patronRequestsFixture.findById(patronRequestId);
 	}
 }
