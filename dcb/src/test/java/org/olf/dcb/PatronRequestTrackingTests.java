@@ -91,7 +91,7 @@ public class PatronRequestTrackingTests {
 		final var patron = patronFixture.savePatron("homeLibraryCode");
 
 		// host LMS item status can not be on hold shelf
-		final var patronRequest = singleValueFrom(patronRequestRepository.save(
+		final var patronRequest = patronRequestsFixture.savePatronRequest(
 			PatronRequest.builder()
 				.id(randomUUID())
 				.localRequestId("11890")
@@ -101,7 +101,7 @@ public class PatronRequestTrackingTests {
 				.localRequestStatus("PLACED")
 				.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
 				.patron(patron)
-				.build()));
+				.build());
 
 		singleValueFrom(supplierRequestRepository.save(SupplierRequest.builder()
 				.id(randomUUID())
@@ -128,7 +128,7 @@ public class PatronRequestTrackingTests {
 		// Arrange
 		final var patron = patronFixture.savePatron("homeLibraryCode");
 
-		final var patronRequest = singleValueFrom(patronRequestRepository.save(
+		final var patronRequest = patronRequestsFixture.savePatronRequest(
 			PatronRequest.builder()
 				.id(randomUUID())
 				.localRequestId("11890")
@@ -138,7 +138,7 @@ public class PatronRequestTrackingTests {
 				.localRequestStatus("PLACED")
 				.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
 				.patron(patron)
-				.build()));
+				.build());
 
 		singleValueFrom(supplierRequestRepository.save(SupplierRequest.builder()
 				// local status has to be PLACED
@@ -167,7 +167,7 @@ public class PatronRequestTrackingTests {
 		// Arrange
 		final var patron = patronFixture.savePatron("homeLibraryCode");
 
-		final var patronRequest = singleValueFrom(patronRequestRepository.save(
+		final var patronRequest = patronRequestsFixture.savePatronRequest(
 			PatronRequest.builder()
 				.id(randomUUID())
 				.localRequestId("11890")
@@ -175,7 +175,7 @@ public class PatronRequestTrackingTests {
 				.patronHostlmsCode(HOST_LMS_CODE)
 				.status(CANCELLED)
 				.patron(patron)
-				.build()));
+				.build());
 
 		// the supplier item id has to match with the mock for state change to AVAILABLE
 		singleValueFrom(supplierRequestRepository.save(SupplierRequest.builder()
