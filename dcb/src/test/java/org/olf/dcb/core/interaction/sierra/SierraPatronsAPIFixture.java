@@ -37,16 +37,19 @@ public class SierraPatronsAPIFixture {
 	}
 
 	public void mockGetHoldByIdNotFound(String holdId) {
-		mockServer
-			.when(sierraMockServerRequests.get("/holds/"+holdId))
+		mockServer.when(getHoldById(holdId))
 			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
 	public void mockGetHoldById(String holdId) {
-		mockServer.clear(sierraMockServerRequests.get("/holds/"+holdId));
-		mockServer
-			.when(sierraMockServerRequests.get("/holds/"+holdId))
+		mockServer.clear(getHoldById(holdId));
+
+		mockServer.when(getHoldById(holdId))
 			.respond(sierraMockServerResponses.jsonSuccess("holds/11987.json"));
+	}
+
+	private HttpRequest getHoldById(String holdId) {
+		return sierraMockServerRequests.get("/holds/" + holdId);
 	}
 
 	public void postPatronResponse(String uniqueId, int returnId) {
