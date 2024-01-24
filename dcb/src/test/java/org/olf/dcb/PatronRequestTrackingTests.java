@@ -120,7 +120,7 @@ public class PatronRequestTrackingTests {
 	@Test
 	void shouldCancelRequestWhenHoldDoesNotExistAndNotOnHoldShelfAtBorrowingAgency() {
 		// Arrange
-		final var borrowingAgencyLocalRequestId = "11890";
+		final var borrowingAgencyLocalRequestId = "11463";
 		final var borrowingAgencyLocalItemId = "1088431";
 
 		final var patronRequest = createPatronRequest(
@@ -155,7 +155,7 @@ public class PatronRequestTrackingTests {
 	@Test
 	void shouldFinaliseRequestWhenSupplierHostlmsHoldIsPLACED() {
 		// Arrange
-		final var borrowingAgencyLocalRequestId = "11890";
+		final var borrowingAgencyLocalRequestId = "56436";
 		final var borrowingAgencyLocalItemId = "1088437";
 
 		final var patronRequest = createPatronRequest(
@@ -194,7 +194,7 @@ public class PatronRequestTrackingTests {
 		// Arrange
 		final var patronRequest = createPatronRequest(
 			request -> request
-				.localRequestId("11890")
+				.localRequestId("24263")
 				.localItemId("108843")
 				.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
 				.status(CANCELLED));
