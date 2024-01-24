@@ -9,6 +9,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORR
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.isFinalised;
 
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -82,7 +83,13 @@ public class PatronRequestTrackingTests {
 	@Test
 	void shouldCancelRequestWhenHoldDoesNotExistAndNotOnHoldShelf() {
 		// Arrange
-		final var patronRequest = createPatronRequest();
+		final var patronRequest = createPatronRequest(
+			request -> request
+				.localRequestId("11890")
+				.localItemId("1088431")
+				.localItemStatus("")
+				.localRequestStatus("PLACED")
+				.status(REQUEST_PLACED_AT_BORROWING_AGENCY));
 
 		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
 				.id(randomUUID())
@@ -107,7 +114,13 @@ public class PatronRequestTrackingTests {
 	@Test
 	void shouldFinaliseRequestWhenSupplierHostlmsHoldIsPLACED() {
 		// Arrange
-		final var patronRequest = createPatronRequest();
+		final var patronRequest = createPatronRequest(
+			request -> request
+				.localRequestId("11890")
+				.localItemId("1088431")
+				.localItemStatus("")
+				.localRequestStatus("PLACED")
+				.status(REQUEST_PLACED_AT_BORROWING_AGENCY));
 
 		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
 				// local status has to be PLACED
@@ -134,17 +147,12 @@ public class PatronRequestTrackingTests {
 	@Test
 	void shouldFinaliseRequestWhenSupplierItemAvailable() {
 		// Arrange
-		final var patron = patronFixture.savePatron("homeLibraryCode");
-
-		final var patronRequest = patronRequestsFixture.savePatronRequest(
-			PatronRequest.builder()
-				.id(randomUUID())
+		final var patronRequest = createPatronRequest(
+			request -> request
 				.localRequestId("11890")
 				.localItemId("108843")
 				.patronHostlmsCode(HOST_LMS_CODE)
-				.status(CANCELLED)
-				.patron(patron)
-				.build());
+				.status(CANCELLED));
 
 		// the supplier item id has to match with the mock for state change to AVAILABLE
 		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
@@ -166,21 +174,21 @@ public class PatronRequestTrackingTests {
 		waitUntilPatronRequestIsFinalised(patronRequest);
 	}
 
-	private PatronRequest createPatronRequest() {
+	private PatronRequest createPatronRequest(
+		Consumer<PatronRequest.PatronRequestBuilder> additionalAttributes) {
+
+		// Arrange
 		final var patron = patronFixture.savePatron("homeLibraryCode");
 
 		// host LMS item status can not be on hold shelf
-		return patronRequestsFixture.savePatronRequest(
-			PatronRequest.builder()
-				.id(randomUUID())
-				.localRequestId("11890")
-				.localItemId("1088431")
-				.localItemStatus("")
-				.patronHostlmsCode(HOST_LMS_CODE)
-				.localRequestStatus("PLACED")
-				.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
-				.patron(patron)
-				.build());
+		final var patronRequestBuilder = PatronRequest.builder()
+			.id(randomUUID())
+			.patronHostlmsCode(HOST_LMS_CODE)
+			.patron(patron);
+
+		additionalAttributes.accept(patronRequestBuilder);
+
+		return patronRequestsFixture.savePatronRequest(patronRequestBuilder.build());
 	}
 
 	private void waitUntilPatronRequestIsFinalised(PatronRequest patronRequest) {
