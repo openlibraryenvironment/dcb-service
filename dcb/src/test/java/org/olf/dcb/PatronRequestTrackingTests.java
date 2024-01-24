@@ -3,14 +3,18 @@ package org.olf.dcb;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PLACED;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.isFinalised;
 
 import java.util.UUID;
 import java.util.function.Consumer;
 
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,9 +35,11 @@ import org.olf.dcb.test.SupplierRequestsFixture;
 import org.olf.dcb.tracking.TrackingService;
 
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+@Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 public class PatronRequestTrackingTests {
@@ -75,6 +81,42 @@ public class PatronRequestTrackingTests {
 	@BeforeEach
 	void beforeEach() {
 		patronRequestsFixture.deleteAll();
+	}
+
+	@Test
+	void shouldDetectWhenRequestIsPlacedAtSupplyingAgency() {
+		// Arrange
+		final var patronRequest = createPatronRequest(
+			request -> request
+				.status(REQUEST_PLACED_AT_BORROWING_AGENCY));
+
+		final var supplyingAgencyLocalRequestId = "11567";
+
+		final var supplierRequest = supplierRequestsFixture.saveSupplierRequest(
+			SupplierRequest.builder()
+				.id(randomUUID())
+				.localId(supplyingAgencyLocalRequestId)
+				.localItemId("84356375")
+				.patronRequest(patronRequest)
+				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.statusCode(PLACED)
+				// This may be somewhat artificial in order to be able to check for a change
+				.localStatus("")
+				.build());
+
+		sierraPatronsAPIFixture.mockGetHoldById(supplyingAgencyLocalRequestId,
+			SierraHold.builder()
+				.statusCode("0")
+				.statusName("on hold.")
+				.build());
+
+		// Act
+		trackingService.run();
+
+		// Assert
+		await().atMost(5, SECONDS)
+			.until(() -> supplierRequestsFixture.findById(supplierRequest.getId()),
+				hasLocalStatus("PLACED"));
 	}
 
 	@Test
@@ -176,6 +218,7 @@ public class PatronRequestTrackingTests {
 				.statusCode("0")
 				.statusName("on hold.")
 				.build());
+
 		sierraItemsAPIFixture.mockGetItemById(supplyingAgencyLocalItemId,
 			exampleSierraItem(supplyingAgencyLocalItemId));
 
@@ -228,5 +271,9 @@ public class PatronRequestTrackingTests {
 			.id(id)
 			.statusCode("-")
 			.build();
+	}
+
+	private static Matcher<SupplierRequest> hasLocalStatus(String expectedStatus) {
+		return hasProperty("localStatus", is(expectedStatus));
 	}
 }
