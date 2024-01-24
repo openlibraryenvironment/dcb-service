@@ -11,6 +11,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
 
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
@@ -24,6 +25,7 @@ import org.olf.dcb.storage.StatusCodeRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.tracking.TrackingService;
 
@@ -54,12 +56,14 @@ public class PatronRequestTrackingTests {
 	private PatronFixture patronFixture;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private PatronRequestsFixture patronRequestsFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@BeforeAll
-	public void beforeAll(MockServerClient mockServerClient) {
+	void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://patron-request-tracking-tests.com";
 		final String KEY = "patron-request-tracking-tests-key";
@@ -70,10 +74,15 @@ public class PatronRequestTrackingTests {
 
 		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
-		
+
 		referenceValueMappingFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
+	}
+
+	@BeforeEach
+	void beforeEach() {
+		patronRequestsFixture.deleteAll();
 	}
 
 	@Test
