@@ -90,17 +90,13 @@ public class PatronRequestTrackingTests {
 
 		final var supplyingAgencyLocalRequestId = "11567";
 
-		final var supplierRequest = supplierRequestsFixture.saveSupplierRequest(
-			SupplierRequest.builder()
-				.id(randomUUID())
+		final var supplierRequest = createSupplierRequest(patronRequest,
+			request -> request
 				.localId(supplyingAgencyLocalRequestId)
 				.localItemId("84356375")
-				.patronRequest(patronRequest)
-				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
 				.statusCode(PLACED)
 				// This may be somewhat artificial in order to be able to check for a change
-				.localStatus("")
-				.build());
+				.localStatus(""));
 
 		sierraPatronsAPIFixture.mockGetHoldById(supplyingAgencyLocalRequestId,
 			SierraHold.builder()
@@ -127,17 +123,15 @@ public class PatronRequestTrackingTests {
 			request -> request
 				.localRequestId(borrowingAgencyLocalRequestId)
 				.localItemId(borrowingAgencyLocalItemId)
+				// host LMS item status can not be on hold shelf
 				.localItemStatus("")
 				.localRequestStatus("PLACED")
 				.status(REQUEST_PLACED_AT_BORROWING_AGENCY));
 
-		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
-				.id(randomUUID())
+		createSupplierRequest(patronRequest,
+			request -> request
 				.localId("11987")
-				.localItemId("1088432")
-				.patronRequest(patronRequest)
-				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
-				.build());
+				.localItemId("1088432"));
 
 		sierraPatronsAPIFixture.mockGetHoldByIdNotFound(borrowingAgencyLocalRequestId);
 		sierraItemsAPIFixture.mockGetItemById(borrowingAgencyLocalItemId,
@@ -166,15 +160,12 @@ public class PatronRequestTrackingTests {
 				.localRequestStatus("PLACED")
 				.status(REQUEST_PLACED_AT_BORROWING_AGENCY));
 
-		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
-				// local status has to be PLACED
-				.id(randomUUID())
+		createSupplierRequest(patronRequest,
+			request -> request
 				.localId("11987")
 				.localItemId("1088432")
-				.localStatus("PLACED")
-				.patronRequest(patronRequest)
-				.hostLmsCode(BORROWING_HOST_LMS_CODE)
-				.build());
+				// local status has to be PLACED
+				.localStatus("PLACED"));
 
 		sierraPatronsAPIFixture.mockGetHoldByIdNotFound(borrowingAgencyLocalRequestId);
 		sierraItemsAPIFixture.mockGetItemById(borrowingAgencyLocalItemId,
@@ -202,14 +193,10 @@ public class PatronRequestTrackingTests {
 		final var supplyingAgencyLocalRequestId = "11987";
 		final var supplyingAgencyLocalItemId = "1088435";
 
-		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
-				.id(randomUUID())
-				.localId(supplyingAgencyLocalRequestId)
+		createSupplierRequest(patronRequest,
+			request -> request.localId(supplyingAgencyLocalRequestId)
 				.localItemId(supplyingAgencyLocalItemId)
-				.patronRequest(patronRequest)
-				.hostLmsCode(BORROWING_HOST_LMS_CODE)
-				.localItemStatus("TRANSIT")
-				.build());
+				.localItemStatus("TRANSIT"));
 
 		sierraPatronsAPIFixture.mockGetHoldById(supplyingAgencyLocalRequestId,
 			SierraHold.builder()
@@ -244,15 +231,28 @@ public class PatronRequestTrackingTests {
 		// Arrange
 		final var patron = patronFixture.savePatron("homeLibraryCode");
 
-		// host LMS item status can not be on hold shelf
-		final var patronRequestBuilder = PatronRequest.builder()
+		final var builder = PatronRequest.builder()
 			.id(randomUUID())
 			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
 			.patron(patron);
 
-		additionalAttributes.accept(patronRequestBuilder);
+		additionalAttributes.accept(builder);
 
-		return patronRequestsFixture.savePatronRequest(patronRequestBuilder.build());
+		return patronRequestsFixture.savePatronRequest(builder.build());
+	}
+
+	private SupplierRequest createSupplierRequest(
+		PatronRequest patronRequest,
+		Consumer<SupplierRequest.SupplierRequestBuilder> additionalAttributes) {
+
+		final var builder = SupplierRequest.builder()
+			.id(randomUUID())
+			.patronRequest(patronRequest)
+			.hostLmsCode(SUPPLYING_HOST_LMS_CODE);
+
+		additionalAttributes.accept(builder);
+
+		return supplierRequestsFixture.saveSupplierRequest(builder.build());
 	}
 
 	private void waitUntilPatronRequestIsFinalised(PatronRequest patronRequest) {
