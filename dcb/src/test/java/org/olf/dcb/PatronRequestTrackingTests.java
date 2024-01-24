@@ -64,6 +64,8 @@ public class PatronRequestTrackingTests {
 		final String KEY = "patron-request-tracking-tests-key";
 		final String SECRET = "patron-request-tracking-tests-secret";
 
+		hostLmsFixture.deleteAll();
+
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
