@@ -1,16 +1,17 @@
 package org.olf.dcb.storage;
 
 import java.util.UUID;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 
-import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.reactivestreams.Publisher;
+
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.annotation.Query;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Mono;
 
 public interface SupplierRequestRepository {
@@ -21,6 +22,10 @@ public interface SupplierRequestRepository {
 	@NonNull
 	@SingleResult
 	Publisher<? extends SupplierRequest> update(@Valid @NotNull SupplierRequest supplierRequest);
+
+	@NonNull
+	@SingleResult
+	Publisher<SupplierRequest> findById(@NotNull UUID id);
 
 	@NonNull
 	Publisher<SupplierRequest> findAllByPatronRequest(@NotNull PatronRequest pr);
