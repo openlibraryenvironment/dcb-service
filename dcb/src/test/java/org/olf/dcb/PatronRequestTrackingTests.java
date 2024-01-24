@@ -35,7 +35,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 public class PatronRequestTrackingTests {
-	private static final String HOST_LMS_CODE = "patron-request-tracking-tests";
+	private static final String BORROWING_HOST_LMS_CODE = "borrowing-agency-tracking-tests";
+	private static final String SUPPLYING_HOST_LMS_CODE = "supplying-agency-tracking-tests";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -62,8 +63,9 @@ public class PatronRequestTrackingTests {
 		referenceValueMappingFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 
-		defineHostLms(HOST_LMS_CODE, "https://patron-request-tracking-tests.com", mockServerClient);
-		
+		defineHostLms(BORROWING_HOST_LMS_CODE, "https://borrowing-agency-tracking-tests.com", mockServerClient);
+		defineHostLms(SUPPLYING_HOST_LMS_CODE, "https://supplying-agency-tracking-tests.com", mockServerClient);
+
 		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 	}
@@ -89,7 +91,7 @@ public class PatronRequestTrackingTests {
 				.localId("11987")
 				.localItemId("1088432")
 				.patronRequest(patronRequest)
-				.hostLmsCode(HOST_LMS_CODE)
+				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
 				.build());
 
 		sierraPatronsAPIFixture.getHoldById404("11890");
@@ -122,7 +124,7 @@ public class PatronRequestTrackingTests {
 				.localItemId("1088432")
 				.localStatus("PLACED")
 				.patronRequest(patronRequest)
-				.hostLmsCode(HOST_LMS_CODE)
+				.hostLmsCode(BORROWING_HOST_LMS_CODE)
 				.build());
 
 		sierraPatronsAPIFixture.getHoldById404("11890");
@@ -144,7 +146,7 @@ public class PatronRequestTrackingTests {
 			request -> request
 				.localRequestId("11890")
 				.localItemId("108843")
-				.patronHostlmsCode(HOST_LMS_CODE)
+				.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
 				.status(CANCELLED));
 
 		// the supplier item id has to match with the mock for state change to AVAILABLE
@@ -153,7 +155,7 @@ public class PatronRequestTrackingTests {
 				.localId("11987")
 				.localItemId("1088431")
 				.patronRequest(patronRequest)
-				.hostLmsCode(HOST_LMS_CODE)
+				.hostLmsCode(BORROWING_HOST_LMS_CODE)
 				.localItemStatus("TRANSIT")
 				.build());
 
@@ -187,7 +189,7 @@ public class PatronRequestTrackingTests {
 		// host LMS item status can not be on hold shelf
 		final var patronRequestBuilder = PatronRequest.builder()
 			.id(randomUUID())
-			.patronHostlmsCode(HOST_LMS_CODE)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
 			.patron(patron);
 
 		additionalAttributes.accept(patronRequestBuilder);
