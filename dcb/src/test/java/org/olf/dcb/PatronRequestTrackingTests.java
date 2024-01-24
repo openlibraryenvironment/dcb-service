@@ -8,6 +8,8 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
@@ -30,7 +32,6 @@ import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.tracking.TrackingService;
 
 import jakarta.inject.Inject;
-import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -92,22 +93,26 @@ public class PatronRequestTrackingTests {
 
 		final var savedPatronRequestId = randomUUID();
 
-		// hostlms item status can not be on hold shelf
-		final var patronRequest = Mono.from(patronRequestRepository.save(PatronRequest.builder()
-			.id(savedPatronRequestId).localRequestId("11890").localItemId("1088431")
-			.localItemStatus("").patronHostlmsCode(HOST_LMS_CODE)
-			.localRequestStatus("PLACED")
-			.status(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
-			.patron(patron).build())).block();
+		// host LMS item status can not be on hold shelf
+		final var patronRequest = singleValueFrom(patronRequestRepository.save(
+			PatronRequest.builder()
+				.id(savedPatronRequestId)
+				.localRequestId("11890")
+				.localItemId("1088431")
+				.localItemStatus("")
+				.patronHostlmsCode(HOST_LMS_CODE)
+				.localRequestStatus("PLACED")
+				.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
+				.patron(patron)
+				.build()));
 
-		Mono.from(supplierRequestRepository.save(SupplierRequest.builder()
+		singleValueFrom(supplierRequestRepository.save(SupplierRequest.builder()
 				.id(randomUUID())
 				.localId("11987")
 				.localItemId("1088432")
 				.patronRequest(patronRequest)
 				.hostLmsCode(HOST_LMS_CODE)
-				.build()))
-			.block();
+				.build()));
 
 		sierraPatronsAPIFixture.getHoldById404("11890");
 		sierraItemsAPIFixture.getItemById("1088431");
@@ -116,10 +121,11 @@ public class PatronRequestTrackingTests {
 		trackingService.run();
 
 		// Assert
-		await().atMost(5, SECONDS)
-			.until(() -> Mono.from(patronRequestRepository.findById(savedPatronRequestId)).block(),
-				isFinalised());
+
 		// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
+		await().atMost(5, SECONDS)
+			.until(() -> singleValueFrom(patronRequestRepository.findById(savedPatronRequestId)),
+				isFinalised());
 	}
 
 	@Test
@@ -127,14 +133,20 @@ public class PatronRequestTrackingTests {
 		// Arrange
 		final var patron = patronFixture.savePatron("homeLibraryCode");
 		final var savedPatronRequestId = randomUUID();
-		final var patronRequest = Mono.from(patronRequestRepository.save(PatronRequest.builder()
-			.id(savedPatronRequestId).localRequestId("11890").localItemId("1088431")
-			.localItemStatus("").patronHostlmsCode(HOST_LMS_CODE)
-			.localRequestStatus("PLACED")
-			.status(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
-			.patron(patron).build())).block();
 
-		Mono.from(supplierRequestRepository.save(SupplierRequest.builder()
+		final var patronRequest = singleValueFrom(patronRequestRepository.save(
+			PatronRequest.builder()
+				.id(savedPatronRequestId)
+				.localRequestId("11890")
+				.localItemId("1088431")
+				.localItemStatus("")
+				.patronHostlmsCode(HOST_LMS_CODE)
+				.localRequestStatus("PLACED")
+				.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
+				.patron(patron)
+				.build()));
+
+		singleValueFrom(supplierRequestRepository.save(SupplierRequest.builder()
 				// local status has to be PLACED
 				.id(randomUUID())
 				.localId("11987")
@@ -142,8 +154,7 @@ public class PatronRequestTrackingTests {
 				.localStatus("PLACED")
 				.patronRequest(patronRequest)
 				.hostLmsCode(HOST_LMS_CODE)
-				.build()))
-			.block();
+				.build()));
 
 		sierraPatronsAPIFixture.getHoldById404("11890");
 		sierraItemsAPIFixture.getItemById("1088431");
@@ -152,10 +163,11 @@ public class PatronRequestTrackingTests {
 		trackingService.run();
 
 		// Assert
-		await().atMost(5, SECONDS)
-			.until(() -> Mono.from(patronRequestRepository.findById(savedPatronRequestId)).block(),
-				isFinalised());
+
 		// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
+		await().atMost(5, SECONDS)
+			.until(() -> singleValueFrom(patronRequestRepository.findById(savedPatronRequestId)),
+				isFinalised());
 	}
 
 	@Test
@@ -163,21 +175,26 @@ public class PatronRequestTrackingTests {
 		// Arrange
 		final var patron = patronFixture.savePatron("homeLibraryCode");
 		final var savedPatronRequestId = randomUUID();
-		final var patronRequest = Mono.from(patronRequestRepository.save(PatronRequest.builder()
-			.id(savedPatronRequestId).localRequestId("11890")
-			.localItemId("108843").patronHostlmsCode(HOST_LMS_CODE)
-			.status(CANCELLED).patron(patron).build())).block();
+
+		final var patronRequest = singleValueFrom(patronRequestRepository.save(
+			PatronRequest.builder()
+				.id(savedPatronRequestId)
+				.localRequestId("11890")
+				.localItemId("108843")
+				.patronHostlmsCode(HOST_LMS_CODE)
+				.status(CANCELLED)
+				.patron(patron)
+				.build()));
 
 		// the supplier item id has to match with the mock for state change to AVAILABLE
-		Mono.from(supplierRequestRepository.save(SupplierRequest.builder()
+		singleValueFrom(supplierRequestRepository.save(SupplierRequest.builder()
 				.id(randomUUID())
 				.localId("11987")
 				.localItemId("1088431")
 				.patronRequest(patronRequest)
 				.hostLmsCode(HOST_LMS_CODE)
 				.localItemStatus("TRANSIT")
-				.build()))
-			.block();
+				.build()));
 
 		sierraPatronsAPIFixture.getHoldById("11987");
 		sierraItemsAPIFixture.getItemById("1088431");
@@ -187,7 +204,7 @@ public class PatronRequestTrackingTests {
 
 		// Assert
 		await().atMost(5, SECONDS)
-			.until(() -> Mono.from(patronRequestRepository.findById(savedPatronRequestId)).block(),
+			.until(() -> singleValueFrom(patronRequestRepository.findById(savedPatronRequestId)),
 				isFinalised());
 	}
 
