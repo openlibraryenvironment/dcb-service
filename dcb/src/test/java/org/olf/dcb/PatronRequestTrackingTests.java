@@ -3,18 +3,16 @@ package org.olf.dcb;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PLACED;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.isFinalised;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalStatus;
 
 import java.util.UUID;
 import java.util.function.Consumer;
 
-import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -271,9 +269,5 @@ public class PatronRequestTrackingTests {
 			.id(id)
 			.statusCode("-")
 			.build();
-	}
-
-	private static Matcher<SupplierRequest> hasLocalStatus(String expectedStatus) {
-		return hasProperty("localStatus", is(expectedStatus));
 	}
 }
