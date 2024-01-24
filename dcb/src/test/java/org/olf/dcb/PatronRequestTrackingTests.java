@@ -76,12 +76,15 @@ public class PatronRequestTrackingTests {
 	}
 
 	@Test
-	void shouldCancelRequestWhenHoldDoesNotExistAndNotOnHoldShelf() {
+	void shouldCancelRequestWhenHoldDoesNotExistAndNotOnHoldShelfAtBorrowingAgency() {
 		// Arrange
+		final var borrowingAgencyLocalRequestId = "11890";
+		final var borrowingAgencyLocalItemId = "1088431";
+
 		final var patronRequest = createPatronRequest(
 			request -> request
-				.localRequestId("11890")
-				.localItemId("1088431")
+				.localRequestId(borrowingAgencyLocalRequestId)
+				.localItemId(borrowingAgencyLocalItemId)
 				.localItemStatus("")
 				.localRequestStatus("PLACED")
 				.status(REQUEST_PLACED_AT_BORROWING_AGENCY));
@@ -94,8 +97,8 @@ public class PatronRequestTrackingTests {
 				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
 				.build());
 
-		sierraPatronsAPIFixture.getHoldById404("11890");
-		sierraItemsAPIFixture.getItemById("1088431");
+		sierraPatronsAPIFixture.getHoldById404(borrowingAgencyLocalRequestId);
+		sierraItemsAPIFixture.getItemById(borrowingAgencyLocalItemId);
 
 		// Act
 		trackingService.run();
