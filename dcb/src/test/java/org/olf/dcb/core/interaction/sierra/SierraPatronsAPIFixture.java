@@ -20,6 +20,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import services.k_int.interaction.sierra.SierraCodeTuple;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
 
 @Slf4j
 @AllArgsConstructor
@@ -45,7 +47,24 @@ public class SierraPatronsAPIFixture {
 		mockServer.clear(getHoldById(holdId));
 
 		mockServer.when(getHoldById(holdId))
-			.respond(sierraMockServerResponses.jsonSuccess("holds/11987.json"));
+			.respond(sierraMockServerResponses.jsonSuccess(json(
+				SierraPatronHold.builder()
+					.id("https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/11987")
+					.patron("https://sandbox.iii.com/iii/sierra-api/v6/patrons/2542669")
+					.recordType("i")
+					.record("https://sandbox.iii.com/iii/sierra-api/v6/items/1088431")
+					.placed("2013-01-22")
+					.frozen("false")
+					.notWantedBeforeDate("2013-01-22")
+					.pickupLocation(SierraCodeTuple.builder()
+						.code("18")
+						.name("Alviso Branch")
+						.build())
+					.status(SierraCodeTuple.builder()
+						.code("0")
+						.name("on hold.")
+						.build())
+				.build())));
 	}
 
 	private HttpRequest getHoldById(String holdId) {
