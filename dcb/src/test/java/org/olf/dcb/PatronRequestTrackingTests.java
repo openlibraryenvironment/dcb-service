@@ -59,22 +59,13 @@ public class PatronRequestTrackingTests {
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
-		final String TOKEN = "test-token";
-		final String BASE_URL = "https://patron-request-tracking-tests.com";
-		final String KEY = "patron-request-tracking-tests-key";
-		final String SECRET = "patron-request-tracking-tests-secret";
-
+		referenceValueMappingFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 
-		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
-
+		defineHostLms(HOST_LMS_CODE, "https://patron-request-tracking-tests.com", mockServerClient);
+		
 		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
-
-		referenceValueMappingFixture.deleteAll();
-
-		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 	}
 
 	@BeforeEach
@@ -174,6 +165,17 @@ public class PatronRequestTrackingTests {
 
 		// Assert
 		waitUntilPatronRequestIsFinalised(patronRequest);
+	}
+
+	private void defineHostLms(String hostLmsCode, String baseUrl, MockServerClient mockServerClient) {
+		final String TOKEN = "test-token";
+		final String KEY = "patron-request-tracking-tests-key";
+		final String SECRET = "patron-request-tracking-tests-secret";
+
+		SierraTestUtils.mockFor(mockServerClient, baseUrl)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+
+		hostLmsFixture.createSierraHostLms(hostLmsCode, KEY, SECRET, baseUrl, "item");
 	}
 
 	private PatronRequest createPatronRequest(
