@@ -11,6 +11,8 @@ import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import java.util.UUID;
+
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,12 +93,10 @@ public class PatronRequestTrackingTests {
 		// Arrange
 		final var patron = patronFixture.savePatron("homeLibraryCode");
 
-		final var savedPatronRequestId = randomUUID();
-
 		// host LMS item status can not be on hold shelf
 		final var patronRequest = singleValueFrom(patronRequestRepository.save(
 			PatronRequest.builder()
-				.id(savedPatronRequestId)
+				.id(randomUUID())
 				.localRequestId("11890")
 				.localItemId("1088431")
 				.localItemStatus("")
@@ -123,20 +123,17 @@ public class PatronRequestTrackingTests {
 		// Assert
 
 		// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
-		await().atMost(5, SECONDS)
-			.until(() -> singleValueFrom(patronRequestRepository.findById(savedPatronRequestId)),
-				isFinalised());
+		waitUntilPatronRequestIsFinalised(patronRequest);
 	}
 
 	@Test
 	void shouldFinaliseRequestWhenSupplierHostlmsHoldIsPLACED() {
 		// Arrange
 		final var patron = patronFixture.savePatron("homeLibraryCode");
-		final var savedPatronRequestId = randomUUID();
 
 		final var patronRequest = singleValueFrom(patronRequestRepository.save(
 			PatronRequest.builder()
-				.id(savedPatronRequestId)
+				.id(randomUUID())
 				.localRequestId("11890")
 				.localItemId("1088431")
 				.localItemStatus("")
@@ -165,20 +162,17 @@ public class PatronRequestTrackingTests {
 		// Assert
 
 		// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
-		await().atMost(5, SECONDS)
-			.until(() -> singleValueFrom(patronRequestRepository.findById(savedPatronRequestId)),
-				isFinalised());
+		waitUntilPatronRequestIsFinalised(patronRequest);
 	}
 
 	@Test
 	void shouldFinaliseRequestWhenSupplierItemAvailable() {
 		// Arrange
 		final var patron = patronFixture.savePatron("homeLibraryCode");
-		final var savedPatronRequestId = randomUUID();
 
 		final var patronRequest = singleValueFrom(patronRequestRepository.save(
 			PatronRequest.builder()
-				.id(savedPatronRequestId)
+				.id(randomUUID())
 				.localRequestId("11890")
 				.localItemId("108843")
 				.patronHostlmsCode(HOST_LMS_CODE)
@@ -203,9 +197,16 @@ public class PatronRequestTrackingTests {
 		trackingService.run();
 
 		// Assert
+		waitUntilPatronRequestIsFinalised(patronRequest);
+	}
+
+	private void waitUntilPatronRequestIsFinalised(PatronRequest patronRequest) {
 		await().atMost(5, SECONDS)
-			.until(() -> singleValueFrom(patronRequestRepository.findById(savedPatronRequestId)),
-				isFinalised());
+			.until(() -> getPatronRequest(patronRequest.getId()), isFinalised());
+	}
+
+	private PatronRequest getPatronRequest(UUID patronRequestId) {
+		return singleValueFrom(patronRequestRepository.findById(patronRequestId));
 	}
 
 	private static Matcher<Object> isFinalised() {
