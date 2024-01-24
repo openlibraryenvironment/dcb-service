@@ -6,7 +6,6 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.isFinalised;
 
 import java.util.UUID;
@@ -21,11 +20,11 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
 import org.olf.dcb.tracking.TrackingService;
 
 import jakarta.inject.Inject;
@@ -44,8 +43,6 @@ public class PatronRequestTrackingTests {
 	TrackingService trackingService;
 
 	@Inject
-	SupplierRequestRepository supplierRequestRepository;
-	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private PatronFixture patronFixture;
@@ -53,6 +50,8 @@ public class PatronRequestTrackingTests {
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private PatronRequestsFixture patronRequestsFixture;
+	@Inject
+	private SupplierRequestsFixture supplierRequestsFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
@@ -98,13 +97,13 @@ public class PatronRequestTrackingTests {
 				.patron(patron)
 				.build());
 
-		singleValueFrom(supplierRequestRepository.save(SupplierRequest.builder()
+		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
 				.id(randomUUID())
 				.localId("11987")
 				.localItemId("1088432")
 				.patronRequest(patronRequest)
 				.hostLmsCode(HOST_LMS_CODE)
-				.build()));
+				.build());
 
 		sierraPatronsAPIFixture.getHoldById404("11890");
 		sierraItemsAPIFixture.getItemById("1088431");
@@ -135,7 +134,7 @@ public class PatronRequestTrackingTests {
 				.patron(patron)
 				.build());
 
-		singleValueFrom(supplierRequestRepository.save(SupplierRequest.builder()
+		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
 				// local status has to be PLACED
 				.id(randomUUID())
 				.localId("11987")
@@ -143,7 +142,7 @@ public class PatronRequestTrackingTests {
 				.localStatus("PLACED")
 				.patronRequest(patronRequest)
 				.hostLmsCode(HOST_LMS_CODE)
-				.build()));
+				.build());
 
 		sierraPatronsAPIFixture.getHoldById404("11890");
 		sierraItemsAPIFixture.getItemById("1088431");
@@ -173,14 +172,14 @@ public class PatronRequestTrackingTests {
 				.build());
 
 		// the supplier item id has to match with the mock for state change to AVAILABLE
-		singleValueFrom(supplierRequestRepository.save(SupplierRequest.builder()
+		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
 				.id(randomUUID())
 				.localId("11987")
 				.localItemId("1088431")
 				.patronRequest(patronRequest)
 				.hostLmsCode(HOST_LMS_CODE)
 				.localItemStatus("TRANSIT")
-				.build()));
+				.build());
 
 		sierraPatronsAPIFixture.getHoldById("11987");
 		sierraItemsAPIFixture.getItemById("1088431");
