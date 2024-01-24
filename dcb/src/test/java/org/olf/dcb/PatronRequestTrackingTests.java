@@ -24,6 +24,7 @@ import org.olf.dcb.storage.StatusCodeRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.tracking.TrackingService;
 
 import jakarta.inject.Inject;
@@ -51,6 +52,8 @@ public class PatronRequestTrackingTests {
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private PatronFixture patronFixture;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
@@ -67,6 +70,8 @@ public class PatronRequestTrackingTests {
 
 		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		
+		referenceValueMappingFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 	}
