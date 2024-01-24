@@ -98,7 +98,7 @@ public class PatronRequestTrackingTests {
 				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
 				.build());
 
-		sierraPatronsAPIFixture.getHoldById404(borrowingAgencyLocalRequestId);
+		sierraPatronsAPIFixture.mockGetHoldByIdNotFound(borrowingAgencyLocalRequestId);
 		sierraItemsAPIFixture.mockGetItemById(borrowingAgencyLocalItemId,
 			exampleSierraItem(borrowingAgencyLocalItemId));
 
@@ -135,7 +135,7 @@ public class PatronRequestTrackingTests {
 				.hostLmsCode(BORROWING_HOST_LMS_CODE)
 				.build());
 
-		sierraPatronsAPIFixture.getHoldById404(borrowingAgencyLocalRequestId);
+		sierraPatronsAPIFixture.mockGetHoldByIdNotFound(borrowingAgencyLocalRequestId);
 		sierraItemsAPIFixture.mockGetItemById(borrowingAgencyLocalItemId,
 			exampleSierraItem(borrowingAgencyLocalItemId));
 
@@ -170,7 +170,7 @@ public class PatronRequestTrackingTests {
 				.localItemStatus("TRANSIT")
 				.build());
 
-		sierraPatronsAPIFixture.getHoldById(supplyingAgencyLocalRequestId);
+		sierraPatronsAPIFixture.mockGetHoldById(supplyingAgencyLocalRequestId);
 		sierraItemsAPIFixture.mockGetItemById(supplyingAgencyLocalItemId,
 			exampleSierraItem(supplyingAgencyLocalItemId));
 

@@ -36,13 +36,13 @@ public class SierraPatronsAPIFixture {
 				testResourceLoaderProvider.forBasePath("classpath:mock-responses/sierra/")));
 	}
 
-	public void getHoldById404(String holdId) {
+	public void mockGetHoldByIdNotFound(String holdId) {
 		mockServer
 			.when(sierraMockServerRequests.get("/holds/"+holdId))
 			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
-	public void getHoldById(String holdId) {
+	public void mockGetHoldById(String holdId) {
 		mockServer.clear(sierraMockServerRequests.get("/holds/"+holdId));
 		mockServer
 			.when(sierraMockServerRequests.get("/holds/"+holdId))
