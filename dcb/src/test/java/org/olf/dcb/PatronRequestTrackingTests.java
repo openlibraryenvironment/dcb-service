@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraHold;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
@@ -170,7 +171,11 @@ public class PatronRequestTrackingTests {
 				.localItemStatus("TRANSIT")
 				.build());
 
-		sierraPatronsAPIFixture.mockGetHoldById(supplyingAgencyLocalRequestId);
+		sierraPatronsAPIFixture.mockGetHoldById(supplyingAgencyLocalRequestId,
+			SierraHold.builder()
+				.statusCode("0")
+				.statusName("on hold.")
+				.build());
 		sierraItemsAPIFixture.mockGetItemById(supplyingAgencyLocalItemId,
 			exampleSierraItem(supplyingAgencyLocalItemId));
 

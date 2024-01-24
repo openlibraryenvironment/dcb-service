@@ -43,7 +43,7 @@ public class SierraPatronsAPIFixture {
 			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
-	public void mockGetHoldById(String holdId) {
+	public void mockGetHoldById(String holdId, SierraHold hold) {
 		mockServer.clear(getHoldById(holdId));
 
 		mockServer.when(getHoldById(holdId))
@@ -61,8 +61,8 @@ public class SierraPatronsAPIFixture {
 						.name("Alviso Branch")
 						.build())
 					.status(SierraCodeTuple.builder()
-						.code("0")
-						.name("on hold.")
+						.code(hold.getStatusCode())
+						.name(hold.getStatusName())
 						.build())
 				.build())));
 	}
