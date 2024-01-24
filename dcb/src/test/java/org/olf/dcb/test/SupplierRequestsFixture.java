@@ -54,8 +54,12 @@ public class SupplierRequestsFixture {
 				.build());
 	}
 
-	public void saveSupplierRequest(SupplierRequest supplierRequest) {
-		singleValueFrom(supplierRequestRepository.save(supplierRequest));
+	public SupplierRequest saveSupplierRequest(SupplierRequest supplierRequest) {
+		return singleValueFrom(supplierRequestRepository.save(supplierRequest));
+	}
+
+	public SupplierRequest findById(UUID id) {
+		return singleValueFrom(supplierRequestRepository.findById(id));
 	}
 
 	public List<SupplierRequest> findAllFor(PatronRequest patronRequest) {
