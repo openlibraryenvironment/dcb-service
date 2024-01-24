@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.PatronRequest;
@@ -98,7 +99,8 @@ public class PatronRequestTrackingTests {
 				.build());
 
 		sierraPatronsAPIFixture.getHoldById404(borrowingAgencyLocalRequestId);
-		sierraItemsAPIFixture.getItemById(borrowingAgencyLocalItemId);
+		sierraItemsAPIFixture.mockGetItemById(borrowingAgencyLocalItemId,
+			exampleSierraItem(borrowingAgencyLocalItemId));
 
 		// Act
 		trackingService.run();
@@ -112,10 +114,13 @@ public class PatronRequestTrackingTests {
 	@Test
 	void shouldFinaliseRequestWhenSupplierHostlmsHoldIsPLACED() {
 		// Arrange
+		final var borrowingAgencyLocalRequestId = "11890";
+		final var borrowingAgencyLocalItemId = "1088437";
+
 		final var patronRequest = createPatronRequest(
 			request -> request
-				.localRequestId("11890")
-				.localItemId("1088431")
+				.localRequestId(borrowingAgencyLocalRequestId)
+				.localItemId(borrowingAgencyLocalItemId)
 				.localItemStatus("")
 				.localRequestStatus("PLACED")
 				.status(REQUEST_PLACED_AT_BORROWING_AGENCY));
@@ -130,8 +135,9 @@ public class PatronRequestTrackingTests {
 				.hostLmsCode(BORROWING_HOST_LMS_CODE)
 				.build());
 
-		sierraPatronsAPIFixture.getHoldById404("11890");
-		sierraItemsAPIFixture.getItemById("1088431");
+		sierraPatronsAPIFixture.getHoldById404(borrowingAgencyLocalRequestId);
+		sierraItemsAPIFixture.mockGetItemById(borrowingAgencyLocalItemId,
+			exampleSierraItem(borrowingAgencyLocalItemId));
 
 		// Act
 		trackingService.run();
@@ -152,18 +158,21 @@ public class PatronRequestTrackingTests {
 				.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
 				.status(CANCELLED));
 
-		// the supplier item id has to match with the mock for state change to AVAILABLE
+		final var supplyingAgencyLocalRequestId = "11987";
+		final var supplyingAgencyLocalItemId = "1088435";
+
 		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
 				.id(randomUUID())
-				.localId("11987")
-				.localItemId("1088431")
+				.localId(supplyingAgencyLocalRequestId)
+				.localItemId(supplyingAgencyLocalItemId)
 				.patronRequest(patronRequest)
 				.hostLmsCode(BORROWING_HOST_LMS_CODE)
 				.localItemStatus("TRANSIT")
 				.build());
 
-		sierraPatronsAPIFixture.getHoldById("11987");
-		sierraItemsAPIFixture.getItemById("1088431");
+		sierraPatronsAPIFixture.getHoldById(supplyingAgencyLocalRequestId);
+		sierraItemsAPIFixture.mockGetItemById(supplyingAgencyLocalItemId,
+			exampleSierraItem(supplyingAgencyLocalItemId));
 
 		// Act
 		trackingService.run();
@@ -207,5 +216,12 @@ public class PatronRequestTrackingTests {
 
 	private PatronRequest getPatronRequest(UUID patronRequestId) {
 		return patronRequestsFixture.findById(patronRequestId);
+	}
+
+	private static SierraItem exampleSierraItem(String id) {
+		return SierraItem.builder()
+			.id(id)
+			.statusCode("-")
+			.build();
 	}
 }
