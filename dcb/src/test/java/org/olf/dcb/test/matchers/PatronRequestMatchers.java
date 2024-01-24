@@ -1,17 +1,16 @@
 package org.olf.dcb.test.matchers;
 
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.hasProperty;
-import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
-import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
+import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
 
 import java.util.UUID;
 
 import org.hamcrest.Matcher;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequestAudit;
 
 public class PatronRequestMatchers {
 	public static Matcher<PatronRequest> hasId(UUID expectedId) {
@@ -20,6 +19,10 @@ public class PatronRequestMatchers {
 
 	public static Matcher<PatronRequest> hasStatus(PatronRequest.Status expectedStatus) {
 		return hasProperty("status", is(expectedStatus));
+	}
+
+	public static Matcher<PatronRequest> isFinalised() {
+		return hasStatus(FINALISED);
 	}
 
 	public static Matcher<PatronRequest> hasErrorMessage(String expectedErrorMessage) {
