@@ -232,9 +232,6 @@ public class TrackingService implements Runnable {
 		// these operations fail, we don't update the state - which will cause the handler to re-fire until
 		// successful completion.
 		return supplyingAgencyService.getHold(sr.getHostLmsCode(), sr.getLocalId())
-			.onErrorContinue((e, o) -> {
-				log.error("Error occurred: " + e.getMessage(), e);
-			})
 			.filter(hold -> !hold.getStatus().equals(sr.getLocalStatus()))
 			.flatMap(hold -> {
 				log.debug("current request status: {}", hold);
@@ -251,6 +248,21 @@ public class TrackingService implements Runnable {
 
 				return hostLmsReactions.onTrackingEvent(sc)
 					.thenReturn(sr);
-			});
+			})
+			.onErrorResume( error -> Mono.defer(() -> {
+				log.error("Error occurred: " + error.getMessage(), error);
+
+        StateChange sc = StateChange.builder()
+          .patronRequestId(sr.getPatronRequest().getId())
+          .resourceType("SupplierRequest")
+          .resourceId(sr.getId().toString())
+          .fromState(sr.getLocalStatus())
+          .toState("ERROR")
+          .resource(sr)
+          .build();
+
+				return hostLmsReactions.onTrackingEvent(sc)
+					.thenReturn(sr);
+			}));
 	}
 }
