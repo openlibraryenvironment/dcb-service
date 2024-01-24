@@ -625,6 +625,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return params.values().stream().map(s -> "/" + s).collect(Collectors.joining());
 	}
 
+	static <T> T extractMapValueWithDefault(Map<String, Object> map, String key, Class<T> type, Object defval) {
+		final Object r1 = extractMapValue(map,key,type);
+		return type.cast( r1 != null ? r1 : defval );
+	}
+
 	static <T> T extractMapValue(Map<String, Object> map, String key, Class<T> type) {
 		Object value = map.get(key);
 
