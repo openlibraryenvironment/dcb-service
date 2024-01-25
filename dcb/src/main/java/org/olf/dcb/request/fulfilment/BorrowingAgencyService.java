@@ -4,13 +4,11 @@ import static reactor.function.TupleUtils.function;
 
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
 
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.error.DcbError;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
@@ -25,11 +23,9 @@ import org.olf.dcb.storage.PatronIdentityRepository;
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
-import reactor.util.function.Tuple4;
-import reactor.util.function.Tuple5;
-import reactor.util.function.Tuples;
+import reactor.util.function.*;
 
 @Slf4j
 @Prototype
@@ -61,14 +57,11 @@ public class BorrowingAgencyService {
 	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(PatronRequest patronRequest) {
 		log.info("placePatronRequestAtBorrowingAgency {}", patronRequest.getId());
 
-		return getHoldRequestData(patronRequest)
-			.flatMap(function(this::createVirtualBib))
-			// Have a suspicion that Polaris needs breathing space in between the virtual bib and the virtual item
-			.flatMap(function(this::createVirtualItem))
-			.flatMap(function(this::placeHoldRequest))
+		return fetchRequiredData(patronRequest)
+			.flatMap(function(this::borrowingRequestFlow))
 			.map(function(patronRequest::placedAtBorrowingAgency))
 			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest))
-                        ;
+			;
 	}
 
 	public Mono<String> cleanUp(PatronRequest patronRequest) {
@@ -90,10 +83,8 @@ public class BorrowingAgencyService {
 		return Mono.just("ERROR");
 	}
 
-	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest>> createVirtualBib(
-			PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
-			SupplierRequest supplierRequest) {
-
+	private Mono<Tuple2<PatronRequest, String>> createVirtualBib(
+		PatronRequest patronRequest, HostLmsClient hostLmsClient) {
 
 		final UUID bibClusterId = patronRequest.getBibClusterId();
 
@@ -101,17 +92,17 @@ public class BorrowingAgencyService {
 
 		if (hostLmsClient == null) {
 			log.error("Cannot create a bib item at host system because hostLmsClient is NULL");
-			throw new RuntimeException("Cannot create a bib item at host system because hostLmsClient is NULL");
+			throw new DcbError("Cannot create a bib item at host system because hostLmsClient is NULL");
 		}
-
 
 		return sharedIndexService.findSelectedBib(bibClusterId)
 			.map(this::extractBibData)
-			.flatMap(hostLmsClient::createBib)
-			.map(patronRequest::setLocalBibId)
-			.switchIfEmpty(Mono.error(new RuntimeException(
-				"Failed to create virtual bib at " + hostLmsClient.getHostLmsCode() + " for cluster " + bibClusterId)))
-			.map(pr -> Tuples.of(pr, patronIdentity, hostLmsClient, supplierRequest));
+			.flatMap(bib -> Mono.zip(
+				hostLmsClient.createBib(bib).map(patronRequest::setLocalBibId),
+				Mono.just(bib.getTitle())
+			))
+			.switchIfEmpty(Mono.error(new DcbError(
+				"Failed to create virtual bib at " + hostLmsClient.getHostLmsCode() + " for cluster " + bibClusterId)));
 	}
 
 	private Bib extractBibData(BibRecord bibRecord) {
@@ -127,83 +118,127 @@ public class BorrowingAgencyService {
 			.build();
 	}
 
-	private Mono<Tuple5<PatronRequest, PatronIdentity, HostLmsClient, String, String>> createVirtualItem(
-			PatronRequest patronRequest, PatronIdentity patronIdentity, HostLmsClient hostLmsClient,
-			SupplierRequest supplierRequest) {
+	private Mono<Tuple3<PatronRequest, String, String>> createVirtualItem(
+		PatronRequest patronRequest, PatronIdentity borrowingIdentity, HostLmsClient hostLmsClient,
+		SupplierRequest supplierRequest, String bibRecordTitle) {
 
-			log.info("createVirtualItem(...)");
+		return getAgencyForShelvingLocation(supplierRequest.getHostLmsCode(), supplierRequest.getLocalItemLocationCode())
+			.flatMap(referenceValueMapping -> Mono.zip(
+				virtualItemRequest(patronRequest, borrowingIdentity, hostLmsClient, supplierRequest, referenceValueMapping),
+				Mono.just(bibRecordTitle),
+				Mono.just(referenceValueMapping.getToValue())
+			));
+	}
 
-			final String localBibId = patronRequest.getLocalBibId();
-			Objects.requireNonNull(localBibId, "Local bib ID not set on Patron Request");
+	private Mono<PatronRequest> virtualItemRequest(PatronRequest patronRequest, PatronIdentity patronIdentity,
+		HostLmsClient hostLmsClient, SupplierRequest supplierRequest, ReferenceValueMapping referenceValueMapping) {
 
-			log.info("createVirtualItem for localBibId {}/{}", localBibId, supplierRequest.getLocalItemLocationCode());
-			log.info("slToAgency:{} {} {} {} {}", "Location", supplierRequest.getHostLmsCode(),
-				supplierRequest.getLocalItemLocationCode(), "AGENCY", "DCB");
+		log.info("virtualItemRequest(...)");
 
+		final String localBibId = patronRequest.getLocalBibId();
+		Objects.requireNonNull(localBibId, "Local bib ID not set on Patron Request");
 
-			// So far, when creating items, we have used the supplying library code as the location for the item. This is so that
-			// the borrowing library knows where to return the item. We pass this as locationCode in the CreateItemCommand.
-			// POLARIS however needs the location code to be a real location in the local POLARIS System and expects the location
-			// of the item to be the patrons home library (Because there is no PUA currently). A note is used for routing details
-			// so the borrowing library knows where to return the item. We don't want to switch system type here - instead we should
-			// be passing enough detail at this point for any implementation to have the information it needs to populate the request.
-			// patronIdentity.getLocalHomeLibraryCode is added to CreateItemCommand as patronHomeLocation
-			return getAgencyForShelvingLocation(supplierRequest.getHostLmsCode(), supplierRequest.getLocalItemLocationCode())
-				.flatMap(mapping -> {
-					log.info("calling create item - target location mapping is {}",mapping);
-					String agencyCode = mapping.getToValue();
-					supplierRequest.setLocalAgency(agencyCode);
-					return hostLmsClient.createItem(
-						new CreateItemCommand(
-							patronRequest.getId(), 
-							localBibId, 
-							agencyCode,
-							supplierRequest.getLocalItemBarcode(), 
-							supplierRequest.getCanonicalItemType(),
-							patronIdentity.getLocalHomeLibraryCode()));
-				})
-				.map(HostLmsItem::getLocalId)
-				.map(localItemId -> {
-					patronRequest.setLocalItemId(localItemId);
-					return Tuples.of(patronRequest, patronIdentity, hostLmsClient, localItemId, localBibId);
-				})
-				.switchIfEmpty(Mono.error(new RuntimeException("Failed to create virtual item.")));
+		log.info("virtualItemRequest for localBibId {}/{}", localBibId, supplierRequest.getLocalItemLocationCode());
+		log.info("slToAgency:{} {} {} {} {}", "Location", supplierRequest.getHostLmsCode(),
+			supplierRequest.getLocalItemLocationCode(), "AGENCY", "DCB");
+
+		String agencyCode = referenceValueMapping.getToValue();
+		supplierRequest.setLocalAgency(agencyCode);
+
+		// So far, when creating items, we have used the supplying library code as the location for the item. This is so that
+		// the borrowing library knows where to return the item. We pass this as locationCode in the CreateItemCommand.
+		// POLARIS however needs the location code to be a real location in the local POLARIS System and expects the location
+		// of the item to be the patrons home library (Because there is no PUA currently). A note is used for routing details
+		// so the borrowing library knows where to return the item. We don't want to switch system type here - instead we should
+		// be passing enough detail at this point for any implementation to have the information it needs to populate the request.
+		// patronIdentity.getLocalHomeLibraryCode is added to CreateItemCommand as patronHomeLocation
+		return hostLmsClient.createItem(
+			new CreateItemCommand(
+				patronRequest.getId(),
+				localBibId,
+				agencyCode,
+				supplierRequest.getLocalItemBarcode(),
+				supplierRequest.getCanonicalItemType(),
+				patronIdentity.getLocalHomeLibraryCode()))
+			.map(hostLmsItem -> patronRequest.setLocalItemId(hostLmsItem.getLocalId()))
+			.switchIfEmpty(Mono.defer(() -> Mono.error(new DcbError("Failed to create virtual item."))));
 	}
 
 	private Mono<ReferenceValueMapping> getAgencyForShelvingLocation(String context, String code) {
 		return locationToAgencyMappingService.findLocationToAgencyMapping(context, code)
 			.doOnSuccess(rvm -> log.debug("getAgencyForShelvingLocation looked up "+rvm.getToValue()+" for " + context+":"+code))
-			.switchIfEmpty(Mono.error(new RuntimeException("Failed to resolve shelving loc "+context+":"+code+" to agency")));
+			.switchIfEmpty(Mono.defer(() -> Mono.error(
+				new DcbError("Failed to resolve shelving loc "+context+":"+code+" to agency"))));
 	}
 
-	private Mono<Tuple2<String, String>> placeHoldRequest(PatronRequest patronRequest,
-		PatronIdentity patronIdentityAtBorrowingSystem, HostLmsClient hostLmsClient,
-		String localItemId, String localBibId) {
+	private Mono<Tuple2<String, String>> borrowingRequestFlow(PatronRequest patronRequest, PatronIdentity borrowingIdentity,
+		HostLmsClient hostLmsClient, SupplierRequest supplierRequest) {
 
-		String note = "Consortial Hold. tno=" + patronRequest.getId();
+		return createVirtualBib(patronRequest, hostLmsClient)
+			// Have a suspicion that Polaris needs breathing space in between the virtual bib and the virtual item
+			.flatMap(tuple -> {
+				final var pr = tuple.getT1();
+				final var bibRecordTitle = tuple.getT2();
+
+				return createVirtualItem(pr, borrowingIdentity, hostLmsClient, supplierRequest, bibRecordTitle);
+			})
+			.flatMap(tuple -> {
+				final var pr = tuple.getT1();
+				final var bibRecordTitle = tuple.getT2();
+				final var supplyingAgencyCode = tuple.getT3();
+
+				return createHoldRequest(
+					pr, borrowingIdentity, hostLmsClient, supplierRequest, bibRecordTitle, supplyingAgencyCode);
+			})
+			.transform(extractLocalIdAndLocalStatus())
+			.switchIfEmpty( Mono.defer(() -> Mono.error(new DcbError("Failed to place hold request."))) );
+	}
+
+	private static Function<Mono<LocalRequest>, Publisher<Tuple2<String, String>>> extractLocalIdAndLocalStatus() {
+		return mono -> mono.map(localRequest -> Tuples.of(localRequest.getLocalId(), localRequest.getLocalStatus()));
+	}
+
+	private static Mono<LocalRequest> createHoldRequest(PatronRequest patronRequest, PatronIdentity borrowingIdentity,
+		HostLmsClient hostLmsClient, SupplierRequest supplierRequest, String bibRecordTitle, String supplyingAgencyCode) {
+		var note = "Consortial Hold. tno=" + patronRequest.getId();
 
 		return hostLmsClient.placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters.builder()
-				.localPatronId(patronIdentityAtBorrowingSystem.getLocalId())
-				.localBibId(localBibId)
-				.localItemId(localItemId)
-				.pickupLocation(patronRequest.getPickupLocationCode())
-				.note(note)
-				.patronRequestId(patronRequest.getId().toString())
-				.build())
-			.map(response -> Tuples.of(response.getLocalId(), response.getLocalStatus()))
-			.switchIfEmpty(Mono.error(new RuntimeException("Failed to place hold request.")));
+			.localPatronId(borrowingIdentity.getLocalId())
+			.localPatronBarcode(borrowingIdentity.getLocalBarcode())
+			.localBibId(patronRequest.getLocalBibId())
+			.localItemId(patronRequest.getLocalItemId())
+			.pickupLocation(patronRequest.getPickupLocationCode())
+			.note(note)
+			.patronRequestId(patronRequest.getId().toString())
+			.title(bibRecordTitle)
+			.supplyingAgencyCode(supplyingAgencyCode)
+			.supplyingLocalItemId(supplierRequest.getLocalItemId())
+			.supplyingLocalItemBarcode(supplierRequest.getLocalItemBarcode())
+			.canonicalItemType(supplierRequest.getCanonicalItemType())
+			.build());
 	}
 
-	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest>> getHoldRequestData(
-			PatronRequest patronRequest) {
+	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest>> fetchRequiredData(
+		PatronRequest patronRequest) {
 
-		return Mono
-				.from(
-						patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronRequest.getPatron().getId(), Boolean.TRUE))
-				.flatMap(pi -> hostLmsService.getClientFor(pi.getHostLms().code).map(client -> Tuples.of(pi, client))
-						.switchIfEmpty(Mono.error(new RuntimeException("Failed to get HostLmsClient."))))
-				.flatMap(tuple -> supplierRequestService.findSupplierRequestFor(patronRequest)
-						.map(supplierRequest -> Tuples.of(patronRequest, tuple.getT1(), tuple.getT2(), supplierRequest))
-						.switchIfEmpty(Mono.error(new RuntimeException("Failed to find SupplierRequest."))));
+		final var patronId = patronRequest.getPatron().getId();
+
+		return Mono.from(patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronId, Boolean.TRUE))
+			.flatMap(borrowingIdentity -> Mono.zip(
+				Mono.just(patronRequest),
+				Mono.just(borrowingIdentity),
+				fetchClientFor(borrowingIdentity),
+				fetchSupplierRequestFor(patronRequest)
+			));
+	}
+
+	private Mono<HostLmsClient> fetchClientFor(PatronIdentity borrowingIdentity) {
+		return hostLmsService.getClientFor(borrowingIdentity.getHostLms().code)
+			.switchIfEmpty(Mono.defer(() -> Mono.error(new DcbError("Failed to get HostLmsClient."))));
+	}
+
+	private Mono<SupplierRequest> fetchSupplierRequestFor(PatronRequest patronRequest) {
+		return supplierRequestService.findSupplierRequestFor(patronRequest)
+			.switchIfEmpty(Mono.defer(() -> Mono.error(new DcbError("Failed to find SupplierRequest."))));
 	}
 }

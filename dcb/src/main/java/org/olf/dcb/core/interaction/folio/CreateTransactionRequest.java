@@ -19,6 +19,9 @@ class CreateTransactionRequest {
 	static class Item {
 		String id;
 		String barcode;
+		String title;
+		String materialType;
+		String lendingLibraryCode;
 	}
 
 	@Data
