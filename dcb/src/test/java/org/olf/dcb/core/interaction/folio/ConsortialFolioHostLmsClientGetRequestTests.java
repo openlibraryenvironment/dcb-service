@@ -1,10 +1,11 @@
 package org.olf.dcb.core.interaction.folio;
 
-import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
 
 import java.util.UUID;
 
@@ -50,8 +51,10 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		final var localRequest = singleValueFrom(client.getRequest(localRequestId));
 
 		// Assert
-		assertThat("Local request should not be null", localRequest, is(notNullValue()));
-		assertThat(localRequest, hasProperty("localId", is(localRequestId)));
-		assertThat(localRequest, hasProperty("status", is("PLACED")));
+		assertThat(localRequest, allOf(
+			notNullValue(),
+			hasLocalId(localRequestId),
+			hasStatus("PLACED")
+		));
 	}
 }
