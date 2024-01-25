@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
 import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -10,6 +11,7 @@ import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
@@ -49,6 +51,7 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.TestResourceLoader;
 import org.olf.dcb.test.TestResourceLoaderProvider;
+import org.olf.dcb.test.matchers.HostLmsRequestMatchers;
 import org.olf.dcb.test.matchers.ItemMatchers;
 
 import jakarta.inject.Inject;
@@ -249,12 +252,16 @@ public class PolarisLmsClientTests {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/" + 2977175, "get-hold.json");
 
 		// Act
-		final var hold = hostLmsFixture.createClient(HOST_LMS_CODE).getRequest("2977175").block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var request = singleValueFrom(client.getRequest("2977175"));
 
 		// Assert
-		assertThat(hold, is(notNullValue()));
-		assertThat(hold.getLocalId(), is("2977175"));
-		assertThat(hold.getStatus(), is("In Processing"));
+		assertThat(request, allOf(
+			notNullValue(),
+			HostLmsRequestMatchers.hasLocalId("2977175"),
+			hasStatus("In Processing")
+		));
 	}
 
 	@Test
