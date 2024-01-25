@@ -42,7 +42,7 @@ import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsHold;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.LocalRequest;
@@ -177,10 +177,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<HostLmsHold> getHold(String holdId) {
-		return appServicesClient.getLocalHoldRequest(Integer.valueOf(holdId))
+	public Mono<HostLmsRequest> getRequest(String localRequestId) {
+		return appServicesClient.getLocalHoldRequest(Integer.valueOf(localRequestId))
 			.map(ApplicationServicesClient.LibraryHold::getSysHoldStatus)
-			.map(status -> HostLmsHold.builder().localId(holdId).status( checkHoldStatus(status) ).build());
+			.map(status -> HostLmsRequest.builder().localId(localRequestId).status( checkHoldStatus(status) ).build());
 	}
 
 	/**
@@ -189,10 +189,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private String checkHoldStatus(String status) {
 		log.debug("Checking hold status: {}", status);
 		return switch (status) {
-			case "Cancelled" -> HostLmsHold.HOLD_CANCELLED;
-			case "Pending" -> HostLmsHold.HOLD_PLACED;
-			case "Held" -> HostLmsHold.HOLD_READY;
-			case "Shipped" -> HostLmsHold.HOLD_TRANSIT;
+			case "Cancelled" -> HostLmsRequest.HOLD_CANCELLED;
+			case "Pending" -> HostLmsRequest.HOLD_PLACED;
+			case "Held" -> HostLmsRequest.HOLD_READY;
+			case "Shipped" -> HostLmsRequest.HOLD_TRANSIT;
 			default -> status;
 		};
 	}
@@ -623,6 +623,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		}
 
 		return params.values().stream().map(s -> "/" + s).collect(Collectors.joining());
+	}
+
+	static <T> T extractMapValueWithDefault(Map<String, Object> map, String key, Class<T> type, Object defval) {
+		final Object r1 = extractMapValue(map,key,type);
+		return type.cast( r1 != null ? r1 : defval );
 	}
 
 	static <T> T extractMapValue(Map<String, Object> map, String key, Class<T> type) {

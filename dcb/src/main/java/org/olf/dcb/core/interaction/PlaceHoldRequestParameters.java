@@ -14,8 +14,14 @@ public class PlaceHoldRequestParameters {
 	String localBibId;
 	String localItemId;
 	String localItemBarcode;
+	String title;
+	String canonicalItemType;
 	String pickupLocation;
 	Agency pickupAgency;
 	String note;
 	String patronRequestId;
+	String supplyingAgencyCode;
+	String supplyingLocalItemId;
+	String supplyingLocalItemBarcode;
+
 }

@@ -9,7 +9,7 @@ import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.interaction.HostLmsHold.HOLD_PLACED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
@@ -22,6 +22,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,7 +34,7 @@ import org.olf.dcb.core.interaction.CannotPlaceRequestException;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.FailedToGetItemsException;
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsHold;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.HttpResponsePredicates;
@@ -43,6 +44,8 @@ import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.folio.User.PersonalDetails;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
+import org.olf.dcb.core.interaction.shared.MissingParameterException;
+import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.BibRecord;
@@ -289,16 +292,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var transactionId = UUID.randomUUID().toString();
 
-		return createTransaction(transactionId, parameters)
-			.map(response -> LocalRequest.builder()
-				.localId(transactionId)
-				.localStatus(HOLD_PLACED)
-				.build());
-	}
-
-	private Mono<CreateTransactionResponse> createTransaction(String transactionId,
-		PlaceHoldRequestParameters parameters) {
-
 		final var agencyCode = getValue(parameters.getPickupAgency(), Agency::getCode);
 
 		final var request = authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
@@ -319,6 +312,15 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.libraryCode(agencyCode)
 					.build())
 				.build());
+
+		return createTransaction(request)
+			.map(response -> LocalRequest.builder()
+				.localId(transactionId)
+				.localStatus(HOLD_PLACED)
+				.build());
+	}
+
+	private Mono<CreateTransactionResponse> createTransaction(MutableHttpRequest<CreateTransactionRequest> request) {
 
 		return makeRequest(request, Argument.of(CreateTransactionResponse.class))
 			.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
@@ -346,7 +348,73 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(
 		PlaceHoldRequestParameters parameters) {
 
-		return Mono.error(new NotImplementedException("Placing hold request at borrowing agency is not currently implemented for FOLIO"));
+		log.debug("placeHoldRequestAtBorrowingAgency({})", parameters);
+
+		final var transactionId = UUID.randomUUID().toString();
+
+		return constructBorrowing_PickupTransactionRequest(parameters, transactionId)
+			.flatMap(this::createTransaction)
+			.map(response -> LocalRequest.builder()
+				.localId(transactionId)
+				.localStatus(HOLD_PLACED)
+				.build());
+	}
+
+	private Mono<MutableHttpRequest<CreateTransactionRequest>> constructBorrowing_PickupTransactionRequest(
+		PlaceHoldRequestParameters parameters, String transactionId) {
+
+		assertExtendedBorrowingRequestParameters(parameters);
+
+		final var itemId = dnsUUID(
+			parameters.getSupplyingAgencyCode() + ":" + parameters.getSupplyingLocalItemId())
+			.toString();
+
+		return findLocalItemType(parameters.getCanonicalItemType())
+			.map(localItemType -> authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
+				.body(CreateTransactionRequest.builder()
+					.role("BORROWING-PICKUP")
+					.item(CreateTransactionRequest.Item.builder()
+						.id(itemId)
+						.title(parameters.getTitle())
+						.barcode(parameters.getSupplyingLocalItemBarcode())
+						.materialType(localItemType)
+						.lendingLibraryCode(parameters.getSupplyingAgencyCode())
+						.build())
+					.patron(CreateTransactionRequest.Patron.builder()
+						.id(parameters.getLocalPatronId())
+						.barcode(parameters.getLocalPatronBarcode())
+						.build())
+					.pickup(CreateTransactionRequest.Pickup.builder()
+						.servicePointId(parameters.getPickupLocation())
+						.build())
+					.build()));
+	}
+
+	private void assertExtendedBorrowingRequestParameters(PlaceHoldRequestParameters parameters) {
+		requiredParameter(parameters.getTitle(), "Title");
+		requiredParameter(parameters.getCanonicalItemType(), "Canonical item type");
+		requiredParameter(parameters.getSupplyingAgencyCode(), "Supplying agency code");
+		requiredParameter(parameters.getSupplyingLocalItemId(), "Supplying local item id");
+		requiredParameter(parameters.getSupplyingLocalItemBarcode(), "Supplying local item barcode");
+	}
+
+	private void requiredParameter(String value, String parameterName) {
+		if (value == null || value.isEmpty()) {
+			throw new MissingParameterException(parameterName);
+		}
+	}
+
+	public Mono<String> findLocalItemType(String canonicalItemType) {
+		if (canonicalItemType == null) {
+			return Mono.empty();
+		}
+
+		return referenceValueMappingService.findReciprocalMapping("ItemType",
+				"DCB", canonicalItemType, "ItemType", getHostLmsCode())
+			.map(ReferenceValueMapping::getFromValue)
+			.switchIfEmpty(Mono.error(new NoItemTypeMappingFoundException(
+				"Unable to map canonical item type \"" + canonicalItemType + "\" to a item type on Host LMS: \"" + getHostLmsCode() + "\"",
+				getHostLmsCode(), canonicalItemType)));
 	}
 
 	@Override
@@ -472,9 +540,20 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return Mono.just(UUID.randomUUID().toString());
 	}
 
+	/**
+	 * Not implemented.
+	 * A bib creation is not needed to complete the Borrowing_PickUp Flow.
+	 *
+	 * @see <a href="https://wiki.folio.org/display/FOLIJET/DCB+Borrowing_PickUp+Flow+Details">
+	 *      DCB Borrowing PickUp Flow Details</a>
+	 *
+	 * @return A Mono emitting a String representing of the unique identifier,
+	 *         used to signify the completion of the bib creation process in the
+	 *         DCB workflow.
+	 */
 	@Override
 	public Mono<String> createBib(Bib bib) {
-		return Mono.error(new NotImplementedException("Creating virtual bib is not currently implemented for FOLIO"));
+		return Mono.just( UUID.randomUUID().toString() );
 	}
 
 	@Override
@@ -520,13 +599,23 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return authProfile.equals("BASIC/BARCODE+PIN");
 	}
 
+	/**
+	 * Not implemented.
+	 * The item will be created as part of the Borrowing_PickUp Flow.
+	 *
+	 * @see <a href="https://wiki.folio.org/display/FOLIJET/DCB+Borrowing_PickUp+Flow+Details">
+	 *      DCB Borrowing PickUp Flow Details</a>
+	 *
+	 * @return A Mono emitting the created HostLmsItem, used to signify the completion
+	 *         of the item creation process in the DCB workflow.
+	 */
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
-		return Mono.error(new NotImplementedException("Creating virtual item is not currently implemented for FOLIO"));
+		return Mono.just(HostLmsItem.builder().build());
 	}
 
 	@Override
-	public Mono<HostLmsHold> getHold(String holdId) {
+	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		return Mono.error(new NotImplementedException("Getting hold request is not currently implemented for FOLIO"));
 	}
 

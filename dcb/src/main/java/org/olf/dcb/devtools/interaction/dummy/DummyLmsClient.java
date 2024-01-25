@@ -20,7 +20,7 @@ import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsHold;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.LocalRequest;
@@ -229,8 +229,8 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 				.barcode(cic.getBarcode()).build());
 	}
 
-	public Mono<HostLmsHold> getHold(String holdId) {
-		log.debug("getHold({})", holdId);
+	public Mono<HostLmsRequest> getRequest(String localRequestId) {
+		log.debug("getRequest({})", localRequestId);
 		return Mono.empty();
 	}
 

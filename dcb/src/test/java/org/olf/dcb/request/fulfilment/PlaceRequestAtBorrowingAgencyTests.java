@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
@@ -111,7 +112,11 @@ class PlaceRequestAtBorrowingAgencyTests {
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
 
-    sierraItemsAPIFixture.getItemById("7916922");
+		sierraItemsAPIFixture.mockGetItemById("7916922",
+			SierraItem.builder()
+				.id("7916922")
+				.statusCode("-")
+				.build());
 
 		sierraPatronsAPIFixture.addPatronGetExpectation("872321");
 	}

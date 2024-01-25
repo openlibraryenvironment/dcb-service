@@ -44,28 +44,29 @@ public class HandleSupplierInTransit implements WorkflowAction {
                 this.hostLmsService = hostLmsService;
         }
         
-        @Transactional
-        public Mono<Map<String,Object>> execute(Map<String,Object> context) {
-                StateChange sc = (StateChange) context.get("StateChange");
-                log.debug("HandleSupplierInTransit {}",sc);
+	@Transactional
+	public Mono<Map<String,Object>> execute(Map<String,Object> context) {
 
-                SupplierRequest sr = (SupplierRequest) sc.getResource();
-                if ( sr != null ) {
-                        sr.setLocalStatus(sc.getToState());
-                        log.debug("Setting local status to TRANSIT and saving...{}",sr);
-                        return requestWorkflowContextHelper.fromSupplierRequest(sr)
-                                .flatMap( this::updateUpstreamSystems )
-                                // If we managed to update other systems, then update the supplier request
-								                // This will cause st.setLocalStatus("TRANSIT") above to be saved and mean our local state is aligned with the supplier req
-                                .flatMap( this::saveSupplierRequest )
-                                .flatMap( this::updatePatronRequest )
-                                .thenReturn(context);
-                }
-                else {
+		StateChange sc = (StateChange) context.get("StateChange");
+		log.debug("HandleSupplierInTransit {}",sc);
+
+		SupplierRequest sr = (SupplierRequest) sc.getResource();
+		if ( sr != null ) {
+			sr.setLocalStatus(sc.getToState());
+			log.debug("Setting local status to TRANSIT and saving...{}",sr);
+			return requestWorkflowContextHelper.fromSupplierRequest(sr)
+				.flatMap( this::updateUpstreamSystems )
+				// If we managed to update other systems, then update the supplier request
+				// This will cause st.setLocalStatus("TRANSIT") above to be saved and mean our local state is aligned with the supplier req
+				.flatMap( this::saveSupplierRequest )
+				.flatMap( this::updatePatronRequest )
+				.thenReturn(context);
+		}
+		else {
 			log.warn("Supplier request in context was null. Cannot save");
-                        return Mono.just(context);
-                }
-        }
+			return Mono.just(context);
+		}
+	}
 
         public Mono<RequestWorkflowContext> saveSupplierRequest(RequestWorkflowContext rwc) {
 		return Mono.from(supplierRequestRepository.saveOrUpdate(rwc.getSupplierRequest()))
@@ -80,17 +81,18 @@ public class HandleSupplierInTransit implements WorkflowAction {
 	}
 
 
-        // If there is a separate pickup location, the pickup location needs to be updated
-        // If there is a separate patron request (There always will be EXCEPT for the "Local" case) update it
-        public Mono<RequestWorkflowContext> updateUpstreamSystems(RequestWorkflowContext rwc) {
-                log.debug("updateUpstreamSystems rwc={},{}",rwc.getPatronSystemCode(),rwc.getPatronRequest().getPickupRequestId());
+	// If there is a separate pickup location, the pickup location needs to be updated
+	// If there is a separate patron request (There always will be EXCEPT for the "Local" case) update it
+	public Mono<RequestWorkflowContext> updateUpstreamSystems(RequestWorkflowContext rwc) {
+
+		log.debug("updateUpstreamSystems rwc={},{}",rwc.getPatronSystemCode(),rwc.getPatronRequest().getPickupRequestId());
 
 		return updatePatronItem(rwc)
 			.flatMap(this::updatePickupItem);
 
 		// rwc.getPatronRequest().getLocalRequestId() == The request placed at the patron home system to represent this loan
 		// rwc.getPatronRequest().getPickupRequestId() == The request placed at a third party pickup location
-        }
+	}
 
 	public Mono<RequestWorkflowContext> updatePatronItem(RequestWorkflowContext rwc) {
 		if ( rwc.getPatronRequest().getLocalItemId() != null ) {

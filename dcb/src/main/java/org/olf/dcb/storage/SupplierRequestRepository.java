@@ -1,16 +1,17 @@
 package org.olf.dcb.storage;
 
 import java.util.UUID;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 
-import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.reactivestreams.Publisher;
+
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.annotation.Query;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Mono;
 
 public interface SupplierRequestRepository {
@@ -21,6 +22,10 @@ public interface SupplierRequestRepository {
 	@NonNull
 	@SingleResult
 	Publisher<? extends SupplierRequest> update(@Valid @NotNull SupplierRequest supplierRequest);
+
+	@NonNull
+	@SingleResult
+	Publisher<SupplierRequest> findById(@NotNull UUID id);
 
 	@NonNull
 	Publisher<SupplierRequest> findAllByPatronRequest(@NotNull PatronRequest pr);
@@ -35,7 +40,7 @@ public interface SupplierRequestRepository {
 
 	Publisher<Void> delete(UUID id);
 
-	@Query(value = "SELECT sr.* from supplier_request sr where sr.status_code in ( select code from status_code where model = 'SupplierRequest' and tracked = true ) and ( sr.local_id is not null ) and ( sr.local_status <> 'MISSING') ", nativeQuery = true)
+	@Query(value = "SELECT sr.* from supplier_request sr, patron_request pr where pr.id = sr.patron_request_id and sr.status_code in ( select code from status_code where model = 'SupplierRequest' and tracked = true ) and ( sr.local_id is not null ) and ( sr.local_status <> 'MISSING') and pr.status_code not in ('ERROR', 'FINALISED', 'COMPLETED')", nativeQuery = true)
 	Publisher<SupplierRequest>  findTrackedSupplierHolds();
 
         @NonNull
@@ -55,7 +60,7 @@ public interface SupplierRequestRepository {
         Publisher<PatronRequest> findPatronRequestById(UUID supplierRequestId);
 
 
-	@Query(value = "SELECT s.* from supplier_request s, patron_request pr where pr.id = s.patron_request_id and s.local_item_id is not null and ( s.local_item_status is null or s.local_item_status in ( select code from status_code where model = 'SupplierItem' and tracked = true ) ) and pr.status_code <> 'ERROR'", nativeQuery = true)
+	@Query(value = "SELECT s.* from supplier_request s, patron_request pr where pr.id = s.patron_request_id and s.local_item_id is not null and ( s.local_item_status is null or s.local_item_status in ( select code from status_code where model = 'SupplierItem' and tracked = true ) ) and pr.status_code not in ('ERROR', 'FINALISED', 'COMPLETED')", nativeQuery = true)
 	Publisher<SupplierRequest> findTrackedSupplierItems();
 	Publisher<PatronIdentity> findVirtualIdentityById(UUID supplierRequestId);
 }

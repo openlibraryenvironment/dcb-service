@@ -34,11 +34,13 @@ public class SierraItemsAPIFixture {
 				testResourceLoaderProvider.forBasePath("classpath:mock-responses/sierra/")));
 	}
 
-	public void getItemById(String itemId) {
-		mockServer
-			.when(sierraMockServerRequests.get("/"+itemId))
-			.respond(sierraMockServerResponses.jsonSuccess("items/"+itemId+".json"));
-			// .respond(sierraMockServerResponses.jsonSuccess("items/1088431.json"));
+	public void mockGetItemById(String id, org.olf.dcb.core.interaction.sierra.SierraItem item) {
+		mockServer.when(getItemById(id))
+			.respond(sierraMockServerResponses.jsonSuccess(json(mapItem(item))));
+	}
+
+	private HttpRequest getItemById(String id) {
+		return sierraMockServerRequests.get("/" + id);
 	}
 
 	public void itemsForBibId(String bibId, List<org.olf.dcb.core.interaction.sierra.SierraItem> items) {
@@ -146,6 +148,7 @@ public class SierraItemsAPIFixture {
 			.deleted(false)
 			.build();
 	}
+
 
 	@Serdeable
 	@Data

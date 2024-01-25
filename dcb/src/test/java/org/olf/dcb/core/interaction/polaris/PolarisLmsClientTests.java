@@ -244,12 +244,12 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void getHold() {
+	public void getRequest() {
 		// Arrange
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/" + 2977175, "get-hold.json");
 
 		// Act
-		final var hold = hostLmsFixture.createClient(HOST_LMS_CODE).getHold("2977175").block();
+		final var hold = hostLmsFixture.createClient(HOST_LMS_CODE).getRequest("2977175").block();
 
 		// Assert
 		assertThat(hold, is(notNullValue()));

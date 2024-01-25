@@ -17,11 +17,10 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.EventType.FAILED_CHECK;
+import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
-import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.test.clients.ChecksFailure.Check.hasDescription;
 
 import java.util.List;
@@ -106,6 +105,8 @@ class PatronRequestApiTests {
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
+		locationFixture.deleteAll();
+		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 
 		final var h1 = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL);
@@ -131,7 +132,11 @@ class PatronRequestApiTests {
 				.holdCount(0)
 			.build()));
 
-		sierraItemsAPIFixture.getItemById("7916922");
+		sierraItemsAPIFixture.mockGetItemById("7916922",
+			SierraItem.builder()
+				.id("7916922")
+				.statusCode("-")
+				.build());
 
 		// patron service
 		sierraPatronsAPIFixture.patronNotFoundResponse("u", "872321@ab6");
@@ -149,8 +154,6 @@ class PatronRequestApiTests {
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_LOCATION_CODE, SUPPLYING_ITEM_BARCODE);
 		sierraPatronsAPIFixture.patronHoldRequestResponse(KNOWN_PATRON_LOCAL_ID, "i", null);
-
-		agencyFixture.deleteAll();
 
 		final var da = agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())

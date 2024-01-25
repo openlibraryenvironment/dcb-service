@@ -8,7 +8,7 @@ import java.util.List;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsHold;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
@@ -424,10 +424,10 @@ public class SupplyingAgencyService {
 			requestingIdentity.getLocalPtype(), requestingIdentity.getLocalId());
 	}
 
-	public Mono<HostLmsHold> getHold(String hostLmsCode, String holdId) {
-		log.debug("getHold({},{})",hostLmsCode,holdId);
+	public Mono<HostLmsRequest> getRequest(String hostLmsCode, String localRequestId) {
+		log.debug("getHold({}, {})", hostLmsCode, localRequestId);
 
 		return hostLmsService.getClientFor(hostLmsCode)
-			.flatMap(client -> client.getHold(holdId));
+			.flatMap(client -> client.getRequest(localRequestId));
 	}
 }

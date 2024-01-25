@@ -49,6 +49,12 @@ public class PatronRequest {
 		SUBMITTED_TO_DCB, 
 		PATRON_VERIFIED, 
 		RESOLVED, 
+
+		// Added in preparation for moving to next supplier - when a supplier cancels a request we
+		// want to resubmit the request to the next possible supplier, creating a new supplier_request
+		// or if there are no more suppliers possible, move to NO_ITEMS_AVAILABLE_AT_ANY_AGENCY
+		NOT_SUPPLIED_CURRENT_SUPPLIER,	
+
 		NO_ITEMS_AVAILABLE_AT_ANY_AGENCY, 
 		REQUEST_PLACED_AT_SUPPLYING_AGENCY,
 		REQUEST_PLACED_AT_BORROWING_AGENCY, 

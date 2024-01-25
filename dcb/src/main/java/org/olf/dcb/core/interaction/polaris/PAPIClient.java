@@ -11,6 +11,7 @@ import static java.util.Collections.singletonList;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
+import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValueWithDefault;
 
 import java.util.Arrays;
 import java.util.List;
@@ -214,7 +215,7 @@ public class PAPIClient {
 	private PatronRegistration getPatronRegistration(Patron patron) {
 		final var conf = client.getConfig();
 		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
-		final var patronBarcodePrefix = extractMapValue(servicesMap, PATRON_BARCODE_PREFIX, String.class);
+		final var patronBarcodePrefix = extractMapValueWithDefault(servicesMap, PATRON_BARCODE_PREFIX, String.class, "DCB-");
 		final var logonBranchID = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
 		return PatronRegistration.builder()
 			.logonBranchID( logonBranchID )
@@ -225,10 +226,11 @@ public class PAPIClient {
 			.nameLast(patron.getUniqueIds().get(0))
 			.userName(patron.getUniqueIds().get(0))
 			.patronCode( parseInt(patron.getLocalPatronType()) )
+			// Polaris needs these fields, but we don't have them for vpatrons
 			.birthdate("1999-11-01")
 			.postalCode("63131")
-			.streetOne("1412 S Spoede")
-			.city("SAINT LOUIS")
+			.streetOne("DCB Patron Street Address")
+			.city("DCB Patron City")
 			.state("MO")
 			.barcode(patronBarcodePrefix + patron.getLocalBarcodes().get(0))
 			.build();

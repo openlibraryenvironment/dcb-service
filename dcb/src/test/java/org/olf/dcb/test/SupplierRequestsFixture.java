@@ -13,7 +13,6 @@ import org.olf.dcb.storage.SupplierRequestRepository;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Prototype;
-import reactor.core.publisher.Mono;
 
 @Prototype
 public class SupplierRequestsFixture {
@@ -35,26 +34,32 @@ public class SupplierRequestsFixture {
 		String hostLmsCode) {
 
 		saveSupplierRequest(supplierRequestId,patronRequest,localBibId,localItemId,localLocationCode,localItemBarcode,hostLmsCode, Boolean.TRUE);
-
 	}
 
 	public void saveSupplierRequest(UUID supplierRequestId, PatronRequest patronRequest,
 		String localBibId, String localItemId, String localLocationCode, String localItemBarcode,
 		String hostLmsCode, Boolean isActive) {
 
-		Mono.from(supplierRequestRepository.save(
-				SupplierRequest
-					.builder()
-					.id(supplierRequestId)
-					.patronRequest(patronRequest)
-					.localItemId(localItemId)
-					.localBibId(localBibId)
-					.localItemLocationCode(localLocationCode)
-					.localItemBarcode(localItemBarcode)
-					.hostLmsCode(hostLmsCode)
-					.isActive(isActive)
-					.build()))
-			.block();
+		saveSupplierRequest(
+			SupplierRequest
+				.builder()
+				.id(supplierRequestId)
+				.patronRequest(patronRequest)
+				.localItemId(localItemId)
+				.localBibId(localBibId)
+				.localItemLocationCode(localLocationCode)
+				.localItemBarcode(localItemBarcode)
+				.hostLmsCode(hostLmsCode)
+				.isActive(isActive)
+				.build());
+	}
+
+	public SupplierRequest saveSupplierRequest(SupplierRequest supplierRequest) {
+		return singleValueFrom(supplierRequestRepository.save(supplierRequest));
+	}
+
+	public SupplierRequest findById(UUID id) {
+		return singleValueFrom(supplierRequestRepository.findById(id));
 	}
 
 	public List<SupplierRequest> findAllFor(PatronRequest patronRequest) {

@@ -40,7 +40,7 @@ import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsHold;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition.IntegerHostLmsPropertyDefinition;
@@ -645,11 +645,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	// https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
 	private String mapSierraHoldStatusToDCBHoldStatus(String code) {
 		return switch (code) {
-			case "0" -> HostLmsHold.HOLD_PLACED;
-			case "b" -> HostLmsHold.HOLD_READY; // Bib ready for pickup
-			case "j" -> HostLmsHold.HOLD_READY; // volume ready for pickup
-			case "i" -> HostLmsHold.HOLD_READY; // Item ready for pickup
-			case "t" -> HostLmsHold.HOLD_TRANSIT; // IN Transit
+			case "0" -> HostLmsRequest.HOLD_PLACED;
+			case "b" -> HostLmsRequest.HOLD_READY; // Bib ready for pickup
+			case "j" -> HostLmsRequest.HOLD_READY; // volume ready for pickup
+			case "i" -> HostLmsRequest.HOLD_READY; // Item ready for pickup
+			case "t" -> HostLmsRequest.HOLD_TRANSIT; // IN Transit
 			default -> code;
 		};
 	}
@@ -972,26 +972,26 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLmsCode())));
 	}
 
-	public HostLmsHold sierraPatronHoldToHostLmsHold(SierraPatronHold sierraHold) {
+	public HostLmsRequest sierraPatronHoldToHostLmsHold(SierraPatronHold sierraHold) {
 		log.debug("sierraHoldToHostLmsHold({})", sierraHold);
 		if ((sierraHold != null) && (sierraHold.id() != null)) {
 			// Hold API sends back a hatheos style URI - we just want the hold ID
 			String holdId = sierraHold.id().substring(sierraHold.id().lastIndexOf('/') + 1);
 
 			// Map the hold status into a canonical value
-			return new HostLmsHold(holdId,
+			return new HostLmsRequest(holdId,
 				sierraHold.status() != null ? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code()) : "");
 		} else {
-			return new HostLmsHold();
+			return new HostLmsRequest();
 		}
 	}
 
 	@Override
-	public Mono<HostLmsHold> getHold(String holdId) {
-		log.debug("getHold({})", holdId);
-		return Mono.from(client.getHold(Long.valueOf(holdId)))
+	public Mono<HostLmsRequest> getRequest(String localRequestId) {
+		log.debug("getRequest({})", localRequestId);
+		return Mono.from(client.getHold(Long.valueOf(localRequestId)))
 			.flatMap(sh -> Mono.just(sierraPatronHoldToHostLmsHold(sh)))
-			.defaultIfEmpty(new HostLmsHold(holdId, "MISSING"));
+			.defaultIfEmpty(new HostLmsRequest(localRequestId, "MISSING"));
 	}
 
 	// II: We need to talk about this in a review session
