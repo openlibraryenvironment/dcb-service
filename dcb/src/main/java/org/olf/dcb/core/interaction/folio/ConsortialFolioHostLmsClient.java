@@ -12,6 +12,7 @@ import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
@@ -627,6 +628,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var mappedStatus = switch(status) {
 			case "CREATED" -> HOLD_PLACED;
+			case "OPEN" -> HOLD_TRANSIT;
 			default -> throw new RuntimeException(
 				"Unrecognised transaction status for transaction ID: \"%s\"".formatted(transactionId));
 		};
