@@ -310,7 +310,8 @@ public class RecordClusteringService {
 					.build();
 
 				return Mono.fromDirect( bibRecords.update(linkedBib) );
-			});
+			})
+			.doOnNext(lb -> log.debug("update completd {}", lb));
 		
 		// Find all clusters matching MatchPoints (via bibs)
 		// Take lastUpdated Cluster record as match
