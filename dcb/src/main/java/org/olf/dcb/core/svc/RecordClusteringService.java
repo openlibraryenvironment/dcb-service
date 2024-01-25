@@ -167,7 +167,7 @@ public class RecordClusteringService {
 			.thenReturn( to );
 	}
 	
-	@Transactional
+	@Transactional(propagation = Propagation.MANDATORY)
 	protected Mono<ClusterRecord> reduceClusterRecords( final int pointsCreated,  final List<ClusterRecord> clusterList ) {
 		final int matches = clusterList.size();
 		
@@ -176,10 +176,11 @@ public class RecordClusteringService {
 			
 			case 1 -> {
 				
-				if (pointsCreated > 2) {
-					log.trace("Match point - Match ratio too low. Cannot quick match");
-					yield Mono.empty();
-				}
+				// SO: For now lets not do this...
+//				if (pointsCreated > 2) {
+//					log.trace("Match point - Match ratio too low. Cannot quick match");
+//					yield Mono.empty();
+//				}
 				
 				// Single match point.
 				log.trace("Low number of match points, but found single match.");
@@ -188,7 +189,12 @@ public class RecordClusteringService {
 			
 			default -> {
 				
-				final LinkedHashSet<ClusterRecord> clusters = new LinkedHashSet<>(clusterList);
+				// Sort the unique entries.
+				final List<ClusterRecord> clusters = new LinkedHashSet<>(clusterList).stream()
+					.sorted((cr1, cr2) -> cr2.getDateUpdated().compareTo(cr1.getDateUpdated()))
+					.toList()
+				;
+				
 				yield switch ( clusters.size() ) {
 					case 1 -> {
 						log.trace("Single cluster matched by multiple match points.");
@@ -204,7 +210,7 @@ public class RecordClusteringService {
 						
 						var primary = items.next();
 						items.forEachRemaining(c -> {
-							if (c.getId() != null && c.getId() != primary.getId()) {
+							if (c.getId() != null && !c.getId().toString().equals(Objects.toString(primary.getId(), null))) {
 								toRemove.add(c);
 							}});
 						
@@ -289,6 +295,7 @@ public class RecordClusteringService {
 
 		// Generate MatchPoints
 		return Mono.justOrEmpty( bib )
+			.doOnSubscribe( (_s) -> log.debug("clusterBib::{}", bib))
 			.flatMap( theBib -> Mono.fromDirect( matchPointRepository.deleteAllByBibId( theBib.getId() ))
 					.thenReturn( theBib ) )
 			.map( this::collectMatchPoints )

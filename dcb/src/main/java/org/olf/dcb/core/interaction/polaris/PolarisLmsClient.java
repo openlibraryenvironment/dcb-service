@@ -112,7 +112,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
   // ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
-  private static final URI ERR0212 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0212/Polaris/UnableToCreateItem");
+//  private static final URI ERR0212 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0212/Polaris/UnableToCreateItem");
 
 	@Creator
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,

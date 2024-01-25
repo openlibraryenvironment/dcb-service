@@ -95,13 +95,14 @@ public class BibRecordService {
 	@Transactional
 	public Mono<BibRecord> saveOrUpdate(final BibRecord record) {
 		return Mono.from(bibRepo.existsById(record.getId()))
-				.flatMap(exists -> Mono.fromDirect(exists ? bibRepo.update(record) : bibRepo.save(record)));
+			.flatMap(exists -> Mono.fromDirect(exists ? bibRepo.update(record) : bibRepo.save(record)));
 	}
 
 	// https://github.com/micronaut-projects/micronaut-data/discussions/1405
 	@Transactional
 	public Mono<BibRecord> getOrSeed(final IngestRecord source) {
-		return Mono.fromDirect(bibRepo.findById(source.getUuid())).defaultIfEmpty(minimalRecord(source));
+		return Mono.fromDirect(bibRepo.findById(source.getUuid()))
+			.defaultIfEmpty(minimalRecord(source));
 	}
 
 	public Flux<BibRecord> findAllByContributesTo(final ClusterRecord clusterRecord) {
@@ -122,8 +123,10 @@ public class BibRecordService {
 
 	@Transactional
 	protected Mono<BibRecord> saveIdentifiers(BibRecord savedBib, IngestRecord source) {
-		return Flux.fromIterable(source.getIdentifiers()).map(id -> ingestRecordIdentifierToModel(id, savedBib))
-				.flatMap(this::saveOrUpdateIdentifier).then(Mono.just(savedBib));
+		return Flux.fromIterable(source.getIdentifiers())
+				.map(id -> ingestRecordIdentifierToModel(id, savedBib))
+				.flatMap(this::saveOrUpdateIdentifier)
+				.then(Mono.just(savedBib));
 	}
 
 	protected Mono<BibRecord> updateStatistics(BibRecord savedBib, IngestRecord source, long start_time) {
@@ -195,7 +198,7 @@ public class BibRecordService {
 	
 	@Timed("bib.process")
 	@SingleResult
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	@Transactional
 	public Publisher<BibRecord> process(final IngestRecord source) {
 
     log.debug("BibRecordService::process(source={}, sourceRecordId={}, clusterid={}, title={}, suppress:{}, deleted:{})",
@@ -256,7 +259,8 @@ public class BibRecordService {
 				pipeline.add(this::step1);
 				return Flux.fromIterable(pipeline).reduce(bib, (theBib, step) -> step.apply(bib, source));
 			})
-		.flatMap(this::saveOrUpdate).flatMap(savedBib -> this.saveIdentifiers(savedBib, source))
+		.flatMap(this::saveOrUpdate)
+		.flatMap(savedBib -> this.saveIdentifiers(savedBib, source))
 		.flatMap( finalBib -> this.updateStatistics(finalBib, source, start_time) );
 	}
 	
