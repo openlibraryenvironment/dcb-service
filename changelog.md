@@ -1,9 +1,61 @@
 # Changelog
 
+## Version 4.7.0
+
+### Additions
+* [General]
+	* place request in borrowing library on folio system [DCB-492]
+
+### Changes
+* [Chore]
+	* preparatory work for multiple supplier mode
+	* Add find by ID to supplier request repository
+	* Tolerate finding no supplier requests for patron request
+	* Use builder for defining Sierra code tuple
+	* Replace spaces with tabs in Sierra code tuple class
+	* Replace spaces with tabs in Sierra patron hold request object
+	* Don't track supplier requests when the owning request is in a COMPLETE, FINALISED or ERROR state. When retrieving the state of a supplier hold, emit a state change to ERROR when we encounter an ERROR
+	* Default polaris barcode prefix to DCB- if none specified
+	* Replace spaces with tabs in handler supplier request placed workflow action
+* [Refactor]
+	* Rename get hold method to get request DCB-825
+* [Test]
+	* Introduce method for creating supplier request during tracking tests
+	* Delete unused json Sierra hold examples
+	* Use more varied local request IDs in tracking tests
+	* Move local status matcher to separate class
+	* Demonstrate detection that request has been placed at supplying agency
+	* Add find by ID to supplier request fixture
+	* Introduce parameter for get hold by ID response from Sierra
+	* Use serialisation for mock get Sierra hold by ID response
+	* Extract method for get Sierra hold by ID request matching
+	* Rename methods for mocking get Sierra hold by ID
+	* Remove unused method for mocking get item from Sierra
+	* Use serialisation for item fetched from Sierra in place request at borrowing agency tests
+	* Use serialisation for item fetched from Sierra in patron request API tests
+	* Delete all locations before patron request API tests
+	* Use serialisation for get item from Sierra responses during tracking tests
+	* Extract variables for local record IDs at borrowing agency
+	* Define separate supplying agency host LMS for tracking tests
+	* Extract method for defining host LMS during tracking tests
+	* Delete all host LMS before tracking tests
+	* Introduce builder consumer parameter for extending patron request attributes
+	* Extract method for creating a patron request during tracking tests
+	* Use fixture to save supplier requests during tracking tests
+	* Remove usused status code repository from tracking tests
+	* Use fixture to find patron requests during tracking tests
+	* Use fixture to create patron requests during tracking tests
+	* Move request is finalised matcher to matchers class
+	* Extract method for waiting for patron request to become finalised
+	* Use utility method to get single value from publisher during tracking tests
+	* Delete all patron requests prior to each tracking test
+	* Delete all reference value mappings prior to tracking tests
+
 ## Version 4.6.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Refactoring around sort order
 	* Make tracking service field final
 	* Reformat tracking service
