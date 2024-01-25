@@ -9,9 +9,9 @@ import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
@@ -34,9 +34,9 @@ import org.olf.dcb.core.interaction.CannotPlaceRequestException;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.FailedToGetItemsException;
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.HttpResponsePredicates;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
@@ -623,16 +623,18 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private static HostLmsRequest mapToHostLmsRequest(String transactionId,
 		TransactionStatus transactionStatus) {
 
-		if (getValue(transactionStatus, TransactionStatus::getStatus).equals("CREATED")) {
-			return HostLmsRequest.builder()
-				.localId(transactionId)
-				.status(HOLD_PLACED)
-				.build();
-		}
-		else {
-			throw new RuntimeException(
+		final var status = getValue(transactionStatus, TransactionStatus::getStatus);
+
+		final var mappedStatus = switch(status) {
+			case "CREATED" -> HOLD_PLACED;
+			default -> throw new RuntimeException(
 				"Unrecognised transaction status for transaction ID: \"%s\"".formatted(transactionId));
-		}
+		};
+
+		return HostLmsRequest.builder()
+			.localId(transactionId)
+			.status(mappedStatus)
+			.build();
 	}
 
 	private Mono<TransactionStatus> getTransactionStatus(String localRequestId) {
