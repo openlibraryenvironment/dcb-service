@@ -117,7 +117,9 @@ public class IngestService implements Runnable {
 	}
 	
 	protected Publisher<BibRecord> processSingleRecord ( IngestRecord ingestRecord ) {
+		log.debug("processSingleRecord {}@{}",ingestRecord.getSourceRecordId(),ingestRecord.getSourceSystem().getCode() );
 		return Mono.from(bibRecordService.process( ingestRecord ))
+			.doOnNext( br -> log.debug("process ingest record {}@{}", br.getSourceRecordId(), ingestRecord.getSourceSystem().getCode() ) )
 			.flatMap(recordClusteringService::clusterBib)
 			.doOnError ( throwable -> log.warn("ONERROR Error after clustering step", throwable) );
 	}
