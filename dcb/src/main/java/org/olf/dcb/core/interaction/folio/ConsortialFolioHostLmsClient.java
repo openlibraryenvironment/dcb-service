@@ -617,10 +617,22 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		return getTransactionStatus(localRequestId)
-			.map(response -> HostLmsRequest.builder()
-				.localId(localRequestId)
+			.map(transactionStatus -> mapToHostLmsRequest(localRequestId, transactionStatus));
+	}
+
+	private static HostLmsRequest mapToHostLmsRequest(String transactionId,
+		TransactionStatus transactionStatus) {
+
+		if (getValue(transactionStatus, TransactionStatus::getStatus).equals("CREATED")) {
+			return HostLmsRequest.builder()
+				.localId(transactionId)
 				.status(HOLD_PLACED)
-				.build());
+				.build();
+		}
+		else {
+			throw new RuntimeException(
+				"Unrecognised transaction status for transaction ID: \"%s\"".formatted(transactionId));
+		}
 	}
 
 	private Mono<TransactionStatus> getTransactionStatus(String localRequestId) {
