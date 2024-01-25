@@ -84,12 +84,12 @@ public interface PostgresClusterRecordRepository extends
 	Publisher<Page<UUID>> findIdByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);
 	
 	@SingleResult
-	Publisher<Long> updateById( @NonNull UUID id );
+	Publisher<Long> updateById( @NonNull UUID id, Instant dateUpdated);
 	
 	@Override
 	@SingleResult
 	default Publisher<Long> touch( @NonNull UUID id ) {
-		return this.updateById(id);
+		return this.updateById(id, Instant.now());
 	}
 	
 	@Override
