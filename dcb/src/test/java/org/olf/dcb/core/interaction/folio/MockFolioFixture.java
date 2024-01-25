@@ -136,7 +136,18 @@ public class MockFolioFixture {
 	}
 
 	public void mockGetTransactionStatus(String transactionId, String status) {
-
+		mockServerClient
+			.when(request()
+				.withMethod("GET")
+				.withHeader("Host", host)
+				.withHeader("Authorization", apiKey)
+				.withHeader("Accept", APPLICATION_JSON)
+				.withPath("/dcbService/transactions/%s/status".formatted(transactionId)))
+			.respond(response()
+				.withStatusCode(200)
+				.withBody(json(TransactionStatus.builder()
+					.status(status)
+					.build())));
 	}
 
 	@Serdeable

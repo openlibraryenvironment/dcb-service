@@ -616,10 +616,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
-		return Mono.just(HostLmsRequest.builder()
-			.localId(localRequestId)
-			.status(HOLD_PLACED)
-			.build());
+		return getTransactionStatus(localRequestId)
+			.map(response -> HostLmsRequest.builder()
+				.localId(localRequestId)
+				.status(HOLD_PLACED)
+				.build());
+	}
+
+	private Mono<TransactionStatus> getTransactionStatus(String localRequestId) {
+		final var path = "/dcbService/transactions/%s/status".formatted(localRequestId);
+
+		return makeRequest(authorisedRequest(GET, path), Argument.of(TransactionStatus.class));
 	}
 
 	@Override
