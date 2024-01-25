@@ -135,6 +135,10 @@ public class MockFolioFixture {
 			.withPath("/dcbService/transactions/.*");
 	}
 
+	public void mockGetTransactionStatus(String transactionId, String status) {
+
+	}
+
 	@Serdeable
 	@Builder
 	@Value

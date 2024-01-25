@@ -616,7 +616,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
-		return Mono.error(new NotImplementedException("Getting hold request is not currently implemented for FOLIO"));
+		return Mono.just(HostLmsRequest.builder()
+			.localId(localRequestId)
+			.status(HOLD_PLACED)
+			.build());
 	}
 
 	@Override
