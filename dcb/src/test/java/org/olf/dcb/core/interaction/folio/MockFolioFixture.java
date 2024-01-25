@@ -49,10 +49,7 @@ public class MockFolioFixture {
 
 	void mockHoldingsByInstanceId(String instanceId, JsonBody json) {
 		mockServerClient
-			.when(request()
-				.withHeader("Host", host)
-				.withHeader("Authorization", apiKey)
-				.withHeader("Accept", APPLICATION_JSON)
+			.when(authorizedRequest("GET")
 				.withPath("/rtac")
 				.withQueryStringParameter("fullPeriodicals", "true")
 				.withQueryStringParameter("instanceIds", instanceId))
@@ -70,20 +67,14 @@ public class MockFolioFixture {
 
 	private void mockPatronVerify(HttpResponse response) {
 		mockServerClient
-			.when(request()
-				.withHeader("Host", host)
-				.withHeader("Authorization", apiKey)
-				.withHeader("Accept", APPLICATION_JSON)
+			.when(authorizedRequest("POST")
 				.withPath("/users/patron-pin/verify"))
 			.respond(response);
 	}
 
 	public void mockGetUsersWithQuery(String queryField, String queryValue, User... users) {
 		mockServerClient
-			.when(request()
-				.withHeader("Host", host)
-				.withHeader("Authorization", apiKey)
-				.withHeader("Accept", APPLICATION_JSON)
+			.when(authorizedRequest("GET")
 				.withPath("/users/users")
 				.withQueryStringParameter("query", queryField + "==\"" + queryValue + "\""))
 			.respond(response()
@@ -96,10 +87,7 @@ public class MockFolioFixture {
 
 	public void mockGetUsersWithQuery(String queryField, String queryValue, HttpResponse httpResponse) {
 		mockServerClient
-			.when(request()
-				.withHeader("Host", host)
-				.withHeader("Authorization", apiKey)
-				.withHeader("Accept", APPLICATION_JSON)
+			.when(authorizedRequest("GET")
 				.withPath("/users/users")
 				.withQueryStringParameter("query", queryField + "==\"" + queryValue + "\""))
 			.respond(httpResponse);
@@ -126,28 +114,28 @@ public class MockFolioFixture {
 	}
 
 	private HttpRequest createTransactionRequest() {
-		return request()
-			.withMethod("POST")
-			.withHeader("Host", host)
-			.withHeader("Authorization", apiKey)
-			.withHeader("Accept", APPLICATION_JSON)
+		return authorizedRequest("POST")
 			// This has to be unspecific as the transaction ID is generated internally
 			.withPath("/dcbService/transactions/.*");
 	}
 
 	public void mockGetTransactionStatus(String transactionId, String status) {
 		mockServerClient
-			.when(request()
-				.withMethod("GET")
-				.withHeader("Host", host)
-				.withHeader("Authorization", apiKey)
-				.withHeader("Accept", APPLICATION_JSON)
+			.when(authorizedRequest("GET")
 				.withPath("/dcbService/transactions/%s/status".formatted(transactionId)))
 			.respond(response()
 				.withStatusCode(200)
 				.withBody(json(TransactionStatus.builder()
 					.status(status)
 					.build())));
+	}
+
+	private HttpRequest authorizedRequest(String method) {
+		return request()
+			.withMethod(method)
+			.withHeader("Host", host)
+			.withHeader("Authorization", apiKey)
+			.withHeader("Accept", APPLICATION_JSON);
 	}
 
 	@Serdeable
