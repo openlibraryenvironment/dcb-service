@@ -22,16 +22,17 @@ import reactor.core.publisher.Mono;
 @Singleton
 @Named("SupplierRequestInTransit")
 public class HandleSupplierInTransit implements WorkflowAction {
-	private SupplierRequestRepository supplierRequestRepository;
-	private PatronRequestRepository patronRequestRepository;
-	private RequestWorkflowContextHelper requestWorkflowContextHelper;
-	private HostLmsService hostLmsService;
+	private final SupplierRequestRepository supplierRequestRepository;
+	private final PatronRequestRepository patronRequestRepository;
+	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
+	private final HostLmsService hostLmsService;
 
 	public HandleSupplierInTransit(
 		SupplierRequestRepository supplierRequestRepository,
 		PatronRequestRepository patronRequestRepository,
 		HostLmsService hostLmsService,
 		RequestWorkflowContextHelper requestWorkflowContextHelper) {
+
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
