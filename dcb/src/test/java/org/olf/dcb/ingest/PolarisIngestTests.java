@@ -2,39 +2,44 @@ package org.olf.dcb.ingest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.ingest.IngestService.TRANSFORMATIONS_RECORDS;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.mockserver.client.MockServerClient;
-import org.olf.dcb.ingest.model.IngestRecord;
+import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.svc.BibRecordService;
+import org.olf.dcb.core.svc.RecordClusteringService;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.test.annotation.MockBean;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Flux;
 import services.k_int.interaction.polaris.PolarisTestUtils;
-import services.k_int.micronaut.PublisherTransformation;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+@Slf4j
 @MockServerMicronautTest
 @MicronautTest(transactional = false, rebuildContext = true)
 @TestInstance(PER_CLASS)
-@Slf4j
+@TestMethodOrder(OrderAnnotation.class)
 class PolarisIngestTests {
 	private static final String HOST_LMS_CODE = "ingest-service-service-tests";
 	private static final String CP_RESOURCES_POLARIS = "classpath:mock-responses/polaris/";
+	
+
+	private static final String BASE_URL = "https://ingest-service-service-tests.com";
+	private static final String KEY = "ingest-service-key";
+	private static final String SECRET = "ingest-service-secret";
+	private static final String DOMAIN = "TEST";
 
 	@Inject
 	private ResourceLoader loader;
@@ -46,13 +51,15 @@ class PolarisIngestTests {
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
+	
+	@Inject
+	private RecordClusteringService rcs;
+	
+	@Inject
+	private BibRecordService brs;
 
 	@BeforeAll
 	void beforeAll(MockServerClient mock) {
-		final String BASE_URL = "https://ingest-service-service-tests.com";
-		final String KEY = "ingest-service-key";
-		final String SECRET = "ingest-service-secret";
-		final String DOMAIN = "TEST";
 
 		hostLmsFixture.deleteAll();
 
@@ -77,6 +84,7 @@ class PolarisIngestTests {
 	}
 
 	@Test
+	@Order(1)
 	void ingestFromPolaris() {
 		// Run the ingest process
 		final var bibs =  ingestService.getBibRecordStream()
@@ -87,16 +95,39 @@ class PolarisIngestTests {
 		// with a null title on the floor. 10 input records, 1 with a null title = 9 records after ingest.
 		assertEquals(9, bibs.size());
 	}
-
-	@MockBean
-	@Prototype // Prototype ensures new instance of this bean at every injection point.
-	@Named(TRANSFORMATIONS_RECORDS) // Qualified name is used when searching for Applicable Transformers.
-	@Requires(property = "tests.enableLimiter", value = "true")
-	PublisherTransformation<IngestRecord> testIngestLimiter() {
-		log.info("Test pipeline limiter");
-
-		return (pub) -> Flux.from(pub).take(5, true);
-	}
+	
+//	@Test
+//	@Order(2)
+//	void ingestFromPolarisRepeated(MockServerClient mock) {
+//		
+//		mock.reset();
+//		hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL,
+//				DOMAIN, KEY, SECRET);
+//
+//			var mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);
+//
+//			// Mock bibs returned by the polaris system for ingest.
+//			mockPolaris.whenRequest(req -> req.withMethod("GET")
+//					.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/bibs/MARCXML/paged/*"))
+//				.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "bibs-repeated.json")));
+//
+//			mockPolaris.whenRequest(req -> req.withMethod("POST")
+//					.withPath("/PAPIService/REST/protected/v1/1033/100/1/authenticator/staff"))
+//				.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "test-staff-auth.json")));
+//		
+//		// Run the ingest process
+//		final var clusters = ingestService.getBibRecordStream()
+//			.map(BibRecord::getId)
+//			.concatMap(brs::getClusterRecordForBib)
+//			.distinct( cr -> cr.getId().toString() )
+//			.filter( cr -> !Boolean.TRUE.equals( cr.getIsDeleted() ))
+//			.doOnNext( cr -> log.info("Found cluster record: {}", cr) )
+//			.collectList()
+//			.block();
+//
+//		assertEquals(1, clusters.size());
+//		
+//	}
 
 	@SneakyThrows
 	private String getResourceAsString(String cp_resources, String resourceName) {

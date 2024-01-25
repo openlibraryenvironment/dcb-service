@@ -2,16 +2,21 @@ package org.olf.dcb.ingest;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.core.svc.RecordClusteringService;
+import org.olf.dcb.ingest.model.IngestRecord;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.cp.lock.FencedLock;
+
 import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.util.Toggleable;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.scheduling.annotation.Scheduled;
@@ -21,8 +26,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
-import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.cp.lock.FencedLock;
 
 //@Refreshable
 @Singleton
@@ -66,7 +69,6 @@ public class IngestService implements Runnable {
 
 
 	private Runnable cleanUp(final Instant i) {
-
 		final var me = this;
 
 		return () -> {
@@ -98,21 +100,26 @@ public class IngestService implements Runnable {
 					return Mono.empty();
 				}))
 
-				.limitRate(8000, 6000) // Prefetch 
+				.limitRate(8000, 6000) // Prefetch
+//				.buffer(2000)
+//				.concatMap( items -> {
+//					Collections.reverse(items);
+//					return Flux.fromIterable(items).distinctUntilChanged( item -> item.getUuid().toString() );
+//				})
+				
 				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_RECORDS)) // Apply any hooks for "ingest-records"
-				// Cluster record got or seeded inline.
 				
 				// Interleaved source stream from all source results.
-				.flatMap(bibRecordService::process)
-				.doOnError ( throwable -> log.warn("ONERROR Error after bib record processing step", throwable) )
+				.concatMap(this::processSingleRecord)
 				
-				.flatMap(recordClusteringService::clusterBib)
-				
-				.doOnError ( throwable -> log.warn("ONERROR Error after clustering step", throwable) )
-
 				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_BIBS)) // Apply any hooks for "ingest-bibs";
-				.doOnError ( throwable -> log.warn("ONERROR Error after transform step", throwable) )
-				;
+				.doOnError ( throwable -> log.warn("ONERROR Error after transform step", throwable) );
+	}
+	
+	protected Publisher<BibRecord> processSingleRecord ( IngestRecord ingestRecord ) {
+		return Mono.from(bibRecordService.process( ingestRecord ))
+			.flatMap(recordClusteringService::clusterBib)
+			.doOnError ( throwable -> log.warn("ONERROR Error after clustering step", throwable) );
 	}
 
 	@Override
