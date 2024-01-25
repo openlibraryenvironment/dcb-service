@@ -112,16 +112,15 @@ public class TrackingService implements Runnable {
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	public Mono<PatronRequest> checkPatronRequest(PatronRequest pr) {
-
 		log.info("TRACKING Check patron request {}", pr);
 
-		return hostLmsService.getClientFor( pr.getPatronHostlmsCode())
-			.flatMap(client -> client.getHold( pr.getLocalRequestId()))
+		return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
+			.flatMap(client -> client.getRequest(pr.getLocalRequestId()))
 			.onErrorContinue((e, o) -> log.error("Error occurred: " + e.getMessage(), e))
 			.doOnNext(hold -> log.info("Compare patron request {} states: {} and {}",
 				pr.getId(), hold.getStatus(), pr.getLocalRequestStatus()))
 			.filter(hold -> !hold.getStatus().equals(pr.getLocalRequestStatus()))
-			.flatMap( hold -> {
+			.flatMap(hold -> {
 				StateChange sc = StateChange.builder()
 					.patronRequestId(pr.getId())
 					.resourceType("PatronRequest")
@@ -231,7 +230,7 @@ public class TrackingService implements Runnable {
 		// has changed to "InTransit" the handler needs to update the pickup site and the patron site, if either of
 		// these operations fail, we don't update the state - which will cause the handler to re-fire until
 		// successful completion.
-		return supplyingAgencyService.getHold(sr.getHostLmsCode(), sr.getLocalId())
+		return supplyingAgencyService.getRequest(sr.getHostLmsCode(), sr.getLocalId())
 			.filter(hold -> !hold.getStatus().equals(sr.getLocalStatus()))
 			.flatMap(hold -> {
 				log.debug("current request status: {}", hold);

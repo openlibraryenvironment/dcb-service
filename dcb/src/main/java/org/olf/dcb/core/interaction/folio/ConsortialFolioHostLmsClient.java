@@ -9,7 +9,7 @@ import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.interaction.HostLmsHold.HOLD_PLACED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
@@ -33,7 +33,7 @@ import org.olf.dcb.core.interaction.CannotPlaceRequestException;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.FailedToGetItemsException;
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsHold;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.HttpResponsePredicates;
@@ -526,7 +526,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<HostLmsHold> getHold(String holdId) {
+	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		return Mono.error(new NotImplementedException("Getting hold request is not currently implemented for FOLIO"));
 	}
 

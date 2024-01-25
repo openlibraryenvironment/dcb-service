@@ -15,8 +15,7 @@ import io.micronaut.core.annotation.Nullable;
 @AllArgsConstructor
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
-public class HostLmsHold {
-
+public class HostLmsRequest {
 	// Likely that the hold has been deleted from the host system
 	public static final String HOLD_MISSING="MISSING";
 
@@ -34,7 +33,7 @@ public class HostLmsHold {
 	@Nullable
 	String localId;
 
-        // N.B. That if we are unable to map a status, this string MAY contain a value not from the set above!
+	// N.B. That if we are unable to map a status, this string MAY contain a value not from the set above!
 	@Nullable
 	String status;
 }

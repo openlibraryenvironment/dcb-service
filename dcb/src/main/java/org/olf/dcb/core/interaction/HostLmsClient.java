@@ -61,7 +61,7 @@ public interface HostLmsClient {
 
 	Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand);
 
-	Mono<HostLmsHold> getHold(String holdId);
+	Mono<HostLmsRequest> getRequest(String localRequestId);
 
 	Mono<HostLmsItem> getItem(String itemId);
 
