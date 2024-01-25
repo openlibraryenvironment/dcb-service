@@ -295,7 +295,7 @@ public class RecordClusteringService {
 
 		// Generate MatchPoints
 		return Mono.justOrEmpty( bib )
-			.doOnSubscribe( (_s) -> log.debug("clusterBib::{}", bib))
+			.doOnNext(br -> log.debug("start update {}", br.getId()))
 			.flatMap( theBib -> Mono.fromDirect( matchPointRepository.deleteAllByBibId( theBib.getId() ))
 					.thenReturn( theBib ) )
 			.map( this::collectMatchPoints )
@@ -311,7 +311,7 @@ public class RecordClusteringService {
 
 				return Mono.fromDirect( bibRecords.update(linkedBib) );
 			})
-			.doOnNext(lb -> log.debug("update completd {}", lb));
+			.doOnNext(lb -> log.debug("update completd {}", lb.getId()));
 		
 		// Find all clusters matching MatchPoints (via bibs)
 		// Take lastUpdated Cluster record as match
