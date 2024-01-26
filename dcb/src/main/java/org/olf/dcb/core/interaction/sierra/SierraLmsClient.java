@@ -371,7 +371,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			// .map(result -> deRestify(result.getLink())).map(localId -> HostLmsItem.builder().localId(localId).build())
 			// Try to read back the created item until we succeed or reach max retries - Sierra returns an ID but the ID is not ready for consumption
 			// immediately.
-      .flatMap(itemId -> Mono.defer(() -> getItem(itemId) ).retry(getHoldsRetryAttempts))
+      .flatMap(itemId -> Mono.defer(() -> getItem(itemId, null)).retry(getHoldsRetryAttempts))
 			.switchIfEmpty(Mono.error(new RuntimeException("Unable to map canonical item type " + cic.getCanonicalItemType() + " for " + lms.getCode() + " context")));
 	}
 
@@ -1054,8 +1054,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<HostLmsItem> getItem(String itemId) {
-		log.debug("getItem({})", itemId);
+	public Mono<HostLmsItem> getItem(String itemId, String localRequestId) {
+		log.debug("getItem({}, {})", itemId, localRequestId);
 
 		return Mono.from(client.getItem(itemId))
 			.flatMap(sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)))

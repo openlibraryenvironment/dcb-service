@@ -244,7 +244,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<HostLmsItem> getItem(String itemId) {
+	public Mono<HostLmsItem> getItem(String itemId, String localRequestId) {
 		return papiClient.synch_ItemGet(itemId)
 			.flatMap(this::setCircStatus)
 			.map(result -> HostLmsItem.builder()
@@ -265,7 +265,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<Void> updateItem(String itemId, Integer toStatus) {
-		return getItem(itemId)
+		return getItem(itemId, null)
 			.map(HostLmsItem::getStatus)
 			.map(status -> mapItemStatus(HOST_LMS_TO_POLARIS, status))
 			.flatMap(this::getCircStatusId)

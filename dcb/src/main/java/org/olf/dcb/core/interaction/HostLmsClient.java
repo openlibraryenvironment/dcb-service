@@ -63,7 +63,7 @@ public interface HostLmsClient {
 
 	Mono<HostLmsRequest> getRequest(String localRequestId);
 
-	Mono<HostLmsItem> getItem(String itemId);
+	Mono<HostLmsItem> getItem(String itemId, String localRequestId);
 
 	Mono<String> updateItemStatus(String itemId, CanonicalItemState crs);
 

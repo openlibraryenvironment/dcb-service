@@ -410,7 +410,8 @@ public class PolarisLmsClientTests {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses", "itemstatuses.json");
 
 		// Act
-		final var item = hostLmsFixture.createClient(HOST_LMS_CODE).getItem(localItemId).block();
+		final var item = hostLmsFixture.createClient(HOST_LMS_CODE).getItem(localItemId,
+			null).block();
 
 		// Assert
 		assertThat(item, is(notNullValue()));

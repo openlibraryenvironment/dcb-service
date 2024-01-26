@@ -234,8 +234,8 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return Mono.empty();
 	}
 
-	public Mono<HostLmsItem> getItem(String itemId) {
-		log.debug("getItem({})", itemId);
+	public Mono<HostLmsItem> getItem(String itemId, String localRequestId) {
+		log.debug("getItem({}, {})", itemId, localRequestId);
 		return Mono.empty();
 	}
 

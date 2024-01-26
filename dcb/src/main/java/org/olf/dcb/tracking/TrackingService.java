@@ -143,7 +143,7 @@ public class TrackingService implements Runnable {
 
 		if ((pr.getPatronHostlmsCode() != null) && (pr.getLocalItemId() != null)) {
 			return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
-				.flatMap(client -> Mono.from(client.getItem(pr.getLocalItemId())))
+				.flatMap(client -> Mono.from(client.getItem(pr.getLocalItemId(), pr.getLocalRequestId())))
 				.filter(item -> (
 					((item.getStatus() == null) && (pr.getLocalItemStatus() != null)) ||
 						((item.getStatus() != null) && (pr.getLocalItemStatus() == null)) ||
@@ -181,7 +181,7 @@ public class TrackingService implements Runnable {
 			log.debug("hostLms code and itemId present.. continue");
 
 			return hostLmsService.getClientFor(sr.getHostLmsCode())
-				.flatMap(client -> Mono.from(client.getItem(sr.getLocalItemId())))
+				.flatMap(client -> Mono.from(client.getItem(sr.getLocalItemId(), sr.getLocalId())))
 				.doOnNext(item -> log.debug("Process tracking supplier request item {}", item))
 				.filter(item -> !item.getStatus().equals(sr.getLocalItemStatus()) )
 				.flatMap(item -> {

@@ -660,7 +660,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<HostLmsItem> getItem(String itemId) {
+	public Mono<HostLmsItem> getItem(String itemId, String localRequestId) {
 		return Mono.error(new NotImplementedException("Getting item is not currently implemented for FOLIO"));
 	}
 
