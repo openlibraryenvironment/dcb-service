@@ -1,49 +1,41 @@
 package org.olf.dcb.request.workflow;
 
-import jakarta.inject.Named;
-import jakarta.inject.Singleton;
+import java.util.Map;
+
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Mono;
+
 import io.micronaut.context.BeanProvider;
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
-
-
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
-import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
+
+@Slf4j
 @Singleton
 @Named("SupplierRequestItemAvailable")
 public class HandleSupplierItemAvailable implements WorkflowAction {
-
-	private static final Logger log = LoggerFactory.getLogger(HandleSupplierInTransit.class);
-
-	private RequestWorkflowContextHelper requestWorkflowContextHelper;
-	private PatronRequestRepository patronRequestRepository;
-	private SupplierRequestRepository supplierRequestRepository;
+	private final PatronRequestRepository patronRequestRepository;
+	private final SupplierRequestRepository supplierRequestRepository;
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 	private final PatronRequestAuditService auditService;
 
-	public HandleSupplierItemAvailable(
-		RequestWorkflowContextHelper requestWorkflowContextHelper,
-		PatronRequestRepository patronRequestRepository,
+	public HandleSupplierItemAvailable(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
-		PatronRequestAuditService auditService)
-	{
-		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
+		PatronRequestAuditService auditService) {
+
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.auditService = auditService;
 	}
-
 
 	@Transactional
 	public Mono<Map<String,Object>> execute(Map<String,Object> context) {
@@ -57,7 +49,7 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 					// supplying library then it's returned. But if this is a new request, the item is likely
 					// available because it's on the shelf. If we have detected some state other than AVAILABLE
 					// that means that the process is now in flow.
-					if ( sr.getLocalItemStatus() == null ) {
+					if (sr.getLocalItemStatus() == null) {
 						// Our first time seeing this item set it's state to AVAILABLE
 						auditService.addAuditEntry(pr, "Supplier Item Available - Infers this item is available for a new request").subscribe();
 
@@ -79,14 +71,12 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 						.flatMap(ssr -> Mono.from(patronRequestRepository.saveOrUpdate(pr)))
 						.doOnNext(spr -> log.debug("Saved {}", spr))
 						// See if we can progress the patron request at all
-						.flatMap( spr -> Mono.from(patronRequestWorkflowServiceProvider.get().progressAll(spr)) )
+						.flatMap(spr -> Mono.from(patronRequestWorkflowServiceProvider.get().progressAll(spr)))
 						.thenReturn(context);
 				} else {
 					log.warn("Unable to locate supplier request to mark item as available");
 					return Mono.just(context);
 				}
 			});
-
-
 	}
 }
