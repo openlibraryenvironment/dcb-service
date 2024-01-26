@@ -163,12 +163,22 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 			.then(validateLocations(patronRequest))
 			.doOnSuccess( pr -> log.debug("Validated patron request: {}", pr))
 			.doOnError( error -> log.error( "Error occurred validating a patron request: {}", error.getMessage()))
-			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
+			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest))
+			.flatMap(this::createAuditEntry);
 	}
 
 	private Mono<PatronRequest> validateLocations(PatronRequest patronRequest) {
 		log.debug("validateLocations({})", patronRequest);
 		return Mono.just(patronRequest);
+	}
+
+	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
+
+		if (patronRequest.getStatus() == Status.ERROR)
+			return Mono.just(patronRequest);
+
+		return patronRequestAuditService.addAuditEntry(patronRequest, Status.SUBMITTED_TO_DCB, getTargetStatus().get())
+			.thenReturn(patronRequest);
 	}
 
 	@Override
