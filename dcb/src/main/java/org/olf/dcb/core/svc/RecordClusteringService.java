@@ -226,6 +226,7 @@ public class RecordClusteringService {
 	@Timed("bib.cluster.matchAndMerge")
 	@Transactional
 	protected Mono<ClusterRecord> saveMatchPointsAndMergeClusters(List<MatchPoint> matchPoints, List<ClusterRecord> clusters) {
+		log.debug("saveMatchPointsAndMergeClusters");
 		return Flux.from( matchPointRepository.saveAll(matchPoints) )
 			.then( Mono.just( Tuples.of( matchPoints.size(), clusters ))
 					.flatMap( TupleUtils.function( this::reduceClusterRecords )));
@@ -249,6 +250,7 @@ public class RecordClusteringService {
 	}
 	
 	private Flux<MatchPoint> collectMatchPoints ( final BibRecord bib ) {
+		log.debug("collectMatchPoints for bib");
 		return Flux.concat(
 				this.idMatchPoints(bib),
 				this.recordMatchPoints(bib))
@@ -273,6 +275,9 @@ public class RecordClusteringService {
 	
 	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<ClusterRecord> touch ( final ClusterRecord cluster ) {
+
+		log.debug("request touch cr {}",cluster.getId());
+
 		return Mono.justOrEmpty(cluster.getId())
 			.flatMap( theId -> {
 				return Mono.from(clusterRecords.touch(theId) )
@@ -295,11 +300,16 @@ public class RecordClusteringService {
 
 		// Generate MatchPoints
 		return Mono.justOrEmpty( bib )
-			.doOnNext(br -> log.debug("start update {}", br.getId()))
-			.flatMap( theBib -> Mono.fromDirect( matchPointRepository.deleteAllByBibId( theBib.getId() ))
-					.thenReturn( theBib ) )
+			.doOnNext(br -> log.debug("clusterBib start update {}", br.getId()))
+			// Clear out any match points for this bib - if we are re-submitting a record we have seen before lets clean up
+			.flatMap( theBib -> 
+				Mono.fromDirect( matchPointRepository.deleteAllByBibId( theBib.getId() ))
+				.thenReturn( theBib ) )
+			// Gather all the match points for the bib record
 			.map( this::collectMatchPoints )
+			// Collect all the cluster records for the match points - emit a flux of possible match points
 			.flatMap( matchPointPub -> collectClusterRecords(bib.getDerivedType(), matchPointPub) )
+			// 
 			.flatMap(TupleUtils.function( this::saveMatchPointsAndMergeClusters ))
 			.flatMap( this::touch ) // Ensure the matched ClusterRecord's date is changed.
 			
