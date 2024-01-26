@@ -1,27 +1,24 @@
 package org.olf.dcb.core.interaction.folio;
 
 import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
-
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasStatus;
 
 import java.util.List;
 import java.util.UUID;
 
-import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient.ValidationError;
 import org.olf.dcb.test.HostLmsFixture;
 
@@ -142,13 +139,5 @@ class ConsortialFolioHostLmsClientGetItemTests {
 		assertThat(exception, hasMessage(
 			"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
 				.formatted("UNEXPECTED_STATUS", localRequestId)));
-	}
-
-	private static Matcher<HostLmsItem> hasStatus(String expectedStatus) {
-		return hasProperty("status", is(expectedStatus));
-	}
-
-	private static Matcher<HostLmsItem> hasLocalId(String expectedId) {
-		return hasProperty("localId", is(expectedId));
 	}
 }
