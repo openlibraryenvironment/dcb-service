@@ -23,7 +23,6 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -626,6 +625,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var status = getValue(transactionStatus, TransactionStatus::getStatus);
 
+		// Based upon the statuses defined in https://github.com/folio-org/mod-dcb/blob/master/src/main/resources/swagger.api/schemas/transactionStatus.yaml
 		final var mappedStatus = switch(status) {
 			case "CREATED" -> HOLD_PLACED;
 			case "OPEN" -> HOLD_TRANSIT;
