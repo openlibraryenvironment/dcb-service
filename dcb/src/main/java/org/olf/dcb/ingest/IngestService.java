@@ -124,6 +124,16 @@ public class IngestService implements Runnable {
 			.doOnError ( throwable -> log.warn("ONERROR Error after clustering step", throwable) );
 	}
 
+	// Extracted from run() method so the shutdown handler can peer inside this instance and determine
+	// if an ingest is running.
+	public boolean isIngestRunning() {
+    if (this.mutex != null && !this.mutex.isDisposed()) {
+      log.info("Ingest already running skipping. Mutex: {}", this.mutex);
+      return true;
+    }
+		return false;
+	}
+
 	@Override
 	@Scheduled(initialDelay = "20s", fixedDelay = "${dcb.ingest.interval:2m}")
 	@AppTask
@@ -131,7 +141,7 @@ public class IngestService implements Runnable {
 
 		// Need to work out how this works with Hazelcast FencedLock
 		// lock = hazelcastInstance.getCPSubsystem().getLock("DCBIngestLock");
-		if (this.mutex != null && !this.mutex.isDisposed()) {
+		if (isIngestRunning()) {
 			log.info("Ingest already running skipping. Mutex: {}", this.mutex);
 			return;
 		}
