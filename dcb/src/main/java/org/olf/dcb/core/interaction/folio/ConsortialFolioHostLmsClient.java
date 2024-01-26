@@ -633,6 +633,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			case "CREATED" -> HOLD_PLACED;
 			case "OPEN" -> HOLD_TRANSIT;
 			case "CANCELLED" -> HOLD_CANCELLED;
+			// These recognised but unhandled statuses should trigger the unhandled status handlers in host LMS reactions
+			case "AWAITING_PICKUP", "ITEM_CHECKED_OUT", "ITEM_CHECKED_IN", "CLOSED", "ERROR" -> status;
 			default -> throw new RuntimeException(
 				"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
 					.formatted(status, transactionId));

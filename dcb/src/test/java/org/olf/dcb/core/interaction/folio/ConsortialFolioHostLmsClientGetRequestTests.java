@@ -16,6 +16,8 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient.ValidationError;
 import org.olf.dcb.test.HostLmsFixture;
@@ -131,6 +133,27 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 			notNullValue(),
 			hasLocalId(localRequestId),
 			hasStatus("MISSING")
+		));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"AWAITING_PICKUP", "ITEM_CHECKED_OUT", "ITEM_CHECKED_IN", "CLOSED", "ERROR"})
+	void shouldReturnUnmappedTransactionStatusForAnyOtherStatus(String transactionStatus) {
+		// Arrange
+		final var localRequestId = UUID.randomUUID().toString();
+
+		mockFolioFixture.mockGetTransactionStatus(localRequestId, transactionStatus);
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var localRequest = singleValueFrom(client.getRequest(localRequestId));
+
+		// Assert
+		assertThat(localRequest, allOf(
+			notNullValue(),
+			hasLocalId(localRequestId),
+			hasStatus(transactionStatus)
 		));
 	}
 
