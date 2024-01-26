@@ -3,11 +3,13 @@ package org.olf.dcb.core.interaction.folio;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.List;
 import java.util.UUID;
@@ -130,5 +132,24 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 			hasLocalId(localRequestId),
 			hasStatus("MISSING")
 		));
+	}
+
+	@Test
+	void shouldRaiseErrorForUnexpectedStatus() {
+		// Arrange
+		final var localRequestId = UUID.randomUUID().toString();
+
+		mockFolioFixture.mockGetTransactionStatus(localRequestId, "UNEXPECTED_STATUS");
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var exception = assertThrows(RuntimeException.class,
+			() -> singleValueFrom(client.getRequest(localRequestId)));
+
+		// Assert
+		assertThat(exception, hasMessage(
+			"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
+				.formatted("UNEXPECTED_STATUS", localRequestId)));
 	}
 }

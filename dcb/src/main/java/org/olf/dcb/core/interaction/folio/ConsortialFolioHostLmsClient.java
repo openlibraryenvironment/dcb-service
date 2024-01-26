@@ -634,7 +634,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			case "OPEN" -> HOLD_TRANSIT;
 			case "CANCELLED" -> HOLD_CANCELLED;
 			default -> throw new RuntimeException(
-				"Unrecognised transaction status for transaction ID: \"%s\"".formatted(transactionId));
+				"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
+					.formatted(status, transactionId));
 		};
 
 		return HostLmsRequest.builder()
