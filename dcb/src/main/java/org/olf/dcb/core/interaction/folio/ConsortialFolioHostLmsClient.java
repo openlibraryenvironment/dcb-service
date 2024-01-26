@@ -9,9 +9,10 @@ import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
@@ -22,7 +23,6 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -34,9 +34,9 @@ import org.olf.dcb.core.interaction.CannotPlaceRequestException;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.FailedToGetItemsException;
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.HttpResponsePredicates;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
@@ -616,7 +616,33 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
-		return Mono.error(new NotImplementedException("Getting hold request is not currently implemented for FOLIO"));
+		return getTransactionStatus(localRequestId)
+			.map(transactionStatus -> mapToHostLmsRequest(localRequestId, transactionStatus));
+	}
+
+	private static HostLmsRequest mapToHostLmsRequest(String transactionId,
+		TransactionStatus transactionStatus) {
+
+		final var status = getValue(transactionStatus, TransactionStatus::getStatus);
+
+		// Based upon the statuses defined in https://github.com/folio-org/mod-dcb/blob/master/src/main/resources/swagger.api/schemas/transactionStatus.yaml
+		final var mappedStatus = switch(status) {
+			case "CREATED" -> HOLD_PLACED;
+			case "OPEN" -> HOLD_TRANSIT;
+			default -> throw new RuntimeException(
+				"Unrecognised transaction status for transaction ID: \"%s\"".formatted(transactionId));
+		};
+
+		return HostLmsRequest.builder()
+			.localId(transactionId)
+			.status(mappedStatus)
+			.build();
+	}
+
+	private Mono<TransactionStatus> getTransactionStatus(String localRequestId) {
+		final var path = "/dcbService/transactions/%s/status".formatted(localRequestId);
+
+		return makeRequest(authorisedRequest(GET, path), Argument.of(TransactionStatus.class));
 	}
 
 	@Override
