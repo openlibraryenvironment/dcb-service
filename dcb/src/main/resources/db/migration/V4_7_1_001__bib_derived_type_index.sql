@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_bib_record_derived_type ON bib_record USING hash(derived_type);
