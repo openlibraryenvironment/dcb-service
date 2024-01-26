@@ -1,24 +1,27 @@
 package org.olf.dcb.core.interaction.folio;
 
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasLocalId;
-import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.List;
 import java.util.UUID;
 
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient.ValidationError;
 import org.olf.dcb.test.HostLmsFixture;
 
@@ -26,8 +29,8 @@ import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-class ConsortialFolioHostLmsClientGetRequestTests {
-	private static final String HOST_LMS_CODE = "folio-get-request-tests";
+class ConsortialFolioHostLmsClientGetItemTests {
+	private static final String HOST_LMS_CODE = "folio-get-item-tests";
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
@@ -47,62 +50,24 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 	}
 
 	@Test
-	void shouldDetectRequestHasBeenPlaced() {
+	void shouldDetectItemHasBeenReturnedToSupplier() {
 		// Arrange
 		final var localRequestId = UUID.randomUUID().toString();
+		final var localItemId = UUID.randomUUID().toString();
 
-		mockFolioFixture.mockGetTransactionStatus(localRequestId, "CREATED");
+		// When the item is checked in at the supplying agency, the DCB transaction is closed
+		mockFolioFixture.mockGetTransactionStatus(localRequestId, "CLOSED");
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var localRequest = singleValueFrom(client.getRequest(localRequestId));
+		final var localItem = singleValueFrom(client.getItem(localItemId, localRequestId));
 
 		// Assert
-		assertThat(localRequest, allOf(
+		assertThat(localItem, allOf(
 			notNullValue(),
-			hasLocalId(localRequestId),
-			hasStatus("PLACED")
-		));
-	}
-
-	@Test
-	void shouldDetectRequestHasBeenDispatched() {
-		// Arrange
-		final var localRequestId = UUID.randomUUID().toString();
-
-		mockFolioFixture.mockGetTransactionStatus(localRequestId, "OPEN");
-
-		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var localRequest = singleValueFrom(client.getRequest(localRequestId));
-
-		// Assert
-		assertThat(localRequest, allOf(
-			notNullValue(),
-			hasLocalId(localRequestId),
-			hasStatus("TRANSIT")
-		));
-	}
-
-	@Test
-	void shouldDetectRequestHasBeenCancelled() {
-		// Arrange
-		final var localRequestId = UUID.randomUUID().toString();
-
-		mockFolioFixture.mockGetTransactionStatus(localRequestId, "CANCELLED");
-
-		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var localRequest = singleValueFrom(client.getRequest(localRequestId));
-
-		// Assert
-		assertThat(localRequest, allOf(
-			notNullValue(),
-			hasLocalId(localRequestId),
-			hasStatus("CANCELLED")
+			hasLocalId(localItemId),
+			hasStatus("AVAILABLE")
 		));
 	}
 
@@ -110,6 +75,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 	void shouldDetectRequestIsMissing() {
 		// Arrange
 		final var localRequestId = UUID.randomUUID().toString();
+		final var localItemId = UUID.randomUUID().toString();
 
 		mockFolioFixture.mockGetTransactionStatus(localRequestId,
 			response()
@@ -126,33 +92,34 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var localRequest = singleValueFrom(client.getRequest(localRequestId));
+		final var localItem = singleValueFrom(client.getItem(localItemId, localRequestId));
 
 		// Assert
-		assertThat(localRequest, allOf(
+		assertThat(localItem, allOf(
 			notNullValue(),
-			hasLocalId(localRequestId),
+			hasLocalId(localItemId),
 			hasStatus("MISSING")
 		));
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = {"AWAITING_PICKUP", "ITEM_CHECKED_OUT", "ITEM_CHECKED_IN", "CLOSED", "ERROR"})
+	@ValueSource(strings = {"CREATED", "OPEN", "AWAITING_PICKUP", "ITEM_CHECKED_OUT", "ITEM_CHECKED_IN", "CANCELLED", "ERROR"})
 	void shouldReturnUnmappedTransactionStatusForAnyOtherStatus(String transactionStatus) {
 		// Arrange
 		final var localRequestId = UUID.randomUUID().toString();
+		final var localItemId = UUID.randomUUID().toString();
 
 		mockFolioFixture.mockGetTransactionStatus(localRequestId, transactionStatus);
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var localRequest = singleValueFrom(client.getRequest(localRequestId));
+		final var localRequest = singleValueFrom(client.getItem(localItemId, localRequestId));
 
 		// Assert
 		assertThat(localRequest, allOf(
 			notNullValue(),
-			hasLocalId(localRequestId),
+			hasLocalId(localItemId),
 			hasStatus(transactionStatus)
 		));
 	}
@@ -161,6 +128,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 	void shouldRaiseErrorForUnexpectedStatus() {
 		// Arrange
 		final var localRequestId = UUID.randomUUID().toString();
+		final var localItemId = UUID.randomUUID().toString();
 
 		mockFolioFixture.mockGetTransactionStatus(localRequestId, "UNEXPECTED_STATUS");
 
@@ -168,11 +136,19 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
 		final var exception = assertThrows(RuntimeException.class,
-			() -> singleValueFrom(client.getRequest(localRequestId)));
+			() -> singleValueFrom(client.getItem(localItemId, localRequestId)));
 
 		// Assert
 		assertThat(exception, hasMessage(
 			"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
 				.formatted("UNEXPECTED_STATUS", localRequestId)));
+	}
+
+	private static Matcher<HostLmsItem> hasStatus(String expectedStatus) {
+		return hasProperty("status", is(expectedStatus));
+	}
+
+	private static Matcher<HostLmsItem> hasLocalId(String expectedId) {
+		return hasProperty("localId", is(expectedId));
 	}
 }

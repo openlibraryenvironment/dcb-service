@@ -9,6 +9,7 @@ import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
@@ -653,15 +654,50 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.build();
 	}
 
+	@Override
+	public Mono<HostLmsItem> getItem(String itemId, String localRequestId) {
+		log.debug("getItem({}, {})", itemId, localRequestId);
+
+		return getTransactionStatus(localRequestId)
+			.map(transactionStatus -> mapToHostLmsItem(itemId, transactionStatus, localRequestId))
+			.onErrorResume(HttpResponsePredicates::isNotFound,
+				t -> missingHostLmsItem(itemId));
+	}
+
+	private static HostLmsItem mapToHostLmsItem(String itemId,
+		TransactionStatus transactionStatus, String transactionId) {
+
+		final var status = getValue(transactionStatus, TransactionStatus::getStatus);
+
+		// Based upon the statuses defined in https://github.com/folio-org/mod-dcb/blob/master/src/main/resources/swagger.api/schemas/transactionStatus.yaml
+		final var mappedStatus = switch(status) {
+			// When the item is returned back to the supplying agency, the transaction is closed
+			// The Host LMS reactions use the available local item status to represent the item becoming available again at the end
+			case "CLOSED" -> ITEM_AVAILABLE;
+			// These recognised but unhandled statuses should trigger the unhandled status handlers in host LMS reactions
+			case "CREATED", "OPEN", "AWAITING_PICKUP", "ITEM_CHECKED_OUT", "ITEM_CHECKED_IN", "CANCELLED", "ERROR" -> status;
+			default -> throw new RuntimeException(
+				"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
+					.formatted(status, transactionId));
+		};
+
+		return HostLmsItem.builder()
+			.localId(itemId)
+			.status(mappedStatus)
+			.build();
+	}
+
+	private static Mono<HostLmsItem> missingHostLmsItem(String itemId) {
+		return Mono.just(HostLmsItem.builder()
+			.localId(itemId)
+			.status("MISSING")
+			.build());
+	}
+
 	private Mono<TransactionStatus> getTransactionStatus(String localRequestId) {
 		final var path = "/dcbService/transactions/%s/status".formatted(localRequestId);
 
 		return makeRequest(authorisedRequest(GET, path), Argument.of(TransactionStatus.class));
-	}
-
-	@Override
-	public Mono<HostLmsItem> getItem(String itemId, String localRequestId) {
-		return Mono.error(new NotImplementedException("Getting item is not currently implemented for FOLIO"));
 	}
 
 	@Override
