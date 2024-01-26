@@ -618,7 +618,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		return getTransactionStatus(localRequestId)
-			.map(transactionStatus -> mapToHostLmsRequest(localRequestId, transactionStatus));
+			.map(transactionStatus -> mapToHostLmsRequest(localRequestId, transactionStatus))
+			.onErrorResume(HttpResponsePredicates::isNotFound,
+				t -> Mono.just(missingHostLmsRequest(localRequestId)));
 	}
 
 	private static HostLmsRequest mapToHostLmsRequest(String transactionId,
@@ -638,6 +640,13 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return HostLmsRequest.builder()
 			.localId(transactionId)
 			.status(mappedStatus)
+			.build();
+	}
+
+	private static HostLmsRequest missingHostLmsRequest(String localRequestId) {
+		return HostLmsRequest.builder()
+			.localId(localRequestId)
+			.status("MISSING")
 			.build();
 	}
 

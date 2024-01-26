@@ -85,12 +85,12 @@ public class MockFolioFixture {
 						.build())));
 	}
 
-	public void mockGetUsersWithQuery(String queryField, String queryValue, HttpResponse httpResponse) {
+	public void mockGetUsersWithQuery(String queryField, String queryValue, HttpResponse response) {
 		mockServerClient
 			.when(authorizedRequest("GET")
 				.withPath("/users/users")
 				.withQueryStringParameter("query", queryField + "==\"" + queryValue + "\""))
-			.respond(httpResponse);
+			.respond(response);
 	}
 
 	void mockCreateTransaction(CreateTransactionResponse response) {
@@ -120,14 +120,18 @@ public class MockFolioFixture {
 	}
 
 	public void mockGetTransactionStatus(String transactionId, String status) {
+		mockGetTransactionStatus(transactionId, response()
+			.withStatusCode(200)
+			.withBody(json(TransactionStatus.builder()
+				.status(status)
+				.build())));
+	}
+
+	public void mockGetTransactionStatus(String transactionId, HttpResponse response) {
 		mockServerClient
 			.when(authorizedRequest("GET")
 				.withPath("/dcbService/transactions/%s/status".formatted(transactionId)))
-			.respond(response()
-				.withStatusCode(200)
-				.withBody(json(TransactionStatus.builder()
-					.status(status)
-					.build())));
+			.respond(response);
 	}
 
 	private HttpRequest authorizedRequest(String method) {
