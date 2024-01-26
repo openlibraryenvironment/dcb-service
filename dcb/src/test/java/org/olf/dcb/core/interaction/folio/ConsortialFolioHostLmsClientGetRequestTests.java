@@ -77,4 +77,24 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 			hasStatus("TRANSIT")
 		));
 	}
+
+	@Test
+	void shouldDetectRequestHasBeenCancelled() {
+		// Arrange
+		final var localRequestId = UUID.randomUUID().toString();
+
+		mockFolioFixture.mockGetTransactionStatus(localRequestId, "CANCELLED");
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var localRequest = singleValueFrom(client.getRequest(localRequestId));
+
+		// Assert
+		assertThat(localRequest, allOf(
+			notNullValue(),
+			hasLocalId(localRequestId),
+			hasStatus("CANCELLED")
+		));
+	}
 }

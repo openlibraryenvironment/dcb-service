@@ -11,6 +11,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
@@ -629,6 +630,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var mappedStatus = switch(status) {
 			case "CREATED" -> HOLD_PLACED;
 			case "OPEN" -> HOLD_TRANSIT;
+			case "CANCELLED" -> HOLD_CANCELLED;
 			default -> throw new RuntimeException(
 				"Unrecognised transaction status for transaction ID: \"%s\"".formatted(transactionId));
 		};
