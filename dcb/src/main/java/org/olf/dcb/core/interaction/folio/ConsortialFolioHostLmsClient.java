@@ -655,13 +655,13 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<HostLmsItem> getItem(String itemId, String localRequestId) {
-		log.debug("getItem({}, {})", itemId, localRequestId);
+	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
+		log.debug("getItem({}, {})", localItemId, localRequestId);
 
 		return getTransactionStatus(localRequestId)
-			.map(transactionStatus -> mapToHostLmsItem(itemId, transactionStatus, localRequestId))
+			.map(transactionStatus -> mapToHostLmsItem(localItemId, transactionStatus, localRequestId))
 			.onErrorResume(HttpResponsePredicates::isNotFound,
-				t -> missingHostLmsItem(itemId));
+				t -> missingHostLmsItem(localItemId));
 	}
 
 	private static HostLmsItem mapToHostLmsItem(String itemId,
