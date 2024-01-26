@@ -53,6 +53,7 @@ import org.olf.dcb.test.TestResourceLoader;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 import org.olf.dcb.test.matchers.HostLmsRequestMatchers;
 import org.olf.dcb.test.matchers.ItemMatchers;
+import org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers;
 
 import jakarta.inject.Inject;
 import services.k_int.interaction.polaris.PolarisTestUtils;
@@ -410,14 +411,17 @@ public class PolarisLmsClientTests {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses", "itemstatuses.json");
 
 		// Act
-		final var item = hostLmsFixture.createClient(HOST_LMS_CODE).getItem(localItemId,
-			null).block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var localItem = singleValueFrom(client.getItem(localItemId, null));
 
 		// Assert
-		assertThat(item, is(notNullValue()));
-		assertThat(item.getLocalId(), is("3512742"));
-		assertThat(item.getStatus(), is("LOANED"));
-		assertThat(item.getBarcode(), is("3430470102"));
+		assertThat(localItem, allOf(
+			notNullValue(),
+			HostLmsItemMatchers.hasLocalId(localItemId),
+			HostLmsItemMatchers.hasStatus("LOANED"),
+			HostLmsItemMatchers.hasBarcode("3430470102")
+		));
 	}
 
 	@Test

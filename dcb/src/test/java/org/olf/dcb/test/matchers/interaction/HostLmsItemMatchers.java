@@ -14,4 +14,8 @@ public class HostLmsItemMatchers {
 	public static Matcher<HostLmsItem> hasLocalId(String expectedId) {
 		return hasProperty("localId", is(expectedId));
 	}
+
+	public static Matcher<HostLmsItem> hasBarcode(String expectedBarcode) {
+		return hasProperty("barcode", is(expectedBarcode));
+	}
 }
