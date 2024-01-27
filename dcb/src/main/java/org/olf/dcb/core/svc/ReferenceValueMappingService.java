@@ -9,6 +9,8 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 @Slf4j
 @Singleton
 public class ReferenceValueMappingService {
@@ -53,4 +55,21 @@ public class ReferenceValueMappingService {
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndToCategoryAndToContextAndToValue(
 			sourceCategory, sourceContext, targetCategory, targetContext, targetValue));
 	}
+
+	/**
+	 * This method exists to make configuring DCB easier by allowing an implementer to configure a set of "Default" mappings.
+	 * Confiurations can now specify a "Default" or "Base" mapping - e.g "DCB" "ItemType" to "MOBUIS" "ItemType". This method will
+	 * check the MOST specific context first, and then work through the list of contexts until a mapping is found or No mapping is found.
+	 * This allows us to specify overrides at the level of the institution, but use default mappings for entire consortia and
+	 * prevents duplicating mappings for each agency/system when common mappings will suffice
+	 */
+	public Mono<ReferenceValueMapping> findMappingUsingHierarchy(
+	 	String sourceCategory,
+		String sourceContext,
+		String sourceValue,
+		String targetCategory,
+		List<String> targetContexts) {
+		return Mono.empty();
+	}
+	 	
 }

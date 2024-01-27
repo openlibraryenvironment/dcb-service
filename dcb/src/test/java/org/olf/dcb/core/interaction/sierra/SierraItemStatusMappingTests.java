@@ -20,7 +20,9 @@ import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @DcbTest
 public class SierraItemStatusMappingTests {
 	private static final String HOST_LMS_CODE = "sierra-host-lms";
