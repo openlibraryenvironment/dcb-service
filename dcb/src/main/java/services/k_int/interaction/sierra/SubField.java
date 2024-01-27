@@ -12,7 +12,7 @@ import lombok.Builder;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class SubField {
         @Nullable
-        Character code;
+        String code;
         @Nullable
         String content;
 }

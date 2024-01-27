@@ -29,7 +29,7 @@ public class SierraItemMapper {
 	private final ItemStatusMapper itemStatusMapper;
 	private final NumericItemTypeMapper itemTypeMapper;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
-	private final Character VOLUME_FIELD_TAG='v';
+	private final String VOLUME_FIELD_TAG="v";
 
 	/**
 	 Status is interpreted based upon
