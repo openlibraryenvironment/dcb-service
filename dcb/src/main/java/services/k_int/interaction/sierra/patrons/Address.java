@@ -12,5 +12,5 @@ public class Address {
 	@Nullable
 	String[] lines;
 	@Nullable
-	Character type;
+	String type;
 }

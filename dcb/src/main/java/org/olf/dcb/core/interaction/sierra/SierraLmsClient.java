@@ -391,8 +391,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			// Map from the canonical DCB item type to the appropriate type for the target
 			// system
 
-			return referenceValueMappingService.findMapping("ItemType", "DCB",
-				itemTypeCode, "ItemType", targetSystemCode)
+			return referenceValueMappingService.findMapping("ItemType", "DCB", itemTypeCode, "ItemType", targetSystemCode)
 			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.defer(() -> {
 				log.warn("Unable to map item type DCB:{} to target system {}",itemTypeCode,targetSystemCode);
@@ -1016,7 +1015,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			final var var_fields = new ArrayList<VarField>();
 			var_fields.add(
 				VarField.builder()
-					.fieldTag('m')
+					.fieldTag("m")
 					.content("-")
 					.build()
 			);

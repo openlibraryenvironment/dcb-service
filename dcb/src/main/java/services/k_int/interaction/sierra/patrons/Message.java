@@ -10,7 +10,7 @@ import lombok.Data;
 @Data
 public class Message {
 	@Nullable
-	Character code;
+	String code;
 	@Nullable
 	String[] accountMessages;
 }

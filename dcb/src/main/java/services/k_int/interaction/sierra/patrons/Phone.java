@@ -12,5 +12,5 @@ public class Phone {
 	@Nullable
 	String number;
 	@Nullable
-	Character type;
+	String type;
 }

@@ -125,4 +125,29 @@ public class ReferenceValueMappingFixture {
 	private void saveReferenceValueMapping(ReferenceValueMapping mapping) {
 		singleValueFrom(referenceValueMappingRepository.save(mapping));
 	}
+
+	public void defineMapping(
+		String fromContext,
+		String fromCategory,
+		String fromValue,
+		String toContext,
+		String toCategory,
+		String toValue,
+		boolean reciprocal) {
+		
+		log.debug("defineMapping({},{},{},{},{},{},{})",fromContext,fromCategory,fromValue,toContext,toCategory,toValue,reciprocal);
+
+		singleValueFrom(
+			referenceValueMappingRepository.save(
+				ReferenceValueMapping.builder()
+					.id(randomUUID())
+					.fromContext(fromContext)
+					.fromCategory(fromCategory)
+					.fromValue(fromValue)
+					.toContext(toContext)
+					.toCategory(toCategory)
+					.toValue(toValue)
+					.reciprocal(reciprocal)
+					.build()));
+	}
 }
