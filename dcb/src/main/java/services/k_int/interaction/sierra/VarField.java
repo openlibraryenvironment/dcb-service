@@ -13,13 +13,13 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class VarField {
 	@Nullable
-	Character fieldTag;
+	String fieldTag;
 	@Nullable
 	String marcTag;
 	@Nullable
-	Character ind1;
+	String ind1;
 	@Nullable
-	Character ind2;
+	String ind2;
 	@Nullable
 	String content;
 	@Nullable

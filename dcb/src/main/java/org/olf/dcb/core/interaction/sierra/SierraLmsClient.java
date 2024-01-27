@@ -1016,7 +1016,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			final var var_fields = new ArrayList<VarField>();
 			var_fields.add(
 				VarField.builder()
-					.fieldTag('m')
+					.fieldTag("m")
 					.content("-")
 					.build()
 			);

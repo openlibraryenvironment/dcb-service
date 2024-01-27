@@ -136,13 +136,13 @@ public class HostLmsReactions {
 		if ( handler != null ) {
 		  log.debug("onTrackingEvent Detected handler: {}",handler);
 			log.debug("Attempt to resolve bean");
-			WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
-			if ( action != null ) {
+			final WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
+			if (action != null) {
 				log.debug("Invoke {}",action.getClass().getName());
 				return auditEventIndication(context, trackingRecord)
-					.flatMap(ctx -> action.execute(ctx))
-					.onErrorResume( error -> Mono.defer(() -> {
-						log.error("Problem in reaction - we should write an audit here",error);
+					.flatMap(action::execute)
+					.onErrorResume(error -> Mono.defer(() -> {
+						log.error("Problem in reaction handler="+action.getClass().getName()+" - we should write an audit here", error);
 						return Mono.empty();
 					}))
 					.flatMap ( ctx -> {
