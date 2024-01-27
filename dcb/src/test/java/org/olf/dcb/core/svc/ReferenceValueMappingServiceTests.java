@@ -14,7 +14,7 @@ import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.core.model.ReferenceValueMapping;
-
+import reactor.core.publisher.Mono;
 
 import jakarta.inject.Inject;
 import java.util.List;
@@ -25,6 +25,9 @@ import lombok.extern.slf4j.Slf4j;
  * Our test vocabulary is metadata semantics. We want to know how to map the concept "title" into different contexts.
  * We have a root context called DC - Dublin core - this is our default. In Dublin core the concept "title" is mapped to "DC.title".
  * In the context of MARC21, The concept of "Title" is mapped to "245". Another context "EAD" uses DC.title to represent title.
+ *
+ * Run these alone with: ./gradlew clean build test --tests org.olf.dcb.core.svc.ReferenceValueMappingServiceTests
+ * 
  */
 @Slf4j
 @DcbTest
@@ -62,24 +65,30 @@ class ReferenceValueMappingServiceTests {
 	@Test
 	void testDefaultMapping() {
 		List <String> contextHierarchy = List.of( "EAD", "DC" );
-		String mappedValue = referenceValueMappingService.findMappingUsingHierarchy("GLOBAL", "CONCEPT", "title", "CONCEPT", contextHierarchy)
+		String mappedValue = referenceValueMappingService.findMappingUsingHierarchy("CONCEPT", "GLOBAL", "title", "CONCEPT", contextHierarchy)
 			.doOnNext(rvm -> log.info("Got rvm {}",rvm))
       .map(ReferenceValueMapping::getToValue)
 			.block();
-		// assert mappedValue.equals("DC.title");
-		assert true;
+		assert mappedValue.equals("DC.title");
 	}
 
   @Test
   void testDirectMappingWithHierarchy() {
     List <String> contextHierarchy = List.of( "MARC21", "DC" );
-    String mappedValue = referenceValueMappingService.findMappingUsingHierarchy("GLOBAL", "CONCEPT", "title", "CONCEPT", contextHierarchy)
+    String mappedValue = referenceValueMappingService.findMappingUsingHierarchy("CONCEPT", "GLOBAL", "title", "CONCEPT", contextHierarchy)
 			.doOnNext(rvm -> log.info("Got rvm {}",rvm))
       .map(ReferenceValueMapping::getToValue)
       .block();
-    // assert mappedValue.equals("245");
-		assert true;
+    assert mappedValue.equals("245");
   }
+
+  @Test
+  void testNoMapping() {
+    List <String> contextHierarchy = List.of( "MARC21", "DC" );
+    Mono<ReferenceValueMapping> rvm = referenceValueMappingService.findMappingUsingHierarchy("CONCEPT", "GLOBAL", "wibble", "CONCEPT", contextHierarchy);
+    assert rvm.hasElement().block() == Boolean.FALSE;
+  }
+
 
 
 }

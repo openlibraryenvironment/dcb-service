@@ -8,6 +8,7 @@ import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 
@@ -69,7 +70,15 @@ public class ReferenceValueMappingService {
 		String sourceValue,
 		String targetCategory,
 		List<String> targetContexts) {
-		return Mono.empty();
+
+		Flux<String> contexts = Flux.fromIterable(targetContexts);
+
+		return contexts
+			.doOnNext(ctx -> log.debug("Check context {}",ctx) )
+			.concatMap( ctx -> findMapping(sourceCategory,sourceContext,sourceValue,targetCategory,ctx))
+			.doOnNext(rvm -> log.debug("result {}",rvm) )
+			.next();
+	
 	}
 	 	
 }
