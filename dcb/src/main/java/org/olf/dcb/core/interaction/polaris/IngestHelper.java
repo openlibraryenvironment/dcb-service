@@ -22,19 +22,26 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 
+import org.olf.dcb.core.AppState;
+import org.olf.dcb.core.AppState.AppStatus;
+
 class IngestHelper {
 	private static final Logger log = LoggerFactory.getLogger(IngestHelper.class);
 	private final PolarisLmsClient client;
 	private final ProcessStateService processStateService;
 	private final HostLms lms;
+	private final AppState appState;
+
 	public IngestHelper(
 		PolarisLmsClient client,
 		HostLms lms,
-		ProcessStateService processStateService)
+		ProcessStateService processStateService,
+		AppState appState)
 	{
 		this.client = client;
 		this.lms = lms;
 		this.processStateService = processStateService;
+		this.appState = appState;
 	}
 
 	public static String formatDateFrom(Instant instant) {
@@ -155,6 +162,13 @@ class IngestHelper {
 						currentState.storred_state.put("cursor", "bootstrap:" + currentState.offset);
 					}
 				}
+
+        // If the app is in a state of shutting down, then don't get another page of data.. bail!
+        if ( appState.getRunStatus() != AppStatus.RUNNING ) {
+          log.info("Detected app shutdown - ejecting from collect sequence {}",lms.getName());
+          return Mono.empty();
+        }
+
 				return Mono.just(currentState.toBuilder().build())
 					.zipWhen(updatedState -> fetchPage(updatedState.since, updatedState.offset, pageSize));
 			}));

@@ -92,6 +92,9 @@ import reactor.core.publisher.Mono;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
+import org.olf.dcb.core.AppState;
+import org.olf.dcb.core.AppState.AppStatus;
+
 @Slf4j
 @Prototype
 public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsPagedRow>, HostLmsClient{
@@ -109,6 +112,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final ApplicationServicesClient appServicesClient;
 	private final List<ApplicationServicesClient.MaterialType> materialTypes = new ArrayList<>();
 	private final List<PolarisItemStatus> statuses = new ArrayList<>();
+	private final AppState appState;
 
   // ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
@@ -118,17 +122,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,
 		ProcessStateService processStateService, RawSourceRepository rawSourceRepository,
 		ConversionService conversionService, ReferenceValueMappingService referenceValueMappingService,
-		NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper) {
+		NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper,
+		AppState appState) {
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
 		rootUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
 		lms = hostLms;
 
+		this.appState = appState;
 		this.appServicesClient = new ApplicationServicesClient(this);
 		this.papiClient = new PAPIClient(this);
 		this.itemMapper = itemMapper;
-		this.ingestHelper = new IngestHelper(this, hostLms, processStateService);
+		this.ingestHelper = new IngestHelper(this, hostLms, processStateService, appState);
 		this.processStateService = processStateService;
 		this.rawSourceRepository = rawSourceRepository;
 		this.conversionService = conversionService;

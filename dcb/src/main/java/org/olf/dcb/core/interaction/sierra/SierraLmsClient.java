@@ -100,6 +100,11 @@ import services.k_int.interaction.sierra.patrons.PatronValidation;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.utils.UUIDUtils;
 
+import org.olf.dcb.core.AppState;
+import org.olf.dcb.core.AppState.AppStatus;
+
+
+
 /**
  * See: <a href="https://sandbox.iii.com/iii/sierra-api/swagger/index.html">Sierra API Documentation</a>
  */
@@ -123,6 +128,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final RawSourceRepository rawSourceRepository;
 	private final NumericPatronTypeMapper numericPatronTypeMapper;
 	private final SierraItemMapper itemMapper;
+  private final AppState appState;
 
 	private final Integer getHoldsRetryAttempts;
 
@@ -132,7 +138,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		ProcessStateService processStateService,
 		ReferenceValueMappingService referenceValueMappingService,
 		ConversionService conversionService,
-		NumericPatronTypeMapper numericPatronTypeMapper, SierraItemMapper itemMapper) {
+		NumericPatronTypeMapper numericPatronTypeMapper, 
+		SierraItemMapper itemMapper,
+		AppState appState) {
 
 		this.lms = lms;
 
@@ -146,6 +154,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.conversionService = conversionService;
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
+		this.appState = appState;
 	}
 
 	private static Integer getGetHoldsRetryAttempts(Map<String, Object> clientConfig) {
@@ -239,6 +248,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 							state.storred_state.put("cursor", "bootstrap:" + state.offset);
 						}
 					}
+
+					// If the app is in a state of shutting down, then don't get another page of data.. bail!
+					if ( appState.getRunStatus() != AppStatus.RUNNING ) {
+						log.info("Detected app shutdown - ejecting from collect sequence {}",lms.getName());
+						return Mono.empty();
+					}
+					
 					// Create a new mono that first saves the state and then uses it to fetch
 					// another page.
 					return Mono.just(state.toBuilder().build()) // toBuilder().build() should copy the object.

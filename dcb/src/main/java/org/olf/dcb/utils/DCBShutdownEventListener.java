@@ -33,6 +33,8 @@ import jakarta.annotation.PreDestroy;
 import org.olf.dcb.ingest.IngestService;
 
 import org.olf.dcb.core.AppConfig;
+import org.olf.dcb.core.AppState;
+import org.olf.dcb.core.AppState.AppStatus;
 
 @Slf4j
 @Singleton
@@ -42,21 +44,27 @@ public class DCBShutdownEventListener implements ApplicationEventListener<Applic
 	private final HazelcastInstance hazelcastInstance;
 	private final AppConfig appConfig;
 	private final IngestService ingestService;
+	private final AppState appState;
 
 	public DCBShutdownEventListener(Environment environment,
 		HazelcastInstance hazelcastInstance,
 		AppConfig appConfig,
-		IngestService ingestService) {
+		IngestService ingestService,
+		AppState appState) {
 
 		this.environment = environment;
 		this.hazelcastInstance = hazelcastInstance;
 		this.appConfig = appConfig;
 		this.ingestService = ingestService;
+		this.appState = appState;
 	}
 
 	@Override
 	public void onApplicationEvent(ApplicationShutdownEvent event) {
 		log.info("Shutdown DCB - onApplicationEvent");
+
+		// Allow other services to know that we are shutting down
+		appState.setRunStatus(AppStatus.SHUTTING_DOWN);
 
 		// https://github.com/micronaut-projects/micronaut-core/issues/2664 suggests that this is the place to signal
 		// our services to gracefully terminate any in-flight proceses - in particular to not fetch any more data and wait for
