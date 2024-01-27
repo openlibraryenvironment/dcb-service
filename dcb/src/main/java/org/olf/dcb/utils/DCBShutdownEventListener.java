@@ -66,6 +66,15 @@ public class DCBShutdownEventListener implements ApplicationEventListener<Applic
 		// Allow other services to know that we are shutting down
 		appState.setRunStatus(AppStatus.SHUTTING_DOWN);
 
+		log.info("Wait for sources to terminate..");
+		try {
+			Thread.sleep(60000);
+		}		
+		catch ( Exception e ) {
+			// Interrupted exception - nothing we can do
+		}
+
+
 		// https://github.com/micronaut-projects/micronaut-core/issues/2664 suggests that this is the place to signal
 		// our services to gracefully terminate any in-flight proceses - in particular to not fetch any more data and wait for
 		// the mutex on IngestService to indicate that the running task has cleanly shut down.

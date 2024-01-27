@@ -27,6 +27,9 @@ import reactor.core.publisher.Mono;
 import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
+import org.olf.dcb.core.AppState;
+import org.olf.dcb.core.AppState.AppStatus;
+
 //@Refreshable
 @Singleton
 //@Parallel
@@ -47,18 +50,22 @@ public class IngestService implements Runnable {
 	private final RecordClusteringService recordClusteringService;
 	private final HazelcastInstance hazelcastInstance;
 	private FencedLock lock;
+  private final AppState appState;
 
 	IngestService(BibRecordService bibRecordService, 
 		List<IngestSourcesProvider> sourceProviders, 
 		PublisherTransformationService publisherHooksService, 
 		RecordClusteringService recordClusteringService, 
 		HazelcastInstance hazelcastInstance,
-		ConversionService conversionService) {
+		ConversionService conversionService,
+		AppState appState) {
+
 		this.bibRecordService = bibRecordService;
 		this.sourceProviders = sourceProviders;
 		this.publisherTransformationService = publisherHooksService;
 		this.recordClusteringService = recordClusteringService;
 		this.hazelcastInstance = hazelcastInstance;
+		this.appState = appState;
 	}
 
 
@@ -143,6 +150,11 @@ public class IngestService implements Runnable {
 		// lock = hazelcastInstance.getCPSubsystem().getLock("DCBIngestLock");
 		if (isIngestRunning()) {
 			log.info("Ingest already running skipping. Mutex: {}", this.mutex);
+			return;
+		}
+
+		if ( appState.getRunStatus() != AppStatus.RUNNING ) {
+			log.info("App is shuttuing down - not creating any new tasks");
 			return;
 		}
 		
