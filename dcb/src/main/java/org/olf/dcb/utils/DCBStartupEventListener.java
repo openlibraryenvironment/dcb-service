@@ -206,7 +206,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			dcbNodeInfo.remove(thisNodeUUID);
 		}
 		catch ( Exception e ) {
-			log.error("problem",e);
+			log.error("pre-destroy problem",e);
 		}
 	}
 
