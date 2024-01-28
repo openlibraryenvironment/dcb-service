@@ -407,7 +407,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			// Map from the canonical DCB item type to the appropriate type for the target
 			// system
 
-			return referenceValueMappingService.findMapping("ItemType", "DCB", itemTypeCode, "ItemType", targetSystemCode)
+			// HostLMS entries now have the ability to specify a cascading list of contexts from most specific to most general
+			// E.G. Lib1, Consortium1, LMSType, Global. findMappingUsingHierarchy will follow this tree, returning the most
+			// specific mapping possible, but falling back to global config. If no contextHierarchy is set, default to the old
+			// behaviour of using the hostLMSCode as the context to search. Usually item types will be declared at the consortial level.
+			List<String> contextHierarchy = (List<String>) lms.getClientConfig().get("contextHierarchy");
+			if ( contextHierarchy == null )
+				contextHierarchy = List.of(targetSystemCode);
+
+			return referenceValueMappingService.findMappingUsingHierarchy("ItemType", "DCB", itemTypeCode, "ItemType", contextHierarchy)
 			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.defer(() -> {
 				log.warn("Unable to map item type DCB:{} to target system {}",itemTypeCode,targetSystemCode);
@@ -947,8 +955,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public Mono<String> findLocalPatronType(String canonicalPatronType) {
-		return referenceValueMappingService.findMapping("patronType", "DCB",
-				canonicalPatronType, getHostLmsCode())
+
+		List<String> contextHierarchy = (List<String>) lms.getClientConfig().get("contextHierarchy");
+		if ( contextHierarchy == null )
+			contextHierarchy = List.of(getHostLmsCode());
+
+		// Map from DCB-PatronType-e.g.11 to Local, consortial, global
+		return referenceValueMappingService.findMappingUsingHierarchy("patronType", "DCB", canonicalPatronType, "patronType", contextHierarchy)
 			.map(ReferenceValueMapping::getToValue);
 	}
 
