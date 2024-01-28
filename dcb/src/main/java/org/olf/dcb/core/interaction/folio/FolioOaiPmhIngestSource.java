@@ -56,6 +56,9 @@ import services.k_int.interaction.oaipmh.Response;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
+import org.olf.dcb.core.AppState;
+import org.olf.dcb.core.AppState.AppStatus;
+
 @Prototype
 public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	private static final String CONFIG_API_KEY = "apikey";
@@ -92,10 +95,20 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 
 	private final ProcessStateService processStateService;
 
-	public FolioOaiPmhIngestSource(@Parameter("hostLms") HostLms hostLms, RawSourceRepository rawSourceRepository, HttpClient client, ConversionService conversionService, ProcessStateService processStateService) {
+  private final AppState appState;
+
+
+	public FolioOaiPmhIngestSource(@Parameter("hostLms") HostLms hostLms, 
+		RawSourceRepository rawSourceRepository, 
+		HttpClient client, 
+		ConversionService conversionService, 
+		ProcessStateService processStateService,
+		AppState appState) {
+
 		this.lms = hostLms;
 		this.rawSourceRepository = rawSourceRepository;
 		this.client = client;
+		this.appState = appState;
 		
 		rootUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
 		
@@ -110,7 +123,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		
 		apiKey = MapUtils.getAsOptionalString(
 			lms.getClientConfig(), CONFIG_API_KEY).get();
-    }
+	}
 	
 	@Override
 	public boolean isEnabled() {
@@ -286,6 +299,13 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 					}
 					state.storred_state.put("resumptionToken", resumptionToken);
 				}
+
+        // If the app is in a state of shutting down, then don't get another page of data.. bail!
+        if ( appState.getRunStatus() != AppStatus.RUNNING ) {
+          log.info("Detected app shutdown - ejecting from collect sequence {}",lms.getName());
+          return Mono.empty();
+        }
+
 				return Mono.just(state.toBuilder().build())
 					.zipWhen(updatedState -> fetchPage(updatedState.since, MapUtils.getAsOptionalString(updatedState.storred_state, "resumptionToken")));
 			}))
