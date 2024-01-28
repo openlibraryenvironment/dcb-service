@@ -161,4 +161,6 @@ graphql:
 dcb:
   itemresolver:
     code: FirstItem
-    
+  shutdown:
+    # Wait up to 60s on shutdown for ingest processes to end
+    maxwait: 0

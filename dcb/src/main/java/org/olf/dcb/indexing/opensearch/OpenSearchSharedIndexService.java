@@ -255,6 +255,20 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 						.normalizer(normalizer)))));
 	}
 	
+  private Property buildKeyWordFieldTextProperty(final int maxKw, final String normalizer, Boolean eagerOrdinals) {
+    return Property.of(p -> p
+      .text(t -> t
+
+        .fields("keyword", f -> f
+          .keyword(kw -> kw
+            .ignoreAbove(maxKw)
+            .normalizer(normalizer))
+        )
+        .eagerGlobalOrdinals(eagerOrdinals)
+      )
+    ); 
+  }
+
 	private Property defaultKeywordProperty() {
 		return new Property(PropertyBuilders.keyword().build());
 	}
@@ -277,7 +291,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 						.properties(
 							"sourceSystem", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER))
 						.properties(
-							"sourceSystemCode", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER + WITH_LOWERCASE))))
+							"sourceSystemCode", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER + WITH_LOWERCASE, Boolean.TRUE))))
 					
 			.properties(
 				"isbn", buildKeyWordFieldTextProperty(256, DEFAULT_KEYWORD_NORMALIZER))

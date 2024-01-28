@@ -35,6 +35,7 @@ import org.olf.dcb.ingest.IngestService;
 import org.olf.dcb.core.AppConfig;
 import org.olf.dcb.core.AppState;
 import org.olf.dcb.core.AppState.AppStatus;
+import io.micronaut.context.annotation.Value;
 
 @Slf4j
 @Singleton
@@ -45,18 +46,20 @@ public class DCBShutdownEventListener implements ApplicationEventListener<Applic
 	private final AppConfig appConfig;
 	private final IngestService ingestService;
 	private final AppState appState;
+	private final Long maxWaitTime;
 
 	public DCBShutdownEventListener(Environment environment,
 		HazelcastInstance hazelcastInstance,
 		AppConfig appConfig,
 		IngestService ingestService,
-		AppState appState) {
-
+		AppState appState,
+		@Value("${dcb.shutdown.maxwait:0}") Long maxWaitTime) {
 		this.environment = environment;
 		this.hazelcastInstance = hazelcastInstance;
 		this.appConfig = appConfig;
 		this.ingestService = ingestService;
 		this.appState = appState;
+		this.maxWaitTime = maxWaitTime;
 	}
 
 	@Override
@@ -66,14 +69,13 @@ public class DCBShutdownEventListener implements ApplicationEventListener<Applic
 		// Allow other services to know that we are shutting down
 		appState.setRunStatus(AppStatus.SHUTTING_DOWN);
 
-		log.info("Wait for sources to terminate..");
-		try {
-			Thread.sleep(60000);
-		}		
-		catch ( Exception e ) {
-			// Interrupted exception - nothing we can do
+		long shutdownStartTime = System.currentTimeMillis();
+		while ( 
+			ingestService.isIngestRunning() &&
+			( ( System.currentTimeMillis() - shutdownStartTime ) < maxWaitTime.longValue() ) ) {
+			log.debug("Waiting for ingest to end");
+			try { Thread.sleep(1000); }		catch ( Exception e ) { }
 		}
-
 
 		// https://github.com/micronaut-projects/micronaut-core/issues/2664 suggests that this is the place to signal
 		// our services to gracefully terminate any in-flight proceses - in particular to not fetch any more data and wait for
