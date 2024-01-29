@@ -108,7 +108,7 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
 			return patronRequestAuditService.addErrorAuditEntry(
 					rwc.getPatronRequest(),
 					String.format(
-						"Missing data attempting to set home item off campus {} {} {}",
+						"Missing data attempting to set home item off campus %s %s %s",
 						rwc, rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity()))
 				.thenReturn(rwc);
 		}
