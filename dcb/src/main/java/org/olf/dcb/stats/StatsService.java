@@ -44,13 +44,13 @@ public class StatsService implements Runnable{
 	}
 
 	// This needs to be a hazelcast map ideally
-	// Map<String, StatCounter> stat_counters = new HashMap<String, StatCounter>();
-  private IMap<String, StatCounter> stat_counters = null;
+	Map<String, StatCounter> stat_counters = new HashMap<String, StatCounter>();
+  // private IMap<String, StatCounter> stat_counters = null;
 
 
   @jakarta.annotation.PostConstruct
   public void init() {
-    stat_counters = hazelcastInstance.getMap("stats");
+    stat_counters = new HashMap(); // hazelcastInstance.getMap("stats");
   }
 
 	private StatCounter getCounter(String id) {
@@ -68,7 +68,6 @@ public class StatsService implements Runnable{
 	 * An example event BibRecordInserted, Context DCB (In case we want to be more granular later)
 	 */
 	public void notifyEvent(String event, String context) {
-		// log.debug("notifyEvent {} {}",event,context); Check
 		StatCounter sc = getCounter(event+":"+context);
 		synchronized (sc) {
 			sc.increment();

@@ -54,6 +54,9 @@ public class StatCounter {
 	 * been incrementing 26 previously, when the new signal for 27 comes in, we know we have moved on.
 	 */
 	private int incrementCounter(long[] buffer, int bucket_now, int currently_logging_to_bucket) {
+
+		// log.info("incrementCounter {} {} {}", this.id, bucket_now, currently_logging_to_bucket);
+
 		if ( bucket_now == currently_logging_to_bucket ) {
 			// The easy case - this is just another value in a counter we are already incrementing
 			buffer[currently_logging_to_bucket]++;
