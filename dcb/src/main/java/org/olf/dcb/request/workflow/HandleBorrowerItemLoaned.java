@@ -1,7 +1,6 @@
 package org.olf.dcb.request.workflow;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.AVAILABLE;
 
 import reactor.core.publisher.Mono;
 
@@ -17,15 +16,14 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.core.HostLmsService;
 
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Singleton
 @Named("BorrowerRequestLoaned")
 public class HandleBorrowerItemLoaned implements WorkflowAction {
-
-	private static final Logger log = LoggerFactory.getLogger(HandleBorrowerItemLoaned.class);
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private PatronRequestRepository patronRequestRepository;
 	private HostLmsService hostLmsService;
@@ -42,95 +40,103 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.patronRequestAuditService = patronRequestAuditService;
 	}
-        
-        @Transactional
-        public Mono<Map<String,Object>> execute(Map<String,Object> context) {
-                StateChange sc = (StateChange) context.get("StateChange");
-                log.debug("HandleBorrowerLoaned {}",sc);
-                PatronRequest pr = (PatronRequest) sc.getResource();
-                if ( pr != null ) {
-                        pr.setStatus(PatronRequest.Status.LOANED);
-                        pr.setLocalItemStatus(sc.getToState());
 
-                        return requestWorkflowContextHelper.fromPatronRequest(pr)
-                                .flatMap( this::checkHomeItemOutToVirtualPatron )
-                                .flatMap(rwc -> Mono.from(patronRequestRepository.saveOrUpdate(pr)))
-                                .doOnNext(spr -> log.debug("Saved {}",spr))
-                                .doOnError(error -> log.error("Error occurred in handle item Loaned: ", error))
-                                .thenReturn(context);
-                }
-                else {
-                        log.warn("Unable to locate patron request to mark as available");
-                        return Mono.just(context);
-                }
-        }
+	@Transactional
+	public Mono<Map<String, Object>> execute(Map<String, Object> context) {
+		StateChange sc = (StateChange) context.get("StateChange");
+		log.debug("HandleBorrowerLoaned {}", sc);
+		PatronRequest pr = (PatronRequest) sc.getResource();
+		if (pr != null) {
+			pr.setStatus(PatronRequest.Status.LOANED);
+			pr.setLocalItemStatus(sc.getToState());
+
+			return requestWorkflowContextHelper.fromPatronRequest(pr)
+				.flatMap(this::checkHomeItemOutToVirtualPatron)
+				.flatMap(rwc -> Mono.from(patronRequestRepository.saveOrUpdate(pr)))
+				.doOnNext(spr -> log.debug("Saved {}", spr))
+				.doOnError(
+					error -> log.error("Error occurred in handle item Loaned: ", error))
+				.thenReturn(context);
+		} else {
+			log.warn("Unable to locate patron request to mark as available");
+			return Mono.just(context);
+		}
+	}
 
 
-	public Mono<RequestWorkflowContext> checkHomeItemOutToVirtualPatron(RequestWorkflowContext rwc) {
+	public Mono<RequestWorkflowContext> checkHomeItemOutToVirtualPatron(
+		RequestWorkflowContext rwc) {
 
-		if ( ( rwc.getSupplierRequest() != null ) && 
-			( rwc.getSupplierRequest().getLocalItemId() != null ) &&
-			( rwc.getLenderSystemCode() != null ) &&
-			( rwc.getPatronVirtualIdentity() != null ) ) {
+		if ((rwc.getSupplierRequest() != null) &&
+			(rwc.getSupplierRequest().getLocalItemId() != null) &&
+			(rwc.getLenderSystemCode() != null) &&
+			(rwc.getPatronVirtualIdentity() != null)) {
 
 			// In some systems a patron can have multiple barcodes. In those systems getLocalBarcode will be encoded as [value, value, value]
 			// So we trim the opening and closing [] and split on the ", " Otherwise just split on ", " just in case
-			final String[] patron_barcodes = extractPatronBarcodes(rwc.getPatronVirtualIdentity().getLocalBarcode());
+			final String[] patron_barcodes = extractPatronBarcodes(
+				rwc.getPatronVirtualIdentity().getLocalBarcode());
 
-			if ( ( patron_barcodes != null ) && ( patron_barcodes.length > 0 ) ) {
+			if ((patron_barcodes != null) && (patron_barcodes.length > 0)) {
 
 				String home_item_barcode = rwc.getSupplierRequest().getLocalItemBarcode();
 
 				log.info("Update check home item out : {} to {} at {}",
-					home_item_barcode, patron_barcodes[0],rwc.getLenderSystemCode());
+					home_item_barcode, patron_barcodes[0], rwc.getLenderSystemCode());
 
 				return hostLmsService.getClientFor(rwc.getLenderSystemCode())
-					.flatMap(hostLmsClient -> updateThenCheckoutItem(rwc, hostLmsClient, patron_barcodes))
-					.flatMap(srwc -> patronRequestAuditService.addAuditEntry(srwc.getPatronRequest(), "Home item (b="+home_item_barcode+"@"+rwc.getLenderSystemCode()+") checked out to virtual patron (b="+patron_barcodes[0]+")") )
-					.doOnError(error -> patronRequestAuditService.addErrorAuditEntry(rwc.getPatronRequest(), "Error attempting to check out home item to vpatron:"+error))
+					.flatMap(hostLmsClient -> updateThenCheckoutItem(rwc, hostLmsClient,
+						patron_barcodes))
+					.flatMap(srwc -> patronRequestAuditService.addAuditEntry(
+						srwc.getPatronRequest(),
+						"Home item (b=" + home_item_barcode + "@" + rwc.getLenderSystemCode() + ") checked out to virtual patron (b=" + patron_barcodes[0] + ")"))
+					.doOnError(error -> patronRequestAuditService.addErrorAuditEntry(
+							rwc.getPatronRequest(), "Error attempting to check out home item to vpatron:" + error))
+					.thenReturn(rwc);
+			} else {
+
+				log.error(
+					"NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT {}",
+					rwc.getPatronVirtualIdentity().getLocalBarcode());
+
+				return patronRequestAuditService.addErrorAuditEntry(
+						rwc.getPatronRequest(),
+						"NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT")
 					.thenReturn(rwc);
 			}
-			else {
-
-				log.error("NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT {}",rwc.getPatronVirtualIdentity().getLocalBarcode());
-
-				return patronRequestAuditService.addErrorAuditEntry(rwc.getPatronRequest(),
-					"NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT") 
-					.thenReturn(rwc);
-			}
-		}
-		else { 
-			log.error("Missing data attempting to set home item off campus {} {} {}",rwc,rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity());
-			return patronRequestAuditService.addErrorAuditEntry(rwc.getPatronRequest(),
-				String.format("Missing data attempting to set home item off campus {} {} {}",
-					rwc,rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity()))
+		} else {
+			log.error("Missing data attempting to set home item off campus {} {} {}",
+				rwc, rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity());
+			return patronRequestAuditService.addErrorAuditEntry(
+					rwc.getPatronRequest(),
+					String.format(
+						"Missing data attempting to set home item off campus {} {} {}",
+						rwc, rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity()))
 				.thenReturn(rwc);
-		}       
+		}
 	}
 
-        private Mono<RequestWorkflowContext> updateThenCheckoutItem(RequestWorkflowContext rwc, HostLmsClient hostLmsClient, String[] patronBarcode) {
+	private Mono<RequestWorkflowContext> updateThenCheckoutItem(
+		RequestWorkflowContext rwc, HostLmsClient hostLmsClient, String[] patronBarcode) {
 
 		final var supplierRequest = rwc.getSupplierRequest();
 
-					return hostLmsClient.updateItemStatus(
-						supplierRequest.getLocalItemId(), CanonicalItemState.AVAILABLE, supplierRequest.getLocalId())
-						.then( hostLmsClient.checkOutItemToPatron( rwc.getSupplierRequest().getLocalItemBarcode(), patronBarcode[0],
-							supplierRequest.getLocalId()) )
-						.thenReturn(rwc);
+		return hostLmsClient.updateItemStatus(supplierRequest.getLocalItemId(),
+				AVAILABLE, supplierRequest.getLocalId())
+			.then(hostLmsClient.checkOutItemToPatron(rwc.getSupplierRequest().getLocalItemBarcode(),
+				patronBarcode[0], supplierRequest.getLocalId()))
+			.thenReturn(rwc);
+	}
 
-        }
-
-        private String[] extractPatronBarcodes(String inputstr) {
-                String[] result = null;
-                if ( inputstr != null ) {
-                        if ( inputstr.startsWith("[") ) {
-                                result = inputstr.substring(1, inputstr.length() - 1).split(", ");
-                        }
-                        else {
-                                return inputstr.split(", ");
-                        }
-                }
-                return result;
-        }
-
+	private String[] extractPatronBarcodes(String inputstr) {
+		String[] result = null;
+		if (inputstr != null) {
+			if (inputstr.startsWith("[")) {
+				result = inputstr.substring(1, inputstr.length() - 1).split(", ");
+			} else {
+				return inputstr.split(", ");
+			}
+		}
+		return result;
+	}
 }
