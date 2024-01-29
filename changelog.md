@@ -1,5 +1,66 @@
 # Changelog
 
+## Version 5.0.1
+
+### Changes
+* [Chore]
+	* updated .gitignore
+
+## Version 5.0.0
+
+### Additions
+* [General]
+	* **BREAKING** -  Add partitions to data model and consolidate migrations
+* [General]
+	* Detect item returned to FOLIO supplying agency DCB-825
+	* Give sierra the capacity to use hierarchical mappings where only overrides need to be explicit for a system and default consortial mapping can be used for most sites
+	* Implement context hierarchy lookups and tests
+	* Detect missing request in FOLIO DCB-825
+	* Detect FOLIO request has been cancelled DCB-827
+	* Index on derived type
+	* Detect FOLIO request has been placed in transit DCB-825
+
+### Changes
+* [Chore]
+	* Remove remaining Character usage from any DTO that will be encoded as JSON
+	* Add shutdown listener in preparation for cleaner shutdown handling
+	* Return unmapped when transaction status is recognised yet unhandled DCB-825
+	* Raise error when transaction status is not recognised DCB-825
+	* Remove unused fields from supplier item available handler
+	* Remove unused field in host LMS reactions
+	* Add link to transaction status docs DCB-825
+	* Make fields final in supplier in transit handler
+	* Replace spaces with tabs in supplier in transit handler
+	* Use switch expression for mapping FOLIO transaction status DCB-825
+	* Map created transaction status to hold placed status DCB-825
+	* Fetch transaction status from FOLIO DCB-825
+	* More logging updates for clustering
+	* Additional logging for cluster writing
+	* Trying a cheeky way to force touching of a cluster record
+* [Feature]
+	* Add ability to set eager_global_ordinals in ES schema declaration
+	* Watch app shutdown status and exit any ingest sources when shutdown detected
+* [Refactor]
+	* Rename local item ID parameter when getting items DCB-825
+	* Introduce parameter for request ID when getting item from host LMS DCB-825
+* [Test]
+	* Use host LMS item matchers in Polaris tests DCB-825
+	* Move host LMS item matchers to separate class DCB-825
+	* Add folio interaction package to commented out log settings DCB-825
+	* Extract method for mocking authorised request to FOLIO DCB-825
+	* Use matchers when getting request from Polaris DCB-825
+	* Move host LMS request matchers to separate class DCB-825
+	* Initial test to demonstrate detecting request has been placed DCB-825
+
+### Fixes
+* [General]
+	* Stats service logging
+	* Use String and not character encoding for varField fieldTag - suspect character is encoding as an ASCII integer and not a string in json output
+	* reinstate createAuditEntry in correct order
+	* comment out audit assersions in ValidatePatronTests to help tests pass (temp)
+	* error handling for audit - repeated additional line [DCB-847]
+	* Potential fix for duplicating clusters.
+
 ## Version 4.7.0
 
 ### Additions
@@ -8,6 +69,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* preparatory work for multiple supplier mode
 	* Add find by ID to supplier request repository
 	* Tolerate finding no supplier requests for patron request
