@@ -3,33 +3,26 @@ package org.olf.dcb.request.workflow;
 import java.util.Map;
 
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 
 // We have detected that the borrower system state has indeed been updated to TRANSIT.. this is a reaction
 // to the call made by updatePatronItem in HandleSupplierInTransit and allows us to close the loop
+@Slf4j
 @Singleton
 @Named("BorrowerRequestItemInTransit")
 public class HandleBorrowerItemInTransit implements WorkflowAction {
-	private static final Logger log = LoggerFactory.getLogger(
-		HandleBorrowerItemInTransit.class);
-	private RequestWorkflowContextHelper requestWorkflowContextHelper;
-	private PatronRequestRepository patronRequestRepository;
+	private final PatronRequestRepository patronRequestRepository;
 
-	public HandleBorrowerItemInTransit(
-		PatronRequestRepository patronRequestRepository,
-		RequestWorkflowContextHelper requestWorkflowContextHelper) {
+	public HandleBorrowerItemInTransit(PatronRequestRepository patronRequestRepository) {
 		this.patronRequestRepository = patronRequestRepository;
-		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 	}
 
 	@Transactional
