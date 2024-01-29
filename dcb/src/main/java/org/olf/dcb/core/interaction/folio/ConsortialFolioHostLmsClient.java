@@ -9,6 +9,7 @@ import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_ON_HOLDSHELF;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
@@ -675,8 +676,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			// The Host LMS reactions use the available local item status to represent the item becoming available again at the end
 			case "CLOSED" -> ITEM_AVAILABLE;
 			case "AWAITING_PICKUP" -> ITEM_ON_HOLDSHELF;
+			case "ITEM_CHECKED_OUT" -> ITEM_LOANED;
 			// These recognised but unhandled statuses should trigger the unhandled status handlers in host LMS reactions
-			case "CREATED", "OPEN", "ITEM_CHECKED_OUT", "ITEM_CHECKED_IN", "CANCELLED", "ERROR" -> status;
+			case "CREATED", "OPEN", "ITEM_CHECKED_IN", "CANCELLED", "ERROR" -> status;
 			default -> throw new RuntimeException(
 				"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
 					.formatted(status, transactionId));
