@@ -10,8 +10,6 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -23,9 +21,9 @@ import reactor.core.publisher.Mono;
 @Singleton
 @Named("BorrowerRequestItemAvailable")
 public class HandleBorrowerItemAvailable implements WorkflowAction {
-	private RequestWorkflowContextHelper requestWorkflowContextHelper;
-	private PatronRequestRepository patronRequestRepository;
-	private HostLmsService hostLmsService;
+	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
+	private final PatronRequestRepository patronRequestRepository;
+	private final HostLmsService hostLmsService;
 
 	public HandleBorrowerItemAvailable(PatronRequestRepository patronRequestRepository,
 		HostLmsService hostLmsService, RequestWorkflowContextHelper requestWorkflowContextHelper) {
@@ -64,7 +62,7 @@ public class HandleBorrowerItemAvailable implements WorkflowAction {
 		// Checked in, and we should update the status of the item at the lending institution.
 		if (pr.getActiveWorkflow() != null) {
 			if (pr.getActiveWorkflow().equals("RET-STD")) {
-				// Standard workflow - remote brrower, patron picking up from a library in the home system
+				// Standard workflow - remote borrower, patron picking up from a library in the home system
 				log.info(
 					"RET-STD:: We should tell the lender system that the item has arrived");
 				return setHomeItemOffCampus(rwc);
