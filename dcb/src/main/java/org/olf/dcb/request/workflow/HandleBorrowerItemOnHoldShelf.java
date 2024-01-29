@@ -20,9 +20,9 @@ import reactor.core.publisher.Mono;
 @Singleton
 @Named("BorrowerRequestItemOnHoldShelf")
 public class HandleBorrowerItemOnHoldShelf implements WorkflowAction {
-	private RequestWorkflowContextHelper requestWorkflowContextHelper;
-	private PatronRequestRepository patronRequestRepository;
-	private HostLmsService hostLmsService;
+	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
+	private final PatronRequestRepository patronRequestRepository;
+	private final HostLmsService hostLmsService;
 
 	public HandleBorrowerItemOnHoldShelf(
 		PatronRequestRepository patronRequestRepository,
