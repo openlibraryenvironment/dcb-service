@@ -13,3 +13,5 @@ data-store/
 *.iml
 *.ipr
 *.iws
+scripts/bootstrap_folio_test.sh
+scripts/bootstrap_folio_test2.sh
