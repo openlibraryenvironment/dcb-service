@@ -24,17 +24,15 @@ import lombok.extern.slf4j.Slf4j;
 @Singleton
 @Named("BorrowerRequestLoaned")
 public class HandleBorrowerItemLoaned implements WorkflowAction {
-	private RequestWorkflowContextHelper requestWorkflowContextHelper;
-	private PatronRequestRepository patronRequestRepository;
-	private HostLmsService hostLmsService;
-	private PatronRequestAuditService patronRequestAuditService;
+	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
+	private final PatronRequestRepository patronRequestRepository;
+	private final HostLmsService hostLmsService;
+	private final PatronRequestAuditService patronRequestAuditService;
 
-	public HandleBorrowerItemLoaned(
-		PatronRequestRepository patronRequestRepository,
-		HostLmsService hostLmsService,
-		RequestWorkflowContextHelper requestWorkflowContextHelper,
-		PatronRequestAuditService patronRequestAuditService) 
-	{
+	public HandleBorrowerItemLoaned(PatronRequestRepository patronRequestRepository,
+		HostLmsService hostLmsService, RequestWorkflowContextHelper requestWorkflowContextHelper,
+		PatronRequestAuditService patronRequestAuditService) {
+
 		this.patronRequestRepository = patronRequestRepository;
 		this.hostLmsService = hostLmsService;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
