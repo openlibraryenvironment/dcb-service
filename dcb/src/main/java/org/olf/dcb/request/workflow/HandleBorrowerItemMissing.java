@@ -3,7 +3,6 @@ package org.olf.dcb.request.workflow;
 import java.util.Map;
 
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
 
@@ -17,14 +16,10 @@ import reactor.core.publisher.Mono;
 @Singleton
 @Named("BorrowerRequestItemMissing")
 public class HandleBorrowerItemMissing implements WorkflowAction {
-	private RequestWorkflowContextHelper requestWorkflowContextHelper;
-	private PatronRequestRepository patronRequestRepository;
+	private final PatronRequestRepository patronRequestRepository;
 
-	public HandleBorrowerItemMissing(
-		PatronRequestRepository patronRequestRepository,
-		RequestWorkflowContextHelper requestWorkflowContextHelper) {
+	public HandleBorrowerItemMissing(PatronRequestRepository patronRequestRepository) {
 		this.patronRequestRepository = patronRequestRepository;
-		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 	}
 
 	@Transactional
