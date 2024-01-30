@@ -91,6 +91,28 @@ class ConsortialFolioHostLmsClientGetItemTests {
 	}
 
 	@Test
+	void shouldDetectItemHasBeenReturnedByPatron() {
+		// Arrange
+		final var localRequestId = UUID.randomUUID().toString();
+		final var localItemId = UUID.randomUUID().toString();
+
+		// When the item is checked in at the pickup agency
+		mockFolioFixture.mockGetTransactionStatus(localRequestId, "ITEM_CHECKED_IN");
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var localItem = singleValueFrom(client.getItem(localItemId, localRequestId));
+
+		// Assert
+		assertThat(localItem, allOf(
+			notNullValue(),
+			hasLocalId(localItemId),
+			hasStatus("TRANSIT")
+		));
+	}
+
+	@Test
 	void shouldDetectItemHasBeenReturnedToSupplier() {
 		// Arrange
 		final var localRequestId = UUID.randomUUID().toString();
@@ -144,7 +166,7 @@ class ConsortialFolioHostLmsClientGetItemTests {
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = {"CREATED", "OPEN", "ITEM_CHECKED_IN", "CANCELLED", "ERROR"})
+	@ValueSource(strings = {"CREATED", "OPEN", "CANCELLED", "ERROR"})
 	void shouldReturnUnmappedTransactionStatusForAnyOtherStatus(String transactionStatus) {
 		// Arrange
 		final var localRequestId = UUID.randomUUID().toString();

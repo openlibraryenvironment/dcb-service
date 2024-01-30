@@ -11,6 +11,7 @@ import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_ON_HOLDSHELF;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
@@ -677,8 +678,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			case "CLOSED" -> ITEM_AVAILABLE;
 			case "AWAITING_PICKUP" -> ITEM_ON_HOLDSHELF;
 			case "ITEM_CHECKED_OUT" -> ITEM_LOANED;
+			// This is needed to trigger the return to the lending agency workflow action
+			case "ITEM_CHECKED_IN" -> ITEM_TRANSIT;
 			// These recognised but unhandled statuses should trigger the unhandled status handlers in host LMS reactions
-			case "CREATED", "OPEN", "ITEM_CHECKED_IN", "CANCELLED", "ERROR" -> status;
+			case "CREATED", "OPEN", "CANCELLED", "ERROR" -> status;
 			default -> throw new RuntimeException(
 				"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
 					.formatted(status, transactionId));
