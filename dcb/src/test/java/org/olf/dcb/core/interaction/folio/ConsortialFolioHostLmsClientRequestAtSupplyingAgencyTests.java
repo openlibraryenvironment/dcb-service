@@ -242,5 +242,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		// This cannot match the whole path as transaction ID cannot be known outside client
 		assertThat(exception, messageContains(
 			"Unexpected HTTP response from: POST /dcbService/transactions"));
+
+		assertThat(exception, messageContains("Response: Status: 400"));
+		assertThat(exception, messageContains("\"message\" : \"something went wrong\""));
 	}
 }
