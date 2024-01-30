@@ -298,11 +298,17 @@ public interface MarcIngestSource<T> extends IngestSource {
 			})
 			.orElseGet(() -> field245);
 		
-		List<String> fields = extractOrderedSubfields(fieldForTitle, "ab").limit(2)
+		// Goldrush does not normally include $c but that seems to create very odd clusters for things like 
+		// "Greatest Hits". It seems that $c can be a bit of a dumping ground - so whilst
+		// "$a Greatest Hits - $c Some Artist" is useful, "$a Greatest Hits - $s Some Artist, with a foreward by X and some other stuff by Y"
+		// is likely less helpful. It may be that taking the first 2 words of $c will yeild better results.
+		List<String> fields = extractOrderedSubfields(fieldForTitle, "abc").limit(3)
 				.toList();
 
 		if (fields.size() > 0) {
-			grk.parseTitle(fields.get(0), fields.size() > 1 ? fields.get(1) : null);
+			grk.parseTitle(fields.get(0), 
+				fields.size() > 1 ? fields.get(1) : null,
+				fields.size() > 2 ? fields.get(2) : null);
 		}
 
 		parseFromSingleSubfield(marcRecord, "245", 'h', grk::parseMediaDesignation);
