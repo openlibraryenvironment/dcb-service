@@ -44,6 +44,7 @@ import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.UnexpectedResponseException;
 import org.olf.dcb.core.interaction.folio.User.PersonalDetails;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
@@ -322,12 +323,15 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.build());
 	}
 
-	private Mono<CreateTransactionResponse> createTransaction(MutableHttpRequest<CreateTransactionRequest> request) {
+	private Mono<CreateTransactionResponse> createTransaction(
+		MutableHttpRequest<CreateTransactionRequest> request) {
 
 		return makeRequest(request, Argument.of(CreateTransactionResponse.class))
 			.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
 			.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError)
-			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new);
+			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new)
+			.onErrorMap(HttpClientResponseException.class,
+				responseException -> new UnexpectedResponseException(request, responseException));
 	}
 
 	private CannotPlaceRequestException interpretValidationError(Throwable error) {
