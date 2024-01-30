@@ -70,16 +70,14 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	
 	private final ElasticsearchAsyncClient client;
 	private final ConversionService conversionService;
-	private final PublisherTransformationService pubs;
 	
 	private final String indexName; 
 	
 	public ElasticsearchSharedIndexService(SharedIndexConfiguration conf, ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, SharedIndexQueueRepository sharedIndexQueueRepository, PublisherTransformationService pubs) {
-		super(recordClusteringService, sharedIndexQueueRepository);
+		super(recordClusteringService, sharedIndexQueueRepository, pubs);
 		this.client = client;
 		this.conversionService = conversionService;
 		this.indexName = conf.name();
-		this.pubs = pubs;
 	}
 	
 	@PostConstruct
@@ -368,7 +366,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 						sink.error(e);
 					}
 				})
-				.transform(pubs::executeOnBlockingThreadPool)
+				.transform(getPublisherTransformer()::executeOnBlockingThreadPool)
 				.onErrorMap(e -> new DcbError("Error communicating with Elasticearch", e))
 			)
 			.doOnNext( resp -> {

@@ -1,5 +1,7 @@
 package org.olf.dcb.core.svc;
 
+import static services.k_int.utils.TupleUtils.curry;
+
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashSet;
@@ -10,7 +12,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.olf.dcb.core.model.BibIdentifier;
@@ -20,10 +21,10 @@ import org.olf.dcb.core.model.clustering.MatchPoint;
 import org.olf.dcb.stats.StatsService;
 import org.olf.dcb.storage.ClusterRecordRepository;
 import org.olf.dcb.storage.MatchPointRepository;
-import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.annotation.Timed;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.model.Page;
@@ -37,8 +38,6 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
-
-import io.micrometer.core.annotation.Timed;
 
 @Singleton
 public class RecordClusteringService {
@@ -66,8 +65,9 @@ public class RecordClusteringService {
 	}
 
 	// Get cluster record by id
+	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<ClusterRecord> findById(UUID id) {
-		return Mono.from(clusterRecords.findOneById(id));
+		return Mono.from(clusterRecords.findById(id));
 	}	
 
 	// Add Bib to cluster record
@@ -77,9 +77,10 @@ public class RecordClusteringService {
 
 	// Get all bibs for cluster record id
 
-	public Flux<BibRecord> findBibsByClusterRecord(ClusterRecord clusterRecord) {
-		return Flux.from(bibRecords.findAllByContributesTo(clusterRecord));
-	}
+//	@Transactional(propagation = Propagation.REQUIRED)
+//	public Flux<BibRecord> findBibsByClusterRecord(ClusterRecord clusterRecord) {
+//		return Flux.from(bibRecords.findAllByContributesTo(clusterRecord));
+//	}
 	
 	private boolean completeIdentifiersPredicate ( BibIdentifier bibId ) {
 		
@@ -97,22 +98,8 @@ public class RecordClusteringService {
 		return value;
 	}
 	
-	@Transactional
-	public Mono<Tuple2<List<MatchPoint>, List<ClusterRecord>>> collectClusterRecords(String derivedType, Publisher<MatchPoint> matchPoints) {
-		 return Flux.from( matchPoints )
-		 	.collectList()
-		 	.flatMap( mps -> {
-		 		var ids = mps.stream()
-		 			.map( MatchPoint::getValue )
-		 			.collect(Collectors.toUnmodifiableSet());
-		 		
-		 		return Flux.from( clusterRecords.findAllByDerivedTypeAndMatchPoints(derivedType, ids ) )
-		 				.collectList()
-		 				.map( crs -> Tuples.of( mps, crs ));
-		 	});
-	}
-	
-	@Transactional
+
+	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<Void> softDelete(ClusterRecord theRecord) {
 		log.debug("Soft delete {}",theRecord.getId());
 		return Mono.justOrEmpty(theRecord)
@@ -124,47 +111,48 @@ public class RecordClusteringService {
 					.dateCreated(current.getDateCreated())
 					.isDeleted(true)
 					.build())
-			.map( this::update )
-			.flatMap(Mono::from)
+			.flatMap( this::saveOrUpdate )
 			.doOnNext(cr -> log.debug("Soft deleted cluster {}", cr.getId()))
 			.then();
 	}
 	
-	@Transactional
+	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<Void> softDeleteByIdInList(Collection<UUID> ids) {
 		return findAllByIdInList(ids)
 			.flatMap( this::softDelete )
 			.then();
 	}
 	
-	@Transactional
+
+	@Transactional(propagation = Propagation.MANDATORY)
 	public Flux<ClusterRecord> findAllByIdInList(Collection<UUID> ids) {
 		return Flux.from(clusterRecords.findAllByIdInList(ids));
 	}
 	
-	@Transactional
+
+	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<Page<UUID>> findNext1000UpdatedBefore(@NonNull Instant before, Pageable page) {
 		return Mono.from(clusterRecords.findIdByDateUpdatedLessThanEqualsOrderByDateUpdated(before, page));
 	}
 	
-	@Transactional
+
+	@Transactional(propagation = Propagation.MANDATORY)
 	public Flux<ClusterRecord> findAllByIdInListWithBibs(Collection<UUID> ids) {
 		return Flux.from(clusterRecords.findByIdInListWithBibs(ids));
 	}
 	
 	// Remove the items in a new transaction.
 	@Timed("bib.cluster.merge")
-	@Transactional
+	@Transactional(propagation = Propagation.MANDATORY)
 	protected Mono<ClusterRecord> mergeClusterRecords( ClusterRecord to, Collection<ClusterRecord> from ) {
 		
 		return Mono.fromDirect( bibRecords.moveBetweenClusterRecords(from, to) )
-			.then( Mono.fromDirect(
-					this.softDeleteByIdInList(
-							from
-								.stream()
-								.map(ClusterRecord::getId)
-								.toList())))
-			.thenReturn( to );
+			.flatMap( cr -> softDeleteByIdInList(
+					from
+						.stream()
+						.map(ClusterRecord::getId)
+						.toList())
+					.thenReturn( cr ));
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)
@@ -218,8 +206,8 @@ public class RecordClusteringService {
 								toRemove.add(c);
 							}});
 						
-						yield mergeClusterRecords(primary, toRemove)
-							.flatMap(this::electSelectedBib);
+						yield mergeClusterRecords(primary, toRemove);
+//							.flatMap(this::electSelectedBib);
 					}
 				};
 			}
@@ -227,17 +215,9 @@ public class RecordClusteringService {
 		
 	}
 	
-	@Timed("bib.cluster.matchAndMerge")
-	@Transactional
-	protected Mono<ClusterRecord> saveMatchPointsAndMergeClusters(List<MatchPoint> matchPoints, List<ClusterRecord> clusters) {
-		log.debug("saveMatchPointsAndMergeClusters");
-		return Flux.from( matchPointRepository.saveAll(matchPoints) )
-			.then( Mono.just( Tuples.of( matchPoints.size(), clusters ))
-					.flatMap( TupleUtils.function( this::reduceClusterRecords )));
-	}
 	
-	@Transactional
-	public Flux<MatchPoint> idMatchPoints( BibRecord bib ) {
+	@Transactional(propagation = Propagation.MANDATORY)
+	public Flux<MatchPoint> generateIdMatchPoints( BibRecord bib ) {
 		return bibRecords.findAllIdentifiersForBib( bib )
 				.filter( this::completeIdentifiersPredicate )
 				
@@ -253,88 +233,115 @@ public class RecordClusteringService {
 			.as(Flux::from);
 	}
 	
-	private Flux<MatchPoint> collectMatchPoints ( final BibRecord bib ) {
+	private Flux<MatchPoint> generateMatchPoints ( final BibRecord bib ) {
 		log.debug("collectMatchPoints for bib");
 		return Flux.concat(
-				this.idMatchPoints(bib),
-				this.recordMatchPoints(bib))
+				generateIdMatchPoints(bib),
+				recordMatchPoints(bib))
 					.map( mp -> mp.toBuilder()
 						.bibId( bib.getId() )
 						.build());
 	}
 	
-	@Timed("bib.cluster.minimal")
-	@Transactional
-	public Mono<ClusterRecord> createMinimalCluster( BibRecord bib ) {
-		var cluster = ClusterRecord.builder()
-				.id(UUID.randomUUID())
+//	@Transactional(propagation = Propagation.MANDATORY)
+//	public Mono<ClusterRecord> touch ( final ClusterRecord cluster ) {
+//
+//		log.debug("request touch cr {}",cluster.getId());
+//
+//		return Mono.justOrEmpty(cluster.getId())
+//			.flatMap( theId -> {
+//				return Mono.from(clusterRecords.touch(theId) )
+//					.doOnNext( total -> {
+//						log.debug("Touch updatedDate on cluster record {} yeilded {} records updated", theId, total);
+//					});
+//			})
+//			.thenReturn( cluster );
+//	}
+	
+//	@Transactional(propagation = Propagation.MANDATORY)
+//	public Mono<ClusterRecord> update ( final ClusterRecord cluster ) {
+//		return Mono.from ( clusterRecords.update(cluster) );
+//	}
+	
+	@Transactional(propagation = Propagation.MANDATORY)
+	public Mono<ClusterRecord> saveOrUpdate ( final ClusterRecord cluster ) {
+		return Mono.from ( clusterRecords.saveOrUpdate(cluster) )
+				.doOnError(t -> log.error("Error adding {}", cluster) );
+	}
+	
+	@Transactional(propagation = Propagation.MANDATORY)
+	protected Mono<List<MatchPoint>> reconcileMatchPoints( Collection<MatchPoint> currentMatchPoints, BibRecord bib ) {
+		
+		return Flux.fromIterable( currentMatchPoints )
+			.map( MatchPoint::getValue )
+			.collectList()
+			.map( curry(bib.getId(), matchPointRepository::deleteAllByBibIdAndValueNotIn) )
+			.flatMap(Mono::from)
+			.doOnNext( del -> log.debug("Deleted {} existing matchpoints that are no longer valid")  )
+			.thenMany( Mono.just(currentMatchPoints).flatMapMany( matchPointRepository::saveAll ) )
+			.collectList();
+	}
+	
+	@Transactional(propagation = Propagation.MANDATORY)
+	protected Mono<Tuple2<BibRecord, ClusterRecord>> updateBibAndClusterData ( BibRecord bib, Collection<MatchPoint> currentMatchPoints, ClusterRecord cluster ) {
+		
+		// Save the cluster
+		return Mono.just( cluster )
+			.flatMap(this::saveOrUpdate)
+			// Update the contribution and save the bib
+			.zipWhen( cr -> Mono.just(bib.setContributesTo(cr) )
+				.flatMap(bibRecords::saveOrUpdate) ) 
+			
+			// We can do some things at the same time.
+			.flatMap(TupleUtils.function((cr, br) ->
+				// Reconcile the matchpoints and elect the primary bib on the matched cluster
+				Mono.zip(reconcileMatchPoints(currentMatchPoints, br), electSelectedBib( cr ))
+					.thenReturn(Tuples.of(br, cr))));
+	}
+	
+	private ClusterRecord newClusterRecord( BibRecord bib ) {
+		return ClusterRecord.builder()
+				.id( UUID.randomUUID() )
 				.title( bib.getTitle() )
 				.selectedBib( bib.getId() )
 				.build();
+	}
+	
+	@Transactional(propagation = Propagation.MANDATORY)
+	protected Mono<Tuple2<BibRecord, ClusterRecord>> clusterUsingMatchPoints( BibRecord bib, Collection<MatchPoint> matchPoints ) {
 		
-		return Mono.just ( cluster )
-			.map( clusterRecords::save )
-			.flatMap( Mono::fromDirect );
+		return matchClusters(bib, matchPoints)
+			.collectList()
+			.flatMap( curry( matchPoints.size(), this::reduceClusterRecords ))
+			.switchIfEmpty(Mono.just(bib).map(this::newClusterRecord))
+			.flatMap(curry(bib, matchPoints, this::updateBibAndClusterData));
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)
-	public Mono<ClusterRecord> touch ( final ClusterRecord cluster ) {
-
-		log.debug("request touch cr {}",cluster.getId());
-
-		return Mono.justOrEmpty(cluster.getId())
-			.flatMap( theId -> {
-				return Mono.from(clusterRecords.touch(theId) )
-					.doOnNext( total -> {
-						log.debug("Touch updatedDate on cluster record {} yeilded {} records updated", theId, total);
-					});
-			})
-			.thenReturn( cluster );
+	protected Flux<ClusterRecord> matchClusters( BibRecord bib, Collection<MatchPoint> matchPoints ) {
+		return Flux.fromIterable( matchPoints )
+		 	.map(MatchPoint::getValue )
+		 	.distinct()
+		 	.collectList()
+		 	.flux()
+		 	.flatMap(ids -> clusterRecords.findAllByDerivedTypeAndMatchPointsNotBelongingToBib(bib.getDerivedType(), ids, bib.getId()));
 	}
 	
-	@Transactional(propagation = Propagation.MANDATORY)
-	public Mono<ClusterRecord> update ( final ClusterRecord cluster ) {
-		return Mono.from ( clusterRecords.update(cluster) ).thenReturn(cluster);
-	}
-
 	@Timed("bib.cluster")
-	@Retryable
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	@Transactional(propagation = Propagation.NESTED)
 	public Mono<BibRecord> clusterBib ( final BibRecord bib ) {
 
-		// Generate MatchPoints
-		return Mono.justOrEmpty( bib )
-			.doOnNext(br -> log.debug("clusterBib start update {}", br.getId()))
-			// Clear out any match points for this bib - if we are re-submitting a record we have seen before lets clean up
-			.flatMap( theBib -> 
-				Mono.fromDirect( matchPointRepository.deleteAllByBibId( theBib.getId() ))
-				.thenReturn( theBib ) )
-			// Gather all the match points for the bib record
-			.map( this::collectMatchPoints )
-			// Collect all the cluster records for the match points - emit a flux of possible match points
-			.flatMap( matchPointPub -> collectClusterRecords(bib.getDerivedType(), matchPointPub) )
-			// 
-			.flatMap(TupleUtils.function( this::saveMatchPointsAndMergeClusters ))
-			.flatMap( this::touch ) // Ensure the matched ClusterRecord's date is changed.
-			
-			.switchIfEmpty( createMinimalCluster(bib) )
-			.flatMap( cr -> {
-				final var linkedBib = bib.toBuilder()
-					.contributesTo(cr)
-					.build();
-
-				return Mono.fromDirect( bibRecords.update(linkedBib) );
-			})
-			.doOnNext(lb -> log.debug("update completd {}", lb.getId()));
-		
-		// Find all clusters matching MatchPoints (via bibs)
-		// Take lastUpdated Cluster record as match
-		// -> Asynchronously merge other Cluster Records
-		// Add matchkeys, and cluster to bib.
-		// Save and return bib.
+		return generateMatchPoints( bib )
+			.collectList()
+			.flatMap( curry(bib, this::clusterUsingMatchPoints ))
+			.map(TupleUtils.function( (savedBib, savedCluster) -> {
+				log.trace("Cluster {} selected for bib {}", savedCluster, savedBib);
+				return savedBib;
+			}));
 	}
 	
-	
+
+	@Transactional(propagation = Propagation.MANDATORY)
 	public <T> Mono<Page<T>> getPageAs(Optional<Instant> since, Pageable pageable, Function<ClusterRecord, T> mapper) {
 
 		// return Mono.from( _clusterRecordRepository.findAll(pageable) )
@@ -347,13 +354,13 @@ public class RecordClusteringService {
 	}
 	
 
-	@Timed("bib.cluster.elect")
-	@Transactional
+	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<ClusterRecord> electSelectedBib( final ClusterRecord cr ) {
-		return this.electSelectedBib(cr, Optional.empty());
+		return electSelectedBib(cr, Optional.empty());
 	}
-	
-	@Transactional
+
+	@Timed("bib.cluster.elect")
+	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<ClusterRecord> electSelectedBib( final ClusterRecord cr, final Optional<BibRecord> ignoreBib ) {
 		// Use the record with the highest score
 		return bibRecords.findTop2HighestScoringContributorId( cr )
@@ -363,12 +370,11 @@ public class RecordClusteringService {
 					.orElse(Boolean.TRUE))
 			
 			.next()
-			.zipWith(Mono.just(cr))
-			.map(TupleUtils.function((contrib, cluster) -> {
-				log.debug("Setting selected bib on cluster record {} to {}", cluster.getId(), contrib);
-				return cluster.setSelectedBib(contrib);
-			}))
-			.flatMap(this::update)
-			.defaultIfEmpty(cr);
+			.map(contrib -> {
+				log.debug("Setting selected bib on cluster record {} to {}", cr.getId(), contrib);
+				return cr.setSelectedBib(contrib);
+			})
+			.defaultIfEmpty(cr)
+			.flatMap(this::saveOrUpdate);
 	}
 }

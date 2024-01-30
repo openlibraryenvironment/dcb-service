@@ -17,9 +17,12 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.cp.lock.FencedLock;
 
 import io.micronaut.core.convert.ConversionService;
+import io.micronaut.retry.annotation.Retryable;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.scheduling.annotation.Scheduled;
+import io.micronaut.transaction.TransactionDefinition.Propagation;
+import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -123,13 +126,34 @@ public class IngestService implements Runnable {
 				.doOnError ( throwable -> log.warn("ONERROR Error after transform step", throwable) );
 	}
 	
-	protected Publisher<BibRecord> processSingleRecord ( IngestRecord ingestRecord ) {
+
+	@Retryable
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	protected Mono<BibRecord> processSingleRecord ( IngestRecord ingestRecord ) {
 		log.debug("processSingleRecord {}@{}",ingestRecord.getSourceRecordId(),ingestRecord.getSourceSystem().getCode() );
 		return Mono.from(bibRecordService.process( ingestRecord ))
 			.doOnNext( br -> log.debug("process ingest record {}@{}", br.getSourceRecordId(), ingestRecord.getSourceSystem().getCode() ) )
 			.flatMap(recordClusteringService::clusterBib)
+			.map( theBib -> {
+				if (theBib.getContributesTo() == null)
+					log.warn("Bib {} doesn't have cluster record", theBib);
+				
+				return theBib;
+			})
+//			.flatMap(this::reReadBib)
 			.doOnError ( throwable -> log.warn("ONERROR Error after clustering step", throwable) );
 	}
+	
+//	@Transactional(propagation = Propagation.MANDATORY)
+//	protected Mono<BibRecord> reReadBib ( BibRecord bib ) {
+//		return bibRecordService.getById( bib.getId() )
+//			.map( theBib -> {
+//				if (theBib.getContributesTo() == null)
+//					log.warn("Bib {} doesn't have cluster record", theBib);
+//				
+//				return theBib;
+//			});
+//	}
 
 	// Extracted from run() method so the shutdown handler can peer inside this instance and determine
 	// if an ingest is running.

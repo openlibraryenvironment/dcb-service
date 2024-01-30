@@ -95,7 +95,15 @@ public class BibRecordService {
 	@Transactional
 	public Mono<BibRecord> saveOrUpdate(final BibRecord record) {
 		return Mono.from(bibRepo.existsById(record.getId()))
-			.flatMap(exists -> Mono.fromDirect(exists ? bibRepo.update(record) : bibRepo.save(record)));
+			.map(exists -> exists ? bibRepo.update(record) : bibRepo.save(record))
+			.flatMap(Mono::from);
+	}
+	
+	@Transactional
+	public Mono<BibRecord> getById(final UUID id) {
+		return Mono.just(id)
+			.map(bibRepo::getById)
+			.flatMap(Mono::from);
 	}
 
 	// https://github.com/micronaut-projects/micronaut-data/discussions/1405
@@ -161,6 +169,7 @@ public class BibRecordService {
 				.build();
 	}
 
+	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<ClusterRecord> moveBetweenClusterRecords(Collection<ClusterRecord> fromAll, ClusterRecord to) {
 		return Mono.fromDirect(bibRepo.updateByContributesToInList(fromAll, to)).thenReturn(to);
 	}
@@ -198,7 +207,7 @@ public class BibRecordService {
 	
 	@Timed("bib.process")
 	@SingleResult
-	@Transactional
+	@Transactional(propagation = Propagation.MANDATORY)
 	public Publisher<BibRecord> process(final IngestRecord source) {
 
     log.debug("BibRecordService::process(source={}, sourceRecordId={}, clusterid={}, title={}, suppress:{}, deleted:{})",
@@ -264,7 +273,7 @@ public class BibRecordService {
 		.flatMap( finalBib -> this.updateStatistics(finalBib, source, start_time) );
 	}
 	
-	@Transactional
+	@Transactional(propagation = Propagation.MANDATORY)
 	public Flux<UUID> findTop2HighestScoringContributorId( @NonNull ClusterRecord cr  ) {
 		return Flux.from( bibRepo.findTop2ByContributesToOrderByMetadataScoreDesc(cr) )
 				.map( BibRecord::getId );

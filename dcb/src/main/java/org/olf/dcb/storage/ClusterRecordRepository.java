@@ -35,9 +35,13 @@ public interface ClusterRecordRepository {
 
 	@SingleResult
 	@NonNull
-	default Publisher<? extends ClusterRecord> saveOrUpdate(@Valid @NonNull ClusterRecord clusterRecord) {
-		return Mono.from(this.existsById(clusterRecord.getId()))
-				.flatMap(update -> Mono.from(update ? this.update(clusterRecord) : this.save(clusterRecord)));
+	default Publisher<ClusterRecord> saveOrUpdate(@Valid @NonNull ClusterRecord clusterRecord) {
+		
+		return Mono.defer( () -> Mono.just(clusterRecord.getId()) )
+			.map(this::existsById)
+			.flatMap(Mono::from)
+			.map( update -> (update ? this.update(clusterRecord) : this.save(clusterRecord)) )
+			.flatMap(Mono::from);
 	}
 
 	@NonNull
@@ -63,7 +67,7 @@ public interface ClusterRecordRepository {
 	Publisher<ClusterRecord> findAllByMatchPoints ( Collection<UUID> points );
 	
 	@NonNull
-	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPoints ( String derivedType, Collection<UUID> points );
+	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPointsNotBelongingToBib ( String derivedType, Collection<UUID> points, UUID bibId );
 
 	@NonNull
 	@SingleResult
