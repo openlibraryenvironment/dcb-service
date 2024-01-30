@@ -14,6 +14,6 @@ public class UnexpectedResponseException extends RuntimeException {
 		super("Unexpected HTTP response from: %s %s\nResponse: %s".formatted(
 		 	getValue(request, HttpRequest::getMethodName),
 			getValue(request, HttpRequest::getPath),
-			toLogOutput(responseError.getResponse())));
+			toLogOutput(getValue(responseError, HttpClientResponseException::getResponse))));
 	}
 }

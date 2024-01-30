@@ -9,6 +9,7 @@ import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MutableHttpRequest;
+import lombok.experimental.Tolerate;
 
 public class HttpProtocolToLogMessageMapper {
 
@@ -16,9 +17,9 @@ public class HttpProtocolToLogMessageMapper {
 		if (response == null) {
 			return "No response included in error";
 		}
-
+		
 		return "Status: %s\nHeaders: %s\nBody: %s\n".formatted(
-			getValue(getValue(response, HttpResponse::getStatus), HttpStatus::getCode),
+			getValue(response.getStatus(), HttpStatus::getCode),
 			toLogOutput(response.getHeaders()),
 			response.getBody(Argument.of(String.class)).orElse("No Body")
 		);
