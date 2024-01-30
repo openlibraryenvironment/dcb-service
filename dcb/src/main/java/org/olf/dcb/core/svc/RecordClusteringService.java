@@ -183,8 +183,9 @@ public class RecordClusteringService {
 //				}
 				
 				// Single match point.
-				log.trace("Low number of match points, but found single match.");
-				yield Mono.just( clusterList.get(0) );
+				ClusterRecord cr = clusterList.get(0);
+				log.trace("Low number of match points, but found single match. {}/{}", cr.getId(),cr.getTitle());
+				yield Mono.just( cr );
 			}
 			
 			default -> {
@@ -197,11 +198,11 @@ public class RecordClusteringService {
 				
 				yield switch ( clusters.size() ) {
 					case 1 -> {
-						log.trace("Single cluster matched by multiple match points.");
-						yield Mono.just( clusters.iterator().next() );
+						ClusterRecord cr = clusters.iterator().next();
+						log.trace("Single cluster matched by multiple match points. {}/{}",cr.getId(), cr.getTitle());
+						yield Mono.just( cr );
 					}
 					default -> {
-						log.trace("Multiple cluster matched. Use first cluster and merge others");
 						
 						// Pop the first item.
 						var items = clusters.iterator();
@@ -209,6 +210,9 @@ public class RecordClusteringService {
 						Set<ClusterRecord> toRemove = new HashSet<>();
 						
 						var primary = items.next();
+
+						log.trace("Multiple cluster matched. Use first cluster and merge others {}/{}",primary.getId(), primary.getTitle());
+
 						items.forEachRemaining(c -> {
 							if (c.getId() != null && !c.getId().toString().equals(Objects.toString(primary.getId(), null))) {
 								toRemove.add(c);
