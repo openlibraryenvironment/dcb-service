@@ -717,12 +717,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> deleteItem(String id) {
-		return Mono.error(new NotImplementedException("Delete virtual item is not currently implemented for FOLIO"));
+		log.info("Delete virtual item is not currently implemented for FOLIO");
+		return Mono.just("OK");
 	}
 
 	@Override
 	public Mono<String> deleteBib(String id) {
-		return Mono.error(new NotImplementedException("Delete virtual bib is not currently implemented for FOLIO"));
+		log.info("Delete virtual bib is not currently implemented for FOLIO");
+		return Mono.just("OK");
 	}
 
 	private <T, R> Mono<T> makeRequest(@NonNull MutableHttpRequest<R> request,
