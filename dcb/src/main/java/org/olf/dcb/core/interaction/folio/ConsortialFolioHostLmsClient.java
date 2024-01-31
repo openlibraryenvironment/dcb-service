@@ -4,7 +4,9 @@ import static io.micronaut.core.type.Argument.VOID;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static io.micronaut.http.HttpMethod.*;
+import static io.micronaut.http.HttpMethod.GET;
+import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.HttpMethod.PUT;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
@@ -61,6 +63,8 @@ import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -328,7 +332,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return makeRequest(request, Argument.of(CreateTransactionResponse.class))
 			.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
 			.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError)
-			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new);
+			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new)
+			.onErrorMap(HttpClientResponseException.class, this::mapToProblem);
+	}
+
+	private ThrowableProblem mapToProblem(HttpClientResponseException responseException) {
+		return Problem.builder()
+			.withTitle("Unexpected response from Host LMS: \"%s\"".formatted(getHostLmsCode()))
+			.build();
 	}
 
 	private CannotPlaceRequestException interpretValidationError(Throwable error) {
