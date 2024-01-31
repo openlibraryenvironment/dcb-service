@@ -13,7 +13,9 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
+import static org.olf.dcb.test.matchers.UnexpectedResponseExceptionMatchers.containsJsonResponseProperty;
+import static org.olf.dcb.test.matchers.UnexpectedResponseExceptionMatchers.containsRequestInformation;
+import static org.olf.dcb.test.matchers.UnexpectedResponseExceptionMatchers.containsResponseStatus;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.util.List;
@@ -240,10 +242,9 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		// Assert
 
 		// This cannot match the whole path as transaction ID cannot be known outside client
-		assertThat(exception, messageContains(
-			"Unexpected HTTP response from: POST /dcbService/transactions"));
+		assertThat(exception, containsRequestInformation("POST", "/dcbService/transactions"));
 
-		assertThat(exception, messageContains("Response: Status: 400"));
-		assertThat(exception, messageContains("\"message\" : \"something went wrong\""));
+		assertThat(exception, containsResponseStatus(400));
+		assertThat(exception, containsJsonResponseProperty("message", "something went wrong"));
 	}
 }
