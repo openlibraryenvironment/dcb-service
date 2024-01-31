@@ -7,10 +7,14 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockserver.model.HttpResponse.response;
+import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.SierraErrorMatchers.isBadJsonError;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -176,10 +180,11 @@ class SierraApiItemTests {
 
 	@Test
 	void shouldProvideNoItemsWhenSierraRespondsWithNoRecordsFoundError() {
+		// Arrange
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("87878325");
 
-		// Need to create a new client for this test
-		// because it fails when re-using the client
+
+		// Act
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		var response = Mono.from(sierraApiClient.items(
@@ -189,6 +194,27 @@ class SierraApiItemTests {
 					.build()))
 			.block();
 
+		// Assert
 		assertThat("Response should be empty", response, is(nullValue()));
+	}
+
+	@Test
+	void shouldFailWhenSierraRespondsWithUnexpectedResponse() {
+		// Arrange
+		sierraItemsAPIFixture.mockGetItemById("56737658",
+			response()
+				.withStatusCode(400)
+				.withBody(json(Map.of("message", "something went wrong"))));
+
+		// Act
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> singleValueFrom(sierraApiClient.getItem("56737658")));
+
+		// Assert
+
+		// This message comes from the parsing of the response as a SierraError
+		assertThat(exception, hasMessage("null - [0 / 0]"));
 	}
 }
