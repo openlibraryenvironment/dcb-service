@@ -326,7 +326,7 @@ public class PolarisLmsClientTests {
 
 		// Act
 		final var response = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.checkOutItemToPatron(localItemId, localPatronBarcode).block();
+			.checkOutItemToPatron(localItemId, localPatronBarcode, null).block();
 
 		// Assert
 		assertThat(response, is(notNullValue()));
@@ -463,7 +463,7 @@ public class PolarisLmsClientTests {
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses",
 			"itemstatuses.json");
 		// Act
-		final var string = hostLmsFixture.createClient(HOST_LMS_CODE).updateItemStatus(localItemId, TRANSIT).block();
+		final var string = hostLmsFixture.createClient(HOST_LMS_CODE).updateItemStatus(localItemId, TRANSIT, null).block();
 
 		// Assert
 		assertThat(string, is(notNullValue()));

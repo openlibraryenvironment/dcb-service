@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.Flux;
+
 import java.util.Map;
 import jakarta.inject.Singleton;
 import jakarta.inject.Named;
@@ -14,13 +14,11 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import jakarta.transaction.Transactional;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
-import java.util.UUID;
 import org.olf.dcb.core.HostLmsService;
 
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
-import java.time.Duration;
 
 
 @Singleton
@@ -112,9 +110,13 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
 
         private Mono<RequestWorkflowContext> updateThenCheckoutItem(RequestWorkflowContext rwc, HostLmsClient hostLmsClient, String[] patronBarcode) {
 
-                return  hostLmsClient.updateItemStatus(rwc.getSupplierRequest().getLocalItemId(), CanonicalItemState.AVAILABLE)
-                        .then( hostLmsClient.checkOutItemToPatron( rwc.getSupplierRequest().getLocalItemBarcode(), patronBarcode[0]) )
-                        .thenReturn(rwc);
+		final var supplierRequest = rwc.getSupplierRequest();
+
+					return hostLmsClient.updateItemStatus(
+						supplierRequest.getLocalItemId(), CanonicalItemState.AVAILABLE, supplierRequest.getLocalId())
+						.then( hostLmsClient.checkOutItemToPatron( rwc.getSupplierRequest().getLocalItemBarcode(), patronBarcode[0],
+							supplierRequest.getLocalId()) )
+						.thenReturn(rwc);
 
         }
 

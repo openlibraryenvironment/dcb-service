@@ -65,11 +65,11 @@ public interface HostLmsClient {
 
 	Mono<HostLmsItem> getItem(String localItemId, String localRequestId);
 
-	Mono<String> updateItemStatus(String itemId, CanonicalItemState crs);
+	Mono<String> updateItemStatus(String itemId, CanonicalItemState crs, String localRequestId);
 
 	// WARNING We might need to make this accept a patronIdentity - as different
 	// systems might take different ways to identify the patron
-	Mono<String> checkOutItemToPatron(String itemId, String patronBarcode);
+	Mono<String> checkOutItemToPatron(String itemId, String patronBarcode, String localRequestId);
 
 	Mono<String> deleteItem(String id);
 

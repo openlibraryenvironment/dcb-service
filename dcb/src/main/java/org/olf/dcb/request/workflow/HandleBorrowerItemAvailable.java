@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.Flux;
+
 import java.util.Map;
 import jakarta.inject.Singleton;
 import jakarta.inject.Named;
@@ -14,7 +14,6 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import jakarta.transaction.Transactional;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
-import java.util.UUID;
 import org.olf.dcb.core.HostLmsService;
 
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -89,8 +88,12 @@ public class HandleBorrowerItemAvailable implements WorkflowAction {
                      ( rwc.getSupplierRequest().getLocalItemId() != null ) &&
                      ( rwc.getLenderSystemCode() != null ) ) {
                         log.debug("Update supplying system item: {}",rwc.getSupplierRequest().getLocalItemId());
+
+												final var supplierRequest = rwc.getSupplierRequest();
+
                         return hostLmsService.getClientFor(rwc.getLenderSystemCode())
-                                .flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(rwc.getSupplierRequest().getLocalItemId(), HostLmsClient.CanonicalItemState.OFFSITE))
+                                .flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(supplierRequest.getLocalItemId(),
+																	HostLmsClient.CanonicalItemState.OFFSITE, supplierRequest.getLocalId()))
                                 .thenReturn(rwc);
                 }
                 else { 

@@ -4,8 +4,7 @@ import static io.micronaut.core.type.Argument.VOID;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static io.micronaut.http.HttpMethod.GET;
-import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.HttpMethod.*;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
@@ -31,6 +30,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.apache.commons.lang3.NotImplementedException;
+import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CannotPlaceRequestException;
 import org.olf.dcb.core.interaction.CreateItemCommand;
@@ -702,17 +702,66 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return makeRequest(authorisedRequest(GET, path), Argument.of(TransactionStatus.class));
 	}
 
-	@Override
-	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
-		return Mono.error(new NotImplementedException("Update item status is not currently implemented for FOLIO"));
+	private Mono<TransactionStatus> updateTransactionStatus(String localRequestId, String status) {
+		final var path = "/dcbService/transactions/%s/status".formatted(localRequestId);
+
+		return makeRequest(
+			authorisedRequest(PUT, path).body(
+				TransactionStatus.builder().status(status).build())
+			, Argument.of(TransactionStatus.class)
+		);
 	}
 
 	@Override
-	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
-		// WARNING We might need to make this accept a patronIdentity - as different
-		// systems might take different ways to identify the patron
+	public Mono<String> updateItemStatus(
+		String itemId, CanonicalItemState crs, String localRequestId) {
 
-		return Mono.error(new NotImplementedException("Check out item to patron is not currently implemented for FOLIO"));
+		final var toStatus = mapToTransactionStatus(crs);
+
+		// Don't send a request if we don't have a crs translation
+		if (toStatus.equals("OK")) {
+			// Still progress the workflow
+			return Mono.just(toStatus);
+		}
+
+		return updateTransactionStatus(localRequestId, toStatus)
+			.thenReturn("OK")
+			;
+	}
+
+	private static String mapToTransactionStatus(CanonicalItemState crs) {
+		return switch (crs) {
+			// HandleSupplierInTransit
+			case TRANSIT -> TransactionStatus.OPEN;
+
+			// HandleBorrowerItemOnHoldShelf
+			case RECEIVED -> TransactionStatus.AWAITING_PICKUP;
+
+			// HandleBorrowerItemLoaned
+			case AVAILABLE,
+
+				// HandleBorrowerItemAvailable
+				OFFSITE,
+
+				// not implemented in DCB
+				MISSING, ONHOLDSHELF -> unimplementedTransactionStatusMapping(crs);
+		};
+	}
+
+	private static String unimplementedTransactionStatusMapping(CanonicalItemState crs) {
+		log.warn("Update item status requested for {} and we don't have a folio translation for that", crs);
+
+		return "OK";
+	}
+
+	@Override
+	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode, String localRequestId) {
+
+		// HandleBorrowerItemLoaned
+		return updateTransactionStatus(localRequestId, TransactionStatus.ITEM_CHECKED_OUT)
+			.thenReturn("OK")
+			.switchIfEmpty(Mono.error(() ->
+				new DcbError("Check out of " + itemId + " to " + patronBarcode + " at " + getHostLmsCode() + " failed")));
 	}
 
 	@Override

@@ -239,14 +239,14 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return Mono.empty();
 	}
 
-	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
+	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs, String localRequestId) {
 		log.info("updateItemStatus({},{})", itemId, crs);
 		return Mono.just("Dummy");
 	}
 	// WARNING We might need to make this accept a patronIdentity - as different
 	// systems might take different ways to identify the patron
 
-	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
+	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode, String localRequestId) {
 		log.info("checkOutItemToPatron({},{})", itemId, patronBarcode);
 		return Mono.just("DUMMY");
 	}
