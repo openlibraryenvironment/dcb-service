@@ -7,15 +7,15 @@ import static org.hamcrest.Matchers.hasProperty;
 import org.hamcrest.Matcher;
 
 public class ThrowableMatchers {
-	public static Matcher<Throwable> hasMessage(String expectedMessage) {
+	public static <T extends Throwable> Matcher<T> hasMessage(String expectedMessage) {
 		return messageProperty(is(expectedMessage));
 	}
 
-	public static Matcher<Throwable> messageContains(String expectedMessage) {
+	public static <T extends Throwable> Matcher<T> messageContains(String expectedMessage) {
 		return messageProperty(containsString(expectedMessage));
 	}
 
-	private static Matcher<Throwable> messageProperty(Matcher<String> matcher) {
+	private static <T extends Throwable> Matcher<T> messageProperty(Matcher<String> matcher) {
 		return hasProperty("message", matcher);
 	}
 }
