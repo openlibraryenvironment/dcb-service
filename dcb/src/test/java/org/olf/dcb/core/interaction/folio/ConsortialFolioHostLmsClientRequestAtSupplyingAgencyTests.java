@@ -1,8 +1,10 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -237,7 +239,9 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.build())));
 
 		// Assert
-		assertThat(problem, hasMessage(
-			"Unexpected response from Host LMS: \"folio-supplying-request-tests\""));
+		assertThat(problem, allOf(
+			hasMessage("Unexpected response from Host LMS: \"folio-supplying-request-tests\""),
+			hasProperty("parameters", hasEntry("responseStatusCode", 400))
+		));
 	}
 }

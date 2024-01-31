@@ -72,6 +72,7 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -339,6 +340,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private ThrowableProblem mapToProblem(HttpClientResponseException responseException) {
 		return Problem.builder()
 			.withTitle("Unexpected response from Host LMS: \"%s\"".formatted(getHostLmsCode()))
+			.with("responseStatusCode", getValue(responseException.getStatus(), HttpStatus::getCode))
 			.build();
 	}
 
