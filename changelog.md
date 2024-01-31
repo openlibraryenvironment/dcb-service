@@ -1,9 +1,35 @@
 # Changelog
 
+## Version 5.1.0
+
+### Additions
+* [General]
+	* Reworked clustering
+	* circulate requests involving consortial folio libraries
+
+### Changes
+* [Chore]
+	* Tolerate null response when raising unexpected response exception DCB-849
+	* Tolerate null request when raising unexpected response exception DCB-849
+	* Include response in error message when unexpected response is received DCB-849
+	* Detect unexpected HTTP response when creating FOLIO transaction DCB-849
+	* Tone down some logging on stats service
+	* Add zero length checking to resumption token
+* [Feature]
+	* Add 245 to goldrush key
+* [Refactor]
+	* replace not implemented error with NOOP when attempting to finalise folio related requests [DCB-850]
+	* Introduce overload for raising unexpected response exception without a request DCB-849
+	* Move HTTP to log output methods to separate class DCB-849
+* [Test]
+	* Match properties for exceptions extending throwable DCB-849
+	* Demonstrate unexpected response from Sierra DCB-849
+
 ## Version 5.0.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* updated .gitignore
 
 ## Version 5.0.0
