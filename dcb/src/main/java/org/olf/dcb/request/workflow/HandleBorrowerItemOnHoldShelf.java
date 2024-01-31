@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
 
 
@@ -62,9 +61,13 @@ public class HandleBorrowerItemOnHoldShelf implements WorkflowAction {
                 if ( ( rwc.getSupplierRequest() != null ) &&
                      ( rwc.getSupplierRequest().getLocalItemId() != null ) &&
                      ( rwc.getLenderSystemCode() != null ) ) {
+
+									final var supplierRequest = rwc.getSupplierRequest();
+
 			return hostLmsService.getClientFor(rwc.getLenderSystemCode())
                                 // updateItemStatus here should be clearing the m-flag (Message)
-                		.flatMap( hostLmsClient ->  hostLmsClient.updateItemStatus(rwc.getSupplierRequest().getLocalItemId(), CanonicalItemState.RECEIVED))
+                		.flatMap( hostLmsClient ->  hostLmsClient.updateItemStatus(supplierRequest.getLocalItemId(),
+											CanonicalItemState.RECEIVED, supplierRequest.getLocalId()))
                                 .thenReturn(rwc);
 		}
 

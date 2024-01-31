@@ -93,7 +93,6 @@ import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
 import org.olf.dcb.core.AppState;
-import org.olf.dcb.core.AppState.AppStatus;
 
 @Slf4j
 @Prototype
@@ -261,7 +260,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
+	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs, String localRequestId) {
 		log.warn("Attempting to update an item status.");
 		return switch (crs) {
 			case AVAILABLE -> getCircStatusId(AVAILABLE).map(id -> updateItem(itemId, id)).thenReturn("OK");
@@ -363,7 +362,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
+	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode, String localRequestId) {
 		return appServicesClient.getItemBarcode(itemId)
 			.flatMap(itemBarcode -> papiClient.itemCheckoutPost(itemBarcode, patronBarcode))
 			.map(itemCheckoutResult -> "OK");
