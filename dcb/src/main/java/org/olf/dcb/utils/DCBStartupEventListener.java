@@ -206,7 +206,9 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			dcbNodeInfo.remove(thisNodeUUID);
 		}
 		catch ( Exception e ) {
-			log.error("pre-destroy problem",e);
+			log.info("Unable to deregister - likely last instance {}",e.getMessage());
+			// log.error("pre-destroy problem",e);
+			// If this was the last HZ instance, an exception is thrown - lets not pollute the logs as this is OK
 		}
 	}
 
