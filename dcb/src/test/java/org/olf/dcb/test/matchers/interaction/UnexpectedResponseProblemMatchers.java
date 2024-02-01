@@ -4,6 +4,8 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
+import java.util.Map;
+
 import org.hamcrest.Matcher;
 import org.zalando.problem.ThrowableProblem;
 
@@ -17,5 +19,12 @@ public class UnexpectedResponseProblemMatchers {
 		Integer expectedStatusCode) {
 
 		return hasProperty("parameters", hasEntry("responseStatusCode", expectedStatusCode));
+	}
+
+	public static Matcher<ThrowableProblem> hasJsonResponseBodyParameter(
+		Map<String, String> expectedProperties) {
+
+		return hasProperty("parameters",
+			hasEntry("responseBody", expectedProperties));
 	}
 }
