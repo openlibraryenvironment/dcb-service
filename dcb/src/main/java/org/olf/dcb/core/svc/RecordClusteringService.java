@@ -313,9 +313,17 @@ public class RecordClusteringService {
 		return matchClusters(bib, matchPoints)
 			.collectList()
 			.flatMap( curry( matchPoints.size(), this::reduceClusterRecords ))
-			.switchIfEmpty(Mono.just(bib).map(this::newClusterRecord))
+			.switchIfEmpty(Mono.just(bib).map(this::newOrExistingClusterRecord))
 			.flatMap(curry(bib, matchPoints, this::updateBibAndClusterData));
 	}
+
+	private ClusterRecord newOrExistingClusterRecord( BibRecord bib ) {
+		if ( bib.getContributesTo() != null ) {
+			log.warn("Asked to create a new cluster record because no other clusters matched, but the record already points at a cluster");
+		}
+		return newClusterRecord(bib);
+	}
+	
 	
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected Flux<ClusterRecord> matchClusters( BibRecord bib, Collection<MatchPoint> matchPoints ) {
