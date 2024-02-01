@@ -5,15 +5,15 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import org.hamcrest.Matcher;
-import org.zalando.problem.DefaultProblem;
+import org.zalando.problem.ThrowableProblem;
 
 public class UnexpectedResponseProblemMatchers {
-	public static Matcher<DefaultProblem> hasMessageForHostLms(String expectedHostLmsCode) {
+	public static Matcher<ThrowableProblem> hasMessageForHostLms(String expectedHostLmsCode) {
 		return hasMessage("Unexpected response from Host LMS: \"%s\""
 			.formatted(expectedHostLmsCode));
 	}
 
-	public static Matcher<DefaultProblem> hasResponseStatusCodeParameter(
+	public static Matcher<ThrowableProblem> hasResponseStatusCodeParameter(
 		Integer expectedStatusCode) {
 
 		return hasProperty("parameters", hasEntry("responseStatusCode", expectedStatusCode));

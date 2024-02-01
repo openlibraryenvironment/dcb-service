@@ -29,7 +29,7 @@ import org.olf.dcb.core.interaction.CannotPlaceRequestException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
-import org.zalando.problem.DefaultProblem;
+import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
@@ -228,7 +228,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var problem = assertThrows(DefaultProblem.class,
+		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
 					.localItemId(UUID.randomUUID().toString())
