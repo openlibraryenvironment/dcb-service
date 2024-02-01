@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CannotPlaceRequestException;
@@ -740,6 +739,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 			// HandleBorrowerItemOnHoldShelf
 			case RECEIVED -> TransactionStatus.AWAITING_PICKUP;
+
+			// HandleSupplierItemAvailable
+			case COMPLETED -> TransactionStatus.CLOSED;
 
 			// HandleBorrowerItemLoaned
 			case AVAILABLE,
