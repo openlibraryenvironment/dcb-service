@@ -11,6 +11,7 @@ import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.annotation.Join;
 import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -30,6 +31,11 @@ public interface BibRepository {
 	@NonNull
 	@SingleResult
 	Publisher<BibRecord> findById(@NonNull UUID id);
+	
+	@NonNull
+	@SingleResult
+	@Join(value = "contributesTo")
+	Publisher<BibRecord> getById(@NonNull UUID id);
 
 	@NonNull
 	Publisher<BibRecord> queryAll();

@@ -56,9 +56,10 @@ public class PublisherTransformationService {
 	}
 
 	public<T> Publisher<T> executeOnBlockingThreadPool ( @NonNull Publisher<T> pub ) {
-		
+		var blockingScheduler = Schedulers.fromExecutorService(blockingExecutor.get());
 		Flux<T> f = Flux.from(pub)
-			.subscribeOn(Schedulers.fromExecutorService(blockingExecutor.get()));
+			.subscribeOn( blockingScheduler )
+			.publishOn( blockingScheduler );
 		
 		if ( Publishers.isSingle(pub.getClass()) ) {
 			return f.singleOrEmpty();

@@ -268,7 +268,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 				
 				final String resumptionToken = response.resumptionToken();
 				
-				if (resumptionToken == null) {
+				if ( ( resumptionToken == null ) || ( resumptionToken.length() == 0 ) ) {
 
 					log.info("{} ingest Terminating cleanly - run out of bib results - new timestamp is {}", lms.getName(), state.request_start_time);
 	

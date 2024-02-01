@@ -77,14 +77,12 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	private final ConversionService conversionService;
 	
 	private final String indexName;
-	private final PublisherTransformationService pubs;
 	
 	public OpenSearchSharedIndexService(SharedIndexConfiguration conf, OpenSearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, SharedIndexQueueRepository sharedIndexQueueRepository, PublisherTransformationService pubs) {
-		super(recordClusteringService, sharedIndexQueueRepository);
+		super(recordClusteringService, sharedIndexQueueRepository, pubs);
 		this.client = client;
 		this.conversionService = conversionService;
 		this.indexName = conf.name();
-		this.pubs = pubs;
 	}
 	
 	@PostConstruct
@@ -374,7 +372,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 						sink.error(e);
 					}
 				})
-				.transform(pubs::executeOnBlockingThreadPool)
+				.transform(getPublisherTransformer()::executeOnBlockingThreadPool)
 				.onErrorMap(e -> new DcbError("Error communicating with OpenSearch", e))
 			)
 			.doOnNext( resp -> {

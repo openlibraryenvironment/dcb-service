@@ -72,7 +72,7 @@ public class GoldrushKey implements MatchKey {
 	@Size(max=10)
 	String titleNumber;
 	
-	public GoldrushKey parseTitle( final String fielda, @NonNull final String fieldb ) {
+	public GoldrushKey parseTitle( final String fielda, @NonNull final String fieldb, @NonNull final String fieldc ) {
 		
 		// Strip specials '{}
 		// Clean fieldA first, as we may not need field b at all.
@@ -81,7 +81,8 @@ public class GoldrushKey implements MatchKey {
 		
 		final Spliterator<String> words = Stream.of(
 		  fielda,
-		  fieldb
+		  fieldb,
+		  fieldc
 		)
 			.filter( StringUtils::isNotEmpty )
 			.map( text -> AMPERSAND.matcher(text).replaceAll("$1and$2") )

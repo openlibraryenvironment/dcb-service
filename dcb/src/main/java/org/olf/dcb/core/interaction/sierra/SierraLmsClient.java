@@ -1024,7 +1024,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	// II: We need to talk about this in a review session
 	@Override
-	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
+	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs, String localRequestId) {
 		log.debug("updateItemStatus({},{})", itemId, crs);
 		// See
 		// https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html#Standard
@@ -1093,7 +1093,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	// WARNING We might need to make this accept a patronIdentity - as different
 	// systems might take different ways to identify the patron
 	@Override
-	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
+	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode, String localRequestId) {
 		log.debug("checkOutItemToPatron({},{})", itemId, patronBarcode);
 
 		return Mono.from(client.checkOutItemToPatron(itemId, patronBarcode))

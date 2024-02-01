@@ -53,6 +53,6 @@ public interface PostgresBibRepository extends ReactiveStreamsPageableRepository
 		return Mono.empty();
 	}
 
-        Publisher<Page<BibRecord>> findAll(@Valid Pageable pageable);
+  Publisher<Page<BibRecord>> findAll(@Valid Pageable pageable);
 
 }

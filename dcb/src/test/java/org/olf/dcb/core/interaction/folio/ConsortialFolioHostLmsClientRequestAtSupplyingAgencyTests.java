@@ -13,16 +13,22 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.UnexpectedResponseExceptionMatchers.containsJsonResponseProperty;
+import static org.olf.dcb.test.matchers.UnexpectedResponseExceptionMatchers.containsRequestInformation;
+import static org.olf.dcb.test.matchers.UnexpectedResponseExceptionMatchers.containsResponseStatus;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.CannotPlaceRequestException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.UnexpectedResponseException;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
@@ -208,5 +214,40 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		// Assert
 		assertThat(exception, hasProperty("cause",
 			instanceOf(HttpClientResponseException.class)));
+	}
+
+	// Temporarily removed until error message length restriction challenges are resolved
+	@Disabled
+	@Test
+	void shouldFailWhenTransactionCreationReturnsUnexpectedHttpResponse() {
+		// Arrange
+		mockFolioFixture.mockCreateTransaction(response()
+			.withStatusCode(400)
+			// This is a made up body that is only intended to demonstrate how it's captured
+			.withBody(json(Map.of("message", "something went wrong"))));
+
+		final var pickupAgency = agencyFixture.defineAgency("pickup-agency", "Pickup Agency");
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var exception = assertThrows(UnexpectedResponseException.class,
+			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+				PlaceHoldRequestParameters.builder()
+					.localItemId(UUID.randomUUID().toString())
+					.localItemBarcode("46397196")
+					.localPatronId(UUID.randomUUID().toString())
+					.localPatronBarcode("9265614")
+					.localPatronType("undergrad")
+					.pickupAgency(pickupAgency)
+					.build())));
+
+		// Assert
+
+		// This cannot match the whole path as transaction ID cannot be known outside client
+		assertThat(exception, containsRequestInformation("POST", "/dcbService/transactions"));
+
+		assertThat(exception, containsResponseStatus(400));
+		assertThat(exception, containsJsonResponseProperty("message", "something went wrong"));
 	}
 }

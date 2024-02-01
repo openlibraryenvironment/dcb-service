@@ -6,6 +6,7 @@ import static services.k_int.integration.marc4j.Marc4jRecordUtils.typeFromLeader
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -224,12 +225,11 @@ public interface MarcIngestSource<T> extends IngestSource {
 		;
 	}
 
+	public static Stream<String> extractControlData(final Record marcRecord, @NotEmpty final String tag) {
 
-		public static Stream<String> extractControlData(final Record marcRecord, @NotEmpty final String tag) {
-
-		        return marcRecord.getVariableFields(tag).stream().filter(Objects::nonNull).map(ControlField.class::cast)
+		return marcRecord.getVariableFields(tag).stream().filter(Objects::nonNull).map(ControlField.class::cast)
 				.map(field -> field.getData());
-	        }
+	}
 
 	Publisher<T> getResources(Instant since);
 
@@ -298,11 +298,17 @@ public interface MarcIngestSource<T> extends IngestSource {
 			})
 			.orElseGet(() -> field245);
 		
-		List<String> fields = extractOrderedSubfields(fieldForTitle, "ab").limit(2)
+		// Goldrush does not normally include $c but that seems to create very odd clusters for things like 
+		// "Greatest Hits". It seems that $c can be a bit of a dumping ground - so whilst
+		// "$a Greatest Hits - $c Some Artist" is useful, "$a Greatest Hits - $s Some Artist, with a foreward by X and some other stuff by Y"
+		// is likely less helpful. It may be that taking the first 2 words of $c will yeild better results.
+		List<String> fields = extractOrderedSubfields(fieldForTitle, "abc").limit(3)
 				.toList();
 
 		if (fields.size() > 0) {
-			grk.parseTitle(fields.get(0), fields.size() > 1 ? fields.get(1) : null);
+			grk.parseTitle(fields.get(0), 
+				fields.size() > 1 ? fields.get(1) : null,
+				fields.size() > 2 ? fields.get(2) : null);
 		}
 
 		parseFromSingleSubfield(marcRecord, "245", 'h', grk::parseMediaDesignation);
@@ -320,62 +326,63 @@ public interface MarcIngestSource<T> extends IngestSource {
 		return grk;
 	}
 
-	public default IngestRecordBuilder enrichWithCanonicalRecord(final IngestRecordBuilder irb, 
-                final Record marcRecord) {
-		Map<String,Object> canonical_metadata = new HashMap<>();
+	public default IngestRecordBuilder enrichWithCanonicalRecord(final IngestRecordBuilder irb, final Record marcRecord) {
+		Map<String, Object> canonical_metadata = new HashMap<>();
 		IngestRecord ir = irb.build();
-		canonical_metadata.put("title",ir.getTitle());
-		canonical_metadata.put("identifiers",ir.getIdentifiers());
-		canonical_metadata.put("derivedType",ir.getDerivedType());
-		canonical_metadata.put("recordStatus",ir.getRecordStatus());
+		canonical_metadata.put("title", ir.getTitle());
+		canonical_metadata.put("identifiers", ir.getIdentifiers());
+		canonical_metadata.put("derivedType", ir.getDerivedType());
+		canonical_metadata.put("recordStatus", ir.getRecordStatus());
 		// canonical_metadata.put("typeOfRecord",ir.getTypeOfRecord());
 		// canonical_metadata.put("bibLevel",ir.getBibLevel());
 		// canonical_metadata.put("materialType",ir.getMaterialType());
-		canonical_metadata.put("author",ir.getAuthor());
-		canonical_metadata.put("otherAuthors",ir.getOtherAuthors());
+		canonical_metadata.put("author", ir.getAuthor());
+		canonical_metadata.put("otherAuthors", ir.getOtherAuthors());
 
 		DataField publisher1 = (DataField) marcRecord.getVariableField("264");
-		if ( publisher1 != null ) {
-			setIfSubfieldPresent(publisher1,'a',canonical_metadata,"placeOfPublication");
-			setIfSubfieldPresent(publisher1,'b',canonical_metadata,"publisher");
-			setIfSubfieldPresent(publisher1,'c',canonical_metadata,"dateOfPublication");
-                }
-                else {
-		        DataField publisher2 = (DataField) marcRecord.getVariableField("260");
-		        if ( publisher2 != null ) {
-			        setIfSubfieldPresent(publisher2,'a',canonical_metadata,"placeOfPublication");
-			        setIfSubfieldPresent(publisher2,'b',canonical_metadata,"publisher");
-			        setIfSubfieldPresent(publisher2,'c',canonical_metadata,"dateOfPublication");
-                        }
+		if (publisher1 != null) {
+			setIfSubfieldPresent(publisher1, 'a', canonical_metadata, "placeOfPublication");
+			setIfSubfieldPresent(publisher1, 'b', canonical_metadata, "publisher");
+			setIfSubfieldPresent(publisher1, 'c', canonical_metadata, "dateOfPublication");
+		} else {
+			DataField publisher2 = (DataField) marcRecord.getVariableField("260");
+			if (publisher2 != null) {
+				setIfSubfieldPresent(publisher2, 'a', canonical_metadata, "placeOfPublication");
+				setIfSubfieldPresent(publisher2, 'b', canonical_metadata, "publisher");
+				setIfSubfieldPresent(publisher2, 'c', canonical_metadata, "dateOfPublication");
+			}
 		}
 
-		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("500") ) {
-                        addToCanonicalMetadata("notes", vf, "a", canonical_metadata);
-                }
+		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("500")) {
+			addToCanonicalMetadata("notes", vf, "a", canonical_metadata);
+		}
 
-		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("520") ) {
-                        addToCanonicalMetadata("summary", vf, "a", canonical_metadata);
-                }
+		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("520")) {
+			addToCanonicalMetadata("summary", vf, "a", canonical_metadata);
+		}
 
-		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("505") ) {
-                        addToCanonicalMetadata("contents", vf, "a", canonical_metadata);
-                }
+		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("505")) {
+			addToCanonicalMetadata("contents", vf, "a", canonical_metadata);
+		}
 
-		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("504") ) {
-                        addToCanonicalMetadata("bibNotes", vf, "a", canonical_metadata);
-                }
+		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("504")) {
+			addToCanonicalMetadata("bibNotes", vf, "a", canonical_metadata);
+		}
 
-		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("490") ) { 
-                        addToCanonicalMetadata("series", vf, "abcdefghijklmnopqrstuvwxyz", canonical_metadata); }
-		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("830") ) { 
-                        addToCanonicalMetadata("series", vf, "abcdefghijklmnopqrstuvwxyz", canonical_metadata); }
+		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("490")) {
+			addToCanonicalMetadata("series", vf, "abcdefghijklmnopqrstuvwxyz", canonical_metadata);
+		}
+		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("830")) {
+			addToCanonicalMetadata("series", vf, "abcdefghijklmnopqrstuvwxyz", canonical_metadata);
+		}
 
-		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("041") ) { addToCanonicalMetadata("language", vf, "a", canonical_metadata); }
+		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("041")) {
+			addToCanonicalMetadata("language", vf, "a", canonical_metadata);
+		}
 
-
-
-                // Commented - 700s need to be added as author objects
-		// addToCanonicalMetadata("author", "700", "other", marcRecord, canonical_metadata);
+		// Commented - 700s need to be added as author objects
+		// addToCanonicalMetadata("author", "700", "other", marcRecord,
+		// canonical_metadata);
 
 		// Extract some subject metadata
 		addToCanonicalMetadata("subjects", "600", "personal-name", marcRecord, canonical_metadata);
@@ -404,7 +411,8 @@ public interface MarcIngestSource<T> extends IngestSource {
 		addToCanonicalMetadata("agents", "110", "name-corporate", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("agents", "111", "name-meeting", marcRecord, canonical_metadata);
 
-		// addToCanonicalMetadata("agents", "130", "uniform-title", marcRecord, canonical_metadata);
+		// addToCanonicalMetadata("agents", "130", "uniform-title", marcRecord,
+		// canonical_metadata);
 
 		addToCanonicalMetadata("physical-description", "300", null, marcRecord, canonical_metadata);
 		addToCanonicalMetadata("content-type", "336", null, marcRecord, canonical_metadata);
@@ -414,13 +422,15 @@ public interface MarcIngestSource<T> extends IngestSource {
 		if (edition_field != null) {
 			canonical_metadata.put("edition", tidy(edition_field.getSubfieldsAsString("a")));
 		}
-		
+
 		return irb.canonicalMetadata(canonical_metadata);
 	}
 
 	public default IngestRecordBuilder enrichWithMetadataScore(final IngestRecordBuilder irb, final Record marcRecord) {
 		int score = 0;
-		Map<String, Object> canonical_metadata = irb.build().getCanonicalMetadata();
+		IngestRecord currentRecordView = irb.build();
+		
+		Map<String, Object> canonical_metadata = currentRecordView.getCanonicalMetadata();
 		
 		if (canonical_metadata != null) {
 			
@@ -436,16 +446,20 @@ public interface MarcIngestSource<T> extends IngestSource {
 			score++;
 		}
 		
+		score += Optional.ofNullable(currentRecordView.getIdentifiers())
+			.map( Collection::size )
+			.orElse( 0 );
+		
 		return irb.metadataScore(score);
 	}
 
 	private void setIfSubfieldPresent(DataField f, char subfield, Map<String, Object> target, String key) {
-                if ( f != null ) {
-		        Subfield subfield_v = f.getSubfield(subfield);
-		        if ( subfield_v != null ) {
-			        target.put(key,tidy(subfield_v.getData()));
-		        }
-                }
+		if (f != null) {
+			Subfield subfield_v = f.getSubfield(subfield);
+			if (subfield_v != null) {
+				target.put(key, tidy(subfield_v.getData()));
+			}
+		}
 	}
 
 	private String tidy(String inputstr) {
@@ -456,22 +470,20 @@ public interface MarcIngestSource<T> extends IngestSource {
 	}
 
 
-	private void addToCanonicalMetadata(String property, 
-                VariableField vf,
-                String tags, 
-                Map<String, Object> canonical_metadata) {
+	private void addToCanonicalMetadata(String property, VariableField vf, String tags,
+			Map<String, Object> canonical_metadata) {
 
-                String value = ((DataField)vf).getSubfieldsAsString("a");
+		String value = ((DataField) vf).getSubfieldsAsString("a");
 
-                if ( value != null ) {
-		        List<Object> the_values = (List<Object>) canonical_metadata.get(property);
-                        if ( the_values == null ) {
-                                the_values = new ArrayList();
-                                canonical_metadata.put(property, the_values);
-                        }
-                        the_values.add(value);
-                }
-        }
+		if (value != null) {
+			List<Object> the_values = (List<Object>) canonical_metadata.get(property);
+			if (the_values == null) {
+				the_values = new ArrayList();
+				canonical_metadata.put(property, the_values);
+			}
+			the_values.add(value);
+		}
+	}
 
 	private void addToCanonicalMetadata(String property, String tag, String subtype, Record marcRecord,
 			Map<String, Object> canonical_metadata) {

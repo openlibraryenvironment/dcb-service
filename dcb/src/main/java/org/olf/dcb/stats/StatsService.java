@@ -122,16 +122,17 @@ public class StatsService implements Runnable{
 			if ( amITheLeader() ) {
 				List evict_list = new ArrayList();
 				for ( var entry : dcbNodeInfo.entrySet() ) {
-					log.debug("Eviction testing {} / {}",entry.getKey(), entry.getValue() );
+					// log.debug("Eviction testing {} / {}",entry.getKey(), entry.getValue() );
 					if ( ! isLive(entry.getKey() ) ) {
 						evict_list.add(entry.getKey());
 					}
 				}
 
 				if ( evict_list.size() > 0 )	 {
-					log.debug("Evicting zombie nodes: {}",evict_list);
-					for ( var k : evict_list )
+					for ( var k : evict_list ) {
+					  log.debug("HZ Evicting zombie nodes: {}",k);
 						dcbNodeInfo.remove(k);
+					}
 				}
 			}
     }
@@ -146,11 +147,11 @@ public class StatsService implements Runnable{
 	}
 
 	public boolean isLive(String nodeid) {
-		log.debug("test liveliness {}",nodeid);
+		// log.debug("test liveliness {}",nodeid);
 		boolean result = false;
 		for ( var m : hazelcastInstance.getCluster().getMembers() ) {
 			String member_id_as_string = m.getUuid().toString();
-			log.debug("Test {} == {} - {}",nodeid,member_id_as_string,nodeid.equals(member_id_as_string));
+			// log.debug("Test {} == {} - {}",nodeid,member_id_as_string,nodeid.equals(member_id_as_string));
 			if ( nodeid.equals(member_id_as_string) )
 				result = true;
 		}

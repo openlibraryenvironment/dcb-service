@@ -4,17 +4,20 @@ import static io.micronaut.core.type.Argument.VOID;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static io.micronaut.http.HttpMethod.GET;
-import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.HttpMethod.*;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_ON_HOLDSHELF;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
+import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
@@ -28,9 +31,9 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.NotImplementedException;
+import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CannotPlaceRequestException;
 import org.olf.dcb.core.interaction.CreateItemCommand;
@@ -64,10 +67,8 @@ import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.type.Argument;
-import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -322,7 +323,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.build());
 	}
 
-	private Mono<CreateTransactionResponse> createTransaction(MutableHttpRequest<CreateTransactionRequest> request) {
+	private Mono<CreateTransactionResponse> createTransaction(
+		MutableHttpRequest<CreateTransactionRequest> request) {
 
 		return makeRequest(request, Argument.of(CreateTransactionResponse.class))
 			.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
@@ -674,8 +676,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			// When the item is returned back to the supplying agency, the transaction is closed
 			// The Host LMS reactions use the available local item status to represent the item becoming available again at the end
 			case "CLOSED" -> ITEM_AVAILABLE;
+			case "AWAITING_PICKUP" -> ITEM_ON_HOLDSHELF;
+			case "ITEM_CHECKED_OUT" -> ITEM_LOANED;
+			// This is needed to trigger the return to the lending agency workflow action
+			case "ITEM_CHECKED_IN" -> ITEM_TRANSIT;
 			// These recognised but unhandled statuses should trigger the unhandled status handlers in host LMS reactions
-			case "CREATED", "OPEN", "AWAITING_PICKUP", "ITEM_CHECKED_OUT", "ITEM_CHECKED_IN", "CANCELLED", "ERROR" -> status;
+			case "CREATED", "OPEN", "CANCELLED", "ERROR" -> status;
 			default -> throw new RuntimeException(
 				"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
 					.formatted(status, transactionId));
@@ -700,27 +706,78 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return makeRequest(authorisedRequest(GET, path), Argument.of(TransactionStatus.class));
 	}
 
-	@Override
-	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs) {
-		return Mono.error(new NotImplementedException("Update item status is not currently implemented for FOLIO"));
+	private Mono<TransactionStatus> updateTransactionStatus(String localRequestId, String status) {
+		final var path = "/dcbService/transactions/%s/status".formatted(localRequestId);
+
+		return makeRequest(
+			authorisedRequest(PUT, path).body(
+				TransactionStatus.builder().status(status).build())
+			, Argument.of(TransactionStatus.class)
+		);
 	}
 
 	@Override
-	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode) {
-		// WARNING We might need to make this accept a patronIdentity - as different
-		// systems might take different ways to identify the patron
+	public Mono<String> updateItemStatus(
+		String itemId, CanonicalItemState crs, String localRequestId) {
 
-		return Mono.error(new NotImplementedException("Check out item to patron is not currently implemented for FOLIO"));
+		final var toStatus = mapToTransactionStatus(crs);
+
+		// Don't send a request if we don't have a crs translation
+		if (toStatus.equals("OK")) {
+			// Still progress the workflow
+			return Mono.just(toStatus);
+		}
+
+		return updateTransactionStatus(localRequestId, toStatus)
+			.thenReturn("OK")
+			;
+	}
+
+	private static String mapToTransactionStatus(CanonicalItemState crs) {
+		return switch (crs) {
+			// HandleSupplierInTransit
+			case TRANSIT -> TransactionStatus.OPEN;
+
+			// HandleBorrowerItemOnHoldShelf
+			case RECEIVED -> TransactionStatus.AWAITING_PICKUP;
+
+			// HandleBorrowerItemLoaned
+			case AVAILABLE,
+
+				// HandleBorrowerItemAvailable
+				OFFSITE,
+
+				// not implemented in DCB
+				MISSING, ONHOLDSHELF -> unimplementedTransactionStatusMapping(crs);
+		};
+	}
+
+	private static String unimplementedTransactionStatusMapping(CanonicalItemState crs) {
+		log.warn("Update item status requested for {} and we don't have a folio translation for that", crs);
+
+		return "OK";
+	}
+
+	@Override
+	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode, String localRequestId) {
+
+		// HandleBorrowerItemLoaned
+		return updateTransactionStatus(localRequestId, TransactionStatus.ITEM_CHECKED_OUT)
+			.thenReturn("OK")
+			.switchIfEmpty(Mono.error(() ->
+				new DcbError("Check out of " + itemId + " to " + patronBarcode + " at " + getHostLmsCode() + " failed")));
 	}
 
 	@Override
 	public Mono<String> deleteItem(String id) {
-		return Mono.error(new NotImplementedException("Delete virtual item is not currently implemented for FOLIO"));
+		log.info("Delete virtual item is not currently implemented for FOLIO");
+		return Mono.just("OK");
 	}
 
 	@Override
 	public Mono<String> deleteBib(String id) {
-		return Mono.error(new NotImplementedException("Delete virtual bib is not currently implemented for FOLIO"));
+		log.info("Delete virtual bib is not currently implemented for FOLIO");
+		return Mono.just("OK");
 	}
 
 	private <T, R> Mono<T> makeRequest(@NonNull MutableHttpRequest<R> request,
@@ -734,32 +791,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.doOnError(HttpClientResponseException.class,
 				error -> log.trace("Received error response: {} from Host LMS: {}",
 					toLogOutput(error.getResponse()), getHostLmsCode()));
-	}
-
-	private <T> String toLogOutput(MutableHttpRequest<T> request) {
-		if (request == null) {
-			return "Request is null";
-		}
-
-		return request + " with body: \"" + request.getBody(Argument.of(String.class)) + "\"";
-	}
-
-	private String toLogOutput(HttpResponse<?> response) {
-		if (response == null) {
-			return "No response included in error";
-		}
-
-		return "Status: \"%s\"\nHeaders: %s\nBody: %s\n".formatted(
-			getValue(response, HttpResponse::getStatus),
-			toLogOutput(response.getHeaders()),
-			response.getBody(Argument.of(String.class))
-		);
-	}
-
-	private String toLogOutput(HttpHeaders headers) {
-		return headers.asMap().entrySet().stream()
-			.map(entry -> "%s: %s".formatted(entry.getKey(), entry.getValue()))
-			.collect(Collectors.joining("; "));
 	}
 
 	private MutableHttpRequest<Object> authorisedRequest(HttpMethod method, String path) {

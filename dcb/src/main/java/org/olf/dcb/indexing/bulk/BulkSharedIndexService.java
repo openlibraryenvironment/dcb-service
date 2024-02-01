@@ -2,6 +2,7 @@ package org.olf.dcb.indexing.bulk;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,10 +31,10 @@ import io.micronaut.scheduling.annotation.Scheduled;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.annotation.PreDestroy;
-import reactor.core.publisher.BufferOverflowStrategy;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import services.k_int.micronaut.PublisherTransformationService;
 
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 public abstract class BulkSharedIndexService implements SharedIndexService {
@@ -41,21 +42,27 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	
 	private final AtomicBoolean circuitOpen = new AtomicBoolean(false);
 
-	private FluxSink<UUID> theSink = null;
+	private FluxSink<String> theSink = null;
 	
 	private final RecordClusteringService clusters;
 	
 	// Maximum size of each chunk to send to the shared index.
 	final int maxSize = 1000;
 	
-	final Duration throttleTimeout = Duration.ofSeconds(3);
+	final Duration throttleTimeout = Duration.ofSeconds(30);
 
 	private final SharedIndexQueueRepository sharedIndexQueueRepository;
+	private final PublisherTransformationService publisherTransformer;
 	
-	protected BulkSharedIndexService( RecordClusteringService clusters, SharedIndexQueueRepository sharedIndexQueueRepository ) {
+	public PublisherTransformationService getPublisherTransformer() {
+		return publisherTransformer;
+	}
+
+	protected BulkSharedIndexService( RecordClusteringService clusters, SharedIndexQueueRepository sharedIndexQueueRepository, PublisherTransformationService publisherTransformationService ) {
 		
 		this.clusters = clusters;
 		this.sharedIndexQueueRepository = sharedIndexQueueRepository;
+		this.publisherTransformer = publisherTransformationService;
 		initializeQueue();
 	}
 
@@ -65,16 +72,28 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 		saveSingleEntry(id, Optional.empty()).block();
 	}
 	
-	protected void initializeQueue() {
-		Flux.create(this::setSink)
-			.onBackpressureBuffer( maxSize * 2, this::overflow, BufferOverflowStrategy.DROP_LATEST)
-			.windowTimeout(maxSize, throttleTimeout)
-			.concatMap( source -> source.buffer(), 0)
-			.doOnNext( bulk -> {
-				if (log.isDebugEnabled()) log.debug("Got list of {} index items", bulk.size());
-			})
+	protected Flux<List<UUID>> collectAndDedupe(Flux<String> in) {
+		// Collect at double output rate
+		return in.distinctUntilChanged()
+			.windowTimeout( maxSize * 2, throttleTimeout.dividedBy(2) )
+			.windowTimeout( 2, throttleTimeout )
+			.flatMap( sources -> Flux.concat( sources ).distinct().buffer(maxSize) )
 			.delayElements( Duration.ofSeconds(2) )
-			.transform(this::expandAndProcess)
+			.map( bulk -> {
+				
+				var deduped = bulk.stream().distinct().map(UUID::fromString).toList();
+				
+				if (log.isDebugEnabled()) log.debug("Got list of {} index items", deduped.size());
+				
+				return deduped;
+			});
+	}
+	
+	protected void initializeQueue() {
+		Flux.create( this::setSink )
+			.transform( publisherTransformer::executeOnBlockingThreadPool )
+			.transform( this::collectAndDedupe )
+			.transform( this::expandAndProcess )
 			.doOnComplete(() -> log.info("Subscription finalised"))
 			.retry(10)
 			.subscribe( null, t -> {
@@ -108,8 +127,9 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	@CircuitBreaker(reset = "2m", attempts = "3", maxDelay = "5s", throwWrappedException = true )
 	protected Flux<List<IndexOperation<UUID, ClusterRecord>>> offloadToImplementation( final List<IndexOperation<UUID, ClusterRecord>> ops ) {
 		return Flux.just(ops)
-			.flatMap( this::doOnNext )
-			.concatMap( this::afterIndex )
+			.transform( publisherTransformer::executeOnBlockingThreadPool )
+			.flatMap( data -> Flux.from( doOnNext(data) ).transform( publisherTransformer::executeOnBlockingThreadPool ) )
+			.concatMap( data -> afterIndex(data).transform( publisherTransformer::executeOnBlockingThreadPool ) )
 			.doOnNext(_item -> this.flagCircuitClosed());
 	}
 	
@@ -183,10 +203,28 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	@Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
 	protected Mono<List<IndexOperation<UUID, ClusterRecord>>> manifestCluster (final List<UUID> itemIds) {
 		
-		return Flux.just(itemIds)
-			.flatMap(clusters::findAllByIdInListWithBibs)
+		return Mono.just(itemIds)
+			.transform( publisherTransformer::executeOnBlockingThreadPool )
+			.flatMapMany( clusters::findAllByIdInListWithBibs)
 			.map( this::clusterRecordToIndexOperation )
-			.collectList();
+			.collectMultimap( IndexOperation::type )
+			.map( typeMap -> {
+				
+				final List<IndexOperation<UUID, ClusterRecord>> records = new ArrayList<>(); 
+				
+				final StringBuffer msg = new StringBuffer();
+				
+				typeMap.forEach((type, recs) -> {
+					msg.append(", " + type.name() + ": " + recs.size());
+					records.addAll(recs);
+				});
+				
+				if (msg.length() > 0) {
+					log.info("Bulking: {}", msg.substring(2) );
+				}
+				
+				return records;
+			});
 	}
 	
 	private IndexOperation<UUID, ClusterRecord> clusterRecordToIndexOperation( @NotNull final ClusterRecord cr ) {
@@ -234,7 +272,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	@NonNull
 	protected abstract Publisher<List<IndexOperation<UUID, ClusterRecord>>> doOnNext ( final List<IndexOperation<UUID, ClusterRecord>> item);
 	
-	private void setSink(FluxSink<UUID> sink) {
+	private void setSink(FluxSink<String> sink) {
 		this.theSink = sink;
 	}
 
@@ -244,7 +282,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	
 	private void queueId(UUID clusterId) {		
 		checkSink();
-		this.theSink.next(clusterId);
+		if (clusterId != null) this.theSink.next(clusterId.toString());
 	}
 	
 	@Override

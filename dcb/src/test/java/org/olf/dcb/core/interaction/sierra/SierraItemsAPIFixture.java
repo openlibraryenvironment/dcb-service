@@ -35,8 +35,12 @@ public class SierraItemsAPIFixture {
 	}
 
 	public void mockGetItemById(String id, org.olf.dcb.core.interaction.sierra.SierraItem item) {
+		mockGetItemById(id, sierraMockServerResponses.jsonSuccess(json(mapItem(item))));
+	}
+
+	public void mockGetItemById(String id, HttpResponse response) {
 		mockServer.when(getItemById(id))
-			.respond(sierraMockServerResponses.jsonSuccess(json(mapItem(item))));
+			.respond(response);
 	}
 
 	private HttpRequest getItemById(String id) {
