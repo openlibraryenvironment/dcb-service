@@ -27,7 +27,10 @@ class UnexpectedResponseProblemTests {
 		// Act
 		final var exception = createResponseException(badRequest()
 			.contentType(APPLICATION_JSON_TYPE)
-			.body(Map.of("error", "something went wrong")));
+			.body(Map.of(
+				"error", "something went wrong",
+				"code", 109
+			)));
 
 		final var problem = unexpectedResponseProblem(exception,
 			examplePostRequest(), "example-host-lms");
@@ -36,7 +39,8 @@ class UnexpectedResponseProblemTests {
 		assertThat(problem, allOf(
 			hasMessageForHostLms("example-host-lms"),
 			hasResponseStatusCodeParameter(400),
-			hasJsonResponseBodyProperty("error", "something went wrong")
+			hasJsonResponseBodyProperty("error", "something went wrong"),
+			hasJsonResponseBodyProperty("code", 109)
 		));
 	}
 
