@@ -460,7 +460,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> getPatronByUsername(String localUsername) {
-		final var query = exactEqualityQuery("username", localUsername);
+		// we use barcode for patron lookup not username
+		final var query = exactEqualityQuery("barcode", localUsername);
 
 			return findUsers(query)
 				.flatMap(response -> mapFirstUserToPatron(response, query, Mono.empty()))
