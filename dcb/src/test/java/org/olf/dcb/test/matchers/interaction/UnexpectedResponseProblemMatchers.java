@@ -32,4 +32,9 @@ public class UnexpectedResponseProblemMatchers {
 
 		return hasProperty("parameters", hasEntry("responseBody", expectedBody));
 	}
+
+	public static Matcher<ThrowableProblem> hasRequestMethodParameter(
+		String expectedValue) {
+		return hasProperty("parameters", hasEntry("requestMethod", expectedValue));
+	}
 }

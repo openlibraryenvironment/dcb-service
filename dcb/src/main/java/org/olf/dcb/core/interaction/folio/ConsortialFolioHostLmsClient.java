@@ -332,8 +332,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
 			.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError)
 			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new)
-			.onErrorMap(HttpClientResponseException.class,
-				responseException -> unexpectedResponseProblem(responseException, this.getHostLmsCode()));
+			.onErrorMap(HttpClientResponseException.class, responseException ->
+				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
 	}
 
 	private CannotPlaceRequestException interpretValidationError(Throwable error) {

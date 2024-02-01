@@ -8,6 +8,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasTextResponseBodyParameter;
 
@@ -15,6 +16,8 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 
@@ -26,13 +29,15 @@ class UnexpectedResponseProblemTests {
 			.contentType(APPLICATION_JSON_TYPE)
 			.body(Map.of("error", "something went wrong")));
 
-		final var problem = unexpectedResponseProblem(exception, "example-host-lms");
+		final var problem = unexpectedResponseProblem(exception,
+			examplePostRequest(), "example-host-lms");
 
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForHostLms("example-host-lms"),
 			hasResponseStatusCodeParameter(400),
-			hasJsonResponseBodyParameter(Map.of("error", "something went wrong"))
+			hasJsonResponseBodyParameter(Map.of("error", "something went wrong")),
+			hasRequestMethodParameter("POST")
 		));
 	}
 
@@ -43,22 +48,25 @@ class UnexpectedResponseProblemTests {
 			.contentType(TEXT_PLAIN_TYPE)
 			.body("something went wrong"));
 
-		final var problem = unexpectedResponseProblem(exception, "example-host-lms");
+		final var problem = unexpectedResponseProblem(exception,
+			exampleGetRequest(), "example-host-lms");
 
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForHostLms("example-host-lms"),
 			hasResponseStatusCodeParameter(400),
-			hasTextResponseBodyParameter("something went wrong")
+			hasTextResponseBodyParameter("something went wrong"),
+			hasRequestMethodParameter("GET")
 		));
 	}
 
 	@Test
-	void shouldCreateProblemFromResponseWithNoBody() {
+	void shouldCreateProblemFromResponseWithNoResponseBody() {
 		// Act
 		final var exception = createResponseException(badRequest());
 
-		final var problem = unexpectedResponseProblem(exception, "example-host-lms");
+		final var problem = unexpectedResponseProblem(exception,
+			exampleGetRequest(), "example-host-lms");
 
 		// Assert
 		assertThat(problem, allOf(
@@ -68,9 +76,33 @@ class UnexpectedResponseProblemTests {
 		));
 	}
 
+	@Test
+	void shouldCreateProblemFromResponseWithNoRequest() {
+		// Act
+		final var exception = createResponseException(badRequest());
+
+		final var problem = unexpectedResponseProblem(exception, null,
+			"example-host-lms");
+
+		// Assert
+		assertThat(problem, allOf(
+			hasMessageForHostLms("example-host-lms"),
+			hasResponseStatusCodeParameter(400),
+			hasRequestMethodParameter(null)
+		));
+	}
+
 	private static <T> HttpClientResponseException createResponseException(
 		MutableHttpResponse<T> response) {
 
 		return new HttpClientResponseException("", response);
+	}
+
+	private static MutableHttpRequest<Object> examplePostRequest() {
+		return HttpRequest.POST("http://some-host-lms", null);
+	}
+
+	private static MutableHttpRequest<Object> exampleGetRequest() {
+		return HttpRequest.GET("http://some-host-lms");
 	}
 }
