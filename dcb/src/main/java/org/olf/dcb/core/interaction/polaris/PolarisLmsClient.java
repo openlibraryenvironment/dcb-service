@@ -229,7 +229,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				log.error("Error attempting to create item {} : {}", createItemCommand, error.getMessage());
 				return Problem.builder()
 						.withType(ERR0211)
-						.withTitle("Unable to create virtual item at polaris - pr="+createItemCommand.getPatronRequestId())
+						.withTitle("Unable to create virtual item at polaris - pr="+createItemCommand.getPatronRequestId()+" cit="+createItemCommand.getCanonicalItemType())
 						.withDetail(error.getMessage())
 						.with("createItemCommand",createItemCommand)
 						.build();

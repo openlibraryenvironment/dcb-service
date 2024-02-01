@@ -222,7 +222,7 @@ public class BibRecordService {
 		// Add in some processing to abort if we don't have a title - probably we should treat this as a delete signal
 		
 		if ( StringUtils.trimToNull(source.getTitle()) == null) {
-			statsService.notifyEvent("DroppedTitle",source.getSourceSystem().getCode());
+			statsService.notifyEvent("DroppedNullTitle",source.getSourceSystem().getCode());
 			log.warn("Record {} with empty title - bailing", source);
 			return Mono.empty();
 		}
