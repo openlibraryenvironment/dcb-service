@@ -20,6 +20,7 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
+import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
@@ -63,8 +64,6 @@ import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
-import org.zalando.problem.Problem;
-import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -72,7 +71,6 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -334,14 +332,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
 			.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError)
 			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new)
-			.onErrorMap(HttpClientResponseException.class, this::mapToProblem);
-	}
-
-	private ThrowableProblem mapToProblem(HttpClientResponseException responseException) {
-		return Problem.builder()
-			.withTitle("Unexpected response from Host LMS: \"%s\"".formatted(getHostLmsCode()))
-			.with("responseStatusCode", getValue(responseException.getStatus(), HttpStatus::getCode))
-			.build();
+			.onErrorMap(HttpClientResponseException.class,
+				responseException -> unexpectedResponseProblem(responseException, this.getHostLmsCode()));
 	}
 
 	private CannotPlaceRequestException interpretValidationError(Throwable error) {
