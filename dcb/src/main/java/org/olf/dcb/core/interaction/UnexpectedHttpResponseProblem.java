@@ -15,13 +15,16 @@ public class UnexpectedHttpResponseProblem {
 	public static ThrowableProblem unexpectedResponseProblem(
 		HttpClientResponseException responseException, String hostLmsCode) {
 
-		final var jsonResponseBody = responseException.getResponse().getBody(
-			Argument.of(Map.class)).orElse(Map.of());
+		final var jsonResponseBody = InterpretBody(responseException);
 
 		return Problem.builder()
 			.withTitle("Unexpected response from Host LMS: \"%s\"".formatted(hostLmsCode))
 			.with("responseStatusCode", getValue(responseException.getStatus(), HttpStatus::getCode))
 			.with("responseBody", jsonResponseBody)
 			.build();
+	}
+
+	private static Object InterpretBody(HttpClientResponseException responseException) {
+		return responseException.getResponse().getBody(Argument.of(Map.class)).orElse(Map.of());
 	}
 }
