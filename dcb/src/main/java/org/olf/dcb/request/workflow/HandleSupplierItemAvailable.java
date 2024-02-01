@@ -31,20 +31,18 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 	private final PatronRequestAuditService auditService;
-	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private HostLmsService hostLmsService;
 
 	public HandleSupplierItemAvailable(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
-		PatronRequestAuditService auditService, RequestWorkflowContextHelper requestWorkflowContextHelper,
+		PatronRequestAuditService auditService,
 		HostLmsService hostLmsService) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.auditService = auditService;
-		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.hostLmsService = hostLmsService;
 	}
 
@@ -90,7 +88,7 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 			// An item becoming available means the request process has 'completed'
 
 			// DCB-851 update borrowing lib
-			return updateHostLmsClients(pr)
+			return updateBorrowerThatItemHasBeenReceivedBack(pr)
 				// when successful update dcb
 				.doOnSuccess(ok -> {
 					log.debug("Finalising supplier request - item is available at lender again");
@@ -104,18 +102,12 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 		}
 	}
 
-	private Mono<String> updateHostLmsClients(PatronRequest pr) {
-		return Mono.zip( Mono.just(pr), requestWorkflowContextHelper.fromPatronRequest(pr) )
-			.flatMap(function(this::updateBorrowerThatItemHasBeenReceivedBack));
-	}
-
-	private Mono<String> updateBorrowerThatItemHasBeenReceivedBack(
-		PatronRequest patronRequest, RequestWorkflowContext requestWorkflowContext) {
+	private Mono<String> updateBorrowerThatItemHasBeenReceivedBack(PatronRequest patronRequest) {
 
 		final var localId = patronRequest.getLocalRequestId();
 		final var localItemId = patronRequest.getLocalItemId();
 
-		return hostLmsService.getClientFor(requestWorkflowContext.getPatronSystemCode())
+		return hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode())
 			.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(
 				localItemId, HostLmsClient.CanonicalItemState.COMPLETED, localId));
 	}

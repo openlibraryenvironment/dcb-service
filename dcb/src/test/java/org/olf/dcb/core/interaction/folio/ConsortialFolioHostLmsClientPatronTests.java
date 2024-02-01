@@ -214,7 +214,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
 			patronGroupName, "DCB", "canonical-patron-type");
 
-		mockFolioFixture.mockGetUsersWithQuery("username", username, User.builder()
+		mockFolioFixture.mockGetUsersWithQuery("barcode", username, User.builder()
 			.id("9c2e859d-e923-450d-85e3-b425cfa9f938")
 			.patronGroupName(patronGroupName)
 			.barcode("2093487")
