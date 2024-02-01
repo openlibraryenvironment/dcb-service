@@ -24,7 +24,12 @@ public class UnexpectedResponseProblemMatchers {
 	public static Matcher<ThrowableProblem> hasJsonResponseBodyParameter(
 		Map<String, String> expectedProperties) {
 
-		return hasProperty("parameters",
-			hasEntry("responseBody", expectedProperties));
+		return hasProperty("parameters", hasEntry("responseBody", expectedProperties));
+	}
+
+	public static Matcher<ThrowableProblem> hasTextResponseBodyParameter(
+		String expectedBody) {
+
+		return hasProperty("parameters", hasEntry("responseBody", expectedBody));
 	}
 }

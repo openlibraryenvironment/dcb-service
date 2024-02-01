@@ -25,6 +25,15 @@ public class UnexpectedHttpResponseProblem {
 	}
 
 	private static Object InterpretBody(HttpClientResponseException responseException) {
-		return responseException.getResponse().getBody(Argument.of(Map.class)).orElse(Map.of());
+		final var response = getValue(responseException, HttpClientResponseException::getResponse);
+
+		final var optionalJsonBody = response.getBody(Argument.of(Map.class));
+
+		if (optionalJsonBody.isPresent()) {
+			return optionalJsonBody.get();
+		}
+		else {
+			return response.getBody(Argument.of(String.class)).orElse("No body");
+		}
 	}
 }
