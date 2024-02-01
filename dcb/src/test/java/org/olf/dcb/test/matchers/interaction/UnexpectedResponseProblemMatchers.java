@@ -22,7 +22,7 @@ public class UnexpectedResponseProblemMatchers {
 	}
 
 	public static Matcher<ThrowableProblem> hasJsonResponseBodyParameter(
-		Map<String, String> expectedProperties) {
+		Map<String, Object> expectedProperties) {
 
 		return hasProperty("parameters", hasEntry("responseBody", expectedProperties));
 	}

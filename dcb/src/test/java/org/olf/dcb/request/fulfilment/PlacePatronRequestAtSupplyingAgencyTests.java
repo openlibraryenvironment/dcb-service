@@ -256,7 +256,7 @@ class PlacePatronRequestAtSupplyingAgencyTests {
 			() -> placeAtSupplyingAgency(patronRequest));
 
 		// Assert
-		final var expectedMessage = "Internal server error: Invalid configuration - [109 / 0]";
+		final var expectedMessage = "Unexpected response from Host LMS: \"supplying-agency-service-tests\"";
 
 		assertThat("Should report exception message", exception.getMessage(), containsString(expectedMessage));
 
