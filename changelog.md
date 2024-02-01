@@ -1,5 +1,44 @@
 # Changelog
 
+## Version 5.2.0
+
+### Additions
+* [General]
+	* reworked cluster merging
+	* close FOLIO borrowing library request when item has been received back [DCB-851]
+	* Detect item returned by patron in FOLIO borrowing agency DCB-826
+	* Detect when item has been borrowed by patron DCB-826
+	* Detect when item has arrived at pickup location DCB-826
+
+### Changes
+* [Chore]
+	* insert a function to report if we're about to create a new cluster when one already exists for a bib
+	* extra info in log messages
+	* Remove unused fields in borrower request return transit handler
+	* Replace spaces with tabs in borrower request return transit handler
+	* Replace spaces with tabs in host LMS item
+	* Remove unused fields in supplier item state change handler
+	* Make fields final in borrower item in unhandled state handler
+	* Make fields final in borrower item missing handler
+	* Replace spaces with tabs in borrower item missing handler
+	* Make fields final in borrower item on hold shelf handler
+	* Replace spaces with tabs in borrower item on hold shelf handler
+	* Use string format placeholders in borrower item loaned handler
+	* Make fields final in borrower item loaned handler
+	* Replace spaces with tabs in borrower item loaned handler
+	* Make fields final in borrower item available handler
+	* Replace spaces with tabs in borrower item available handler
+	* Remove unused field in borrower item in transit handler
+	* Replace spaces with tabs in borrower item in transit handler
+	* Removed unused field in handle borrower item received handler
+	* Replace spaces with tabs in handle borrower item received handler
+* [Refactor]
+	* use patron barcode not username for patron lookup in folio client
+
+### Fixes
+* [General]
+	* shouldFinaliseRequestWhenSupplierItemAvailable and successfullyGetPatronByUsername
+
 ## Version 5.1.0
 
 ### Additions
@@ -9,6 +48,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Tolerate null response when raising unexpected response exception DCB-849
 	* Tolerate null request when raising unexpected response exception DCB-849
 	* Include response in error message when unexpected response is received DCB-849
