@@ -67,7 +67,7 @@ public interface ClusterRecordRepository {
 	Publisher<ClusterRecord> findAllByMatchPoints ( Collection<UUID> points );
 	
 	@NonNull
-	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPointsNotBelongingToBib ( String derivedType, Collection<UUID> points, UUID bibId );
+	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPoints ( String derivedType, Collection<UUID> points );
 
 	@NonNull
 	@SingleResult

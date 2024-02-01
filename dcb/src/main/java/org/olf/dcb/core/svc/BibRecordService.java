@@ -121,6 +121,7 @@ public class BibRecordService {
 		return Flux.from(bibRepo.findAllByContributesToInList(contributesTo));
 	}
 
+	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<ClusterRecord> getClusterRecordForBib(UUID bibId) {
 		return Mono.from(bibRepo.findContributesToById(bibId));
 	}

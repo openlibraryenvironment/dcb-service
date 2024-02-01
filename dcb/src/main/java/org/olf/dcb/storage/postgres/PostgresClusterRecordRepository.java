@@ -58,9 +58,9 @@ public interface PostgresClusterRecordRepository extends
 			+ "	INNER JOIN bib_record br_ ON br_.contributes_to = cr_.id"
 			+ "	INNER JOIN match_point mp_ ON mp_.bib_id = br_.id"
 			+ "	WHERE (br_.derived_type IS NULL OR br_.derived_type = :derivedType )"
-			+ "   AND (mp_.bib_id != :bibId AND mp_.value IN (:points))"
+			+ "   AND mp_.value IN (:points)"
 			+ " ORDER BY date_created ASC;")
-	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPointsNotBelongingToBib ( String derivedType, Collection<UUID> points, UUID bibId );
+	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPoints ( String derivedType, Collection<UUID> points );
 	
 
 	@NonNull

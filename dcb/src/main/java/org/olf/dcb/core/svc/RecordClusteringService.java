@@ -4,14 +4,12 @@ import static services.k_int.utils.TupleUtils.curry;
 
 import java.time.Instant;
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.olf.dcb.core.model.BibIdentifier;
@@ -29,7 +27,6 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
-import io.micronaut.retry.annotation.Retryable;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
@@ -156,62 +153,156 @@ public class RecordClusteringService {
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)
-	protected Mono<ClusterRecord> reduceClusterRecords( final int pointsCreated,  final List<ClusterRecord> clusterList ) {
-		final int matches = clusterList.size();
+	protected Mono<ClusterRecord> reduceClusterRecords( final int pointsCreated, final List<ClusterRecord> matchedClusterList, Optional<ClusterRecord> currentCluster ) {
 		
-		return switch (matches) {
-			case 0 -> Mono.empty();
-			
-			case 1 -> {
+		// Create a map with the id of the cluster against the number of times it matched.
+		return Flux.fromIterable(matchedClusterList)
+			.collectMultimap(cr -> cr.getId().toString())
+			.map( ocurrences -> {
 				
-				// SO: For now lets not do this...
-//				if (pointsCreated > 2) {
-//					log.trace("Match point - Match ratio too low. Cannot quick match");
-//					yield Mono.empty();
+				if (( log.isDebugEnabled() && ocurrences.size() > 1 ) || log.isTraceEnabled()) {
+					ocurrences.forEach( (id, occs) -> log.debug("Matched Cluster [{}], on [{}] match points", id, occs.size()) );
+				}
+				
+				// Now take the entrySet and turn into an ordered list where the top result is
+				// The highest matched on record
+				final List<ClusterRecord> sortedOccurences = ocurrences.values().stream()
+					.sorted( (val1, val2) -> {
+
+						int val1Size = val1.size();
+						int val2Size = val2.size();
+						
+						int comp = Integer.compare(val2Size, val1Size);
+						if ( comp == 0 && (val1Size + val2Size) > 0) { 
+							var currentId = currentCluster.map(current -> current.getId().toString()).orElse(null);
+							
+							if (val1.iterator().next().getId().toString().equals(currentId)) {
+								log.trace("Current cluster used as equal weight tie-breaker.");
+								return -1;
+							}
+							
+							if (val2.iterator().next().getId().toString().equals(currentId)) {
+								log.trace("Current cluster used as equal weight tie-breaker.");
+								return 1;
+							}
+						}
+						
+						return comp;
+					})
+					.map( coll -> coll.iterator().next() )
+					.collect(Collectors.toList());
+				
+				// The list contains the sorted (weighted) matches via the match points. We should add the current
+				// cluster as the lowest weighted cluster, if it wasn't matched by the points. This is likely because the
+				// previously seen bib was not matched, because the data had changed so much. If we don't add this cluster,
+				// it would be left in the database in circumstances, as an orphan.
+				currentCluster
+					.filter( current -> !ocurrences.containsKey(current.getId().toString()) )
+					.ifPresent( sortedOccurences::add );
+				
+				return sortedOccurences;
+			})
+			.flatMap( prioritisedClusters -> {
+				
+				if (prioritisedClusters.size() == 0) {
+					log.trace("Didn't match any clusters in the databse and no current cluster. Requires new.");
+					return Mono.empty();
+				}
+				
+				// First item is our cluster match
+				var primary = prioritisedClusters.remove(0);
+				if (prioritisedClusters.size() == 0) {
+					
+					if (log.isTraceEnabled() && currentCluster.isPresent()) {
+						log.trace("Matched [{}], which is existing cluster");
+					} else {
+						log.trace("Matched [{}]", primary.getId());
+					}
+					
+					return Mono.just(primary);
+				}
+				
+				if (log.isDebugEnabled()) {
+					log.debug("Matched [{}], and need to absorb [{}]", primary.getId(), prioritisedClusters.stream().map(cr -> cr.getId().toString()).collect(Collectors.joining(" ,")));
+				}
+				return mergeClusterRecords(primary, prioritisedClusters);
+				
+			});
+		
+//		final int matches = matchedClusterList.size();
+//		
+//		return switch (matches) {
+//			case 0 -> {
+//				// We can match 0 clusters and have a current cluster, if the record changes enough to alter all the match points.
+//				// If there is no current cluster this will return empty and a new one created.
+//				yield Mono.justOrEmpty(currentCluster);
+//			}
+//			
+//			case 1 -> {				
+//				
+////				if (pointsCreated > 2) {
+////					
+////					// We matched a single cluster. It may/may not be the current. Because we only matched
+////					// on a single match point but created many 
+////					
+////					log.trace("Match point - Match ratio too low. Cannot quick match");
+////					yield Mono.empty();
+////				}
+//				
+//				// Single match point.
+//				ClusterRecord cr = matchedClusterList.get(0);
+//				
+//				var currentId = currentCluster
+//					.map(current -> current.getId().toString())
+//					.orElse(null);
+//				
+//				if ( cr.getId().toString().equals( currentId ) ) {
+//					log.trace("Matches current cluster. {}/{}", cr.getId(),cr.getTitle());
+//					yield Mono.just( cr );
 //				}
-				
-				// Single match point.
-				ClusterRecord cr = clusterList.get(0);
-				log.trace("Low number of match points, but found single match. {}/{}", cr.getId(),cr.getTitle());
-				yield Mono.just( cr );
-			}
-			
-			default -> {
-				
-				// Sort the unique entries.
-				final List<ClusterRecord> clusters = new LinkedHashSet<>(clusterList).stream()
-					.sorted((cr1, cr2) -> cr2.getDateUpdated().compareTo(cr1.getDateUpdated()))
-					.toList()
-				;
-				
-				yield switch ( clusters.size() ) {
-					case 1 -> {
-						ClusterRecord cr = clusters.iterator().next();
-						log.trace("Single cluster matched by multiple match points. {}/{}",cr.getId(), cr.getTitle());
-						yield Mono.just( cr );
-					}
-					default -> {
-						
-						// Pop the first item.
-						var items = clusters.iterator();
-						
-						Set<ClusterRecord> toRemove = new HashSet<>();
-						
-						var primary = items.next();
-
-						log.trace("Multiple cluster matched. Use first cluster and merge others {}/{}",primary.getId(), primary.getTitle());
-
-						items.forEachRemaining(c -> {
-							if (c.getId() != null && !c.getId().toString().equals(Objects.toString(primary.getId(), null))) {
-								toRemove.add(c);
-							}});
-						
-						yield mergeClusterRecords(primary, toRemove);
-//							.flatMap(this::electSelectedBib);
-					}
-				};
-			}
-		};
+//				
+//				// Single match not current
+//				
+//				log.trace("Low number of match points, but found single match. {}/{}", cr.getId(),cr.getTitle());
+//				yield Mono.just( cr );
+//			}
+//			
+//			default -> {
+//				
+//				// Sort the unique entries.
+//				final List<ClusterRecord> clusters = new LinkedHashSet<>(matchedClusterList).stream()
+//					.sorted((cr1, cr2) -> cr2.getDateUpdated().compareTo(cr1.getDateUpdated()))
+//					.toList()
+//				;
+//				
+//				yield switch ( clusters.size() ) {
+//					case 1 -> {
+//						ClusterRecord cr = clusters.iterator().next();
+//						log.trace("Single cluster matched by multiple match points. {}/{}",cr.getId(), cr.getTitle());
+//						yield Mono.just( cr );
+//					}
+//					default -> {
+//						
+//						// Pop the first item.
+//						var items = clusters.iterator();
+//						
+//						Set<ClusterRecord> toRemove = new HashSet<>();
+//						
+//						var primary = items.next();
+//
+//						log.trace("Multiple cluster matched. Use first cluster and merge others {}/{}",primary.getId(), primary.getTitle());
+//
+//						items.forEachRemaining(c -> {
+//							if (c.getId() != null && !c.getId().toString().equals(Objects.toString(primary.getId(), null))) {
+//								toRemove.add(c);
+//							}});
+//						
+//						yield mergeClusterRecords(primary, toRemove);
+////							.flatMap(this::electSelectedBib);
+//					}
+//				};
+//			}
+//		};
 		
 	}
 	
@@ -234,7 +325,7 @@ public class RecordClusteringService {
 	}
 	
 	private Flux<MatchPoint> generateMatchPoints ( final BibRecord bib ) {
-		log.debug("collectMatchPoints for bib");
+		log.trace("collectMatchPoints for bib");
 		return Flux.concat(
 				generateIdMatchPoints(bib),
 				recordMatchPoints(bib))
@@ -277,7 +368,9 @@ public class RecordClusteringService {
 			.collectList()
 			.map( curry(bib.getId(), matchPointRepository::deleteAllByBibIdAndValueNotIn) )
 			.flatMap(Mono::from)
-			.doOnNext( del -> log.debug("Deleted {} existing matchpoints that are no longer valid")  )
+			.doOnNext( del -> {
+				if (log.isDebugEnabled() && del > 0) log.debug("Deleted {} existing matchpoints that are no longer valid", del);
+			})
 			.thenMany( Mono.just(currentMatchPoints).flatMapMany( matchPointRepository::saveAll ) )
 			.collectList();
 	}
@@ -307,11 +400,14 @@ public class RecordClusteringService {
 				.build();
 	}
 	
+	
+	
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected Mono<Tuple2<BibRecord, ClusterRecord>> clusterUsingMatchPoints( BibRecord bib, Collection<MatchPoint> matchPoints ) {
 		
 		return matchClusters(bib, matchPoints)
 			.collectList()
+			.zipWith( bibRecords.getClusterRecordForBib( bib.getId() ).singleOptional() )
 			.flatMap( curry( matchPoints.size(), this::reduceClusterRecords ))
 			.switchIfEmpty(Mono.just(bib).map(this::newOrExistingClusterRecord))
 			.flatMap(curry(bib, matchPoints, this::updateBibAndClusterData));
@@ -328,11 +424,11 @@ public class RecordClusteringService {
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected Flux<ClusterRecord> matchClusters( BibRecord bib, Collection<MatchPoint> matchPoints ) {
 		return Flux.fromIterable( matchPoints )
-		 	.map(MatchPoint::getValue )
+		 	.map( MatchPoint::getValue )
 		 	.distinct()
 		 	.collectList()
 		 	.flux()
-		 	.flatMap(ids -> clusterRecords.findAllByDerivedTypeAndMatchPointsNotBelongingToBib(bib.getDerivedType(), ids, bib.getId()));
+		 	.flatMap(ids -> clusterRecords.findAllByDerivedTypeAndMatchPoints(bib.getDerivedType(), ids));
 	}
 	
 	@Timed("bib.cluster")
@@ -379,7 +475,7 @@ public class RecordClusteringService {
 			
 			.next()
 			.map(contrib -> {
-				log.debug("Setting selected bib on cluster record {} to {}", cr.getId(), contrib);
+				log.trace("Setting selected bib on cluster record {} to {}", cr.getId(), contrib);
 				return cr.setSelectedBib(contrib);
 			})
 			.defaultIfEmpty(cr)
