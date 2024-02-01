@@ -4,7 +4,6 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -15,6 +14,8 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.util.List;
@@ -240,8 +241,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 
 		// Assert
 		assertThat(problem, allOf(
-			hasMessage("Unexpected response from Host LMS: \"folio-supplying-request-tests\""),
-			hasProperty("parameters", hasEntry("responseStatusCode", 400))
+			hasMessageForHostLms("folio-supplying-request-tests"),
+			hasResponseStatusCodeParameter(400)
 		));
 	}
 }
