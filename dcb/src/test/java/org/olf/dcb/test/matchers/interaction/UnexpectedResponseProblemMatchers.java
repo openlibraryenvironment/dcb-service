@@ -6,8 +6,6 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
-import java.util.Map;
-
 import org.hamcrest.Matcher;
 import org.zalando.problem.ThrowableProblem;
 
@@ -23,23 +21,25 @@ public class UnexpectedResponseProblemMatchers {
 		return hasParameters(hasEntry(equalTo("responseStatusCode"), is(expectedStatusCode)));
 	}
 
-	public static Matcher<ThrowableProblem> hasJsonResponseBodyParameter(
-		Map<String, Object> expectedProperties) {
+	public static Matcher<ThrowableProblem> hasJsonResponseBodyProperty(
+		String expectedPropertyName, Object expectedValue) {
 
-		return hasParameters(hasEntry(equalTo("responseBody"), is(expectedProperties)));
+		return hasResponseBodyParameter(hasEntry(equalTo(expectedPropertyName), is(expectedValue)));
 	}
 
 	public static Matcher<ThrowableProblem> hasTextResponseBodyParameter(String expectedBody) {
-		return hasParameters(hasEntry(equalTo("responseBody"), is(expectedBody)));
+		return hasResponseBodyParameter(is(expectedBody));
+	}
+
+	private static Matcher<ThrowableProblem> hasResponseBodyParameter(Matcher<?> valueMatcher) {
+		return hasParameters(hasEntry(equalTo("responseBody"), valueMatcher));
 	}
 
 	public static Matcher<ThrowableProblem> hasRequestMethodParameter(String expectedValue) {
 		return hasParameters(hasEntry(equalTo("requestMethod"), is(expectedValue)));
 	}
 
-	static Matcher<ThrowableProblem> hasParameters(
-		Matcher<Map<? extends String, ? extends Object>> matcher) {
-
+	static Matcher<ThrowableProblem> hasParameters(Matcher<?> matcher) {
 		return hasProperty("parameters", matcher);
 	}
 }

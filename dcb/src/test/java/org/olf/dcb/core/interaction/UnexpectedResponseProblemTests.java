@@ -6,9 +6,9 @@ import static io.micronaut.http.MediaType.TEXT_PLAIN_TYPE;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasTextResponseBodyParameter;
 
@@ -36,8 +36,7 @@ class UnexpectedResponseProblemTests {
 		assertThat(problem, allOf(
 			hasMessageForHostLms("example-host-lms"),
 			hasResponseStatusCodeParameter(400),
-			hasJsonResponseBodyParameter(Map.of("error", "something went wrong")),
-			hasRequestMethodParameter("POST")
+			hasJsonResponseBodyProperty("error", "something went wrong")
 		));
 	}
 

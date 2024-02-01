@@ -14,7 +14,7 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
@@ -244,7 +244,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		assertThat(problem, allOf(
 			hasMessageForHostLms("folio-supplying-request-tests"),
 			hasResponseStatusCodeParameter(400),
-			hasJsonResponseBodyParameter(Map.of("message", "something went wrong"))
+			hasJsonResponseBodyProperty("message", "something went wrong")
 		));
 	}
 }

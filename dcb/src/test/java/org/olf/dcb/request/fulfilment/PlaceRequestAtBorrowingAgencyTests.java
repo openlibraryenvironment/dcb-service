@@ -10,12 +10,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -238,13 +237,11 @@ class PlaceRequestAtBorrowingAgencyTests {
 		assertThat(problem, allOf(
 			hasMessageForHostLms(HOST_LMS_CODE),
 			hasResponseStatusCodeParameter(500),
-			hasJsonResponseBodyParameter(Map.of(
-				"code", 109,
-				"description", "Invalid configuration",
-				"httpStatus", 500,
-				"name", "Internal server error",
-				"specificCode", 0
-			))
+			hasJsonResponseBodyProperty("code", 109),
+			hasJsonResponseBodyProperty("description", "Invalid configuration"),
+			hasJsonResponseBodyProperty("httpStatus", 500),
+			hasJsonResponseBodyProperty("name", "Internal server error"),
+			hasJsonResponseBodyProperty("specificCode", 0)
 		));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
