@@ -106,7 +106,7 @@ class UnexpectedResponseProblemTests {
 
 		// Assert
 		assertThat(problem, hasMessage(
-			"Unexpected response from: GET http://some-host-lms/some-path"));
+			"Unexpected response from: GET /some-path"));
 	}
 
 	private static <T> HttpClientResponseException createResponseException(

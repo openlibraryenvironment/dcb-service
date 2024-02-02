@@ -44,7 +44,7 @@ public class UnexpectedHttpResponseProblem {
 		if (StringUtils.isEmpty(hostLmsCode)) {
 			return "Unexpected response from: %s %s".formatted(
 				getValue(request, HttpRequest::getMethodName),
-				getValue(request, HttpRequest::getUri));
+				getValue(request, HttpRequest::getPath));
 		}
 		else {
 			return "Unexpected response from Host LMS: \"%s\"".formatted(hostLmsCode);
