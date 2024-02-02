@@ -36,14 +36,16 @@ import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.configuration.LocationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
+import org.olf.dcb.core.AppState;
+import org.olf.dcb.core.AppState.AppStatus;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition.IntegerHostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
@@ -81,8 +83,8 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuples;
 import services.k_int.interaction.sierra.FixedField;
-import services.k_int.interaction.sierra.VarField;
 import services.k_int.interaction.sierra.SierraApiClient;
+import services.k_int.interaction.sierra.VarField;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
@@ -99,9 +101,6 @@ import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.PatronValidation;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.utils.UUIDUtils;
-
-import org.olf.dcb.core.AppState;
-import org.olf.dcb.core.AppState.AppStatus;
 
 
 
