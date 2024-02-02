@@ -49,7 +49,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
-class PlacePatronRequestAtSupplyingAgencyTests {
+class PlaceRequestAtSupplyingAgencyTests {
 	private static final String HOST_LMS_CODE = "supplying-agency-service-tests";
 
 	@Inject
