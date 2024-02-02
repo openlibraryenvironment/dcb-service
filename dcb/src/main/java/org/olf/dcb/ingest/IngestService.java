@@ -120,8 +120,9 @@ public class IngestService implements Runnable {
 				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_RECORDS)) // Apply any hooks for "ingest-records"
 				
 				// Interleaved source stream from all source results.
-				.concatMap(this::processSingleRecord)
-				
+				// .concatMap(this::processSingleRecord)
+				.flatMap(this::processSingleRecord)
+
 				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_BIBS)) // Apply any hooks for "ingest-bibs";
 				.doOnError ( throwable -> log.warn("ONERROR Error after transform step", throwable) );
 	}
@@ -130,9 +131,9 @@ public class IngestService implements Runnable {
 	@Retryable
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	protected Mono<BibRecord> processSingleRecord ( IngestRecord ingestRecord ) {
-		log.debug("processSingleRecord {}@{}",ingestRecord.getSourceRecordId(),ingestRecord.getSourceSystem().getCode() );
+		log.trace("processSingleRecord {}@{}",ingestRecord.getSourceRecordId(),ingestRecord.getSourceSystem().getCode() );
 		return Mono.from(bibRecordService.process( ingestRecord ))
-			.doOnNext( br -> log.debug("process ingest record {}@{}", br.getSourceRecordId(), ingestRecord.getSourceSystem().getCode() ) )
+			.doOnNext( br -> log.trace("process ingest record {}@{}", br.getSourceRecordId(), ingestRecord.getSourceSystem().getCode() ) )
 			.flatMap(recordClusteringService::clusterBib)
 			.map( theBib -> {
 				if (theBib.getContributesTo() == null)
