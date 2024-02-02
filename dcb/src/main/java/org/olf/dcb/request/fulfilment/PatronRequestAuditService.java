@@ -47,7 +47,20 @@ public class PatronRequestAuditService {
 		Optional<String> message ) {
 		return addAuditEntry(patronRequest,from,to,message,Optional.empty());
   }
-        
+	public Mono<RequestWorkflowContext> addAuditEntry(
+		RequestWorkflowContext context,
+		Status from,
+		Status to,
+		Optional<String> message,
+		Optional<Map<String,Object>> auditData) {
+		return addAuditEntry(context.getPatronRequest(),
+			from,
+			to,
+			message,
+			auditData)
+			.thenReturn(context);
+	}
+
 	public Mono<PatronRequestAudit> addAuditEntry(
                 PatronRequest patronRequest, 
                 Status from, 

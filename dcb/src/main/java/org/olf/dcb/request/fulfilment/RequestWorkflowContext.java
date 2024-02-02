@@ -38,5 +38,7 @@ public class RequestWorkflowContext {
 	String supplierHoldId;
 	String supplierHoldStatus;
 	Patron patron;
+
+	PatronRequest.Status patronRequestStateOnEntry;
 }
 

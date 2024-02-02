@@ -57,7 +57,8 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 			return Mono.from(supplierRequestRepository.findByPatronRequest(pr))
 				.map(sr -> {
 					// Patron cancels request, sierra deletes request to represent the cancellation
-					// IF the item isn't already on the holdshelf then we can cancel
+					// IF the item isn't already on the holdshelf then we can cancel.
+					// Turns out this isn't the full story -
 					if (!Objects.equals(pr.getLocalItemStatus(), ITEM_ON_HOLDSHELF)) {
 						patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), CANCELLED, 
 							Optional.of("Missing borrower request when local request status was Item on hold shelf"));
