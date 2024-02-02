@@ -6,6 +6,7 @@ import static io.micronaut.http.MediaType.TEXT_PLAIN_TYPE;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
@@ -93,6 +94,19 @@ class UnexpectedResponseProblemTests {
 			hasResponseStatusCodeParameter(400),
 			hasRequestMethodParameter(null)
 		));
+	}
+
+	@Test
+	void shouldCreateProblemFromResponseWithNoHostLmsCode() {
+		// Act
+		final var exception = createResponseException(badRequest());
+
+		final var problem = unexpectedResponseProblem(exception,
+			HttpRequest.GET("http://some-host-lms/some-path"), null);
+
+		// Assert
+		assertThat(problem, hasMessage(
+			"Unexpected response from: GET http://some-host-lms/some-path"));
 	}
 
 	private static <T> HttpClientResponseException createResponseException(

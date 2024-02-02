@@ -8,6 +8,7 @@ import org.zalando.problem.Problem;
 import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.core.type.Argument;
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -19,7 +20,7 @@ public class UnexpectedHttpResponseProblem {
 		final var jsonResponseBody = InterpretBody(responseException);
 
 		return Problem.builder()
-			.withTitle("Unexpected response from Host LMS: \"%s\"".formatted(hostLmsCode))
+			.withTitle(determineTitle(hostLmsCode, request))
 			.with("responseStatusCode", getValue(responseException.getStatus(), HttpStatus::getCode))
 			.with("responseBody", jsonResponseBody)
 			.with("requestMethod", getValue(request, HttpRequest::getMethodName))
@@ -36,6 +37,17 @@ public class UnexpectedHttpResponseProblem {
 		}
 		else {
 			return response.getBody(Argument.of(String.class)).orElse("No body");
+		}
+	}
+
+	private static String determineTitle(String hostLmsCode, HttpRequest<?> request) {
+		if (StringUtils.isEmpty(hostLmsCode)) {
+			return "Unexpected response from: %s %s".formatted(
+				getValue(request, HttpRequest::getMethodName),
+				getValue(request, HttpRequest::getUri));
+		}
+		else {
+			return "Unexpected response from Host LMS: \"%s\"".formatted(hostLmsCode);
 		}
 	}
 }
