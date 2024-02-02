@@ -11,7 +11,6 @@ import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 
 import java.util.List;
@@ -232,10 +231,10 @@ class PlaceRequestAtBorrowingAgencyTests {
 			() -> placeRequestAtBorrowingAgency(patronRequest));
 
 		// Assert
-		final var expectedMessage = "Unexpected response from Host LMS: \"%s\"".formatted(HOST_LMS_CODE);
+		final var expectedMessage = "Unexpected response from: POST /iii/sierra-api/v6/patrons/972321/holds/requests";
 
 		assertThat(problem, allOf(
-			hasMessageForHostLms(HOST_LMS_CODE),
+			hasMessage(expectedMessage),
 			hasResponseStatusCodeParameter(500),
 			hasJsonResponseBodyProperty("code", 109),
 			hasJsonResponseBodyProperty("description", "Invalid configuration"),

@@ -4,6 +4,7 @@ import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpMethod.PUT;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
 import static reactor.core.publisher.Mono.empty;
 
@@ -36,6 +37,7 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.retry.annotation.Retryable;
@@ -324,7 +326,11 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	}
 
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Class<T> type) {
-		return Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE)).transform(this::handleResponseErrors);
+		return Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE))
+			.transform(this::handleResponseErrors)
+			// This has to happen after other error handlers related to HttpClientResponseException
+			.onErrorMap(HttpClientResponseException.class, responseException ->
+				unexpectedResponseProblem(responseException, request, null));
 	}
 
 	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType, boolean mapErrors) {

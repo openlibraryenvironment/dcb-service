@@ -39,7 +39,7 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
-import org.zalando.problem.DefaultProblem;
+import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -252,11 +252,11 @@ class PlaceRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", "b");
 
 		// Act
-		final var exception = assertThrows(DefaultProblem.class,
+		final var exception = assertThrows(ThrowableProblem.class,
 			() -> placeAtSupplyingAgency(patronRequest));
 
 		// Assert
-		final var expectedMessage = "Unexpected response from Host LMS: \"supplying-agency-service-tests\"";
+		final var expectedMessage = "Unexpected response from: POST /iii/sierra-api/v6/patrons/1000001/holds/requests";
 
 		assertThat("Should report exception message", exception.getMessage(), containsString(expectedMessage));
 
@@ -264,7 +264,8 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		assertThat(fetchedPatronRequest, allOf(
 			hasStatus(ERROR),
-			hasErrorMessage(expectedMessage)
+			// Only matches on part of the message because it's too long for the database column
+			hasErrorMessage("Unexpected response")
 		));
 
 		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(fetchedPatronRequest);

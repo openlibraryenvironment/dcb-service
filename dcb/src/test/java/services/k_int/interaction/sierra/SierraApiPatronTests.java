@@ -8,11 +8,14 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture.*;
+import static org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture.Patron;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.SierraErrorMatchers.getResponseBody;
 import static org.olf.dcb.test.matchers.SierraErrorMatchers.isBadJsonError;
-import static org.olf.dcb.test.matchers.SierraErrorMatchers.isServerError;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 
 import java.util.List;
 
@@ -23,6 +26,7 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -253,21 +257,25 @@ class SierraApiPatronTests {
 		final var patronLocalId = "4325435";
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse(patronLocalId, "i");
 
+		// Act
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+
 		final var patronHoldPost = PatronHoldPost.builder()
 			.recordNumber(423543254)
 			.recordType("i")
 			.pickupLocation("pickupLocation")
 			.build();
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
-
-		// Act
-		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> Mono.from(sierraApiClient.placeHoldRequest(patronLocalId, patronHoldPost)).block());
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> singleValueFrom(sierraApiClient.placeHoldRequest(patronLocalId, patronHoldPost)));
 
 		// Assert
-		final var body = getResponseBody(exception);
+		assertThat(problem, hasMessage("Unexpected response from: %s %s"
+			.formatted("POST", "/iii/sierra-api/v6/patrons/%s/holds/requests".formatted(patronLocalId))));
 
-		assertThat(body, isServerError());
+		assertThat(problem, hasRequestMethodParameter("POST"));
+		assertThat(problem, hasResponseStatusCodeParameter(500));
+		assertThat(problem, hasJsonResponseBodyProperty("code", 109));
+		assertThat(problem, hasJsonResponseBodyProperty("description", "Invalid configuration"));
 	}
 }

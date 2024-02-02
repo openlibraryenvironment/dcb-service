@@ -12,7 +12,6 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.booleanProp
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.integerPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
-import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
@@ -74,7 +73,6 @@ import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.util.StringUtils;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.json.tree.JsonNode;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
@@ -628,9 +626,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.then(Mono.defer(() -> getPatronHoldRequestId(parameters.getLocalPatronId(),
 					recordNumber, parameters.getNote(), parameters.getPatronRequestId()))
 				.retry(getHoldsRetryAttempts))
-			// This has to happen after other error handlers related to HttpClientResponseException
-			.onErrorMap(HttpClientResponseException.class, responseException ->
-				unexpectedResponseProblem(responseException, null, getHostLmsCode()))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Hold"));
