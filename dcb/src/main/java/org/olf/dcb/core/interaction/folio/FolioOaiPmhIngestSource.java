@@ -279,7 +279,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 					
 					state.storred_state.remove("resumptionToken");
 	
-					log.info("No more results to fetch from {}", lms.getName());
+					log.info("No more results to fetch from FOLIO OAI at {} - saving state as {}", lms.getName(), state);
 					
 					// Need to ensure we store the new state here.
 					
@@ -305,6 +305,8 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
           log.info("Detected app shutdown - ejecting from collect sequence {}",lms.getName());
           return Mono.empty();
         }
+
+				log.info("fetching next page of FOLIO OAI data {}",state);
 
 				return Mono.just(state.toBuilder().build())
 					.zipWhen(updatedState -> fetchPage(updatedState.since, MapUtils.getAsOptionalString(updatedState.storred_state, "resumptionToken")));
@@ -458,7 +460,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	@Override
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Mono<PublisherState> saveState(@NonNull UUID id, @NonNull String processName, @NonNull PublisherState state) {
-		log.debug("Update state {} - {}", state, lms.getName());
+		log.debug("Update state {} {} - {}", id, state, lms.getName());
 
 		return Mono.from(processStateService.updateState(id, processName, state.storred_state)).thenReturn(state);
 	}
