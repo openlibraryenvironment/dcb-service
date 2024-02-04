@@ -58,7 +58,15 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 				.map(sr -> {
 					// Patron cancels request, sierra deletes request to represent the cancellation
 					// IF the item isn't already on the holdshelf then we can cancel
-					if (!Objects.equals(pr.getLocalItemStatus(), ITEM_ON_HOLDSHELF)) {
+					// if (!Objects.equals(pr.getLocalItemStatus(), ITEM_ON_HOLDSHELF)) {
+					// Rewriting this condition - it's not good. For now - IF the request is in a state of PLACED_AT_BORROWING_AGENCY then that means it's not
+					// yet been filled by the supplying library - and that means that cancellation at the supplier is meaningful. More specifically - ANY of the 
+					// states before PICKUP_TRANSIT are meaningful states for CANCEL.
+					if ( ( pr.getStatus() == PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY ) ||
+							( pr.getStatus() == PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY ) ||
+							( pr.getStatus() == PatronRequest.Status.PATRON_VERIFIED ) ||
+							( pr.getStatus() == PatronRequest.Status.SUBMITTED_TO_DCB ) ||
+							( pr.getStatus() == PatronRequest.Status.RESOLVED ) ) {
 						patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), CANCELLED, 
 							Optional.of("Missing borrower request when local request status was Item on hold shelf"));
 						log.debug("setting DCB internal status to CANCELLED {}",pr);
