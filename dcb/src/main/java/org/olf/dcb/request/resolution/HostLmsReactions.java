@@ -132,7 +132,7 @@ public class HostLmsReactions {
 			final WorkflowAction action = appContext.getBean(WorkflowAction.class, Qualifiers.byName(handler));
 			if (action != null) {
 				log.debug("Invoke {}",action.getClass().getName());
-				return auditEventIndication(context, trackingRecord)
+				return auditEventIndication(context, trackingRecord, handler)
 					.flatMap(action::execute)
 					.onErrorResume(error -> Mono.defer(() -> {
 						log.error("Problem in reaction handler="+action.getClass().getName()+" - we should write an audit here", error);
@@ -156,10 +156,10 @@ public class HostLmsReactions {
 		return Mono.just(context);
 	}
 
-	private Mono<Map<String,Object>> auditEventIndication(Map<String,Object> context, TrackingRecord tr) {
+	private Mono<Map<String,Object>> auditEventIndication(Map<String,Object> context, TrackingRecord tr, String handler) {
 		log.debug("Audit event indication");
 		StateChange sc = (StateChange) tr;
-		String msg = "Downstream change to " + sc.getResourceType() + "(" + sc.getResourceId() + ") to " + sc.getToState() + " from " + sc.getFromState();
+		String msg = "Downstream change to " + sc.getResourceType() + "(" + sc.getResourceId() + ") to " + sc.getToState() + " from " + sc.getFromState() + " triggers "+handler;
 		Map<String,Object> auditData = new HashMap<>();
 		auditData.put("patronRequestId",sc.getPatronRequestId());
 		auditData.put("resourceType",sc.getResourceType());

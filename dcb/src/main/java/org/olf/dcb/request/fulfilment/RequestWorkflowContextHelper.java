@@ -56,6 +56,7 @@ public class RequestWorkflowContextHelper {
 		log.info("fromPatronRequest {}", pr.getId());
 
 		return  Mono.just(rwc.setPatronRequest(pr))
+		.flatMap(this::decorateWithPatronRequestStateOnEntry)
 		.flatMap(this::decorateWithPatron)
 		.flatMap(this::findSupplierRequest)
 		.flatMap(this::decorateWithPatronVirtualIdentity)
@@ -63,6 +64,11 @@ public class RequestWorkflowContextHelper {
 		.flatMap(this::decorateContextWithLenderDetails)
 		.flatMap(this::resolvePickupLocationAgency)
 		.flatMap(this::report);
+	}
+
+	private Mono<RequestWorkflowContext> decorateWithPatronRequestStateOnEntry(RequestWorkflowContext requestWorkflowContext) {
+		requestWorkflowContext.patronRequestStateOnEntry = requestWorkflowContext.getPatronRequest().getStatus();
+		return Mono.just(requestWorkflowContext);
 	}
 
 	// Given a supplier request, construct the patron request context containing all related objects for a workflow
@@ -73,6 +79,7 @@ public class RequestWorkflowContextHelper {
 		return Mono.just( rwc.setSupplierRequest(sr) )
 			.flatMap(rwcp -> Mono.from(supplierRequestRepository.findPatronRequestById(rwc.getSupplierRequest().getId())))
 			.flatMap(pr -> Mono.just(rwc.setPatronRequest(pr)))
+			.flatMap(this::decorateWithPatronRequestStateOnEntry)
 			.flatMap(this::decorateWithPatron)
 			.flatMap(this::decorateWithPatronVirtualIdentity)
 			.flatMap(this::decorateContextWithPatronDetails)

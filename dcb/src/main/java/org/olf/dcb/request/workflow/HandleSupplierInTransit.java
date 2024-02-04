@@ -1,6 +1,7 @@
 package org.olf.dcb.request.workflow;
 
 import java.util.Map;
+import java.util.Optional;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -18,6 +19,8 @@ import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+
 @Slf4j
 @Singleton
 @Named("SupplierRequestInTransit")
@@ -26,17 +29,20 @@ public class HandleSupplierInTransit implements WorkflowAction {
 	private final PatronRequestRepository patronRequestRepository;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final HostLmsService hostLmsService;
+	private final PatronRequestAuditService patronRequestAuditService;
 
 	public HandleSupplierInTransit(
 		SupplierRequestRepository supplierRequestRepository,
 		PatronRequestRepository patronRequestRepository,
 		HostLmsService hostLmsService,
-		RequestWorkflowContextHelper requestWorkflowContextHelper) {
+		RequestWorkflowContextHelper requestWorkflowContextHelper,
+		PatronRequestAuditService patronRequestAuditService) {
 
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.hostLmsService = hostLmsService;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	@Transactional
@@ -54,6 +60,7 @@ public class HandleSupplierInTransit implements WorkflowAction {
 				// This will cause st.setLocalStatus("TRANSIT") above to be saved and mean our local state is aligned with the supplier req
 				.flatMap(this::saveSupplierRequest)
 				.flatMap(this::updatePatronRequest)
+				.flatMap(ctx -> patronRequestAuditService.addAuditEntry(ctx, ctx.getPatronRequestStateOnEntry(), ctx.getPatronRequest().getStatus(), Optional.of("HandleSupplierInTransit"), null))
 				.thenReturn(context);
 		}
 		else {

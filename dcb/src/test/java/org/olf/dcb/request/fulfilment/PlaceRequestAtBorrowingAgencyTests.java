@@ -1,6 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -9,6 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 
 import java.util.List;
 import java.util.UUID;
@@ -35,8 +38,8 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
+import org.zalando.problem.ThrowableProblem;
 
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
@@ -224,13 +227,21 @@ class PlaceRequestAtBorrowingAgencyTests {
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("972321", "b");
 
 		// Act
-		final var exception = assertThrows(HttpClientResponseException.class,
+		final var problem = assertThrows(ThrowableProblem.class,
 			() -> placeRequestAtBorrowingAgency(patronRequest));
 
 		// Assert
-		final var expectedMessage = "Internal server error: Invalid configuration - [109 / 0]";
+		final var expectedMessage = "Unexpected response from: POST /iii/sierra-api/v6/patrons/972321/holds/requests";
 
-		assertThat(exception.getMessage(), is(expectedMessage));
+		assertThat(problem, allOf(
+			hasMessage(expectedMessage),
+			hasResponseStatusCodeParameter(500),
+			hasJsonResponseBodyProperty("code", 109),
+			hasJsonResponseBodyProperty("description", "Invalid configuration"),
+			hasJsonResponseBodyProperty("httpStatus", 500),
+			hasJsonResponseBodyProperty("name", "Internal server error"),
+			hasJsonResponseBodyProperty("specificCode", 0)
+		));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 

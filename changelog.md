@@ -1,5 +1,36 @@
 # Changelog
 
+## Version 5.3.0
+
+### Additions
+* [General]
+	* Report unexpected response from Sierra when placing hold DCB-849
+
+### Changes
+* [Chore]
+	* Move detection of unexpected response from Sierra to lower level client DCB-849
+	* Use request path in title for unexpected response from unknown host LMS DCB-849
+	* Use request URI in title for unexpected response from unknown host LMS DCB-849
+	* Remove unused unexpected response exception DCB-849
+	* Include request method in unexpected response problem DCB-849
+	* Parse unexpected text response body as a string DCB-849
+	* Parse unexpected JSON response body as map DCB-849
+	* Include unexpected response status code in problem DCB-849
+	* report problem for unexpected response when creating FOLIO transaction DCB-849
+* [Feature]
+	* re-enable parallel processing of ingest items. TRIAL
+* [Refactor]
+	* Extract method for interpreting unexpected response body DCB-849
+	* Move unexpected response problem creation to separate class DCB-849
+* [Test]
+	* Rename place request at supplying agency test class DCB-849
+	* Vary property types in unexpected json response DCB-849
+	* Introduce matcher for each json property in unexpected response DCB-849
+	* Extract matcher for problem parameters DCB-849
+	* Introduce tests for mapping response exception to unexpected response problem DCB-849
+	* Match on throwable problem rather than default problem DCB-849
+	* Move unexpected response matchers to separate class DCB-849
+
 ## Version 5.2.0
 
 ### Additions
@@ -12,6 +43,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* insert a function to report if we're about to create a new cluster when one already exists for a bib
 	* extra info in log messages
 	* Remove unused fields in borrower request return transit handler
