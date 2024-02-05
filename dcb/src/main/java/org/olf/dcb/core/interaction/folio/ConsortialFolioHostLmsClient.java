@@ -334,8 +334,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return makeRequest(request, Argument.of(CreateTransactionResponse.class),
 			response -> response
 				.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
-				.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError)
-				.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new))
+				.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError))
 			.onErrorMap(HttpClientResponseException.class, responseException ->
 				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
 	}
@@ -499,8 +498,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var request = authorisedRequest(GET, "/users/users")
 			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
-		return makeRequest(request, Argument.of(UserCollection.class), noExtraErrorHandling())
-			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new);
+		return makeRequest(request, Argument.of(UserCollection.class), noExtraErrorHandling());
 	}
 
 	private Mono<Patron> mapFirstUserToPatron(UserCollection response,
@@ -816,6 +814,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.doOnError(HttpClientResponseException.class,
 				error -> log.trace("Received error response: {} from Host LMS: {}",
 					toLogOutput(error.getResponse()), getHostLmsCode()))
+			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new)
+			// Additional request specific error handling
 			.transform(errorHandlingTransformer);
 	}
 
