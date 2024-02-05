@@ -790,8 +790,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return Mono.just("OK");
 	}
 
-	private <T, R> Mono<T> makeRequest(@NonNull MutableHttpRequest<R> request,
-		@NonNull Argument<T> bodyType) {
+	private <TResponse, TRequest> Mono<TResponse> makeRequest(
+		@NonNull MutableHttpRequest<TRequest> request, @NonNull Argument<TResponse> bodyType) {
 
 		log.trace("Making request: {} to Host LMS: {}", toLogOutput(request), getHostLmsCode());
 
