@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.olf.dcb.core.interaction.HttpResponsePredicates;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
@@ -241,7 +242,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		return postRequest("token")
 				.map(req -> req.basicAuth(creds.getUsername(), creds.getPassword())
 						.contentType(MediaType.MULTIPART_FORM_DATA_TYPE).body(body))
-				.flatMap(req -> doRetrieve(req, Argument.of(AuthToken.class), false));
+				.flatMap(req -> doRetrieve(req, Argument.of(AuthToken.class), false,
+					this::handleResponseErrors));
 	}
 
 	@SingleResult
@@ -325,7 +327,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	}
 
 	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
-		return doRetrieve(request, argumentType, true);
+		return doRetrieve(request, argumentType, true, this::handleResponseErrors);
 	}
 
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Class<T> type) {
@@ -336,10 +338,15 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				unexpectedResponseProblem(responseException, request, null));
 	}
 
-	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType, boolean mapErrors) {
+	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request,
+		Argument<T> argumentType, boolean mapErrors,
+		Function<Mono<T>, Publisher<T>> errorHandlingTransformer) {
+
 		var response = Mono.from(client.retrieve(request, argumentType, ERROR_TYPE));
 
-		return mapErrors ? response.transform(this::handleResponseErrors) : response;
+		return mapErrors
+			? response.transform(errorHandlingTransformer)
+			: response;
 	}
 
 	private <T> Object[] iterableToArray(Iterable<T> iterable) {
