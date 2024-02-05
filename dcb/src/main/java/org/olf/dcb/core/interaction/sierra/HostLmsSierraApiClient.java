@@ -293,8 +293,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		return createRequest(GET, path)
 			.map(req -> req.uri(uriBuilderConsumer))
 			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, argumentType))
-			.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty());
+			.flatMap(req -> doRetrieve(req, argumentType, response -> response
+				.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty())));
 	}
 
 	private URI resolve(URI relativeURI) {
