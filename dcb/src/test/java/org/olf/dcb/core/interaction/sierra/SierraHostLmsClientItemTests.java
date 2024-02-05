@@ -2,9 +2,11 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
@@ -45,6 +47,7 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.NumericRangeMappingFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -82,6 +85,10 @@ class SierraHostLmsClientItemTests {
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+
+		final var sierraLoginFixture = sierraApiFixtureProvider.loginFixtureFor(mockServerClient);
+
+		sierraLoginFixture.failLoginsForAnyOtherCredentials(KEY, SECRET);
 
 		hostLmsFixture.deleteAll();
 
@@ -210,6 +217,30 @@ class SierraHostLmsClientItemTests {
 		final var items = getItems(client,"87878325");
 
 		assertThat("Should have no items", items, is(empty()));
+	}
+
+	@Test
+	void shouldFailWhenCannotAuthenticateWithSierra() {
+		// Arrange
+		final var BASE_URL = "http://invalid-auth-sierra-test";
+
+		hostLmsFixture.createSierraHostLms("bad-config-sierra-host-lms",
+			"invalid-key", "invalid-secret", BASE_URL, "item");
+
+		sierraItemsAPIFixture.zeroItemsResponseForBibId("7225825");
+
+		// Act
+		final var client = hostLmsFixture.createClient("bad-config-sierra-host-lms");
+
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> getItems(client, "7225825"));
+
+		// Assert
+		assertThat("Exception should not be null", exception, is(notNullValue()));
+		assertThat("Status should not be null", exception.getStatus(), is(notNullValue()));
+
+		assertThat("Code should be unauthorised",
+			exception.getStatus().getCode(), is(401));
 	}
 
 	private static List<Item> getItems(HostLmsClient client, String sourceRecordId) {
