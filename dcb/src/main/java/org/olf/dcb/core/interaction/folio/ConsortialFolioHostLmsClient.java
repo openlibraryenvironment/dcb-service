@@ -187,7 +187,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.queryParam("fullPeriodicals", true)
 			);
 
-		return makeRequest(request, Argument.of(OuterHoldings.class));
+		return makeRequest(request, Argument.of(OuterHoldings.class))
+			.onErrorMap(HttpClientResponseException.class, responseException ->
+				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
 	}
 
 	private Mono<OuterHoldings> checkResponse(OuterHoldings outerHoldings, String instanceId) {

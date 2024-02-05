@@ -12,6 +12,8 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockserver.model.HttpResponse.response;
+import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
@@ -38,10 +40,14 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.ItemMatchers.isSuppressed;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,6 +60,7 @@ import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
@@ -429,6 +436,29 @@ class ConsortialFolioHostLmsClientItemTests {
 		// As this is based upon the count, this could be a brittle check
 		assertThat("Should only include items based upon holdings with FOLIO item status",
 			items, hasSize(folioItemStatuses.size()));
+	}
+
+	@Test
+	void shouldFailWhenTransactionCreationReturnsUnexpectedHttpResponse() {
+		// Arrange
+		final var instanceId = randomUUID().toString();
+
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId, response()
+			.withStatusCode(400)
+			// This is a made up body that is only intended to demonstrate how it's captured
+			.withBody(json(Map.of("message", "something went wrong"))));
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var problem = assertThrows(ThrowableProblem.class, () -> getItems(instanceId));
+
+		// Assert
+		assertThat(problem, allOf(
+			hasMessageForHostLms(HOST_LMS_CODE),
+			hasResponseStatusCodeParameter(400),
+			hasJsonResponseBodyProperty("message", "something went wrong")
+		));
 	}
 
 	@Test

@@ -48,14 +48,18 @@ public class MockFolioFixture {
 	}
 
 	void mockHoldingsByInstanceId(String instanceId, JsonBody json) {
+		mockHoldingsByInstanceId(instanceId, response()
+			.withStatusCode(200)
+			.withBody(json));
+	}
+
+	void mockHoldingsByInstanceId(String instanceId, HttpResponse response) {
 		mockServerClient
 			.when(authorizedRequest("GET")
 				.withPath("/rtac")
 				.withQueryStringParameter("fullPeriodicals", "true")
 				.withQueryStringParameter("instanceIds", instanceId))
-			.respond(response()
-				.withStatusCode(200)
-				.withBody(json));
+			.respond(response);
 	}
 
 	void mockPatronAuth(String barcode, User user) {

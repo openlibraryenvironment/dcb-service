@@ -242,7 +242,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 
 		// Assert
 		assertThat(problem, allOf(
-			hasMessageForHostLms("folio-supplying-request-tests"),
+			hasMessageForHostLms(HOST_LMS_CODE),
 			hasResponseStatusCodeParameter(400),
 			hasJsonResponseBodyProperty("message", "something went wrong")
 		));
