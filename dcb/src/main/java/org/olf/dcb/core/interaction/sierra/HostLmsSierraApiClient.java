@@ -244,8 +244,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 					.basicAuth(creds.getUsername(), creds.getPassword())
 					.contentType(MediaType.MULTIPART_FORM_DATA_TYPE)
 					.body(body))
-				.flatMap(req -> doRetrieve(req, Argument.of(AuthToken.class), false,
-					noExtraErrorHandling()));
+				.flatMap(req -> doRetrieve(req, Argument.of(AuthToken.class)));
 	}
 
 	@SingleResult
@@ -320,10 +319,6 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				.map(resolvedUri -> HttpRequest.<T>create(method, resolvedUri.toString()).accept(APPLICATION_JSON));
 	}
 
-	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
-		return doRetrieve(request, argumentType, true, noExtraErrorHandling());
-	}
-
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Class<T> type) {
 		return Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE))
 			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken())
@@ -332,16 +327,25 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				unexpectedResponseProblem(responseException, request, null));
 	}
 
+	/**
+	 * Make HTTP request to a Sierra system
+	 *
+	 * @param request Request to send
+	 * @param responseBodyType Expected type of the response body
+	 * @param errorHandlingTransformer method for handling errors after the response has been received
+	 * @return Deserialized response body or error, that might have been transformed already by handler
+	 * @param <T> Type to deserialize the response to
+	 */
 	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request,
-		Argument<T> argumentType, boolean mapErrors,
-		Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
+		Argument<T> responseBodyType, Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
 
-		var response = Mono.from(client.retrieve(request, argumentType, ERROR_TYPE))
-			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken());
+		return Mono.from(client.retrieve(request, responseBodyType, ERROR_TYPE))
+			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken())
+			.transform(errorHandlingTransformer);
+	}
 
-		return mapErrors
-			? response.transform(errorHandlingTransformer)
-			: response;
+	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
+		return doRetrieve(request, argumentType, noExtraErrorHandling());
 	}
 
 	/**
