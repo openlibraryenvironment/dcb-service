@@ -712,9 +712,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private Mono<TransactionStatus> getTransactionStatus(String localRequestId) {
 		final var path = "/dcbService/transactions/%s/status".formatted(localRequestId);
 
-		return makeRequest(authorisedRequest(GET, path),
-				Argument.of(TransactionStatus.class), noExtraErrorHandling())
-			.onErrorMap(HttpResponsePredicates::isNotFound, response -> new TransactionNotFoundException());
+		return makeRequest(authorisedRequest(GET, path), Argument.of(TransactionStatus.class),
+			response -> response.
+				onErrorMap(HttpResponsePredicates::isNotFound, t -> new TransactionNotFoundException()));
 	}
 
 	private Mono<TransactionStatus> updateTransactionStatus(String localRequestId, String status) {
