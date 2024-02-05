@@ -468,26 +468,28 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<Patron> getPatronByUsername(String localUsername) {
 		// we use barcode for patron lookup not username
-		final var query = exactEqualityQuery("barcode", localUsername);
-
-			return findUsers(query)
-				.flatMap(response -> mapFirstUserToPatron(response, query, Mono.empty()))
-				.doOnError(error -> log.error("Error occurred while fetching patron by username: {}", localUsername, error));
+		return findUserByBarcode(localUsername)
+			.doOnError(error -> log.error("Error occurred while fetching patron by username: {}", localUsername, error));
 	}
 
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
 		try {
-			final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
+			final var barcode = getValue(patron,
+				org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
-			final var query = exactEqualityQuery("barcode", barcode);
-
-			return findUsers(query)
-				.flatMap(response -> mapFirstUserToPatron(response, query, Mono.empty()));
+			return findUserByBarcode(barcode);
 		} catch (NoHomeIdentityException | NoHomeBarcodeException e) {
 			return Mono.error(FailedToFindVirtualPatronException.noBarcode(
 				getValue(patron, org.olf.dcb.core.model.Patron::getId)));
 		}
+	}
+
+	private Mono<Patron> findUserByBarcode(String barcode) {
+		final var query = exactEqualityQuery("barcode", barcode);
+
+		return findUsers(query)
+			.flatMap(response -> mapFirstUserToPatron(response, query, Mono.empty()));
 	}
 
 	private Mono<UserCollection> findUsers(CqlQuery query) {
