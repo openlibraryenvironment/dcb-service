@@ -240,10 +240,12 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	@SingleResult
 	public Publisher<AuthToken> login(BasicAuth creds, MultipartBody body) {
 		return postRequest("token")
-				.map(req -> req.basicAuth(creds.getUsername(), creds.getPassword())
-						.contentType(MediaType.MULTIPART_FORM_DATA_TYPE).body(body))
+				.map(req -> req
+					.basicAuth(creds.getUsername(), creds.getPassword())
+					.contentType(MediaType.MULTIPART_FORM_DATA_TYPE)
+					.body(body))
 				.flatMap(req -> doRetrieve(req, Argument.of(AuthToken.class), false,
-					this::handleResponseErrors));
+					noExtraErrorHandling()));
 	}
 
 	@SingleResult
@@ -300,14 +302,6 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		return RelativeUriResolver.resolve(rootUri, relativeURI);
 	}
 
-	private <T> Mono<T> handleResponseErrors(final Mono<T> current) {
-		// We used to do
-		// .transform(this::handle404AsEmpty)
-		// Immediately after current, but some downstream chains rely upon the 404 so
-		// for now we use .transform directly in the caller
-		return current.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken());
-	}
-
 	private void clearToken() {
 		log.debug("Clearing token to trigger re-authentication");
 		this.currentToken = null;
@@ -327,7 +321,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	}
 
 	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
-		return doRetrieve(request, argumentType, true, this::handleResponseErrors);
+		return doRetrieve(request, argumentType, true, noExtraErrorHandling());
 	}
 
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Class<T> type) {
@@ -340,7 +334,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request,
 		Argument<T> argumentType, boolean mapErrors,
-		Function<Mono<T>, Publisher<T>> errorHandlingTransformer) {
+		Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
 
 		var response = Mono.from(client.retrieve(request, argumentType, ERROR_TYPE))
 			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken());
@@ -348,6 +342,16 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		return mapErrors
 			? response.transform(errorHandlingTransformer)
 			: response;
+	}
+
+	/**
+	 * Utility method to specify that no specialised error handling will be needed for this request
+	 *
+	 * @return transformer that provides no additionally error handling
+	 * @param <T> Type of response being handled
+	 */
+	private static <T> Function<Mono<T>, Mono<T>> noExtraErrorHandling() {
+		return Function.identity();
 	}
 
 	private <T> Object[] iterableToArray(Iterable<T> iterable) {
