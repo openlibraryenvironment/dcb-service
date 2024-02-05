@@ -631,7 +631,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		return getTransactionStatus(localRequestId)
 			.map(transactionStatus -> mapToHostLmsRequest(localRequestId, transactionStatus))
-			.onErrorResume(HttpResponsePredicates::isNotFound,
+			.onErrorResume(TransactionNotFoundException.class,
 				t -> Mono.just(missingHostLmsRequest(localRequestId)));
 	}
 
@@ -671,8 +671,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		return getTransactionStatus(localRequestId)
 			.map(transactionStatus -> mapToHostLmsItem(localItemId, transactionStatus, localRequestId))
-			.onErrorResume(HttpResponsePredicates::isNotFound,
-				t -> missingHostLmsItem(localItemId));
+			.onErrorResume(TransactionNotFoundException.class, t -> missingHostLmsItem(localItemId));
 	}
 
 	private static HostLmsItem mapToHostLmsItem(String itemId,
@@ -712,8 +711,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private Mono<TransactionStatus> getTransactionStatus(String localRequestId) {
 		final var path = "/dcbService/transactions/%s/status".formatted(localRequestId);
 
-		return makeRequest(authorisedRequest(GET, path), Argument.of(TransactionStatus.class),
-			noExtraErrorHandling());
+		return makeRequest(authorisedRequest(GET, path),
+				Argument.of(TransactionStatus.class), noExtraErrorHandling())
+			.onErrorMap(HttpResponsePredicates::isNotFound, response -> new TransactionNotFoundException());
 	}
 
 	private Mono<TransactionStatus> updateTransactionStatus(String localRequestId, String status) {
