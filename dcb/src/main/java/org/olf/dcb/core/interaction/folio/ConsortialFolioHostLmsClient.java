@@ -34,6 +34,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.Bib;
@@ -187,7 +188,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.queryParam("fullPeriodicals", true)
 			);
 
-		return makeRequest(request, Argument.of(OuterHoldings.class))
+		return makeRequest(request, Argument.of(OuterHoldings.class), noExtraErrorHandling())
 			.onErrorMap(HttpClientResponseException.class, responseException ->
 				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
 	}
@@ -330,7 +331,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private Mono<CreateTransactionResponse> createTransaction(
 		MutableHttpRequest<CreateTransactionRequest> request) {
 
-		return makeRequest(request, Argument.of(CreateTransactionResponse.class))
+		return makeRequest(request, Argument.of(CreateTransactionResponse.class), noExtraErrorHandling())
 			.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
 			.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError)
 			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new)
@@ -497,7 +498,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var request = authorisedRequest(GET, "/users/users")
 			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
-		return makeRequest(request, Argument.of(UserCollection.class))
+		return makeRequest(request, Argument.of(UserCollection.class), noExtraErrorHandling())
 			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new);
 	}
 
@@ -596,8 +597,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<Patron> findPatronByBarcode(String barcode) {
-		final var query = exactEqualityQuery("barcode", barcode);
-		return findUsers(query).flatMap(collection -> mapFirstUserToPatron(collection, query, Mono.empty()));
+		return findUserByBarcode(barcode);
 	}
 
 	private Mono<Patron> verifyPatronPin(Patron patron, String pin) {
@@ -605,7 +605,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var request = authorisedRequest(POST, "/users/patron-pin/verify")
 			.body(VerifyPatron.builder().id(localID).pin(pin).build());
 
-		return makeRequest(request, VOID).thenReturn(patron);
+		return makeRequest(request, VOID, noExtraErrorHandling()).thenReturn(patron);
 	}
 
 	private Boolean isValidAuthProfile(String authProfile) {
@@ -712,17 +712,18 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private Mono<TransactionStatus> getTransactionStatus(String localRequestId) {
 		final var path = "/dcbService/transactions/%s/status".formatted(localRequestId);
 
-		return makeRequest(authorisedRequest(GET, path), Argument.of(TransactionStatus.class));
+		return makeRequest(authorisedRequest(GET, path), Argument.of(TransactionStatus.class),
+			noExtraErrorHandling());
 	}
 
 	private Mono<TransactionStatus> updateTransactionStatus(String localRequestId, String status) {
 		final var path = "/dcbService/transactions/%s/status".formatted(localRequestId);
 
-		return makeRequest(
-			authorisedRequest(PUT, path).body(
-				TransactionStatus.builder().status(status).build())
-			, Argument.of(TransactionStatus.class)
-		);
+		return makeRequest(authorisedRequest(PUT, path)
+				.body(TransactionStatus.builder()
+					.status(status)
+					.build()),
+			Argument.of(TransactionStatus.class), noExtraErrorHandling());
 	}
 
 	@Override
@@ -792,17 +793,39 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return Mono.just("OK");
 	}
 
+	/**
+	 * Make a HTTP request to a FOLIO system
+	 *
+	 * @param request Request to send
+	 * @param responseBodyType Expected type of the response body
+	 * @param errorHandlingTransformer method for handling errors after the response has been received
+	 * @return Deserialized response body or error, that might have been transformed already by handler
+	 * @param <TResponse> Type to deserialize the response to
+	 * @param <TRequest> Type of the request body
+	 */
 	private <TResponse, TRequest> Mono<TResponse> makeRequest(
-		@NonNull MutableHttpRequest<TRequest> request, @NonNull Argument<TResponse> bodyType) {
+		@NonNull MutableHttpRequest<TRequest> request, @NonNull Argument<TResponse> responseBodyType,
+		Function<Mono<TResponse>, Mono<TResponse>> errorHandlingTransformer) {
 
 		log.trace("Making request: {} to Host LMS: {}", toLogOutput(request), getHostLmsCode());
 
-		return Mono.from(httpClient.retrieve(request, bodyType))
+		return Mono.from(httpClient.retrieve(request, responseBodyType))
 			.doOnSuccess(response -> log.trace(
 				"Received response: {} from Host LMS: {}", response, getHostLmsCode()))
 			.doOnError(HttpClientResponseException.class,
 				error -> log.trace("Received error response: {} from Host LMS: {}",
-					toLogOutput(error.getResponse()), getHostLmsCode()));
+					toLogOutput(error.getResponse()), getHostLmsCode()))
+			.transform(errorHandlingTransformer);
+	}
+
+	/**
+	 * Utility method to specify that no specialised error handling will be needed for this request
+	 *
+	 * @return transformer that provides no additionally error handling
+	 * @param <T> Type of response being handled
+	 */
+	private static <T> Function<Mono<T>, Mono<T>> noExtraErrorHandling() {
+		return Function.identity();
 	}
 
 	private MutableHttpRequest<Object> authorisedRequest(HttpMethod method, String path) {
