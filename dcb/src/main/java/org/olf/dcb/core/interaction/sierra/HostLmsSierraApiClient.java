@@ -332,7 +332,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Class<T> type) {
 		return Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE))
-			.transform(this::handleResponseErrors)
+			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken())
 			// This has to happen after other error handlers related to HttpClientResponseException
 			.onErrorMap(HttpClientResponseException.class, responseException ->
 				unexpectedResponseProblem(responseException, request, null));
