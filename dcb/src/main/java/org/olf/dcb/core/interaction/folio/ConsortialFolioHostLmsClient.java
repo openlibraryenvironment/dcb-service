@@ -188,9 +188,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.queryParam("fullPeriodicals", true)
 			);
 
-		return makeRequest(request, Argument.of(OuterHoldings.class), noExtraErrorHandling())
-			.onErrorMap(HttpClientResponseException.class, responseException ->
-				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
+		return makeRequest(request, Argument.of(OuterHoldings.class), noExtraErrorHandling());
 	}
 
 	private Mono<OuterHoldings> checkResponse(OuterHoldings outerHoldings, String instanceId) {
@@ -334,9 +332,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return makeRequest(request, Argument.of(CreateTransactionResponse.class),
 			response -> response
 				.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
-				.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError))
-			.onErrorMap(HttpClientResponseException.class, responseException ->
-				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
+				.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError));
 	}
 
 	private CannotPlaceRequestException interpretValidationError(Throwable error) {
@@ -604,7 +600,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var request = authorisedRequest(POST, "/users/patron-pin/verify")
 			.body(VerifyPatron.builder().id(localID).pin(pin).build());
 
-		return makeRequest(request, VOID, noExtraErrorHandling()).thenReturn(patron);
+		return makeRequest(request, VOID, noExtraErrorHandling())
+			.thenReturn(patron);
 	}
 
 	private Boolean isValidAuthProfile(String authProfile) {
@@ -816,7 +813,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					toLogOutput(error.getResponse()), getHostLmsCode()))
 			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new)
 			// Additional request specific error handling
-			.transform(errorHandlingTransformer);
+			.transform(errorHandlingTransformer)
+			// This has to go after more specific error handling
+			// as will convert any client response exception to a problem
+			.onErrorMap(HttpClientResponseException.class, responseException ->
+				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
 	}
 
 	/**
