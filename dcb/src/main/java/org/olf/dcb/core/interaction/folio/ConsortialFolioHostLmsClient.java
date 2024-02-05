@@ -331,10 +331,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private Mono<CreateTransactionResponse> createTransaction(
 		MutableHttpRequest<CreateTransactionRequest> request) {
 
-		return makeRequest(request, Argument.of(CreateTransactionResponse.class), noExtraErrorHandling())
-			.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
-			.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError)
-			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new)
+		return makeRequest(request, Argument.of(CreateTransactionResponse.class),
+			response -> response
+				.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
+				.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError)
+				.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new))
 			.onErrorMap(HttpClientResponseException.class, responseException ->
 				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
 	}
