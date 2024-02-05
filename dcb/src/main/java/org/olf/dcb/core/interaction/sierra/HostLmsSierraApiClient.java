@@ -342,7 +342,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		Argument<T> argumentType, boolean mapErrors,
 		Function<Mono<T>, Publisher<T>> errorHandlingTransformer) {
 
-		var response = Mono.from(client.retrieve(request, argumentType, ERROR_TYPE));
+		var response = Mono.from(client.retrieve(request, argumentType, ERROR_TYPE))
+			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken());
 
 		return mapErrors
 			? response.transform(errorHandlingTransformer)
