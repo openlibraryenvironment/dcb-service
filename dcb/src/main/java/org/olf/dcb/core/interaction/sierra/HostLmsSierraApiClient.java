@@ -284,11 +284,14 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		});
 	}
 
-	private <T> Mono<T> get(String path, Argument<T> argumentType, Consumer<UriBuilder> uriBuilderConsumer) {
+	private <T> Mono<T> get(String path, Argument<T> argumentType,
+		Consumer<UriBuilder> uriBuilderConsumer) {
 
-		return createRequest(GET, path).map(req -> req.uri(uriBuilderConsumer)).flatMap(this::ensureToken)
-				.flatMap(req -> doRetrieve(req, argumentType))
-				.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty());
+		return createRequest(GET, path)
+			.map(req -> req.uri(uriBuilderConsumer))
+			.flatMap(this::ensureToken)
+			.flatMap(req -> doRetrieve(req, argumentType))
+			.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty());
 	}
 
 	private URI resolve(URI relativeURI) {
