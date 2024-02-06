@@ -117,6 +117,24 @@ class UnexpectedResponseProblemTests {
 	}
 
 	@Test
+	void shouldIncludeTextRequestBody() {
+		// Act
+		final var exception = createResponseException(badRequest());
+
+		final var problem = unexpectedResponseProblem(exception,
+			examplePostRequest()
+				.contentType(TEXT_PLAIN_TYPE)
+				.body("Some body"),
+			"example-host-lms");
+
+		// Assert
+		assertThat(problem, allOf(
+			hasMessageForHostLms("example-host-lms"),
+			hasRequestBodyParameter(is("Some body"))
+		));
+	}
+
+	@Test
 	void shouldTolerateNoRequestBody() {
 		// Act
 		final var exception = createResponseException(badRequest());

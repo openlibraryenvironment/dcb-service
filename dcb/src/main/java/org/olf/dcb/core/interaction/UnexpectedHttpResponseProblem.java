@@ -18,14 +18,12 @@ public class UnexpectedHttpResponseProblem {
 	public static <T> ThrowableProblem unexpectedResponseProblem(
 		HttpClientResponseException responseException, HttpRequest<T> request, String hostLmsCode) {
 
-		final var jsonResponseBody = interpretResponseBody(responseException);
-
 		return Problem.builder()
 			.withTitle(determineTitle(hostLmsCode, request))
 			.with("responseStatusCode", getValue(responseException.getStatus(), HttpStatus::getCode))
-			.with("responseBody", jsonResponseBody)
+			.with("responseBody", interpretResponseBody(responseException))
 			.with("requestMethod", getValue(request, HttpRequest::getMethodName))
-			.with("requestBody", "No body")
+			.with("requestBody", interpretRequestBody(request))
 			.build();
 	}
 
@@ -38,8 +36,20 @@ public class UnexpectedHttpResponseProblem {
 			return optionalJsonBody.get();
 		}
 		else {
-			return response.getBody(Argument.of(String.class)).orElse("No body");
+			return response.getBody(Argument.of(String.class)).orElse(noBodyMessage());
 		}
+	}
+
+	private static String noBodyMessage() {
+		return "No body";
+	}
+
+	private static Object interpretRequestBody(HttpRequest<?> request) {
+		if (request == null) {
+			return noBodyMessage();
+		}
+
+		return request.getBody(Argument.of(String.class)).orElse(noBodyMessage());
 	}
 
 	private static String determineTitle(String hostLmsCode, HttpRequest<?> request) {
