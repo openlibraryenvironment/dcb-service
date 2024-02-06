@@ -2,7 +2,6 @@ package org.olf.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -16,6 +15,9 @@ import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasId;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 
 import java.util.List;
 import java.util.UUID;
@@ -235,9 +237,9 @@ class PlaceRequestAtSupplyingAgencyTests {
 			"Consortial Hold. tno=" + patronRequest.getId());
 	}
 
-	@DisplayName("request cannot be placed in supplying agency’s local system")
+	@DisplayName("Should fail when supplying agency's Host LMS sends unexpected response whilst placing request")
 	@Test
-	void placePatronRequestAtSupplyingAgencyReturns500response() {
+	void shouldFailWhenPlacingRequestAtSupplyingAgencyReturnsUnexpectedResponse() {
 		// Arrange
 		final var localId = "931824";
 		final var patronRequestId = randomUUID();
@@ -252,13 +254,22 @@ class PlaceRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", "b");
 
 		// Act
-		final var exception = assertThrows(ThrowableProblem.class,
+		final var problem = assertThrows(ThrowableProblem.class,
 			() -> placeAtSupplyingAgency(patronRequest));
 
 		// Assert
 		final var expectedMessage = "Unexpected response from: POST /iii/sierra-api/v6/patrons/1000001/holds/requests";
 
-		assertThat("Should report exception message", exception.getMessage(), containsString(expectedMessage));
+		assertThat(problem, allOf(
+			messageContains(expectedMessage),
+			// These are includes from the underlying unexpected response problem created by the client
+			hasResponseStatusCodeParameter(500),
+			hasJsonResponseBodyProperty("code", 109),
+			hasJsonResponseBodyProperty("description", "Invalid configuration"),
+			hasJsonResponseBodyProperty("httpStatus", 500),
+			hasJsonResponseBodyProperty("name", "Internal server error"),
+			hasJsonResponseBodyProperty("specificCode", 0)
+		));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 

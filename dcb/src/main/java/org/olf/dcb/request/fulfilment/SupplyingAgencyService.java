@@ -1,5 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
+import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
 import static reactor.function.TupleUtils.function;
 
 import java.net.URI;
@@ -25,9 +26,9 @@ import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
-import reactor.function.TupleUtils;
 
 
 @Slf4j
@@ -194,7 +195,7 @@ public class SupplyingAgencyService {
 		RequestWorkflowContext context, Throwable error, PatronRequest patronRequest,
 		PatronIdentity patronIdentityAtSupplier, SupplierRequest supplierRequest) {
 
-		return Problem.builder()
+		var builder = Problem.builder()
 			.withType(ERR0010)
 			.withTitle(
 				"Unable to place SUPPLIER hold request for pr=" + patronRequest.getId() + " Lpatron=" + patronIdentityAtSupplier.getLocalId() +
@@ -206,9 +207,19 @@ public class SupplyingAgencyService {
 			.with("dcbLocalItemBarcode", supplierRequest.getLocalItemBarcode())
 			.with("dcbLocalItemType", supplierRequest.getLocalItemType())
 			.with("dcbLocalPatronType", patronIdentityAtSupplier.getLocalPtype())
-			.with("dcbCanonicalPatronType", patronIdentityAtSupplier.getCanonicalPtype())
-			.with("dcbLocalPatronBarcode", patronIdentityAtSupplier.getLocalBarcode())
-			.build();
+			.with("dcbCanonicalPatronType",
+				patronIdentityAtSupplier.getCanonicalPtype())
+			.with("dcbLocalPatronBarcode",
+				patronIdentityAtSupplier.getLocalBarcode());
+
+		// Pass on any parameters from an underlying problem
+		if (error instanceof ThrowableProblem underlyingProblem) {
+			if (isNotEmpty(underlyingProblem.getParameters())) {
+				underlyingProblem.getParameters().forEach(builder::with);
+			}
+		}
+
+		return builder.build();
 	}
 
 	private Mono<PatronRequest> updateSupplierRequest(RequestWorkflowContext psrc) {
