@@ -135,6 +135,31 @@ class UnexpectedResponseProblemTests {
 	}
 
 	@Test
+	void shouldIncludeJsonRequestBody() {
+		// Act
+		final var exception = createResponseException(badRequest());
+
+		final var requestBody = ExampleBody.builder()
+			.id("6835489")
+			.build();
+
+		final var problem = unexpectedResponseProblem(exception,
+			examplePostRequest()
+				.contentType(APPLICATION_JSON_TYPE)
+				.body(requestBody),
+			"example-host-lms");
+
+		// Assert
+		assertThat(problem, allOf(
+			hasMessageForHostLms("example-host-lms"),
+			// The request body hasn't been serialised yet
+			// so toString of the object is closest we can get
+			// without invoking the serialisation manually
+			hasRequestBodyParameter(is(requestBody.toString()))
+		));
+	}
+
+	@Test
 	void shouldTolerateNoRequestBody() {
 		// Act
 		final var exception = createResponseException(badRequest());
