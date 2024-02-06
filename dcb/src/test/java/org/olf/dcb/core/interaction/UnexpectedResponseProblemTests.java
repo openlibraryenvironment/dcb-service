@@ -6,6 +6,7 @@ import static io.micronaut.http.MediaType.TEXT_PLAIN_TYPE;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
@@ -42,7 +43,8 @@ class UnexpectedResponseProblemTests {
 			hasMessageForHostLms("example-host-lms"),
 			hasResponseStatusCodeParameter(400),
 			hasJsonResponseBodyProperty("error", "something went wrong"),
-			hasJsonResponseBodyProperty("code", 109)
+			hasJsonResponseBodyProperty("code", 109),
+			hasRequestMethodParameter("POST")
 		));
 	}
 
@@ -107,6 +109,21 @@ class UnexpectedResponseProblemTests {
 
 		// Assert
 		assertThat(problem, hasMessageForRequest("GET", "/some-path"));
+	}
+
+	@Test
+	void shouldTolerateNoRequestOrHostLmsCode() {
+		// Act
+		final var exception = createResponseException(badRequest());
+
+		final var problem = unexpectedResponseProblem(exception, null, null);
+
+		// Assert
+		assertThat(problem, allOf(
+			hasMessage("Unexpected response received for unknown request or Host LMS"),
+			hasResponseStatusCodeParameter(400),
+			hasRequestMethodParameter(null)
+		));
 	}
 
 	private static <T> HttpClientResponseException createResponseException(
