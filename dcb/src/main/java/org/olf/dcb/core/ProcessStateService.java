@@ -8,6 +8,7 @@ import org.olf.dcb.storage.ProcessStateRepository;
 
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 import services.k_int.utils.UUIDUtils;
 
 @Singleton
@@ -25,8 +26,12 @@ public class ProcessStateService {
 
 		ProcessState ps = new ProcessState(persistence_id, context, processName, state);
 
-		return Mono.from(processStateRepository.existsById(persistence_id))
-				.flatMap(exists -> Mono.fromDirect(exists ? processStateRepository.update(ps) : processStateRepository.save(ps)));
+		// return Mono.from(processStateRepository.existsById(persistence_id))
+		//		.flatMap(exists -> Mono.fromDirect(exists ? processStateRepository.update(ps) : processStateRepository.save(ps)));
+
+		return Mono.from(
+			Flux.from(processStateRepository.existsById(persistence_id))
+				.concatMap(exists -> exists ? processStateRepository.update(ps) : processStateRepository.save(ps)));
 	}
 
 	public Mono<ProcessState> getState(UUID context, String processName) {

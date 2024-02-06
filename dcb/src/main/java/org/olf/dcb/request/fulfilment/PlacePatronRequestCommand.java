@@ -56,8 +56,13 @@ public class PlacePatronRequestCommand {
 	@Builder
 	@Value
 	public static class Requestor {
+		// The patron ID at the requesting system
 		String localId;
+		// The code assigned to the hostLMS this user belongs to
 		String localSystemCode;
+		// THe location code of the patrons home library (May not be present - e.g. FOLIO)
 		String homeLibraryCode;
+		// The patrons home agency
+		String agencyCode;
 	}
 }

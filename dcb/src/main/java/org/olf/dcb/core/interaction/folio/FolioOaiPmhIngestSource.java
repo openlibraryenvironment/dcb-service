@@ -285,7 +285,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 					
 					return Mono.defer(() -> saveState(lms.getId(), "ingest", state))
 						.flatMap(_s -> {
-							log.debug("Ensuring removedresumption token is saved...");
+							log.debug("Ensuring removedresumption token is saved...{}",_s);
 							return Mono.empty();
 						});
 				} else {
@@ -460,8 +460,10 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	@Override
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Mono<PublisherState> saveState(@NonNull UUID id, @NonNull String processName, @NonNull PublisherState state) {
-		log.debug("Update state {} {} - {}", id, state, lms.getName());
+		log.debug("savState {} {} - {}", id, state, lms.getName());
 
-		return Mono.from(processStateService.updateState(id, processName, state.storred_state)).thenReturn(state);
+		// return Mono.from(processStateService.updateState(id, processName, state.storred_state)).thenReturn(state);
+		return processStateService.updateState(id, processName, state.storred_state)
+			.thenReturn(state);
 	}
 }
