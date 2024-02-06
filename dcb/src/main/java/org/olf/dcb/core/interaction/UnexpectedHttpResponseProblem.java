@@ -18,17 +18,18 @@ public class UnexpectedHttpResponseProblem {
 	public static <T> ThrowableProblem unexpectedResponseProblem(
 		HttpClientResponseException responseException, HttpRequest<T> request, String hostLmsCode) {
 
-		final var jsonResponseBody = InterpretBody(responseException);
+		final var jsonResponseBody = interpretResponseBody(responseException);
 
 		return Problem.builder()
 			.withTitle(determineTitle(hostLmsCode, request))
 			.with("responseStatusCode", getValue(responseException.getStatus(), HttpStatus::getCode))
 			.with("responseBody", jsonResponseBody)
 			.with("requestMethod", getValue(request, HttpRequest::getMethodName))
+			.with("requestBody", "No body")
 			.build();
 	}
 
-	private static Object InterpretBody(HttpClientResponseException responseException) {
+	private static Object interpretResponseBody(HttpClientResponseException responseException) {
 		final var response = getValue(responseException, HttpClientResponseException::getResponse);
 
 		final var optionalJsonBody = response.getBody(Argument.of(Map.class));

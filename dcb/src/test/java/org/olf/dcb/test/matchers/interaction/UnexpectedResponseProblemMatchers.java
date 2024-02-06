@@ -47,6 +47,10 @@ public class UnexpectedResponseProblemMatchers {
 		return hasParameters(hasEntry(equalTo("requestMethod"), is(expectedValue)));
 	}
 
+	public static Matcher<ThrowableProblem> hasRequestBodyParameter(Matcher<?> valueMatcher) {
+		return hasParameters(hasEntry(equalTo("requestBody"), valueMatcher));
+	}
+
 	static Matcher<ThrowableProblem> hasParameters(Matcher<?> matcher) {
 		return hasProperty("parameters", matcher);
 	}

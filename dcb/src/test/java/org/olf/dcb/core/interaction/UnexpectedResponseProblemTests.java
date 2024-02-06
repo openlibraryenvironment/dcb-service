@@ -4,6 +4,7 @@ import static io.micronaut.http.HttpResponse.badRequest;
 import static io.micronaut.http.MediaType.APPLICATION_JSON_TYPE;
 import static io.micronaut.http.MediaType.TEXT_PLAIN_TYPE;
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
@@ -11,6 +12,7 @@ import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMat
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoResponseBodyParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestBodyParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasTextResponseBodyParameter;
@@ -23,6 +25,9 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Value;
 
 class UnexpectedResponseProblemTests {
 	@Test
@@ -112,6 +117,21 @@ class UnexpectedResponseProblemTests {
 	}
 
 	@Test
+	void shouldTolerateNoRequestBody() {
+		// Act
+		final var exception = createResponseException(badRequest());
+
+		final var problem = unexpectedResponseProblem(exception,
+			examplePostRequest(), "example-host-lms");
+
+		// Assert
+		assertThat(problem, allOf(
+			hasMessageForHostLms("example-host-lms"),
+			hasRequestBodyParameter(is("No body"))
+		));
+	}
+
+	@Test
 	void shouldTolerateNoRequestOrHostLmsCode() {
 		// Act
 		final var exception = createResponseException(badRequest());
@@ -138,5 +158,12 @@ class UnexpectedResponseProblemTests {
 
 	private static MutableHttpRequest<Object> exampleGetRequest() {
 		return HttpRequest.GET("http://some-host-lms");
+	}
+
+	@Serdeable
+	@Builder
+	@Value
+	public static class ExampleBody {
+		String id;
 	}
 }
