@@ -1,5 +1,6 @@
 package services.k_int.interaction.sierra;
 
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -10,8 +11,10 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.SierraErrorMatchers.isBadJsonError;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 
 import java.util.List;
 import java.util.Map;
@@ -23,10 +26,9 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.matchers.SierraErrorMatchers;
+import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import reactor.core.publisher.Mono;
@@ -101,13 +103,20 @@ class SierraApiItemTests {
 			.bibIds(List.of(7655654))
 			.build();
 
-		final var exception = assertThrows(HttpClientResponseException.class,
+		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(sierraApiClient.createItem(itemPatch)));
 
 		// Assert
-		final var body = SierraErrorMatchers.getResponseBody(exception);
-
-		assertThat(body, isBadJsonError());
+		assertThat(problem, allOf(
+			hasMessageForRequest("POST", "/iii/sierra-api/v6/items"),
+			hasResponseStatusCodeParameter(400),
+			hasJsonResponseBodyProperty("name","Bad JSON/XML Syntax"),
+			hasJsonResponseBodyProperty("description",
+				"Please check that the JSON fields/values are of the expected JSON data types"),
+			hasJsonResponseBodyProperty("code", 130),
+			hasJsonResponseBodyProperty("specificCode", 0),
+			hasRequestMethodParameter("POST")
+		));
 	}
 
 	@Test
@@ -209,12 +218,15 @@ class SierraApiItemTests {
 		// Act
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
-		final var exception = assertThrows(HttpClientResponseException.class,
+		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(sierraApiClient.getItem("56737658")));
 
 		// Assert
-
-		// This message comes from the parsing of the response as a SierraError
-		assertThat(exception, hasMessage("null - [0 / 0]"));
+		assertThat(problem, allOf(
+			hasMessageForRequest("GET", "/iii/sierra-api/v6/items/56737658"),
+			hasResponseStatusCodeParameter(400),
+			hasJsonResponseBodyProperty("message", "something went wrong"),
+			hasRequestMethodParameter("GET")
+		));
 	}
 }

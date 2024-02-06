@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.olf.dcb.core.interaction.HttpResponsePredicates;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
@@ -239,9 +240,11 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	@SingleResult
 	public Publisher<AuthToken> login(BasicAuth creds, MultipartBody body) {
 		return postRequest("token")
-				.map(req -> req.basicAuth(creds.getUsername(), creds.getPassword())
-						.contentType(MediaType.MULTIPART_FORM_DATA_TYPE).body(body))
-				.flatMap(req -> doRetrieve(req, Argument.of(AuthToken.class), false));
+				.map(req -> req
+					.basicAuth(creds.getUsername(), creds.getPassword())
+					.contentType(MediaType.MULTIPART_FORM_DATA_TYPE)
+					.body(body))
+				.flatMap(req -> doRetrieve(req, Argument.of(AuthToken.class)));
 	}
 
 	@SingleResult
@@ -284,23 +287,18 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		});
 	}
 
-	private <T> Mono<T> get(String path, Argument<T> argumentType, Consumer<UriBuilder> uriBuilderConsumer) {
+	private <T> Mono<T> get(String path, Argument<T> argumentType,
+		Consumer<UriBuilder> uriBuilderConsumer) {
 
-		return createRequest(GET, path).map(req -> req.uri(uriBuilderConsumer)).flatMap(this::ensureToken)
-				.flatMap(req -> doRetrieve(req, argumentType))
-				.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty());
+		return createRequest(GET, path)
+			.map(req -> req.uri(uriBuilderConsumer))
+			.flatMap(this::ensureToken)
+			.flatMap(req -> doRetrieve(req, argumentType, response -> response
+				.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty())));
 	}
 
 	private URI resolve(URI relativeURI) {
 		return RelativeUriResolver.resolve(rootUri, relativeURI);
-	}
-
-	private <T> Mono<T> handleResponseErrors(final Mono<T> current) {
-		// We used to do
-		// .transform(this::handle404AsEmpty)
-		// Immediately after current, but some downstream chains rely upon the 404 so
-		// for now we use .transform directly in the caller
-		return current.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken());
 	}
 
 	private void clearToken() {
@@ -321,22 +319,47 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				.map(resolvedUri -> HttpRequest.<T>create(method, resolvedUri.toString()).accept(APPLICATION_JSON));
 	}
 
-	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
-		return doRetrieve(request, argumentType, true);
-	}
-
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Class<T> type) {
 		return Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE))
-			.transform(this::handleResponseErrors)
+			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken())
 			// This has to happen after other error handlers related to HttpClientResponseException
 			.onErrorMap(HttpClientResponseException.class, responseException ->
 				unexpectedResponseProblem(responseException, request, null));
 	}
 
-	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType, boolean mapErrors) {
-		var response = Mono.from(client.retrieve(request, argumentType, ERROR_TYPE));
+	/**
+	 * Make HTTP request to a Sierra system
+	 *
+	 * @param request Request to send
+	 * @param responseBodyType Expected type of the response body
+	 * @param errorHandlingTransformer method for handling errors after the response has been received
+	 * @return Deserialized response body or error, that might have been transformed already by handler
+	 * @param <T> Type to deserialize the response to
+	 */
+	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request,
+		Argument<T> responseBodyType, Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
 
-		return mapErrors ? response.transform(this::handleResponseErrors) : response;
+		return Mono.from(client.retrieve(request, responseBodyType, ERROR_TYPE))
+			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken())
+			.transform(errorHandlingTransformer)
+			// This has to go after more specific error handling
+			// as will convert any client response exception to a problem
+			.onErrorMap(HttpClientResponseException.class, responseException ->
+				unexpectedResponseProblem(responseException, request, null));
+	}
+
+	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
+		return doRetrieve(request, argumentType, noExtraErrorHandling());
+	}
+
+	/**
+	 * Utility method to specify that no specialised error handling will be needed for this request
+	 *
+	 * @return transformer that provides no additionally error handling
+	 * @param <T> Type of response being handled
+	 */
+	private static <T> Function<Mono<T>, Mono<T>> noExtraErrorHandling() {
+		return Function.identity();
 	}
 
 	private <T> Object[] iterableToArray(Iterable<T> iterable) {

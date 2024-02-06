@@ -4,12 +4,16 @@ import static io.micronaut.http.HttpResponse.badRequest;
 import static io.micronaut.http.MediaType.APPLICATION_JSON_TYPE;
 import static io.micronaut.http.MediaType.TEXT_PLAIN_TYPE;
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoResponseBodyParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestBodyParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasTextResponseBodyParameter;
 
@@ -21,6 +25,9 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Value;
 
 class UnexpectedResponseProblemTests {
 	@Test
@@ -41,7 +48,8 @@ class UnexpectedResponseProblemTests {
 			hasMessageForHostLms("example-host-lms"),
 			hasResponseStatusCodeParameter(400),
 			hasJsonResponseBodyProperty("error", "something went wrong"),
-			hasJsonResponseBodyProperty("code", 109)
+			hasJsonResponseBodyProperty("code", 109),
+			hasRequestMethodParameter("POST")
 		));
 	}
 
@@ -76,7 +84,7 @@ class UnexpectedResponseProblemTests {
 		assertThat(problem, allOf(
 			hasMessageForHostLms("example-host-lms"),
 			hasResponseStatusCodeParameter(400),
-			hasTextResponseBodyParameter("No body")
+			hasNoResponseBodyParameter()
 		));
 	}
 
@@ -105,8 +113,80 @@ class UnexpectedResponseProblemTests {
 			HttpRequest.GET("http://some-host-lms/some-path"), null);
 
 		// Assert
-		assertThat(problem, hasMessage(
-			"Unexpected response from: GET /some-path"));
+		assertThat(problem, hasMessageForRequest("GET", "/some-path"));
+	}
+
+	@Test
+	void shouldIncludeTextRequestBody() {
+		// Act
+		final var exception = createResponseException(badRequest());
+
+		final var problem = unexpectedResponseProblem(exception,
+			examplePostRequest()
+				.contentType(TEXT_PLAIN_TYPE)
+				.body("Some body"),
+			"example-host-lms");
+
+		// Assert
+		assertThat(problem, allOf(
+			hasMessageForHostLms("example-host-lms"),
+			hasRequestBodyParameter(is("Some body"))
+		));
+	}
+
+	@Test
+	void shouldIncludeJsonRequestBody() {
+		// Act
+		final var exception = createResponseException(badRequest());
+
+		final var requestBody = ExampleBody.builder()
+			.id("6835489")
+			.build();
+
+		final var problem = unexpectedResponseProblem(exception,
+			examplePostRequest()
+				.contentType(APPLICATION_JSON_TYPE)
+				.body(requestBody),
+			"example-host-lms");
+
+		// Assert
+		assertThat(problem, allOf(
+			hasMessageForHostLms("example-host-lms"),
+			// The request body hasn't been serialised yet
+			// so toString of the object is closest we can get
+			// without invoking the serialisation manually
+			hasRequestBodyParameter(is(requestBody.toString()))
+		));
+	}
+
+	@Test
+	void shouldTolerateNoRequestBody() {
+		// Act
+		final var exception = createResponseException(badRequest());
+
+		final var problem = unexpectedResponseProblem(exception,
+			examplePostRequest(), "example-host-lms");
+
+		// Assert
+		assertThat(problem, allOf(
+			hasMessageForHostLms("example-host-lms"),
+			hasRequestBodyParameter(is("No body"))
+		));
+	}
+
+	@Test
+	void shouldTolerateNoRequestOrHostLmsCode() {
+		// Act
+		final var exception = createResponseException(badRequest());
+
+		final var problem = unexpectedResponseProblem(exception, null, null);
+
+		// Assert
+		assertThat(problem, allOf(
+			hasMessage("Unexpected response received for unknown request or Host LMS"),
+			hasResponseStatusCodeParameter(400),
+			hasRequestMethodParameter(null)
+		));
 	}
 
 	private static <T> HttpClientResponseException createResponseException(
@@ -121,5 +201,12 @@ class UnexpectedResponseProblemTests {
 
 	private static MutableHttpRequest<Object> exampleGetRequest() {
 		return HttpRequest.GET("http://some-host-lms");
+	}
+
+	@Serdeable
+	@Builder
+	@Value
+	public static class ExampleBody {
+		String id;
 	}
 }

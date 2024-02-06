@@ -5,6 +5,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
@@ -28,6 +29,10 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.suppressionUnknown;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoResponseBodyParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 
 import java.time.Instant;
 import java.util.List;
@@ -44,6 +49,7 @@ import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.NumericRangeMappingFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
@@ -82,6 +88,10 @@ class SierraHostLmsClientItemTests {
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+
+		final var sierraLoginFixture = sierraApiFixtureProvider.loginFixtureFor(mockServerClient);
+
+		sierraLoginFixture.failLoginsForAnyOtherCredentials(KEY, SECRET);
 
 		hostLmsFixture.deleteAll();
 
@@ -210,6 +220,31 @@ class SierraHostLmsClientItemTests {
 		final var items = getItems(client,"87878325");
 
 		assertThat("Should have no items", items, is(empty()));
+	}
+
+	@Test
+	void shouldFailWhenCannotAuthenticateWithSierra() {
+		// Arrange
+		final var BASE_URL = "http://invalid-auth-sierra-test";
+
+		hostLmsFixture.createSierraHostLms("bad-config-sierra-host-lms",
+			"invalid-key", "invalid-secret", BASE_URL, "item");
+
+		sierraItemsAPIFixture.zeroItemsResponseForBibId("7225825");
+
+		// Act
+		final var client = hostLmsFixture.createClient("bad-config-sierra-host-lms");
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> getItems(client, "7225825"));
+
+		// Assert
+		assertThat(problem, allOf(
+			hasMessageForRequest("POST", "/iii/sierra-api/v6/token"),
+			hasResponseStatusCodeParameter(401),
+			hasNoResponseBodyParameter(),
+			hasRequestMethodParameter("POST")
+		));
 	}
 
 	private static List<Item> getItems(HostLmsClient client, String sourceRecordId) {

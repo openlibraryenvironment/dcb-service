@@ -11,8 +11,14 @@ import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescr
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNoBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasLocalPatronType;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolvedAgency;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 
 import java.util.List;
 import java.util.UUID;
@@ -33,6 +39,7 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
@@ -211,21 +218,29 @@ public class ValidatePatronTests {
 		sierraPatronsAPIFixture.badRequestWhenGettingPatronByLocalId("236462");
 
 		// Act
-		final var exception = assertThrows(RuntimeException.class,
+		final var problem = assertThrows(ThrowableProblem.class,
 			() -> validatePatronTransition.attempt(patronRequest).block());
 
 		// Assert
-		final var expectedMessage = "Bad JSON/XML Syntax: Please check that the JSON fields/values are of the expected JSON data types - [130 / 0]";
-
-		assertThat(exception.getMessage(), is(expectedMessage));
+		assertThat(problem, allOf(
+			hasMessageForRequest("GET", "/iii/sierra-api/v6/patrons/236462"),
+			hasResponseStatusCodeParameter(400),
+			hasJsonResponseBodyProperty("name","Bad JSON/XML Syntax"),
+			hasJsonResponseBodyProperty("description",
+				"Please check that the JSON fields/values are of the expected JSON data types"),
+			hasJsonResponseBodyProperty("code", 130),
+			hasJsonResponseBodyProperty("specificCode", 0),
+			hasRequestMethodParameter("GET")
+		));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
-		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(ERROR));
+		final var expectedMessage = "Unexpected response from: GET /iii/sierra-api/v6/patrons/236462";
 
-		assertThat("Request should have error message afterwards",
-			fetchedPatronRequest.getErrorMessage(), is(expectedMessage));
+		assertThat(fetchedPatronRequest, allOf(
+			hasStatus(ERROR),
+			hasErrorMessage(expectedMessage)
+		));
 
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedMessage);
 	}

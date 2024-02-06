@@ -100,10 +100,9 @@ public class PatronRequestWorkflowService {
 				
 			        // Resolve as incomplete.
 			        return pr;
-			})
-			.transform(getErrorTransformerFor(patronRequest));
+			});
 	}
-	
+
 	public Stream<PatronRequestStateTransition> getPossibleStateTransitionsFor(PatronRequest patronRequest) {
 		return allTransitions.stream()
 				.filter(transition -> transition.isApplicableFor(patronRequest));
