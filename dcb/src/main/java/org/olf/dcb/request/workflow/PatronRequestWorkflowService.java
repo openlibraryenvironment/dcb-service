@@ -101,9 +101,14 @@ public class PatronRequestWorkflowService {
 			        // Resolve as incomplete.
 			        return pr;
 			})
-			.transform(getErrorTransformerFor(patronRequest));
+			.transform(getTransformerFor(patronRequest));
 	}
-	
+
+	private Function<Publisher<PatronRequest>, Flux<PatronRequest>> getTransformerFor(PatronRequest patronRequest) {
+		log.debug("Adding an error audit for patron request in state: {}.", patronRequest.getStatus());
+		return getErrorTransformerFor(patronRequest);
+	}
+
 	public Stream<PatronRequestStateTransition> getPossibleStateTransitionsFor(PatronRequest patronRequest) {
 		return allTransitions.stream()
 				.filter(transition -> transition.isApplicableFor(patronRequest));
