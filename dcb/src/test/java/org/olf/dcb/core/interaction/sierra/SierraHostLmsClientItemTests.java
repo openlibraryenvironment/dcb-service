@@ -2,7 +2,6 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
@@ -30,6 +29,10 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.suppressionUnknown;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoResponseBodyParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 
 import java.time.Instant;
 import java.util.List;
@@ -46,8 +49,8 @@ import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.NumericRangeMappingFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.zalando.problem.ThrowableProblem;
 
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -232,15 +235,16 @@ class SierraHostLmsClientItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient("bad-config-sierra-host-lms");
 
-		final var exception = assertThrows(HttpClientResponseException.class,
+		final var problem = assertThrows(ThrowableProblem.class,
 			() -> getItems(client, "7225825"));
 
 		// Assert
-		assertThat("Exception should not be null", exception, is(notNullValue()));
-		assertThat("Status should not be null", exception.getStatus(), is(notNullValue()));
-
-		assertThat("Code should be unauthorised",
-			exception.getStatus().getCode(), is(401));
+		assertThat(problem, allOf(
+			hasMessageForRequest("POST", "/iii/sierra-api/v6/token"),
+			hasResponseStatusCodeParameter(401),
+			hasNoResponseBodyParameter(),
+			hasRequestMethodParameter("POST")
+		));
 	}
 
 	private static List<Item> getItems(HostLmsClient client, String sourceRecordId) {

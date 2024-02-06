@@ -1,6 +1,6 @@
 package services.k_int.interaction.sierra;
 
-import static io.micronaut.http.HttpStatus.UNAUTHORIZED;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -8,6 +8,10 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoResponseBodyParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 
 import java.time.Instant;
 import java.util.List;
@@ -19,9 +23,9 @@ import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.Times;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.test.HostLmsFixture;
+import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.items.Params;
@@ -67,16 +71,20 @@ class SierraApiLoginTests {
 
 	@Test
 	void shouldFailToLoginWhenCredentialsAreInvalid(MockServerClient mock) {
+		// Arrange
 		mockSuccessfulLogin(mock, "login-token");
 
-		final var exception = assertThrows(HttpClientResponseException.class,
+		// Act
+		final var problem = assertThrows(ThrowableProblem.class,
 			() -> login("WRONG_KEY", "WRONG_SECRET"));
 
-		assertThat("Exception should not be null", exception, is(notNullValue()));
-		assertThat("Status should not be null", exception.getStatus(), is(notNullValue()));
-
-		assertThat("Code should be unauthorised",
-			exception.getStatus().getCode(), is(401));
+		// Assert
+		assertThat(problem, allOf(
+			hasMessageForRequest("POST", "/iii/sierra-api/v6/token"),
+			hasResponseStatusCodeParameter(401),
+			hasNoResponseBodyParameter(),
+			hasRequestMethodParameter("POST")
+		));
 	}
 
 	@Test
@@ -103,19 +111,17 @@ class SierraApiLoginTests {
 		sierraLoginFixture.successfulLoginFor(KEY, SECRET, "login-token",
 			Times.exactly(2));
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
-
 		final var itemsFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
-		itemsFixture.unauthorisedResponseForCreateItem(12345, "ABC-123",
-			"584866478");
+		itemsFixture.unauthorisedResponseForCreateItem(12345, "ABC-123", "584866478");
 
 		itemsFixture.twoItemsResponseForBibId("12345");
 
 		// Act
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// First request should fail
-		final var unauthorisedException = assertThrows(HttpClientResponseException.class,
+		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(sierraApiClient.createItem(ItemPatch.builder()
 				.bibIds(List.of(12345))
 				.barcodes(List.of("584866478"))
@@ -129,13 +135,12 @@ class SierraApiLoginTests {
 			.build()));
 
 		// Assert
-		assertThat("Exception should not be null",
-			unauthorisedException, is(notNullValue()));
-
-		final var response = unauthorisedException.getResponse();
-
-		assertThat("Should return a unauthorised status",
-			response.getStatus(), is(UNAUTHORIZED));
+		assertThat(problem, allOf(
+			hasMessageForRequest("POST", "/iii/sierra-api/v6/items"),
+			hasResponseStatusCodeParameter(401),
+			hasNoResponseBodyParameter(),
+			hasRequestMethodParameter("POST")
+		));
 
 		assertThat("Items should not be null", items, is(notNullValue()));
 		assertThat("Should have 2 items", items.getEntries(), hasSize(2));

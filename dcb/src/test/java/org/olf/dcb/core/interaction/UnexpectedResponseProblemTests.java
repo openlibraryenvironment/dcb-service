@@ -6,10 +6,11 @@ import static io.micronaut.http.MediaType.TEXT_PLAIN_TYPE;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoResponseBodyParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasTextResponseBodyParameter;
 
@@ -76,7 +77,7 @@ class UnexpectedResponseProblemTests {
 		assertThat(problem, allOf(
 			hasMessageForHostLms("example-host-lms"),
 			hasResponseStatusCodeParameter(400),
-			hasTextResponseBodyParameter("No body")
+			hasNoResponseBodyParameter()
 		));
 	}
 
@@ -105,8 +106,7 @@ class UnexpectedResponseProblemTests {
 			HttpRequest.GET("http://some-host-lms/some-path"), null);
 
 		// Assert
-		assertThat(problem, hasMessage(
-			"Unexpected response from: GET /some-path"));
+		assertThat(problem, hasMessageForRequest("GET", "/some-path"));
 	}
 
 	private static <T> HttpClientResponseException createResponseException(

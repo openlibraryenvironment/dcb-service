@@ -15,6 +15,10 @@ public class UnexpectedResponseProblemMatchers {
 			.formatted(expectedHostLmsCode));
 	}
 
+	public static Matcher<ThrowableProblem> hasMessageForRequest(String method, String path) {
+		return hasMessage("Unexpected response from: %s %s".formatted(method, path));
+	}
+
 	public static Matcher<ThrowableProblem> hasResponseStatusCodeParameter(
 		Integer expectedStatusCode) {
 
@@ -29,6 +33,10 @@ public class UnexpectedResponseProblemMatchers {
 
 	public static Matcher<ThrowableProblem> hasTextResponseBodyParameter(String expectedBody) {
 		return hasResponseBodyParameter(is(expectedBody));
+	}
+
+	public static Matcher<ThrowableProblem> hasNoResponseBodyParameter() {
+		return hasTextResponseBodyParameter("No body");
 	}
 
 	private static Matcher<ThrowableProblem> hasResponseBodyParameter(Matcher<?> valueMatcher) {
