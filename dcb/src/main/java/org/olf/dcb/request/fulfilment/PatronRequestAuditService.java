@@ -1,6 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,9 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
-
-import java.util.Map;
-import java.util.UUID;
 
 @Singleton
 public class PatronRequestAuditService {
@@ -117,5 +115,4 @@ public class PatronRequestAuditService {
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest, Status from, Throwable error, Map<String,Object> auditData) {
 		return addAuditEntry(patronRequest, from, Status.ERROR, Optional.ofNullable(error.getMessage()), Optional.ofNullable(auditData));
 	}
-
 }
