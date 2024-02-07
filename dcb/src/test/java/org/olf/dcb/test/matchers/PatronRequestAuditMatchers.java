@@ -1,8 +1,10 @@
 package org.olf.dcb.test.matchers;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 
 import org.hamcrest.Matcher;
@@ -32,5 +34,20 @@ public class PatronRequestAuditMatchers {
 
 	public static Matcher<PatronRequestAudit> hasFromStatus(PatronRequest.Status expectedStatus) {
 		return hasProperty("fromStatus", is(expectedStatus));
+	}
+
+	public static Matcher<PatronRequestAudit> hasNestedAuditDataProperty(
+		String expectedPropertyName, String expectedNestedPropertyName,
+		String expectedNestedPropertyValue) {
+
+		return hasProperty("auditData", hasEntry(equalTo(expectedPropertyName),
+			hasEntry(expectedNestedPropertyName, expectedNestedPropertyValue)));
+	}
+
+	public static Matcher<PatronRequestAudit> hasAuditDataProperty(
+		String expectedPropertyName, String expectedPropertyValue) {
+
+		return hasProperty("auditData",
+			hasEntry(equalTo(expectedPropertyName), is(expectedPropertyValue)));
 	}
 }
