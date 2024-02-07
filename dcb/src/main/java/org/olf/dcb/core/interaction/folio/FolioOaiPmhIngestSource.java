@@ -15,8 +15,6 @@ import java.util.function.Consumer;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
-import org.olf.dcb.core.AppState;
-import org.olf.dcb.core.AppState.AppStatus;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
@@ -45,7 +43,8 @@ import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.json.tree.JsonNode;
-import io.micronaut.transaction.annotation.Transactional;
+import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
 import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -57,6 +56,9 @@ import services.k_int.interaction.oaipmh.Response;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
+import org.olf.dcb.core.AppState;
+import org.olf.dcb.core.AppState.AppStatus;
+
 @Prototype
 public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	private static final String CONFIG_API_KEY = "apikey";
@@ -64,7 +66,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	private static final String CONFIG_METADATA_PREFIX = "metadata-prefix";
 
 	private static final String CONFIG_RECORD_SYNTAX = "record-syntax";
-//	private static final String PARAM_API_KEY = "apikey";
+	private static final String PARAM_API_KEY = "apikey";
 
 	private static final String PARAM_METADATA_PREFIX = "metadataPrefix";
 
@@ -217,7 +219,6 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 				}, () -> {
 					
 					// Exclude when resumption token present.
-					log.info("From parameter for delta {}", since);
 					if (since != null) {
 						params.queryParam("from", since.truncatedTo(ChronoUnit.SECONDS).toString());
 					}
@@ -253,11 +254,12 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 			.map(state -> state.toBuilder().build())
 			.zipWhen(state -> {
 				
-				if ( state.since == null) {
-					return fetchPage(null,
-							MapUtils.getAsOptionalString(state.storred_state, "resumptionToken") );
-				}
-				return fetchPage( state.since, Optional.empty() );
+				// For the initial fetch... If there is a since... Ignore the resumption.
+				return Mono.justOrEmpty(state.since)
+					.flatMap( since -> fetchPage( since, null ) )
+					.switchIfEmpty(
+							Mono.defer (() ->
+								fetchPage(null, MapUtils.getAsOptionalString(state.storred_state, "resumptionToken") )));
 			})
 			.expand(TupleUtils.function((state, response) -> {
 				
@@ -456,9 +458,9 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	}
 
 	@Override
-	@Transactional
+	@Transactional(value = TxType.REQUIRES_NEW)
 	public Mono<PublisherState> saveState(@NonNull UUID id, @NonNull String processName, @NonNull PublisherState state) {
-		log.debug("saveState {} {} - {}", id, state, lms.getName());
+		log.debug("savState {} {} - {}", id, state, lms.getName());
 
 		// return Mono.from(processStateService.updateState(id, processName, state.storred_state)).thenReturn(state);
 		return processStateService.updateState(id, processName, state.storred_state)
