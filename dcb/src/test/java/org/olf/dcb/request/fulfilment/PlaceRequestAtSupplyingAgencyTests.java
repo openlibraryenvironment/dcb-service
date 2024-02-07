@@ -9,7 +9,9 @@ import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.briefDescriptionContains;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNestedAuditDataProperty;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNoBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
@@ -284,7 +286,13 @@ class PlaceRequestAtSupplyingAgencyTests {
 		assertThat(onlyAuditEntry, allOf(
 			briefDescriptionContains(expectedMessage),
 			hasFromStatus(RESOLVED),
-			hasToStatus(ERROR)
+			hasToStatus(ERROR),
+			hasAuditDataProperty("responseStatusCode", 500),
+			hasNestedAuditDataProperty("responseBody","code", 109),
+			hasNestedAuditDataProperty("responseBody","description", "Invalid configuration"),
+			hasNestedAuditDataProperty("responseBody","httpStatus", 500),
+			hasNestedAuditDataProperty("responseBody","name", "Internal server error"),
+			hasNestedAuditDataProperty("responseBody","specificCode", 0)
 		));
 	}
 

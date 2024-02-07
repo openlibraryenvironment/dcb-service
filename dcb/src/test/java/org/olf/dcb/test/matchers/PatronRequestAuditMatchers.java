@@ -38,14 +38,14 @@ public class PatronRequestAuditMatchers {
 
 	public static Matcher<PatronRequestAudit> hasNestedAuditDataProperty(
 		String expectedPropertyName, String expectedNestedPropertyName,
-		String expectedNestedPropertyValue) {
+		Object expectedNestedPropertyValue) {
 
 		return hasProperty("auditData", hasEntry(equalTo(expectedPropertyName),
 			hasEntry(expectedNestedPropertyName, expectedNestedPropertyValue)));
 	}
 
 	public static Matcher<PatronRequestAudit> hasAuditDataProperty(
-		String expectedPropertyName, String expectedPropertyValue) {
+		String expectedPropertyName, Object expectedPropertyValue) {
 
 		return hasProperty("auditData",
 			hasEntry(equalTo(expectedPropertyName), is(expectedPropertyValue)));
