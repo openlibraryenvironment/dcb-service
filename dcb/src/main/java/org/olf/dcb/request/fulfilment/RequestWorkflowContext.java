@@ -1,6 +1,8 @@
 package org.olf.dcb.request.fulfilment;
 
 import org.olf.dcb.core.model.*;
+
+import io.micronaut.serde.annotation.Serdeable;
 import lombok.experimental.Accessors;
 import lombok.Data;
 
@@ -14,6 +16,7 @@ import lombok.Data;
  *
  * Please use RequestWorkflowContextHelper to obtain instances of this context rather than adding methods to individual classes/workflows
  */
+@Serdeable // Required because it is used in audit data that is serialised to json
 @Data
 @Accessors(chain=true)
 public class RequestWorkflowContext {
