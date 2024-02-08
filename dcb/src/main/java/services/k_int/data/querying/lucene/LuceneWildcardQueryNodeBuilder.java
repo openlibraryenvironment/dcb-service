@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import jakarta.persistence.criteria.Path;
+import services.k_int.data.jpa.JpaPredicateExtensions;
 import services.k_int.data.querying.JpaQuerySpecificationBuilder;
 
 /**
@@ -39,7 +40,7 @@ public class LuceneWildcardQueryNodeBuilder<T> implements JpaQuerySpecificationB
 		log.info("Wildcard... {}:{}", fieldName, fieldText);
 		QuerySpecification<T> cb = (root, query, criteriaBuilder) -> {
 			Path<String> path = root.get(fieldName);
-			return criteriaBuilder.like(path, fieldText);
+			return JpaPredicateExtensions.ilike(criteriaBuilder, path, fieldText);
 		};
 		return cb;
 	}
