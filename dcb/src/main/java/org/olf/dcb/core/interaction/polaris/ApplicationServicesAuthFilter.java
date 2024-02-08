@@ -3,7 +3,6 @@ package org.olf.dcb.core.interaction.polaris;
 import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.DOMAIN_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_LANGUAGE;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_PRODUCT_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_SITE_DOMAIN;
@@ -14,9 +13,6 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.STAFF_USERNA
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -31,7 +27,6 @@ import lombok.Data;
 import reactor.core.publisher.Mono;
 
 class ApplicationServicesAuthFilter {
-	static final Logger log = LoggerFactory.getLogger(ApplicationServicesAuthFilter.class);
 	private final PolarisLmsClient client;
 	private AuthToken currentToken;
 	private final Map<String, Object> conf;
@@ -40,7 +35,7 @@ class ApplicationServicesAuthFilter {
 		this.conf = client.getConfig();
 	}
 
-	<T> Mono<MutableHttpRequest<?>> basicAuth (MutableHttpRequest<?> request) {
+	<T> Mono<MutableHttpRequest<?>> basicAuth(MutableHttpRequest<?> request) {
 		return Mono.justOrEmpty(currentToken)
 			.filter(token -> !token.isExpired())
 			.switchIfEmpty( staffAuthenticator().map(newToken -> currentToken = newToken) )
@@ -49,8 +44,8 @@ class ApplicationServicesAuthFilter {
 				final String secret = validToken.getAccessSecret();
 				if (!request.getPath().contains("/authentication/staffuser")) {
 					// update request
-					Map<String, Object> servicesMap = (Map<String, Object>) conf.get(SERVICES);
-					final String domain = (String) servicesMap.get(SERVICES_SITE_DOMAIN);
+					final var servicesConfig = client.getServicesConfig();
+					final String domain = (String) servicesConfig.get(SERVICES_SITE_DOMAIN);
 					final String authorization = "PAS " + domain + ":" + token + ":" + secret;
 					return request.header(HttpHeaders.AUTHORIZATION, authorization);
 				}
@@ -59,11 +54,12 @@ class ApplicationServicesAuthFilter {
 	}
 
 	private Mono<AuthToken> staffAuthenticator() {
-		Map<String, Object> servicesMap = (Map<String, Object>) conf.get(SERVICES);
+		final var servicesMap = client.getServicesConfig();
+
 		final String version = (String) servicesMap.get(SERVICES_VERSION);
 		final String language = (String) servicesMap.get(SERVICES_LANGUAGE);
 		final String product = (String) servicesMap.get(SERVICES_PRODUCT_ID);
-		final String parameters = "/polaris.applicationservices/api/"+version+"/"+language+"/"+product;
+		final String parameters = "/polaris.applicationservices/api/" + version + "/" + language + "/" + product;
 
 		return Mono.just(UriBuilder.of(parameters + "/authentication/staffuser").build())
 			.map(client::resolve)
