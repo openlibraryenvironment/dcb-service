@@ -23,7 +23,7 @@ public class ProcessStateService {
 		this.processStateRepository = processStateRepository;
 	}
 
-	@Transactional
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Mono<ProcessState> updateState(UUID context, String processName, Map<String, Object> state) {
 
 		UUID persistence_id = UUIDUtils.nameUUIDFromNamespaceAndString(context, processName);

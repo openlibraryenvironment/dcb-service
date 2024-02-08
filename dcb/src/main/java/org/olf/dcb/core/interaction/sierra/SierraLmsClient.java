@@ -193,8 +193,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				since, offset, limit));
 	}
 
+	// processStateService now sets the transactional boundary
+	// @Transactional(value = TxType.REQUIRES_NEW)
 	@Override
-	@Transactional(value = TxType.REQUIRES_NEW)
 	public Mono<PublisherState> saveState(@NonNull UUID id, @NonNull String processName, @NonNull PublisherState state) {
 		log.debug("Update state {} - {}", state, lms.getName());
 

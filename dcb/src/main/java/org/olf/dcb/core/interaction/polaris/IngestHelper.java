@@ -197,7 +197,8 @@ class IngestHelper {
 				lms.getName(), updateDate, lastId, nrecs));
 	}
 
-	@Transactional(value = Transactional.TxType.REQUIRES_NEW)
+	// @Transactional(value = Transactional.TxType.REQUIRES_NEW)
+
 	protected Mono<PublisherState> saveState(PublisherState state) {
 		log.debug("Update state {} - {}", state,lms.getName());
 

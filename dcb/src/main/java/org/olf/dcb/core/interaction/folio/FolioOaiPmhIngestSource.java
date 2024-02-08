@@ -455,8 +455,8 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		return generator_state;
 	}
 
+	// @Transactional
 	@Override
-	@Transactional
 	public Mono<PublisherState> saveState(@NonNull UUID id, @NonNull String processName, @NonNull PublisherState state) {
 		log.debug("savState {} {} - {}", id, state, lms.getName());
 
