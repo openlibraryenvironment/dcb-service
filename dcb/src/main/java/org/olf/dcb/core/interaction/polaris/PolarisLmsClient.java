@@ -603,24 +603,25 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	public String getGeneralUriParameters(PolarisClient polarisClient) {
 		// LinkedHashMap used to keep order of params
-		final Map<String, String> params = new LinkedHashMap<>();
+		final var params = new LinkedHashMap<>();
+
 		switch (polarisClient) {
 			case PAPIService -> {
-				Map<String, Object> papiMap = (Map<String, Object>) getConfig().get(PAPI);
-				params.put("version", (String) papiMap.get(PAPI_VERSION));
-				params.put("langId", (String) papiMap.get(PAPI_LANG_ID));
-				params.put("appId", (String) papiMap.get(PAPI_APP_ID));
-				params.put("orgId", (String) papiMap.get(PAPI_ORG_ID));
+				final var papiMap = (Map<String, Object>) getConfig().get(PAPI);
+				params.put("version", papiMap.get(PAPI_VERSION));
+				params.put("langId", papiMap.get(PAPI_LANG_ID));
+				params.put("appId", papiMap.get(PAPI_APP_ID));
+				params.put("orgId", papiMap.get(PAPI_ORG_ID));
 			}
 			case APPLICATION_SERVICES -> {
 				final var servicesConfig = getServicesConfig();
 
-				params.put("version", (String) servicesConfig.get(SERVICES_VERSION));
-				params.put("language", (String) servicesConfig.get(SERVICES_LANGUAGE));
-				params.put("product", (String) servicesConfig.get(SERVICES_PRODUCT_ID));
-				params.put("domain", (String) servicesConfig.get(SERVICES_SITE_DOMAIN));
-				params.put("org", (String) servicesConfig.get(SERVICES_ORG_ID));
-				params.put("workstation", (String) servicesConfig.get(SERVICES_WORKSTATION_ID));
+				params.put("version", servicesConfig.get(SERVICES_VERSION));
+				params.put("language", servicesConfig.get(SERVICES_LANGUAGE));
+				params.put("product", servicesConfig.get(SERVICES_PRODUCT_ID));
+				params.put("domain", servicesConfig.get(SERVICES_SITE_DOMAIN));
+				params.put("org", servicesConfig.get(SERVICES_ORG_ID));
+				params.put("workstation", servicesConfig.get(SERVICES_WORKSTATION_ID));
 			}
 			default -> {
 				log.error("Unknown or unsupported enum value");
