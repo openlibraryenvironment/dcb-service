@@ -87,7 +87,7 @@ class PatronTypeServiceTests {
 
 		// Assert
 		assertThat(exception, hasMessage(
-			"No mapping found from ptype requesting-host-lms:1 to supplying-host-lms because No mapping found from ptype requesting-host-lms:1 to supplying-host-lms"));
+			"No mapping found from ptype requesting-host-lms:1 to supplying-host-lms"));
 	}
 
 	@Test
