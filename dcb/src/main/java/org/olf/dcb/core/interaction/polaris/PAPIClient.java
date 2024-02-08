@@ -180,6 +180,7 @@ public class PAPIClient {
 	public Mono<PatronSearchRow> patronSearch(String barcode) {
 		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
 		final var ccl = "PATB=" + barcode + " OR PATNF=" + barcode;
+
 		return createRequest(GET, path, uri -> uri.queryParam("q", ccl))
 			.flatMap(authFilter::ensureStaffAuth)
 			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronSearchResult.class))))
@@ -191,6 +192,7 @@ public class PAPIClient {
 	public Mono<PatronSearchRow> patronSearch(String barcode, String uniqueID) {
 		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
 		final var ccl = "PATNF=" + barcode + " AND PATNL=" + uniqueID;
+
 		return createRequest(GET, path, uri -> uri.queryParam("q", ccl))
 			.flatMap(authFilter::ensureStaffAuth)
 			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronSearchResult.class))))
@@ -201,17 +203,20 @@ public class PAPIClient {
 
 	public Mono<ItemGetRow> synch_ItemGet(String recordNumber) {
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "item", recordNumber);
+
 		return createRequest(GET, path, uri -> {})
 			.flatMap(authFilter::ensureStaffAuth)
 			.flatMap(request -> client.retrieve(request, Argument.of(ItemGetResponse.class)))
 			.map(ItemGetResponse::getItemGetRows)
-			.filter ( itemGetRows -> itemGetRows.size() > 0 )
+			.filter(itemGetRows -> itemGetRows.size() > 0)
 			.map(itemGetRows -> itemGetRows.get(0));
 	}
 
 	private Mono<MutableHttpRequest<?>> createRequest(HttpMethod httpMethod, String path,
 		Consumer<UriBuilder> uriBuilderConsumer) {
-		return client.createRequest(httpMethod,path).map(req -> req.uri(uriBuilderConsumer));
+
+		return client.createRequest(httpMethod,path)
+			.map(req -> req.uri(uriBuilderConsumer));
 	}
 
 	private String createPath(Object... pathSegments) {
@@ -273,7 +278,7 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class ItemCheckoutResult {
+	public static class ItemCheckoutResult {
 		@JsonProperty("PAPIErrorCode")
 		private Integer pAPIErrorCode;
 		@JsonProperty("ErrorMessage")
@@ -297,7 +302,7 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class PatronRegistrationCreateResult {
+	public static class PatronRegistrationCreateResult {
 		@JsonProperty("PAPIErrorCode")
 		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")
@@ -436,7 +441,7 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class PatronSearchRow {
+	public static class PatronSearchRow {
 		@JsonProperty("PatronID")
 		private Integer PatronID;
 		@JsonProperty("Barcode")

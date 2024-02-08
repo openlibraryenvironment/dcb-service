@@ -689,7 +689,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class BibsPagedResult {
+	public static class BibsPagedResult {
 		@JsonProperty("PAPIErrorCode")
 		private Integer PAPIErrorCode;
 		@JsonProperty("ErrorMessage")
