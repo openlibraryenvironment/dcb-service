@@ -2,9 +2,9 @@ package org.olf.dcb.request.fulfilment;
 
 import java.util.UUID;
 
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
-import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Value;
 
@@ -12,9 +12,9 @@ import lombok.Value;
 @Builder
 @Value
 public class PlacePatronRequestCommand {
-	@NotNull Citation citation;
-	@NotNull PickupLocation pickupLocation;
-	@NotNull Requestor requestor;
+	@NonNull Citation citation;
+	@NonNull PickupLocation pickupLocation;
+	@NonNull Requestor requestor;
 	@Nullable String description;
 
 	String getPickupLocationCode() {
@@ -38,7 +38,7 @@ public class PlacePatronRequestCommand {
 	@Value
 	public static class PickupLocation {
 		String context;
-		String code;
+		@NonNull String code;
 	}
 
 	@Serdeable
