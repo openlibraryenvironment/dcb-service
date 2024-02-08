@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 5.4.1
+
+### Fixes
+* [General]
+	* changes for process state update
+
 ## Version 5.4.0
 
 ### Additions
@@ -8,6 +14,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Save audit data with audit record DCB-849
 	* Replace spaces with tabs in request audit service DCB-849
 	* Make request workflow context serdeable DCB-849
