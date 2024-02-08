@@ -95,7 +95,7 @@ import services.k_int.utils.UUIDUtils;
 
 @Slf4j
 @Prototype
-public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsPagedRow>, HostLmsClient{
+public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsPagedRow>, HostLmsClient {
 	private final URI rootUri;
 	private final HostLms lms;
 	private final HttpClient client;
@@ -602,26 +602,25 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	public String getGeneralUriParameters(PolarisClient polarisClient) {
-		final var conf = lms.getClientConfig();
-
 		// LinkedHashMap used to keep order of params
 		final Map<String, String> params = new LinkedHashMap<>();
 		switch (polarisClient) {
 			case PAPIService -> {
-				Map<String, Object> papiMap = (Map<String, Object>) conf.get(PAPI);
+				Map<String, Object> papiMap = (Map<String, Object>) getConfig().get(PAPI);
 				params.put("version", (String) papiMap.get(PAPI_VERSION));
 				params.put("langId", (String) papiMap.get(PAPI_LANG_ID));
 				params.put("appId", (String) papiMap.get(PAPI_APP_ID));
 				params.put("orgId", (String) papiMap.get(PAPI_ORG_ID));
 			}
 			case APPLICATION_SERVICES -> {
-				Map<String, Object> servicesMap = (Map<String, Object>) conf.get(SERVICES);
-				params.put("version", (String) servicesMap.get(SERVICES_VERSION));
-				params.put("language", (String) servicesMap.get(SERVICES_LANGUAGE));
-				params.put("product", (String) servicesMap.get(SERVICES_PRODUCT_ID));
-				params.put("domain", (String) servicesMap.get(SERVICES_SITE_DOMAIN));
-				params.put("org", (String) servicesMap.get(SERVICES_ORG_ID));
-				params.put("workstation", (String) servicesMap.get(SERVICES_WORKSTATION_ID));
+				final var servicesConfig = getServicesConfig();
+
+				params.put("version", (String) servicesConfig.get(SERVICES_VERSION));
+				params.put("language", (String) servicesConfig.get(SERVICES_LANGUAGE));
+				params.put("product", (String) servicesConfig.get(SERVICES_PRODUCT_ID));
+				params.put("domain", (String) servicesConfig.get(SERVICES_SITE_DOMAIN));
+				params.put("org", (String) servicesConfig.get(SERVICES_ORG_ID));
+				params.put("workstation", (String) servicesConfig.get(SERVICES_WORKSTATION_ID));
 			}
 			default -> {
 				log.error("Unknown or unsupported enum value");
@@ -668,6 +667,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		log.warn("Request to map item type was missing required parameters {}/{}", getHostLmsCode(), itemTypeCode);
 		return Mono.just("19");
+	}
+
+	Map<String, Object> getServicesConfig() {
+		return (Map<String, Object>) getConfig().get(SERVICES);
 	}
 
 	@Builder

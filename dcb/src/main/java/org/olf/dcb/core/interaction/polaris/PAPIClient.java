@@ -11,20 +11,16 @@ import static java.util.Collections.singletonList;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_BRANCH_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_USER_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PATRON_BARCODE_PREFIX;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WORKSTATION_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValueWithDefault;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
 import org.reactivestreams.Publisher;
@@ -105,7 +101,7 @@ public class PAPIClient {
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
 		final var conf = client.getConfig();
-		final var servicesConfig = getServicesConfig();
+		final var servicesConfig = client.getServicesConfig();
 
 		final var body = PatronRegistration.builder()
 			.logonBranchID(Integer.valueOf((String) conf.get(LOGON_BRANCH_ID)))
@@ -128,7 +124,7 @@ public class PAPIClient {
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
 		final var conf = client.getConfig();
-		final var servicesConfig = getServicesConfig();
+		final var servicesConfig = client.getServicesConfig();
 
 		final var body = ItemCheckoutData.builder()
 			.logonBranchID(extractMapValue(conf, LOGON_BRANCH_ID, Integer.class))
@@ -225,7 +221,7 @@ public class PAPIClient {
 
 	private PatronRegistration getPatronRegistration(Patron patron) {
 		final var conf = client.getConfig();
-		final var servicesConfig = getServicesConfig();
+		final var servicesConfig = client.getServicesConfig();
 
 		final var patronBarcodePrefix = extractMapValueWithDefault(servicesConfig, PATRON_BARCODE_PREFIX, String.class, "DCB-");
 		final var logonBranchID = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
@@ -247,12 +243,6 @@ public class PAPIClient {
 			.state("MO")
 			.barcode(patronBarcodePrefix + patron.getLocalBarcodes().get(0))
 			.build();
-	}
-
-	private Map<String, Object> getServicesConfig() {
-		final var config = getValue(client, HostLmsClient::getConfig);
-
-		return (Map<String, Object>) config.get(SERVICES);
 	}
 
 	private static PatronCredentials emptyCredentials() {
