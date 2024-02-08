@@ -607,7 +607,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		switch (polarisClient) {
 			case PAPIService -> {
-				final var papiMap = (Map<String, Object>) getConfig().get(PAPI);
+				final var papiMap = getPAPIConfig();
 				params.put("version", papiMap.get(PAPI_VERSION));
 				params.put("langId", papiMap.get(PAPI_LANG_ID));
 				params.put("appId", papiMap.get(PAPI_APP_ID));
@@ -674,6 +674,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return (Map<String, Object>) getConfig().get(SERVICES);
 	}
 
+	private Map<String, Object> getPAPIConfig() {
+		return (Map<String, Object>) getConfig().get(PAPI);
+	}
+
 	@Builder
 	@Data
 	@AllArgsConstructor
@@ -725,7 +729,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		private String BibliographicRecordXML;
 	}
 
-	enum PolarisClient { PAPIService, APPLICATION_SERVICES }
+	public enum PolarisClient { PAPIService, APPLICATION_SERVICES }
 
 	private static RuntimeException patronNotFound(String localId, String hostLmsCode) {
 		return new PatronNotFoundInHostLmsException(localId, hostLmsCode);
