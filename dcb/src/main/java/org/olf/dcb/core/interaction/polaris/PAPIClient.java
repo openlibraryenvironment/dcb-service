@@ -16,6 +16,7 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WOR
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValueWithDefault;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.Arrays;
 import java.util.List;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
 import org.reactivestreams.Publisher;
@@ -103,12 +105,12 @@ public class PAPIClient {
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
 		final var conf = client.getConfig();
-		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
+		final var servicesConfig = getServicesConfig();
 
 		final var body = PatronRegistration.builder()
 			.logonBranchID(Integer.valueOf((String) conf.get(LOGON_BRANCH_ID)))
 			.logonUserID(Integer.valueOf((String) conf.get(LOGON_USER_ID)))
-			.logonWorkstationID(Integer.valueOf((String) servicesMap.get(SERVICES_WORKSTATION_ID)))
+			.logonWorkstationID(Integer.valueOf((String) servicesConfig.get(SERVICES_WORKSTATION_ID)))
 			.patronCode(Integer.valueOf(patronType))
 			.build();
 
@@ -125,20 +127,20 @@ public class PAPIClient {
 		log.info("Patron {} checking out item {}", patronBarcode, itemBarcode);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
-		// passing empty patron credentials will allow public requests without patron auth
-		final var empty = emptyCredentials();
 		final var conf = client.getConfig();
-		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
+		final var servicesConfig = getServicesConfig();
+
 		final var body = ItemCheckoutData.builder()
-			.logonBranchID( extractMapValue(conf, LOGON_BRANCH_ID, Integer.class) )
-			.logonUserID( extractMapValue(conf, LOGON_USER_ID, Integer.class) )
-			.logonWorkstationID( extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class) )
+			.logonBranchID(extractMapValue(conf, LOGON_BRANCH_ID, Integer.class))
+			.logonUserID(extractMapValue(conf, LOGON_USER_ID, Integer.class))
+			.logonWorkstationID(extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class))
 			.itemBarcode(itemBarcode)
 			.build();
 
 		return createRequest(POST, path, uri -> {})
 			.map(request -> request.body(body))
-			.flatMap( req -> authFilter.ensurePatronAuth(req, empty, TRUE) )
+			// passing empty patron credentials will allow public requests without patron auth
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
 			.flatMap(request -> client.retrieve(request, Argument.of(ItemCheckoutResult.class)))
 			.flatMap(this::checkForItemCheckOutError);
 	}
@@ -147,9 +149,9 @@ public class PAPIClient {
 		return Mono.just(itemCheckoutResult)
 			// PAPI Error Codes: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1221124
 			.filter(result -> result.getPAPIErrorCode() == 0)
-			.switchIfEmpty( Mono.error(() -> new ItemCheckoutException(
+			.switchIfEmpty(Mono.error(() -> new ItemCheckoutException(
 				"Checkout of local item id: " + itemCheckoutResult.getItemRecordID()
-				+ ", failed with error message: '" + itemCheckoutResult.getErrorMessage() + "'")) );
+				+ ", failed with error message: '" + itemCheckoutResult.getErrorMessage() + "'")));
 	}
 
 	/*
@@ -207,7 +209,7 @@ public class PAPIClient {
 			.map(itemGetRows -> itemGetRows.get(0));
 	}
 
-	private <T> Mono<MutableHttpRequest<?>> createRequest(HttpMethod httpMethod, String path,
+	private Mono<MutableHttpRequest<?>> createRequest(HttpMethod httpMethod, String path,
 		Consumer<UriBuilder> uriBuilderConsumer) {
 		return client.createRequest(httpMethod,path).map(req -> req.uri(uriBuilderConsumer));
 	}
@@ -218,19 +220,21 @@ public class PAPIClient {
 
 	private PatronRegistration getPatronRegistration(Patron patron) {
 		final var conf = client.getConfig();
-		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
-		final var patronBarcodePrefix = extractMapValueWithDefault(servicesMap, PATRON_BARCODE_PREFIX, String.class, "DCB-");
+		final var servicesConfig = getServicesConfig();
+
+		final var patronBarcodePrefix = extractMapValueWithDefault(servicesConfig, PATRON_BARCODE_PREFIX, String.class, "DCB-");
 		final var logonBranchID = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+
 		return PatronRegistration.builder()
-			.logonBranchID( logonBranchID )
+			.logonBranchID(logonBranchID)
 			.logonUserID(extractMapValue(conf, LOGON_USER_ID, Integer.class))
-			.logonWorkstationID(extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class))
+			.logonWorkstationID(extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class))
 			.patronBranchID(patron.getLocalItemLocationId())
 			.nameFirst(patron.getLocalBarcodes().get(0))
 			.nameLast(patron.getUniqueIds().get(0))
 			.userName(patron.getUniqueIds().get(0))
-			.patronCode( parseInt(patron.getLocalPatronType()) )
-			// Polaris needs these fields, but we don't have them for vpatrons
+			.patronCode(parseInt(patron.getLocalPatronType()))
+			// Polaris needs these fields, but we don't have them for virtual patrons
 			.birthdate("1999-11-01")
 			.postalCode("63131")
 			.streetOne("DCB Patron Street Address")
@@ -238,6 +242,12 @@ public class PAPIClient {
 			.state("MO")
 			.barcode(patronBarcodePrefix + patron.getLocalBarcodes().get(0))
 			.build();
+	}
+
+	private Map<String, Object> getServicesConfig() {
+		final var config = getValue(client, HostLmsClient::getConfig);
+
+		return (Map<String, Object>) config.get(SERVICES);
 	}
 
 	private static PatronCredentials emptyCredentials() {
