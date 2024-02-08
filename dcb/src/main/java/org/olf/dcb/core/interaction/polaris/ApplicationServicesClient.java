@@ -24,7 +24,6 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOAN_PERIOD_
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_BRANCH_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_USER_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.RENEW_LIMIT;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_PRODUCT_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WORKSTATION_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SHELVING_SCHEME_ID;
@@ -243,8 +242,8 @@ class ApplicationServicesClient {
 		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
 		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
 
-		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
-		final var workstation = extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class);
+		final var servicesConfig = client.getServicesConfig();
+		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
 
 		final var DeleteBibRecord = 11;
 		final var DeleteBibRecordData = 10;
@@ -278,14 +277,14 @@ class ApplicationServicesClient {
 		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
 		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
 
-		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
-		final var workstation = extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class);
+		final var servicesConfig = client.getServicesConfig();
+		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
 
 		final var itemMap = (Map<String, Object>) conf.get(ITEM);
 		final var barcodePrefix = extractMapValue(itemMap, BARCODE_PREFIX, String.class);
 
-		final var itemrecordtype = 8;
-		final var itemrecorddata = 6;
+		final var itemRecordType = 8;
+		final var itemRecordData = 6;
 
 		final var Available = 1; // In
 
@@ -300,19 +299,19 @@ class ApplicationServicesClient {
 				String strPatronHomeLocation = createItemCommand.getPatronHomeLocation();
 
 				if (strPatronHomeLocation == null)
-					throw new RuntimeException("Missing patron home location for sierra user - createItemCommand="+createItemCommand);
+					throw new RuntimeException("Missing patron home location for sierra user - createItemCommand=" + createItemCommand);
 
 				// Ian: 2024-01-10 We use the patrons home location for these values - see the note in Borrowing Library Services
 			  // final var itemLocationId = tuple.getT3();
 				final Integer itemLocationId = Integer.valueOf(strPatronHomeLocation);
 				
 				final var body = WorkflowRequest.builder()
-					.workflowRequestType(itemrecordtype)
+					.workflowRequestType(itemRecordType)
 					.txnUserID(user)
 					.txnBranchID(branch)
 					.txnWorkstationID(workstation)
 					.requestExtension( RequestExtension.builder()
-						.workflowRequestExtensionType(itemrecorddata)
+						.workflowRequestExtensionType(itemRecordData)
 						.data(RequestExtensionData.builder()
 							.associatedBibRecordID(Integer.parseInt(createItemCommand.getBibId()))
 							.barcode((barcodePrefix!=null?barcodePrefix:"") + createItemCommand.getBarcode())
@@ -349,21 +348,21 @@ class ApplicationServicesClient {
 		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
 		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
 
-		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
-		final var workstation = extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class);
+		final var servicesConfig = client.getServicesConfig();
+		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
 
-		final var itemrecordtype = 8;
-		final var itemrecorddata = 6;
+		final var itemRecordType = 8;
+		final var itemRecordData = 6;
 
 		return createRequest(POST, path, uri -> {})
 			.map(request -> {
 				final var body = WorkflowRequest.builder()
-					.workflowRequestType(itemrecordtype)
+					.workflowRequestType(itemRecordType)
 					.txnUserID(user)
 					.txnBranchID(branch)
 					.txnWorkstationID(workstation)
 					.requestExtension( RequestExtension.builder()
-						.workflowRequestExtensionType(itemrecorddata)
+						.workflowRequestExtensionType(itemRecordData)
 						.data(RequestExtensionData.builder()
 							.itemRecordID( Integer.valueOf(itemId) )
 							.originalItemStatusID(fromStatus)
@@ -384,8 +383,8 @@ class ApplicationServicesClient {
 		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
 		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
 
-		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
-		final var workstation = extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class);
+		final var servicesConfig = client.getServicesConfig();
+		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
 
 		final var DeleteItemRecord = 10;
 		final var DeleteItemRecordData = 8;
@@ -497,24 +496,24 @@ class ApplicationServicesClient {
 	}
 
 	private Mono<LocalRequest> getLocalRequestBody(HoldRequestParameters data) {
-		final var conf = client.getConfig();
-		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
+		final var servicesConfig = client.getServicesConfig();
 
-		return getHoldRequestDefaults().map( expiration -> LocalRequest.builder()
-			.procedureStep(20) // bypass
-			.answer(1) // default
-			.activationDate(LocalDateTime.now().format( ofPattern("yyyy-MM-dd")))
-			.expirationDate(LocalDateTime.now().plusDays(expiration).format( ofPattern("MM/dd/yyyy")))
-			.origin(extractMapValue(servicesMap, SERVICES_PRODUCT_ID, Integer.class))
-			.patronID(Optional.ofNullable(data.getLocalPatronId()).map(Integer::valueOf).orElse(null))
-			.pickupBranchID(checkPickupBranchID(data))
-			.trackingNumber(data.getDcbPatronRequestId())
-			.unlockedRequest(true)
-			.itemRecordID(Optional.ofNullable(data.getRecordNumber()).map(Integer::valueOf).orElse(null))
-			.title(data.getTitle())
-			.mARCTOMID(data.getPrimaryMARCTOMID())
-			.nonPublicNotes("PickupLoc: " + data.getPickupLocation() + "\r\nTrackingID: " + data.getDcbPatronRequestId())
-			.build());
+		return getHoldRequestDefaults()
+			.map(expiration -> LocalRequest.builder()
+				.procedureStep(20) // bypass
+				.answer(1) // default
+				.activationDate(LocalDateTime.now().format( ofPattern("yyyy-MM-dd")))
+				.expirationDate(LocalDateTime.now().plusDays(expiration).format( ofPattern("MM/dd/yyyy")))
+				.origin(extractMapValue(servicesConfig, SERVICES_PRODUCT_ID, Integer.class))
+				.patronID(Optional.ofNullable(data.getLocalPatronId()).map(Integer::valueOf).orElse(null))
+				.pickupBranchID(checkPickupBranchID(data))
+				.trackingNumber(data.getDcbPatronRequestId())
+				.unlockedRequest(true)
+				.itemRecordID(Optional.ofNullable(data.getRecordNumber()).map(Integer::valueOf).orElse(null))
+				.title(data.getTitle())
+				.mARCTOMID(data.getPrimaryMARCTOMID())
+				.nonPublicNotes("PickupLoc: " + data.getPickupLocation() + "\r\nTrackingID: " + data.getDcbPatronRequestId())
+				.build());
 	}
 
 	private static Integer checkPickupBranchID(HoldRequestParameters data) {
