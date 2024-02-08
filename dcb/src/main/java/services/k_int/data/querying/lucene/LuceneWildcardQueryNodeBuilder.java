@@ -7,9 +7,10 @@ import org.apache.lucene.queryparser.flexible.standard.nodes.WildcardQueryNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.data.model.jpa.criteria.impl.AbstractCriteriaBuilder;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Path;
-import services.k_int.data.jpa.JpaPredicateExtensions;
 import services.k_int.data.querying.JpaQuerySpecificationBuilder;
 
 /**
@@ -40,7 +41,9 @@ public class LuceneWildcardQueryNodeBuilder<T> implements JpaQuerySpecificationB
 		log.info("Wildcard... {}:{}", fieldName, fieldText);
 		QuerySpecification<T> cb = (root, query, criteriaBuilder) -> {
 			Path<String> path = root.get(fieldName);
-			return JpaPredicateExtensions.ilike(criteriaBuilder, path, fieldText);
+			Expression<String> strExp = criteriaBuilder.literal(fieldText);
+			
+			return ((AbstractCriteriaBuilder)criteriaBuilder).ilikeString(path, strExp);
 		};
 		return cb;
 	}
