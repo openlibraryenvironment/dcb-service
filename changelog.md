@@ -1,5 +1,54 @@
 # Changelog
 
+## Version 5.4.0
+
+### Additions
+* [General]
+	* Handle unexpected responses from Sierra DCB-849
+
+### Changes
+* [Chore]
+	* Save audit data with audit record DCB-849
+	* Replace spaces with tabs in request audit service DCB-849
+	* Make request workflow context serdeable DCB-849
+	* Include parameters from underlying problem when placing request at supplying agency DCB-849
+	* Include json request body for unexpected response DCB-849
+	* Include text request body for unexpected response DCB-849
+	* Tolerate no request body for unexpected response DCB-849
+	* Tolerate no request or host LMS code for unexpected response DCB-849
+	* add log for debugging duplicate error audit
+	* Reformat get method in Sierra client DCB-849
+	* Rename generic type arguments when making request DCB-855
+	* Handle unexpected responses when getting RTAC holdings from FOLIO DCB-855
+	* Additional logging around state saving for FOLIO
+* [Feature]
+	* Re-apply the transactional annotation needed to stop Folio OAI from deadlocking - adding additional annotations needed to stop non-folio tests from deadlocking
+	* add transition to pickup_transit in audit log
+* [Refactor]
+	* Use error handler to handle no records error from Sierra DCB-849
+	* Remove optional execute of error handling transform when retrieving from Sierra DCB-849
+	* Provide no extra error handling when retrieving from Sierra DCB-849
+	* Explicitly remove cached token when retrieve receives unauthorised response DCB-849
+	* Explicitly remove cached token when exchange receives unauthorised response DCB-849
+	* Introduce parameter for error handler when retrieving from Sierra DCB-849
+	* Move detecting unexpected response from FOLIO to common request method DCB-855
+	* Move detecting unathorised response from FOLIO to common request method DCB-855
+	* Provide error handler when creating a FOLIO transaction DCB-855
+	* Raise specific exception when transaction not found in FOLIO DCB-855
+	* Extract parameter for an error handler when making FOLIO HTTP request DCB-855
+	* Extract method for finding FOLIO user by barcode DCB-855
+* [Test]
+	* Check for audit data when placing request at supplying agency fails DCB-849
+	* Extract matchers for audit data DCB-849
+	* Demonstrate adding an audit entry for an error DCB-849
+	* Demonstrate login failure in Sierra Host LMS client DCB-849
+
+### Fixes
+* [General]
+	* Ensure transactional encapsulation of "updateState"
+	* remove extra Error Transformer after applyTransition
+	* Use the patronRequest status to control the action of a missing request at the requesting library to avoid accidentially cancelling the request
+
 ## Version 5.3.0
 
 ### Additions
@@ -8,6 +57,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Move detection of unexpected response from Sierra to lower level client DCB-849
 	* Use request path in title for unexpected response from unknown host LMS DCB-849
 	* Use request URI in title for unexpected response from unknown host LMS DCB-849
