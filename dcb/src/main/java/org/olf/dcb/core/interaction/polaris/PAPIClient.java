@@ -8,7 +8,11 @@ import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_BRANCH_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_USER_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PATRON_BARCODE_PREFIX;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WORKSTATION_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValueWithDefault;
@@ -16,15 +20,12 @@ import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapVa
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -38,17 +39,17 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 public class PAPIClient {
-	static final Logger log = LoggerFactory.getLogger(PAPIClient.class);
 	private final PolarisLmsClient client;
 	private final PAPIAuthFilter authFilter;
 	private final String PUBLIC_PARAMETERS;
 	private final String PROTECTED_PARAMETERS;
-	public PAPIClient(
-		PolarisLmsClient client)
-	{
+
+	public PAPIClient(PolarisLmsClient client) {
 		this.client = client;
 		this.authFilter = new PAPIAuthFilter(client);
 
@@ -65,7 +66,12 @@ public class PAPIClient {
 	@SingleResult
 	public Mono<Patron> patronValidate(String barcode, String password) {
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
-		final var patronCredentials = PatronCredentials.builder().barcode(barcode).password(password).build();
+
+		final var patronCredentials = PatronCredentials.builder()
+			.barcode(barcode)
+			.password(password)
+			.build();
+
 		return createRequest(GET, path, uri -> {})
 			.flatMap( req -> authFilter.ensurePatronAuth(req, patronCredentials, FALSE) )
 			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronValidateResult.class))))
@@ -79,37 +85,36 @@ public class PAPIClient {
 	}
 
 	public Mono<PatronRegistrationCreateResult> patronRegistrationCreate(Patron patron) {
-
 		log.info("patronRegistrationCreate {}", patron);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron");
-		// passing empty patron credentials will allow public requests without patron auth
-		final var empty = PatronCredentials.builder().build();
 		final PatronRegistration body = getPatronRegistration(patron);
+
 		return createRequest(POST, path, uri -> {})
 			.map(request -> request.body(body))
 			.doOnSuccess(req -> log.debug("patronRegistrationCreate body: {}", req.getBody()))
-			.flatMap( req -> authFilter.ensurePatronAuth(req, empty, FALSE) )
+			// passing empty patron credentials will allow public requests without patron auth
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), FALSE))
 			.flatMap(request -> client.retrieve(request, Argument.of(PatronRegistrationCreateResult.class)));
 	}
 
 	public Mono<String> patronRegistrationUpdate(String barcode, String patronType) {
-
 		log.info("patronRegistrationUpdate {} {}", barcode, patronType);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
-		// passing empty patron credentials will allow public requests without patron auth
-		final var empty = PatronCredentials.builder().build();
 		final var conf = client.getConfig();
 		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
+
 		final var body = PatronRegistration.builder()
 			.logonBranchID(Integer.valueOf((String) conf.get(LOGON_BRANCH_ID)))
 			.logonUserID(Integer.valueOf((String) conf.get(LOGON_USER_ID)))
 			.logonWorkstationID(Integer.valueOf((String) servicesMap.get(SERVICES_WORKSTATION_ID)))
 			.patronCode(Integer.valueOf(patronType))
 			.build();
+
 		return client.createRequest(PUT, path)
-			.flatMap(req -> authFilter.ensurePatronAuth(req, empty, TRUE))
+			// passing empty patron credentials will allow public requests without patron auth
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
 			.map(request -> request.body(body))
 			.flatMap(request -> client.retrieve(request, Argument.of(PatronUpdateResult.class)))
 			.filter(patronUpdateResult -> patronUpdateResult.getPAPIErrorCode() == 0)
@@ -117,12 +122,11 @@ public class PAPIClient {
 	}
 
 	public Mono<ItemCheckoutResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {
-
 		log.info("Patron {} checking out item {}", patronBarcode, itemBarcode);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
 		// passing empty patron credentials will allow public requests without patron auth
-		final var empty = PatronCredentials.builder().build();
+		final var empty = emptyCredentials();
 		final var conf = client.getConfig();
 		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
 		final var body = ItemCheckoutData.builder()
@@ -139,7 +143,7 @@ public class PAPIClient {
 			.flatMap(this::checkForItemCheckOutError);
 	}
 
-	private <R> Mono<ItemCheckoutResult> checkForItemCheckOutError(ItemCheckoutResult itemCheckoutResult) {
+	private Mono<ItemCheckoutResult> checkForItemCheckOutError(ItemCheckoutResult itemCheckoutResult) {
 		return Mono.just(itemCheckoutResult)
 			// PAPI Error Codes: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1221124
 			.filter(result -> result.getPAPIErrorCode() == 0)
@@ -234,6 +238,10 @@ public class PAPIClient {
 			.state("MO")
 			.barcode(patronBarcodePrefix + patron.getLocalBarcodes().get(0))
 			.build();
+	}
+
+	private static PatronCredentials emptyCredentials() {
+		return PatronCredentials.builder().build();
 	}
 
 	@Builder
