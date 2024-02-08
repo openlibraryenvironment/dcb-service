@@ -38,13 +38,14 @@ import java.util.stream.Collectors;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.core.AppState;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
@@ -92,8 +93,6 @@ import reactor.core.publisher.Mono;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
-import org.olf.dcb.core.AppState;
-
 @Slf4j
 @Prototype
 public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsPagedRow>, HostLmsClient{
@@ -111,11 +110,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final ApplicationServicesClient appServicesClient;
 	private final List<ApplicationServicesClient.MaterialType> materialTypes = new ArrayList<>();
 	private final List<PolarisItemStatus> statuses = new ArrayList<>();
-	private final AppState appState;
 
-  // ToDo align these URLs
+	// ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
-//  private static final URI ERR0212 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0212/Polaris/UnableToCreateItem");
 
 	@Creator
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,
@@ -129,7 +126,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		rootUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
 		lms = hostLms;
 
-		this.appState = appState;
 		this.appServicesClient = new ApplicationServicesClient(this);
 		this.papiClient = new PAPIClient(this);
 		this.itemMapper = itemMapper;
@@ -160,7 +156,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		PlaceHoldRequestParameters parameters) {
 		return getBibIdFromItemId(parameters.getLocalItemId())
 			.flatMap(this::getBib)
-			.zipWith( papiClient.synch_ItemGet(parameters.getLocalItemId()) )
+			.zipWith(papiClient.synch_ItemGet(parameters.getLocalItemId()))
 			.map(tuple -> {
 				final var bib = tuple.getT1();
 				final var item = tuple.getT2();
@@ -185,11 +181,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		return appServicesClient.getLocalHoldRequest(Integer.valueOf(localRequestId))
 			.map(ApplicationServicesClient.LibraryHold::getSysHoldStatus)
-			.map(status -> HostLmsRequest.builder().localId(localRequestId).status( checkHoldStatus(status) ).build());
+			.map(status -> HostLmsRequest.builder()
+				.localId(localRequestId)
+				.status(checkHoldStatus(status))
+				.build());
 	}
 
 	/**
-	 * See: https://qa-polaris.polarislibrary.com/polaris.applicationservices/help/sysholdstatuses/get_syshold_statuses
+	 * From <a href="https://qa-polaris.polarislibrary.com/polaris.applicationservices/help/sysholdstatuses/get_syshold_statuses">statuses</a>
 	 */
 	private String checkHoldStatus(String status) {
 		log.debug("Checking hold status: {}", status);
@@ -209,15 +208,17 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand) {
-
 		log.info("createItem({})",createItemCommand);
 
 		return appServicesClient.addItemRecord(createItemCommand)
-			.doOnSuccess( r -> log.info("Got create item response from Polaris: {}",r) )
+			.doOnSuccess(r -> log.info("Got create item response from Polaris: {}",r))
 			.map(itemCreateResponse -> {
-				if ( itemCreateResponse.getAnswerExtension() == null ) {
-					String messages = itemCreateResponse.getInformationMessages() != null ? itemCreateResponse.getInformationMessages().toString() : "NO DETAILS";
-					throw new RuntimeException("Missing answer" +messages);
+				if (itemCreateResponse.getAnswerExtension() == null) {
+					String messages = itemCreateResponse.getInformationMessages() != null
+						? itemCreateResponse.getInformationMessages().toString()
+						: "NO DETAILS";
+
+					throw new RuntimeException("Missing answer" + messages);
 				}
 				return HostLmsItem.builder()
 					.localId(String.valueOf(itemCreateResponse.getAnswerExtension().getAnswerData().getItemRecord().getItemRecordID()))
@@ -227,11 +228,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.onErrorMap( error -> { 
 				log.error("Error attempting to create item {} : {}", createItemCommand, error.getMessage());
 				return Problem.builder()
-						.withType(ERR0211)
-						.withTitle("Unable to create virtual item at polaris - pr="+createItemCommand.getPatronRequestId()+" cit="+createItemCommand.getCanonicalItemType())
-						.withDetail(error.getMessage())
-						.with("createItemCommand",createItemCommand)
-						.build();
+					.withType(ERR0211)
+					.withTitle("Unable to create virtual item at polaris - pr=" + createItemCommand.getPatronRequestId() + " cit=" + createItemCommand.getCanonicalItemType())
+					.withDetail(error.getMessage())
+					.with("createItemCommand",createItemCommand)
+					.build();
 			});
 	}
 
@@ -254,7 +255,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.flatMap(this::setCircStatus)
 			.map(result -> HostLmsItem.builder()
 				.localId(String.valueOf(result.getItemRecordID()))
-				.status( mapItemStatus(POLARIS_TO_HOST_LMS, result.getCircStatusName()) )
+				.status( mapItemStatus(POLARIS_TO_HOST_LMS, result.getCircStatusName()))
 				.barcode(result.getBarcode())
 				.build());
 	}
@@ -265,7 +266,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return switch (crs) {
 			case AVAILABLE -> getCircStatusId(AVAILABLE).map(id -> updateItem(itemId, id)).thenReturn("OK");
 			case TRANSIT -> getCircStatusId(TRANSFERRED).map(id -> updateItem(itemId, id)).thenReturn("OK");
-			default -> Mono.just("OK").doOnSuccess(ok -> log.error("CanonicalItemState: '{ "+crs+" }' cannot be updated."));
+			default -> Mono.just("OK").doOnSuccess(ok -> log.error("CanonicalItemState: '{}' cannot be updated.", crs));
 		};
 	}
 
@@ -294,14 +295,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<String> createPatron(Patron patron) {
 
-		log.info("createPatron({}) at {}",patron,lms);
+		log.info("createPatron({}) at {}", patron, lms);
 
 		return papiClient.synch_ItemGet(patron.getLocalItemId())
 			.map(itemGetRow -> patron.setLocalItemLocationId(itemGetRow.getLocationID()))
 			.flatMap(papiClient::patronRegistrationCreate)
 			.flatMap(this::validateCreatePatronResult)
-			.doOnSuccess(res -> log.debug("Successful result creating patron {}",res) )
-			.doOnError(error -> log.error("Problem trying to create patron {}",error) )
+			.doOnSuccess(res -> log.debug("Successful result creating patron {}",res))
+			.doOnError(error -> log.error("Problem trying to create patron",error))
 			.map(PAPIClient.PatronRegistrationCreateResult::getPatronID)
 			.flatMap(appServicesClient::handlePatronBlock)
 			.map(String::valueOf);
@@ -349,7 +350,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<Patron> getPatronByUsername(String username) {
-		return patronFind(username).switchIfEmpty( Mono.error(patronNotFound(username, getHostLmsCode())) );
+		return patronFind(username)
+			.switchIfEmpty(Mono.error(patronNotFound(username, getHostLmsCode())));
 	}
 
 	@Override
@@ -403,7 +405,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	private Mono<PAPIClient.ItemGetRow> setCircStatus(PAPIClient.ItemGetRow itemGetRow) {
 		final var circStatus = itemGetRow.getCircStatus();
-		return (statuses.isEmpty() ? appServicesClient.listItemStatuses().doOnNext(statuses::addAll) : Mono.just(statuses))
+		return (statuses.isEmpty()
+				? appServicesClient.listItemStatuses().doOnNext(statuses::addAll)
+				: Mono.just(statuses))
 			.flatMapMany(Flux::fromIterable)
 			.filter(status -> circStatus.equals(status.getDescription()))
 			.next()
@@ -416,7 +420,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<Integer> getCircStatusId(String circStatusName) {
-		return (statuses.isEmpty() ? appServicesClient.listItemStatuses().doOnNext(statuses::addAll) : Mono.just(statuses))
+		return (statuses.isEmpty()
+					? appServicesClient.listItemStatuses().doOnNext(statuses::addAll)
+					: Mono.just(statuses))
 			.flatMapMany(Flux::fromIterable)
 			.filter(status -> circStatusName.equals(status.getName()))
 			.next()
@@ -513,9 +519,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		final Map<String, Object> conf = lms.getClientConfig();
 		Integer pageSize = (Integer) conf.get(MAX_BIBS);
-		if ( pageSize > 100 ) {
-						log.info("Limiting POLARIS page size to 100");
-						pageSize = 100;
+		if (pageSize > 100) {
+			log.info("Limiting POLARIS page size to 100");
+			pageSize = 100;
 		}
 
 		return Flux.from( ingestHelper.pageAllResults(pageSize) )
@@ -545,7 +551,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Record resourceToMarc(BibsPagedRow resource) {
-		return convertToMarcRecord( resource.getBibliographicRecordXML() );
+		return convertToMarcRecord(resource.getBibliographicRecordXML());
 	}
 
 	@Override
@@ -725,5 +731,4 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		log.debug("POLARIS Supplier Preflight {} {} {} {}",borrowingAgencyCode,supplyingAgencyCode,canonicalItemType,canonicalPatronType);
     return Mono.just(Boolean.TRUE);
   }
-
 }
