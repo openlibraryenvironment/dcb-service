@@ -253,13 +253,11 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		return Mono.from( getInitialState(lms.getId(), "ingest") )
 			.map(state -> state.toBuilder().build())
 			.zipWhen(state -> {
-				
-				// For the initial fetch... If there is a since... Ignore the resumption.
-				return Mono.justOrEmpty(state.since)
-					.flatMap( since -> fetchPage( since, null ) )
-					.switchIfEmpty(
-							Mono.defer (() ->
-								fetchPage(null, MapUtils.getAsOptionalString(state.storred_state, "resumptionToken") )));
+				if ( state.since == null) {
+					return fetchPage(null,
+							MapUtils.getAsOptionalString(state.storred_state, "resumptionToken") );
+				}
+				return fetchPage( state.since, Optional.empty() );
 			})
 			.expand(TupleUtils.function((state, response) -> {
 				
@@ -458,7 +456,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	}
 
 	@Override
-	@Transactional(value = TxType.REQUIRES_NEW)
+	@Transactional
 	public Mono<PublisherState> saveState(@NonNull UUID id, @NonNull String processName, @NonNull PublisherState state) {
 		log.debug("savState {} {} - {}", id, state, lms.getName());
 
