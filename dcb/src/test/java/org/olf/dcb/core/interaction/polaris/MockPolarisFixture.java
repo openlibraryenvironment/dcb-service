@@ -48,6 +48,10 @@ public class MockPolarisFixture {
 			"get-patron-by-local-id.json");
 	}
 
+	public void mockGetItemsForBib(String bibId) {
+		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/" + bibId, "items-get.json");
+	}
+
 	public void mockPagedBibs() {
 		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/bibs/MARCXML/paged/*", "bibs-slice-0-9.json");
 	}

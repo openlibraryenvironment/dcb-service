@@ -110,9 +110,9 @@ public class PolarisLmsClientTests {
 			.code("345test")
 			.name("Test College").build());
 
-		final var sourceRecordId = "643425";
+		final var bibId = "643425";
 
-		mockPolarisFixture.mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/" + sourceRecordId, "items-get.json");
+		mockPolarisFixture.mockGetItemsForBib(bibId);
 		mockPolarisFixture.mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/materialtypes", "materialtypes.json");
 		mockPolarisFixture.mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses", "itemstatuses.json");
 
@@ -121,7 +121,7 @@ public class PolarisLmsClientTests {
 
 		final var itemsList = singleValueFrom(client
 			.getItems(BibRecord.builder()
-				.sourceRecordId(sourceRecordId)
+				.sourceRecordId(bibId)
 				.build()));
 
 		// Assert
@@ -141,7 +141,7 @@ public class PolarisLmsClientTests {
 		assertThat(firstItem, hasBarcode("3430470102"));
 		assertThat(firstItem, hasCallNumber("E Bellini Mario"));
 		assertThat(firstItem, hasHostLmsCode(HOST_LMS_CODE));
-		assertThat(firstItem, hasLocalBibId(sourceRecordId));
+		assertThat(firstItem, hasLocalBibId(bibId));
 		assertThat(firstItem, hasLocalItemType("Book"));
 		assertThat(firstItem, hasLocalItemTypeCode("3"));
 		assertThat(firstItem, hasNoHoldCount());
