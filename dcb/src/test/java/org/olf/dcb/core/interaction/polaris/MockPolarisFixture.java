@@ -65,6 +65,11 @@ public class MockPolarisFixture {
 			.formatted(patronId), "[]");
 	}
 
+	public void mockGetPatronBarcode(String patronId, String barcode) {
+		mock("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/barcodes/patrons/" + patronId,
+			"\"%s\"".formatted(barcode));
+	}
+
 	public void mockGetItemsForBib(String bibId) {
 		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/" + bibId, "items-get.json");
 	}
