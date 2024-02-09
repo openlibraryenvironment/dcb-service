@@ -56,6 +56,10 @@ public class MockPolarisFixture {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/materialtypes", "materialtypes.json");
 	}
 
+	void mockGetItemStatuses() {
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses", "itemstatuses.json");
+	}
+
 	public void mockPagedBibs() {
 		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/bibs/MARCXML/paged/*", "bibs-slice-0-9.json");
 	}

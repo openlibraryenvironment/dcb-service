@@ -6,6 +6,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
@@ -105,16 +106,13 @@ public class PolarisLmsClientTests {
 		// Arrange
 		referenceValueMappingFixture.defineLocationToAgencyMapping( "polaris-hostlms-tests", "15", "345test");
 
-		agencyFixture.saveAgency(DataAgency.builder()
-			.id(randomUUID())
-			.code("345test")
-			.name("Test College").build());
+		agencyFixture.defineAgency("345test", "Test College");
 
 		final var bibId = "643425";
 
 		mockPolarisFixture.mockGetItemsForBib(bibId);
 		mockPolarisFixture.mockGetMaterialTypes();
-		mockPolarisFixture.mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses", "itemstatuses.json");
+		mockPolarisFixture.mockGetItemStatuses();
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
@@ -125,8 +123,7 @@ public class PolarisLmsClientTests {
 				.build()));
 
 		// Assert
-		assertThat(itemsList, is(notNullValue()));
-		assertThat(itemsList.size(), is(3));
+		assertThat(itemsList, hasSize(3));
 
 		final var firstItem = itemsList.stream()
 			.filter(item -> "3512742".equals(item.getLocalId()))
@@ -430,7 +427,7 @@ public class PolarisLmsClientTests {
 		// Arrange
 		final var localItemId = "3512742";
 		mockPolarisFixture.mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/" + localItemId, "items-get.json");
-		mockPolarisFixture.mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses", "itemstatuses.json");
+		mockPolarisFixture.mockGetItemStatuses();
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
@@ -484,9 +481,7 @@ public class PolarisLmsClientTests {
 		mockPolarisFixture.mock("PUT",
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow/0e4c9e68-785e-4a1e-9417-f9bd245cc147",
 			"create-item-resp.json");
-		mockPolarisFixture.mock("GET",
-			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses",
-			"itemstatuses.json");
+		mockPolarisFixture.mockGetItemStatuses();
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
