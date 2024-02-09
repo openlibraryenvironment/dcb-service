@@ -3,10 +3,10 @@ package org.olf.dcb.core.interaction.polaris;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
+import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpResponse;
-import org.mockserver.model.MediaType;
 import org.olf.dcb.test.TestResourceLoader;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 
@@ -29,6 +29,10 @@ public class MockPolarisFixture {
 
 	public void mockAppServicesStaffAuthentication() {
 		mock("POST", "/polaris.applicationservices/api/v1/eng/20/authentication/staffuser", "auth-response.json");
+	}
+
+	public void mockPatronAuthentication() {
+		mock("POST", "/PAPIService/REST/public/v1/1033/100/1/authenticator/patron", "test-patron-auth.json");
 	}
 
 	public void mockPatronSearch(String localBarcode, String localId, String agencyCode) {
@@ -89,6 +93,6 @@ public class MockPolarisFixture {
 	private static HttpResponse okJson(Object json) {
 		return response()
 			.withStatusCode(200)
-			.withBody(json(json, MediaType.APPLICATION_JSON));
+			.withBody(json(json, APPLICATION_JSON));
 	}
 }

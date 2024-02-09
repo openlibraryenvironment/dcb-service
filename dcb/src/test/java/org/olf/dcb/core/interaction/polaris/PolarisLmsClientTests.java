@@ -152,7 +152,7 @@ public class PolarisLmsClientTests {
 	@Test
 	public void patronAuth() {
 		// Arrange
-		mockPolarisFixture.mock("POST", "/PAPIService/REST/public/v1/1033/100/1/authenticator/patron", "test-patron-auth.json");
+		mockPolarisFixture.mockPatronAuthentication();
 		mockPolarisFixture.mock("GET", "/PAPIService/REST/public/v1/1033/100/1/patron/3100222227777", "patron-by-barcode.json");
 
 		// Act
