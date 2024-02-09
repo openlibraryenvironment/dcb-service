@@ -183,9 +183,7 @@ public class PolarisLmsClientTests {
 		mockPolarisFixture.mockPatronSearch(localBarcode, localId, agencyCode);
 
 		mockPolarisFixture.mockGetPatron(localPatronId);
-		mockPolarisFixture.mock(
-			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/1255217/blockssummary",
-			"[]");
+		mockPolarisFixture.mockGetPatronBlocksSummary("1255217");
 
 		// Act
 		final var patron = org.olf.dcb.core.model.Patron.builder()
@@ -268,9 +266,7 @@ public class PolarisLmsClientTests {
 
 		mockPolarisFixture.mockGetItem(localItemId);
 		mockPolarisFixture.mock("POST", "/PAPIService/REST/public/v1/1033/100/1/patron", "create-patron.json");
-		mockPolarisFixture.mock(
-			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/1255217/blockssummary",
-			"[]");
+		mockPolarisFixture.mockGetPatronBlocksSummary("1255217");
 
 		final var patron = Patron.builder()
 			.uniqueIds(List.of("dcb_unique_Id"))

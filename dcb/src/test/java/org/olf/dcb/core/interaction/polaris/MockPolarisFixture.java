@@ -56,6 +56,11 @@ public class MockPolarisFixture {
 		mock("GET", "/PAPIService/REST/public/v1/1033/100/1/patron/" + barcode, "patron-by-barcode.json");
 	}
 
+	public void mockGetPatronBlocksSummary(String patronId) {
+		mock("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/%s/blockssummary"
+			.formatted(patronId), "[]");
+	}
+
 	public void mockGetItemsForBib(String bibId) {
 		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/" + bibId, "items-get.json");
 	}
