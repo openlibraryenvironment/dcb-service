@@ -96,7 +96,7 @@ public class PolarisLmsClientTests {
 	public void beforeEach() {
 		mockServerClient.reset();
 		// papi auth
-		mockPolarisFixture.mock("POST", "/PAPIService/REST/protected/v1/1033/100/1/authenticator/staff", "test-staff-auth.json");
+		mockPolarisFixture.mockPapiStaffAuthentication();
 		// app services auth
 		mockPolarisFixture.mock("POST", "/polaris.applicationservices/api/v1/eng/20/authentication/staffuser", "auth-response.json");
 	}
