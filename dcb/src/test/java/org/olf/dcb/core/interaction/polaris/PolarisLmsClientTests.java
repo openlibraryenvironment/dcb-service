@@ -28,7 +28,6 @@ import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
-import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
 import java.util.List;
 import java.util.UUID;
@@ -186,10 +185,8 @@ public class PolarisLmsClientTests {
 		final var localBarcode = "0077777777";
 		final var localPatronId = 1255217;
 
-		mockPolaris.whenRequest(req -> req.withMethod("GET")
-				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/search/patrons/boolean*")
-				.withQueryStringParameter("q", "PATNF=" + localBarcode + " AND PATNL=" + localId + "@" + agencyCode))
-			.respond(okJson(resourceLoader.getResource("patron-search.json")));
+		mockPolarisFixture.mockPatronSearch(localBarcode, localId, agencyCode
+		);
 
 		mockPolarisFixture.mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/" + localPatronId, "get-patron-by-local-id.json");
 		mockPolarisFixture.mock("GET",

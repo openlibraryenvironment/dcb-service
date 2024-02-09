@@ -22,6 +22,14 @@ public class MockPolarisFixture {
 		this.mockPolaris = mockPolaris;
 	}
 
+	public void mockPatronSearch(String localBarcode, String localId, String agencyCode) {
+		mockPolaris.whenRequest(req -> req.withMethod("GET")
+				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/search/patrons/boolean*")
+				.withQueryStringParameter("q",
+					"PATNF=" + localBarcode + " AND PATNL=" + localId + "@" + agencyCode))
+			.respond(okJson(resourceLoader.getResource("patron-search.json")));
+	}
+
 	void mock(String method, String path, String jsonResource) {
 		mockPolaris.whenRequest(req -> req
 				.withMethod(method)
