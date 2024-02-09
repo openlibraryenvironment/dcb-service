@@ -113,7 +113,7 @@ public class PolarisLmsClientTests {
 		final var bibId = "643425";
 
 		mockPolarisFixture.mockGetItemsForBib(bibId);
-		mockPolarisFixture.mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/materialtypes", "materialtypes.json");
+		mockPolarisFixture.mockGetMaterialTypes();
 		mockPolarisFixture.mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses", "itemstatuses.json");
 
 		// Act
