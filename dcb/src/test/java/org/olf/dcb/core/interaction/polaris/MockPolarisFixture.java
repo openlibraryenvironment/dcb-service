@@ -47,7 +47,7 @@ public class MockPolarisFixture {
 			.respond(okJson(resourceLoader.getResource("patron-search.json")));
 	}
 
-	public void mockGetPatron(int patronId) {
+	public void mockGetPatron(String patronId) {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/" + patronId,
 			"get-patron-by-local-id.json");
 	}

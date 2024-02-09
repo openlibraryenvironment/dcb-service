@@ -178,12 +178,12 @@ public class PolarisLmsClientTests {
 		final var agencyCode = "known-agency";
 		final var localId = "1255193";
 		final var localBarcode = "0077777777";
-		final var localPatronId = 1255217;
+		final var localPatronId = "1255217";
 
 		mockPolarisFixture.mockPatronSearch(localBarcode, localId, agencyCode);
 
 		mockPolarisFixture.mockGetPatron(localPatronId);
-		mockPolarisFixture.mockGetPatronBlocksSummary("1255217");
+		mockPolarisFixture.mockGetPatronBlocksSummary(localPatronId);
 
 		// Act
 		final var patron = org.olf.dcb.core.model.Patron.builder()
@@ -289,7 +289,7 @@ public class PolarisLmsClientTests {
 	@Test
 	public void updatePatron() {
 		// Arrange
-		final var localPatronId = 1255193;
+		final var localPatronId = "1255193";
 
 		mockPolarisFixture.mock(
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/barcodes/patrons/"+1255193,
@@ -300,8 +300,7 @@ public class PolarisLmsClientTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var response = singleValueFrom(client
-			.updatePatron(String.valueOf(localPatronId), "3"));
+		final var response = singleValueFrom(client.updatePatron(localPatronId, "3"));
 
 		// Assert
 		assertThat(response, is(notNullValue()));
@@ -337,15 +336,14 @@ public class PolarisLmsClientTests {
 	@Test
 	public void getPatronByLocalId() {
 		// Arrange
-		final var localPatronId = 1255193;
+		final var localPatronId = "1255193";
 
 		mockPolarisFixture.mockGetPatron(localPatronId);
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var response = singleValueFrom(client
-			.getPatronByLocalId(String.valueOf(localPatronId)));
+		final var response = singleValueFrom(client.getPatronByLocalId(localPatronId));
 
 		// Assert
 		assertThat(response, is(notNullValue()));
