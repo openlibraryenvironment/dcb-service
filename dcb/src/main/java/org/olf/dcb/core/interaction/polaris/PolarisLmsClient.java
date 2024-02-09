@@ -334,7 +334,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				canonicalPatronType, getHostLmsCode())
 			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
-				String.format("Patron type mapping missing 'toValue'. " +
+				String.format("Patron type mapping missing. " +
 						"Details: fromContext: %s, fromCategory: %s, fromValue: %s, toContext: %s, toCategory: %s, toValue: %s",
 					"DCB", "patronType", canonicalPatronType, getHostLmsCode(), "patronType", null)
 			)));
