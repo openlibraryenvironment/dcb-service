@@ -5,6 +5,7 @@ import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.test.TestResourceLoader;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 
 import services.k_int.interaction.polaris.PolarisTestUtils;
 
@@ -14,11 +15,11 @@ public class MockPolarisFixture {
 	private final PolarisTestUtils.MockPolarisPAPIHost mockPolaris;
 
 	public MockPolarisFixture(MockServerClient mockServerClient,
-		TestResourceLoader resourceLoader,
+		TestResourceLoaderProvider testResourceLoaderProvider,
 		PolarisTestUtils.MockPolarisPAPIHost mockPolaris) {
 
 		this.mockServerClient = mockServerClient;
-		this.resourceLoader = resourceLoader;
+		this.resourceLoader = testResourceLoaderProvider.forBasePath("classpath:mock-responses/polaris/");
 		this.mockPolaris = mockPolaris;
 	}
 

@@ -47,7 +47,6 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-import org.olf.dcb.test.TestResourceLoader;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 import org.olf.dcb.test.matchers.HostLmsRequestMatchers;
 import org.olf.dcb.test.matchers.ItemMatchers;
@@ -72,7 +71,7 @@ public class PolarisLmsClientTests {
 	@Inject
 	private AgencyFixture agencyFixture;
 
-    private MockServerClient mockServerClient;
+	private MockServerClient mockServerClient;
 	private MockPolarisFixture mockPolarisFixture;
 
 	@BeforeAll
@@ -84,9 +83,6 @@ public class PolarisLmsClientTests {
 		final String SECRET = "polaris-hostlms-test-secret";
 		final String DOMAIN = "TEST";
 
-		TestResourceLoader resourceLoader = testResourceLoaderProvider.forBasePath(
-			"classpath:mock-responses/polaris/");
-
 		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 
@@ -95,7 +91,7 @@ public class PolarisLmsClientTests {
 
 		final var mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);
 
-		mockPolarisFixture = new MockPolarisFixture(mock, resourceLoader, mockPolaris);
+		mockPolarisFixture = new MockPolarisFixture(mock, testResourceLoaderProvider, mockPolaris);
 	}
 
 	@BeforeEach
