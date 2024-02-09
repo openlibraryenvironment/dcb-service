@@ -35,6 +35,10 @@ public class MockPolarisFixture {
 		mock("POST", "/PAPIService/REST/public/v1/1033/100/1/authenticator/patron", "test-patron-auth.json");
 	}
 
+	public void mockCreatePatron() {
+		mock("POST", "/PAPIService/REST/public/v1/1033/100/1/patron", "create-patron.json");
+	}
+
 	public void mockPatronSearch(String localBarcode, String localId, String agencyCode) {
 		mockServerClient.when(
 			request()

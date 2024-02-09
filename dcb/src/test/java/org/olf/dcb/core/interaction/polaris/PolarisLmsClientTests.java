@@ -265,7 +265,7 @@ public class PolarisLmsClientTests {
 		final var localItemId = "3512742";
 
 		mockPolarisFixture.mockGetItem(localItemId);
-		mockPolarisFixture.mock("POST", "/PAPIService/REST/public/v1/1033/100/1/patron", "create-patron.json");
+		mockPolarisFixture.mockCreatePatron();
 		mockPolarisFixture.mockGetPatronBlocksSummary("1255217");
 
 		final var patron = Patron.builder()
