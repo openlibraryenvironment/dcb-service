@@ -6,6 +6,7 @@ import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
 import org.mockserver.client.MockServerClient;
+import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.olf.dcb.test.TestResourceLoader;
 import org.olf.dcb.test.TestResourceLoaderProvider;
@@ -65,13 +66,15 @@ public class MockPolarisFixture {
 	}
 
 	public void mockGetPatronBlocksSummary(String patronId) {
-		mock("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/%s/blockssummary"
-			.formatted(patronId), "[]");
+		String path = "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/%s/blockssummary"
+			.formatted(patronId);
+		mock("GET", path, okText("[]"));
 	}
 
 	public void mockGetPatronBarcode(String patronId, String barcode) {
-		mock("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/barcodes/patrons/" + patronId,
-			"\"%s\"".formatted(barcode));
+		String body = "\"%s\"".formatted(barcode);
+		mock("GET",
+			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/barcodes/patrons/" + patronId, okText(body));
 	}
 
 	public void mockGetItemsForBib(String bibId) {
@@ -83,8 +86,9 @@ public class MockPolarisFixture {
 	}
 
 	public void mockGetItemBarcode(String localItemId, String barcode) {
-		mock("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/barcodes/items/" + localItemId,
-			"\"%s\"".formatted(barcode));
+		String body = "\"%s\"".formatted(barcode);
+		mock("GET",
+			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/barcodes/items/" + localItemId, okText(body));
 	}
 
 	public void mockGetHold(String holdId) {
@@ -103,31 +107,33 @@ public class MockPolarisFixture {
 		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/bibs/MARCXML/paged/*", "bibs-slice-0-9.json");
 	}
 
-	void mock(String method, String path, String jsonResource) {
-		mockServerClient.when(
-			request()
-				.withHeader("Accept", "application/json")
-				.withHeader("host", host)
-				.withMethod(method)
-				.withPath(path))
-			.respond(okJson(resourceLoader.getResource(jsonResource)));
+	void mock(String method, String path, String jsonResourcePath) {
+		mock(method, path, okJson(resourceLoader.getResource(jsonResourcePath)));
 	}
 
-	private void mock(String path, String body) {
-		mockServerClient.when(
-			request()
-				.withHeader("Accept", "application/json")
-				.withHeader("host", host)
-				.withMethod("GET")
-				.withPath(path))
-			.respond(response()
-				.withStatusCode(200)
-				.withBody(body));
+	private void mock(String method, String path, HttpResponse response) {
+		mockServerClient
+			.when(baselineRequest(method, path))
+			.respond(response);
+	}
+
+	private HttpRequest baselineRequest(String method, String path) {
+		return request()
+			.withHeader("Accept", "application/json")
+			.withHeader("host", host)
+			.withMethod(method)
+			.withPath(path);
 	}
 
 	private static HttpResponse okJson(Object json) {
 		return response()
 			.withStatusCode(200)
 			.withBody(json(json, APPLICATION_JSON));
+	}
+
+	private static HttpResponse okText(String body) {
+		return response()
+			.withStatusCode(200)
+			.withBody(body);
 	}
 }
