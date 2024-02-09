@@ -108,7 +108,10 @@ public class PolarisLmsClientTests {
 		// Arrange
 		referenceValueMappingFixture.defineLocationToAgencyMapping( "polaris-hostlms-tests", "15", "345test");
 
-		agencyFixture.saveAgency(DataAgency.builder().id(randomUUID()).code("345test").name("Test College").build());
+		agencyFixture.saveAgency(DataAgency.builder()
+			.id(randomUUID())
+			.code("345test")
+			.name("Test College").build());
 
 		final var sourceRecordId = "643425";
 
@@ -117,7 +120,9 @@ public class PolarisLmsClientTests {
 		mockPolarisFixture.mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses", "itemstatuses.json");
 
 		// Act
-		final var itemsList = singleValueFrom(hostLmsFixture.createClient(HOST_LMS_CODE)
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var itemsList = singleValueFrom(client
 			.getItems(BibRecord.builder()
 				.sourceRecordId(sourceRecordId)
 				.build()));
@@ -157,8 +162,10 @@ public class PolarisLmsClientTests {
 		mockPolarisFixture.mock("GET", "/PAPIService/REST/public/v1/1033/100/1/patron/3100222227777", "patron-by-barcode.json");
 
 		// Act
-		final var patron = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.patronAuth("BASIC/BARCODE+PASSWORD", "3100222227777", "password123").block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var patron = singleValueFrom(client.patronAuth(
+			"BASIC/BARCODE+PASSWORD", "3100222227777", "password123"));
 
 		// Assert
 		assertThat(patron, is(notNullValue()));
@@ -179,8 +186,7 @@ public class PolarisLmsClientTests {
 		final var localBarcode = "0077777777";
 		final var localPatronId = 1255217;
 
-		mockPolarisFixture.mockPatronSearch(localBarcode, localId, agencyCode
-		);
+		mockPolarisFixture.mockPatronSearch(localBarcode, localId, agencyCode);
 
 		mockPolarisFixture.mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/" + localPatronId, "get-patron-by-local-id.json");
 		mockPolarisFixture.mock("GET",
@@ -224,16 +230,18 @@ public class PolarisLmsClientTests {
 		mockPolarisFixture.mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/" + 2977175, "get-hold.json");
 
 		// Act
-		final var localRequest = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters.builder()
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var localRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+			PlaceHoldRequestParameters.builder()
 				.localPatronId("1")
 				.localBibId(null)
 				.localItemId(recordNumber)
 				.pickupLocation("5324532")
 				.note("No special note")
 				.patronRequestId(UUID.randomUUID().toString())
-				.build())
-			.block();
+				.build()
+		));
 
 		// Assert
 		assertThat(localRequest, hasLocalId("2977175"));
@@ -262,20 +270,25 @@ public class PolarisLmsClientTests {
 	public void createPatron() {
 		// Arrange
 		final var localItemId = "3512742";
+
 		mockPolarisFixture.mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/" + localItemId, "items-get.json");
 		mockPolarisFixture.mock("POST", "/PAPIService/REST/public/v1/1033/100/1/patron", "create-patron.json");
 		mockPolarisFixture.mock("GET",
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/1255217/blockssummary",
 			200, "[]");
 
-		final var uniqueId = "dcb_unique_Id";
-		final var patron = Patron.builder().uniqueIds(List.of(uniqueId))
-			.localPatronType("1").localHomeLibraryCode("39")
+		final var patron = Patron.builder()
+			.uniqueIds(List.of("dcb_unique_Id"))
+			.localPatronType("1")
+			.localHomeLibraryCode("39")
 			.localBarcodes(List.of("0088888888"))
-			.localItemId(localItemId).build();
+			.localItemId(localItemId)
+			.build();
 
 		// Act
-		final var response = hostLmsFixture.createClient(HOST_LMS_CODE).createPatron(patron).block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client.createPatron(patron));
 
 		// Assert
 		assertThat(response, is(notNullValue()));
@@ -286,6 +299,7 @@ public class PolarisLmsClientTests {
 	public void updatePatron() {
 		// Arrange
 		final var localPatronId = 1255193;
+
 		mockPolarisFixture.mock("GET",
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/barcodes/patrons/"+1255193,
 			200, "\"0077777777\"");
@@ -294,8 +308,10 @@ public class PolarisLmsClientTests {
 			"get-patron-by-local-id.json");
 
 		// Act
-		final var response = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.updatePatron(String.valueOf(localPatronId), "3").block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client
+			.updatePatron(String.valueOf(localPatronId), "3"));
 
 		// Assert
 		assertThat(response, is(notNullValue()));
@@ -310,6 +326,7 @@ public class PolarisLmsClientTests {
 		// Arrange
 		final var localItemId = "2273395";
 		final var localPatronBarcode = "0077777777";
+
 		mockPolarisFixture.mock("GET",
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/barcodes/items/"+localItemId,
 			200, "\"126448190\"");
@@ -318,8 +335,9 @@ public class PolarisLmsClientTests {
 			"itemcheckoutsuccess.json");
 
 		// Act
-		final var response = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.checkOutItemToPatron(localItemId, localPatronBarcode, null).block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var response = singleValueFrom(client
+			.checkOutItemToPatron(localItemId, localPatronBarcode, null));
 
 		// Assert
 		assertThat(response, is(notNullValue()));
@@ -330,13 +348,16 @@ public class PolarisLmsClientTests {
 	public void getPatronByLocalId() {
 		// Arrange
 		final var localPatronId = 1255193;
+
 		mockPolarisFixture.mock("GET",
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/" + localPatronId,
 			"get-patron-by-local-id.json");
 
 		// Act
-		final var response = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.getPatronByLocalId(String.valueOf(localPatronId)).block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client
+			.getPatronByLocalId(String.valueOf(localPatronId)));
 
 		// Assert
 		assertThat(response, is(notNullValue()));
@@ -352,7 +373,12 @@ public class PolarisLmsClientTests {
 		mockPolarisFixture.mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords*", "create-bib-resp.json");
 
 		// Act
-		final var bib = hostLmsFixture.createClient(HOST_LMS_CODE).createBib(Bib.builder().title("title").build()).block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var bib = singleValueFrom(client.createBib(
+			Bib.builder()
+				.title("title")
+				.build()));
 
 		// Assert
 		assertThat(bib, is(notNullValue()));
@@ -371,7 +397,9 @@ public class PolarisLmsClientTests {
 			"successful-bib-delete.json");
 
 		// Act
-		final var response = hostLmsFixture.createClient(HOST_LMS_CODE).deleteBib(localBibId).block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client.deleteBib(localBibId));
 
 		// Assert
 		assertThat(response, is(notNullValue()));
@@ -387,13 +415,20 @@ public class PolarisLmsClientTests {
 			"create-item-resp.json");
 
 		// Act
-		final var item = hostLmsFixture.createClient(HOST_LMS_CODE)
-			.createItem(CreateItemCommand.builder().bibId("1203065").barcode("3430470102").patronHomeLocation("37").build()).block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var item = singleValueFrom(client.createItem(
+			CreateItemCommand.builder()
+				.bibId("1203065")
+				.barcode("3430470102")
+				.patronHomeLocation("37")
+				.build()));
 
 		// Assert
-		assertThat(item, is(notNullValue()));
-		assertThat(item.getLocalId(), is("4314002"));
-		//assertThat(item.getStatus(), is("1"));
+		assertThat(item, allOf(
+			notNullValue(),
+			HostLmsItemMatchers.hasLocalId("4314002")
+		));
 	}
 
 	@Test
@@ -432,7 +467,9 @@ public class PolarisLmsClientTests {
 			"successfulDeleteItem.json");
 
 		// Act
-		final var response = hostLmsFixture.createClient(HOST_LMS_CODE).deleteItem(localItemId).block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client.deleteItem(localItemId));
 
 		// Assert
 		assertThat(response, is(notNullValue()));
@@ -443,8 +480,9 @@ public class PolarisLmsClientTests {
 	public void updateItemStatus() {
 		// Arrange
 		final var localItemId = "3512742";
+
 		mockPolarisFixture.mock("GET",
-			"/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/"+localItemId,
+			"/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/" + localItemId,
 			"items-get.json");
 		mockPolarisFixture.mock("POST",
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow",
@@ -455,8 +493,10 @@ public class PolarisLmsClientTests {
 		mockPolarisFixture.mock("GET",
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses",
 			"itemstatuses.json");
+
 		// Act
-		final var string = hostLmsFixture.createClient(HOST_LMS_CODE).updateItemStatus(localItemId, TRANSIT, null).block();
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var string = singleValueFrom(client.updateItemStatus(localItemId, TRANSIT, null));
 
 		// Assert
 		assertThat(string, is(notNullValue()));
