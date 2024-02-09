@@ -14,4 +14,11 @@ public class NoPatronTypeMappingFoundException extends RuntimeException {
 		this.hostLmsCode = hostLmsCode;
 		this.localPatronType = localPatronType;
 	}
+
+	// Constructor overload for a single message string
+	public NoPatronTypeMappingFoundException(String message) {
+		super(message);
+		this.hostLmsCode = null;
+		this.localPatronType = null;
+	}
 }

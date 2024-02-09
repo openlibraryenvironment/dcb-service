@@ -51,8 +51,7 @@ import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
-import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
-import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.interaction.shared.*;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
@@ -333,14 +332,25 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<String> findLocalPatronType(String canonicalPatronType) {
 		return referenceValueMappingService.findMapping("patronType", "DCB",
 				canonicalPatronType, getHostLmsCode())
-			.map(ReferenceValueMapping::getToValue);
+			.map(ReferenceValueMapping::getToValue)
+			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
+				String.format("Patron type mapping missing 'toValue'. " +
+						"Details: fromContext: %s, fromCategory: %s, fromValue: %s, toContext: %s, toCategory: %s, toValue: %s",
+					"DCB", "patronType", canonicalPatronType, getHostLmsCode(), "patronType", null)
+			)));
 	}
 
 	@Override
 	public Mono<String> findCanonicalPatronType(String localPatronType, String localId) {
 		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(
-			getHostLmsCode(), localPatronType, localId);
-	}
+			getHostLmsCode(), localPatronType, localId)
+			.switchIfEmpty(Mono.error(new NoNumericRangeMappingFoundException(
+				String.format(
+					"context: %s, domain: %s, targetContext: %s, mappedValue: %s",
+					getHostLmsCode(), "patronType", "DCB", localPatronType)
+			)));
+	};
+
 
 	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
