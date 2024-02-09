@@ -1,30 +1,34 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
-import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
+import static org.mockserver.model.JsonBody.json;
 
 import org.mockserver.client.MockServerClient;
+import org.mockserver.model.HttpResponse;
+import org.mockserver.model.MediaType;
 import org.olf.dcb.test.TestResourceLoader;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 
-import services.k_int.interaction.polaris.PolarisTestUtils;
-
 public class MockPolarisFixture {
+	private final String host;
 	private final MockServerClient mockServerClient;
 	private final TestResourceLoader resourceLoader;
-	private final PolarisTestUtils.MockPolarisPAPIHost mockPolaris;
 
-	public MockPolarisFixture(MockServerClient mockServerClient,
-		TestResourceLoaderProvider testResourceLoaderProvider,
-		PolarisTestUtils.MockPolarisPAPIHost mockPolaris) {
+	public MockPolarisFixture(String host, MockServerClient mockServerClient,
+		TestResourceLoaderProvider testResourceLoaderProvider) {
 
+		this.host = host;
 		this.mockServerClient = mockServerClient;
 		this.resourceLoader = testResourceLoaderProvider.forBasePath("classpath:mock-responses/polaris/");
-		this.mockPolaris = mockPolaris;
 	}
 
 	public void mockPatronSearch(String localBarcode, String localId, String agencyCode) {
-		mockPolaris.whenRequest(req -> req.withMethod("GET")
+		mockServerClient.when(
+			request()
+				.withHeader("Accept", "application/json")
+				.withHeader("host", host)
+				.withMethod("GET")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/search/patrons/boolean*")
 				.withQueryStringParameter("q",
 					"PATNF=" + localBarcode + " AND PATNL=" + localId + "@" + agencyCode))
@@ -37,16 +41,30 @@ public class MockPolarisFixture {
 	}
 
 	void mock(String method, String path, String jsonResource) {
-		mockPolaris.whenRequest(req -> req
+		mockServerClient.when(
+			request()
+				.withHeader("Accept", "application/json")
+				.withHeader("host", host)
 				.withMethod(method)
 				.withPath(path))
 			.respond(okJson(resourceLoader.getResource(jsonResource)));
 	}
 
-	void mock(String method, String path, Integer statusCode, String body) {
-		mockPolaris.whenRequest(req -> req
-				.withMethod(method)
+	void mock(String path, String body) {
+		mockServerClient.when(
+			request()
+				.withHeader("Accept", "application/json")
+				.withHeader("host", host)
+				.withMethod("GET")
 				.withPath(path))
-			.respond(response().withStatusCode(statusCode).withBody(body));
+			.respond(response()
+				.withStatusCode(200)
+				.withBody(body));
+	}
+
+	private static HttpResponse okJson(Object json) {
+		return response()
+			.withStatusCode(200)
+			.withBody(json(json, MediaType.APPLICATION_JSON));
 	}
 }

@@ -36,13 +36,9 @@ public interface PolarisTestUtils {
 		}
 
 		public ForwardChainExpectation whenRequest(Function<HttpRequest,HttpRequest> requestModifier) {
-			return mock.when(requestModifier.apply(getRequestDefaults()));
-		}
-
-		private HttpRequest getRequestDefaults() {
-			return request()
+			return mock.when(requestModifier.apply(request()
 				.withHeader("Accept", "application/json")
-				.withHeader("host", hostname);
+				.withHeader("host", hostname)));
 		}
 	}
 }

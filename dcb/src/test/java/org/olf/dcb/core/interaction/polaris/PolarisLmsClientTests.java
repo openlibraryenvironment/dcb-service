@@ -53,7 +53,6 @@ import org.olf.dcb.test.matchers.ItemMatchers;
 import org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers;
 
 import jakarta.inject.Inject;
-import services.k_int.interaction.polaris.PolarisTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -75,8 +74,8 @@ public class PolarisLmsClientTests {
 	private MockPolarisFixture mockPolarisFixture;
 
 	@BeforeAll
-	public void beforeAll(MockServerClient mock) {
-		mockServerClient = mock;
+	public void beforeAll(MockServerClient mockServerClient) {
+		this.mockServerClient = mockServerClient;
 
 		final String BASE_URL = "https://polaris-hostlms-tests.com";
 		final String KEY = "polaris-hostlms-test-key";
@@ -89,9 +88,8 @@ public class PolarisLmsClientTests {
 		hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, DOMAIN, KEY, SECRET);
 
-		final var mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);
-
-		mockPolarisFixture = new MockPolarisFixture(mock, testResourceLoaderProvider, mockPolaris);
+		mockPolarisFixture = new MockPolarisFixture("polaris-hostlms-tests.com",
+			mockServerClient, testResourceLoaderProvider);
 	}
 
 	@BeforeEach
@@ -189,9 +187,9 @@ public class PolarisLmsClientTests {
 		mockPolarisFixture.mockPatronSearch(localBarcode, localId, agencyCode);
 
 		mockPolarisFixture.mockGetItem(localPatronId);
-		mockPolarisFixture.mock("GET",
+		mockPolarisFixture.mock(
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/1255217/blockssummary",
-			200, "[]");
+			"[]");
 
 		// Act
 		final var patron = org.olf.dcb.core.model.Patron.builder()
@@ -273,9 +271,9 @@ public class PolarisLmsClientTests {
 
 		mockPolarisFixture.mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/" + localItemId, "items-get.json");
 		mockPolarisFixture.mock("POST", "/PAPIService/REST/public/v1/1033/100/1/patron", "create-patron.json");
-		mockPolarisFixture.mock("GET",
+		mockPolarisFixture.mock(
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/1255217/blockssummary",
-			200, "[]");
+			"[]");
 
 		final var patron = Patron.builder()
 			.uniqueIds(List.of("dcb_unique_Id"))
@@ -300,9 +298,9 @@ public class PolarisLmsClientTests {
 		// Arrange
 		final var localPatronId = 1255193;
 
-		mockPolarisFixture.mock("GET",
+		mockPolarisFixture.mock(
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/barcodes/patrons/"+1255193,
-			200, "\"0077777777\"");
+			"\"0077777777\"");
 		mockPolarisFixture.mock("PUT", "/PAPIService/REST/public/v1/1033/100/1/patron/0077777777", "update-patron.json");
 		mockPolarisFixture.mockGetItem(localPatronId);
 
@@ -326,9 +324,9 @@ public class PolarisLmsClientTests {
 		final var localItemId = "2273395";
 		final var localPatronBarcode = "0077777777";
 
-		mockPolarisFixture.mock("GET",
+		mockPolarisFixture.mock(
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/barcodes/items/"+localItemId,
-			200, "\"126448190\"");
+			"\"126448190\"");
 		mockPolarisFixture.mock("POST",
 			"/PAPIService/REST/public/v1/1033/100/1/patron/" + localPatronBarcode + "/itemsout",
 			"itemcheckoutsuccess.json");
