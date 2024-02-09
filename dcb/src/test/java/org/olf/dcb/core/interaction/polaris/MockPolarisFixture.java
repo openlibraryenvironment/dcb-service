@@ -47,13 +47,21 @@ public class MockPolarisFixture {
 			.respond(okJson(resourceLoader.getResource("patron-search.json")));
 	}
 
-	public void mockGetItem(int localPatronId) {
-		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/" + localPatronId,
+	public void mockGetPatron(int patronId) {
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/" + patronId,
 			"get-patron-by-local-id.json");
+	}
+
+	public void mockGetPatronByBarcode(String barcode) {
+		mock("GET", "/PAPIService/REST/public/v1/1033/100/1/patron/" + barcode, "patron-by-barcode.json");
 	}
 
 	public void mockGetItemsForBib(String bibId) {
 		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/" + bibId, "items-get.json");
+	}
+
+	void mockGetItem(String itemId) {
+		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/" + itemId, "items-get.json");
 	}
 
 	void mockGetMaterialTypes() {
@@ -94,9 +102,5 @@ public class MockPolarisFixture {
 		return response()
 			.withStatusCode(200)
 			.withBody(json(json, APPLICATION_JSON));
-	}
-
-	public void mockGetPatronByBarcode(String barcode) {
-		mock("GET", "/PAPIService/REST/public/v1/1033/100/1/patron/" + barcode, "patron-by-barcode.json");
 	}
 }
