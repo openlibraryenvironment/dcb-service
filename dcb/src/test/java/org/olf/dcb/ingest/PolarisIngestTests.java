@@ -1,16 +1,17 @@
 package org.olf.dcb.ingest;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -26,10 +27,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MockServerMicronautTest
 @MicronautTest(transactional = false, rebuildContext = true)
 @TestInstance(PER_CLASS)
-@TestMethodOrder(OrderAnnotation.class)
 class PolarisIngestTests {
 	private static final String HOST_LMS_CODE = "ingest-service-service-tests";
-	private static final String CP_RESOURCES_POLARIS = "classpath:mock-responses/polaris/";
 
 	private static final String BASE_URL = "https://ingest-service-service-tests.com";
 	private static final String KEY = "ingest-service-key";
@@ -56,7 +55,8 @@ class PolarisIngestTests {
 
 		var mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);
 
-		final var resourceLoader = testResourceLoaderProvider.forBasePath(CP_RESOURCES_POLARIS);
+		final var resourceLoader = testResourceLoaderProvider.forBasePath(
+			"classpath:mock-responses/polaris/");
 
 		// Mock bibs returned by the polaris system for ingest.
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
@@ -74,15 +74,17 @@ class PolarisIngestTests {
 	}
 
 	@Test
-	@Order(1)
 	void ingestFromPolaris() {
-		// Run the ingest process
-		final var bibs =  ingestService.getBibRecordStream()
-			.collectList()
-			.block();
+		// Act
+		final var bibs = manyValuesFrom(ingestService.getBibRecordStream());
+
+		// Assert
 
 		// Assertion changed to 9 after adding filter condition to bib record processing. We now drop records
 		// with a null title on the floor. 10 input records, 1 with a null title = 9 records after ingest.
-		assertEquals(9, bibs.size());
+		assertThat(bibs, allOf(
+			notNullValue(),
+			hasSize(9)
+		));
 	}
 }
