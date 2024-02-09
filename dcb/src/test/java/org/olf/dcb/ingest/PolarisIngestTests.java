@@ -6,7 +6,6 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
-import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,7 +20,6 @@ import org.olf.dcb.test.TestResourceLoaderProvider;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import services.k_int.interaction.polaris.PolarisTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @Slf4j
@@ -56,19 +54,8 @@ class PolarisIngestTests {
 		hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL,
 			DOMAIN, KEY, SECRET);
 
-		var mockPolaris = PolarisTestUtils.mockFor(mockServerClient, BASE_URL);
-
-		final var resourceLoader = testResourceLoaderProvider.forBasePath(
-			"classpath:mock-responses/polaris/");
-
 		mockPolarisFixture = new MockPolarisFixture("ingest-service-service-tests.com",
 			mockServerClient, testResourceLoaderProvider);
-
-		mockPolarisFixture.mockPagedBibs();
-
-		mockPolaris.whenRequest(req -> req.withMethod("POST")
-				.withPath("/PAPIService/REST/protected/v1/1033/100/1/authenticator/staff"))
-			.respond(okJson(resourceLoader.getJsonResource("test-staff-auth.json")));
 	}
 
 	@BeforeEach
@@ -78,6 +65,10 @@ class PolarisIngestTests {
 
 	@Test
 	void ingestFromPolaris() {
+		// Arrange
+		mockPolarisFixture.mockPapiStaffAuthentication();
+		mockPolarisFixture.mockPagedBibs();
+
 		// Act
 		final var bibs = manyValuesFrom(ingestService.getBibRecordStream());
 

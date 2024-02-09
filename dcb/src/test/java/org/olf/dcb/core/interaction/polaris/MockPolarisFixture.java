@@ -23,7 +23,7 @@ public class MockPolarisFixture {
 		this.resourceLoader = testResourceLoaderProvider.forBasePath("classpath:mock-responses/polaris/");
 	}
 
-	void mockPapiStaffAuthentication() {
+	public void mockPapiStaffAuthentication() {
 		mock("POST", "/PAPIService/REST/protected/v1/1033/100/1/authenticator/staff", "test-staff-auth.json");
 	}
 
