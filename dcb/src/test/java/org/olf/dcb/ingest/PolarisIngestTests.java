@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.polaris.MockPolarisFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.TestResourceLoaderProvider;
@@ -46,22 +47,24 @@ class PolarisIngestTests {
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
 
+	private MockPolarisFixture mockPolarisFixture;
+
 	@BeforeAll
-	void beforeAll(MockServerClient mock) {
+	void beforeAll(MockServerClient mockServerClient) {
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL,
 			DOMAIN, KEY, SECRET);
 
-		var mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);
+		var mockPolaris = PolarisTestUtils.mockFor(mockServerClient, BASE_URL);
 
 		final var resourceLoader = testResourceLoaderProvider.forBasePath(
 			"classpath:mock-responses/polaris/");
 
-		// Mock bibs returned by the polaris system for ingest.
-		mockPolaris.whenRequest(req -> req.withMethod("GET")
-				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/bibs/MARCXML/paged/*"))
-			.respond(okJson(resourceLoader.getJsonResource("bibs-slice-0-9.json")));
+		mockPolarisFixture = new MockPolarisFixture("ingest-service-service-tests.com",
+			mockServerClient, testResourceLoaderProvider);
+
+		mockPolarisFixture.mockPagedBibs();
 
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/authenticator/staff"))
