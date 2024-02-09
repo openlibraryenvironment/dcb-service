@@ -67,7 +67,7 @@ class PolarisIngestTests {
 	void ingestFromPolaris() {
 		// Arrange
 		mockPolarisFixture.mockPapiStaffAuthentication();
-		mockPolarisFixture.mockPagedBibs();
+		mockPolarisFixture.mockGetPagedBibs();
 
 		// Act
 		final var bibs = manyValuesFrom(ingestService.getBibRecordStream());

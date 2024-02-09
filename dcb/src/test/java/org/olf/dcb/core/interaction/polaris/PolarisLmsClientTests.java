@@ -218,7 +218,7 @@ public class PolarisLmsClientTests {
 		final var itemId = "12345";
 
 		mockPolarisFixture.mockGetItem(itemId);
-		mockPolarisFixture.mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords/" + 1106339 + "*", "get-bib.json");
+		mockPolarisFixture.mockGetBib("1106339");
 		mockPolarisFixture.mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds*", "successful-place-request.json");
 		mockPolarisFixture.mockGetHold("2977175");
 
