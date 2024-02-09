@@ -3,6 +3,7 @@ package services.k_int.interaction.polaris;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
+import static org.mockserver.model.MediaType.APPLICATION_JSON;
 import static org.mockserver.model.NottableString.not;
 import static org.mockserver.model.NottableString.string;
 
@@ -26,41 +27,29 @@ import org.mockserver.mock.Expectation;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.mockserver.model.HttpStatusCode;
-import org.mockserver.model.MediaType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.http.HttpHeaderValues;
+import lombok.extern.slf4j.Slf4j;
 
 public interface PolarisTestUtils {
-	Logger log = LoggerFactory.getLogger(PolarisTestUtils.class);
-
-	static final int WEIGHT_PRIORITY_LOW = -50;
-	static final int WEIGHT_PRIORITY_HIGH = 50;
+	int WEIGHT_PRIORITY_HIGH = 50;
 	
-	public static MockPolarisPAPIHost mockFor( MockServerClient mock, String hostname ) {
+	static MockPolarisPAPIHost mockFor(MockServerClient mock, String hostname) {
 		return new MockPolarisPAPIHost(mock, hostname);
 	}
-	
-	public static HttpResponse okJson (Object jsonObj) {
-		
-		return response()
-			.withStatusCode(200)
-			.withBody(
-					json(jsonObj, MediaType.APPLICATION_JSON));
-	}
-	
-	public static class MockPolarisPAPIHost {
-		
-		final Timer revokers = new Timer("test-token-revoker", true);
-		
-		final MockServerClient mock;
-		final String hostname;
-		
+
+	@Slf4j
+	class MockPolarisPAPIHost {
+		private final Timer revokers = new Timer("test-token-revoker", true);
+		private TimerTask revoker;
+		private final MockServerClient mock;
+		private final String hostname;
+		private final List<Expectation> authExp = Collections.synchronizedList(new ArrayList<>(2));
+
 		public MockPolarisPAPIHost(MockServerClient mock, String hostname) {
-			
 			String theHost;
+
 			try {
 				URI uri = URI.create(hostname);
 				theHost = uri.getHost();
@@ -70,40 +59,35 @@ public interface PolarisTestUtils {
 
 			this.mock = mock;
 			this.hostname = theHost != null ? theHost : hostname;
-			//setBaseAssunmptions();
 		}
-		
+
 		public ForwardChainExpectation whenRequest(Function<HttpRequest,HttpRequest> requestModifier) {
 			return mock.when(requestModifier.apply(getRequestDefaults()));
 		}
-		
+
 		private HttpRequest getRequestDefaults() {
 			return request()
 				.withHeader("Accept", "application/json")
 				.withHeader("host", hostname);
 		}
-		
+
 		private HttpResponse defaultSuccess() {
 			return response()
-					.withStatusCode(200)
-					.withContentType(MediaType.APPLICATION_JSON);
+				.withStatusCode(200)
+				.withContentType(APPLICATION_JSON);
 		}
-		
-		public MockPolarisPAPIHost setValidCredentials( String basicAuthHash ) {
-			
+
+		public MockPolarisPAPIHost setValidCredentials(String basicAuthHash) {
 			// Default TTL 3600
 			// Default token random string.
-			return setValidCredentials( basicAuthHash, UUID.randomUUID().toString(), 3600);
+			return setValidCredentials(basicAuthHash, UUID.randomUUID().toString(), 3600);
+		}
+
+		private void addExp(Expectation... expectations) {
+			authExp.addAll(Arrays.asList(expectations));
 		}
 		
-		private final List<Expectation> authExp = Collections.synchronizedList(new ArrayList<>(2));
-		private boolean addExp(Expectation... expectations) {
-			return authExp.addAll(Arrays.asList(expectations));
-		}
-		
-		private TimerTask revoker;
-		
-		public MockPolarisPAPIHost setValidCredentials( final String basicAuthHash, final String returnToken, final long validitySeconds ) {
+		public MockPolarisPAPIHost setValidCredentials(final String basicAuthHash, final String returnToken, final long validitySeconds) {
 			if (revoker != null) {
 				try {
 					revoker.cancel();
@@ -120,9 +104,9 @@ public interface PolarisTestUtils {
 			
 			// Remove any existing expectations that we are to replace.
 			authExp.stream()
-				.filter( authExp::remove ) // Filter here used as gate for failure to send clear.
-				.map( Expectation::getId )
-				.forEach( mock::clear );
+				.filter(authExp::remove) // Filter here used as gate for failure to send clear.
+				.map(Expectation::getId)
+				.forEach(mock::clear);
 				
 			// Add hte new endpoints.
 			addExp(
@@ -131,11 +115,9 @@ public interface PolarisTestUtils {
 						.withHeader("Authorization", HttpHeaderValues.AUTHORIZATION_PREFIX_BASIC + ' ' + basicAuthHash)
 						.withMethod("POST")
 						.withPath("/iii/sierra-api/v6/token"),
-	
-			      Times.unlimited(),
-			      TimeToLive.unlimited(),
-			      WEIGHT_PRIORITY_HIGH)
-				
+						Times.unlimited(),
+						TimeToLive.unlimited(),
+						WEIGHT_PRIORITY_HIGH)
 				.respond(
 					defaultSuccess()
 						.withBody(
@@ -152,15 +134,12 @@ public interface PolarisTestUtils {
 				mock.when(
 					request()
 						.withHeader(string("Authorization"), not(tokenBearerHeader)) // Odd expression meaning missing header
-					  .withHeader("host", hostname),
-	
-		      Times.unlimited(),
-		      TimeToLive.unlimited(),
-		      WEIGHT_PRIORITY_HIGH)
-				
-						.respond(
-							response()
-			          .withStatusCode(HttpStatusCode.UNAUTHORIZED_401.code())));
+						.withHeader("host", hostname),
+					Times.unlimited(),
+					TimeToLive.unlimited(),
+					WEIGHT_PRIORITY_HIGH)
+					.respond(response()
+						.withStatusCode(HttpStatusCode.UNAUTHORIZED_401.code())));
 			
 			// Also schedule a task that revokes the key by adding a second rule after the TTL
 			revoker = new TimerTask() {
@@ -171,15 +150,13 @@ public interface PolarisTestUtils {
 							request()
 								.withHeader("Authorization", tokenBearerHeader) // Odd expression meaning missing header
 							  .withHeader("host", hostname),
-			
-				      Times.unlimited(),
-				      TimeToLive.unlimited(),
+							Times.unlimited(),
+							TimeToLive.unlimited(),
 				      WEIGHT_PRIORITY_HIGH)
-								.respond(
-									response()
-					          .withStatusCode(HttpStatusCode.UNAUTHORIZED_401.code())
-					          .withBody(
-												json("{ \"message\": \"Token reovked at " + LocalDateTime.now().toString() + "\" }"))));
+								.respond(response()
+									.withStatusCode(HttpStatusCode.UNAUTHORIZED_401.code())
+									.withBody(
+										json("{ \"message\": \"Token reovked at " + LocalDateTime.now().toString() + "\" }"))));
 				}
 			};
 			
@@ -188,18 +165,12 @@ public interface PolarisTestUtils {
 			return this;
 		}
 		
-		public MockPolarisPAPIHost setValidCredentials( @NonNull String username, @NonNull String password, @NonNull String returnToken, long validitySeconds ) {
-			return setValidCredentials(
-				Base64.getEncoder().encodeToString(new StringBuilder()
-					.append(username)
-					.append(':')
-					.append(password)
-					.toString()
-					.getBytes()),
-				
-				returnToken,
-				validitySeconds);
+		public MockPolarisPAPIHost setValidCredentials(@NonNull String username,
+			@NonNull String password, @NonNull String returnToken, long validitySeconds) {
+
+			return setValidCredentials(Base64.getEncoder()
+					.encodeToString((username + ':' + password).getBytes()),
+				returnToken, validitySeconds);
 		}
 	}
-
 }
