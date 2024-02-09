@@ -72,10 +72,7 @@ public class PolarisLmsClientTests {
 	@Inject
 	private AgencyFixture agencyFixture;
 
-	private PolarisTestUtils.MockPolarisPAPIHost mockPolaris;
-	private TestResourceLoader resourceLoader;
-
-	private MockServerClient mockServerClient;
+    private MockServerClient mockServerClient;
 	private MockPolarisFixture mockPolarisFixture;
 
 	@BeforeAll
@@ -87,7 +84,8 @@ public class PolarisLmsClientTests {
 		final String SECRET = "polaris-hostlms-test-secret";
 		final String DOMAIN = "TEST";
 
-		resourceLoader = testResourceLoaderProvider.forBasePath("classpath:mock-responses/polaris/");
+		TestResourceLoader resourceLoader = testResourceLoaderProvider.forBasePath(
+			"classpath:mock-responses/polaris/");
 
 		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
@@ -95,7 +93,7 @@ public class PolarisLmsClientTests {
 		hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, DOMAIN, KEY, SECRET);
 
-		mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);
+		final var mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);
 
 		mockPolarisFixture = new MockPolarisFixture(mock, resourceLoader, mockPolaris);
 	}
