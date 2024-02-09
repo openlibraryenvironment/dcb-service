@@ -220,7 +220,7 @@ public class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetItem(itemId);
 		mockPolarisFixture.mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords/" + 1106339 + "*", "get-bib.json");
 		mockPolarisFixture.mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds*", "successful-place-request.json");
-		mockPolarisFixture.mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/" + 2977175, "get-hold.json");
+		mockPolarisFixture.mockGetHold("2977175");
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
@@ -244,7 +244,7 @@ public class PolarisLmsClientTests {
 	@Test
 	public void getRequest() {
 		// Arrange
-		mockPolarisFixture.mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/" + 2977175, "get-hold.json");
+		mockPolarisFixture.mockGetHold("2977175");
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);

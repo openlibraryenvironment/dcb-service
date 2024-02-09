@@ -69,6 +69,10 @@ public class MockPolarisFixture {
 		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/" + itemId, "items-get.json");
 	}
 
+	void mockGetHold(String holdId) {
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/" + holdId, "get-hold.json");
+	}
+
 	void mockGetMaterialTypes() {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/materialtypes", "materialtypes.json");
 	}
