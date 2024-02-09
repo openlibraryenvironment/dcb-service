@@ -14,11 +14,10 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 
-import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.polaris.PolarisTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -38,7 +37,7 @@ class PolarisIngestTests {
 	private static final String DOMAIN = "TEST";
 
 	@Inject
-	private ResourceLoader loader;
+	private TestResourceLoaderProvider testResourceLoaderProvider;
 
 	@Inject
 	private IngestService ingestService;
@@ -57,14 +56,16 @@ class PolarisIngestTests {
 
 		var mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);
 
+		final var resourceLoader = testResourceLoaderProvider.forBasePath(CP_RESOURCES_POLARIS);
+
 		// Mock bibs returned by the polaris system for ingest.
 		mockPolaris.whenRequest(req -> req.withMethod("GET")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/bibs/MARCXML/paged/*"))
-			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "bibs-slice-0-9.json")));
+			.respond(okJson(resourceLoader.getJsonResource("bibs-slice-0-9.json")));
 
 		mockPolaris.whenRequest(req -> req.withMethod("POST")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/authenticator/staff"))
-			.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "test-staff-auth.json")));
+			.respond(okJson(resourceLoader.getJsonResource("test-staff-auth.json")));
 	}
 
 	@BeforeEach
@@ -83,10 +84,5 @@ class PolarisIngestTests {
 		// Assertion changed to 9 after adding filter condition to bib record processing. We now drop records
 		// with a null title on the floor. 10 input records, 1 with a null title = 9 records after ingest.
 		assertEquals(9, bibs.size());
-	}
-
-	@SneakyThrows
-	private String getResourceAsString(String cp_resources, String resourceName) {
-		return new String(loader.getResourceAsStream(cp_resources + resourceName).get().readAllBytes());
 	}
 }
