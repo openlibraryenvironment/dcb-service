@@ -314,9 +314,7 @@ public class PolarisLmsClientTests {
 		final var localItemId = "2273395";
 		final var localPatronBarcode = "0077777777";
 
-		mockPolarisFixture.mock(
-			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/barcodes/items/"+localItemId,
-			"\"126448190\"");
+		mockPolarisFixture.mockGetItemBarcode(localItemId, "126448190");
 		mockPolarisFixture.mock("POST",
 			"/PAPIService/REST/public/v1/1033/100/1/patron/" + localPatronBarcode + "/itemsout",
 			"itemcheckoutsuccess.json");

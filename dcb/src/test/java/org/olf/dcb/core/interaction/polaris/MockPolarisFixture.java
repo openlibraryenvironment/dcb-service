@@ -78,11 +78,16 @@ public class MockPolarisFixture {
 		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/" + bibId, "items-get.json");
 	}
 
-	void mockGetItem(String itemId) {
+	public void mockGetItem(String itemId) {
 		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/" + itemId, "items-get.json");
 	}
 
-	void mockGetHold(String holdId) {
+	public void mockGetItemBarcode(String localItemId, String barcode) {
+		mock("/polaris.applicationservices/api/v1/eng/20/polaris/73/1/barcodes/items/" + localItemId,
+			"\"%s\"".formatted(barcode));
+	}
+
+	public void mockGetHold(String holdId) {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/" + holdId, "get-hold.json");
 	}
 
@@ -108,7 +113,7 @@ public class MockPolarisFixture {
 			.respond(okJson(resourceLoader.getResource(jsonResource)));
 	}
 
-	void mock(String path, String body) {
+	private void mock(String path, String body) {
 		mockServerClient.when(
 			request()
 				.withHeader("Accept", "application/json")
