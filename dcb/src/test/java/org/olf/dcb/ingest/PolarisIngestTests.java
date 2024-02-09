@@ -12,9 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.svc.BibRecordService;
-import org.olf.dcb.core.svc.RecordClusteringService;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
@@ -34,7 +31,6 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 class PolarisIngestTests {
 	private static final String HOST_LMS_CODE = "ingest-service-service-tests";
 	private static final String CP_RESOURCES_POLARIS = "classpath:mock-responses/polaris/";
-	
 
 	private static final String BASE_URL = "https://ingest-service-service-tests.com";
 	private static final String KEY = "ingest-service-key";
@@ -51,16 +47,9 @@ class PolarisIngestTests {
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
-	
-	@Inject
-	private RecordClusteringService rcs;
-	
-	@Inject
-	private BibRecordService brs;
 
 	@BeforeAll
 	void beforeAll(MockServerClient mock) {
-
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL,
@@ -95,39 +84,6 @@ class PolarisIngestTests {
 		// with a null title on the floor. 10 input records, 1 with a null title = 9 records after ingest.
 		assertEquals(9, bibs.size());
 	}
-	
-//	@Test
-//	@Order(2)
-//	void ingestFromPolarisRepeated(MockServerClient mock) {
-//		
-//		mock.reset();
-//		hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL,
-//				DOMAIN, KEY, SECRET);
-//
-//			var mockPolaris = PolarisTestUtils.mockFor(mock, BASE_URL);
-//
-//			// Mock bibs returned by the polaris system for ingest.
-//			mockPolaris.whenRequest(req -> req.withMethod("GET")
-//					.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/synch/bibs/MARCXML/paged/*"))
-//				.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "bibs-repeated.json")));
-//
-//			mockPolaris.whenRequest(req -> req.withMethod("POST")
-//					.withPath("/PAPIService/REST/protected/v1/1033/100/1/authenticator/staff"))
-//				.respond(okJson(getResourceAsString(CP_RESOURCES_POLARIS, "test-staff-auth.json")));
-//		
-//		// Run the ingest process
-//		final var clusters = ingestService.getBibRecordStream()
-//			.map(BibRecord::getId)
-//			.concatMap(brs::getClusterRecordForBib)
-//			.distinct( cr -> cr.getId().toString() )
-//			.filter( cr -> !Boolean.TRUE.equals( cr.getIsDeleted() ))
-//			.doOnNext( cr -> log.info("Found cluster record: {}", cr) )
-//			.collectList()
-//			.block();
-//
-//		assertEquals(1, clusters.size());
-//		
-//	}
 
 	@SneakyThrows
 	private String getResourceAsString(String cp_resources, String resourceName) {
