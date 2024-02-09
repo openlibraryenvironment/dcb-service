@@ -95,4 +95,8 @@ public class MockPolarisFixture {
 			.withStatusCode(200)
 			.withBody(json(json, APPLICATION_JSON));
 	}
+
+	public void mockGetPatronByBarcode(String barcode) {
+		mock("GET", "/PAPIService/REST/public/v1/1033/100/1/patron/" + barcode, "patron-by-barcode.json");
+	}
 }

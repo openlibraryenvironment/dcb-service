@@ -153,7 +153,7 @@ public class PolarisLmsClientTests {
 	public void patronAuth() {
 		// Arrange
 		mockPolarisFixture.mockPatronAuthentication();
-		mockPolarisFixture.mock("GET", "/PAPIService/REST/public/v1/1033/100/1/patron/3100222227777", "patron-by-barcode.json");
+		mockPolarisFixture.mockGetPatronByBarcode("3100222227777");
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
