@@ -27,6 +27,10 @@ public class MockPolarisFixture {
 		mock("POST", "/PAPIService/REST/protected/v1/1033/100/1/authenticator/staff", "test-staff-auth.json");
 	}
 
+	public void mockAppServicesStaffAuthentication() {
+		mock("POST", "/polaris.applicationservices/api/v1/eng/20/authentication/staffuser", "auth-response.json");
+	}
+
 	public void mockPatronSearch(String localBarcode, String localId, String agencyCode) {
 		mockServerClient.when(
 			request()
