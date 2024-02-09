@@ -315,12 +315,11 @@ public class PolarisLmsClientTests {
 		final var localPatronBarcode = "0077777777";
 
 		mockPolarisFixture.mockGetItemBarcode(localItemId, "126448190");
-		mockPolarisFixture.mock("POST",
-			"/PAPIService/REST/public/v1/1033/100/1/patron/" + localPatronBarcode + "/itemsout",
-			"itemcheckoutsuccess.json");
+		mockPolarisFixture.mockCheckoutItemToPatron(localPatronBarcode);
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
 		final var response = singleValueFrom(client
 			.checkOutItemToPatron(localItemId, localPatronBarcode, null));
 
@@ -417,6 +416,7 @@ public class PolarisLmsClientTests {
 	public void getItem() {
 		// Arrange
 		final var localItemId = "3512742";
+
 		mockPolarisFixture.mockGetItem(localItemId);
 		mockPolarisFixture.mockGetItemStatuses();
 
