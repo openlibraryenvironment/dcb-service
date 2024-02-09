@@ -39,6 +39,10 @@ public class MockPolarisFixture {
 		mock("POST", "/PAPIService/REST/public/v1/1033/100/1/patron", "create-patron.json");
 	}
 
+	public void mockUpdatePatron(String patronBarcode) {
+		mock("PUT", "/PAPIService/REST/public/v1/1033/100/1/patron/" + patronBarcode, "update-patron.json");
+	}
+
 	public void mockPatronSearch(String localBarcode, String localId, String agencyCode) {
 		mockServerClient.when(
 			request()

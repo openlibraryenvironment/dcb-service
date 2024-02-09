@@ -292,7 +292,7 @@ public class PolarisLmsClientTests {
 		final var localPatronId = "1255193";
 
 		mockPolarisFixture.mockGetPatronBarcode(localPatronId, "0077777777");
-		mockPolarisFixture.mock("PUT", "/PAPIService/REST/public/v1/1033/100/1/patron/0077777777", "update-patron.json");
+		mockPolarisFixture.mockUpdatePatron("0077777777");
 		mockPolarisFixture.mockGetPatron(localPatronId);
 
 		// Act
