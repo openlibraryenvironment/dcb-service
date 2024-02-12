@@ -9,7 +9,6 @@ import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
 import static reactor.core.publisher.Mono.empty;
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -18,6 +17,7 @@ import java.util.function.Function;
 import org.olf.dcb.core.interaction.HttpResponsePredicates;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.utils.CollectionUtils;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -106,7 +106,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				uri -> uri.queryParam("limit", limit).queryParam("offset", offset).queryParam("createdDate", createdDate)
 						.queryParam("updatedDate", updatedDate).queryParam("fields", toCsv(fields)).queryParam("deleted", deleted)
 						.queryParam("deletedDate", deletedDate).queryParam("suppressed", suppressed)
-						.queryParam("locations", iterableToArray(locations)));
+						.queryParam("locations", CollectionUtils.iterableToArray(locations)));
 	}
 
 	@SingleResult
@@ -149,10 +149,10 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				uri -> uri.queryParam("limit", limit).queryParam("offset", offset).queryParam("id", id)
 						.queryParam("fields", toCsv(fields)).queryParam("createdDate", createdDate)
 						.queryParam("updatedDate", updatedDate).queryParam("deletedDate", deletedDate)
-						.queryParam("deleted", deleted).queryParam("bibIds", iterableToArray(bibIds)).queryParam("status", status)
+						.queryParam("deleted", deleted).queryParam("bibIds", CollectionUtils.iterableToArray(bibIds)).queryParam("status", status)
 						// Case for due date is deliberate to match inconsistency in Sierra API
 						.queryParam("duedate", dueDate).queryParam("suppressed", suppressed)
-						.queryParam("locations", iterableToArray(locations)));
+						.queryParam("locations", CollectionUtils.iterableToArray(locations)));
 	}
 
 	@Override
@@ -360,17 +360,6 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	 */
 	private static <T> Function<Mono<T>, Mono<T>> noExtraErrorHandling() {
 		return Function.identity();
-	}
-
-	private <T> Object[] iterableToArray(Iterable<T> iterable) {
-		if (iterable == null)
-			return null;
-
-		final List<T> list = new ArrayList<T>();
-
-		iterable.forEach(list::add);
-
-		return list.size() > 0 ? list.toArray() : null;
 	}
 
 	private <T> Mono<MutableHttpRequest<T>> ensureToken(MutableHttpRequest<T> request) {
