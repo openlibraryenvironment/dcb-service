@@ -70,7 +70,7 @@ class ApplicationServicesClient {
 	private final String URI_PARAMETERS;
 
 	// ToDo align these URLs
-	private static final URI ERR0210 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0210/Polaris/UnableToLoadPatronBlocks");
+	public static final URI ERR0210 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0210/Polaris/UnableToLoadPatronBlocks");
 
 	ApplicationServicesClient(PolarisLmsClient client) {
 		this.client = client;

@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
@@ -77,6 +78,13 @@ public class MockPolarisFixture {
 			.formatted(patronId);
 
 		mock("GET", path, notFoundResponse());
+	}
+
+	public void mockGetPatronBlocksSummaryServerErrorResponse(String patronId) {
+		String path = "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/%s/blockssummary"
+			.formatted(patronId);
+
+		mock("GET", path, response().withStatusCode(INTERNAL_SERVER_ERROR.getCode()));
 	}
 
 	public void mockGetPatronBarcode(String patronId, String barcode) {

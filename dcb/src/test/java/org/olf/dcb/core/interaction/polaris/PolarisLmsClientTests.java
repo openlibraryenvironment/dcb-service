@@ -6,10 +6,12 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ERR0210;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
@@ -54,6 +56,7 @@ import org.olf.dcb.test.TestResourceLoaderProvider;
 import org.olf.dcb.test.matchers.HostLmsRequestMatchers;
 import org.olf.dcb.test.matchers.ItemMatchers;
 import org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers;
+import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
@@ -189,6 +192,8 @@ public class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetPatronBlocksSummary(localPatronId);
 
 		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
 		final var patron = org.olf.dcb.core.model.Patron.builder()
 			.id(randomUUID())
 			.patronIdentities(List.of(
@@ -202,8 +207,6 @@ public class PolarisLmsClientTests {
 					.build()
 			))
 			.build();
-
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
 		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
 
@@ -229,6 +232,8 @@ public class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetPatronBlocksSummaryNotFoundResponse(localPatronId);
 
 		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
 		final var patron = org.olf.dcb.core.model.Patron.builder()
 			.id(randomUUID())
 			.patronIdentities(List.of(
@@ -243,8 +248,6 @@ public class PolarisLmsClientTests {
 			))
 			.build();
 
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
 		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
 
 		// Assert
@@ -253,6 +256,47 @@ public class PolarisLmsClientTests {
 		assertThat(foundPatron.getLocalPatronType(), is("3"));
 		assertThat(foundPatron.getLocalBarcodes(), is(List.of(localBarcode)));
 		assertThat(foundPatron.getLocalHomeLibraryCode(), is("39"));
+	}
+
+	@Test
+	public void shouldToFindVirtualPatronWhenPatronBlocksCannotBeFetched() {
+		// Arrange
+		final var agencyCode = "known-agency";
+		final var localId = "1255193";
+		final var localBarcode = "0077777777";
+		final var localPatronId = "1255217";
+
+		mockPolarisFixture.mockPatronSearch(localBarcode, localId, agencyCode);
+
+		mockPolarisFixture.mockGetPatron(localPatronId);
+		mockPolarisFixture.mockGetPatronBlocksSummaryServerErrorResponse(localPatronId);
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var patron = org.olf.dcb.core.model.Patron.builder()
+			.id(randomUUID())
+			.patronIdentities(List.of(
+				PatronIdentity.builder()
+					.localId(localId)
+					.localBarcode(localBarcode)
+					.resolvedAgency(DataAgency.builder()
+						.code(agencyCode)
+						.build())
+					.homeIdentity(true)
+					.build()
+			))
+			.build();
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> singleValueFrom(client.findVirtualPatron(patron)));
+
+		// Assert
+		assertThat(problem, allOf(
+			notNullValue(),
+			hasMessage("Unable to retrieve patron blocks from polaris: Internal Server Error"),
+			hasProperty("type", is(ERR0210))
+		));
 	}
 
 	@Test
