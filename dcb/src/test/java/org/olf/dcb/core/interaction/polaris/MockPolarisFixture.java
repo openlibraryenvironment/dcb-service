@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
 import static org.mockserver.model.HttpRequest.request;
+import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
@@ -69,6 +70,13 @@ public class MockPolarisFixture {
 		String path = "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/%s/blockssummary"
 			.formatted(patronId);
 		mock("GET", path, okText("[]"));
+	}
+
+	public void mockGetPatronBlocksSummaryNotFoundResponse(String patronId) {
+		String path = "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/%s/blockssummary"
+			.formatted(patronId);
+
+		mock("GET", path, notFoundResponse());
 	}
 
 	public void mockGetPatronBarcode(String patronId, String barcode) {

@@ -216,6 +216,46 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
+	public void shouldTolerateNotFoundResponseFromPatronBlocksWhenFindVirtualPatron() {
+		// Arrange
+		final var agencyCode = "known-agency";
+		final var localId = "1255193";
+		final var localBarcode = "0077777777";
+		final var localPatronId = "1255217";
+
+		mockPolarisFixture.mockPatronSearch(localBarcode, localId, agencyCode);
+
+		mockPolarisFixture.mockGetPatron(localPatronId);
+		mockPolarisFixture.mockGetPatronBlocksSummaryNotFoundResponse(localPatronId);
+
+		// Act
+		final var patron = org.olf.dcb.core.model.Patron.builder()
+			.id(randomUUID())
+			.patronIdentities(List.of(
+				PatronIdentity.builder()
+					.localId(localId)
+					.localBarcode(localBarcode)
+					.resolvedAgency(DataAgency.builder()
+						.code(agencyCode)
+						.build())
+					.homeIdentity(true)
+					.build()
+			))
+			.build();
+
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
+
+		// Assert
+		assertThat(foundPatron, is(notNullValue()));
+		assertThat(foundPatron.getLocalId(), is(List.of(localId)));
+		assertThat(foundPatron.getLocalPatronType(), is("3"));
+		assertThat(foundPatron.getLocalBarcodes(), is(List.of(localBarcode)));
+		assertThat(foundPatron.getLocalHomeLibraryCode(), is("39"));
+	}
+
+	@Test
 	public void shouldBeAbleToPlaceRequestAtSupplyingAgency() {
 		// Arrange
 		final var itemId = "12345";
