@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.marc4j.marc.Record;
@@ -459,8 +460,30 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return Mono.from(client.exchange(request, returnClass));
 	}
 
-	public <T> Mono<T> retrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
-		return Mono.from(client.retrieve(request, argumentType));
+	/**
+	 * Make HTTP request to a Polaris system
+	 *
+	 * @param request Request to send
+	 * @param responseBodyType Expected type of the response body
+	 * @param errorHandlingTransformer method for handling errors after the response has been received
+	 * @return Deserialized response body or error, that might have been transformed already by handler
+	 * @param <T> Type to deserialize the response to
+	 */
+	<T> Mono<T> retrieve(MutableHttpRequest<?> request, Argument<T> responseBodyType,
+		Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
+
+		return Mono.from(client.retrieve(request, responseBodyType))
+			.transform(errorHandlingTransformer);
+	}
+
+	/**
+	 * Utility method to specify that no specialised error handling will be needed for this request
+	 *
+	 * @return transformer that provides no additionally error handling
+	 * @param <T> Type of response being handled
+	 */
+	static <T> Function<Mono<T>, Mono<T>> noExtraErrorHandling() {
+		return Function.identity();
 	}
 
 	public <T> Mono<MutableHttpRequest<?>> createRequest(HttpMethod method, String path) {

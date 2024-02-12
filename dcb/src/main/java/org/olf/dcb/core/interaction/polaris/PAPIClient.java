@@ -15,6 +15,7 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WOR
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValueWithDefault;
+import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.noExtraErrorHandling;
 
 import java.util.Arrays;
 import java.util.List;
@@ -72,7 +73,8 @@ public class PAPIClient {
 
 		return createRequest(GET, path, uri -> {})
 			.flatMap( req -> authFilter.ensurePatronAuth(req, patronCredentials, FALSE) )
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronValidateResult.class))))
+			.flatMap(request -> Mono.from(client.retrieve(request,
+				Argument.of(PatronValidateResult.class), noExtraErrorHandling())))
 			.filter(PatronValidateResult::getValidPatron)
 			.map(patronValidateResult -> Patron.builder()
 				.localId(singletonList(valueOf(patronValidateResult.getPatronID())))
@@ -93,7 +95,8 @@ public class PAPIClient {
 			.doOnSuccess(req -> log.debug("patronRegistrationCreate body: {}", req.getBody()))
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), FALSE))
-			.flatMap(request -> client.retrieve(request, Argument.of(PatronRegistrationCreateResult.class)));
+			.flatMap(request -> client.retrieve(request,
+				Argument.of(PatronRegistrationCreateResult.class), noExtraErrorHandling()));
 	}
 
 	public Mono<String> patronRegistrationUpdate(String barcode, String patronType) {
@@ -114,7 +117,8 @@ public class PAPIClient {
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
 			.map(request -> request.body(body))
-			.flatMap(request -> client.retrieve(request, Argument.of(PatronUpdateResult.class)))
+			.flatMap(request -> client.retrieve(request,
+				Argument.of(PatronUpdateResult.class), noExtraErrorHandling()))
 			.filter(patronUpdateResult -> patronUpdateResult.getPAPIErrorCode() == 0)
 			.map(patronUpdateResult -> barcode);
 	}
@@ -137,7 +141,8 @@ public class PAPIClient {
 			.map(request -> request.body(body))
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemCheckoutResult.class)))
+			.flatMap(request -> client.retrieve(request,
+				Argument.of(ItemCheckoutResult.class), noExtraErrorHandling()))
 			.flatMap(this::checkForItemCheckOutError);
 	}
 
@@ -161,7 +166,8 @@ public class PAPIClient {
 				.queryParam("lastid", lastId)
 				.queryParam("nrecs", nrecs))
 			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PolarisLmsClient.BibsPagedResult.class))));
+			.flatMap(request -> Mono.from(client.retrieve(request,
+				Argument.of(PolarisLmsClient.BibsPagedResult.class), noExtraErrorHandling())));
 	}
 
 	public Mono<List<ItemGetRow>> synch_ItemGetByBibID(String localBibId) {
@@ -169,7 +175,8 @@ public class PAPIClient {
 
 		return createRequest(GET, path, uri -> uri.queryParam("excludeecontent", false))
 			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(ItemGetResponse.class))))
+			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(ItemGetResponse.class),
+				noExtraErrorHandling())))
 			.map(ItemGetResponse::getItemGetRows);
 	}
 
@@ -190,8 +197,8 @@ public class PAPIClient {
 	private Mono<PatronSearchRow> makePatronSearchRequest(String path, String ccl) {
 		return createRequest(GET, path, uri -> uri.queryParam("q", ccl))
 			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(
-				PatronSearchResult.class))))
+			.flatMap(request -> Mono.from(client.retrieve(request,
+				Argument.of(PatronSearchResult.class), noExtraErrorHandling())))
 			.filter(patronSearchResult -> patronSearchResult.getTotalRecordsFound() == 1)
 			.map(PatronSearchResult::getPatronSearchRows)
 			.map(patronSearchRows -> patronSearchRows.get(0));
@@ -202,7 +209,8 @@ public class PAPIClient {
 
 		return createRequest(GET, path, uri -> {})
 			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemGetResponse.class)))
+			.flatMap(request -> client.retrieve(request, Argument.of(ItemGetResponse.class),
+				noExtraErrorHandling()))
 			.map(ItemGetResponse::getItemGetRows)
 			.filter(itemGetRows -> itemGetRows.size() > 0)
 			.map(itemGetRows -> itemGetRows.get(0));

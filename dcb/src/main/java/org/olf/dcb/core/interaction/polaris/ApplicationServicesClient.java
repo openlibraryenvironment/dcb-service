@@ -29,6 +29,7 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WOR
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SHELVING_SCHEME_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.APPLICATION_SERVICES;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
+import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.noExtraErrorHandling;
 
 import java.net.URI;
 import java.time.LocalDateTime;
@@ -160,7 +161,8 @@ class ApplicationServicesClient {
 		return createRequest(GET, path, uri -> uri
 				.queryParam("logonBranchID", conf.get(LOGON_BRANCH_ID))
 				.queryParam("associatedblocks", false))
-			.flatMap(request -> client.retrieve(request, Argument.listOf(PatronBlockGetRow.class)))
+			.flatMap(request -> client.retrieve(request,
+				Argument.listOf(PatronBlockGetRow.class), noExtraErrorHandling()))
 			.onErrorResume(error -> {
 				log.error("Error attempting to retrieve patron blocks {} : {}",
 					localPatronId, error.getMessage());
@@ -186,7 +188,8 @@ class ApplicationServicesClient {
 		final var path = createPath("patrons", localPatronId, "blocks", blocktype, blockid);
 
 		return createRequest(DELETE, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.of(Boolean.class)))
+			.flatMap(request -> client.retrieve(request, Argument.of(Boolean.class),
+				noExtraErrorHandling()))
 			.doOnSuccess(bool -> {
 				if (!bool) {
 					log.warn("Deleting patron block returned false.");
@@ -200,7 +203,8 @@ class ApplicationServicesClient {
 	public Mono<String> getPatronBarcode(String localId) {
 		final var path = createPath("barcodes", "patrons", localId);
 		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.of(String.class)))
+			.flatMap(request -> client.retrieve(request, Argument.of(String.class),
+				noExtraErrorHandling()))
 			// remove quotes
 			.map(string -> string.replace("\"", ""));
 	}
@@ -232,7 +236,8 @@ class ApplicationServicesClient {
 
 		return createRequest(POST, path, uri -> uri.queryParam("type", "create"))
 			.map(request -> request.body(body))
-			.flatMap(request -> client.retrieve(request, Argument.of(Integer.class)));
+			.flatMap(request -> client.retrieve(request, Argument.of(Integer.class),
+				noExtraErrorHandling()));
 	}
 
 	public Mono<WorkflowResponse> deleteBibliographicRecord(String id) {
@@ -262,9 +267,11 @@ class ApplicationServicesClient {
 		return createRequest(POST, path, uri -> {
 		})
 			.map(request -> request.body(body))
-			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)))
+			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class),
+				noExtraErrorHandling()))
 			.flatMap(resp -> handlePolarisWorkflow(resp, ConfirmBibRecordDelete, Continue))
-			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)));
+			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class),
+				noExtraErrorHandling()));
 	}
 
 
@@ -404,13 +411,16 @@ class ApplicationServicesClient {
 		return createRequest(POST, path, uri -> {
 		})
 			.map(request -> request.body(body))
-			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)))
+			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class),
+				noExtraErrorHandling()))
 			.flatMap(resp -> handlePolarisWorkflow(resp, ConfirmItemRecordDelete, Continue))
-			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)))
+			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class),
+				noExtraErrorHandling()))
 			.flatMap(response -> {
 				if (Objects.equals(response.getWorkflowStatus(), InputRequired)) {
 					return handlePolarisWorkflow(response, LastCopyOrRecordOptions, Retain)
-						.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)));
+						.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class),
+							noExtraErrorHandling()));
 				}
 				return Mono.just(response);
 			});
@@ -430,7 +440,8 @@ class ApplicationServicesClient {
 	private Mono<ItemCreateResponse> createItemRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
 		final var InputRequired = -3;
 
-		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class))
+		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class),
+				noExtraErrorHandling())
 			.doOnSuccess(r -> log.info("Got create item response {}", r))
 			.doOnError(e -> log.info("Error response for create item {}", workflowReq, e))
 			.filter(workflowResponse -> workflowResponse.getWorkflowStatus() == InputRequired)
@@ -461,14 +472,16 @@ class ApplicationServicesClient {
 				.workflowPromptID(NoDisplayInPAC)
 				.workflowPromptResult(Continue).build()))
 			.doOnError(e -> log.error("Error response to workflow", e))
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemCreateResponse.class)));
+			.flatMap(request -> client.retrieve(request, Argument.of(ItemCreateResponse.class),
+				noExtraErrorHandling()));
 	}
 
 	public Mono<String> getItemBarcode(String itemId) {
 		final var path = createPath("barcodes", "items", itemId);
 
 		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.of(String.class)))
+			.flatMap(request -> client.retrieve(request, Argument.of(String.class),
+				noExtraErrorHandling()))
 			// remove quotes
 			.map(string -> string.replace("\"", ""));
 	}
@@ -477,14 +490,16 @@ class ApplicationServicesClient {
 		final var path = createPath("materialtypes");
 
 		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.listOf(MaterialType.class)));
+			.flatMap(request -> client.retrieve(request, Argument.listOf(MaterialType.class),
+				noExtraErrorHandling()));
 	}
 
 	public Mono<List<PolarisLmsClient.PolarisItemStatus>> listItemStatuses() {
 		final var path = createPath("itemstatuses");
 
 		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.listOf(PolarisLmsClient.PolarisItemStatus.class)));
+			.flatMap(request -> client.retrieve(request,
+				Argument.listOf(PolarisLmsClient.PolarisItemStatus.class), noExtraErrorHandling()));
 	}
 
 	public Mono<BibliographicRecord> getBibliographicRecordByID(String localBibId) {
