@@ -162,26 +162,27 @@ class ApplicationServicesClient {
 				.queryParam("logonBranchID", conf.get(LOGON_BRANCH_ID))
 				.queryParam("associatedblocks", false))
 			.flatMap(request -> client.retrieve(request,
-				Argument.listOf(PatronBlockGetRow.class), noExtraErrorHandling()))
-			.onErrorResume(error -> {
-				log.error("Error attempting to retrieve patron blocks {} : {}",
-					localPatronId, error.getMessage());
-				if ((error instanceof HttpClientResponseException) &&
-					(((HttpClientResponseException) error).getStatus() == HttpStatus.NOT_FOUND)) {
-					// Not found is not really an error WRT patron blocks
-					return Mono.empty();
-				} else {
-					return Mono.error(
-						Problem.builder()
-							.withType(ERR0210)
-							.withTitle(
-								"Unable to retrieve patron blocks from polaris") // : "+error.getMessage())
-							.withDetail(error.getMessage())
-							.with("localPatronId", localPatronId)
-							.build()
-					);
-				}
-			});
+				Argument.listOf(PatronBlockGetRow.class), response -> response
+					.onErrorResume(error -> {
+						log.error("Error attempting to retrieve patron blocks {} : {}",
+							localPatronId, error.getMessage());
+						if ((error instanceof HttpClientResponseException) &&
+							(((HttpClientResponseException) error).getStatus() == HttpStatus.NOT_FOUND)) {
+							// Not found is not really an error WRT patron blocks
+							return Mono.empty();
+						} else {
+							return Mono.error(
+								Problem.builder()
+									.withType(ERR0210)
+									.withTitle(
+										"Unable to retrieve patron blocks from polaris") // : "+error.getMessage())
+									.withDetail(error.getMessage())
+									.with("localPatronId", localPatronId)
+									.build()
+							);
+						}
+					})
+			));
 	}
 
 	private Mono<Integer> deletePatronBlock(Integer localPatronId, Integer blocktype, Integer blockid) {
