@@ -2,6 +2,7 @@ package org.olf.dcb.core.interaction.polaris;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.core.interaction.polaris.Direction.HOST_LMS_TO_POLARIS;
 import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
 import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
@@ -80,6 +81,7 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.json.tree.JsonNode;
 import io.micronaut.serde.annotation.Serdeable;
@@ -473,7 +475,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
 
 		return Mono.from(client.retrieve(request, responseBodyType))
-			.transform(errorHandlingTransformer);
+			// Additional request specific error handling
+			.transform(errorHandlingTransformer)
+			// This has to go after more specific error handling
+			// as will convert any client response exception to a problem
+			.onErrorMap(HttpClientResponseException.class, responseException ->
+				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
 	}
 
 	/**

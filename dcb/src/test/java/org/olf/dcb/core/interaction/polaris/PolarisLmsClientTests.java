@@ -33,6 +33,9 @@ import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasTextResponseBodyParameter;
 
 import java.util.List;
 import java.util.UUID;
@@ -58,7 +61,6 @@ import org.olf.dcb.test.matchers.ItemMatchers;
 import org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers;
 import org.zalando.problem.ThrowableProblem;
 
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -259,7 +261,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void shouldToFindVirtualPatronWhenPatronBlocksCannotBeFetched() {
+	public void shouldFailToFindVirtualPatronWhenPatronBlocksCannotBeFetched() {
 		// Arrange
 		final var agencyCode = "known-agency";
 		final var localId = "1255193";
@@ -461,16 +463,17 @@ public class PolarisLmsClientTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var exception = assertThrows(HttpClientResponseException.class,
+		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(client.createBib(
 				Bib.builder()
 					.title("title")
 					.build())));
 
 		// Assert
-		assertThat(exception, allOf(
-			notNullValue(),
-			hasMessage("Unauthorized")
+		assertThat(problem, allOf(
+			hasMessageForHostLms(HOST_LMS_CODE),
+			hasResponseStatusCodeParameter(401),
+			hasTextResponseBodyParameter("No body")
 		));
 	}
 
@@ -549,13 +552,14 @@ public class PolarisLmsClientTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var exception = assertThrows(HttpClientResponseException.class,
+		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(client.getItem(localItemId, null)));
 
 		// Assert
-		assertThat(exception, allOf(
-			notNullValue(),
-			hasMessage("Internal Server Error")
+		assertThat(problem, allOf(
+			hasMessageForHostLms(HOST_LMS_CODE),
+			hasResponseStatusCodeParameter(500),
+			hasTextResponseBodyParameter("Something went wrong")
 		));
 	}
 
