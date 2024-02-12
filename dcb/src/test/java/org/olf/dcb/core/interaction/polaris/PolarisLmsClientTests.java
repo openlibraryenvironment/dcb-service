@@ -351,7 +351,7 @@ public class PolarisLmsClientTests {
 	@Test
 	public void createBib() {
 		// Arrange
-		mockPolarisFixture.mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords*", "create-bib-resp.json");
+		mockPolarisFixture.mockCreateBib();
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);

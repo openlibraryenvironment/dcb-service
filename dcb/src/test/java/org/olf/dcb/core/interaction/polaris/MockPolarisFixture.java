@@ -103,23 +103,33 @@ public class MockPolarisFixture {
 	}
 
 	public void mockGetHold(String holdId) {
-		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/" + holdId, "get-hold.json");
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/" + holdId,
+			"get-hold.json");
+	}
+
+	void mockCreateBib() {
+		mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords*",
+			"create-bib-resp.json");
 	}
 
 	public void mockGetBib(String bibId) {
-		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords/" + bibId + "*", "get-bib.json");
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords/" + bibId + "*",
+			"get-bib.json");
 	}
 
 	public void mockGetPagedBibs() {
-		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/bibs/MARCXML/paged/*", "bibs-slice-0-9.json");
+		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/bibs/MARCXML/paged/*",
+			"bibs-slice-0-9.json");
 	}
 
 	void mockGetMaterialTypes() {
-		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/materialtypes", "materialtypes.json");
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/materialtypes",
+			"materialtypes.json");
 	}
 
 	void mockGetItemStatuses() {
-		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses", "itemstatuses.json");
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses",
+			"itemstatuses.json");
 	}
 
 	void mock(String method, String path, String jsonResourcePath) {
