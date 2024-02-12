@@ -462,7 +462,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.flatMap(this::getPatronByLocalId);
 	}
 
-	public <T> Mono<HttpResponse<T>> exchange(MutableHttpRequest<?> request, Class<T> returnClass) {
+	<T> Mono<HttpResponse<T>> exchange(MutableHttpRequest<?> request, Class<T> returnClass) {
 		return Mono.from(client.exchange(request, returnClass));
 	}
 
@@ -497,7 +497,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return Function.identity();
 	}
 
-	public <T> Mono<MutableHttpRequest<?>> createRequest(HttpMethod method, String path) {
+	<T> Mono<MutableHttpRequest<?>> createRequest(HttpMethod method, String path) {
 		return Mono.just(UriBuilder.of(path).build())
 			.map(this::resolve)
 			.map(resolvedUri -> HttpRequest.<T>create(method, resolvedUri.toString()).accept(APPLICATION_JSON));
