@@ -370,9 +370,7 @@ public class PolarisLmsClientTests {
 	public void deleteBib() {
 		// Arrange
 		final var localBibId = "3214809";
-		mockPolarisFixture.mock("POST",
-			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow",
-			"continue-bib-delete.json");
+		mockPolarisFixture.mockStartWorkflow("continue-bib-delete.json");
 
 		mockPolarisFixture.mockContinueWorkflow("ba8ce734-7b49-48b2-bdc3-c42f56d60091",
 			"successful-bib-delete.json");
@@ -438,9 +436,7 @@ public class PolarisLmsClientTests {
 		// Arrange
 		final var localItemId = "3512742";
 
-		mockPolarisFixture.mock("POST",
-			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow",
-			"deleteSingleItemContinue.json");
+		mockPolarisFixture.mockStartWorkflow("deleteSingleItemContinue.json");
 
 		mockPolarisFixture.mockContinueWorkflow("c457e0b8-3d89-45dc-abcd-a389f0993203",
 			"deleteBibIfLastItem.json");
@@ -461,11 +457,11 @@ public class PolarisLmsClientTests {
 		final var localItemId = "3512742";
 
 		mockPolarisFixture.mockGetItem(localItemId);
-		mockPolarisFixture.mock("POST",
-			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow",
-			"item-workflow-response.json");
+		mockPolarisFixture.mockStartWorkflow("item-workflow-response.json");
+
 		mockPolarisFixture.mockContinueWorkflow("0e4c9e68-785e-4a1e-9417-f9bd245cc147",
 			"create-item-resp.json");
+
 		mockPolarisFixture.mockGetItemStatuses();
 
 		// Act

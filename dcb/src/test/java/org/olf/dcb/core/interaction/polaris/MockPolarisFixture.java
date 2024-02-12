@@ -122,6 +122,11 @@ public class MockPolarisFixture {
 			"bibs-slice-0-9.json");
 	}
 
+	void mockStartWorkflow(String responsePath) {
+		mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow",
+			responsePath);
+	}
+
 	public void mockContinueWorkflow(String workflowId, String responsePath) {
 		mock("PUT", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow/" + workflowId,
 			responsePath);
