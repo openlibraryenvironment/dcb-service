@@ -88,21 +88,16 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 						}
 					}
 					// item has been returned home from borrowing library
-					else if (Objects.equals(sr.getLocalItemStatus(), ITEM_AVAILABLE)) {
-						patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), COMPLETED, 
-							Optional.of("Missing borrower request when local local status was AVAILABLE"));
-						log.info("setting DCB internal status to COMPLETED because item status AVAILABLE {}",pr);
-            // ToDo - Consider if this should be BORROWER-COMPLETED to indicate that the return
+					// This isn't correct - the place to do this is when the supplying library item is available and the state
+					// was in transit back to the lending system
+					// else if (Objects.equals(sr.getLocalItemStatus(), ITEM_AVAILABLE)) {
+					// 	patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), COMPLETED, 
+					// 		Optional.of("Missing borrower request when local local status was AVAILABLE"));
+					// 	log.info("setting DCB internal status to COMPLETED because item status AVAILABLE {}",pr);
+           //  // ToDo - Consider if this should be BORROWER-COMPLETED to indicate that the return
             // part of the transaction is still to be completed
-						return pr.setStatus(COMPLETED);
-					}
-					// item has not been despatched from lending library
-					else if (Objects.equals(sr.getLocalStatus(), "PLACED")) {
-						patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), CANCELLED, 
-							Optional.of("Missing borrower request when local request status was PLACED"));
-						log.debug("setting DCB internal status to COMPLETED because sr local status PLACED {}",pr);
-						return pr.setStatus(CANCELLED);
-					}
+					// 	return pr.setStatus(COMPLETED);
+					// }
 					else {
 						patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), pr.getStatus(), 
 							Optional.of("borrower request missing, no special action"));
