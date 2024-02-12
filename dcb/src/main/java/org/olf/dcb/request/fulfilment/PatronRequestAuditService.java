@@ -127,7 +127,7 @@ public class PatronRequestAuditService {
 			Optional.ofNullable(error.getMessage()), Optional.ofNullable(auditData));
 	}
 	
-	@Transactional
+//	@Transactional
 	protected <T> Mono<T> createAuditEntryPublisher(T context, BiConsumer<T, PatronRequestAudit.PatronRequestAuditBuilder> consumer, boolean propagate) {
 		Mono<PatronRequestAudit> flow = Mono.just(PatronRequestAudit.builder())
 			.map( builder -> builder
@@ -145,7 +145,7 @@ public class PatronRequestAuditService {
 	}
 	
 	@SuppressWarnings("unchecked")
-	@Transactional
+//	@Transactional
 	protected <T, P extends Publisher<T>> Function<P, P> withAuditMessage ( BiConsumer<T, PatronRequestAudit.PatronRequestAuditBuilder> consumer, boolean propagate) {
 		
 		return (currentFlow) -> {
@@ -156,13 +156,13 @@ public class PatronRequestAuditService {
 		};
 	}
 	
-	@Transactional
+//	@Transactional
 	public <T, P extends Publisher<T>> Function<P, P> withAuditMessage ( BiConsumer<T, PatronRequestAudit.PatronRequestAuditBuilder> consumer) {
 		return withAuditMessage(consumer, true);
 	}
 
 
-	@Transactional
+//	@Transactional
 	public <T, P extends Publisher<T>> Function<P, P> withAuditMessageNoPropagateErrors( BiConsumer<T, PatronRequestAudit.PatronRequestAuditBuilder> consumer ) {
 		return withAuditMessage(consumer, false);
 	}
