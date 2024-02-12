@@ -1,6 +1,8 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.mockserver.model.HttpRequest.request;
+import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
@@ -71,6 +73,20 @@ public class MockPolarisFixture {
 		mock("GET", path, okText("[]"));
 	}
 
+	public void mockGetPatronBlocksSummaryNotFoundResponse(String patronId) {
+		String path = "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/%s/blockssummary"
+			.formatted(patronId);
+
+		mock("GET", path, notFoundResponse());
+	}
+
+	public void mockGetPatronBlocksSummaryServerErrorResponse(String patronId) {
+		String path = "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/%s/blockssummary"
+			.formatted(patronId);
+
+		mock("GET", path, response().withStatusCode(INTERNAL_SERVER_ERROR.getCode()));
+	}
+
 	public void mockGetPatronBarcode(String patronId, String barcode) {
 		String body = "\"%s\"".formatted(barcode);
 		mock("GET",
@@ -89,6 +105,13 @@ public class MockPolarisFixture {
 
 	public void mockGetItem(String itemId) {
 		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/" + itemId, "items-get.json");
+	}
+
+	public void mockGetItemServerErrorResponse(String itemId) {
+		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/" + itemId,
+			response()
+				.withStatusCode(500)
+				.withBody("Something went wrong"));
 	}
 
 	public void mockGetItemBarcode(String localItemId, String barcode) {
@@ -110,6 +133,11 @@ public class MockPolarisFixture {
 	void mockCreateBib() {
 		mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords*",
 			"create-bib-resp.json");
+	}
+
+	public void mockCreateBibNotAuthorisedResponse() {
+		mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords*",
+			response().withStatusCode(401));
 	}
 
 	public void mockGetBib(String bibId) {

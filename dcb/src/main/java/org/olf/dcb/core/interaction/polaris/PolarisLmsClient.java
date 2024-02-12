@@ -2,6 +2,7 @@ package org.olf.dcb.core.interaction.polaris;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.core.interaction.polaris.Direction.HOST_LMS_TO_POLARIS;
 import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
 import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.marc4j.marc.Record;
@@ -79,6 +81,7 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.json.tree.JsonNode;
 import io.micronaut.serde.annotation.Serdeable;
@@ -459,8 +462,35 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return Mono.from(client.exchange(request, returnClass));
 	}
 
-	public <T> Mono<T> retrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
-		return Mono.from(client.retrieve(request, argumentType));
+	/**
+	 * Make HTTP request to a Polaris system
+	 *
+	 * @param request Request to send
+	 * @param responseBodyType Expected type of the response body
+	 * @param errorHandlingTransformer method for handling errors after the response has been received
+	 * @return Deserialized response body or error, that might have been transformed already by handler
+	 * @param <T> Type to deserialize the response to
+	 */
+	<T> Mono<T> retrieve(MutableHttpRequest<?> request, Argument<T> responseBodyType,
+		Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
+
+		return Mono.from(client.retrieve(request, responseBodyType))
+			// Additional request specific error handling
+			.transform(errorHandlingTransformer)
+			// This has to go after more specific error handling
+			// as will convert any client response exception to a problem
+			.onErrorMap(HttpClientResponseException.class, responseException ->
+				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
+	}
+
+	/**
+	 * Utility method to specify that no specialised error handling will be needed for this request
+	 *
+	 * @return transformer that provides no additionally error handling
+	 * @param <T> Type of response being handled
+	 */
+	static <T> Function<Mono<T>, Mono<T>> noExtraErrorHandling() {
+		return Function.identity();
 	}
 
 	public <T> Mono<MutableHttpRequest<?>> createRequest(HttpMethod method, String path) {
