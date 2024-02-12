@@ -7,6 +7,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
@@ -29,6 +30,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.List;
 import java.util.UUID;
@@ -53,6 +55,7 @@ import org.olf.dcb.test.matchers.HostLmsRequestMatchers;
 import org.olf.dcb.test.matchers.ItemMatchers;
 import org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers;
 
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -410,7 +413,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void getItem() {
+	public void shouldBeAbleToGetAnItemById() {
 		// Arrange
 		final var localItemId = "3512742";
 
@@ -428,6 +431,26 @@ public class PolarisLmsClientTests {
 			HostLmsItemMatchers.hasLocalId(localItemId),
 			HostLmsItemMatchers.hasStatus("LOANED"),
 			HostLmsItemMatchers.hasBarcode("3430470102")
+		));
+	}
+
+	@Test
+	public void shouldFailToGetAnItemWhenUnexpectedResponseReceived() {
+		// Arrange
+		final var localItemId = "628125";
+
+		mockPolarisFixture.mockGetItemServerErrorResponse(localItemId);
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> singleValueFrom(client.getItem(localItemId, null)));
+
+		// Assert
+		assertThat(exception, allOf(
+			notNullValue(),
+			hasMessage("Internal Server Error")
 		));
 	}
 

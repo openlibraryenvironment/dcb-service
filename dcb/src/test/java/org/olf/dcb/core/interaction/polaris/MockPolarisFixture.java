@@ -91,6 +91,13 @@ public class MockPolarisFixture {
 		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/" + itemId, "items-get.json");
 	}
 
+	public void mockGetItemServerErrorResponse(String itemId) {
+		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/" + itemId,
+			response()
+				.withStatusCode(500)
+				.withBody("Something went wrong"));
+	}
+
 	public void mockGetItemBarcode(String localItemId, String barcode) {
 		String body = "\"%s\"".formatted(barcode);
 		mock("GET",
