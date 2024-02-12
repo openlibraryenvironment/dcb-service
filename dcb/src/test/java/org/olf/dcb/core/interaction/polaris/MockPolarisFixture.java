@@ -119,6 +119,11 @@ public class MockPolarisFixture {
 			"create-bib-resp.json");
 	}
 
+	public void mockCreateBibNotAuthorisedResponse() {
+		mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords*",
+			response().withStatusCode(401));
+	}
+
 	public void mockGetBib(String bibId) {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords/" + bibId + "*",
 			"get-bib.json");

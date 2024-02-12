@@ -352,7 +352,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void createBib() {
+	public void shouldBeAbleToCreateBib() {
 		// Arrange
 		mockPolarisFixture.mockCreateBib();
 
@@ -367,6 +367,27 @@ public class PolarisLmsClientTests {
 		// Assert
 		assertThat(bib, is(notNullValue()));
 		assertThat(bib, is("1203065"));
+	}
+
+	@Test
+	public void shouldFailWhenUnexpectedResponseReceivedDuringBibCreation() {
+		// Arrange
+		mockPolarisFixture.mockCreateBibNotAuthorisedResponse();
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> singleValueFrom(client.createBib(
+				Bib.builder()
+					.title("title")
+					.build())));
+
+		// Assert
+		assertThat(exception, allOf(
+			notNullValue(),
+			hasMessage("Unauthorized")
+		));
 	}
 
 	@Test
