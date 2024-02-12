@@ -444,9 +444,6 @@ public class PolarisLmsClientTests {
 		mockPolarisFixture.mock("PUT",
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow/c457e0b8-3d89-45dc-abcd-a389f0993203",
 			"deleteBibIfLastItem.json");
-		mockPolarisFixture.mock("PUT",
-			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow/0e4c9e68-785e-4a1e-9417-f9bd245cc147",
-			"successfulDeleteItem.json");
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
