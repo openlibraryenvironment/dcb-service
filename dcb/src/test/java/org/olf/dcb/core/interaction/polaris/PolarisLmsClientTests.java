@@ -373,8 +373,8 @@ public class PolarisLmsClientTests {
 		mockPolarisFixture.mock("POST",
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow",
 			"continue-bib-delete.json");
-		mockPolarisFixture.mock("PUT",
-			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow/ba8ce734-7b49-48b2-bdc3-c42f56d60091",
+
+		mockPolarisFixture.mockContinueWorkflow("ba8ce734-7b49-48b2-bdc3-c42f56d60091",
 			"successful-bib-delete.json");
 
 		// Act
@@ -391,8 +391,7 @@ public class PolarisLmsClientTests {
 	public void createItem() {
 		// Arrange
 		mockPolarisFixture.mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow*", "item-workflow-response.json");
-		mockPolarisFixture.mock("PUT",
-			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow/0e4c9e68-785e-4a1e-9417-f9bd245cc147",
+		mockPolarisFixture.mockContinueWorkflow("0e4c9e68-785e-4a1e-9417-f9bd245cc147",
 			"create-item-resp.json");
 
 		// Act
@@ -438,11 +437,12 @@ public class PolarisLmsClientTests {
 	public void deleteItem() {
 		// Arrange
 		final var localItemId = "3512742";
+
 		mockPolarisFixture.mock("POST",
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow",
 			"deleteSingleItemContinue.json");
-		mockPolarisFixture.mock("PUT",
-			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow/c457e0b8-3d89-45dc-abcd-a389f0993203",
+
+		mockPolarisFixture.mockContinueWorkflow("c457e0b8-3d89-45dc-abcd-a389f0993203",
 			"deleteBibIfLastItem.json");
 
 		// Act
@@ -464,8 +464,7 @@ public class PolarisLmsClientTests {
 		mockPolarisFixture.mock("POST",
 			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow",
 			"item-workflow-response.json");
-		mockPolarisFixture.mock("PUT",
-			"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow/0e4c9e68-785e-4a1e-9417-f9bd245cc147",
+		mockPolarisFixture.mockContinueWorkflow("0e4c9e68-785e-4a1e-9417-f9bd245cc147",
 			"create-item-resp.json");
 		mockPolarisFixture.mockGetItemStatuses();
 
