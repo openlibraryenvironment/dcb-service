@@ -400,6 +400,20 @@ class PatronRequestApiTests {
 	}
 
 	@Test
+	void cannotPlaceRequestWhenMissingInformationProvided() {
+		log.info("\n\ncannotPlaceRequestWhenMissingInformationProvided\n\n");
+
+		// When placing a request with an invalid request body
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> patronRequestApiClient.placePatronRequest(randomUUID(),
+				KNOWN_PATRON_LOCAL_ID, null, HOST_LMS_CODE, "home-library-code"));
+
+		// Then a bad request response should be returned
+		final var response = exception.getResponse();
+		assertThat("Should return a bad request status", response.getStatus(), is(BAD_REQUEST));
+	}
+
+	@Test
 	void cannotPlaceRequestForPickupAtUnknownLocation() {
 		// Arrange
 		final var clusterRecordId = randomUUID();

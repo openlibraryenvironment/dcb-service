@@ -4,6 +4,8 @@ import org.olf.dcb.core.HostLmsService;
 
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.interaction.shared.NoNumericRangeMappingFoundException;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -29,10 +31,19 @@ public class PatronTypeService {
 
 		return findCanonicalPatronType(requesterHostLmsCode, requesterPatronType, requesterLocalId)
 			.flatMap(canonicalPatronType -> findLocalPatronType(supplierHostLmsCode, canonicalPatronType))
+			.onErrorMap(cause -> {
+				if (cause instanceof NoPatronTypeMappingFoundException || cause instanceof NoNumericRangeMappingFoundException) {
+					return cause;
+				}
+				else {
+					return new PatronTypeMappingNotFound(
+						"No mapping found from ptype " + requesterHostLmsCode + ":" + requesterPatronType +
+							" to " + supplierHostLmsCode + " because " + cause.getMessage()
+					);
+				}
+			})
 			.switchIfEmpty(Mono.error(new PatronTypeMappingNotFound("No mapping found from ptype " +
-				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode)))
-			.onErrorMap(cause -> new PatronTypeMappingNotFound("No mapping found from ptype " +
-				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode + " because " + cause.getMessage()));
+				requesterHostLmsCode + ":" + requesterPatronType + " to " + supplierHostLmsCode)));
 	}
 
 	private Mono<String> findLocalPatronType(String supplierHostLmsCode,

@@ -8,23 +8,23 @@ import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_BRANCH_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_USER_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PATRON_BARCODE_PREFIX;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WORKSTATION_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValueWithDefault;
+import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.noExtraErrorHandling;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -38,17 +38,17 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 public class PAPIClient {
-	static final Logger log = LoggerFactory.getLogger(PAPIClient.class);
 	private final PolarisLmsClient client;
 	private final PAPIAuthFilter authFilter;
 	private final String PUBLIC_PARAMETERS;
 	private final String PROTECTED_PARAMETERS;
-	public PAPIClient(
-		PolarisLmsClient client)
-	{
+
+	public PAPIClient(PolarisLmsClient client) {
 		this.client = client;
 		this.authFilter = new PAPIAuthFilter(client);
 
@@ -65,10 +65,16 @@ public class PAPIClient {
 	@SingleResult
 	public Mono<Patron> patronValidate(String barcode, String password) {
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
-		final var patronCredentials = PatronCredentials.builder().barcode(barcode).password(password).build();
+
+		final var patronCredentials = PatronCredentials.builder()
+			.barcode(barcode)
+			.password(password)
+			.build();
+
 		return createRequest(GET, path, uri -> {})
 			.flatMap( req -> authFilter.ensurePatronAuth(req, patronCredentials, FALSE) )
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronValidateResult.class))))
+			.flatMap(request -> Mono.from(client.retrieve(request,
+				Argument.of(PatronValidateResult.class), noExtraErrorHandling())))
 			.filter(PatronValidateResult::getValidPatron)
 			.map(patronValidateResult -> Patron.builder()
 				.localId(singletonList(valueOf(patronValidateResult.getPatronID())))
@@ -79,73 +85,74 @@ public class PAPIClient {
 	}
 
 	public Mono<PatronRegistrationCreateResult> patronRegistrationCreate(Patron patron) {
-
 		log.info("patronRegistrationCreate {}", patron);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron");
-		// passing empty patron credentials will allow public requests without patron auth
-		final var empty = PatronCredentials.builder().build();
 		final PatronRegistration body = getPatronRegistration(patron);
+
 		return createRequest(POST, path, uri -> {})
 			.map(request -> request.body(body))
 			.doOnSuccess(req -> log.debug("patronRegistrationCreate body: {}", req.getBody()))
-			.flatMap( req -> authFilter.ensurePatronAuth(req, empty, FALSE) )
-			.flatMap(request -> client.retrieve(request, Argument.of(PatronRegistrationCreateResult.class)));
+			// passing empty patron credentials will allow public requests without patron auth
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), FALSE))
+			.flatMap(request -> client.retrieve(request,
+				Argument.of(PatronRegistrationCreateResult.class), noExtraErrorHandling()));
 	}
 
 	public Mono<String> patronRegistrationUpdate(String barcode, String patronType) {
-
 		log.info("patronRegistrationUpdate {} {}", barcode, patronType);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
-		// passing empty patron credentials will allow public requests without patron auth
-		final var empty = PatronCredentials.builder().build();
 		final var conf = client.getConfig();
-		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
+		final var servicesConfig = client.getServicesConfig();
+
 		final var body = PatronRegistration.builder()
 			.logonBranchID(Integer.valueOf((String) conf.get(LOGON_BRANCH_ID)))
 			.logonUserID(Integer.valueOf((String) conf.get(LOGON_USER_ID)))
-			.logonWorkstationID(Integer.valueOf((String) servicesMap.get(SERVICES_WORKSTATION_ID)))
+			.logonWorkstationID(Integer.valueOf((String) servicesConfig.get(SERVICES_WORKSTATION_ID)))
 			.patronCode(Integer.valueOf(patronType))
 			.build();
+
 		return client.createRequest(PUT, path)
-			.flatMap(req -> authFilter.ensurePatronAuth(req, empty, TRUE))
+			// passing empty patron credentials will allow public requests without patron auth
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
 			.map(request -> request.body(body))
-			.flatMap(request -> client.retrieve(request, Argument.of(PatronUpdateResult.class)))
+			.flatMap(request -> client.retrieve(request,
+				Argument.of(PatronUpdateResult.class), noExtraErrorHandling()))
 			.filter(patronUpdateResult -> patronUpdateResult.getPAPIErrorCode() == 0)
 			.map(patronUpdateResult -> barcode);
 	}
 
 	public Mono<ItemCheckoutResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {
-
 		log.info("Patron {} checking out item {}", patronBarcode, itemBarcode);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
-		// passing empty patron credentials will allow public requests without patron auth
-		final var empty = PatronCredentials.builder().build();
 		final var conf = client.getConfig();
-		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
+		final var servicesConfig = client.getServicesConfig();
+
 		final var body = ItemCheckoutData.builder()
-			.logonBranchID( extractMapValue(conf, LOGON_BRANCH_ID, Integer.class) )
-			.logonUserID( extractMapValue(conf, LOGON_USER_ID, Integer.class) )
-			.logonWorkstationID( extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class) )
+			.logonBranchID(extractMapValue(conf, LOGON_BRANCH_ID, Integer.class))
+			.logonUserID(extractMapValue(conf, LOGON_USER_ID, Integer.class))
+			.logonWorkstationID(extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class))
 			.itemBarcode(itemBarcode)
 			.build();
 
 		return createRequest(POST, path, uri -> {})
 			.map(request -> request.body(body))
-			.flatMap( req -> authFilter.ensurePatronAuth(req, empty, TRUE) )
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemCheckoutResult.class)))
+			// passing empty patron credentials will allow public requests without patron auth
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
+			.flatMap(request -> client.retrieve(request,
+				Argument.of(ItemCheckoutResult.class), noExtraErrorHandling()))
 			.flatMap(this::checkForItemCheckOutError);
 	}
 
-	private <R> Mono<ItemCheckoutResult> checkForItemCheckOutError(ItemCheckoutResult itemCheckoutResult) {
+	private Mono<ItemCheckoutResult> checkForItemCheckOutError(ItemCheckoutResult itemCheckoutResult) {
 		return Mono.just(itemCheckoutResult)
 			// PAPI Error Codes: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1221124
 			.filter(result -> result.getPAPIErrorCode() == 0)
-			.switchIfEmpty( Mono.error(() -> new ItemCheckoutException(
+			.switchIfEmpty(Mono.error(() -> new ItemCheckoutException(
 				"Checkout of local item id: " + itemCheckoutResult.getItemRecordID()
-				+ ", failed with error message: '" + itemCheckoutResult.getErrorMessage() + "'")) );
+				+ ", failed with error message: '" + itemCheckoutResult.getErrorMessage() + "'")));
 	}
 
 	/*
@@ -159,7 +166,8 @@ public class PAPIClient {
 				.queryParam("lastid", lastId)
 				.queryParam("nrecs", nrecs))
 			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PolarisLmsClient.BibsPagedResult.class))));
+			.flatMap(request -> Mono.from(client.retrieve(request,
+				Argument.of(PolarisLmsClient.BibsPagedResult.class), noExtraErrorHandling())));
 	}
 
 	public Mono<List<ItemGetRow>> synch_ItemGetByBibID(String localBibId) {
@@ -167,27 +175,30 @@ public class PAPIClient {
 
 		return createRequest(GET, path, uri -> uri.queryParam("excludeecontent", false))
 			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(ItemGetResponse.class))))
+			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(ItemGetResponse.class),
+				noExtraErrorHandling())))
 			.map(ItemGetResponse::getItemGetRows);
 	}
 
 	public Mono<PatronSearchRow> patronSearch(String barcode) {
 		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
 		final var ccl = "PATB=" + barcode + " OR PATNF=" + barcode;
-		return createRequest(GET, path, uri -> uri.queryParam("q", ccl))
-			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronSearchResult.class))))
-			.filter(patronSearchResult -> patronSearchResult.getTotalRecordsFound() == 1)
-			.map(PatronSearchResult::getPatronSearchRows)
-			.map(patronSearchRows -> patronSearchRows.get(0));
+
+		return makePatronSearchRequest(path, ccl);
 	}
 
 	public Mono<PatronSearchRow> patronSearch(String barcode, String uniqueID) {
 		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
 		final var ccl = "PATNF=" + barcode + " AND PATNL=" + uniqueID;
+
+		return makePatronSearchRequest(path, ccl);
+	}
+
+	private Mono<PatronSearchRow> makePatronSearchRequest(String path, String ccl) {
 		return createRequest(GET, path, uri -> uri.queryParam("q", ccl))
 			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronSearchResult.class))))
+			.flatMap(request -> Mono.from(client.retrieve(request,
+				Argument.of(PatronSearchResult.class), noExtraErrorHandling())))
 			.filter(patronSearchResult -> patronSearchResult.getTotalRecordsFound() == 1)
 			.map(PatronSearchResult::getPatronSearchRows)
 			.map(patronSearchRows -> patronSearchRows.get(0));
@@ -195,17 +206,21 @@ public class PAPIClient {
 
 	public Mono<ItemGetRow> synch_ItemGet(String recordNumber) {
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "item", recordNumber);
+
 		return createRequest(GET, path, uri -> {})
 			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemGetResponse.class)))
+			.flatMap(request -> client.retrieve(request, Argument.of(ItemGetResponse.class),
+				noExtraErrorHandling()))
 			.map(ItemGetResponse::getItemGetRows)
-			.filter ( itemGetRows -> itemGetRows.size() > 0 )
+			.filter(itemGetRows -> itemGetRows.size() > 0)
 			.map(itemGetRows -> itemGetRows.get(0));
 	}
 
-	private <T> Mono<MutableHttpRequest<?>> createRequest(HttpMethod httpMethod, String path,
+	private Mono<MutableHttpRequest<?>> createRequest(HttpMethod httpMethod, String path,
 		Consumer<UriBuilder> uriBuilderConsumer) {
-		return client.createRequest(httpMethod,path).map(req -> req.uri(uriBuilderConsumer));
+
+		return client.createRequest(httpMethod,path)
+			.map(req -> req.uri(uriBuilderConsumer));
 	}
 
 	private String createPath(Object... pathSegments) {
@@ -214,19 +229,21 @@ public class PAPIClient {
 
 	private PatronRegistration getPatronRegistration(Patron patron) {
 		final var conf = client.getConfig();
-		final var servicesMap = (Map<String, Object>) conf.get(SERVICES);
-		final var patronBarcodePrefix = extractMapValueWithDefault(servicesMap, PATRON_BARCODE_PREFIX, String.class, "DCB-");
+		final var servicesConfig = client.getServicesConfig();
+
+		final var patronBarcodePrefix = extractMapValueWithDefault(servicesConfig, PATRON_BARCODE_PREFIX, String.class, "DCB-");
 		final var logonBranchID = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+
 		return PatronRegistration.builder()
-			.logonBranchID( logonBranchID )
+			.logonBranchID(logonBranchID)
 			.logonUserID(extractMapValue(conf, LOGON_USER_ID, Integer.class))
-			.logonWorkstationID(extractMapValue(servicesMap, SERVICES_WORKSTATION_ID, Integer.class))
+			.logonWorkstationID(extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class))
 			.patronBranchID(patron.getLocalItemLocationId())
 			.nameFirst(patron.getLocalBarcodes().get(0))
 			.nameLast(patron.getUniqueIds().get(0))
 			.userName(patron.getUniqueIds().get(0))
-			.patronCode( parseInt(patron.getLocalPatronType()) )
-			// Polaris needs these fields, but we don't have them for vpatrons
+			.patronCode(parseInt(patron.getLocalPatronType()))
+			// Polaris needs these fields, but we don't have them for virtual patrons
 			.birthdate("1999-11-01")
 			.postalCode("63131")
 			.streetOne("DCB Patron Street Address")
@@ -234,6 +251,10 @@ public class PAPIClient {
 			.state("MO")
 			.barcode(patronBarcodePrefix + patron.getLocalBarcodes().get(0))
 			.build();
+	}
+
+	private static PatronCredentials emptyCredentials() {
+		return PatronCredentials.builder().build();
 	}
 
 	@Builder
@@ -255,7 +276,7 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class ItemCheckoutResult {
+	public static class ItemCheckoutResult {
 		@JsonProperty("PAPIErrorCode")
 		private Integer pAPIErrorCode;
 		@JsonProperty("ErrorMessage")
@@ -279,7 +300,7 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class PatronRegistrationCreateResult {
+	public static class PatronRegistrationCreateResult {
 		@JsonProperty("PAPIErrorCode")
 		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")
@@ -418,7 +439,7 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class PatronSearchRow {
+	public static class PatronSearchRow {
 		@JsonProperty("PatronID")
 		private Integer PatronID;
 		@JsonProperty("Barcode")

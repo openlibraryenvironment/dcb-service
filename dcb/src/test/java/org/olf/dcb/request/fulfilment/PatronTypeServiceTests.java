@@ -8,6 +8,7 @@ import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -62,13 +63,13 @@ class PatronTypeServiceTests {
 			"DCB", "DCB_UG", supplyingHostLms.getCode(), "15");
 
 		// Act
-		final var exception = assertThrows(PatronTypeMappingNotFound.class,
+		final var exception = assertThrows(NoPatronTypeMappingFoundException.class,
 			() -> singleValueFrom(patronTypeService.determinePatronType(
 				supplyingHostLms.getCode(), requestingHostLms.getCode(), "1", null)));
 
 		// Assert
 		assertThat(exception, hasMessage(
-			"No mapping found from ptype requesting-host-lms:1 to supplying-host-lms because Unable to map patronType requesting-host-lms:1 To DCB context"));
+			"Unable to map patronType requesting-host-lms:1 To DCB context"));
 	}
 
 	@Test
@@ -87,7 +88,7 @@ class PatronTypeServiceTests {
 
 		// Assert
 		assertThat(exception, hasMessage(
-			"No mapping found from ptype requesting-host-lms:1 to supplying-host-lms because No mapping found from ptype requesting-host-lms:1 to supplying-host-lms"));
+			"No mapping found from ptype requesting-host-lms:1 to supplying-host-lms"));
 	}
 
 	@Test
@@ -97,12 +98,12 @@ class PatronTypeServiceTests {
 		final var supplyingHostLms = hostLmsFixture.createSierraHostLms("supplying-host-lms");
 
 		// Act
-		final var exception = assertThrows(PatronTypeMappingNotFound.class,
+		final var exception = assertThrows(NoPatronTypeMappingFoundException.class,
 			() -> singleValueFrom(patronTypeService.determinePatronType(
 				supplyingHostLms.getCode(), requestingHostLms.getCode(),"1", null)));
 
 		// Assert
 		assertThat(exception,
-			hasMessage("No mapping found from ptype requesting-host-lms:1 to supplying-host-lms because Unable to map patronType requesting-host-lms:1 To DCB context"));
+			hasMessage("Unable to map patronType requesting-host-lms:1 To DCB context"));
 	}
 }
