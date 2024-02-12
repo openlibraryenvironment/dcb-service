@@ -90,6 +90,7 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 				( pr.getStatus() == RESOLVED ) ) {
 			
 			transitionToState(pr, audit, CANCELLED, "Missing borrower request when local request status was Item on hold shelf");
+			log.debug("setting DCB internal status to CANCELLED {}",pr);
 		}
 		// Patron cancels request, polaris sets hold status to Cancelled
 		else if (Objects.equals(sr.getLocalStatus(), "CANCELLED")) {
@@ -97,19 +98,22 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 				noop(pr, audit, "The request in the supplier system was CANCELLED or deleted after the DCB request was FINALISED" );
 			}
 			else {
-				log.info("Borrower request MISSING - setting DCB internal status to CANCELLED {}",pr);
 				transitionToState(pr, audit, CANCELLED, "Borrower system request MISSING, Supplier request CANCELLED");
+				log.info("Borrower request MISSING - setting DCB internal status to CANCELLED {}",pr);
 			}
 		}
-		// item has been returned home from borrowing library
-		else if (Objects.equals(sr.getLocalItemStatus(), ITEM_AVAILABLE)) {
-			
-			transitionToState(pr, audit, COMPLETED, "Missing borrower request when local local status was AVAILABLE");
-		}
-		// item has not been despatched from lending library
-		else if (Objects.equals(sr.getLocalStatus(), "PLACED")) {
-			transitionToState(pr, audit, CANCELLED, "Missing borrower request when local request status was PLACED");
-		}
+	// item has been returned home from borrowing library
+		// This isn't correct - the place to do this is when the supplying library item is available and the state
+		// was in transit back to the lending system
+		// else if (Objects.equals(sr.getLocalItemStatus(), ITEM_AVAILABLE)) {
+		// 	patronRequestAuditService.addAuditEntry(pr, pr.getStatus(), COMPLETED, 
+		// 		Optional.of("Missing borrower request when local local status was AVAILABLE"));
+		// 	log.info("setting DCB internal status to COMPLETED because item status AVAILABLE {}",pr);
+     //  // ToDo - Consider if this should be BORROWER-COMPLETED to indicate that the return
+      // part of the transaction is still to be completed
+		// 	return pr.setStatus(COMPLETED);
+		// }
+
 		else {
 
 			noop(pr, audit, "borrower request missing, no special action");

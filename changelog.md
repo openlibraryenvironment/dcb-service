@@ -1,6 +1,85 @@
 # Changelog
 
+## Version 5.5.0
+
+### Additions
+* [General]
+	* Make wildcard searches case insensitive by default.
+
+### Changes
+* [Chore]
+	* Handle unexpected responses during retrieve operations to Polaris DCB-855
+	* correct exception message
+	* Remove unecessary casts when reading Polaris client config DCB-855
+	* Replace spaces with tabs in application services client DCB-855
+	* Make types used in PAPI client interface public DCB-855
+	* Remove unused field in Polaris Host LMS client DCB-855
+* [Refactor]
+	* Move specific handling for patron blocks to error transformer parameter DCB-855
+	* Introduce an error handling transformer for Polaris retrieve method DCB-855
+	* Move iterable to array method to utility class
+	* patron type exception messages [DCB-867]
+	* Use common method for getting services config in application services auth filter DCB-855
+	* Use common method for getting services config in application services client DCB-855
+	* Extract method for getting PAPI config DCB-855
+	* Move service config method to Polaris Host LMS client DCB-855
+	* Extract method for making patron search request in Polaris DCB-855
+	* Extract method for getting Polaris Host LMS client services config DCB-855
+	* Extract method for defining empty PAPI client credentials DCB-855
+* [Test]
+	* Demonstrate specific failure when receive server error response for patron blocks from Polaris DCB-855
+	* Demonstrate tolerance of patron blocks not being found in Polaris DCB-855
+	* Demonstrate unexpected response when creating a bib in Polaris DCB-855
+	* Demonstrate unexpected response when getting an item from Polaris DCB-855
+	* Extract method for mocking starting a workflow in Polaris DCB-855
+	* Extract method for mocking continuing a workflow in Polaris DCB-855
+	* Remove unused mocking of workflow when deleting item in Polaris DCB-855
+	* Extract method for mocking creating a bib in Polaris DCB-855
+	* Extract method for mocking placing a hold in Polaris DCB-855
+	* Extract method for mocking check out item to patron in Polaris DCB-855
+	* Extract method for mocking get bib from Polaris DCB-855
+	* Extract methods in Polaris mock fixture to reduce duplication DCB-855
+	* Extract method for mocking get item barcode from Polaris DCB-855
+	* Extract method for mocking update patron in Polaris DCB-855
+	* Extract method for mocking get patron barcode from Polaris DCB-855
+	* Extract method for mocking create patron in Polaris DCB-855
+	* Extract method for mocking get hold from Polaris DCB-855
+	* Change patron ID parameter type from int to string DCB-855
+	* Extract method for mocking get patron block summary from Polaris DCB-855
+	* Extract method for mocking get item from Polaris DCB-855
+	* Extract method for mocking get patron by barcode from Polaris DCB-855
+	* Extract method for mocking patron authentication for Polaris DCB-855
+	* Extract method for mocking get item statuses from Polaris DCB-855
+	* Extract method for mocking get material types from Polaris DCB-855
+	* Extract method for mocking get items for bib from Polaris DCB-855
+	* Extract method for mocking application services auth in Polaris DCB-855
+	* Remove use of Polaris test utils in ingest tests DCB-855
+	* Extract method for mocking Polaris PAPI staff auth DCB-855
+	* Move mocking paged bibs from Polaris to fixture DCB-855
+	* Remove ordering from Polaris ingest tests DCB-855
+	* Use test resource loader in Polaris ingest tests DCB-855
+	* Removed unused code from Polaris ingest tests DCB-855
+	* Inline use of Polaris test utils inside fixture DCB-855
+	* Remove unused auth code in Polaris test utils DCB-855
+	* Use utility method for getting value from publisher in Polaris client tests DCB-855
+	* Move creation of resource loader to mock fixture DCB-855
+	* Extract method for mocking patron search in Polaris DCB-855
+	* Move mock methods from Polaris tests to fixture DCB-855
+* [Tests]
+	* Move fields to before all method in Polaris client tests DCB-855
+
+### Fixes
+* [General]
+	* expected error message in shouldThrowExceptionWhenNoMappingFromSpinePatronTypeToBorrowingPatronType
+	* change error mapping round when we determinePatronType
+	* Rework to use MN internals.
+	* use NonNull instead of NotNull annotation to vaildate place request body
+
 ## Version 5.4.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
