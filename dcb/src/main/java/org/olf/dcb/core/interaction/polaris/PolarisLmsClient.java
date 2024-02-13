@@ -302,7 +302,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return papiClient.synch_ItemGet(patron.getLocalItemId())
 			.map(itemGetRow -> patron.setLocalItemLocationId(itemGetRow.getLocationID()))
 			.flatMap(papiClient::patronRegistrationCreate)
-			.flatMap(this::validateCreatePatronResult)
+			.flatMap(result -> validateCreatePatronResult(result, patron))
 			.doOnSuccess(res -> log.debug("Successful result creating patron {}",res))
 			.doOnError(error -> log.error("Problem trying to create patron",error))
 			.map(PAPIClient.PatronRegistrationCreateResult::getPatronID)
@@ -310,15 +310,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.map(String::valueOf);
 	}
 
-	private Mono<PAPIClient.PatronRegistrationCreateResult> validateCreatePatronResult(PAPIClient.PatronRegistrationCreateResult result) {
+	private Mono<PAPIClient.PatronRegistrationCreateResult> validateCreatePatronResult(
+		PAPIClient.PatronRegistrationCreateResult result, Patron patron) {
+
 		// Perform a test on result.papiErrorCode 
-		if ( result.getPapiErrorCode() != 0 )
+		if (result.getPapiErrorCode() != 0)
 			return Mono.error(
 				Problem.builder()
 						.withType(ERR0211)
-						.withTitle("Unable to create virtual patron at polaris - errorcode:"+result.getPapiErrorCode())
+						.withTitle(
+							"Unable to create virtual patron for patron: %s at polaris - error code: %d"
+								.formatted(patron, result.getPapiErrorCode()))
 						.withDetail(result.getErrorMessage())
-						.build() );
+						.build());
 
 		return Mono.just(result);
 	}
