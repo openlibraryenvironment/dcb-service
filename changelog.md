@@ -1,5 +1,20 @@
 # Changelog
 
+## Version 5.5.1
+
+### Changes
+* [Chore]
+	* correct tracker refdata tests
+	* Include patron as audit data when virtual patron creation in Polaris fails
+	* Make HTTP request related methods in Polaris client package-private DCB-855
+	* Include patron in error when creating virtual patron in Polaris
+	* Improve error message when home patron identity cannot be found
+
+### Fixes
+* [General]
+	* Add rule to track virtual items in status REQUESTED so we can detect CHECK-IN
+	* Audit messages not saving
+
 ## Version 5.5.0
 
 ### Additions
@@ -8,6 +23,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Handle unexpected responses during retrieve operations to Polaris DCB-855
 	* correct exception message
 	* Remove unecessary casts when reading Polaris client config DCB-855
