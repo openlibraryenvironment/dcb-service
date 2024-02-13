@@ -3,8 +3,8 @@ package org.olf.dcb.test.matchers.interaction;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.ThrowableProblemMatchers.hasParameters;
 
 import org.hamcrest.Matcher;
 import org.zalando.problem.ThrowableProblem;
@@ -49,9 +49,5 @@ public class UnexpectedResponseProblemMatchers {
 
 	public static Matcher<ThrowableProblem> hasRequestBodyParameter(Matcher<?> valueMatcher) {
 		return hasParameters(hasEntry(equalTo("requestBody"), valueMatcher));
-	}
-
-	static Matcher<ThrowableProblem> hasParameters(Matcher<?> matcher) {
-		return hasProperty("parameters", matcher);
 	}
 }

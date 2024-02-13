@@ -296,7 +296,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<String> createPatron(Patron patron) {
-
 		log.info("createPatron({}) at {}", patron, lms);
 
 		return papiClient.synch_ItemGet(patron.getLocalItemId())
@@ -313,16 +312,23 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private Mono<PAPIClient.PatronRegistrationCreateResult> validateCreatePatronResult(
 		PAPIClient.PatronRegistrationCreateResult result, Patron patron) {
 
-		// Perform a test on result.papiErrorCode 
-		if (result.getPapiErrorCode() != 0)
+		final var errorCode = result.getPapiErrorCode();
+
+		// Perform a test on result.papiErrorCode
+		if (errorCode != 0) {
+			final var errorMessage = result.getErrorMessage();
+
 			return Mono.error(
 				Problem.builder()
-						.withType(ERR0211)
-						.withTitle(
-							"Unable to create virtual patron for patron: %s at polaris - error code: %d"
-								.formatted(patron, result.getPapiErrorCode()))
-						.withDetail(result.getErrorMessage())
-						.build());
+					.withType(ERR0211)
+					.withTitle("Unable to create virtual patron at polaris - error code: %d"
+						.formatted(errorCode))
+					.withDetail(errorMessage)
+					.with("patron", patron)
+					.with("errorCode", errorCode)
+					.with("errorMessage", errorMessage)
+					.build());
+		}
 
 		return Mono.just(result);
 	}
