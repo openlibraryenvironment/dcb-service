@@ -296,13 +296,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<String> createPatron(Patron patron) {
-
 		log.info("createPatron({}) at {}", patron, lms);
 
 		return papiClient.synch_ItemGet(patron.getLocalItemId())
 			.map(itemGetRow -> patron.setLocalItemLocationId(itemGetRow.getLocationID()))
 			.flatMap(papiClient::patronRegistrationCreate)
-			.flatMap(this::validateCreatePatronResult)
+			.flatMap(result -> validateCreatePatronResult(result, patron))
 			.doOnSuccess(res -> log.debug("Successful result creating patron {}",res))
 			.doOnError(error -> log.error("Problem trying to create patron",error))
 			.map(PAPIClient.PatronRegistrationCreateResult::getPatronID)
@@ -310,15 +309,26 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.map(String::valueOf);
 	}
 
-	private Mono<PAPIClient.PatronRegistrationCreateResult> validateCreatePatronResult(PAPIClient.PatronRegistrationCreateResult result) {
-		// Perform a test on result.papiErrorCode 
-		if ( result.getPapiErrorCode() != 0 )
+	private Mono<PAPIClient.PatronRegistrationCreateResult> validateCreatePatronResult(
+		PAPIClient.PatronRegistrationCreateResult result, Patron patron) {
+
+		final var errorCode = result.getPapiErrorCode();
+
+		// Perform a test on result.papiErrorCode
+		if (errorCode != 0) {
+			final var errorMessage = result.getErrorMessage();
+
 			return Mono.error(
 				Problem.builder()
-						.withType(ERR0211)
-						.withTitle("Unable to create virtual patron at polaris - errorcode:"+result.getPapiErrorCode())
-						.withDetail(result.getErrorMessage())
-						.build() );
+					.withType(ERR0211)
+					.withTitle("Unable to create virtual patron at polaris - error code: %d"
+						.formatted(errorCode))
+					.withDetail(errorMessage)
+					.with("patron", patron)
+					.with("errorCode", errorCode)
+					.with("errorMessage", errorMessage)
+					.build());
+		}
 
 		return Mono.just(result);
 	}
@@ -458,7 +468,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.flatMap(this::getPatronByLocalId);
 	}
 
-	public <T> Mono<HttpResponse<T>> exchange(MutableHttpRequest<?> request, Class<T> returnClass) {
+	<T> Mono<HttpResponse<T>> exchange(MutableHttpRequest<?> request, Class<T> returnClass) {
 		return Mono.from(client.exchange(request, returnClass));
 	}
 
@@ -493,7 +503,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return Function.identity();
 	}
 
-	public <T> Mono<MutableHttpRequest<?>> createRequest(HttpMethod method, String path) {
+	<T> Mono<MutableHttpRequest<?>> createRequest(HttpMethod method, String path) {
 		return Mono.just(UriBuilder.of(path).build())
 			.map(this::resolve)
 			.map(resolvedUri -> HttpRequest.<T>create(method, resolvedUri.toString()).accept(APPLICATION_JSON));

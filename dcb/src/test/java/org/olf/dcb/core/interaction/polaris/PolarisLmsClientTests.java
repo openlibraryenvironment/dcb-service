@@ -6,6 +6,8 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -33,6 +35,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.ThrowableProblemMatchers.hasParameters;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasTextResponseBodyParameter;
@@ -49,6 +52,7 @@ import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronIdentity;
@@ -349,7 +353,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void createPatron() {
+	public void shouldCreateVirtualPatron() {
 		// Arrange
 		final var localItemId = "3512742";
 
@@ -373,6 +377,41 @@ public class PolarisLmsClientTests {
 		// Assert
 		assertThat(response, is(notNullValue()));
 		assertThat(response, is("1255217"));
+	}
+
+	@Test
+	public void shouldFailWhenCreatingVirtualPatronReturnsNonZeroErrorCode() {
+		// Arrange
+		final var localItemId = "3512742";
+
+		mockPolarisFixture.mockGetItem(localItemId);
+		mockPolarisFixture.mockCreatePatron(PatronRegistrationCreateResult.builder()
+			.papiErrorCode(-3505)
+			.errorMessage("Duplicate barcode")
+			.build());
+
+		final var patron = Patron.builder()
+			.uniqueIds(List.of("dcb_unique_Id"))
+			.localPatronType("1")
+			.localHomeLibraryCode("39")
+			.localBarcodes(List.of("0088888888"))
+			.localItemId(localItemId)
+			.build();
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> singleValueFrom(client.createPatron(patron)));
+
+		// Assert
+		assertThat(problem, allOf(
+			notNullValue(),
+			hasMessage("Unable to create virtual patron at polaris - error code: -3505: Duplicate barcode"),
+			hasParameters(hasEntry(equalTo("patron"), is(notNullValue()))),
+			hasParameters(hasEntry(equalTo("errorCode"), is(-3505))),
+			hasParameters(hasEntry(equalTo("errorMessage"), is("Duplicate barcode")))
+		));
 	}
 
 	@Test

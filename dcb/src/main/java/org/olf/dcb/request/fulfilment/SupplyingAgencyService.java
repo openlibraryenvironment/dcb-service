@@ -165,7 +165,8 @@ public class SupplyingAgencyService {
 		final var patron = patronRequest.getPatron();
 
 		final var homeIdentity = patron.getHomeIdentity()
-			.orElseThrow(() -> new NoHomeIdentityException(patron.getId()));
+			.orElseThrow(() -> new NoHomeIdentityException(patron.getId(),
+				patron.getPatronIdentities()));
 
 		String note = "Consortial Hold. tno=" + patronRequest.getId();
 

@@ -90,7 +90,7 @@ public class Patron {
 
 				return identity.getLocalId() + "@" + identity.getResolvedAgency().getCode();
 			})
-			.orElseThrow(() -> new NoHomeIdentityException(id));
+			.orElseThrow(() -> new NoHomeIdentityException(id, patronIdentities));
 	}
 
 	@Transient

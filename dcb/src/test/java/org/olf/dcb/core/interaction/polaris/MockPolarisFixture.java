@@ -39,7 +39,15 @@ public class MockPolarisFixture {
 	}
 
 	public void mockCreatePatron() {
-		mock("POST", "/PAPIService/REST/public/v1/1033/100/1/patron", "create-patron.json");
+		mock("POST", "/PAPIService/REST/public/v1/1033/100/1/patron",
+			"create-patron.json");
+	}
+
+	public void mockCreatePatron(PAPIClient.PatronRegistrationCreateResult response) {
+		mock("POST", "/PAPIService/REST/public/v1/1033/100/1/patron",
+			response()
+				.withStatusCode(200)
+				.withBody(json(response)));
 	}
 
 	public void mockUpdatePatron(String patronBarcode) {
