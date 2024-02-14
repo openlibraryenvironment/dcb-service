@@ -185,7 +185,7 @@ public class MockPolarisFixture {
 			"itemstatuses.json");
 	}
 
-	void mock(String method, String path, String jsonResourcePath) {
+	private void mock(String method, String path, String jsonResourcePath) {
 		mock(method, path, okJson(resourceLoader.getResource(jsonResourcePath)));
 	}
 

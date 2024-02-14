@@ -536,9 +536,9 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void createItem() {
+	public void shouldCreateVirtualItem() {
 		// Arrange
-		mockPolarisFixture.mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow*", "item-workflow-response.json");
+		mockPolarisFixture.mockStartWorkflow("item-workflow-response.json");
 		mockPolarisFixture.mockContinueWorkflow("0e4c9e68-785e-4a1e-9417-f9bd245cc147",
 			"create-item-resp.json");
 
