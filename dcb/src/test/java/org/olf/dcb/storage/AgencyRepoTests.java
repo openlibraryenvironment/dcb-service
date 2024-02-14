@@ -6,14 +6,17 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.RecordCountSummary;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
+import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.test.DcbTest;
 
 import io.micronaut.http.client.HttpClient;
@@ -34,6 +37,9 @@ class AgencyRepoTests {
 
 	@Inject
 	HostLmsRepository hostLmsRepository;
+
+	@Inject
+	BibRepository bibRepository;
 
 	@BeforeEach
 	void beforeEach() {
@@ -70,5 +76,14 @@ class AgencyRepoTests {
                                 .block();
 
         	assertThat(fetchedAgencyRecords.size(), is(1));
+	}
+
+	@Test
+	void testBibRepoCount() {
+		final List<RecordCountSummary> summaryReport = Flux.from(bibRepository.getIngestReport())
+			.collectList()
+			.block();
+
+		assertThat(summaryReport.size(), is(2));
 	}
 }

@@ -3,6 +3,7 @@ package org.olf.dcb.storage;
 import java.util.Collection;
 import java.util.UUID;
 
+import org.olf.dcb.core.model.RecordCountSummary;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.reactivestreams.Publisher;
@@ -103,4 +104,6 @@ public interface BibRepository {
 			@Nullable String clusterreason, String sourcesystem) {
 	};
 
+	@Query(value = "select a.id as source_system_id, a.name as source_system_name, sq.total as record_count from ( select source_system_id id, count(*) total from bib_record group by source_system_id ) sq, host_lms a where sq.id = a.id", nativeQuery = true)
+  public Publisher<RecordCountSummary> getIngestReport();
 }
