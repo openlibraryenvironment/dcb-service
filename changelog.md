@@ -1,9 +1,29 @@
 # Changelog
 
+## Version 5.5.2
+
+### Changes
+* [Chore]
+	* Add a get record count report method to the BibRepository in preparation for API endpoint that reports bib record count per source system
+	* Minor refactor of HandleSupplierInTransit to allow for onError to report problems setting transit on downstream systems
+	* Defensive code around nulls in audit data
+* [Refactor]
+	* use exception for multiple virtual patrons found
+* [Test]
+	* Demonstrate failure when creating virtual item in Polaris DCB-855
+	* Use specific start workflow mock when creating item in Polaris DCB-855
+	* Verify when a patron search happens in Polaris DCB-871
+
+### Fixes
+* [General]
+	* ensure empty mono emmits patronNotFound exception
+	* Unable to create virtual patron at polaris - errorcode:-3505: Duplicate barcode
+
 ## Version 5.5.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* correct tracker refdata tests
 	* Include patron as audit data when virtual patron creation in Polaris fails
 	* Make HTTP request related methods in Polaris client package-private DCB-855
