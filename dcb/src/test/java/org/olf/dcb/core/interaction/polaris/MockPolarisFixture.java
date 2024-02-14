@@ -141,6 +141,13 @@ public class MockPolarisFixture {
 			"successful-place-request.json");
 	}
 
+	public void mockPlaceHold(HoldRequestResponse response) {
+		mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds*",
+			response()
+				.withStatusCode(200)
+				.withBody(json(response)));
+	}
+
 	public void mockGetHold(String holdId) {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/" + holdId,
 			"get-hold.json");

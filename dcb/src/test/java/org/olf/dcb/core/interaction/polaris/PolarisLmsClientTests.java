@@ -55,6 +55,7 @@ import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
+import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronIdentity;
@@ -334,6 +335,40 @@ public class PolarisLmsClientTests {
 		// Assert
 		assertThat(localRequest, hasLocalId("2977175"));
 		assertThat(localRequest, hasLocalStatus("In Processing"));
+	}
+
+	@Test
+	public void shouldFailToPlaceRequestAtSupplyingAgencyWhenCreatingTheHoldRequestFails() {
+		// Arrange
+		final var itemId = "12345";
+
+		mockPolarisFixture.mockGetItem(itemId);
+		mockPolarisFixture.mockGetBib("1106339");
+		mockPolarisFixture.mockPlaceHold(HoldRequestResponse.builder()
+			.success(false)
+			.message("placing hold failed")
+			.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var exception = assertThrows(HoldRequestException.class,
+			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+				PlaceHoldRequestParameters.builder()
+					.localPatronId("1")
+					.localBibId(null)
+					.localItemId(itemId)
+					.pickupLocation("5324532")
+					.note("No special note")
+					.patronRequestId(randomUUID().toString())
+					.build()
+			)));
+
+		// Assert
+		assertThat(exception, allOf(
+			notNullValue(),
+			hasMessage("placing hold failed")
+		));
 	}
 
 	@Test
