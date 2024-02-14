@@ -26,9 +26,6 @@ import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.micronaut.core.type.Argument;
@@ -40,16 +37,18 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 class PAPIAuthFilter {
-	static final Logger log = LoggerFactory.getLogger(PAPIAuthFilter.class);
 	private AuthToken currentToken;
 	private PatronAuthToken patronAuthToken;
 	private final PolarisLmsClient client;
 	private final Map<String, Object> conf;
 	private final String URI_PARAMETERS;
-	private Boolean overridemethod;
+	private Boolean overrideMethod;
+
 	PAPIAuthFilter(PolarisLmsClient client) {
 		this.client = client;
 		this.conf = client.getConfig();
@@ -57,15 +56,16 @@ class PAPIAuthFilter {
 	}
 
 	Mono<MutableHttpRequest<?>> ensureStaffAuth(MutableHttpRequest<?> request) {
+		overrideMethod = FALSE;
 
-		overridemethod = FALSE;
 		return staffAuthentication(request, FALSE);
 	}
 
 	Mono<MutableHttpRequest<?>> ensurePatronAuth(MutableHttpRequest<?> request,
 		PAPIClient.PatronCredentials patronCredentials, Boolean override) {
 
-		overridemethod = override;
+		overrideMethod = override;
+
 		return patronAuthentication(request, patronCredentials, override);
 	}
 
@@ -82,7 +82,8 @@ class PAPIAuthFilter {
 			String password = (String) conf.get(STAFF_PASSWORD);
 
 			return createStaffAuthRequest(domain, username, password)
-				.flatMap(req -> client.retrieve(req, Argument.of(AuthToken.class), noExtraErrorHandling()));
+				.flatMap(req -> client.retrieve(req, Argument.of(AuthToken.class),
+					noExtraErrorHandling()));
 		});
 	}
 
@@ -90,12 +91,12 @@ class PAPIAuthFilter {
 		PAPIClient.PatronCredentials patronCredentials, Boolean override) {
 
 		if (override) {
-			//log.debug("staffAuthentication with public method: {}", request.getPath());
 			return staffAuthentication(request, TRUE);
 		}
 
 		if (patronCredentials.getBarcode() == null || patronCredentials.getPassword() == null) {
 			log.debug("patronAuthentication with empty credentials: {}", request.getPath());
+
 			return Mono.just(authorization(request));
 		}
 
@@ -110,26 +111,38 @@ class PAPIAuthFilter {
 			.flatMap(response -> Mono.justOrEmpty(response.getBody())));
 	}
 
-	private MutableHttpRequest<?> createStaffRequest(MutableHttpRequest<?> request, AuthToken authToken,
-		Boolean publicMethod) {
-		String token = authToken.getAccessToken();
+	private MutableHttpRequest<?> createStaffRequest(MutableHttpRequest<?> request,
+		AuthToken authToken, Boolean publicMethod) {
+
+		final var token = authToken.getAccessToken();
 
 		// guard clause: we do not need to add the auth token to the request path on public methods
 		if (publicMethod) return request.header("X-PAPI-AccessToken", token);
 
-		String path = request.getPath().replace(URI_PARAMETERS, URI_PARAMETERS + "/" + token);
+		final var path = request.getPath().replace(URI_PARAMETERS, URI_PARAMETERS + "/" + token);
+
 		return request.uri(uriBuilder -> uriBuilder.replacePath(path));
 	}
 
-	private Mono<MutableHttpRequest<?>> createStaffAuthRequest(String domain, String username, String password) {
-		String staffAuthUri = "/PAPIService/REST/protected" + URI_PARAMETERS + "/authenticator/staff";
-		return createAuthRequest(staffAuthUri, StaffCredentials
-			.builder().Domain(domain).Username(username).Password(password).build())
+	private Mono<MutableHttpRequest<?>> createStaffAuthRequest(String domain,
+		String username, String password) {
+
+		final var staffAuthUri = "/PAPIService/REST/protected" + URI_PARAMETERS + "/authenticator/staff";
+
+		return createAuthRequest(staffAuthUri,
+			StaffCredentials.builder()
+				.Domain(domain)
+				.Username(username)
+				.Password(password)
+				.build())
 			.map(this::authorization);
 	}
 
-	private Mono<MutableHttpRequest<?>> createPatronAuthRequest(PAPIClient.PatronCredentials patronCredentials) {
-		String patronAuthUri = "/PAPIService/REST/public" + URI_PARAMETERS + "/authenticator/patron";
+	private Mono<MutableHttpRequest<?>> createPatronAuthRequest(
+		PAPIClient.PatronCredentials patronCredentials) {
+
+		final var patronAuthUri = "/PAPIService/REST/public" + URI_PARAMETERS + "/authenticator/patron";
+
 		return createAuthRequest(patronAuthUri, patronCredentials).map(this::authorization);
 	}
 
@@ -141,24 +154,23 @@ class PAPIAuthFilter {
 	}
 
 	private MutableHttpRequest<?> authorization(MutableHttpRequest<?> request) {
-		String id = (String) conf.get(ACCESS_ID);
-		String key = (String) conf.get(ACCESS_KEY);
-		String method = request.getMethod().name();
-		String path = request.getUri().toString();
-		String date = generateFormattedDate();
-		String accessSecret = getAccessSecret(request);
+		final var id = (String) conf.get(ACCESS_ID);
+		final var key = (String) conf.get(ACCESS_KEY);
+		final var method = request.getMethod().name();
+		final var path = request.getUri().toString();
+		final var date = generateFormattedDate();
+		final var accessSecret = getAccessSecret(request);
 
-		String signature = calculateApiSignature(key, method, path, date, accessSecret);
-		String token = "PWS " + id + ":" + signature;
+		final var signature = calculateApiSignature(key, method, path, date, accessSecret);
+		final var token = "PWS " + id + ":" + signature;
 
 		return request.header(HttpHeaders.AUTHORIZATION, token).header("PolarisDate", date);
 	}
 
 	private String getAccessSecret(MutableHttpRequest<?> request) {
-		String path = request.getPath();
+		final var path = request.getPath();
 
-		if (overridemethod) {
-			//log.debug("overriding public api sig with staff secret: {}", path);
+		if (overrideMethod) {
 			return Optional.ofNullable(currentToken)
 				.map(AuthToken::getAccessSecret)
 				.orElse("");
@@ -186,17 +198,20 @@ class PAPIAuthFilter {
 		}
 	}
 
-	private String calculateApiSignature(String accessKey, String method, String path, String date, String password) {
+	private String calculateApiSignature(String accessKey, String method,
+		String path, String date, String password) {
+
 		try {
-			Mac mac = Mac.getInstance(HMAC_SHA1_ALGORITHM);
-			byte[] secretBytes = accessKey.getBytes();
-			SecretKeySpec signingKey = new SecretKeySpec(secretBytes, HMAC_SHA1_ALGORITHM);
+			final var mac = Mac.getInstance(HMAC_SHA1_ALGORITHM);
+			final var secretBytes = accessKey.getBytes();
+			final var signingKey = new SecretKeySpec(secretBytes, HMAC_SHA1_ALGORITHM);
+
 			mac.init(signingKey);
 
-			String data = method + path + date + (password != null && !password.isEmpty() ? password : "");
-//			log.debug("Data to hash: {}", data);
+			final var data = method + path + date + (password != null && !password.isEmpty() ? password : "");
 
-			byte[] rawHmac = mac.doFinal(data.getBytes());
+			final var rawHmac = mac.doFinal(data.getBytes());
+
 			return Base64.getEncoder().encodeToString(rawHmac);
 		} catch (Exception e) {
 			// Handle any exceptions that might occur during the calculation
