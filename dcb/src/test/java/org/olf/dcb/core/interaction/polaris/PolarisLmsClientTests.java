@@ -117,7 +117,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void getItemsByBibIdTest() {
+	void shouldBeAbleToGetItemsByBibId() {
 		// Arrange
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			"polaris-hostlms-tests", "15", "345test");
@@ -166,7 +166,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void patronAuth() {
+	void shouldBeAbleToAuthenticatePatron() {
 		// Arrange
 		mockPolarisFixture.mockPatronAuthentication();
 		mockPolarisFixture.mockGetPatronByBarcode("3100222227777");
@@ -373,7 +373,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void getRequest() {
+	void shouldBeAbleToFindExistingRequest() {
 		// Arrange
 		mockPolarisFixture.mockGetHold("2977175");
 
@@ -391,7 +391,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void shouldCreateVirtualPatron() {
+	void shouldBeAbleToCreateVirtualPatron() {
 		// Arrange
 		final var localItemId = "3512742";
 
@@ -453,7 +453,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void updatePatron() {
+	void shouldBeAbleToUpdateAnExistingPatron() {
 		// Arrange
 		final var localPatronId = "1255193";
 
@@ -475,7 +475,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void checkOutItemToPatron() {
+	void shouldBeAbleToCheckOutAnItemToPatron() {
 		// Arrange
 		final var localItemId = "2273395";
 		final var localPatronBarcode = "0077777777";
@@ -495,7 +495,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void getPatronByLocalId() {
+	void shouldBeAbleToFindPatronById() {
 		// Arrange
 		final var localPatronId = "1255193";
 
@@ -555,7 +555,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void deleteBib() {
+	void shouldBeAbleToDeleteBib() {
 		// Arrange
 		final var localBibId = "3214809";
 		mockPolarisFixture.mockStartWorkflow("continue-bib-delete.json");
@@ -574,7 +574,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void shouldCreateVirtualItem() {
+	void shouldBeAbleToCreateVirtualItem() {
 		// Arrange
 		mockPolarisFixture.mockStartWorkflow("item-workflow-response.json");
 		mockPolarisFixture.mockContinueWorkflow("0e4c9e68-785e-4a1e-9417-f9bd245cc147",
@@ -672,7 +672,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void deleteItem() {
+	void shouldBeAbleToDeleteAnExistingItem() {
 		// Arrange
 		final var localItemId = "3512742";
 
@@ -692,7 +692,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void updateItemStatus() {
+	void ShouldBeAbleToUpdateStatusOfAnExistingItem() {
 		// Arrange
 		final var localItemId = "3512742";
 
