@@ -79,6 +79,13 @@ public class MockPolarisFixture {
 			"get-patron-by-local-id.json");
 	}
 
+	public void mockGetPatronServerErrorResponse(String patronId) {
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/" + patronId,
+			response()
+				.withStatusCode(500)
+				.withBody("Something went wrong"));
+	}
+
 	public void mockGetPatronByBarcode(String barcode) {
 		mock("GET", "/PAPIService/REST/public/v1/1033/100/1/patron/" + barcode, "patron-by-barcode.json");
 	}

@@ -13,8 +13,10 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.*;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ERR0210;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.HoldRequestResponse;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.InformationMessage;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ItemCreateResponse;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
@@ -68,6 +70,7 @@ import org.olf.dcb.test.matchers.ItemMatchers;
 import org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers;
 import org.zalando.problem.ThrowableProblem;
 
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -512,6 +515,26 @@ class PolarisLmsClientTests {
 		assertThat(response.getLocalPatronType(), is("3"));
 		assertThat(response.getLocalBarcodes(), is(List.of("0077777777")));
 		assertThat(response.getLocalHomeLibraryCode(), is("39"));
+	}
+
+	@Test
+	void shouldFailToFindPatronByIdWhenServerErrorResponseIsReturned() {
+		// Arrange
+		final var localPatronId = "6483613";
+
+		mockPolarisFixture.mockGetPatronServerErrorResponse(localPatronId);
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> singleValueFrom(client.getPatronByLocalId(localPatronId)));
+
+		// Assert
+		assertThat(exception, allOf(
+			is(notNullValue()),
+			hasMessage("Internal Server Error")
+		));
 	}
 
 	@Test
