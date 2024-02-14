@@ -41,6 +41,8 @@ import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
 import static org.olf.dcb.test.matchers.ThrowableProblemMatchers.hasParameters;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestBodyParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasTextResponseBodyParameter;
 
@@ -70,7 +72,6 @@ import org.olf.dcb.test.matchers.ItemMatchers;
 import org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers;
 import org.zalando.problem.ThrowableProblem;
 
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -527,13 +528,17 @@ class PolarisLmsClientTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var exception = assertThrows(HttpClientResponseException.class,
+		final var exception = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(client.getPatronByLocalId(localPatronId)));
 
 		// Assert
 		assertThat(exception, allOf(
-			is(notNullValue()),
-			hasMessage("Internal Server Error")
+			notNullValue(),
+			hasMessageForHostLms(HOST_LMS_CODE),
+			hasResponseStatusCodeParameter(500),
+			hasTextResponseBodyParameter("Something went wrong"),
+			hasRequestMethodParameter("GET"),
+			hasRequestBodyParameter(is("No body"))
 		));
 	}
 
