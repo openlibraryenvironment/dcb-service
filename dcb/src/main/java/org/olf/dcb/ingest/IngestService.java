@@ -2,14 +2,15 @@ package org.olf.dcb.ingest;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collections;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+import org.olf.dcb.core.AppState;
+import org.olf.dcb.core.AppState.AppStatus;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.core.svc.RecordClusteringService;
 import org.olf.dcb.ingest.model.IngestRecord;
-import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,10 +29,8 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.micronaut.PublisherTransformationService;
+import services.k_int.micronaut.concurrency.ConcurrencyGroupService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
-
-import org.olf.dcb.core.AppState;
-import org.olf.dcb.core.AppState.AppStatus;
 
 //@Refreshable
 @Singleton
@@ -40,6 +39,8 @@ public class IngestService implements Runnable {
 
 	public static final String TRANSFORMATIONS_RECORDS = "ingest-records";
 	public static final String TRANSFORMATIONS_BIBS = "ingest-bibs";
+	
+	private static final int INGEST_PASS_RECORDS_MAX = 100000;
 
 	private Disposable mutex = null;
 	private Instant lastRun = null;
@@ -54,6 +55,7 @@ public class IngestService implements Runnable {
 	private final HazelcastInstance hazelcastInstance;
 	private FencedLock lock;
   private final AppState appState;
+  private final ConcurrencyGroupService concurrency;
 
 	IngestService(BibRecordService bibRecordService, 
 		List<IngestSourcesProvider> sourceProviders, 
@@ -61,7 +63,7 @@ public class IngestService implements Runnable {
 		RecordClusteringService recordClusteringService, 
 		HazelcastInstance hazelcastInstance,
 		ConversionService conversionService,
-		AppState appState) {
+		AppState appState, ConcurrencyGroupService concurrencyGroupService) {
 
 		this.bibRecordService = bibRecordService;
 		this.sourceProviders = sourceProviders;
@@ -69,6 +71,7 @@ public class IngestService implements Runnable {
 		this.recordClusteringService = recordClusteringService;
 		this.hazelcastInstance = hazelcastInstance;
 		this.appState = appState;
+		this.concurrency = concurrencyGroupService;
 	}
 
 
@@ -89,42 +92,48 @@ public class IngestService implements Runnable {
 			log.info("Mutex now set to {}", me.mutex);
 		};
 	}
+	
+	private Flux<IngestRecord> getRecordsFromSource( IngestSource ingestSource ) {
+		return Flux.just( ingestSource )
+			.doOnNext(ingestRecordPublisher -> log.debug("returning record publisher: {}", ingestRecordPublisher.toString()))
+			
+			.flatMap( source -> source.apply(null) ) // Always pass (instead of lastRun) in null now as the last run is no longer a full run.
+			.limitRate( INGEST_PASS_RECORDS_MAX / 10, 0 )
+			.onErrorResume( t -> {
+				log.error( "Error ingesting data {}", t.getMessage() );
+				t.printStackTrace();
+				return Mono.empty();
+			});
+	}
 
 	// @Transactional
-	@ExecuteOn(TaskExecutors.IO)
+	@ExecuteOn(TaskExecutors.BLOCKING)
 	public Flux<BibRecord> getBibRecordStream() {
-		return Flux.merge(
-				Flux.fromIterable(sourceProviders)
-				.flatMap(provider -> provider.getIngestSources())
-				.filter(source -> {
-					if ( source.isEnabled() ) return true;
-					log.info ("Ingest from source: {} has been disabled in config", source.getName());
-
-					return false;
-				})
-				.map(source -> source.apply(lastRun))
-					.doOnNext(ingestRecordPublisher -> log.debug("returning record publisher: {}", ingestRecordPublisher.toString()))
-				.onErrorResume(t -> {
-					log.error("Error ingesting data {}", t.getMessage());
-					t.printStackTrace();
-					return Mono.empty();
-				}))
-
-				.limitRate(8000, 6000) // Prefetch
+		return Flux.fromIterable(sourceProviders)
+			.flatMap(provider -> provider.getIngestSources())
+			.filter(source -> {
+				if ( source.isEnabled() ) return true;
+				log.info ("Ingest from source: {} has been disabled in config", source.getName());
+	
+				return false;
+			})
+			
+			.transform( concurrency.toGroupedSubscription( this::getRecordsFromSource ) )
+			.take(INGEST_PASS_RECORDS_MAX, true) // Max number to import.
 //				.buffer(2000)
 //				.concatMap( items -> {
 //					Collections.reverse(items);
 //					return Flux.fromIterable(items).distinctUntilChanged( item -> item.getUuid().toString() );
 //				})
-				
-				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_RECORDS)) // Apply any hooks for "ingest-records"
-				
-				// Interleaved source stream from all source results.
-				// .concatMap(this::processSingleRecord)
-				.flatMap(this::processSingleRecord)
+		
+		.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_RECORDS)) // Apply any hooks for "ingest-records"
+		
+		// Interleaved source stream from all source results.
+		// .concatMap(this::processSingleRecord)
+		.flatMap(this::processSingleRecord)
 
-				.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_BIBS)) // Apply any hooks for "ingest-bibs";
-				.doOnError ( throwable -> log.warn("ONERROR Error after transform step", throwable) );
+		.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_BIBS)) // Apply any hooks for "ingest-bibs";
+		.doOnError ( throwable -> log.warn("ONERROR Error after transform step", throwable) );
 	}
 	
 
@@ -167,7 +176,7 @@ public class IngestService implements Runnable {
 	}
 
 	@Override
-	@Scheduled(initialDelay = "20s", fixedDelay = "${dcb.ingest.interval:2m}")
+	@Scheduled(initialDelay = "20s", fixedDelay = "${dcb.ingest.interval:1m}")
 	@AppTask
 	public void run() {
 
@@ -182,6 +191,11 @@ public class IngestService implements Runnable {
 			log.info("App is shuttuing down - not creating any new tasks");
 			return;
 		}
+
+		if (lastRun != null && ChronoUnit.MINUTES.between(lastRun, Instant.now()) < 2 ) {
+			log.info("At least 2 minutes must elapse between ingest runs. Skipping as last run was {}.", lastRun);
+			return;
+		}
 		
 		log.info("Scheduled Ingest");
 
@@ -191,11 +205,11 @@ public class IngestService implements Runnable {
 		this.mutex = getBibRecordStream()
 
 			// General handlers.
-			.doOnCancel(cleanUp(lastRun)) // Don't change the last run
+			.doOnCancel(cleanUp(Instant.now())) // Don't change the last run
 			.onErrorResume(t -> {
 				log.error("Error ingesting records {}", t.getMessage());
 				t.printStackTrace();
-				cleanUp(lastRun).run();
+				cleanUp(Instant.now()).run();
 
 				return Mono.empty();
 
@@ -218,7 +232,6 @@ public class IngestService implements Runnable {
 			})
 
 			.then(Mono.from( bibRecordService.cleanup() ))
-
 			.subscribe();
 	}
 }

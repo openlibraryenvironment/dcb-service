@@ -15,6 +15,8 @@ import java.util.function.Consumer;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.core.AppState;
+import org.olf.dcb.core.AppState.AppStatus;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
@@ -43,8 +45,6 @@ import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.json.tree.JsonNode;
-import jakarta.transaction.Transactional;
-import jakarta.transaction.Transactional.TxType;
 import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -56,11 +56,10 @@ import services.k_int.interaction.oaipmh.Response;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
-import org.olf.dcb.core.AppState;
-import org.olf.dcb.core.AppState.AppStatus;
-
 @Prototype
 public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
+	private static final String CONCURRENCY_GROUP_KEY = "folio-oai";
+	
 	private static final String CONFIG_API_KEY = "apikey";
 
 	private static final String CONFIG_METADATA_PREFIX = "metadata-prefix";
@@ -97,6 +96,10 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 
   private final AppState appState;
 
+  @Override
+  public String getConcurrencyGroupKey() {
+  	return CONCURRENCY_GROUP_KEY;
+  }
 
 	public FolioOaiPmhIngestSource(@Parameter("hostLms") HostLms hostLms, 
 		RawSourceRepository rawSourceRepository, 
@@ -189,7 +192,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 			var error = resp.error();
 			if (error != null) {
 				return switch( error.code() ) {
-					case noRecordsMatch -> Mono.empty();					
+					case noRecordsMatch -> Mono.empty();
 					case badResumptionToken -> {
 						final String message = error.detail() != null ? String.format("%s: %s", error.code(), error.detail()) : error.code().toString();
 						yield Mono.error(new OaiResumptionTokenError(message));
