@@ -73,7 +73,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
-public class PolarisLmsClientTests {
+class PolarisLmsClientTests {
 	private static final String HOST_LMS_CODE = "polaris-hostlms-tests";
 
 	@Inject
@@ -90,7 +90,7 @@ public class PolarisLmsClientTests {
 	private MockPolarisFixture mockPolarisFixture;
 
 	@BeforeAll
-	public void beforeAll(MockServerClient mockServerClient) {
+	void beforeAll(MockServerClient mockServerClient) {
 		this.mockServerClient = mockServerClient;
 
 		final String BASE_URL = "https://polaris-hostlms-tests.com";
@@ -109,7 +109,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@BeforeEach
-	public void beforeEach() {
+	void beforeEach() {
 		mockServerClient.reset();
 
 		mockPolarisFixture.mockPapiStaffAuthentication();
@@ -117,9 +117,10 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void getItemsByBibIdTest() {
+	void getItemsByBibIdTest() {
 		// Arrange
-		referenceValueMappingFixture.defineLocationToAgencyMapping( "polaris-hostlms-tests", "15", "345test");
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			"polaris-hostlms-tests", "15", "345test");
 
 		agencyFixture.defineAgency("345test", "Test College");
 
@@ -165,7 +166,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void patronAuth() {
+	void patronAuth() {
 		// Arrange
 		mockPolarisFixture.mockPatronAuthentication();
 		mockPolarisFixture.mockGetPatronByBarcode("3100222227777");
@@ -188,7 +189,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void shouldBeAbleToFindVirtualPatron() {
+	void shouldBeAbleToFindVirtualPatron() {
 		// Arrange
 		final var agencyCode = "known-agency";
 		final var localId = "1255193";
@@ -230,7 +231,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void shouldTolerateNotFoundResponseFromPatronBlocksWhenFindingVirtualPatron() {
+	void shouldTolerateNotFoundResponseFromPatronBlocksWhenFindingVirtualPatron() {
 		// Arrange
 		final var agencyCode = "known-agency";
 		final var localId = "1255193";
@@ -269,7 +270,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void shouldFailToFindVirtualPatronWhenPatronBlocksCannotBeFetched() {
+	void shouldFailToFindVirtualPatronWhenPatronBlocksCannotBeFetched() {
 		// Arrange
 		final var agencyCode = "known-agency";
 		final var localId = "1255193";
@@ -309,7 +310,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void shouldBeAbleToPlaceRequestAtSupplyingAgency() {
+	void shouldBeAbleToPlaceRequestAtSupplyingAgency() {
 		// Arrange
 		final var itemId = "12345";
 
@@ -338,7 +339,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void shouldFailToPlaceRequestAtSupplyingAgencyWhenCreatingTheHoldRequestFails() {
+	void shouldFailToPlaceRequestAtSupplyingAgencyWhenCreatingTheHoldFails() {
 		// Arrange
 		final var itemId = "12345";
 
@@ -372,7 +373,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void getRequest() {
+	void getRequest() {
 		// Arrange
 		mockPolarisFixture.mockGetHold("2977175");
 
@@ -390,7 +391,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void shouldCreateVirtualPatron() {
+	void shouldCreateVirtualPatron() {
 		// Arrange
 		final var localItemId = "3512742";
 
@@ -417,7 +418,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void shouldFailWhenCreatingVirtualPatronReturnsNonZeroErrorCode() {
+	void shouldFailWhenCreatingVirtualPatronReturnsNonZeroErrorCode() {
 		// Arrange
 		final var localItemId = "3512742";
 
@@ -452,7 +453,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void updatePatron() {
+	void updatePatron() {
 		// Arrange
 		final var localPatronId = "1255193";
 
@@ -474,7 +475,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void checkOutItemToPatron() {
+	void checkOutItemToPatron() {
 		// Arrange
 		final var localItemId = "2273395";
 		final var localPatronBarcode = "0077777777";
@@ -494,7 +495,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void getPatronByLocalId() {
+	void getPatronByLocalId() {
 		// Arrange
 		final var localPatronId = "1255193";
 
@@ -514,7 +515,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void shouldBeAbleToCreateBib() {
+	void shouldBeAbleToCreateBib() {
 		// Arrange
 		mockPolarisFixture.mockCreateBib();
 
@@ -532,7 +533,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void shouldFailWhenUnexpectedResponseReceivedDuringBibCreation() {
+	void shouldFailWhenUnexpectedResponseReceivedDuringBibCreation() {
 		// Arrange
 		mockPolarisFixture.mockCreateBibNotAuthorisedResponse();
 
@@ -554,7 +555,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void deleteBib() {
+	void deleteBib() {
 		// Arrange
 		final var localBibId = "3214809";
 		mockPolarisFixture.mockStartWorkflow("continue-bib-delete.json");
@@ -573,7 +574,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void shouldCreateVirtualItem() {
+	void shouldCreateVirtualItem() {
 		// Arrange
 		mockPolarisFixture.mockStartWorkflow("item-workflow-response.json");
 		mockPolarisFixture.mockContinueWorkflow("0e4c9e68-785e-4a1e-9417-f9bd245cc147",
@@ -597,7 +598,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void shouldFailToCreateVirtualItemIfStartingWorkflowRespondsWithMissingAnswer() {
+	void shouldFailToCreateVirtualItemIfStartingWorkflowRespondsWithMissingAnswer() {
 		// Arrange
 		mockPolarisFixture.mockStartWorkflow(
 			ItemCreateResponse.builder()
@@ -628,7 +629,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void shouldBeAbleToGetAnItemById() {
+	void shouldBeAbleToGetAnItemById() {
 		// Arrange
 		final var localItemId = "3512742";
 
@@ -650,7 +651,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void shouldFailToGetAnItemWhenUnexpectedResponseReceived() {
+	void shouldFailToGetAnItemWhenUnexpectedResponseReceived() {
 		// Arrange
 		final var localItemId = "628125";
 
@@ -671,7 +672,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void deleteItem() {
+	void deleteItem() {
 		// Arrange
 		final var localItemId = "3512742";
 
@@ -691,7 +692,7 @@ public class PolarisLmsClientTests {
 	}
 
 	@Test
-	public void updateItemStatus() {
+	void updateItemStatus() {
 		// Arrange
 		final var localItemId = "3512742";
 
@@ -712,7 +713,9 @@ public class PolarisLmsClientTests {
 		assertThat(string, is("OK"));
 	}
 
-	private void mockPatronSearchForGeneratedTerms(String localBarcode, String localId, String agencyCode) {
+	private void mockPatronSearchForGeneratedTerms(String localBarcode,
+		String localId, String agencyCode) {
+
 		// DCB uses a prefixed barcode as the firstMiddleLastName field
 		// DCB uses the ID of the requesting patron and the agency code as the lastFirstMiddleName field
 		mockPolarisFixture.mockPatronSearch("DCB-" + localBarcode, localId + "@" + agencyCode);
