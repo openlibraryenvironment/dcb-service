@@ -62,7 +62,7 @@ public class MockPolarisFixture {
 				.withMethod("GET")
 				.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/search/patrons/boolean*")
 				.withQueryStringParameter("q",
-					"PATNF=" + localBarcode + " AND PATNL=" + localId + "@" + agencyCode))
+					"PATNF=" + "DCB-" + localBarcode + " OR PATNL=" + localId + "@" + agencyCode))
 			.respond(okJson(resourceLoader.getResource("patron-search.json")));
 	}
 

@@ -6,23 +6,7 @@ import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpec
 import static org.olf.dcb.core.interaction.polaris.Direction.HOST_LMS_TO_POLARIS;
 import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
 import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.AVAILABLE;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.CLIENT_BASE_URL;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.MAX_BIBS;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_APP_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_LANG_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_ORG_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_VERSION;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_LANGUAGE;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_ORG_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_PRODUCT_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_SITE_DOMAIN;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_VERSION;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WORKSTATION_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.TRANSFERRED;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
@@ -285,13 +269,24 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		// Look up virtual patron using generated unique ID string
 		final var uniqueId = getValue(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
-		final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
-		return papiClient.patronSearch(barcode, uniqueId)
+		final var barcodeWithPrefix = getPatronBarcodeWithPrefix(patron);
+		log.debug("Using patron barcode: {} to search for virtual patron.", barcodeWithPrefix);
+
+		return papiClient.patronSearch(barcodeWithPrefix, uniqueId)
 			.map(PAPIClient.PatronSearchRow::getPatronID)
 			.flatMap(appServicesClient::handlePatronBlock)
 			.map(String::valueOf)
 			.flatMap(this::getPatronByLocalId);
+	}
+
+	private String getPatronBarcodeWithPrefix(org.olf.dcb.core.model.Patron patron) {
+		// we need to add the barcode prefix which is hostlms specific
+		final var patronBarcodePrefix = extractMapValueWithDefault(
+			getServicesConfig(), PATRON_BARCODE_PREFIX, String.class, "DCB-");
+		final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
+
+		return patronBarcodePrefix + barcode;
 	}
 
 	@Override

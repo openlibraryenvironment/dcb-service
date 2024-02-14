@@ -189,7 +189,7 @@ public class PAPIClient {
 
 	public Mono<PatronSearchRow> patronSearch(String barcode, String uniqueID) {
 		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
-		final var ccl = "PATNF=" + barcode + " AND PATNL=" + uniqueID;
+		final var ccl = "PATNF=" + barcode + " OR PATNL=" + uniqueID;
 
 		return makePatronSearchRequest(path, ccl);
 	}
