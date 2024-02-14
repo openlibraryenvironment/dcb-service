@@ -3,6 +3,7 @@ package org.olf.dcb.request.workflow;
 import java.util.Map;
 import java.util.Optional;
 
+
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.PatronRequest;
@@ -60,7 +61,8 @@ public class HandleSupplierInTransit implements WorkflowAction {
 				// This will cause st.setLocalStatus("TRANSIT") above to be saved and mean our local state is aligned with the supplier req
 				.flatMap(this::saveSupplierRequest)
 				.flatMap(this::updatePatronRequest)
-				.flatMap(ctx -> patronRequestAuditService.addAuditEntry(ctx, ctx.getPatronRequestStateOnEntry(), ctx.getPatronRequest().getStatus(), Optional.of("HandleSupplierInTransit"), null))
+				.flatMap(ctx -> patronRequestAuditService.addAuditEntry(ctx, ctx.getPatronRequestStateOnEntry(), ctx.getPatronRequest().getStatus(), Optional.of("HandleSupplierInTransit"), Optional.empty()))
+				// We need a DO_ON_ERROR here
 				.thenReturn(context);
 		}
 		else {

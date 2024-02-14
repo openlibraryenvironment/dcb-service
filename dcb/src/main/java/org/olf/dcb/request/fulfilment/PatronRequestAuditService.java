@@ -70,8 +70,11 @@ public class PatronRequestAuditService {
 			.patronRequest(patronRequest)
 			.auditDate(Instant.now())
 			.fromStatus(from)
-			.toStatus(to)
-			.auditData(auditData.orElse(null));
+			.toStatus(to);
+
+		if ( auditData != null ) {
+			builder.auditData(auditData.orElse(null));
+		}
 
 		message.ifPresent(value -> {
 			String trimmedValue = value.substring(0, Math.min(value.length(), 254));
