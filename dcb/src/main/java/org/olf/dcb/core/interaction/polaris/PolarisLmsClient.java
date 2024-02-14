@@ -455,14 +455,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.flatMap(this::getPatronByLocalId);
 	}
 
-	private Mono<Patron> patronFind(String uniqueID, String barcode) {
-		return papiClient.patronSearch(barcode, uniqueID)
-			.map(PAPIClient.PatronSearchRow::getPatronID)
-			.flatMap(appServicesClient::handlePatronBlock)
-			.map(String::valueOf)
-			.flatMap(this::getPatronByLocalId);
-	}
-
 	<T> Mono<HttpResponse<T>> exchange(MutableHttpRequest<?> request, Class<T> returnClass) {
 		return Mono.from(client.exchange(request, returnClass));
 	}
