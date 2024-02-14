@@ -22,7 +22,9 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
 import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
 import org.reactivestreams.Publisher;
 
@@ -206,9 +208,24 @@ public class PAPIClient {
 			.flatMap(authFilter::ensureStaffAuth)
 			.flatMap(request -> Mono.from(client.retrieve(request,
 				Argument.of(PatronSearchResult.class), noExtraErrorHandling())))
-			.filter(patronSearchResult -> patronSearchResult.getTotalRecordsFound() == 1)
-			.map(PatronSearchResult::getPatronSearchRows)
-			.map(patronSearchRows -> patronSearchRows.get(0));
+			.flatMap(patronSearchResult -> checkForUniquePatronResult(patronSearchResult));
+	}
+
+	private Mono<PatronSearchRow> checkForUniquePatronResult(PatronSearchResult patronSearchResult) {
+		final var recordsFound = patronSearchResult.getTotalRecordsFound();
+
+		if (recordsFound < 1) {
+			log.info("No Patron found, returning an empty mono to create a new patron.");
+			return Mono.empty();
+		}
+
+		if (recordsFound > 1) {
+			log.error(String.valueOf(patronSearchResult));
+			throw new FindVirtualPatronException(recordsFound + " records found for virtual patron.");
+		}
+
+		// Return the PatronSearchRow
+		return Mono.just(patronSearchResult.getPatronSearchRows().get(0));
 	}
 
 	public Mono<ItemGetRow> synch_ItemGet(String recordNumber) {
