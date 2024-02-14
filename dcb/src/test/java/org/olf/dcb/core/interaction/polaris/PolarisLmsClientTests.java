@@ -192,8 +192,7 @@ public class PolarisLmsClientTests {
 		final var localBarcode = "0077777777";
 		final var localPatronId = "1255217";
 
-		mockPolarisFixture.mockPatronSearch(localBarcode, localId, agencyCode);
-
+		mockPatronSearchForGeneratedTerms(localBarcode, localId, agencyCode);
 		mockPolarisFixture.mockGetPatron(localPatronId);
 		mockPolarisFixture.mockGetPatronBlocksSummary(localPatronId);
 
@@ -222,18 +221,20 @@ public class PolarisLmsClientTests {
 		assertThat(foundPatron.getLocalPatronType(), is("3"));
 		assertThat(foundPatron.getLocalBarcodes(), is(List.of(localBarcode)));
 		assertThat(foundPatron.getLocalHomeLibraryCode(), is("39"));
+
+		// DCB appends a prefix to the barcode used in the generated field for the virtual patron
+		mockPolarisFixture.verifyPatronSearch("DCB-" + localBarcode, localId + "@" + agencyCode);
 	}
 
 	@Test
-	public void shouldTolerateNotFoundResponseFromPatronBlocksWhenFindVirtualPatron() {
+	public void shouldTolerateNotFoundResponseFromPatronBlocksWhenFindingVirtualPatron() {
 		// Arrange
 		final var agencyCode = "known-agency";
 		final var localId = "1255193";
 		final var localBarcode = "0077777777";
 		final var localPatronId = "1255217";
 
-		mockPolarisFixture.mockPatronSearch(localBarcode, localId, agencyCode);
-
+		mockPatronSearchForGeneratedTerms(localBarcode, localId, agencyCode);
 		mockPolarisFixture.mockGetPatron(localPatronId);
 		mockPolarisFixture.mockGetPatronBlocksSummaryNotFoundResponse(localPatronId);
 
@@ -272,8 +273,7 @@ public class PolarisLmsClientTests {
 		final var localBarcode = "0077777777";
 		final var localPatronId = "1255217";
 
-		mockPolarisFixture.mockPatronSearch(localBarcode, localId, agencyCode);
-
+		mockPatronSearchForGeneratedTerms(localBarcode, localId, agencyCode);
 		mockPolarisFixture.mockGetPatron(localPatronId);
 		mockPolarisFixture.mockGetPatronBlocksSummaryServerErrorResponse(localPatronId);
 
@@ -642,5 +642,11 @@ public class PolarisLmsClientTests {
 		// Assert
 		assertThat(string, is(notNullValue()));
 		assertThat(string, is("OK"));
+	}
+
+	private void mockPatronSearchForGeneratedTerms(String localBarcode, String localId, String agencyCode) {
+		// DCB uses a prefixed barcode as the firstMiddleLastName field
+		// DCB uses the ID of the requesting patron and the agency code as the lastFirstMiddleName field
+		mockPolarisFixture.mockPatronSearch("DCB-" + localBarcode, localId + "@" + agencyCode);
 	}
 }
