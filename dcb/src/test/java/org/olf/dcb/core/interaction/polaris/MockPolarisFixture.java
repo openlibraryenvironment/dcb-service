@@ -6,6 +6,7 @@ import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.*;
 
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
@@ -168,6 +169,14 @@ public class MockPolarisFixture {
 	void mockStartWorkflow(String responsePath) {
 		mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow",
 			responsePath);
+	}
+
+	void mockStartWorkflow(ItemCreateResponse response) {
+		mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow",
+			response()
+				.withStatusCode(200)
+				.withBody(json(response)));
+
 	}
 
 	public void mockContinueWorkflow(String workflowId, String responsePath) {
