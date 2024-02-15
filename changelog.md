@@ -1,9 +1,41 @@
 # Changelog
 
+## Version 5.6.0
+
+### Additions
+* [General]
+	* Ingest terminator for graceful shutdown
+	* Handle unexpected responses from Polaris DCB-855
+	* concurrency groups
+
+### Changes
+* [Chore]
+	* Reduce duplication in property access utility methods DCB-855
+	* Include request path in unexpected response problem parameters DCB-855
+	* Add log message for when getting request defaults from Polaris fails DCB-855
+	* Remove unused patron find method in Polaris Host LMS client DCB-855
+	* Reformat PAPI auth filter DCB-855
+* [Feature]
+	* DCB-877 for sierra supplier use item location as pickup location
+	* Add localItemLocationCode to PlaceHoldRequestParameters - allows a supplying agency hold to use the current location of the item as a pickup location at the supplying library
+* [Refactor]
+	* added StringUtils methods for removing brackets
+* [Test]
+	* Check request URL included in unexpected response problem DCB-855
+	* Demonstrate failure when finding a patron in Polaris returns server error DCB-855
+	* Rename Polaris LMS Host test methods DCB-855
+	* Make methods in Polaris Host LMS client tests package-private DCB-855
+	* Demonstrate placing a hold in Polaris failing DCB-855
+
+### Fixes
+* [General]
+	* remove prefixing barcode when searching for patron, polaris
+
 ## Version 5.5.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add a get record count report method to the BibRepository in preparation for API endpoint that reports bib record count per source system
 	* Minor refactor of HandleSupplierInTransit to allow for onError to report problems setting transit on downstream systems
 	* Defensive code around nulls in audit data
