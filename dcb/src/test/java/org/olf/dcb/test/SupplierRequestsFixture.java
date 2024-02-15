@@ -31,14 +31,14 @@ public class SupplierRequestsFixture {
 
 	public void saveSupplierRequest(UUID supplierRequestId, PatronRequest patronRequest,
 		String localBibId, String localItemId, String localLocationCode, String localItemBarcode,
-		String hostLmsCode) {
+		String hostLmsCode, String supplyingLocalItemLocation) {
 
-		saveSupplierRequest(supplierRequestId,patronRequest,localBibId,localItemId,localLocationCode,localItemBarcode,hostLmsCode, Boolean.TRUE);
+		saveSupplierRequest(supplierRequestId,patronRequest,localBibId,localItemId,localLocationCode,localItemBarcode,hostLmsCode, Boolean.TRUE, supplyingLocalItemLocation);
 	}
 
 	public void saveSupplierRequest(UUID supplierRequestId, PatronRequest patronRequest,
 		String localBibId, String localItemId, String localLocationCode, String localItemBarcode,
-		String hostLmsCode, Boolean isActive) {
+		String hostLmsCode, Boolean isActive, String supplyingLocalItemLocation) {
 
 		saveSupplierRequest(
 			SupplierRequest
@@ -51,6 +51,7 @@ public class SupplierRequestsFixture {
 				.localItemBarcode(localItemBarcode)
 				.hostLmsCode(hostLmsCode)
 				.isActive(isActive)
+				.localItemLocationCode(supplyingLocalItemLocation)
 				.build());
 	}
 
