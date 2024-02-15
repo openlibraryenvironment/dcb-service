@@ -189,6 +189,9 @@ public class SupplyingAgencyService {
 					.pickupAgency(context.getPickupAgency())
 					.note(note)
 					.patronRequestId(patronRequest.getId().toString())
+					// It is common in III systems to want the pickup location at the supplying library
+					// to be set to the location where the item currently resides.
+					.supplyingLocalItemLocation(supplierRequest.getLocalItemLocationCode())
 					.build()));
 	}
 

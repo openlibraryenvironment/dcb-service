@@ -23,5 +23,5 @@ public class PlaceHoldRequestParameters {
 	String supplyingAgencyCode;
 	String supplyingLocalItemId;
 	String supplyingLocalItemBarcode;
-
+	String supplyingLocalItemLocation;
 }
