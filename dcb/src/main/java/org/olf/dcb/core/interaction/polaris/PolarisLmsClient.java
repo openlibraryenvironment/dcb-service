@@ -6,7 +6,23 @@ import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpec
 import static org.olf.dcb.core.interaction.polaris.Direction.HOST_LMS_TO_POLARIS;
 import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
 import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.AVAILABLE;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.CLIENT_BASE_URL;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.MAX_BIBS;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_APP_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_LANG_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_ORG_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_VERSION;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_LANGUAGE;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_ORG_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_PRODUCT_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_SITE_DOMAIN;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_VERSION;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WORKSTATION_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.TRANSFERRED;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
 import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
@@ -24,7 +40,6 @@ import java.util.stream.Collectors;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
-import org.olf.dcb.core.AppState;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
@@ -37,7 +52,10 @@ import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
-import org.olf.dcb.core.interaction.shared.*;
+import org.olf.dcb.core.interaction.shared.NoNumericRangeMappingFoundException;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
+import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
+import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
@@ -104,8 +122,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,
 		ProcessStateService processStateService, RawSourceRepository rawSourceRepository,
 		ConversionService conversionService, ReferenceValueMappingService referenceValueMappingService,
-		NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper,
-		AppState appState) {
+		NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper) {
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
@@ -115,7 +132,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.appServicesClient = new ApplicationServicesClient(this);
 		this.papiClient = new PAPIClient(this);
 		this.itemMapper = itemMapper;
-		this.ingestHelper = new IngestHelper(this, hostLms, processStateService, appState);
+		this.ingestHelper = new IngestHelper(this, hostLms, processStateService);
 		this.processStateService = processStateService;
 		this.rawSourceRepository = rawSourceRepository;
 		this.conversionService = conversionService;
@@ -551,7 +568,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Publisher<BibsPagedRow> getResources(Instant since) {
+	public Publisher<BibsPagedRow> getResources(Instant since, Publisher<String> terminator) {
 		log.info("Fetching MARC JSON from Polaris for {}", lms.getName());
 
 		final Map<String, Object> conf = lms.getClientConfig();
@@ -561,7 +578,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			pageSize = 100;
 		}
 
-		return Flux.from( ingestHelper.pageAllResults(pageSize) )
+		return Flux.from( ingestHelper.pageAllResults(pageSize, terminator) )
 			.filter(bibsPagedRow -> bibsPagedRow.getBibliographicRecordXML() != null)
 			.onErrorResume(t -> {
 				log.error("Error ingesting data {}", t.getMessage());

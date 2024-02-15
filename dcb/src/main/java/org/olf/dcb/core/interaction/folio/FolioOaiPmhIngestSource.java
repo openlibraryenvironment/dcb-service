@@ -15,8 +15,6 @@ import java.util.function.Consumer;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
-import org.olf.dcb.core.AppState;
-import org.olf.dcb.core.AppState.AppStatus;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
@@ -94,8 +92,6 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 
 	private final ProcessStateService processStateService;
 
-  private final AppState appState;
-
   @Override
   public String getConcurrencyGroupKey() {
   	return CONCURRENCY_GROUP_KEY;
@@ -105,13 +101,11 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		RawSourceRepository rawSourceRepository, 
 		HttpClient client, 
 		ConversionService conversionService, 
-		ProcessStateService processStateService,
-		AppState appState) {
+		ProcessStateService processStateService) {
 
 		this.lms = hostLms;
 		this.rawSourceRepository = rawSourceRepository;
 		this.client = client;
-		this.appState = appState;
 		
 		rootUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
 		
@@ -170,8 +164,8 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	}
 
 	@Override
-	public Publisher<OaiRecord> getResources(Instant since) {
-		return Flux.from(pageAllResults())
+	public Publisher<OaiRecord> getResources(Instant since, Publisher<String> terminator) {
+		return Flux.from(pageAllResults(terminator))
 			.filter(rec -> Optional.ofNullable(rec)
 				.map(OaiRecord::metadata)
 				.map(Metadata::record)
@@ -251,7 +245,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		.doOnSubscribe(_s -> log.info("Fetching batch from Folio OAI PMH {} with since={} resumptionToken={}", lms.getName(), since, resumptionToken));
 	}
 	
-	private Publisher<OaiRecord> pageAllResults() {
+	private Publisher<OaiRecord> pageAllResults(Publisher<String> terminator) {
 
 		return Mono.from( getInitialState(lms.getId(), "ingest") )
 			.map(state -> state.toBuilder().build())
@@ -301,17 +295,15 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 					state.storred_state.put("resumptionToken", resumptionToken);
 				}
 
-        // If the app is in a state of shutting down, then don't get another page of data.. bail!
-        if ( appState.getRunStatus() != AppStatus.RUNNING ) {
-          log.info("Detected app shutdown - ejecting from collect sequence {}",lms.getName());
-          return Mono.empty();
-        }
-
 				log.info("fetching next page of FOLIO OAI data {}",state);
 
 				return Mono.just(state.toBuilder().build())
 					.zipWhen(updatedState -> fetchPage(updatedState.since, MapUtils.getAsOptionalString(updatedState.storred_state, "resumptionToken")));
 			}))
+
+			.takeUntilOther( Mono.from(terminator)
+				.doOnNext( reason -> log.info("Ejecting from collect sequence. Reason: {}", reason) ))
+			
 			.concatMap(TupleUtils.function((state, response) -> {
 				
 

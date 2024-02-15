@@ -260,7 +260,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	@Override
-	public Publisher<IngestRecord> apply(@Nullable Instant changedSince) {
+	public Publisher<IngestRecord> apply(@Nullable Instant changedSince, Publisher<String> terminator) {
 
 		int pageSize = 100;
 		return getInitialState(lms.getId(), "ingest")
@@ -293,7 +293,12 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 					// another page.
 					return Mono.just(state.toBuilder().build()) // toBuilder().build() should copy the object.
 							.zipWhen(updatedState -> fetchPage(updatedState, pageSize));
-				})).concatMap(TupleUtils.function((state, page) -> {
+				}))
+				
+				.takeUntilOther( Mono.from(terminator)
+					.doOnNext( reason -> log.info("Ejecting from collect sequence. Reason: {}", reason) ))
+				
+				.concatMap(TupleUtils.function((state, page) -> {
 					return Flux.fromIterable(page)
 							// Concatenate with the state so we can propagate signals from the save
 							// operation.

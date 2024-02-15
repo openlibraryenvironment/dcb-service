@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
@@ -19,7 +19,7 @@ import io.micronaut.core.util.Toggleable;
 import io.micronaut.transaction.annotation.Transactional;
 import services.k_int.micronaut.concurrency.ConcurrencyGroupAware;
 
-public interface IngestSource extends Function<Instant, Publisher<IngestRecord>>, Toggleable, Named, ConcurrencyGroupAware {
+public interface IngestSource extends BiFunction<Instant, Publisher<String>, Publisher<IngestRecord>>, Toggleable, Named, ConcurrencyGroupAware {
 
 	public static final int DEFAULT_PAGE_SIZE = 1000;
 
@@ -32,7 +32,7 @@ public interface IngestSource extends Function<Instant, Publisher<IngestRecord>>
 	 * @return A Publisher of IngestRecords
 	 */
 	@Override
-	Publisher<IngestRecord> apply(@Nullable Instant changedSince);
+	Publisher<IngestRecord> apply(@Nullable Instant changedSince, Publisher<String> stopSignal);
 
 	Publisher<ConfigurationRecord> getConfigStream();
 	

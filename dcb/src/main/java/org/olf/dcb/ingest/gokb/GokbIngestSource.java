@@ -41,12 +41,17 @@ public class GokbIngestSource implements IngestSource {
 	}
 
 	@Override
-	public Publisher<IngestRecord> apply(Instant since) {
+	public Publisher<IngestRecord> apply(Instant since, Publisher<String> terminator) {
 
 		log.info("Fetching from GOKb");
 
 		// The stream of imported records.
-		return Flux.from(scrollAllResults(since, null)).name("gokp-tipps").filter(tipp -> tipp.tippTitleName() != null)
+		return Flux.from(scrollAllResults(since, null))
+				.takeUntilOther( Mono.from(terminator)
+					.doOnNext( reason -> log.info("Ejecting from collect sequence. Reason: {}", reason) ))
+				
+				.name("gokp-tipps")
+				.filter(tipp -> tipp.tippTitleName() != null)
 				.map(tipp -> IngestRecord.build(record -> {
 					record.uuid(uuid5ForTippUuid(tipp.uuid())).title(tipp.tippTitleName());
 				}));

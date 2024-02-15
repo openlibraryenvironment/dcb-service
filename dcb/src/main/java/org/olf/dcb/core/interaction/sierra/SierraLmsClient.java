@@ -36,8 +36,6 @@ import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.configuration.LocationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
-import org.olf.dcb.core.AppState;
-import org.olf.dcb.core.AppState.AppStatus;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
@@ -74,8 +72,6 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.json.tree.JsonNode;
-import jakarta.transaction.Transactional;
-import jakarta.transaction.Transactional.TxType;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -127,7 +123,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final RawSourceRepository rawSourceRepository;
 	private final NumericPatronTypeMapper numericPatronTypeMapper;
 	private final SierraItemMapper itemMapper;
-  private final AppState appState;
 
 	private final Integer getHoldsRetryAttempts;
 
@@ -138,8 +133,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		ReferenceValueMappingService referenceValueMappingService,
 		ConversionService conversionService,
 		NumericPatronTypeMapper numericPatronTypeMapper, 
-		SierraItemMapper itemMapper,
-		AppState appState) {
+		SierraItemMapper itemMapper) {
 
 		this.lms = lms;
 
@@ -153,7 +147,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.conversionService = conversionService;
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
-		this.appState = appState;
 	}
 
 	private static Integer getGetHoldsRetryAttempts(Map<String, Object> clientConfig) {
@@ -203,7 +196,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.from(processStateService.updateState(id, processName, state.storred_state)).thenReturn(state);
 	}
 
-	private Publisher<BibResult> pageAllResults(int pageSize) {
+	private Publisher<BibResult> pageAllResults(int pageSize, Publisher<String> terminator) {
 		return Mono.from(getInitialState(lms.getId(), "ingest"))
 				.flatMap(
 						state -> Mono.zip(Mono.just(state.toBuilder().build()), fetchPage(state.since, state.offset, pageSize)))
@@ -248,18 +241,17 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 							state.storred_state.put("cursor", "bootstrap:" + state.offset);
 						}
 					}
-
-					// If the app is in a state of shutting down, then don't get another page of data.. bail!
-					if ( appState.getRunStatus() != AppStatus.RUNNING ) {
-						log.info("Detected app shutdown - ejecting from collect sequence {}",lms.getName());
-						return Mono.empty();
-					}
 					
 					// Create a new mono that first saves the state and then uses it to fetch
 					// another page.
 					return Mono.just(state.toBuilder().build()) // toBuilder().build() should copy the object.
 							.zipWhen(updatedState -> fetchPage(updatedState.since, updatedState.offset, pageSize));
-				})).concatMap(TupleUtils.function((state, page) -> {
+				}))
+				
+				.takeUntilOther( Mono.from(terminator)
+					.doOnNext( reason -> log.info("Ejecting from collect sequence. Reason: {}", reason) ))
+				
+				.concatMap(TupleUtils.function((state, page) -> {
 					return Flux.fromIterable(page.entries())
 							// Concatenate with the state so we can propagate signals from the save
 							// operation.
@@ -280,13 +272,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Publisher<BibResult> getResources(Instant since) {
+	public Publisher<BibResult> getResources(Instant since, Publisher<String> terminator) {
 		log.info("Fetching MARC JSON from Sierra for {}", lms.getName());
 
 		final int pageSize = PAGE_SIZE_PROPERTY.getOptionalValueFrom(lms.getClientConfig(),
 			DEFAULT_PAGE_SIZE);
 
-		return Flux.from(pageAllResults(pageSize)).filter(sierraBib -> sierraBib.marc() != null)
+		return Flux.from(pageAllResults(pageSize, terminator))
+				.filter(sierraBib -> sierraBib.marc() != null)
 				.onErrorResume(t -> {
 					log.error("Error ingesting data {}", t.getMessage());
 					t.printStackTrace();

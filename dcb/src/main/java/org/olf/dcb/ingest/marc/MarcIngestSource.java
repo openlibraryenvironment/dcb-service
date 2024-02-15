@@ -231,18 +231,18 @@ public interface MarcIngestSource<T> extends IngestSource {
 				.map(field -> field.getData());
 	}
 
-	Publisher<T> getResources(Instant since);
+	Publisher<T> getResources(Instant since, Publisher<String> terminator);
 
 	IngestRecordBuilder initIngestRecordBuilder(T resource);
 
 	Record resourceToMarc(T resource);
 
 	@Override
-	public default Publisher<IngestRecord> apply(Instant since) {
+	public default Publisher<IngestRecord> apply(Instant since, Publisher<String> terminator) {
 
 		log.info("Read from the marc source and publish a stream of IngestRecords");
 
-		return Flux.from(getResources(since))
+		return Flux.from(getResources(since, terminator))
 				.concatMap(this::saveRawAndContinue)
 				.doOnError(throwable -> log.warn("ONERROR saving raw record", throwable))
 				.flatMap(resource -> {

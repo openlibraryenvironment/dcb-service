@@ -4,9 +4,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import org.olf.dcb.core.AppState;
-import org.olf.dcb.core.AppState.AppStatus;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.core.svc.RecordClusteringService;
@@ -17,8 +16,11 @@ import org.slf4j.LoggerFactory;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.cp.lock.FencedLock;
 
+import io.micronaut.context.annotation.Value;
+import io.micronaut.context.event.ApplicationEventListener;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.retry.annotation.Retryable;
+import io.micronaut.runtime.event.ApplicationShutdownEvent;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.scheduling.annotation.Scheduled;
@@ -28,6 +30,7 @@ import jakarta.inject.Singleton;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.MonoSink;
 import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.micronaut.concurrency.ConcurrencyGroupService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
@@ -35,14 +38,18 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 //@Refreshable
 @Singleton
 //@Parallel
-public class IngestService implements Runnable {
+public class IngestService implements Runnable, ApplicationEventListener<ApplicationShutdownEvent> {
 
 	public static final String TRANSFORMATIONS_RECORDS = "ingest-records";
 	public static final String TRANSFORMATIONS_BIBS = "ingest-bibs";
 	
-	private static final int INGEST_PASS_RECORDS_MAX = 100000;
+	@Value("${dcb.shutdown.maxwait:0}")
+	protected long maxWaitTime;
+	
+	private static final int INGEST_PASS_RECORDS_THRESHOLD = 100000;
 
 	private Disposable mutex = null;
+	private MonoSink<String> terminationReason; 
 	private Instant lastRun = null;
 
 	private static Logger log = LoggerFactory.getLogger(IngestService.class);
@@ -54,7 +61,6 @@ public class IngestService implements Runnable {
 	private final RecordClusteringService recordClusteringService;
 	private final HazelcastInstance hazelcastInstance;
 	private FencedLock lock;
-  private final AppState appState;
   private final ConcurrencyGroupService concurrency;
 
 	IngestService(BibRecordService bibRecordService, 
@@ -63,14 +69,13 @@ public class IngestService implements Runnable {
 		RecordClusteringService recordClusteringService, 
 		HazelcastInstance hazelcastInstance,
 		ConversionService conversionService,
-		AppState appState, ConcurrencyGroupService concurrencyGroupService) {
+		ConcurrencyGroupService concurrencyGroupService) {
 
 		this.bibRecordService = bibRecordService;
 		this.sourceProviders = sourceProviders;
 		this.publisherTransformationService = publisherHooksService;
 		this.recordClusteringService = recordClusteringService;
 		this.hazelcastInstance = hazelcastInstance;
-		this.appState = appState;
 		this.concurrency = concurrencyGroupService;
 	}
 
@@ -90,15 +95,21 @@ public class IngestService implements Runnable {
 			me.mutex = null;
 
 			log.info("Mutex now set to {}", me.mutex);
+
+			// Terminate empty...
+			if (terminationReason != null) {
+				terminationReason.success();
+				terminationReason = null;
+			}
 		};
 	}
 	
-	private Flux<IngestRecord> getRecordsFromSource( IngestSource ingestSource ) {
+	private Flux<IngestRecord> getRecordsFromSource( IngestSource ingestSource, Mono<String> terminator ) {
 		return Flux.just( ingestSource )
 			.doOnNext(ingestRecordPublisher -> log.debug("returning record publisher: {}", ingestRecordPublisher.toString()))
 			
-			.flatMap( source -> source.apply(null) ) // Always pass (instead of lastRun) in null now as the last run is no longer a full run.
-			.limitRate( INGEST_PASS_RECORDS_MAX / 10, 0 )
+			.flatMap( source -> source.apply(null, terminator) ) // Always pass (instead of lastRun) in null now as the last run is no longer a full run.
+			.limitRate( INGEST_PASS_RECORDS_THRESHOLD / 10, 0 )
 			.onErrorResume( t -> {
 				log.error( "Error ingesting data {}", t.getMessage() );
 				t.printStackTrace();
@@ -109,6 +120,21 @@ public class IngestService implements Runnable {
 	// @Transactional
 	@ExecuteOn(TaskExecutors.BLOCKING)
 	public Flux<BibRecord> getBibRecordStream() {
+		
+		// Create the terminator...
+		final Mono<String> terminator = Mono.<String>create( sink -> {
+			
+			terminationReason = sink;
+			
+		}).cache(); // Hot subscription.
+		
+		// Subscribe with listener...
+		terminator
+			.subscribe( _reason -> log.info("Ingest passed threshold of [{}]. Signal graceful stop.", INGEST_PASS_RECORDS_THRESHOLD));
+		
+		// Counter
+		final AtomicInteger counter = new AtomicInteger(0);
+		
 		return Flux.fromIterable(sourceProviders)
 			.flatMap(provider -> provider.getIngestSources())
 			.filter(source -> {
@@ -118,8 +144,14 @@ public class IngestService implements Runnable {
 				return false;
 			})
 			
-			.transform( concurrency.toGroupedSubscription( this::getRecordsFromSource ) )
-			.take(INGEST_PASS_RECORDS_MAX, true) // Max number to import.
+			.transform( concurrency.toGroupedSubscription( source -> getRecordsFromSource(source, terminator) ) )
+
+			.doOnNext( _ir -> {
+				int count = counter.addAndGet(1);
+				
+				if (count < INGEST_PASS_RECORDS_THRESHOLD) return;
+				terminationReason.success("Ingest passed threshold of [" + INGEST_PASS_RECORDS_THRESHOLD + "]");
+			})
 //				.buffer(2000)
 //				.concatMap( items -> {
 //					Collections.reverse(items);
@@ -165,14 +197,9 @@ public class IngestService implements Runnable {
 //			});
 //	}
 
-	// Extracted from run() method so the shutdown handler can peer inside this instance and determine
-	// if an ingest is running.
-	public boolean isIngestRunning() {
-    if (this.mutex != null && !this.mutex.isDisposed()) {
-      log.info("Ingest already running skipping. Mutex: {}", this.mutex);
-      return true;
-    }
-		return false;
+	// Extracted from run() method.
+	private boolean isIngestRunning() {
+    return (this.mutex != null && !this.mutex.isDisposed());
 	}
 
 	@Override
@@ -187,10 +214,10 @@ public class IngestService implements Runnable {
 			return;
 		}
 
-		if ( appState.getRunStatus() != AppStatus.RUNNING ) {
-			log.info("App is shuttuing down - not creating any new tasks");
-			return;
-		}
+//		if ( appState.getRunStatus() != AppStatus.RUNNING ) {
+//			log.info("App is shuttuing down - not creating any new tasks");
+//			return;
+//		}
 
 		if (lastRun != null && ChronoUnit.MINUTES.between(lastRun, Instant.now()) < 2 ) {
 			log.info("At least 2 minutes must elapse between ingest runs. Skipping as last run was {}.", lastRun);
@@ -210,7 +237,6 @@ public class IngestService implements Runnable {
 				log.error("Error ingesting records {}", t.getMessage());
 				t.printStackTrace();
 				cleanUp(Instant.now()).run();
-
 				return Mono.empty();
 
 			})
@@ -233,5 +259,38 @@ public class IngestService implements Runnable {
 
 			.then(Mono.from( bibRecordService.cleanup() ))
 			.subscribe();
+	}
+
+
+	@Override
+	public void onApplicationEvent(ApplicationShutdownEvent event) {
+		log.info("Shutdown DCB - onApplicationEvent");
+		
+		if ( isIngestRunning() ) {
+			try {
+				log.warn("INGEST IS RUNNING AT SHUTDOWN TIME");
+				if (terminationReason != null) {
+					terminationReason.success("App shutdown requested");
+				}
+
+				log.debug("Waiting for ingest to end");
+				
+				Long waitTime = Flux.interval(Duration.ofSeconds(1))
+					.takeUntil( secondsElapsed -> (secondsElapsed * 1000) > maxWaitTime )
+					.take(Duration.ofMillis(maxWaitTime))
+					.blockLast();
+				
+				if (waitTime != null) {
+					log.info("Ingest gracefully shutdown in {} seconds", waitTime);
+				} else {
+
+					log.warn("Ingest didn't gracefully shutdown in time. App terminating...", waitTime);
+				}
+			} catch (Exception e) {
+				// Silence
+			}
+		}
+
+		log.info("Exit onApplicationEvent (SHUTDOWN)");
 	}
 }

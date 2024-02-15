@@ -17,31 +17,24 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.transaction.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
-
-import org.olf.dcb.core.AppState;
-import org.olf.dcb.core.AppState.AppStatus;
 
 class IngestHelper {
 	private static final Logger log = LoggerFactory.getLogger(IngestHelper.class);
 	private final PolarisLmsClient client;
 	private final ProcessStateService processStateService;
 	private final HostLms lms;
-	private final AppState appState;
 
 	public IngestHelper(
 		PolarisLmsClient client,
 		HostLms lms,
-		ProcessStateService processStateService,
-		AppState appState)
+		ProcessStateService processStateService)
 	{
 		this.client = client;
 		this.lms = lms;
 		this.processStateService = processStateService;
-		this.appState = appState;
 	}
 
 	public static String formatDateFrom(Instant instant) {
@@ -51,9 +44,13 @@ class IngestHelper {
 		return formatter.format(instant);
 	}
 
-	Publisher<PolarisLmsClient.BibsPagedRow> pageAllResults(int pageSize) {
+	Publisher<PolarisLmsClient.BibsPagedRow> pageAllResults(int pageSize, Publisher<String> terminator) {
 		return getInitialState(lms.getId(), "ingest")
 			.flatMapMany(state -> fetchPageAndUpdateState(state, pageSize))
+			
+			.takeUntilOther( Mono.from(terminator)
+				.doOnNext( reason -> log.info("Ejecting from collect sequence. Reason: {}", reason) ))
+			
 			.concatMap(function(this::processPageAndSaveState));
 	}
 
@@ -162,12 +159,6 @@ class IngestHelper {
 						currentState.storred_state.put("cursor", "bootstrap:" + currentState.offset);
 					}
 				}
-
-        // If the app is in a state of shutting down, then don't get another page of data.. bail!
-        if ( appState.getRunStatus() != AppStatus.RUNNING ) {
-          log.info("Detected app shutdown - ejecting from collect sequence {}",lms.getName());
-          return Mono.empty();
-        }
 
 				return Mono.just(currentState.toBuilder().build())
 					.zipWhen(updatedState -> fetchPage(updatedState.since, updatedState.offset, pageSize));
