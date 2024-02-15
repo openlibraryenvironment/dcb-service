@@ -577,18 +577,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(
 		PlaceHoldRequestParameters parameters) {
 
-		return placeHoldRequest(parameters);
+		// When placing the hold on a suppling location, the item will be "Picked up" by the transit van at the
+		// location where the item currently resides
+		return placeHoldRequest(parameters, parameters.getSupplyingLocalItemLocation());
 	}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(
 		PlaceHoldRequestParameters parameters) {
-
-		return placeHoldRequest(parameters);
+		// When placing the hold at a borrower system we want to use the pickup location code as selected by
+		// the patron
+		return placeHoldRequest(parameters, parameters.getPickupLocation());
 	}
 
 	private Mono<LocalRequest> placeHoldRequest(
-		PlaceHoldRequestParameters parameters) {
+		PlaceHoldRequestParameters parameters, String pickupLocation) {
 		log.debug("placeHoldRequest({})", parameters);
 
 		final String recordNumber;
@@ -619,7 +622,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			// We suspect that Sierra needs the pickup location at the supplying agency to be the loc where the item
 			// is currently held. We can do this via the RTAC result or by looking up the item and finding the loc.
 			// Easiest is to use the RTAC result.
-			.pickupLocation(parameters.getPickupLocation())
+			.pickupLocation(pickupLocation)
 			.note(parameters.getNote())
 			.build();
 

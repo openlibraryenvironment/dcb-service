@@ -167,7 +167,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
-			"ab6", "9849123490", hostLms.code);
+			"ab6", "9849123490", hostLms.code, "ab6");
 
 		sierraPatronsAPIFixture.patronHoldRequestResponse("872321", "b", 7916921);
 
@@ -222,7 +222,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "647245", "localItemId",
-			"ab6", "9849123490", hostLms.code);
+			"ab6", "9849123490", hostLms.code, "ab6");
 
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("972321", "b");
 
@@ -281,7 +281,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "35365", "localItemId",
-			"ab6", "9849123490", hostLms.code);
+			"ab6", "9849123490", hostLms.code, "ab6");
 
 		sierraPatronsAPIFixture.patronHoldRequestResponse("785843", "b", 7916921);
 
@@ -338,7 +338,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
-			"ab6", "9849123490", invalidHoldPolicyHostLms.code);
+			"ab6", "9849123490", invalidHoldPolicyHostLms.code, "ab6");
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
@@ -388,7 +388,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
-			"ab6", "9849123490", hostLms.code);
+			"ab6", "9849123490", hostLms.code, "ab6");
 
 		// Act
 		final var exception = assertThrows(CannotFindSelectedBibException.class,
@@ -434,7 +434,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
-			"ab6", "9849123490", hostLms.code);
+			"ab6", "9849123490", hostLms.code, "ab6");
 
 		// Act
 		final var exception = assertThrows(CannotFindClusterRecordException.class,
