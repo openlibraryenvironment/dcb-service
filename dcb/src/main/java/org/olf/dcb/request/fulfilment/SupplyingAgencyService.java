@@ -2,10 +2,9 @@ package org.olf.dcb.request.fulfilment;
 
 import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
 import static reactor.function.TupleUtils.function;
-import static services.k_int.utils.StringUtils.splitTrimAndRemoveBrackets;
-import static services.k_int.utils.StringUtils.toStringWithoutBrackets;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.List;
 
 import org.olf.dcb.core.HostLmsService;
@@ -286,7 +285,10 @@ public class SupplyingAgencyService {
 	private Mono<PatronIdentity> updateLocalPatronIdentityForLmsPatron(
 		Patron patron, PatronRequest patronRequest, SupplierRequest supplierRequest) {
 
-		String barcodes_as_string = toStringWithoutBrackets(patron.getLocalBarcodes(), ",");
+		String barcodes_as_string = ((patron.getLocalBarcodes() != null)
+				&& (patron.getLocalBarcodes().size() > 0))
+			? patron.getLocalBarcodes().toString()
+			: null;
 
 		if (barcodes_as_string == null) {
 			log.warn("VPatron will have no barcodes {}/{}",patronRequest,patron);
@@ -377,8 +379,10 @@ public class SupplyingAgencyService {
 
 		// Patrons can have multiple barcodes. To keep the domain model sane(ish) we store [b1, b2, b3] (As the result of Objects.toString()
 		// in the field. Here we unpack that structure back into an array of barcodes that the HostLMS can do with as it pleases
-		final List<String> patron_barcodes = splitTrimAndRemoveBrackets(
-			requestingPatronIdentity.getLocalBarcode(), ",");
+		final List<String> patron_barcodes = (requestingPatronIdentity.getLocalBarcode() != null)
+			? Arrays.asList(requestingPatronIdentity.getLocalBarcode()
+				.substring(1, requestingPatronIdentity.getLocalBarcode().length() - 1).split(", "))
+			: null;
 
 		if ((patron_barcodes == null) || (patron_barcodes.size() == 0)) {
 			log.warn("Virtual patron has no barcodes. Source identity {}. Will be unable to check out to this patron",

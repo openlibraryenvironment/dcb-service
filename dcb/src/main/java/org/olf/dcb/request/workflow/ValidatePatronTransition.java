@@ -21,8 +21,6 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import static services.k_int.utils.StringUtils.toStringWithoutBrackets;
-
 @Slf4j
 @Prototype
 public class ValidatePatronTransition implements PatronRequestStateTransition {
@@ -73,8 +71,8 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				pi.setLocalPtype(hostLmsPatron.getLocalPatronType());
 				pi.setCanonicalPtype(hostLmsPatron.getCanonicalPatronType());
 				pi.setLastValidated(Instant.now());
-				pi.setLocalBarcode(toStringWithoutBrackets(hostLmsPatron.getLocalBarcodes(), ","));
-				pi.setLocalNames(toStringWithoutBrackets(hostLmsPatron.getLocalNames(), ","));
+				pi.setLocalBarcode(Objects.toString(hostLmsPatron.getLocalBarcodes(), null));
+				pi.setLocalNames(Objects.toString(hostLmsPatron.getLocalNames(), null));
 
 				log.debug("setLocalHomeLibraryCode({})", hostLmsPatron.getLocalHomeLibraryCode());
 				pi.setLocalHomeLibraryCode(hostLmsPatron.getLocalHomeLibraryCode());
