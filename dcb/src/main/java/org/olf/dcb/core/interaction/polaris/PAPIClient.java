@@ -200,6 +200,7 @@ public class PAPIClient {
 		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
 		final var ccl = "PATNF=" + barcode + " OR PATNL=" + uniqueID;
 
+		log.debug("Using ccl: {} to search for virtual patron.", ccl);
 		return makePatronSearchRequest(path, ccl);
 	}
 

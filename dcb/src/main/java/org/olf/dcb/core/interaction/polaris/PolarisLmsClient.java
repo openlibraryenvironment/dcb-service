@@ -269,24 +269,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		// Look up virtual patron using generated unique ID string
 		final var uniqueId = getValue(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
+		final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
-		final var barcodeWithPrefix = getPatronBarcodeWithPrefix(patron);
-		log.debug("Using patron barcode: {} to search for virtual patron.", barcodeWithPrefix);
-
-		return papiClient.patronSearch(barcodeWithPrefix, uniqueId)
+		return papiClient.patronSearch(barcode, uniqueId)
 			.map(PAPIClient.PatronSearchRow::getPatronID)
 			.flatMap(appServicesClient::handlePatronBlock)
 			.map(String::valueOf)
 			.flatMap(this::getPatronByLocalId);
-	}
-
-	private String getPatronBarcodeWithPrefix(org.olf.dcb.core.model.Patron patron) {
-		// we need to add the barcode prefix which is hostlms specific
-		final var patronBarcodePrefix = extractMapValueWithDefault(
-			getServicesConfig(), PATRON_BARCODE_PREFIX, String.class, "DCB-");
-		final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
-
-		return patronBarcodePrefix + barcode;
 	}
 
 	@Override

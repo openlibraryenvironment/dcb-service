@@ -232,7 +232,7 @@ class PolarisLmsClientTests {
 		assertThat(foundPatron.getLocalHomeLibraryCode(), is("39"));
 
 		// DCB appends a prefix to the barcode used in the generated field for the virtual patron
-		mockPolarisFixture.verifyPatronSearch("DCB-" + localBarcode, localId + "@" + agencyCode);
+		mockPolarisFixture.verifyPatronSearch(localBarcode, localId + "@" + agencyCode);
 	}
 
 	@Test
@@ -748,8 +748,8 @@ class PolarisLmsClientTests {
 	private void mockPatronSearchForGeneratedTerms(String localBarcode,
 		String localId, String agencyCode) {
 
-		// DCB uses a prefixed barcode as the firstMiddleLastName field
+		// DCB does not prefix the barcode stored in the firstMiddleLastName field
 		// DCB uses the ID of the requesting patron and the agency code as the lastFirstMiddleName field
-		mockPolarisFixture.mockPatronSearch("DCB-" + localBarcode, localId + "@" + agencyCode);
+		mockPolarisFixture.mockPatronSearch(localBarcode, localId + "@" + agencyCode);
 	}
 }
