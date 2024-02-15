@@ -14,6 +14,7 @@ import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMat
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoResponseBodyParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestBodyParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestUrlParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasTextResponseBodyParameter;
 
@@ -40,8 +41,10 @@ class UnexpectedResponseProblemTests {
 				"code", 109
 			)));
 
+		final var url = "http://some-host-lms/make-request?parameter=true";
+
 		final var problem = unexpectedResponseProblem(exception,
-			examplePostRequest(), "example-host-lms");
+			HttpRequest.POST(url, null), "example-host-lms");
 
 		// Assert
 		assertThat(problem, allOf(
@@ -49,7 +52,8 @@ class UnexpectedResponseProblemTests {
 			hasResponseStatusCodeParameter(400),
 			hasJsonResponseBodyProperty("error", "something went wrong"),
 			hasJsonResponseBodyProperty("code", 109),
-			hasRequestMethodParameter("POST")
+			hasRequestMethodParameter("POST"),
+			hasRequestUrlParameter(url)
 		));
 	}
 

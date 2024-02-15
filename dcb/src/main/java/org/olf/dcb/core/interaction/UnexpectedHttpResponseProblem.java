@@ -4,6 +4,7 @@ import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
+import java.net.URI;
 import java.util.Map;
 
 import org.zalando.problem.Problem;
@@ -23,6 +24,7 @@ public class UnexpectedHttpResponseProblem {
 			.with("responseStatusCode", getValue(responseException.getStatus(), HttpStatus::getCode))
 			.with("responseBody", interpretResponseBody(responseException))
 			.with("requestMethod", getValue(request, HttpRequest::getMethodName))
+			.with("requestUrl", getValue(request, HttpRequest::getUri, URI::toString))
 			.with("requestBody", interpretRequestBody(request))
 			.build();
 	}

@@ -9,4 +9,13 @@ public class PropertyAccessUtils {
 			.map(accessor)
 			.orElse(null);
 	}
+
+	public static <T, R, S> S getValue(T nullableObject, Function<T, R> accessor,
+		Function<R, S> mapper) {
+
+		return Optional.ofNullable(nullableObject)
+			.map(accessor)
+			.map(mapper)
+			.orElse(null);
+	}
 }

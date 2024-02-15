@@ -19,6 +19,8 @@ import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasId;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestUrlParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 
 import java.util.List;
@@ -265,6 +267,8 @@ class PlaceRequestAtSupplyingAgencyTests {
 		assertThat(problem, allOf(
 			messageContains(expectedMessage),
 			// These are includes from the underlying unexpected response problem created by the client
+			hasRequestMethodParameter("POST"),
+			hasRequestUrlParameter("https://supplying-agency-service-tests.com/iii/sierra-api/v6/patrons/1000001/holds/requests"),
 			hasResponseStatusCodeParameter(500),
 			hasJsonResponseBodyProperty("code", 109),
 			hasJsonResponseBodyProperty("description", "Invalid configuration"),
