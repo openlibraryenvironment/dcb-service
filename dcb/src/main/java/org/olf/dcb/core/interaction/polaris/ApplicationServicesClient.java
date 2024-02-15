@@ -218,6 +218,7 @@ class ApplicationServicesClient {
 			.flatMap(request -> client.exchange(request, HoldRequestDefault.class))
 			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
 			.map(HoldRequestDefault::getExpirationDatePeriod)
+			.doOnError(e -> log.debug("Error occurred when getting hold request defaults", e))
 			.onErrorReturn(defaultExpirationDatePeriod);
 	}
 
