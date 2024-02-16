@@ -2,6 +2,7 @@ package org.olf.dcb.request.fulfilment;
 
 import static java.util.Optional.empty;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static services.k_int.utils.StringUtils.truncate;
 
 import java.time.Instant;
 import java.util.Map;
@@ -76,14 +77,11 @@ public class PatronRequestAuditService {
 			builder.auditData(auditData.orElse(null));
 		}
 
-		message.ifPresent(value -> {
-			String trimmedValue = value.substring(0, Math.min(value.length(), 254));
-			builder.briefDescription(trimmedValue);
-		});
+		message.ifPresent(value -> builder.briefDescription(truncate(value, 254)));
 
 		return buildAndSaveAuditMessage(builder);
 	}
-	
+
 	@Transactional
 	protected Mono<PatronRequestAudit> buildAndSaveAuditMessage(
 		PatronRequestAudit.PatronRequestAuditBuilder builder) {
