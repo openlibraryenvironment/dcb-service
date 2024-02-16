@@ -4,9 +4,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.olf.dcb.core.model.PatronRequest;
@@ -14,24 +12,21 @@ import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.zalando.problem.DefaultProblem;
 
 import io.micronaut.context.annotation.Value;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import org.zalando.problem.DefaultProblem;
 
-import org.slf4j.MDC;
-
+@Slf4j
 @Singleton
 @ExecuteOn(value = TaskExecutors.IO)
 public class PatronRequestWorkflowService {
-	private static final Logger log = LoggerFactory.getLogger(PatronRequestWorkflowService.class);
-	
 	/**
 	 * Duration of delay before task is started Uses ISO-8601 format, as described
 	 * <a href="https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html#parse-java.lang.CharSequence-">here</a>
@@ -41,13 +36,12 @@ public class PatronRequestWorkflowService {
 
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestAuditService patronRequestAuditService;
-	
 
 	private final List<PatronRequestStateTransition> allTransitions;
 
-	public PatronRequestWorkflowService(
-			List<PatronRequestStateTransition> allTransitions,
-			PatronRequestRepository patronRequestRepository, PatronRequestAuditService patronRequestAuditService) {
+	public PatronRequestWorkflowService(List<PatronRequestStateTransition> allTransitions,
+		PatronRequestRepository patronRequestRepository,
+		PatronRequestAuditService patronRequestAuditService) {
 
 		this.patronRequestAuditService = patronRequestAuditService;
 		// By loading the list of all transitions, we can declare new transitions
@@ -59,58 +53,66 @@ public class PatronRequestWorkflowService {
 
 		log.debug("Initialising workflow engine with available transitions");
 		for (PatronRequestStateTransition t : allTransitions) {
-			log.debug(t.getClass().getName()); //);
+			log.debug(t.getClass().getName());
 		}
 	}
 
 	public void initiate(PatronRequest patronRequest) {
 		log.info("initiate({})", patronRequest);
 
-		// Inspred by https://blogs.ashrithgn.com/adding-transaction-trace-id-correlation-id-for-each-request-in-micronaut-for-tracing-the-log-easily/
-		MDC.put("prID",patronRequest.getId().toString());
+		// Inspired by https://blogs.ashrithgn.com/adding-transaction-trace-id-correlation-id-for-each-request-in-micronaut-for-tracing-the-log-easily/
+		MDC.put("prID", patronRequest.getId().toString());
 
 		progressAll(patronRequest)
-                        .doFinally( signalType -> {
-                                log.info("Completed processing for {}",patronRequest.getId());
-                        })
-                        .subscribe();
+			.doFinally(signalType -> log.info("Completed processing for {}", patronRequest.getId()))
+			.subscribe();
 	}
 	
 	public Flux<PatronRequest> progressAll(PatronRequest patronRequest) {
 		log.debug("progressAll({})", patronRequest);
+
 		return progressUsing(patronRequest, getApplicableTransitionFor(patronRequest));
 	}
 
-	public Flux<PatronRequest> progressUsing(PatronRequest patronRequest, PatronRequestStateTransition action) {
+	public Flux<PatronRequest> progressUsing(PatronRequest patronRequest,
+		PatronRequestStateTransition action) {
+
 		return this.progressUsing(patronRequest, Optional.ofNullable(action));
 	}
 	
-	public Flux<PatronRequest> progressUsing(PatronRequest patronRequest, Optional<PatronRequestStateTransition> action) {
+	public Flux<PatronRequest> progressUsing(PatronRequest patronRequest,
+		Optional<PatronRequestStateTransition> action) {
 
 		if (action.isEmpty()) {
-			log.debug("Unable to progress {} - no transformations available from state {}", patronRequest.getId(),
-					patronRequest.getStatus());
+			log.debug("Unable to progress {} - no transformations available from state {}",
+				patronRequest.getId(), patronRequest.getStatus());
 		}
 		
 		return Mono.justOrEmpty(action)
 			.flatMapMany(transition -> {
-			        log.debug("found action {} applying transition", action.get().getClass().getName());
-			        Flux<PatronRequest> pr = applyTransition(transition, patronRequest);
-			        log.debug("start applying actions, there may be subsequent transitions possible");
-				
-			        // Resolve as incomplete.
-			        return pr;
+				log.debug("found action {} applying transition", action.get().getClass().getName());
+
+				final var pr = applyTransition(transition, patronRequest);
+
+				log.debug("start applying actions, there may be subsequent transitions possible");
+
+				// Resolve as incomplete.
+				return pr;
 			});
 	}
 
-	public Stream<PatronRequestStateTransition> getPossibleStateTransitionsFor(PatronRequest patronRequest) {
+	public Stream<PatronRequestStateTransition> getPossibleStateTransitionsFor(
+		PatronRequest patronRequest) {
+
 		return allTransitions.stream()
-				.filter(transition -> transition.isApplicableFor(patronRequest));
+			.filter(transition -> transition.isApplicableFor(patronRequest));
 	}
 	
-	private Stream<PatronRequestStateTransition> getAutomaticStateTransitionsFor(PatronRequest patronRequest) {
+	private Stream<PatronRequestStateTransition> getAutomaticStateTransitionsFor(
+		PatronRequest patronRequest) {
+
 		return getPossibleStateTransitionsFor(patronRequest)
-				.filter(PatronRequestStateTransition::attemptAutomatically);
+			.filter(PatronRequestStateTransition::attemptAutomatically);
 	}
 
 	/**
@@ -118,60 +120,66 @@ public class PatronRequestWorkflowService {
 	 * Eventually we wil likely use JXEL, janino or some other expresion language
 	 * here, but for now simple string comparisons are more than sufficient.
 	 */
-	private Optional<PatronRequestStateTransition> getApplicableTransitionFor(PatronRequest patronRequest) {
+	private Optional<PatronRequestStateTransition> getApplicableTransitionFor(
+		PatronRequest patronRequest) {
+
 		log.debug("getApplicableTransitionFor({})", patronRequest);
 		return getAutomaticStateTransitionsFor(patronRequest)
 			.findFirst();
 	}
 
-	private Flux<PatronRequest> applyTransition(PatronRequestStateTransition action, PatronRequest patronRequest) {
-		log.debug("applyTransition({},{})", action.getClass().getName(), patronRequest);
+	private Flux<PatronRequest> applyTransition(PatronRequestStateTransition action,
+		PatronRequest patronRequest) {
+
+		log.debug("applyTransition({}, {})", action.getClass().getName(), patronRequest);
 		
 		return action.attempt(patronRequest)
 			.flux()
 			.flatMap(patronRequestRepository::saveOrUpdate)
-			.concatMap( request -> {
+			.concatMap(request -> {
 				// Recall if there are more...
 				return Mono.justOrEmpty(getApplicableTransitionFor( request ))
 					.delayElement(stateTransitionDelay)
-					.flatMapMany( transition -> applyTransition(transition, request));
+					.flatMapMany(transition -> applyTransition(transition, request));
 			});
 	}
 	
-	public Function<Publisher<PatronRequest>,Flux<PatronRequest>> getErrorTransformerFor( PatronRequest patronRequest ) {
+	public Function<Publisher<PatronRequest>, Flux<PatronRequest>> getErrorTransformerFor(
+		PatronRequest patronRequest) {
 		
 		final Status fromState = patronRequest.getStatus();
-		
 
-		return ( Publisher<PatronRequest> pub  ) -> Flux.from(pub)
-			.onErrorResume( throwable -> {
-				return Mono.defer(() -> {
-                                        
-					// If we don't do this, then a subsequent save of the patron request can overwrite the status we explicitly set
-		       patronRequest.setStatus(Status.ERROR);
+		return (Publisher<PatronRequest> pub) -> Flux.from(pub)
+			.onErrorResume(throwable -> Mono.defer(() -> {
+				// If we don't do this, then a subsequent save of the patron request can overwrite the status we explicitly set
+				patronRequest.setStatus(Status.ERROR);
 
-					final UUID prId = patronRequest.getId();
-					if (prId == null) return Mono.error(throwable);
-					
-					// When we encounter an error we should set the status in the DB only to avoid,
-					// partial state saves.
+				final var prId = patronRequest.getId();
 
-					log.error("update patron request {} to error state ({}) - {}",prId,throwable.getMessage(),throwable.getClass().getName());
+				if (prId == null) {
+					return Mono.error(throwable);
+				}
 
-		       Map<String,Object> auditData = null;
-		      if ( throwable instanceof DefaultProblem ) {
-			      auditData = ((DefaultProblem)throwable).getParameters();
-				  }
-					
-					return Mono.from(patronRequestRepository.updateStatusWithError(prId, throwable.getMessage()))
-						.then(patronRequestAuditService.addErrorAuditEntry(patronRequest, fromState, throwable, auditData))
-						.onErrorResume(saveError -> {
-							log.error("Could not update PatronRequest with error state", saveError);
-							return Mono.empty();
-						})
-						.then(Mono.error(throwable));
-				});
-			});
+				// When we encounter an error we should set the status in the DB only to avoid,
+				// partial state saves.
+
+				log.error("update patron request {} to error state ({}) - {}",
+					prId, throwable.getMessage(), throwable.getClass().getName());
+
+				Map<String, Object> auditData = null;
+
+				if (throwable instanceof DefaultProblem) {
+					auditData = ((DefaultProblem) throwable).getParameters();
+				}
+
+				return Mono.from(patronRequestRepository.updateStatusWithError(prId, throwable.getMessage()))
+					.then(patronRequestAuditService.addErrorAuditEntry(patronRequest,
+						fromState, throwable, auditData))
+					.onErrorResume(saveError -> {
+						log.error("Could not update PatronRequest with error state", saveError);
+						return Mono.empty();
+					})
+					.then(Mono.error(throwable));
+			}));
 	}
-
 }
