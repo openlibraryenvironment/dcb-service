@@ -30,6 +30,7 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SHELVING_SCH
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.APPLICATION_SERVICES;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.noExtraErrorHandling;
+import static reactor.function.TupleUtils.function;
 
 import java.net.URI;
 import java.time.LocalDateTime;
@@ -84,15 +85,12 @@ class ApplicationServicesClient {
 	 */
 	Mono<HoldRequestResponse> addLocalHoldRequest(HoldRequestParameters holdRequestParameters) {
 		log.debug("addLocalHoldRequest with holdRequestParameters {}", holdRequestParameters);
+
 		final var path = createPath("holds");
+
 		return createRequest(POST, path, uri -> uri.queryParam("bulkmode", true))
 			.zipWith(getLocalRequestBody(holdRequestParameters))
-			.map(tuple -> {
-				final var request = tuple.getT1();
-				final var body = tuple.getT2();
-				log.debug("trying addLocalHoldRequest with body {}", body);
-				return request.body(body);
-			})
+			.map(function(ApplicationServicesClient::addBodyToRequest))
 			.flatMap(request -> client.exchange(request, HoldRequestResponse.class))
 			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
 			.map(this::validateHoldResponse)
@@ -552,6 +550,13 @@ class ApplicationServicesClient {
 
 	private String createPath(Object... pathSegments) {
 		return URI_PARAMETERS + "/" + Arrays.stream(pathSegments).map(Object::toString).collect(Collectors.joining("/"));
+	}
+
+	private static MutableHttpRequest<LocalRequest> addBodyToRequest(
+		MutableHttpRequest<?> request, LocalRequest body) {
+
+		log.debug("trying addLocalHoldRequest with body {}", body);
+		return request.body(body);
 	}
 
 	// https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/overview
