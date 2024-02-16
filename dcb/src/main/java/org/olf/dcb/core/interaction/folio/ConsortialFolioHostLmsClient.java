@@ -28,6 +28,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.utils.CollectionUtils.nonNullValuesList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static services.k_int.utils.StringUtils.parseList;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.net.URI;
@@ -376,6 +377,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			parameters.getSupplyingAgencyCode() + ":" + parameters.getSupplyingLocalItemId())
 			.toString();
 
+		final var firstPatronBarcodeInList = parseList(parameters.getLocalPatronBarcode()).get(0);
+
 		return findLocalItemType(parameters.getCanonicalItemType())
 			.map(localItemType -> authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
 				.body(CreateTransactionRequest.builder()
@@ -389,7 +392,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 						.build())
 					.patron(CreateTransactionRequest.Patron.builder()
 						.id(parameters.getLocalPatronId())
-						.barcode(parameters.getLocalPatronBarcode())
+						.barcode(firstPatronBarcodeInList)
 						.build())
 					.pickup(CreateTransactionRequest.Pickup.builder()
 						.servicePointId(parameters.getPickupLocation())

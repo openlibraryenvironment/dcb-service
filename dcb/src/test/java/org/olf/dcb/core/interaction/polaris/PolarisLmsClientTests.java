@@ -199,6 +199,7 @@ class PolarisLmsClientTests {
 		final var agencyCode = "known-agency";
 		final var localId = "1255193";
 		final var localBarcode = "0077777777";
+		final var toStringLocalBarcodeList = "[0077777777]";
 		final var localPatronId = "1255217";
 
 		mockPatronSearchForGeneratedTerms(localBarcode, localId, agencyCode);
@@ -213,7 +214,7 @@ class PolarisLmsClientTests {
 			.patronIdentities(List.of(
 				PatronIdentity.builder()
 					.localId(localId)
-					.localBarcode(localBarcode)
+					.localBarcode(toStringLocalBarcodeList)
 					.resolvedAgency(DataAgency.builder()
 						.code(agencyCode)
 						.build())
@@ -241,6 +242,7 @@ class PolarisLmsClientTests {
 		final var agencyCode = "known-agency";
 		final var localId = "1255193";
 		final var localBarcode = "0077777777";
+		final var toStringLocalBarcodeList = "[0077777777]";
 		final var localPatronId = "1255217";
 
 		mockPatronSearchForGeneratedTerms(localBarcode, localId, agencyCode);
@@ -255,7 +257,7 @@ class PolarisLmsClientTests {
 			.patronIdentities(List.of(
 				PatronIdentity.builder()
 					.localId(localId)
-					.localBarcode(localBarcode)
+					.localBarcode(toStringLocalBarcodeList)
 					.resolvedAgency(DataAgency.builder()
 						.code(agencyCode)
 						.build())
@@ -280,6 +282,7 @@ class PolarisLmsClientTests {
 		final var agencyCode = "known-agency";
 		final var localId = "1255193";
 		final var localBarcode = "0077777777";
+		final var toStringLocalBarcodeList = "[0077777777]";
 		final var localPatronId = "1255217";
 
 		mockPatronSearchForGeneratedTerms(localBarcode, localId, agencyCode);
@@ -294,7 +297,7 @@ class PolarisLmsClientTests {
 			.patronIdentities(List.of(
 				PatronIdentity.builder()
 					.localId(localId)
-					.localBarcode(localBarcode)
+					.localBarcode(toStringLocalBarcodeList)
 					.resolvedAgency(DataAgency.builder()
 						.code(agencyCode)
 						.build())

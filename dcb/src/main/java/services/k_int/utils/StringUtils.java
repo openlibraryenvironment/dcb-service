@@ -1,5 +1,7 @@
 package services.k_int.utils;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -18,5 +20,11 @@ public interface StringUtils {
 		static Function<String, String> formatAs(String pattern) {
 			return (String subject) -> String.format(pattern, subject);
 		}
+	}
+
+	public static List<String> parseList(String input) {
+		return (input != null)
+			? Arrays.asList(input.substring(1, input.length() - 1).split(", "))
+			: null;
 	}
 }
