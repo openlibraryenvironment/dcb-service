@@ -26,7 +26,11 @@ public class PatronRequestMatchers {
 	}
 
 	public static Matcher<PatronRequest> hasErrorMessage(String expectedErrorMessage) {
-		return hasProperty("errorMessage", containsString(expectedErrorMessage));
+		return hasErrorMessage(containsString(expectedErrorMessage));
+	}
+
+	public static Matcher<PatronRequest> hasErrorMessage(Matcher<String> valueMatcher) {
+		return hasProperty("errorMessage", valueMatcher);
 	}
 
 	public static Matcher<PatronRequest> hasLocalPatronType(String expectedLocalPatronType) {

@@ -1,25 +1,23 @@
 package org.olf.dcb.storage;
 
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static services.k_int.utils.StringUtils.truncate;
+
 import java.util.UUID;
 
-import io.micronaut.data.annotation.Join;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
-
-import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronIdentity;
-import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.model.StatusCode;
+import org.olf.dcb.core.model.PatronRequest;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
-import io.micronaut.data.model.Page;
-import io.micronaut.data.model.Pageable;
-import reactor.core.publisher.Mono;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.Query;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import reactor.core.publisher.Mono;
 
 public interface PatronRequestRepository {
 	@NonNull
@@ -75,8 +73,9 @@ public interface PatronRequestRepository {
 	@NonNull
 	@SingleResult
 	default Publisher<Void> updateStatusWithError(@Id UUID id, String errorMessage) {
-		return this.updateStatusAndErrorMessage(id, Status.ERROR, errorMessage);
-	};
+		// Truncate message to length shorter than database column
+		return updateStatusAndErrorMessage(id, ERROR, truncate(errorMessage, 255));
+	}
 
 	@NonNull
 	@SingleResult
