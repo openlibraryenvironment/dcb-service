@@ -55,23 +55,23 @@ public class MockPolarisFixture {
 		mock("PUT", "/PAPIService/REST/public/v1/1033/100/1/patron/" + patronBarcode, "update-patron.json");
 	}
 
-	public void mockPatronSearch(String firstMiddleLastName, String lastFirstMiddleName) {
-		mockServerClient.when(patronSearchRequest(firstMiddleLastName, lastFirstMiddleName))
+	public void mockPatronSearch(String firstMiddleLastName) {
+		mockServerClient.when(patronSearchRequest(firstMiddleLastName))
 			.respond(okJson(resourceLoader.getResource("patron-search.json")));
 	}
 
-	public void verifyPatronSearch(String firstMiddleLastName, String lastFirstMiddleName) {
-		mockServerClient.verify(patronSearchRequest(firstMiddleLastName, lastFirstMiddleName));
+	public void verifyPatronSearch(String firstMiddleLastName) {
+		mockServerClient.verify(patronSearchRequest(firstMiddleLastName));
 	}
 
-	private HttpRequest patronSearchRequest(String firstMiddleLastName, String lastFirstMiddleName) {
+	private HttpRequest patronSearchRequest(String firstMiddleLastName) {
 		return request()
 			.withHeader("Accept", "application/json")
 			.withHeader("host", host)
 			.withMethod("GET")
 			.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/search/patrons/boolean*")
 			.withQueryStringParameter("q",
-				"PATNF=" + firstMiddleLastName + " OR PATNL=" + lastFirstMiddleName);
+				"PATNF=" + firstMiddleLastName);
 	}
 
 	public void mockGetPatron(String patronId) {

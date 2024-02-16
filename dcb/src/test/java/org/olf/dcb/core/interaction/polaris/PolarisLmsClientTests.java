@@ -202,7 +202,7 @@ class PolarisLmsClientTests {
 		final var toStringLocalBarcodeList = "[0077777777]";
 		final var localPatronId = "1255217";
 
-		mockPatronSearchForGeneratedTerms(localBarcode, localId, agencyCode);
+		mockPatronSearchForGeneratedTerms(localBarcode);
 		mockPolarisFixture.mockGetPatron(localPatronId);
 		mockPolarisFixture.mockGetPatronBlocksSummary(localPatronId);
 
@@ -233,7 +233,7 @@ class PolarisLmsClientTests {
 		assertThat(foundPatron.getLocalHomeLibraryCode(), is("39"));
 
 		// DCB appends a prefix to the barcode used in the generated field for the virtual patron
-		mockPolarisFixture.verifyPatronSearch(localBarcode, localId + "@" + agencyCode);
+		mockPolarisFixture.verifyPatronSearch(localBarcode);
 	}
 
 	@Test
@@ -245,7 +245,7 @@ class PolarisLmsClientTests {
 		final var toStringLocalBarcodeList = "[0077777777]";
 		final var localPatronId = "1255217";
 
-		mockPatronSearchForGeneratedTerms(localBarcode, localId, agencyCode);
+		mockPatronSearchForGeneratedTerms(localBarcode);
 		mockPolarisFixture.mockGetPatron(localPatronId);
 		mockPolarisFixture.mockGetPatronBlocksSummaryNotFoundResponse(localPatronId);
 
@@ -285,7 +285,7 @@ class PolarisLmsClientTests {
 		final var toStringLocalBarcodeList = "[0077777777]";
 		final var localPatronId = "1255217";
 
-		mockPatronSearchForGeneratedTerms(localBarcode, localId, agencyCode);
+		mockPatronSearchForGeneratedTerms(localBarcode);
 		mockPolarisFixture.mockGetPatron(localPatronId);
 		mockPolarisFixture.mockGetPatronBlocksSummaryServerErrorResponse(localPatronId);
 
@@ -748,11 +748,9 @@ class PolarisLmsClientTests {
 		assertThat(string, is("OK"));
 	}
 
-	private void mockPatronSearchForGeneratedTerms(String localBarcode,
-		String localId, String agencyCode) {
+	private void mockPatronSearchForGeneratedTerms(String localBarcode) {
 
 		// DCB does not prefix the barcode stored in the firstMiddleLastName field
-		// DCB uses the ID of the requesting patron and the agency code as the lastFirstMiddleName field
-		mockPolarisFixture.mockPatronSearch(localBarcode, localId + "@" + agencyCode);
+		mockPolarisFixture.mockPatronSearch(localBarcode);
 	}
 }

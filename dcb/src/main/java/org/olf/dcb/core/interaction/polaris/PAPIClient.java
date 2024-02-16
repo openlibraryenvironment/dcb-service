@@ -198,7 +198,7 @@ public class PAPIClient {
 	 */
 	public Mono<PatronSearchRow> patronSearch(String barcode, String uniqueID) {
 		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
-		final var ccl = "PATNF=" + barcode + " OR PATNL=" + uniqueID;
+		final var ccl = "PATNF=" + barcode;
 
 		log.debug("Using ccl: {} to search for virtual patron.", ccl);
 		return makePatronSearchRequest(path, ccl);
@@ -209,7 +209,24 @@ public class PAPIClient {
 			.flatMap(authFilter::ensureStaffAuth)
 			.flatMap(request -> Mono.from(client.retrieve(request,
 				Argument.of(PatronSearchResult.class), noExtraErrorHandling())))
+			.map(patronSearchResult -> checkForPAPIErrorCode(patronSearchResult))
 			.flatMap(patronSearchResult -> checkForUniquePatronResult(patronSearchResult));
+	}
+
+	private PatronSearchResult checkForPAPIErrorCode(PatronSearchResult patronSearchResult) {
+		final var PAPIErrorCode = patronSearchResult.getPAPIErrorCode();
+		final var errorMessage = patronSearchResult.getErrorMessage();
+
+		// Any positive number: Represents either the count of rows returned or the number of rows affected by the procedure.
+		// See individual procedure definitions for details.
+		// ref: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1210888
+		// 0 = Success
+		if (PAPIErrorCode < 0) {
+			log.error("Patron search returned ERROR: {}", errorMessage);
+			throw new FindVirtualPatronException("PAPIService returned: " + errorMessage);
+		}
+
+		return patronSearchResult;
 	}
 
 	private Mono<PatronSearchRow> checkForUniquePatronResult(PatronSearchResult patronSearchResult) {
@@ -217,6 +234,7 @@ public class PAPIClient {
 
 		if (recordsFound < 1) {
 			log.info("No Patron found, returning an empty mono to create a new patron.");
+
 			return Mono.empty();
 		}
 
