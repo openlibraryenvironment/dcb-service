@@ -168,8 +168,8 @@ public class PatronRequestWorkflowService {
 
 				Map<String, Object> auditData = null;
 
-				if (throwable instanceof DefaultProblem) {
-					auditData = ((DefaultProblem) throwable).getParameters();
+				if (throwable instanceof DefaultProblem problem) {
+					auditData = problem.getParameters();
 				}
 
 				return Mono.from(patronRequestRepository.updateStatusWithError(prId, throwable.getMessage()))
