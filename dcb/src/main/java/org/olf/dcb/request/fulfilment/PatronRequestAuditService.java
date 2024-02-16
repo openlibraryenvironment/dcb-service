@@ -72,7 +72,7 @@ public class PatronRequestAuditService {
 			.fromStatus(from)
 			.toStatus(to);
 
-		if ( auditData != null ) {
+		if (auditData != null) {
 			builder.auditData(auditData.orElse(null));
 		}
 
@@ -81,13 +81,14 @@ public class PatronRequestAuditService {
 			builder.briefDescription(trimmedValue);
 		});
 
-		return buildAndSaveAuditMessage( builder );
+		return buildAndSaveAuditMessage(builder);
 	}
 	
 	@Transactional
-	protected Mono<PatronRequestAudit> buildAndSaveAuditMessage(PatronRequestAudit.PatronRequestAuditBuilder builder) {
-		
-		PatronRequestAudit pra = builder.build();
+	protected Mono<PatronRequestAudit> buildAndSaveAuditMessage(
+		PatronRequestAudit.PatronRequestAuditBuilder builder) {
+
+		final var pra = builder.build();
 
 		return Mono.just(pra)
 			.flatMap(auditEntry -> Mono.from(patronRequestAuditRepository.save(auditEntry))
@@ -126,47 +127,48 @@ public class PatronRequestAuditService {
 	public Mono<PatronRequestAudit> addErrorAuditEntry(
 		PatronRequest patronRequest, Status from, Throwable error,
 		Map<String, Object> auditData) {
+
 		return addAuditEntry(patronRequest, from, ERROR,
 			Optional.ofNullable(error.getMessage()), Optional.ofNullable(auditData));
 	}
 	
 //	@Transactional
-	protected <T> Mono<T> createAuditEntryPublisher(T context, BiConsumer<T, PatronRequestAudit.PatronRequestAuditBuilder> consumer, boolean propagate) {
-		Mono<PatronRequestAudit> flow = Mono.just(PatronRequestAudit.builder())
-			.map( builder -> builder
-					.id(UUID.randomUUID())
-					.auditDate(Instant.now()))
-			.flatMap( builder -> {
+	protected <T> Mono<T> createAuditEntryPublisher(T context,
+		BiConsumer<T, PatronRequestAudit.PatronRequestAuditBuilder> consumer, boolean propagate) {
+
+		var flow = Mono.just(PatronRequestAudit.builder())
+			.map(builder -> builder
+				.id(UUID.randomUUID())
+				.auditDate(Instant.now()))
+			.flatMap(builder -> {
 				consumer.accept(context, builder);
 				return buildAndSaveAuditMessage(builder);
 			})
-			.doOnError( t -> log.error("Error creating audit log entry", t) );
+			.doOnError(t -> log.error("Error creating audit log entry", t));
 		
 		// No propagation means we complete normally... But log the error regardless.
 		flow =  propagate ? flow : flow.onErrorComplete();
+
 		return flow.thenReturn(context);
 	}
 	
 	@SuppressWarnings("unchecked")
 //	@Transactional
-	protected <T, P extends Publisher<T>> Function<P, P> withAuditMessage ( BiConsumer<T, PatronRequestAudit.PatronRequestAuditBuilder> consumer, boolean propagate) {
+	protected <T, P extends Publisher<T>> Function<P, P> withAuditMessage(
+		BiConsumer<T, PatronRequestAudit.PatronRequestAuditBuilder> consumer, boolean propagate) {
 		
 		return (currentFlow) -> {
-			var auditGenFlow = Flux.from( currentFlow )
-				.flatMap( item -> createAuditEntryPublisher(item, consumer, propagate));
+			var auditGenFlow = Flux.from(currentFlow)
+				.flatMap(item -> createAuditEntryPublisher(item, consumer, propagate));
 			
 			return (P)(Publishers.isSingle(currentFlow.getClass()) ? auditGenFlow.single() : auditGenFlow);
 		};
 	}
-	
-//	@Transactional
-	public <T, P extends Publisher<T>> Function<P, P> withAuditMessage ( BiConsumer<T, PatronRequestAudit.PatronRequestAuditBuilder> consumer) {
-		return withAuditMessage(consumer, true);
-	}
 
+	//	@Transactional
+	public <T, P extends Publisher<T>> Function<P, P> withAuditMessageNoPropagateErrors(
+		BiConsumer<T, PatronRequestAudit.PatronRequestAuditBuilder> consumer ) {
 
-//	@Transactional
-	public <T, P extends Publisher<T>> Function<P, P> withAuditMessageNoPropagateErrors( BiConsumer<T, PatronRequestAudit.PatronRequestAuditBuilder> consumer ) {
 		return withAuditMessage(consumer, false);
 	}
 }
