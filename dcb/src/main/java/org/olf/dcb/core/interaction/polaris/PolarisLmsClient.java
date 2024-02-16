@@ -25,6 +25,7 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.TRANSFERRED;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
 import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static services.k_int.utils.StringUtils.parseList;
 
 import java.net.URI;
 import java.time.Instant;
@@ -286,9 +287,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		// Look up virtual patron using generated unique ID string
 		final var uniqueId = getValue(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
-		final var barcode = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
-		return papiClient.patronSearch(barcode, uniqueId)
+		final var barcodeListAsString = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
+		final var firstBarcodeInList = parseList(barcodeListAsString).get(0);
+
+		return papiClient.patronSearch(firstBarcodeInList, uniqueId)
 			.map(PAPIClient.PatronSearchRow::getPatronID)
 			.flatMap(appServicesClient::handlePatronBlock)
 			.map(String::valueOf)

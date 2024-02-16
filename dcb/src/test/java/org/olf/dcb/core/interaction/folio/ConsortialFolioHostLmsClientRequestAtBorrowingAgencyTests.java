@@ -51,7 +51,8 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 	void shouldPlaceRequestSuccessfully() {
 		// Arrange
 		final var patronId = UUID.randomUUID().toString();
-		final var patronBarcode = "67129553";
+		// we expect the barcode to be a toString list
+		final var patronBarcode =  "[67129553]";
 		final var pickupLocationCode = UUID.randomUUID().toString();
 		final var supplyingAgencyCode = "supplying-agency";
 		final var supplyingLocalItemId = "supplying-item-id";

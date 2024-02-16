@@ -2,6 +2,7 @@ package org.olf.dcb.request.fulfilment;
 
 import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
 import static reactor.function.TupleUtils.function;
+import static services.k_int.utils.StringUtils.parseList;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -379,10 +380,7 @@ public class SupplyingAgencyService {
 
 		// Patrons can have multiple barcodes. To keep the domain model sane(ish) we store [b1, b2, b3] (As the result of Objects.toString()
 		// in the field. Here we unpack that structure back into an array of barcodes that the HostLMS can do with as it pleases
-		final List<String> patron_barcodes = (requestingPatronIdentity.getLocalBarcode() != null)
-			? Arrays.asList(requestingPatronIdentity.getLocalBarcode()
-				.substring(1, requestingPatronIdentity.getLocalBarcode().length() - 1).split(", "))
-			: null;
+		final List<String> patron_barcodes = parseList( requestingPatronIdentity.getLocalBarcode() );
 
 		if ((patron_barcodes == null) || (patron_barcodes.size() == 0)) {
 			log.warn("Virtual patron has no barcodes. Source identity {}. Will be unable to check out to this patron",
