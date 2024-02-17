@@ -41,6 +41,12 @@ public interface HostLmsClient {
 
 	Mono<String> createBib(Bib bib);
 
+	/**
+	 * place a hold for a specified item at a supplying agency.
+	 * NOTE: Different systems have different policies and we may need to place a Bib or an Item level hold. If we place a bib level
+	 * hold we will will not know the barcode and id of the item held until the downstream system has selected an item.
+	 * impementers need to take care to return the id and barcode of the ultimately selected item once it is known.
+	 */
 	Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters);
 
 	Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters);

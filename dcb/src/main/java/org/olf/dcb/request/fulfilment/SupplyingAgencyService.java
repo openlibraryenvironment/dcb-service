@@ -143,8 +143,11 @@ public class SupplyingAgencyService {
 		}
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
+
+			// When placing a bib level hold the item that gets selected MAY NOT be the item DCB thought it was asking for from that
+			// provider
 			.flatMap(client -> this.placeHoldRequest(client, psrc))
-			.map(localRequest -> supplierRequest.placed(localRequest.getLocalId(), localRequest.getLocalStatus()))
+			.map(lr -> supplierRequest.placed(lr.getLocalId(), lr.getLocalStatus(), lr.getHeldItemId(), lr.getHeldItemBarcode()))
 			.thenReturn(psrc)
 			.onErrorResume(error -> {
 				log.error("Error in placeRequestAtSupplier {} : {}", psrc, error.getMessage());
@@ -183,6 +186,7 @@ public class SupplyingAgencyService {
 					.localPatronBarcode(homeIdentity.getLocalBarcode())
 					.localBibId(supplierRequest.getLocalBibId())
 					// FOLIO needs both the ID and barcode to cross-check the item identity
+					// SIERRA when placing a BIB hold - the ITEM that gets held may not be the one we selected
 					.localItemId(supplierRequest.getLocalItemId())
 					.localItemBarcode(supplierRequest.getLocalItemBarcode())
 					// Have to pass both because Sierra and Polaris still use code only

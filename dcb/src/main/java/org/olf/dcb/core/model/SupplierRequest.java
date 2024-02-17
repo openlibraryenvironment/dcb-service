@@ -131,6 +131,20 @@ public class SupplierRequest {
 	@Nullable
 	private String protocol;
 
+	/**
+	 * A place request on a bib record MAY change the item selected, if thet are set, store the actual values in here
+	 */
+	public SupplierRequest placed(String localId, String localStatus, String localItemId, String localItemBarcode) {
+		setLocalId(localId);
+		setLocalStatus(localStatus);
+		if ( localItemId != null )
+			setLocalItemId(localItemId);
+		if ( localItemBarcode != null )
+			setLocalItemBarcode(localItemBarcode);
+		setStatusCode(PLACED);
+		return this;
+	}
+
 	public SupplierRequest placed(String localId, String localStatus) {
 		setLocalId(localId);
 		setLocalStatus(localStatus);
