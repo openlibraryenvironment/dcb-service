@@ -147,7 +147,7 @@ public class SupplyingAgencyService {
 			// When placing a bib level hold the item that gets selected MAY NOT be the item DCB thought it was asking for from that
 			// provider
 			.flatMap(client -> this.placeHoldRequest(client, psrc))
-			.map(lr -> supplierRequest.placed(lr.getLocalId(), lr.getLocalStatus(), lr.getHeldItemId(), lr.getHeldItemBarcode()))
+			.map(lr -> supplierRequest.placed(lr.getLocalId(), lr.getLocalStatus(), lr.getRequestedItemId(), lr.getRequestedItemBarcode()))
 			.thenReturn(psrc)
 			.onErrorResume(error -> {
 				log.error("Error in placeRequestAtSupplier {} : {}", psrc, error.getMessage());
@@ -245,6 +245,7 @@ public class SupplyingAgencyService {
 	// Here we work out which particular workflow is in force and set a value on the patron request for easy reference.
 	// This can change as we select different suppliers, so we recalculate for each new supplier.
 	private Mono<RequestWorkflowContext> setPatronRequestWorkflow(RequestWorkflowContext psrc) {
+
 		log.debug("setPatronRequestWorkflow for {}", psrc);
 		if ((psrc.getPatronAgencyCode().equals(psrc.getLenderAgencyCode())) &&
 			(psrc.getPatronAgencyCode().equals(psrc.getPickupAgencyCode()))) {

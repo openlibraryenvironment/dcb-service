@@ -657,6 +657,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.filter(hold -> shouldIncludeHold(hold, patronRequestId))
 			.collectList()
 			.map(filteredHolds -> chooseHold(note, filteredHolds))
+			// We should retrieve the item record for the selected hold and store the barcode here
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when getting Hold"));
@@ -707,12 +708,26 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("chooseHold({},{})", note, filteredHolds);
 
 		if (filteredHolds.size() == 1) {
-			final var extractedId = deRestify(filteredHolds.get(0).id());
-			final var localStatus = mapSierraHoldStatusToDCBHoldStatus(filteredHolds.get(0).status().code());
+
+			SierraPatronHold sph = filteredHolds.get(0);
+
+			final var extractedId = deRestify(sph.id());
+			final var localStatus = mapSierraHoldStatusToDCBHoldStatus(sph.status().code());
+
+			String requestedItemId = null;
+
+			if ( ( sph.recordType().equals("i") ) && ( sph.record() != null ) ) {	
+				log.info("Found item ID returned by hold.... get the details and set requested item ID to {}", sph.record());
+				requestedItemId = deRestify(sph.record());
+			}
+			else {
+				log.warn("chooseHold returned a record which was NOT an item or record was null {}:{}",sph.recordType(),sph.record());
+			}
 
 			return LocalRequest.builder()
 				.localId(extractedId)
 				.localStatus(localStatus)
+				.requestedItemId(requestedItemId)
 				.build();
 
 		} else if (filteredHolds.size() > 1) {

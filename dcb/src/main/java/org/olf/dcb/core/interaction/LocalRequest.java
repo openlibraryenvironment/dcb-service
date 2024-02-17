@@ -13,8 +13,8 @@ public class LocalRequest {
 	String localStatus;
 
 	/** Once known, the local id of the item actually requested */
-	String heldItemId;
+	String requestedItemId;
 
 	/** Once known, the barcode of the item actually requested */
-	String heldItemBarcode;
+	String requestedItemBarcode;
 }
