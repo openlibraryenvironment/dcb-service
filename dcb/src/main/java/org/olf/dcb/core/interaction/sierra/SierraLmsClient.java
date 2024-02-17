@@ -570,9 +570,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(
 		PlaceHoldRequestParameters parameters) {
 
+		// This is left as a comment for now - there is some discussion as to what the best thing to do is in sierra 
+		// when placing a hold. For now we revert to the original plan - set the pickup location to the 
+
 		// When placing the hold on a suppling location, the item will be "Picked up" by the transit van at the
 		// location where the item currently resides
-		return placeHoldRequest(parameters, parameters.getSupplyingLocalItemLocation());
+		// return placeHoldRequest(parameters, parameters.getSupplyingLocalItemLocation());
+
+		return placeHoldRequest(parameters, parameters.getPickupLocation());
 	}
 
 	@Override

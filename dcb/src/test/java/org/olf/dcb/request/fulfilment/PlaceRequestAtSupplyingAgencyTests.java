@@ -161,7 +161,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestMade("1000002");
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
-			563653, "supplying-location",
+			563653, "borrowing-agency",
 			"Consortial Hold. tno=" + patronRequest.getId());
 	}
 
@@ -203,7 +203,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestNotMade("1000002");
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
-			563653, "supplying-location",
+			563653, "borrowing-agency",
 			"Consortial Hold. tno=" + patronRequest.getId());
 	}
 
@@ -237,7 +237,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.verifyCreatePatronRequestMade("546730@supplying-agency");
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000003", "b",
-			563653, "supplying-location",
+			563653, "borrowing-agency",
 			"Consortial Hold. tno=" + patronRequest.getId());
 	}
 

@@ -147,6 +147,7 @@ public class SupplyingAgencyService {
 			// When placing a bib level hold the item that gets selected MAY NOT be the item DCB thought it was asking for from that
 			// provider
 			.flatMap(client -> this.placeHoldRequest(client, psrc))
+			// ToDo: add a function to look up the item requested and extract the barcode and set it in the LocalRequest so it can be returned in the line below
 			.map(lr -> supplierRequest.placed(lr.getLocalId(), lr.getLocalStatus(), lr.getRequestedItemId(), lr.getRequestedItemBarcode()))
 			.thenReturn(psrc)
 			.onErrorResume(error -> {
