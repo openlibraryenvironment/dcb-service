@@ -223,7 +223,7 @@ public class PAPIClient {
 		// 0 = Success
 		if (PAPIErrorCode < 0) {
 			log.error("Patron search returned ERROR: {}", errorMessage);
-			throw new FindVirtualPatronException("PAPIService returned: " + errorMessage);
+			throw new FindVirtualPatronException("PAPIService returned ["+PAPIErrorCode+"]: " + errorMessage);
 		}
 
 		return patronSearchResult;

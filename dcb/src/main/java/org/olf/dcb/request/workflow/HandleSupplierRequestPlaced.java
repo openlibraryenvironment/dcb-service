@@ -22,6 +22,9 @@ public class HandleSupplierRequestPlaced implements WorkflowAction {
 		this.supplierRequestRepository = supplierRequestRepository;
 	}
 
+
+	// Use pattern from HandleSupplierInTransit to get hold of context for this sr and then send a PR audit message on execution of this step
+
 	@Transactional
 	public Mono<Map<String, Object>> execute(Map<String, Object> context) {
 		StateChange sc = (StateChange) context.get("StateChange");
