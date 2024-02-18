@@ -31,18 +31,21 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 	private final PatronRequestAuditService auditService;
+  private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private HostLmsService hostLmsService;
 
 	public HandleSupplierItemAvailable(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
 		PatronRequestAuditService auditService,
+		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		HostLmsService hostLmsService) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.auditService = auditService;
+		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.hostLmsService = hostLmsService;
 	}
 
@@ -51,54 +54,45 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 		StateChange sc = (StateChange) context.get("StateChange");
 		log.debug("HandleSupplierItemAvailable {}",sc);
 		SupplierRequest sr = (SupplierRequest) sc.getResource();
-		return Mono.from(patronRequestRepository.findById(sr.getPatronRequest().getId()))
-			.flatMap(pr -> {
-				if (sr != null && pr != null) {
-					// If we've been through the lifecycle of a request and the item is available again at the
-					// supplying library then it's returned. But if this is a new request, the item is likely
-					// available because it's on the shelf. If we have detected some state other than AVAILABLE
-					// that means that the process is now in flow.
-					return handleSupplierLocalItemStatus(sr, pr)
-						.doOnSuccess(ok -> log.debug("Set local status to AVAILABLE and save {}", sr))
-						.flatMap(ok -> Mono.from(supplierRequestRepository.saveOrUpdate(sr)))
-						.doOnNext(ssr -> log.debug("Saved {}", ssr))
-						.flatMap(ssr -> Mono.from(patronRequestRepository.saveOrUpdate(pr)))
-						.doOnNext(spr -> log.debug("Saved {}", spr))
-						// See if we can progress the patron request at all
-						.flatMap(spr -> Mono.from(patronRequestWorkflowServiceProvider.get().progressAll(spr)))
-						.thenReturn(context);
-				} else {
-					log.warn("Unable to locate supplier request to mark item as available");
-					return Mono.just(context);
-				}
-			});
+
+    return requestWorkflowContextHelper.fromSupplierRequest(sr)
+			.flatMap ( ctx -> handleSupplierLocalItemStatusAvailable(ctx) )
+			.thenReturn(context);
 	}
 
-	private Mono<String> handleSupplierLocalItemStatus(SupplierRequest sr, PatronRequest pr) {
+	private Mono<RequestWorkflowContext> handleSupplierLocalItemStatusAvailable(RequestWorkflowContext ctx) {
+
+		SupplierRequest sr = ctx.getSupplierRequest();
+		PatronRequest pr = ctx.getPatronRequest();
+
+		// This should not happen...
+		if ( ( sr == null ) || ( pr == null ) )
+			return Mono.error(new RuntimeException("Unable to locate supplier or patron request"));
+
+		// If this is a new request and we are detecting that the supplier item is available then it is available for the
+		// borrower - update and continue
 		if (sr.getLocalItemStatus() == null) {
 			// Our first time seeing this item set it's state to AVAILABLE
-			auditService.addAuditEntry(pr, "Supplier Item Available - Infers this item is available for a new request").subscribe();
-
 			log.debug("Initialising supplying library item status");
 			sr.setLocalItemStatus("AVAILABLE");
-
-			return Mono.just("OK");
+			return Mono.from(supplierRequestRepository.saveOrUpdate(sr))
+				.flatMap( ssr -> Mono.from(patronRequestRepository.saveOrUpdate(pr)) )
+				.flatMap( spr -> auditService.addAuditEntry(spr, "Supplier Item Available - Infers selected item is available for request") )
+				.flatMap( aud -> Mono.from(patronRequestWorkflowServiceProvider.get().progressAll(pr)))
+				.thenReturn(ctx);
 		}
 		else {
 			// An item becoming available means the request process has 'completed'
+			sr.setLocalItemStatus("AVAILABLE");
+			pr.setStatus(PatronRequest.Status.COMPLETED);
 
 			// DCB-851 update borrowing lib
 			return updateBorrowerThatItemHasBeenReceivedBack(pr)
-				// when successful update dcb
-				.doOnSuccess(ok -> {
-					log.debug("Finalising supplier request - item is available at lender again");
-					auditService.addAuditEntry(pr,
-						"Supplier Item Available - Infers item back on the shelf after loan. Completing request")
-						.subscribe();
-
-					sr.setLocalItemStatus("AVAILABLE");
-					pr.setStatus(PatronRequest.Status.COMPLETED);
-				});
+				.flatMap( ok -> Mono.from(supplierRequestRepository.saveOrUpdate(sr) ) )
+				.flatMap( ssr -> Mono.from(patronRequestRepository.saveOrUpdate(pr)) )
+				.flatMap( spr -> auditService.addAuditEntry(spr, "Supplier Item Available - Infers item back on the shelf after loan. Completing request") )
+				.flatMap( aud -> Mono.from(patronRequestWorkflowServiceProvider.get().progressAll(pr)))
+				.thenReturn(ctx);
 		}
 	}
 
@@ -108,7 +102,6 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 		final var localItemId = patronRequest.getLocalItemId();
 
 		return hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode())
-			.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(
-				localItemId, HostLmsClient.CanonicalItemState.COMPLETED, localId));
+			.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(localItemId, HostLmsClient.CanonicalItemState.COMPLETED, localId));
 	}
 }
