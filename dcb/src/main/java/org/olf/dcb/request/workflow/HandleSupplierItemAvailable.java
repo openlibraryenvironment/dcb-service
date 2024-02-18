@@ -31,18 +31,21 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 	private final PatronRequestAuditService auditService;
+  private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private HostLmsService hostLmsService;
 
 	public HandleSupplierItemAvailable(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
 		PatronRequestAuditService auditService,
+		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		HostLmsService hostLmsService) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.auditService = auditService;
+		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.hostLmsService = hostLmsService;
 	}
 
@@ -51,6 +54,11 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 		StateChange sc = (StateChange) context.get("StateChange");
 		log.debug("HandleSupplierItemAvailable {}",sc);
 		SupplierRequest sr = (SupplierRequest) sc.getResource();
+
+    return requestWorkflowContextHelper.fromSupplierRequest(sr)
+			.flatMap ( ctx -> handleSupplierLocalItemStatus(ctx) )
+			;
+
 		return Mono.from(patronRequestRepository.findById(sr.getPatronRequest().getId()))
 			.flatMap(pr -> {
 				if (sr != null && pr != null) {
@@ -75,6 +83,11 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 	}
 
 	private Mono<String> handleSupplierLocalItemStatus(SupplierRequest sr, PatronRequest pr) {
+	// private Mono<RequestWorkflowContext> handleSupplierLocalItemStatus(RequestWorkflowContext ctx) {
+
+	// 	SupplierRequest sr = ctx.getSupplierRequest();
+	// 	PatronRequest pr = ctx.getPatronRequest();
+
 		if (sr.getLocalItemStatus() == null) {
 			// Our first time seeing this item set it's state to AVAILABLE
 			auditService.addAuditEntry(pr, "Supplier Item Available - Infers this item is available for a new request").subscribe();
