@@ -180,8 +180,10 @@ public class PatronRequestTrackingTests {
 		waitUntilPatronRequestIsFinalised(patronRequest);
 	}
 
+
 	@Test
 	void shouldFinaliseRequestWhenSupplierItemAvailable() {
+
 		// Arrange
 		final var patronRequest = createPatronRequest(
 			request -> request
@@ -230,6 +232,7 @@ public class PatronRequestTrackingTests {
 
 		// Arrange
 		final var patron = patronFixture.savePatron("homeLibraryCode");
+		// final var patronIdentity = patronFixture.savePatronIdentity(patron);
 
 		final var builder = PatronRequest.builder()
 			.id(randomUUID())
