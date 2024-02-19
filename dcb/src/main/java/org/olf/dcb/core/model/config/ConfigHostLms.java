@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.ingest.IngestSource;
 
 import io.micronaut.context.annotation.EachProperty;
@@ -18,7 +19,7 @@ import services.k_int.utils.UUIDUtils;
 @Serdeable
 @Getter
 @EachProperty("hosts")
-public class ConfigHostLms {
+public class ConfigHostLms implements HostLms{
 	private Map<String, Object> clientConfig;
 	private final UUID id;
 	private final String name;
@@ -38,11 +39,24 @@ public class ConfigHostLms {
 		this.clientConfig = clientConfig;
 	}
 
+	@SuppressWarnings("unchecked")
 	public void setType(Class<? extends HostLmsClient> type) {
-		this.type = type;
+		setLmsClientClass( type );
+		if (this.ingestSourceType == null && IngestSource.class.isAssignableFrom(type)) {
+			setIngestSourceType ((Class<? extends IngestSource>)type);
+		}
 	}
 
 	public void setIngestSourceType(Class<? extends IngestSource> ingestSourceType) {
 		this.ingestSourceType = ingestSourceType;
+	}
+	
+	public void setLmsClientClass(Class<? extends HostLmsClient> type) {
+		this.type = type;
+	}
+
+	@Override
+	public Class<?> getClientType() {
+		return type;
 	}
 }

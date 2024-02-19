@@ -22,7 +22,7 @@ import lombok.experimental.Accessors;
 
 @Data
 @Serdeable
-@Builder
+@Builder(toBuilder = true)
 @AllArgsConstructor()
 @Accessors(chain=true)
 public class Item implements Comparable<Item> {

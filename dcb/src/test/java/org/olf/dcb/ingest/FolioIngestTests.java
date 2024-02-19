@@ -19,10 +19,8 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 
 import jakarta.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
-@Slf4j
 @MockServerMicronautTest
 class FolioIngestTests {
 	@Inject

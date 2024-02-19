@@ -6,6 +6,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.security.rules.SecurityRule.IS_ANONYMOUS;
 import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 
+import java.time.Duration;
 import java.util.UUID;
 
 import org.olf.dcb.core.UnknownHostLmsException;
@@ -14,6 +15,7 @@ import org.olf.dcb.item.availability.LiveAvailabilityService;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 
+import io.micronaut.context.annotation.Value;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
@@ -35,6 +37,9 @@ import reactor.core.publisher.Mono;
 @Tag(name = "Live Availability API")
 public class LiveAvailabilityController {
 	private final LiveAvailabilityService liveAvailabilityService;
+	
+	@Value("${dcb.live-availability.timeout:PT5S}")
+	protected Duration timeout;
 
 	public LiveAvailabilityController(LiveAvailabilityService liveAvailabilityService) {
 		this.liveAvailabilityService = liveAvailabilityService;
@@ -51,7 +56,7 @@ public class LiveAvailabilityController {
 
 		log.info("REST, getLiveAvailability: {}", clusteredBibId);
 
-		return liveAvailabilityService.getAvailableItems(clusteredBibId)
+		return liveAvailabilityService.checkAvaiability(clusteredBibId, timeout)
 			.onErrorReturn(NoBibsForClusterRecordException.class, emptyReport())
 			.map(report -> AvailabilityResponseView.from(report, clusteredBibId));
 	}

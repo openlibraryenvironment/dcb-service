@@ -10,7 +10,7 @@ import lombok.Builder;
 import lombok.Data;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 public class AvailabilityReport {
 	private final List<Item> items;
 	private final List<Error> errors;
