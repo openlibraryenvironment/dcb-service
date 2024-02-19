@@ -222,8 +222,18 @@ public class PAPIClient {
 		// ref: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1210888
 		// 0 = Success
 		if (PAPIErrorCode < 0) {
-			log.error("Patron search returned ERROR: {}", errorMessage);
-			throw new FindVirtualPatronException("PAPIService returned ["+PAPIErrorCode+"]: " + errorMessage);
+
+			// we assume (-1, general failure) translates to no results found
+			final var FAILURE_General = -1;
+			if (PAPIErrorCode == FAILURE_General) {
+				log.info("PAPIService returned 'General Failure' for the virtual patron search: {}, {}",
+					PAPIErrorCode, errorMessage);
+
+				return patronSearchResult;
+			}
+
+			log.error("PAPIService returned error code: {}, with message: '{}'", PAPIErrorCode, errorMessage);
+			throw new FindVirtualPatronException("PAPIService returned ["+PAPIErrorCode+"], with message: " + errorMessage);
 		}
 
 		return patronSearchResult;
@@ -239,7 +249,7 @@ public class PAPIClient {
 		}
 
 		if (recordsFound > 1) {
-			log.error(String.valueOf(patronSearchResult));
+			log.error("More than one virtual patron found: {}", patronSearchResult);
 			throw new FindVirtualPatronException(recordsFound + " records found for virtual patron.");
 		}
 
