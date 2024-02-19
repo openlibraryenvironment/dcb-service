@@ -216,11 +216,11 @@ public class SierraPatronsAPIFixture {
 			.respond(patronHoldFoundResponse());
 	}
 
-	public void patronHoldResponse(String patronId, String holdIdUrl, String note) {
+	public void patronHoldResponse(String patronId, String holdIdUrl, String note, String itemId) {
 		List<PatronHoldResponse> phre = new ArrayList<>();
 		phre.add(PatronHoldResponse.builder()
 			.id(holdIdUrl)
-			.record("https://some/record/" + patronId)
+			.record("https://some/record/" + itemId)
 			.patron("https://some/patron/" + patronId)
 			.frozen(false)
 			.notNeededAfterDate("2023-09-01")

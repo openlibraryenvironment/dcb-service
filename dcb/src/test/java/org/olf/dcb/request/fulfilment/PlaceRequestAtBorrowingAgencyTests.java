@@ -175,7 +175,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		// correct note containing the patronRequestId
 		sierraPatronsAPIFixture.patronHoldResponse("872321",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864902",
-			"Consortial Hold. tno="+patronRequest.getId());
+			"Consortial Hold. tno="+patronRequest.getId(), "872321");
 
 		// Act
 		final var pr = placeRequestAtBorrowingAgency(patronRequest);

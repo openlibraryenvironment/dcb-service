@@ -229,12 +229,14 @@ class PatronRequestApiTests {
 		log.info("Inserting hold response for patron 2745326 - placedPatronRequest.id=" + placedPatronRequest.getId());
 		sierraPatronsAPIFixture.patronHoldResponse("2745326",
 				"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/407557",
-				"Consortial Hold. tno=" + placedPatronRequest.getId());
+				"Consortial Hold. tno=" + placedPatronRequest.getId(),
+                "2745326");
 
 		// This one is for the borrower side hold
 		sierraPatronsAPIFixture.patronHoldResponse(KNOWN_PATRON_LOCAL_ID,
 				"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864902",
-				"Consortial Hold. tno=" + placedPatronRequest.getId());
+				"Consortial Hold. tno=" + placedPatronRequest.getId(),
+                KNOWN_PATRON_LOCAL_ID);
 
 		// We need to take the placedRequestResponse and somehow inject it's ID into the
 		// patronHolds response message as note="Consortial Hold. tno=UUID"

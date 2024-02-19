@@ -19,4 +19,8 @@ public class LocalRequestMatchers {
 	public static Matcher<LocalRequest> hasLocalId() {
 		return hasProperty("localId", is(notNullValue()));
 	}
+
+	public static Matcher<LocalRequest> hasRequestedItemId(String expectedItemId) {
+		return hasProperty("requestedItemId", is(expectedItemId));
+	}
 }
