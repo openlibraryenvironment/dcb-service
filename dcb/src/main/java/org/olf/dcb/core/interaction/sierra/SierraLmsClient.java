@@ -1115,9 +1115,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
 		log.debug("getItem({}, {})", localItemId, localRequestId);
 
-		return Mono.from(client.getItem(localItemId))
-			.flatMap(sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)))
-			.defaultIfEmpty(HostLmsItem.builder().localId(localItemId).status("MISSING").build());
+		if ( localItemId != null ) {
+			return Mono.from(client.getItem(localItemId))
+				.flatMap(sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)))
+				.defaultIfEmpty(HostLmsItem.builder().localId(localItemId).status("MISSING").build());
+		}
+
+		log.warn("getItem called with null itemId");
+		return Mono.empty();
 	}
 
 	// WARNING We might need to make this accept a patronIdentity - as different
