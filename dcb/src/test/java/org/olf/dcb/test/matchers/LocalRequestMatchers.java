@@ -23,4 +23,8 @@ public class LocalRequestMatchers {
 	public static Matcher<LocalRequest> hasRequestedItemId(String expectedItemId) {
 		return hasProperty("requestedItemId", is(expectedItemId));
 	}
+
+	public static Matcher<LocalRequest> hasRequestedItemBarcode(String expectedBarcode) {
+		return hasProperty("requestedItemBarcode", is(expectedBarcode));
+	}
 }

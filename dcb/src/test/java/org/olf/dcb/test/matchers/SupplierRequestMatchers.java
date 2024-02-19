@@ -11,4 +11,8 @@ public class SupplierRequestMatchers {
 	public static Matcher<SupplierRequest> hasLocalStatus(String expectedStatus) {
 		return hasProperty("localStatus", is(expectedStatus));
 	}
+
+	public static Matcher<SupplierRequest> hasLocalItemBarcode(String expectedBarcode) {
+		return hasProperty("localItemBarcode", is(expectedBarcode));
+	}
 }

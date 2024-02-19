@@ -2,6 +2,7 @@ package org.olf.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -17,6 +18,7 @@ import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasId;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
@@ -32,6 +34,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItem;
+import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
@@ -81,6 +85,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 	private PatronService patronService;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	private DataAgency supplyingAgency;
 
@@ -116,6 +121,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 			.build());
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		// add patron type mappings
 		savePatronTypeMappings();
@@ -144,17 +150,33 @@ class PlaceRequestAtSupplyingAgencyTests {
 		// The unexpected patron type will trigger a request to update the virtual patron
 		sierraPatronsAPIFixture.updatePatron("1000002");
 
-		sierraPatronsAPIFixture.patronHoldResponse("1000002",
-			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
-			"Consortial Hold. tno="+patronRequest.getId(), "1000002");
+		final var localItemId = "45736543";
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000002", "b", 563653);
+
+		sierraPatronsAPIFixture.patronHoldResponse("1000002",
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
+			"Consortial Hold. tno="+patronRequest.getId(), localItemId);
+
+		sierraItemsAPIFixture.mockGetItemById(localItemId,
+			SierraItem.builder()
+				.id(localItemId)
+				.barcode("67324231")
+				.statusCode("-")
+				.build());
 
 		// Act
 		final var placedPatronRequest = placeAtSupplyingAgency(patronRequest);
 
 		// Assert
 		patronRequestWasPlaced(placedPatronRequest, patronRequestId);
+
+		final var updatedSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
+
+		assertThat(updatedSupplierRequest, allOf(
+			notNullValue(),
+			hasLocalItemBarcode("67324231")
+		));
 
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("872321@supplying-agency");
 		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("872321@supplying-agency");
@@ -186,17 +208,33 @@ class PlaceRequestAtSupplyingAgencyTests {
 				.names(List.of("Bob"))
 				.build());
 
-		sierraPatronsAPIFixture.patronHoldResponse("1000002",
-			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
-			"Consortial Hold. tno="+patronRequest.getId(), "1000002");
+		final var localItemId = "36746267";
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000002", "b", 563653);
+
+		sierraPatronsAPIFixture.patronHoldResponse("1000002",
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
+			"Consortial Hold. tno="+patronRequest.getId(), localItemId);
+
+		sierraItemsAPIFixture.mockGetItemById(localItemId,
+			SierraItem.builder()
+				.id(localItemId)
+				.barcode("67324231")
+				.statusCode("-")
+				.build());
 
 		// Act
 		final var placedPatronRequest = placeAtSupplyingAgency(patronRequest);
 
 		// Assert
 		patronRequestWasPlaced(placedPatronRequest, patronRequestId);
+
+		final var updatedSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
+
+		assertThat(updatedSupplierRequest, allOf(
+			notNullValue(),
+			hasLocalItemBarcode("67324231")
+		));
 
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("32453@supplying-agency");
 		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("32453@supplying-agency");
@@ -221,14 +259,31 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.patronNotFoundResponse("u", "546730@supplying-agency");
 		sierraPatronsAPIFixture.postPatronResponse("546730@supplying-agency", 1000003);
-		sierraPatronsAPIFixture.patronHoldResponse("1000003",
-			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864905",
-			"Consortial Hold. tno="+patronRequest.getId(), "1000003");
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000003", "b", 563653);
 
+		final var localItemId = "67384453";
+
+		sierraPatronsAPIFixture.patronHoldResponse("1000003",
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864905",
+			"Consortial Hold. tno="+patronRequest.getId(), localItemId);
+
+		sierraItemsAPIFixture.mockGetItemById(localItemId,
+			SierraItem.builder()
+				.id(localItemId)
+				.barcode("67324231")
+				.statusCode("-")
+				.build());
+
 		// Act
 		final var placedPatronRequest = placeAtSupplyingAgency(patronRequest);
+
+		final var updatedSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
+
+		assertThat(updatedSupplierRequest, allOf(
+			notNullValue(),
+			hasLocalItemBarcode("67324231")
+		));
 
 		// Assert
 		patronRequestWasPlaced(placedPatronRequest, patronRequestId);

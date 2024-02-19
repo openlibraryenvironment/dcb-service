@@ -23,6 +23,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
+import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
@@ -72,6 +73,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@Inject
 	private PlacePatronRequestAtBorrowingAgencyStateTransition placePatronRequestAtBorrowingAgencyStateTransition;
@@ -103,6 +105,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.build());
 
 		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
@@ -176,6 +179,13 @@ class PlaceRequestAtBorrowingAgencyTests {
 		sierraPatronsAPIFixture.patronHoldResponse("872321",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864902",
 			"Consortial Hold. tno="+patronRequest.getId(), "872321");
+
+		sierraItemsAPIFixture.mockGetItemById("872321",
+			SierraItem.builder()
+				.id("872321")
+				.barcode("6736255")
+				.statusCode("-")
+				.build());
 
 		// Act
 		final var pr = placeRequestAtBorrowingAgency(patronRequest);

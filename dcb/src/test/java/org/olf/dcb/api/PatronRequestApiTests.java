@@ -35,6 +35,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
+import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Event;
@@ -94,6 +95,7 @@ class PatronRequestApiTests {
 	private AdminApiClient adminApiClient;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
@@ -115,9 +117,8 @@ class PatronRequestApiTests {
 		final var h3 = hostLmsFixture.createSierraHostLms("codeBB", KEY, SECRET, BASE_URL);
 		log.debug("Created dataHostLms {}", h3);
 
-		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
-
 		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
 
@@ -228,15 +229,29 @@ class PatronRequestApiTests {
 		// 2745326 will be the identity of this patron in the supplier side system
 		log.info("Inserting hold response for patron 2745326 - placedPatronRequest.id=" + placedPatronRequest.getId());
 		sierraPatronsAPIFixture.patronHoldResponse("2745326",
-				"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/407557",
-				"Consortial Hold. tno=" + placedPatronRequest.getId(),
-                "2745326");
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/407557",
+			"Consortial Hold. tno=" + placedPatronRequest.getId(),
+			"2745326");
+
+		sierraItemsAPIFixture.mockGetItemById("2745326",
+			SierraItem.builder()
+				.id("2745326")
+				.barcode(SUPPLYING_ITEM_BARCODE)
+				.statusCode("-")
+				.build());
 
 		// This one is for the borrower side hold
 		sierraPatronsAPIFixture.patronHoldResponse(KNOWN_PATRON_LOCAL_ID,
 				"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864902",
 				"Consortial Hold. tno=" + placedPatronRequest.getId(),
-                KNOWN_PATRON_LOCAL_ID);
+			KNOWN_PATRON_LOCAL_ID);
+
+		sierraItemsAPIFixture.mockGetItemById(KNOWN_PATRON_LOCAL_ID,
+			SierraItem.builder()
+				.id(KNOWN_PATRON_LOCAL_ID)
+				.barcode(SUPPLYING_ITEM_BARCODE)
+				.statusCode("-")
+				.build());
 
 		// We need to take the placedRequestResponse and somehow inject it's ID into the
 		// patronHolds response message as note="Consortial Hold. tno=UUID"

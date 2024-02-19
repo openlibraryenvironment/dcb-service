@@ -656,12 +656,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			}
 		}
 
-		return Mono.from(client.patronHolds(patronLocalId)).map(SierraPatronHoldResultSet::entries)
+		return Mono.from(client.patronHolds(patronLocalId))
+			.map(SierraPatronHoldResultSet::entries)
 			.doOnNext(entries -> log.debug("Hold entries: {}", entries))
 			.flatMapMany(Flux::fromIterable)
 			.filter(hold -> shouldIncludeHold(hold, patronRequestId))
 			.collectList()
 			.map(filteredHolds -> chooseHold(note, filteredHolds))
+			.flatMap(localRequest ->
+				getItem(localRequest.getRequestedItemId(), localRequest.getLocalId())
+					.map(item -> LocalRequest.builder()
+						.localId(localRequest.getLocalId())
+						.localStatus(localRequest.getLocalStatus())
+						.requestedItemId(localRequest.getRequestedItemId())
+						.requestedItemBarcode(item.getBarcode())
+						.build()))
 			// We should retrieve the item record for the selected hold and store the barcode here
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
