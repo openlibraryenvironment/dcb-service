@@ -143,7 +143,7 @@ class PatronRequestApiTests {
 		sierraPatronsAPIFixture.postPatronResponse("872321@ab6", 2745326);
 
 		// supplying agency service
-		sierraPatronsAPIFixture.patronHoldRequestResponse("2745326", "i", null);
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("2745326", "i", null);
 
 		// borrowing agency service
 		final var bibPatch = BibPatch.builder()
@@ -153,7 +153,7 @@ class PatronRequestApiTests {
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_LOCATION_CODE, SUPPLYING_ITEM_BARCODE);
-		sierraPatronsAPIFixture.patronHoldRequestResponse(KNOWN_PATRON_LOCAL_ID, "i", null);
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(KNOWN_PATRON_LOCAL_ID, "i", null);
 
 		final var da = agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())

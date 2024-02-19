@@ -242,7 +242,7 @@ class SierraApiPatronTests {
 	void testPlacePatronHoldRequest() {
 		// Arrange
 		final var patronLocalId = "1341234";
-		sierraPatronsAPIFixture.patronHoldRequestResponse(patronLocalId, "i", null);
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(patronLocalId, "i", null);
 
 		final var patronHoldPost = PatronHoldPost.builder()
 			.recordNumber(32897458)

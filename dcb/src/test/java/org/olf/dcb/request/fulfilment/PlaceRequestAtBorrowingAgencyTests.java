@@ -169,7 +169,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
 			"ab6", "9849123490", hostLms.code, "ab6");
 
-		sierraPatronsAPIFixture.patronHoldRequestResponse("872321", "b", 7916921);
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("872321", "b", 7916921);
 
 		// This one is for the borrower side hold - we now match a hold using the note instead of the itemid - so we have to fix up a hold with the
 		// correct note containing the patronRequestId
@@ -283,7 +283,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "35365", "localItemId",
 			"ab6", "9849123490", hostLms.code, "ab6");
 
-		sierraPatronsAPIFixture.patronHoldRequestResponse("785843", "b", 7916921);
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("785843", "b", 7916921);
 
 		sierraPatronsAPIFixture.notFoundWhenGettingPatronRequests("785843");
 

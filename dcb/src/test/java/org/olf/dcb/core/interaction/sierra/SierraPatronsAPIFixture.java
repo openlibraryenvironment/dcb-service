@@ -172,7 +172,7 @@ public class SierraPatronsAPIFixture {
 			.withQueryStringParameter("varFieldContent", content);
 	}
 
-	public void patronHoldRequestResponse(String patronId,
+	public void mockPlacePatronHoldRequest(String patronId,
 		String expectedRecordType, Integer expectedRecordNumber) {
 
 		mockServer

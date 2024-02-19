@@ -148,7 +148,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
 			"Consortial Hold. tno="+patronRequest.getId());
 
-		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002", "b", 563653);
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000002", "b", 563653);
 
 		// Act
 		final var placedPatronRequest = placeAtSupplyingAgency(patronRequest);
@@ -190,7 +190,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
 			"Consortial Hold. tno="+patronRequest.getId());
 
-		sierraPatronsAPIFixture.patronHoldRequestResponse("1000002", "b", 563653);
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000002", "b", 563653);
 
 		// Act
 		final var placedPatronRequest = placeAtSupplyingAgency(patronRequest);
@@ -225,7 +225,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864905",
 			"Consortial Hold. tno="+patronRequest.getId());
 
-		sierraPatronsAPIFixture.patronHoldRequestResponse("1000003", "b", 563653);
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000003", "b", 563653);
 
 		// Act
 		final var placedPatronRequest = placeAtSupplyingAgency(patronRequest);
