@@ -15,7 +15,6 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import jakarta.inject.Inject;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -38,9 +37,8 @@ class SierraHostLmsClientPlaceRequestTests {
 	}
 
 	@Test
-	@SneakyThrows
 	void cannotPlaceRequestWhenHoldPolicyIsInvalid() {
-        // Arrange
+		// Arrange
 		hostLmsFixture.createSierraHostLms("invalid-hold-policy",
 			"key", "secret", "https://sierra-place-request-tests.com", "invalid");
 
