@@ -616,7 +616,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		var patronHoldPost = PatronHoldPost.builder()
 			.recordType(recordType)
-			.recordNumber(convertToInteger(recordNumber))
+			.recordNumber(convertToInteger(recordNumber, "hold record number"))
 			// We suspect that Sierra needs the pickup location at the supplying agency to be the loc where the item
 			// is currently held. We can do this via the RTAC result or by looking up the item and finding the loc.
 			// Easiest is to use the RTAC result.
@@ -742,11 +742,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		}
 	}
 
-	private static int convertToInteger(String integer) {
+	private static int convertToInteger(String integer, String parameterDescription) {
 		try {
 			return parseInt(integer);
 		} catch (NumberFormatException e) {
-			throw new IllegalArgumentException("Invalid integer: " + integer, e);
+			throw new IllegalArgumentException(
+				"Invalid integer value: \"%s\" for parameter \"%s\""
+					.formatted(integer, parameterDescription), e);
 		}
 	}
 
