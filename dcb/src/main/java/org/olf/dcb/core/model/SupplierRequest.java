@@ -144,12 +144,4 @@ public class SupplierRequest {
 		setStatusCode(PLACED);
 		return this;
 	}
-
-	public SupplierRequest placed(String localId, String localStatus) {
-		setLocalId(localId);
-		setLocalStatus(localStatus);
-		setStatusCode(PLACED);
-
-		return this;
-	}
 }
