@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
+import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasNoRequestedItemBarcode;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemBarcode;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemId;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
@@ -74,7 +75,7 @@ class SierraHostLmsClientPlaceRequestTests {
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000002", "b", 4093753);
 
-		sierraPatronsAPIFixture.patronHoldResponse("1000002",
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold("1000002",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
 			"Consortial Hold. tno=" + patronRequestId, "6747235");
 
@@ -89,18 +90,104 @@ class SierraHostLmsClientPlaceRequestTests {
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
 		final var placedRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
-				PlaceHoldRequestParameters.builder()
-					.localBibId("4093753")
-					.localPatronId("1000002")
-					.patronRequestId(patronRequestId)
-					.build()));
+			PlaceHoldRequestParameters.builder()
+				.localBibId("4093753")
+				.localPatronId("1000002")
+				.patronRequestId(patronRequestId)
+				.build()));
 
 		// Assert
 		assertThat(placedRequest, allOf(
 			is(notNullValue()),
 			hasLocalId("864904"),
-			// hasRequestedItemId("6747235"),
-			// hasRequestedItemBarcode("38275735"),
+			hasRequestedItemId("6747235"),
+			hasRequestedItemBarcode("38275735"),
+			hasLocalStatus("PLACED")
+		));
+	}
+
+	@Test
+	void shouldTolerateTitleRequestTakingTimeToBecomeItemLevel() {
+		// Arrange
+		final var patronRequestId = UUID.randomUUID().toString();
+		final var localPatronId = "567215";
+		final Integer localBibId = 4093753;
+
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(localPatronId, "b",
+			localBibId);
+
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleBibHold(localPatronId,
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
+			"Consortial Hold. tno=" + patronRequestId, "26436174");
+
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold(localPatronId,
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
+			"Consortial Hold. tno=" + patronRequestId, "4635563");
+
+		sierraItemsAPIFixture.mockGetItemById("4635563",
+			SierraItem.builder()
+				.id("4635563")
+				.barcode("6732553")
+				.statusCode("-")
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var placedRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+			PlaceHoldRequestParameters.builder()
+				.localBibId(localBibId.toString())
+				.localPatronId(localPatronId)
+				.patronRequestId(patronRequestId)
+				.build()));
+
+		// Assert
+		assertThat(placedRequest, allOf(
+			is(notNullValue()),
+			hasLocalId("864904"),
+			hasRequestedItemId("4635563"),
+			hasRequestedItemBarcode("6732553"),
+			hasLocalStatus("PLACED")
+		));
+	}
+
+	@Test
+	void shouldTolerateItemNotFoundAfterTitleRequestChangesToItemRequest() {
+		// Arrange
+		final var patronRequestId = UUID.randomUUID().toString();
+		final var localPatronId = "567215";
+		final Integer localBibId = 4093753;
+		final var localItemId = "6721574";
+
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(localPatronId, "b",
+			localBibId);
+
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleBibHold(localPatronId,
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
+			"Consortial Hold. tno=" + patronRequestId, "26436174");
+
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold(localPatronId,
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
+			"Consortial Hold. tno=" + patronRequestId, localItemId);
+
+		sierraItemsAPIFixture.mockGetItemByIdReturnNoRecordsFound(localItemId);
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var placedRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+			PlaceHoldRequestParameters.builder()
+				.localBibId(localBibId.toString())
+				.localPatronId(localPatronId)
+				.patronRequestId(patronRequestId)
+				.build()));
+
+		// Assert
+		assertThat(placedRequest, allOf(
+			is(notNullValue()),
+			hasLocalId("864904"),
+			hasRequestedItemId(localItemId),
+			hasNoRequestedItemBarcode(),
 			hasLocalStatus("PLACED")
 		));
 	}

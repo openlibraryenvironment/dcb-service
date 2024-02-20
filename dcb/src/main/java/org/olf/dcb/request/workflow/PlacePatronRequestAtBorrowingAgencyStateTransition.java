@@ -11,23 +11,21 @@ import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
-import org.olf.dcb.storage.PatronRequestRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Prototype
 public class PlacePatronRequestAtBorrowingAgencyStateTransition implements PatronRequestStateTransition {
-
-	private static final Logger log = LoggerFactory.getLogger(PlacePatronRequestAtBorrowingAgencyStateTransition.class);
-
 	private final BorrowingAgencyService borrowingAgencyService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
-	public PlacePatronRequestAtBorrowingAgencyStateTransition(BorrowingAgencyService borrowingAgencyService,
-			PatronRequestRepository patronRequestRepository, PatronRequestAuditService patronRequestAuditService) {
+	public PlacePatronRequestAtBorrowingAgencyStateTransition(
+		BorrowingAgencyService borrowingAgencyService,
+		PatronRequestAuditService patronRequestAuditService) {
+
 		this.borrowingAgencyService = borrowingAgencyService;
 		this.patronRequestAuditService = patronRequestAuditService;
 	}
@@ -58,12 +56,12 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 	}
 
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
-
 		if (patronRequest.getStatus() == ERROR)
 			return Mono.just(patronRequest);
 
-		return patronRequestAuditService.addAuditEntry(patronRequest, REQUEST_PLACED_AT_SUPPLYING_AGENCY, getTargetStatus().get())
-				.map(PatronRequestAudit::getPatronRequest);
+		return patronRequestAuditService
+				.addAuditEntry(patronRequest, REQUEST_PLACED_AT_SUPPLYING_AGENCY, getTargetStatus().get())
+			.map(PatronRequestAudit::getPatronRequest);
 	}
 
 	@Override

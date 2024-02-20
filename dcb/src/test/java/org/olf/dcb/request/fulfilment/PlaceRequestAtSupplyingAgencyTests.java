@@ -154,7 +154,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000002", "b", 563653);
 
-		sierraPatronsAPIFixture.patronHoldResponse("1000002",
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold("1000002",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
 			"Consortial Hold. tno="+patronRequest.getId(), localItemId);
 
@@ -212,9 +212,9 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000002", "b", 563653);
 
-		sierraPatronsAPIFixture.patronHoldResponse("1000002",
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold("1000002",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
-			"Consortial Hold. tno="+patronRequest.getId(), "1000002");
+			"Consortial Hold. tno="+patronRequest.getId(), localItemId);
 
 		sierraItemsAPIFixture.mockGetItemById(localItemId,
 			SierraItem.builder()
@@ -231,10 +231,10 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		final var updatedSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
 
-		// assertThat(updatedSupplierRequest, allOf(
-		// 	notNullValue(),
-		// 	hasLocalItemBarcode("67324231")
-		// ));
+		 assertThat(updatedSupplierRequest, allOf(
+		 	notNullValue(),
+		 	hasLocalItemBarcode("67324231")
+		 ));
 
 		sierraPatronsAPIFixture.verifyFindPatronRequestMade("32453@supplying-agency");
 		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("32453@supplying-agency");
@@ -264,9 +264,9 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		final var localItemId = "67384453";
 
-		sierraPatronsAPIFixture.patronHoldResponse("1000003",
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold("1000003",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864905",
-			"Consortial Hold. tno="+patronRequest.getId(), "1000003");
+			"Consortial Hold. tno=" + patronRequest.getId(), localItemId);
 
 		sierraItemsAPIFixture.mockGetItemById(localItemId,
 			SierraItem.builder()
@@ -280,10 +280,10 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		final var updatedSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
 
-		// assertThat(updatedSupplierRequest, allOf(
-		// 	notNullValue(),
-		// 	hasLocalItemBarcode("67324231")
-		// ));
+		 assertThat(updatedSupplierRequest, allOf(
+		 	notNullValue(),
+		 	hasLocalItemBarcode("67324231")
+		 ));
 
 		// Assert
 		patronRequestWasPlaced(placedPatronRequest, patronRequestId);
