@@ -5,7 +5,6 @@ import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.verify.VerificationTimes.never;
 import static org.mockserver.verify.VerificationTimes.once;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.mockserver.client.MockServerClient;
@@ -210,28 +209,35 @@ public class SierraPatronsAPIFixture {
 			.withBody(json(holdRequest));
 	}
 
-	public void patronHoldResponse(String id) {
+	public void mockGetHoldsForPatron(String id) {
 		mockServer
 			.when(getPatronHolds(id))
 			.respond(patronHoldFoundResponse());
 	}
 
-	public void patronHoldResponse(String patronId, String holdIdUrl, String note, String itemId) {
-		List<PatronHoldResponse> phre = new ArrayList<>();
-		phre.add(PatronHoldResponse.builder()
-			.id(holdIdUrl)
-			.record("https://some/record/" + itemId)
-			.patron("https://some/patron/" + patronId)
-			.frozen(false)
-			.notNeededAfterDate("2023-09-01")
-			.notWantedBeforeDate("2023-08-01")
-			.recordType("i")
-			.status(SierraCodeNameTuple.builder().code("0").name("On hold").build())
-			.pickupLocation(SierraCodeNameTuple.builder().code("21").name("Vineland Branch").build())
-			.note(note)
-			.build());
+	public void mockGetHoldsForPatronReturningSingleItemHold(String patronId, String holdIdUrl, String note, String itemId) {
+		final var phre = List.of(
+			PatronHoldResponse.builder()
+				.id(holdIdUrl)
+				.record("https://some/record/" + itemId)
+				.patron("https://some/patron/" + patronId)
+				.frozen(false)
+				.notNeededAfterDate("2023-09-01")
+				.notWantedBeforeDate("2023-08-01")
+				.recordType("i")
+				.status(SierraCodeNameTuple.builder()
+					.code("0")
+					.name("On hold")
+					.build())
+				.pickupLocation(SierraCodeNameTuple.builder()
+					.code("21")
+					.name("Vineland Branch")
+					.build())
+				.note(note)
+				.build()
+		);
 
-		PatronHoldsResponse phr = PatronHoldsResponse.builder()
+		final var phr = PatronHoldsResponse.builder()
 			.total(phre.size())
 			.start(0)
 			.entries(phre)

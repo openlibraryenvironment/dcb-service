@@ -176,7 +176,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		// This one is for the borrower side hold - we now match a hold using the note instead of the itemid - so we have to fix up a hold with the
 		// correct note containing the patronRequestId
-		sierraPatronsAPIFixture.patronHoldResponse("872321",
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold("872321",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864902",
 			"Consortial Hold. tno="+patronRequest.getId(), "872321");
 

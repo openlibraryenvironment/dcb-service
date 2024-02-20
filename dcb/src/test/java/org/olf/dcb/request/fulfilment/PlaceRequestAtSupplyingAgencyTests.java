@@ -18,7 +18,6 @@ import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasId;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
-import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
@@ -154,7 +153,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000002", "b", 563653);
 
-		sierraPatronsAPIFixture.patronHoldResponse("1000002",
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold("1000002",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
 			"Consortial Hold. tno="+patronRequest.getId(), localItemId);
 
@@ -212,7 +211,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000002", "b", 563653);
 
-		sierraPatronsAPIFixture.patronHoldResponse("1000002",
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold("1000002",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
 			"Consortial Hold. tno="+patronRequest.getId(), "1000002");
 
@@ -264,7 +263,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		final var localItemId = "67384453";
 
-		sierraPatronsAPIFixture.patronHoldResponse("1000003",
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold("1000003",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864905",
 			"Consortial Hold. tno="+patronRequest.getId(), "1000003");
 

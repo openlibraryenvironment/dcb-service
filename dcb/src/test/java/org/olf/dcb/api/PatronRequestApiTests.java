@@ -228,7 +228,7 @@ class PatronRequestApiTests {
 		// Fix up the sierra mock so that it finds a hold with the right note in it
 		// 2745326 will be the identity of this patron in the supplier side system
 		log.info("Inserting hold response for patron 2745326 - placedPatronRequest.id=" + placedPatronRequest.getId());
-		sierraPatronsAPIFixture.patronHoldResponse("2745326",
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold("2745326",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/407557",
 			"Consortial Hold. tno=" + placedPatronRequest.getId(),
 			"2745326");
@@ -241,7 +241,7 @@ class PatronRequestApiTests {
 				.build());
 
 		// This one is for the borrower side hold
-		sierraPatronsAPIFixture.patronHoldResponse(KNOWN_PATRON_LOCAL_ID,
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold(KNOWN_PATRON_LOCAL_ID,
 				"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864902",
 				"Consortial Hold. tno=" + placedPatronRequest.getId(),
 			KNOWN_PATRON_LOCAL_ID);

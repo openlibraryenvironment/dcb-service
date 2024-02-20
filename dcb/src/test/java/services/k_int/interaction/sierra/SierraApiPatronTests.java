@@ -185,7 +185,7 @@ class SierraApiPatronTests {
 	void testPatronHoldRequest() {
 		// Arrange
 		final var patronLocalId = "018563984";
-		sierraPatronsAPIFixture.patronHoldResponse(patronLocalId);
+		sierraPatronsAPIFixture.mockGetHoldsForPatron(patronLocalId);
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
 		// Act

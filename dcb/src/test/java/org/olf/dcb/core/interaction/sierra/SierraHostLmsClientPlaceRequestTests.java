@@ -73,7 +73,7 @@ class SierraHostLmsClientPlaceRequestTests {
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000002", "b", 4093753);
 
-		sierraPatronsAPIFixture.patronHoldResponse("1000002",
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold("1000002",
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
 			"Consortial Hold. tno=" + patronRequestId, "6747235");
 
