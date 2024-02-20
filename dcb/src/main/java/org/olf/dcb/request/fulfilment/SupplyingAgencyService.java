@@ -212,13 +212,13 @@ public class SupplyingAgencyService {
 					" Litemid=" + supplierRequest.getLocalItemId() + " Lit=" + supplierRequest.getLocalItemType() + " Lpt=" + patronIdentityAtSupplier.getLocalPtype() + " system=" + supplierRequest.getHostLmsCode())
 			.withDetail(error.getMessage())
 			// .with("dcbContext", context)
-			.with("dcbPatronId", patronIdentityAtSupplier.getLocalId())
-			.with("dcbLocalItemId", supplierRequest.getLocalItemId())
-			.with("dcbLocalItemBarcode", supplierRequest.getLocalItemBarcode())
-			.with("dcbLocalItemType", supplierRequest.getLocalItemType())
-			.with("dcbLocalPatronType", patronIdentityAtSupplier.getLocalPtype())
-			.with("dcbCanonicalPatronType", patronIdentityAtSupplier.getCanonicalPtype())
-			.with("dcbLocalPatronBarcode", patronIdentityAtSupplier.getLocalBarcode());
+			.with("supplier-dcbPatronId", patronIdentityAtSupplier.getLocalId())
+			.with("supplier-dcbLocalItemId", supplierRequest.getLocalItemId())
+			.with("supplier-dcbLocalItemBarcode", supplierRequest.getLocalItemBarcode())
+			.with("supplier-dcbLocalItemType", supplierRequest.getLocalItemType())
+			.with("supplier-dcbLocalPatronType", patronIdentityAtSupplier.getLocalPtype())
+			.with("supplier-dcbCanonicalPatronType", patronIdentityAtSupplier.getCanonicalPtype())
+			.with("supplier-dcbLocalPatronBarcode", patronIdentityAtSupplier.getLocalBarcode());
 
 		// Pass on any parameters from an underlying problem
 		if (error instanceof ThrowableProblem underlyingProblem) {
