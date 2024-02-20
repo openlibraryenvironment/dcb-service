@@ -8,6 +8,7 @@ import static org.mockserver.verify.VerificationTimes.once;
 import java.util.List;
 
 import org.mockserver.client.MockServerClient;
+import org.mockserver.matchers.Times;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.mockserver.model.RequestDefinition;
@@ -209,9 +210,9 @@ public class SierraPatronsAPIFixture {
 			.withBody(json(holdRequest));
 	}
 
-	public void mockGetHoldsForPatron(String id) {
+	public void mockGetHoldsForPatron(String patronId) {
 		mockServer
-			.when(getPatronHolds(id))
+			.when(getPatronHolds(patronId), Times.once())
 			.respond(patronHoldFoundResponse());
 	}
 
@@ -244,7 +245,7 @@ public class SierraPatronsAPIFixture {
 			.build();
 
 		mockServer
-			.when(getPatronHolds(patronId))
+			.when(getPatronHolds(patronId), Times.once())
 			.respond(sierraMockServerResponses.jsonSuccess(json(phr)));
 	}
 
