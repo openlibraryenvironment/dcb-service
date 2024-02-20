@@ -33,7 +33,6 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @NoArgsConstructor(onConstructor_ = @Creator())
 @Accessors(chain = true)
 @AllArgsConstructor
-@Serdeable
 @MappedEntity
 @ExcludeFromGeneratedCoverageReport
 @ToString(onlyExplicitlyIncluded = true)

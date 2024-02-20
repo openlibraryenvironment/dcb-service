@@ -76,6 +76,11 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 	}
 	
 	private static void handleStateTransitions ( final PatronRequest pr, final SupplierRequest sr, final PatronRequestAuditBuilder audit ) {
+
+
+		// First we have to make sure that we record the downstream value of the hold request or we will keep calling this method
+		pr.setLocalRequestStatus("MISSING");
+
 		
 		// Patron cancels request, sierra deletes request to represent the cancellation
 		// IF the item isn't already on the holdshelf then we can cancel
@@ -115,7 +120,6 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 		// }
 
 		else {
-
 			noop(pr, audit, "borrower request missing, no special action");
 		}
 		log.debug("No matched condition for changing DCB internal status {}",pr);

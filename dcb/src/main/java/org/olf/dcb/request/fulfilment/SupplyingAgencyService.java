@@ -217,10 +217,8 @@ public class SupplyingAgencyService {
 			.with("dcbLocalItemBarcode", supplierRequest.getLocalItemBarcode())
 			.with("dcbLocalItemType", supplierRequest.getLocalItemType())
 			.with("dcbLocalPatronType", patronIdentityAtSupplier.getLocalPtype())
-			.with("dcbCanonicalPatronType",
-				patronIdentityAtSupplier.getCanonicalPtype())
-			.with("dcbLocalPatronBarcode",
-				patronIdentityAtSupplier.getLocalBarcode());
+			.with("dcbCanonicalPatronType", patronIdentityAtSupplier.getCanonicalPtype())
+			.with("dcbLocalPatronBarcode", patronIdentityAtSupplier.getLocalBarcode());
 
 		// Pass on any parameters from an underlying problem
 		if (error instanceof ThrowableProblem underlyingProblem) {
