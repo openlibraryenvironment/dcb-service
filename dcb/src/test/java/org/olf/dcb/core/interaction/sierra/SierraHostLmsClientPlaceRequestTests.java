@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
+import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemBarcode;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemId;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
 
@@ -99,6 +100,7 @@ class SierraHostLmsClientPlaceRequestTests {
 			is(notNullValue()),
 			hasLocalId("864904"),
 			hasRequestedItemId("6747235"),
+			hasRequestedItemBarcode("38275735"),
 			hasLocalStatus("PLACED")
 		));
 	}
@@ -119,7 +121,14 @@ class SierraHostLmsClientPlaceRequestTests {
 
 		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold(localPatronId,
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
-			"Consortial Hold. tno=" + patronRequestId, "6747235");
+			"Consortial Hold. tno=" + patronRequestId, "4635563");
+
+		sierraItemsAPIFixture.mockGetItemById("4635563",
+			SierraItem.builder()
+				.id("4635563")
+				.barcode("6732553")
+				.statusCode("-")
+				.build());
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
@@ -135,7 +144,8 @@ class SierraHostLmsClientPlaceRequestTests {
 		assertThat(placedRequest, allOf(
 			is(notNullValue()),
 			hasLocalId("864904"),
-			hasRequestedItemId("6747235"),
+			hasRequestedItemId("4635563"),
+			hasRequestedItemBarcode("6732553"),
 			hasLocalStatus("PLACED")
 		));
 	}

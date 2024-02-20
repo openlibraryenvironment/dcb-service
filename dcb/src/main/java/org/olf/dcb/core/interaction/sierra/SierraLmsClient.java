@@ -631,6 +631,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.then(Mono.defer(() -> getPatronHoldRequestId(parameters.getLocalPatronId(),
 					recordNumber, parameters.getNote(), parameters.getPatronRequestId()))
 				.retry(getHoldsRetryAttempts))
+			.flatMap(localRequest ->
+				getItem(localRequest.getRequestedItemId(), localRequest.getLocalId())
+					.map(item -> LocalRequest.builder()
+						.localId(localRequest.getLocalId())
+						.localStatus(localRequest.getLocalStatus())
+						.requestedItemId(localRequest.getRequestedItemId())
+						.requestedItemBarcode(item.getBarcode())
+						.build()))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Hold"));
@@ -663,16 +671,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.filter(hold -> shouldIncludeHold(hold, patronRequestId))
 			.collectList()
 			.map(filteredHolds -> chooseHold(note, filteredHolds))
-			/*
-			.flatMap(localRequest ->
-				getItem(localRequest.getRequestedItemId(), localRequest.getLocalId())
-					.map(item -> LocalRequest.builder()
-						.localId(localRequest.getLocalId())
-						.localStatus(localRequest.getLocalStatus())
-						.requestedItemId(localRequest.getRequestedItemId())
-						.requestedItemBarcode(item.getBarcode())
-						.build()))
-			*/
 			// We should retrieve the item record for the selected hold and store the barcode here
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
