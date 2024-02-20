@@ -243,8 +243,6 @@ public class SierraPatronsAPIFixture {
 			.entries(phre)
 			.build();
 
-		mockServer.clear(getPatronHolds(patronId));
-
 		mockServer
 			.when(getPatronHolds(patronId))
 			.respond(sierraMockServerResponses.jsonSuccess(json(phr)));
