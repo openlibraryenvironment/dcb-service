@@ -2,6 +2,7 @@ package org.olf.dcb.test.matchers;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.hasProperty;
 
 import org.hamcrest.Matcher;
@@ -26,5 +27,9 @@ public class LocalRequestMatchers {
 
 	public static Matcher<LocalRequest> hasRequestedItemBarcode(String expectedBarcode) {
 		return hasProperty("requestedItemBarcode", is(expectedBarcode));
+	}
+
+	public static Matcher<LocalRequest> hasNoRequestedItemBarcode() {
+		return hasProperty("requestedItemBarcode", is(nullValue()));
 	}
 }

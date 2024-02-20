@@ -43,6 +43,11 @@ public class SierraItemsAPIFixture {
 			.respond(response);
 	}
 
+	public void mockGetItemByIdReturnNoRecordsFound(String id) {
+		mockServer.when(getItemById(id))
+			.respond(sierraMockServerResponses.noRecordsFound());
+	}
+
 	private HttpRequest getItemById(String id) {
 		return sierraMockServerRequests.get("/" + id);
 	}
