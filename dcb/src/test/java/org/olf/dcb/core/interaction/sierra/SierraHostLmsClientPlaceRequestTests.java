@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
-import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemBarcode;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemId;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
 
@@ -89,18 +88,17 @@ class SierraHostLmsClientPlaceRequestTests {
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
 		final var placedRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
-				PlaceHoldRequestParameters.builder()
-					.localBibId("4093753")
-					.localPatronId("1000002")
-					.patronRequestId(patronRequestId)
-					.build()));
+			PlaceHoldRequestParameters.builder()
+				.localBibId("4093753")
+				.localPatronId("1000002")
+				.patronRequestId(patronRequestId)
+				.build()));
 
 		// Assert
 		assertThat(placedRequest, allOf(
 			is(notNullValue()),
 			hasLocalId("864904"),
-			// hasRequestedItemId("6747235"),
-			// hasRequestedItemBarcode("38275735"),
+			hasRequestedItemId("6747235"),
 			hasLocalStatus("PLACED")
 		));
 	}
