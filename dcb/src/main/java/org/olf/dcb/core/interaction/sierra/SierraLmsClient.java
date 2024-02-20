@@ -737,7 +737,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				requestedItemId = deRestify(sph.record());
 			}
 			else {
-				log.warn("chooseHold returned a record which was NOT an item or record was null {}:{}",sph.recordType(),sph.record());
+				final var errorMessage = "chooseHold returned a record which was NOT an item or record was null %s:%s"
+					.formatted(sph.recordType(), sph.record());
+
+				log.warn(errorMessage);
+
+				// Retries are triggered on error signal
+				throw new RuntimeException(errorMessage);
 			}
 
 			return LocalRequest.builder()

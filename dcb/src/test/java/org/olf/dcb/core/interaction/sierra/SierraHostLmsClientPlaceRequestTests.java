@@ -104,6 +104,43 @@ class SierraHostLmsClientPlaceRequestTests {
 	}
 
 	@Test
+	void shouldTolerateTitleRequestTakingTimeToBecomeItemLevel() {
+		// Arrange
+		final var patronRequestId = UUID.randomUUID().toString();
+		final var localPatronId = "567215";
+		final Integer localBibId = 4093753;
+
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(localPatronId, "b",
+			localBibId);
+
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleBibHold(localPatronId,
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
+			"Consortial Hold. tno=" + patronRequestId, "26436174");
+
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold(localPatronId,
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
+			"Consortial Hold. tno=" + patronRequestId, "6747235");
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var placedRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+			PlaceHoldRequestParameters.builder()
+				.localBibId(localBibId.toString())
+				.localPatronId(localPatronId)
+				.patronRequestId(patronRequestId)
+				.build()));
+
+		// Assert
+		assertThat(placedRequest, allOf(
+			is(notNullValue()),
+			hasLocalId("864904"),
+			hasRequestedItemId("6747235"),
+			hasLocalStatus("PLACED")
+		));
+	}
+
+	@Test
 	void cannotPlaceRequestWhenHoldPolicyIsInvalid() {
 		// Arrange
 		hostLmsFixture.createSierraHostLms("invalid-hold-policy",
