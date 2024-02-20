@@ -156,7 +156,8 @@ public class HostLmsReactions {
 		return Mono.just(context);
 	}
 
-	private Mono<Map<String,Object>> auditEventIndication(Map<String,Object> context, TrackingRecord tr, String handler) {
+	@Transactional
+	public Mono<Map<String,Object>> auditEventIndication(Map<String,Object> context, TrackingRecord tr, String handler) {
 		log.debug("Audit event indication");
 		StateChange sc = (StateChange) tr;
 		String msg = "Downstream change to " + sc.getResourceType() + "(" + sc.getResourceId() + ") to " + sc.getToState() + " from " + sc.getFromState() + " triggers "+handler;

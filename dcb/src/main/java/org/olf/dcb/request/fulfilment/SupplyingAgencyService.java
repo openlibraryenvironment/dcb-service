@@ -211,7 +211,7 @@ public class SupplyingAgencyService {
 				"Unable to place SUPPLIER hold request for pr=" + patronRequest.getId() + " Lpatron=" + patronIdentityAtSupplier.getLocalId() +
 					" Litemid=" + supplierRequest.getLocalItemId() + " Lit=" + supplierRequest.getLocalItemType() + " Lpt=" + patronIdentityAtSupplier.getLocalPtype() + " system=" + supplierRequest.getHostLmsCode())
 			.withDetail(error.getMessage())
-			.with("dcbContext", context)
+			// .with("dcbContext", context)
 			.with("dcbPatronId", patronIdentityAtSupplier.getLocalId())
 			.with("dcbLocalItemId", supplierRequest.getLocalItemId())
 			.with("dcbLocalItemBarcode", supplierRequest.getLocalItemBarcode())
