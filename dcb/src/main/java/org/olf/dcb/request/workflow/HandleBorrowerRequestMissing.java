@@ -77,11 +77,6 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 	
 	private static void handleStateTransitions ( final PatronRequest pr, final SupplierRequest sr, final PatronRequestAuditBuilder audit ) {
 
-		// First we have to make sure that we record the downstream value of the hold request or we will keep calling this method
-		log.debug("Marking local request status as missing");
-		pr.setLocalRequestStatus("MISSING");
-
-		
 		// Patron cancels request, sierra deletes request to represent the cancellation
 		// IF the item isn't already on the holdshelf then we can cancel
 		// if (!Objects.equals(pr.getLocalItemStatus(), ITEM_ON_HOLDSHELF)) {
@@ -136,7 +131,7 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 			.doOnSuccess( stateChange -> log.debug("HandleBorrowerRequestMissing {}", stateChange))
 			.map( stateChange -> {
 				PatronRequest patronRequest = (PatronRequest)stateChange.getResource();
-				return patronRequest.setLocalItemStatus(stateChange.getToState());
+				return patronRequest.setLocalRequestStatus(stateChange.getToState());
 			})
 			
 			// Combine with the supplier request

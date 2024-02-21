@@ -57,6 +57,7 @@
 	
 	<logger name="org.olf.dcb.core.error" level="INFO"/>
 	
+	<logger name="org.olf.dcb.request" level="DEBUG"/>
 	<logger name="org.olf.dcb.indexing" level="INFO"/>
 	<logger name="org.olf.dcb.core.svc.BibRecordService" level="INFO" />
 	<logger name="services.k_int" level="INFO"/>
