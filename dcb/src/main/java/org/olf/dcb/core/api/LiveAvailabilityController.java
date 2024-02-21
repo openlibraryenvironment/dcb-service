@@ -38,7 +38,7 @@ import reactor.core.publisher.Mono;
 public class LiveAvailabilityController {
 	private final LiveAvailabilityService liveAvailabilityService;
 	
-	@Value("${dcb.live-availability.timeout:PT5S}")
+	@Value("${dcb.live-availability.timeout:PT7S}")
 	protected Duration timeout;
 
 	public LiveAvailabilityController(LiveAvailabilityService liveAvailabilityService) {
