@@ -1,5 +1,63 @@
 # Changelog
 
+## Version 5.7.0
+
+### Additions
+* [General]
+	* Record item barcode after Sierra title level request placed DCB-872
+	* Timeout live availability requests with Unknown fallback status
+
+### Changes
+* [Chore]
+	* Extra hint that problem props are supplier side
+	* remove dcbContext from problem - it's too verbose. Transactional annotation for audit log message
+	* Reinstate getting item barcode for placed Sierra hold DCB-872
+	* remove unused config value - default-patron-home-location-code
+	* Remove unused constructor parameter in place request at borrowing agency transition
+	* back out sierra retrieve-item-after-hold change - sierra is not behaving as expected for this approach - back to item level requesting
+	* null item id protection
+	* Improve error message when Sierra hold record number is invalid integer DCB-872
+	* Remove unused state transition method in supplier request DCB-872
+	* refactor HandleSupplierItemAvailable.java - WIP
+	* Revert to using requesting agency when placing requests in sierra libraries
+	* Preparation for LocalRequest being able to return the requested item barcode and id when placing a bib level hold. Non-null return values should overwrite values in the supplier request when placing a request at a supplying agency
+	* Remove redundant generic type in application services auth filter
+	* Remove redundant static modifier on patron request status enum
+	* Replace spaces with tabs in workflow service
+	* Remove unused string utility methods
+	* Wrap long lines in audit service
+* [Feature]
+	* Add NumericRangeMappingController
+	* When placing a hold in sierra, examine the returned hold structure and take note of the requested itemId - propagate that back and record it in the supplier request. If the hold was a bib hold, this will be the actual item requested
+* [Refactor]
+	* Move null if empty method to utility class
+	* add item id and item barcode to LocalRequest (Polaris)
+	* Audit logging in HandleSupplierItemAvailable - we cannot use .subscribe inside a stream so the audit messages are not being logged
+	* Extract method for adding body to HTTP request
+	* Use instance of pattern matching to remove explicit cast to problem
+	* Extract method for truncating string to a maximum length
+* [Test]
+	* Demonstrate getting item after hold placed tolerates not found response DCB-872
+	* Limit mock expectations for getting holds from Sierra to single time DCB-872
+	* Stop removing existing mock expectations for getting holds from Sierra DCB-872
+	* Rename methods for mocking get holds for patron from Sierra DCB-872
+	* Reinstate check on item ID after request is placed DCB-872
+	* Demonstrate placing a title level hold in Sierra DCB-872
+	* Rename method for mocking place hold request in Sierra DCB-872
+	* Remove unecessary sneaky throws from place hold request in Sierra supplying agency test DCB-872
+	* Demonstrate patron request status changes to error when error occurs in reactive chain
+	* Delete all patron requests before workflow service tests
+	* Add patron request workflow service test class
+
+### Fixes
+* [General]
+	* correct URI path for numeric range mapping controller
+	* Raise error when no item level hold found in Sierra DCB-872
+	* continue flow for -1 failure resp from polaris find virtual patron
+	* check for error in response of Polaris patron search
+	* Truncate patron request error message to shorter length than database column
+	* patron barcode parsing [DCB-826]
+
 ## Version 5.6.0
 
 ### Additions
@@ -10,6 +68,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Reduce duplication in property access utility methods DCB-855
 	* Include request path in unexpected response problem parameters DCB-855
 	* Add log message for when getting request defaults from Polaris fails DCB-855
