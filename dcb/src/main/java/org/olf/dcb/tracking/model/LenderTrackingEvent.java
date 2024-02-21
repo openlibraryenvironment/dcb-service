@@ -48,7 +48,7 @@ public class LenderTrackingEvent extends TrackingRecord {
 	private String pickupLocationName;
 
 	@Override
-	public String getTrackigRecordType() {
+	public String getTrackingRecordType() {
 		return LENDER_TRACKING_RECORD;
 	}
 }

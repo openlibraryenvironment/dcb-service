@@ -33,7 +33,7 @@ public class StateChange  extends TrackingRecord {
 	private Object resource;
 
 	@Override
-	public String getTrackigRecordType() {
+	public String getTrackingRecordType() {
 		return STATE_CHANGE_RECORD;
 	}
 }

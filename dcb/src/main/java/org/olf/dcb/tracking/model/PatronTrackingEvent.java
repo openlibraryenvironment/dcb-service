@@ -20,7 +20,7 @@ public class PatronTrackingEvent extends TrackingRecord {
 	private String hostLmsCode;
 
 	@Override
-	public String getTrackigRecordType() {
+	public String getTrackingRecordType() {
 		return PATRON_TRACKING_RECORD;
 	}
 }

@@ -20,7 +20,7 @@ public class PickupTrackingEvent  extends TrackingRecord {
 	private String hostLmsCode;
 
 	@Override
-	public String getTrackigRecordType() {
+	public String getTrackingRecordType() {
 		return PICKUP_TRACKING_RECORD;
 	}
 }

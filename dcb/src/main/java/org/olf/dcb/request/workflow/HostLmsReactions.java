@@ -54,7 +54,7 @@ public class HostLmsReactions {
 		// ToDo: This method should absolutely write a patron_request_audit record noting that the change was detected.
 		Map<String,Object> context = new HashMap<>();
 
-		if (trackingRecord.getTrackigRecordType().equals(StateChange.STATE_CHANGE_RECORD)) {
+		if (trackingRecord.getTrackingRecordType().equals(StateChange.STATE_CHANGE_RECORD)) {
 			StateChange sc = (StateChange) trackingRecord;
 			context.put("StateChange", sc);
 
@@ -120,7 +120,7 @@ public class HostLmsReactions {
 			}
 		}
 		else {
-			log.warn("Unhandled tracking record type {}", trackingRecord.getTrackigRecordType());
+			log.warn("Unhandled tracking record type {}", trackingRecord.getTrackingRecordType());
 		}
 
 		// https://stackoverflow.com/questions/74183112/how-to-select-the-correct-transactionmanager-when-using-r2dbc-together-with-flyw
