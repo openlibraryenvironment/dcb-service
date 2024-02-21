@@ -155,17 +155,26 @@ public class HostLmsReactions {
 		return Mono.just(context);
 	}
 
+	// Transactional methods must be public
 	@Transactional
-	public Mono<Map<String,Object>> auditEventIndication(Map<String,Object> context, TrackingRecord tr, String handler) {
+	public Mono<Map<String,Object>> auditEventIndication(Map<String,Object> context,
+		TrackingRecord tr, String handler) {
+
 		log.debug("Audit event indication");
-		StateChange sc = (StateChange) tr;
-		String msg = "Downstream change to " + sc.getResourceType() + "(" + sc.getResourceId() + ") to " + sc.getToState() + " from " + sc.getFromState() + " triggers "+handler;
-		Map<String,Object> auditData = new HashMap<>();
-		auditData.put("patronRequestId",sc.getPatronRequestId());
-		auditData.put("resourceType",sc.getResourceType());
-		auditData.put("resourceId",sc.getResourceId());
-		auditData.put("fromState",sc.getFromState());
-		auditData.put("toState",sc.getToState());
+
+		final var sc = (StateChange) tr;
+
+		final var msg = "Downstream change to %s(%s) to %s from %s triggers %s".formatted(
+			sc.getResourceType(), sc.getResourceId(), sc.getToState(),
+			sc.getFromState(), handler);
+
+		final var auditData = new HashMap<String,Object>();
+
+		auditData.put("patronRequestId", sc.getPatronRequestId());
+		auditData.put("resourceType", sc.getResourceType());
+		auditData.put("resourceId", sc.getResourceId());
+		auditData.put("fromState", sc.getFromState());
+		auditData.put("toState", sc.getToState());
 
 		return patronRequestAuditService.addAuditEntry(sc.getPatronRequestId(), msg, auditData)
 			.thenReturn(context);
