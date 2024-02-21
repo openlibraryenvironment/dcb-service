@@ -25,7 +25,7 @@ import reactor.core.publisher.Mono;
 
 @Validated
 @Secured({"ADMIN"})
-@Controller("/numericRangeMappingController")
+@Controller("/numericRangeMapping")
 @Tag(name = "Numeric Range Mapping")
 public class NumericRangeMappingController {
 
