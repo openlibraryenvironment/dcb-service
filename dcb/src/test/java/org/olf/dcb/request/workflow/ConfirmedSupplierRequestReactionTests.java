@@ -8,6 +8,7 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalStatus;
 
 import java.util.UUID;
 
@@ -56,9 +57,11 @@ class ConfirmedSupplierRequestReactionTests {
 				.id(UUID.randomUUID())
 				.build());
 
+		final var supplierRequestId = UUID.randomUUID();
+
 		final var supplierRequest = supplierRequestsFixture.saveSupplierRequest(
 			SupplierRequest.builder()
-				.id(UUID.randomUUID())
+				.id(supplierRequestId)
 				.hostLmsCode("supplying-host-lms")
 				.localItemId("5729624")
 				.patronRequest(patronRequest)
@@ -76,13 +79,20 @@ class ConfirmedSupplierRequestReactionTests {
 				.build()));
 
 		// Assert
+		final var updatedSupplierRequest = supplierRequestsFixture.findById(supplierRequestId);
+
+		assertThat(updatedSupplierRequest, allOf(
+			notNullValue(),
+			hasLocalStatus("CONFIRMED")
+		));
+
 		assertThat(patronRequestsFixture.findOnlyAuditEntry(patronRequest), allOf(
 			notNullValue(),
 			hasBriefDescription("Downstream change to SupplierRequest(%s) to %s from %s triggers SupplierRequestUnhandledState"
-				.formatted(supplierRequest.getId().toString(), "CONFIRMED", "PLACED")),
+				.formatted(supplierRequestId.toString(), "CONFIRMED", "PLACED")),
 			hasAuditDataProperty("patronRequestId", patronRequest.getId().toString()),
 			hasAuditDataProperty("resourceType", "SupplierRequest"),
-			hasAuditDataProperty("resourceId", supplierRequest.getId().toString()),
+			hasAuditDataProperty("resourceId", supplierRequestId.toString()),
 			hasAuditDataProperty("fromState", "PLACED"),
 			hasAuditDataProperty("toState", "CONFIRMED")
 		));
