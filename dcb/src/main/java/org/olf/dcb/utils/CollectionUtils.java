@@ -1,6 +1,7 @@
 package org.olf.dcb.utils;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -22,5 +23,13 @@ public class CollectionUtils {
 		iterable.forEach(list::add);
 
 		return list.size() > 0 ? list.toArray() : null;
+	}
+
+	public static <T> Collection<T> nullIfEmpty(Collection<T> collection) {
+		if (collection == null || collection.size() < 1) {
+			return null;
+		}
+
+		return collection;
 	}
 }
