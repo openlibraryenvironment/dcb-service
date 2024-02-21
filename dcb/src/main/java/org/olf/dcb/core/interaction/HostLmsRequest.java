@@ -22,11 +22,15 @@ public class HostLmsRequest {
 	// The Hold has been placed, but is not yet available
 	public static final String HOLD_PLACED="PLACED";
 
+	// The item for the hold has been chosen / confirmed
+	public static final String HOLD_CONFIRMED="CONFIRMED";
+
 	// The Hold is Ready for pickup
 	public static final String HOLD_READY="READY";
 
 	// The hold is in transit
 	public static final String HOLD_TRANSIT="TRANSIT";
+
 	// The hold is cancelled
 	public static final String HOLD_CANCELLED="CANCELLED";
 
