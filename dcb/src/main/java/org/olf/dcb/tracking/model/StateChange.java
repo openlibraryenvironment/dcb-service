@@ -17,8 +17,7 @@ import lombok.ToString;
 @AllArgsConstructor
 @Serdeable
 @ToString
-public class StateChange  extends TrackingRecord {
-
+public class StateChange implements TrackingRecord {
 	public static final String STATE_CHANGE_RECORD = "STATE_CHANGE";
 
 	// We note the patron request that this change lives under for logging

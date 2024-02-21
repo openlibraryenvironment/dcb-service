@@ -4,9 +4,8 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import lombok.NoArgsConstructor;
 
 @EqualsAndHashCode(callSuper=false)
 @Builder
@@ -14,7 +13,7 @@ import lombok.ToString;
 @AllArgsConstructor
 @Serdeable
 @NoArgsConstructor
-public class PatronTrackingEvent extends TrackingRecord {
+public class PatronTrackingEvent implements TrackingRecord {
 	private static final String PATRON_TRACKING_RECORD = "PATRON";
 
 	private String hostLmsCode;
