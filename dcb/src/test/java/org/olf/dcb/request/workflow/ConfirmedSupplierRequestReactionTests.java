@@ -1,10 +1,13 @@
 package org.olf.dcb.request.workflow;
 
-import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
 
 import java.util.UUID;
 
@@ -62,15 +65,26 @@ class ConfirmedSupplierRequestReactionTests {
 				.build());
 
 		// Act
-		final var context = singleValueFrom(
-			hostLmsReactions.onTrackingEvent(StateChange.builder()
+		singleValueFrom(hostLmsReactions.onTrackingEvent(
+			StateChange.builder()
 				.resourceType("SupplierRequest")
 				.resource(supplierRequest)
+				.resourceId(supplierRequest.getId().toString())
+				.fromState(HOLD_PLACED)
 				.toState(HOLD_CONFIRMED)
 				.patronRequestId(patronRequest.getId())
 				.build()));
 
 		// Assert
-		assertThat(context, is(notNullValue()));
+		assertThat(patronRequestsFixture.findOnlyAuditEntry(patronRequest), allOf(
+			notNullValue(),
+			hasBriefDescription("Downstream change to SupplierRequest(%s) to %s from %s triggers SupplierRequestUnhandledState"
+				.formatted(supplierRequest.getId().toString(), "CONFIRMED", "PLACED")),
+			hasAuditDataProperty("patronRequestId", patronRequest.getId().toString()),
+			hasAuditDataProperty("resourceType", "SupplierRequest"),
+			hasAuditDataProperty("resourceId", supplierRequest.getId().toString()),
+			hasAuditDataProperty("fromState", "PLACED"),
+			hasAuditDataProperty("toState", "CONFIRMED")
+		));
 	}
 }
