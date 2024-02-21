@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
@@ -47,11 +48,17 @@ class ConfirmedSupplierRequestReactionTests {
 	@Test
 	void shouldReactToLocalSupplierRequestChangingToConfirmed() {
 		// Arrange
+		final var patronRequest = patronRequestsFixture.savePatronRequest(
+			PatronRequest.builder()
+				.id(UUID.randomUUID())
+				.build());
+
 		final var supplierRequest = supplierRequestsFixture.saveSupplierRequest(
 			SupplierRequest.builder()
 				.id(UUID.randomUUID())
 				.hostLmsCode("supplying-host-lms")
 				.localItemId("5729624")
+				.patronRequest(patronRequest)
 				.build());
 
 		// Act
@@ -60,6 +67,7 @@ class ConfirmedSupplierRequestReactionTests {
 				.resourceType("SupplierRequest")
 				.resource(supplierRequest)
 				.toState(HOLD_CONFIRMED)
+				.patronRequestId(patronRequest.getId())
 				.build()));
 
 		// Assert
