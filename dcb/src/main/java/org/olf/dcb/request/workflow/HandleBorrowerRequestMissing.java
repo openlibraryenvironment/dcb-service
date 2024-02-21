@@ -77,8 +77,8 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 	
 	private static void handleStateTransitions ( final PatronRequest pr, final SupplierRequest sr, final PatronRequestAuditBuilder audit ) {
 
-
 		// First we have to make sure that we record the downstream value of the hold request or we will keep calling this method
+		log.debug("Marking local request status as missing");
 		pr.setLocalRequestStatus("MISSING");
 
 		
@@ -120,13 +120,16 @@ public class HandleBorrowerRequestMissing implements WorkflowAction {
 		// }
 
 		else {
-			noop(pr, audit, "borrower request missing, no special action");
+			log.debug("Noop branch of handle missing...");
+			noop(pr, audit, "borrower request missing, no special action, pr.localRequestStatus="+pr.getLocalRequestStatus());
 		}
 		log.debug("No matched condition for changing DCB internal status {}",pr);
 	}
 
 	@Transactional
 	public Mono<Map<String,Object>> execute(Map<String,Object> context) {
+
+		log.debug("execute");
 		
 		// This method is called when we detect that the patron request in the borrowing system is no longer present
 		return Mono.justOrEmpty((StateChange) context.get("StateChange"))
