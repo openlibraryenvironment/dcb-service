@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
 
 import jakarta.inject.Inject;
 
@@ -18,9 +19,12 @@ class ConfirmedSupplierRequestReactionTests {
 
 	@Inject
 	PatronRequestsFixture patronRequestsFixture;
-
+	@Inject
+	SupplierRequestsFixture supplierRequestsFixture;
+	
 	@BeforeEach
 	void beforeEach() {
+		supplierRequestsFixture.deleteAll();
 		patronRequestsFixture.deleteAll();
 	}
 
