@@ -1,8 +1,6 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static io.micronaut.http.HttpMethod.GET;
-import static io.micronaut.http.HttpMethod.POST;
-import static io.micronaut.http.HttpMethod.PUT;
+import static io.micronaut.http.HttpMethod.*;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
@@ -26,6 +24,7 @@ import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.context.annotation.Secondary;
 import io.micronaut.core.annotation.Creator;
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.type.Argument;
@@ -42,6 +41,7 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.retry.annotation.Retryable;
+import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.LinkResult;
@@ -145,14 +145,13 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			String status, String dueDate, Boolean suppressed, Iterable<String> locations) {
 
 		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/items/Get_a_list_of_items_get_1
-		return get("items", Argument.of(ResultSet.class),
-				uri -> uri.queryParam("limit", limit).queryParam("offset", offset).queryParam("id", id)
-						.queryParam("fields", toCsv(fields)).queryParam("createdDate", createdDate)
-						.queryParam("updatedDate", updatedDate).queryParam("deletedDate", deletedDate)
-						.queryParam("deleted", deleted).queryParam("bibIds", CollectionUtils.iterableToArray(bibIds)).queryParam("status", status)
-						// Case for due date is deliberate to match inconsistency in Sierra API
-						.queryParam("duedate", dueDate).queryParam("suppressed", suppressed)
-						.queryParam("locations", CollectionUtils.iterableToArray(locations)));
+		return get("items", Argument.of(ResultSet.class), uri -> uri.queryParam("limit", limit).queryParam("offset", offset)
+				.queryParam("id", id).queryParam("fields", toCsv(fields)).queryParam("createdDate", createdDate)
+				.queryParam("updatedDate", updatedDate).queryParam("deletedDate", deletedDate).queryParam("deleted", deleted)
+				.queryParam("bibIds", CollectionUtils.iterableToArray(bibIds)).queryParam("status", status)
+				// Case for due date is deliberate to match inconsistency in Sierra API
+				.queryParam("duedate", dueDate).queryParam("suppressed", suppressed)
+				.queryParam("locations", CollectionUtils.iterableToArray(locations)));
 	}
 
 	@Override
@@ -215,17 +214,14 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				.flatMap(req -> doRetrieve(req, Argument.of(String.class)));
 	}
 
-        @SingleResult
-        public Publisher<Boolean> validatePatron(final PatronValidation body) {
+	@SingleResult
+	public Publisher<Boolean> validatePatron(final PatronValidation body) {
 		return postRequest("patrons/validate").map(req -> req.body(body)).flatMap(this::ensureToken)
 				.flatMap(req -> doExchange(req, Object.class))
-				.doOnNext(res -> log.debug("Result of validate {} {}",res,res.getStatus()))
-				.flatMap(res -> {
-                                	return Mono.just(Boolean.TRUE);
-                                })
-				.onErrorResume(throwable -> Mono.just(Boolean.FALSE));
+				.doOnNext(res -> log.debug("Result of validate {} {}", res, res.getStatus())).flatMap(res -> {
+					return Mono.just(Boolean.TRUE);
+				}).onErrorResume(throwable -> Mono.just(Boolean.FALSE));
 	}
-
 
 	@SingleResult
 	public Publisher<SierraPatronHoldResultSet> patronHolds(String patronId) {
@@ -240,10 +236,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	@SingleResult
 	public Publisher<AuthToken> login(BasicAuth creds, MultipartBody body) {
 		return postRequest("token")
-				.map(req -> req
-					.basicAuth(creds.getUsername(), creds.getPassword())
-					.contentType(MediaType.MULTIPART_FORM_DATA_TYPE)
-					.body(body))
+				.map(req -> req.basicAuth(creds.getUsername(), creds.getPassword())
+						.contentType(MediaType.MULTIPART_FORM_DATA_TYPE).body(body))
 				.flatMap(req -> doRetrieve(req, Argument.of(AuthToken.class)));
 	}
 
@@ -287,14 +281,11 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		});
 	}
 
-	private <T> Mono<T> get(String path, Argument<T> argumentType,
-		Consumer<UriBuilder> uriBuilderConsumer) {
+	private <T> Mono<T> get(String path, Argument<T> argumentType, Consumer<UriBuilder> uriBuilderConsumer) {
 
-		return createRequest(GET, path)
-			.map(req -> req.uri(uriBuilderConsumer))
-			.flatMap(this::ensureToken)
-			.flatMap(req -> doRetrieve(req, argumentType, response -> response
-				.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty())));
+		return createRequest(GET, path).map(req -> req.uri(uriBuilderConsumer)).flatMap(this::ensureToken)
+				.flatMap(req -> doRetrieve(req, argumentType,
+						response -> response.onErrorResume(sierraResponseErrorMatcher::isNoRecordsError, _t -> empty())));
 	}
 
 	private URI resolve(URI relativeURI) {
@@ -313,6 +304,10 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	private <T> Mono<MutableHttpRequest<T>> putRequest(String path) {
 		return createRequest(PUT, path);
 	}
+	
+	private <T> Mono<MutableHttpRequest<T>> deleteRequest(String path) {
+		return createRequest(DELETE, path);
+	}
 
 	private <T> Mono<MutableHttpRequest<T>> createRequest(HttpMethod method, String path) {
 		return Mono.just(UriBuilder.of(path).build()).map(this::resolve)
@@ -321,31 +316,33 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Class<T> type) {
 		return Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE))
-			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken())
-			// This has to happen after other error handlers related to HttpClientResponseException
-			.onErrorMap(HttpClientResponseException.class, responseException ->
-				unexpectedResponseProblem(responseException, request, null));
+				.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken())
+				// This has to happen after other error handlers related to
+				// HttpClientResponseException
+				.onErrorMap(HttpClientResponseException.class,
+						responseException -> unexpectedResponseProblem(responseException, request, null));
 	}
 
 	/**
 	 * Make HTTP request to a Sierra system
 	 *
-	 * @param request Request to send
-	 * @param responseBodyType Expected type of the response body
-	 * @param errorHandlingTransformer method for handling errors after the response has been received
-	 * @return Deserialized response body or error, that might have been transformed already by handler
+	 * @param request                  Request to send
+	 * @param responseBodyType         Expected type of the response body
+	 * @param errorHandlingTransformer method for handling errors after the response
+	 *                                 has been received
+	 * @return Deserialized response body or error, that might have been transformed
+	 *         already by handler
 	 * @param <T> Type to deserialize the response to
 	 */
-	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request,
-		Argument<T> responseBodyType, Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
+	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> responseBodyType,
+			Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
 
 		return Mono.from(client.retrieve(request, responseBodyType, ERROR_TYPE))
-			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken())
-			.transform(errorHandlingTransformer)
-			// This has to go after more specific error handling
-			// as will convert any client response exception to a problem
-			.onErrorMap(HttpClientResponseException.class, responseException ->
-				unexpectedResponseProblem(responseException, request, null));
+				.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken()).transform(errorHandlingTransformer)
+				// This has to go after more specific error handling
+				// as will convert any client response exception to a problem
+				.onErrorMap(HttpClientResponseException.class,
+						responseException -> unexpectedResponseProblem(responseException, request, null));
 	}
 
 	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
@@ -353,7 +350,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	}
 
 	/**
-	 * Utility method to specify that no specialised error handling will be needed for this request
+	 * Utility method to specify that no specialised error handling will be needed
+	 * for this request
 	 *
 	 * @return transformer that provides no additionally error handling
 	 * @param <T> Type of response being handled
@@ -392,12 +390,17 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				.flatMap(request -> doRetrieve(request, Argument.of(LinkResult.class)));
 	}
 
-	public Publisher<HttpStatus> deleteItem(String id) {
-		return Mono.just(HttpStatus.OK);
+	public Publisher<HttpStatus> deleteItem(@NonNull @NotNull String id) {
+		
+		return deleteRequest("items/" + id)
+			.flatMap(this::ensureToken)
+			.flatMap(request -> doRetrieve(request, Argument.of(HttpStatus.class)));
 	}
 
-	public Publisher<HttpStatus> deleteBib(String id) {
-		return Mono.just(HttpStatus.OK);
+	public Publisher<HttpStatus> deleteBib(@NonNull @NotNull String id) {
+		return deleteRequest("bibs/" + id)
+			.flatMap(this::ensureToken)
+			.flatMap(request -> doRetrieve(request, Argument.of(HttpStatus.class)));
 	}
 
 }
