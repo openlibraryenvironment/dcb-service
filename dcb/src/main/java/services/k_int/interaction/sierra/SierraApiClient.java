@@ -1,6 +1,7 @@
 package services.k_int.interaction.sierra;
 
-import java.util.Collection;
+import static org.olf.dcb.utils.CollectionUtils.nullIfEmpty;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -30,21 +31,15 @@ import services.k_int.interaction.sierra.items.Params;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
-import services.k_int.interaction.sierra.patrons.PatronValidation;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
+import services.k_int.interaction.sierra.patrons.PatronValidation;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 
 public interface SierraApiClient extends BasicAuthClient {
 	String CONFIG_ROOT = "sierra.client";
 	Logger log = LoggerFactory.getLogger(SierraApiClient.class);
-
-	private static <T> Collection<T> nullIfEmpty(Collection<T> collection) {
-		if (collection == null || collection.size() < 1)
-			return null;
-		return collection;
-	}
 
 	@SingleResult
 	default Publisher<BibResultSet> bibs(BibParams params) {
