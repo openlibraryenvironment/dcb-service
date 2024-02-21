@@ -1,5 +1,16 @@
 # Changelog
 
+## Version 5.7.1
+
+### Changes
+* [Chore]
+	* tune timeout on RTAC api call - 7s instead of 5
+	* logging around missing patron hold request tracking
+
+### Fixes
+* [General]
+	* Handle missing borrower request was setting the local item status and not the local request status in a cancelled scenario - leading to repeated attempts to process the message
+
 ## Version 5.7.0
 
 ### Additions
@@ -9,6 +20,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Extra hint that problem props are supplier side
 	* remove dcbContext from problem - it's too verbose. Transactional annotation for audit log message
 	* Reinstate getting item barcode for placed Sierra hold DCB-872
