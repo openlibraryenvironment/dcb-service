@@ -1,11 +1,10 @@
-package org.olf.dcb.request.resolution;
+package org.olf.dcb.request.workflow;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
-import org.olf.dcb.request.workflow.WorkflowAction;
 import org.olf.dcb.tracking.model.StateChange;
 import org.olf.dcb.tracking.model.TrackingRecord;
 
