@@ -6,8 +6,11 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
@@ -37,14 +40,25 @@ class ConfirmedSupplierRequestReactionTests {
 		patronRequestsFixture.deleteAll();
 		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
+
+		hostLmsFixture.createSierraHostLms("supplying-host-lms");
 	}
 
 	@Test
 	void shouldReactToLocalSupplierRequestChangingToConfirmed() {
+		// Arrange
+		final var supplierRequest = supplierRequestsFixture.saveSupplierRequest(
+			SupplierRequest.builder()
+				.id(UUID.randomUUID())
+				.hostLmsCode("supplying-host-lms")
+				.localItemId("5729624")
+				.build());
+
 		// Act
 		final var context = singleValueFrom(
 			hostLmsReactions.onTrackingEvent(StateChange.builder()
 				.resourceType("SupplierRequest")
+				.resource(supplierRequest)
 				.toState(HOLD_CONFIRMED)
 				.build()));
 
