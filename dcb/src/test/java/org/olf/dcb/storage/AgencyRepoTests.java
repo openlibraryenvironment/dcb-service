@@ -4,7 +4,6 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,7 +16,6 @@ import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
-import reactor.core.publisher.Mono;
 
 @DcbTest
 class AgencyRepoTests {
@@ -52,16 +50,14 @@ class AgencyRepoTests {
 		// Arrange
 		final var hostLms = hostLmsFixture.createSierraHostLms("example-host-lms");
 
-		final var new_agency = DataAgency.builder()
+		agencyFixture.saveAgency(DataAgency.builder()
 			.id(randomUUID())
-			.code("ACODE1")
-			.name("Test Agency Name1")
+			.code("agency-code")
+			.name("agency name")
 			.hostLms(hostLms)
 			.latitude(53.383331)
 			.longitude(-1.466667)
-			.build();
-
-		singleValueFrom(Mono.from(agencyRepository.save(new_agency)));
+			.build());
 
 		// Act
 		final var fetchedAgencyRecords = manyValuesFrom(agencyRepository.queryAll());
