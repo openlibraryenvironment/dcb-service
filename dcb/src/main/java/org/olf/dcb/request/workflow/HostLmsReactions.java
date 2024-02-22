@@ -61,9 +61,10 @@ public class HostLmsReactions {
 			// This will be replaced by a table in the near future
 			if (sc.getResourceType().equals("SupplierRequest")) {
 				switch (sc.getToState()) {
+					case "PLACED" -> handler = "SupplierRequestPlaced";
+					case "CONFIRMED" -> handler = "SupplierRequestConfirmed";
 					case "TRANSIT" -> handler = "SupplierRequestInTransit";
 					case "MISSING" -> handler = "SupplierRequestMissing";
-					case "PLACED" -> handler = "SupplierRequestPlaced";
 					case "CANCELLED" -> handler = "SupplierRequestCancelled";
 					default -> handler = "SupplierRequestUnhandledState";
 				}
