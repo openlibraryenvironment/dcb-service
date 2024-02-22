@@ -58,16 +58,16 @@ micronaut:
 
 endpoints:
   prometheus:
-    sensitive: false
+    sensitive: true
   health:
     enabled: true
-    sensitive: false # non-secured endpoint
+    sensitive: true # non-secured endpoint
     details-visible: ANONYMOUS # show details for everyone
     ingest:
       enabled: true
   info:
     enabled: true
-    sensitive: false
+    sensitive: true
 
 info:
   harvest:
@@ -157,8 +157,12 @@ graphql:
   # Disable graphiql because we have protected it using a jwt
   graphiql: # enables the /graphiql endpoint to test calls against your graph.
     enabled: false
-
 dcb:
+  security:
+    internal-endpoints:
+      ip-patterns:
+        - "127.0.0.1" # Allow IP4 127.0.0.1
+        - "0:0:0:0:0:0:0:1" # Allow localhost IP6
   itemresolver:
     code: FirstItem
   shutdown:
