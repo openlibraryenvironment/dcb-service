@@ -1,7 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
@@ -17,7 +16,6 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
-@Property(name = "dcb.requests.preflight-checks.enabled", value = "false")
 @Property(name = "dcb.requests.preflight-checks.pickup-location.enabled", value = "false")
 @Property(name = "dcb.requests.preflight-checks.pickup-location-to-agency-mapping.enabled", value = "false")
 @Property(name = "dcb.requests.preflight-checks.resolve-patron.enabled", value = "false")
@@ -25,19 +23,7 @@ import reactor.core.publisher.Mono;
 @DcbTest()
 class PatronRequestPreflightChecksServiceTests extends AbstractPreflightCheckTests {
 	@Inject
-	private PatronRequestPreflightChecksService preflightChecksService;
-	@Inject
 	private Collection<PreflightCheck> preflightChecks;
-
-	@Test
-	void noChecksShouldBeExecutedWhenDisabled() {
-		final var command = placeRequestCommand("any-location-code",
-			"any-context", "any-host-lms-code");
-
-		// Only included check should always fail if checked
-		assertThat("No checks should be made",
-			preflightChecksService.check(command).block(), is(command));
-	}
 
 	@Test
 	void shouldOnlyIncludeAlwaysFailingCheck() {

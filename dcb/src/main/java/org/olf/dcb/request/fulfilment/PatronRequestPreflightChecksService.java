@@ -10,7 +10,6 @@ import org.olf.dcb.core.model.Event;
 import org.olf.dcb.storage.EventLogRepository;
 
 import graphql.com.google.common.collect.Streams;
-import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -19,32 +18,23 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 public class PatronRequestPreflightChecksService {
-	private final boolean enabled;
-	private	final Collection<PreflightCheck> checks;
-
+	private final Collection<PreflightCheck> checks;
 	private final EventLogRepository eventLogRepository;
 
-	public PatronRequestPreflightChecksService(
-		@Value("${dcb.requests.preflight-checks.enabled:true}") boolean enabled,
-		Collection<PreflightCheck> checks, EventLogRepository eventLogRepository) {
+	public PatronRequestPreflightChecksService(Collection<PreflightCheck> checks,
+		EventLogRepository eventLogRepository) {
 
-		this.enabled = enabled;
 		this.checks = checks;
 		this.eventLogRepository = eventLogRepository;
 	}
 
 	public Mono<PlacePatronRequestCommand> check(PlacePatronRequestCommand command) {
-		if (!enabled) {
-			log.debug("All preflight checks disabled");
-			return Mono.just(command);
-		}
-
 		log.info("Perform preflight checks {}",command);
 
 		return performChecks(command)
 			.flatMap(results -> {
 				if (allPassed(results)) {
-					log.info("PR passed preflight {}",command);
+					log.info("request passed preflight {}", command);
 					return Mono.just(command);
 				}
 
@@ -60,7 +50,7 @@ public class PatronRequestPreflightChecksService {
 	private Mono<List<CheckResult>> performChecks(PlacePatronRequestCommand command) {
 		return Flux.fromIterable(checks)
 			.doOnNext(check -> {
-				log.info("Preflight check: {}",check);
+				log.info("Preflight check: {}", check);
 			})
 			.concatMap(check -> check.check(command))
 			.reduce(PatronRequestPreflightChecksService::concatenateChecks);
