@@ -6,9 +6,6 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
-import java.util.HashMap;
-import java.util.UUID;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.DataAgency;
@@ -53,19 +50,7 @@ class AgencyRepoTests {
 	@Test
 	void createAgencyViaRepository() {
 		// Arrange
-
-		// Create a host LMS entry for our new Agency to point at
-		final var cfg = new HashMap<String, Object>();
-
-		final var hostLms = DataHostLms.builder()
-			.id(UUID.randomUUID())
-			.code("TH2")
-			.name("Test HostLMS2")
-			.lmsClientClass("org.olf.dcb.core.interaction.sierra.SierraLmsClient")
-			.clientConfig(cfg)
-			.build();
-
-		singleValueFrom(Mono.from(hostLmsRepository.save(hostLms)));
+		final var hostLms = hostLmsFixture.createSierraHostLms("example-host-lms");
 
 		final var new_agency = DataAgency.builder()
 			.id(randomUUID())
