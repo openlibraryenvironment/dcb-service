@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_READY;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ERR0210;
@@ -397,7 +397,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void shouldDetectRequestHasBeenPlaced() {
+	void shouldDetectRequestHasBeenConfirmed() {
 		// Arrange
 		final var localHoldId = "2977175";
 
@@ -417,7 +417,7 @@ class PolarisLmsClientTests {
 		assertThat(request, allOf(
 			notNullValue(),
 			HostLmsRequestMatchers.hasLocalId(localHoldId),
-			hasStatus(HOLD_PLACED)
+			hasStatus(HOLD_CONFIRMED)
 		));
 	}
 
