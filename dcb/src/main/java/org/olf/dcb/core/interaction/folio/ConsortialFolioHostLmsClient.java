@@ -301,6 +301,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var transactionId = UUID.randomUUID().toString();
 
 		final var agencyCode = getValue(parameters.getPickupAgency(), Agency::getCode);
+		final var firstBarcodeInList = parseList(parameters.getLocalPatronBarcode()).get(0);
 
 		final var request = authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
 			.body(CreateTransactionRequest.builder()
@@ -311,7 +312,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.build())
 				.patron(CreateTransactionRequest.Patron.builder()
 					.id(parameters.getLocalPatronId())
-					.barcode(parameters.getLocalPatronBarcode())
+					.barcode(firstBarcodeInList)
 					.group(parameters.getLocalPatronType())
 					.build())
 				.pickup(CreateTransactionRequest.Pickup.builder()
@@ -476,10 +477,15 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
 		try {
-			final var barcode = getValue(patron,
+			final var barcodeListString = getValue(patron,
 				org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
-			return findUserByBarcode(barcode);
+			final var firstBarcodeInList = parseList(barcodeListString).get(0);
+
+			log.debug("Finding virtual patron using barcode: {} from barcode list: {}.",
+				firstBarcodeInList, barcodeListString);
+
+			return findUserByBarcode(firstBarcodeInList);
 		} catch (NoHomeIdentityException | NoHomeBarcodeException e) {
 			return Mono.error(FailedToFindVirtualPatronException.noBarcode(
 				getValue(patron, org.olf.dcb.core.model.Patron::getId)));
