@@ -17,6 +17,7 @@ import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
@@ -641,7 +642,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		// Based upon the statuses defined in https://github.com/folio-org/mod-dcb/blob/master/src/main/resources/swagger.api/schemas/transactionStatus.yaml
 		final var mappedStatus = switch(status) {
-			case "CREATED" -> HOLD_PLACED;
+			case "CREATED" -> HOLD_CONFIRMED;
 			case "OPEN" -> HOLD_TRANSIT;
 			case "CANCELLED" -> HOLD_CANCELLED;
 			// These recognised but unhandled statuses should trigger the unhandled status handlers in host LMS reactions

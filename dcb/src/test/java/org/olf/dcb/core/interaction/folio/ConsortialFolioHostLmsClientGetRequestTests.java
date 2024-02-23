@@ -47,7 +47,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 	}
 
 	@Test
-	void shouldDetectRequestHasBeenPlaced() {
+	void shouldDetectRequestHasBeenConfirmed() {
 		// Arrange
 		final var localRequestId = UUID.randomUUID().toString();
 
@@ -62,7 +62,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		assertThat(localRequest, allOf(
 			notNullValue(),
 			hasLocalId(localRequestId),
-			hasStatus("PLACED")
+			hasStatus("CONFIRMED")
 		));
 	}
 
