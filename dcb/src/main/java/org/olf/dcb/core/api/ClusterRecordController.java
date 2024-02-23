@@ -17,6 +17,7 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.transaction.annotation.Transactional;
+import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -25,10 +26,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
 
-
-@Transactional(readOnly = true)
 @Controller("/clusters")
+@Validated
+@Secured(SecurityRule.IS_ANONYMOUS)
 @Tag(name = "Cluster Records (Read only)")
+@Transactional(readOnly = true)
 public class ClusterRecordController {
 
 	private static final Logger log = LoggerFactory.getLogger(ClusterRecordController.class);
@@ -40,7 +42,6 @@ public class ClusterRecordController {
 		this.recordClusteringService = recordClusteringService;
 	}
 
-	@Secured(SecurityRule.IS_ANONYMOUS)
 	@Operation(
 		summary = "Browse Cluster Records",
 		description = "Paginate through a Unified, Clustered view of the Bibliographic records",
@@ -56,7 +57,6 @@ public class ClusterRecordController {
 		return recordClusteringService.getPageAs(since, pageable, ClusterRecordDTO::new);
 	}
 
-	@Secured(SecurityRule.IS_ANONYMOUS)
 	@Get("/{id}")
 	public Mono<ClusterRecord> show(UUID id) {
 		log.debug("ClusterRecordController::show({})", id);

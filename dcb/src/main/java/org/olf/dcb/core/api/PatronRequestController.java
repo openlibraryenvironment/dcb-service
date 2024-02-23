@@ -11,9 +11,9 @@ import java.util.function.Predicate;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.FailedPreflightCheck;
-import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
+import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
 import org.olf.dcb.request.workflow.CleanupPatronRequestTransition;
 import org.olf.dcb.request.workflow.PatronRequestStateTransition;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
@@ -48,9 +48,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
+@Controller("/patron/requests")
 @Validated
 @Secured(SecurityRule.IS_AUTHENTICATED)
-@Controller("/patrons/requests")
 @Tag(name = "Patron Request API")
 public class PatronRequestController {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestController.class);
@@ -143,7 +143,6 @@ public class PatronRequestController {
 			.build());
 	}
 
-	@Secured(SecurityRule.IS_AUTHENTICATED)
 	@Operation(summary = "Browse Requests", description = "Paginate through the list of Patron Requests", parameters = {
 			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
 			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100") })

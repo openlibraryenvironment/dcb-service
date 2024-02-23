@@ -2,9 +2,8 @@ package org.olf.dcb.core.api;
 
 import java.util.UUID;
 
-import jakarta.validation.Valid;
-
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.security.RoleNames;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,12 +21,13 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
 
-@Validated
-@Secured({ "ADMIN" })
 @Controller("/hostlmss")
-@Tag(name = "HostLMSs")
+@Validated
+@Secured(RoleNames.ADMINISTRATOR)
+@Tag(name = "Host LMS Api")
 public class HostLmssController {
 
 	private static final Logger log = LoggerFactory.getLogger(HostLmssController.class);

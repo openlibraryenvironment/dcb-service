@@ -1,7 +1,6 @@
 package org.olf.dcb.core.api;
 
 import static io.micronaut.http.MediaType.TEXT_PLAIN;
-import static io.micronaut.security.rules.SecurityRule.IS_AUTHENTICATED;
 
 import java.security.Principal;
 
@@ -9,6 +8,8 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Produces;
 import io.micronaut.security.annotation.Secured;
+import io.micronaut.security.rules.SecurityRule;
+import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 
@@ -17,9 +18,10 @@ import lombok.extern.slf4j.Slf4j;
  */
 
 @Slf4j
-@Tag(name = "Management API")
-@Secured(IS_AUTHENTICATED)
 @Controller
+@Validated
+@Secured(SecurityRule.IS_AUTHENTICATED)
+@Tag(name = "Management API")
 public class HomeController {
 
 	@Produces(TEXT_PLAIN)
@@ -28,8 +30,8 @@ public class HomeController {
 		return principal.getName();
 	}
 
-        @Secured({"ADMIN"}) 
-        @Get(value="/secured", produces = TEXT_PLAIN)
+	@Secured({ "ADMIN" })
+	@Get(value = "/secured", produces = TEXT_PLAIN)
 	public String securedEndpoint(Principal principal) {
 		io.micronaut.security.authentication.ServerAuthentication sa = (io.micronaut.security.authentication.ServerAuthentication) principal;
 		log.info("principal: {}", principal);

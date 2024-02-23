@@ -1,38 +1,38 @@
 package org.olf.dcb.core.api;
 
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static org.olf.dcb.core.api.PatronAuthV2Controller.Status.INVALID;
+import static org.olf.dcb.core.api.PatronAuthV2Controller.Status.VALID;
+
+import java.util.List;
+
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.security.RoleNames;
+import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.storage.HostLmsRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
-import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.serde.annotation.Serdeable;
 import io.micronaut.validation.Validated;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.HostLmsRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
-
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Schema;
-
-
-import java.util.List;
-
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static org.olf.dcb.core.api.PatronAuthV2Controller.Status.*;
 
 
 /**
@@ -41,9 +41,9 @@ import static org.olf.dcb.core.api.PatronAuthV2Controller.Status.*;
  * auth systems and able to pass transparently through (For example) keycloak adapters without needing to
  * create very specialised identity providers
  */
-@Validated
-@Secured(SecurityRule.IS_ANONYMOUS)
 @Controller("/v2/patron/auth")
+@Validated
+@Secured({ RoleNames.ADMINISTRATOR, RoleNames.INTERNAL_API })
 @Tag(name = "Patron Auth API v2")
 public class PatronAuthV2Controller {
 
@@ -64,7 +64,6 @@ public class PatronAuthV2Controller {
 	}
 
   // API Is available to users with role ADMIN or INTERNAL_API
- 	@Secured({ "ADMIN", "INTERNAL_API" })
 	@Post(consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
 	@Operation(
 		summary = "Verify Patron Credentials",
@@ -163,7 +162,6 @@ public class PatronAuthV2Controller {
 	/**
  	 * A secured endpoint to look up a user record by their ID in a remote system.
 	 */
- 	@Secured({ "ADMIN", "INTERNAL_API" })
  	@Post(value="/lookup", consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
 	public Mono<HttpResponse<LocalPatronDetails>> getUserByLocalPrincipal(@Body @Valid V2PatronCredentials c) {
 

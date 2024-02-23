@@ -31,9 +31,9 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 @Slf4j
+@Controller
 @Validated
 @Secured(IS_ANONYMOUS)
-@Controller
 @Tag(name = "Live Availability API")
 public class LiveAvailabilityController {
 	private final LiveAvailabilityService liveAvailabilityService;

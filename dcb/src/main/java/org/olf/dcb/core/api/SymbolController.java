@@ -2,11 +2,10 @@ package org.olf.dcb.core.api;
 
 import java.util.UUID;
 
-import jakarta.validation.Valid;
-
 import org.olf.dcb.core.api.serde.LocationSymbolDTO;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.LocationSymbol;
+import org.olf.dcb.core.security.RoleNames;
 import org.olf.dcb.storage.LocationRepository;
 import org.olf.dcb.storage.LocationSymbolRepository;
 
@@ -17,18 +16,19 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
-import io.micronaut.security.rules.SecurityRule;
+import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
 
-
 @Controller("/symbols")
+@Validated
+@Secured(RoleNames.ADMINISTRATOR)
 @Tag(name = "Symbols")
-@Secured(SecurityRule.IS_ANONYMOUS)
 public class SymbolController {
 
         private LocationRepository locationRepository;

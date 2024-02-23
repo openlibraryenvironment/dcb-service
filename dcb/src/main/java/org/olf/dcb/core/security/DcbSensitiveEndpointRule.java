@@ -40,7 +40,7 @@ public class DcbSensitiveEndpointRule extends SensitiveEndpointRule {
 	
 	private static final Logger log = LoggerFactory.getLogger(DcbSensitiveEndpointRule.class);
 	
-	private static final String PREFIX = "dcb.security.internal-endpoints";
+	protected static final String PREFIX = "dcb.security.internal-endpoints";
 	
 	public static final String DEFAULT_SYSTEM_ROLE = "ROLE_SYSTEM";
 	

@@ -1,34 +1,37 @@
 package org.olf.dcb.core.api;
 
-import io.micronaut.core.annotation.Introspected;
-import io.micronaut.http.HttpStatus;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.annotation.Controller;
-import io.micronaut.http.annotation.*;
-import io.micronaut.http.annotation.Error;
-import io.micronaut.http.multipart.CompletedFileUpload;
-import io.micronaut.security.annotation.Secured;
-import io.micronaut.security.rules.SecurityRule;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import org.olf.dcb.core.api.exceptions.FileUploadValidationException;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
-import org.olf.dcb.utils.DCBConfigurationService;
-import org.olf.dcb.utils.DCBConfigurationService.UploadedConfigImport;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
 
+import org.olf.dcb.core.api.exceptions.FileUploadValidationException;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.security.RoleNames;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
+import org.olf.dcb.utils.DCBConfigurationService;
+import org.olf.dcb.utils.DCBConfigurationService.UploadedConfigImport;
 
-@Produces(APPLICATION_JSON)
-@Consumes(MULTIPART_FORM_DATA)
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.annotation.Consumes;
+import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Error;
+import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.Post;
+import io.micronaut.http.multipart.CompletedFileUpload;
+import io.micronaut.security.annotation.Secured;
+import io.micronaut.validation.Validated;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+
 @Controller("/uploadedMappings")
-@Secured({"ADMIN"})
+@Validated
+@Secured(RoleNames.ADMINISTRATOR)
 @Tag(name = "Uploaded Mappings API")
-@Introspected
+@Consumes(MULTIPART_FORM_DATA)
+// @Introspected SO: Think this is here by mistake. Commenting just in case
 public class UploadedMappingsController {
 	private final DCBConfigurationService configurationService;
 	private ReferenceValueMappingRepository referenceValueMappingRepository;
