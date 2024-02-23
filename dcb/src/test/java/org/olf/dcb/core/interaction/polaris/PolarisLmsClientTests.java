@@ -16,7 +16,6 @@ import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRAN
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ERR0210;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.HoldRequestResponse;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.InformationMessage;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ItemCreateResponse;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
@@ -636,7 +635,7 @@ class PolarisLmsClientTests {
 	void shouldFailToCreateVirtualItemIfStartingWorkflowRespondsWithMissingAnswer() {
 		// Arrange
 		mockPolarisFixture.mockStartWorkflow(
-			ItemCreateResponse.builder()
+			ApplicationServicesClient.WorkflowResponse.builder()
 				.answerExtension(null)
 				.informationMessages(List.of(
 					InformationMessage.builder()
