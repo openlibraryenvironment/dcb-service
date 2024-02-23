@@ -13,6 +13,10 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_READY;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ERR0210;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.HoldRequestResponse;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.InformationMessage;
@@ -393,13 +397,13 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void shouldBeAbleToFindExistingRequest() {
+	void shouldDetectRequestHasBeenPlaced() {
 		// Arrange
 		final var localHoldId = "2977175";
 
 		mockPolarisFixture.mockGetHold(localHoldId,
 			LibraryHold.builder()
-				.sysHoldStatus("In Processing")
+				.sysHoldStatus("Pending")
 				.itemRecordID(6737455)
 				.itemBarcode("785574212")
 				.build());
@@ -413,9 +417,85 @@ class PolarisLmsClientTests {
 		assertThat(request, allOf(
 			notNullValue(),
 			HostLmsRequestMatchers.hasLocalId(localHoldId),
-			hasStatus("In Processing")
+			hasStatus(HOLD_PLACED)
 		));
 	}
+
+	@Test
+	void shouldDetectRequestHasBeenCancelled() {
+		// Arrange
+		final var localHoldId = "2977175";
+
+		mockPolarisFixture.mockGetHold(localHoldId,
+			LibraryHold.builder()
+				.sysHoldStatus("Cancelled")
+				.itemRecordID(6737455)
+				.itemBarcode("785574212")
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var request = singleValueFrom(client.getRequest(localHoldId));
+
+		// Assert
+		assertThat(request, allOf(
+			notNullValue(),
+			HostLmsRequestMatchers.hasLocalId(localHoldId),
+			hasStatus(HOLD_CANCELLED)
+		));
+	}
+
+	@Test
+	void shouldDetectRequestIsReadyForPickup() {
+		// Arrange
+		final var localHoldId = "2977175";
+
+		mockPolarisFixture.mockGetHold(localHoldId,
+			LibraryHold.builder()
+				.sysHoldStatus("Held")
+				.itemRecordID(6737455)
+				.itemBarcode("785574212")
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var request = singleValueFrom(client.getRequest(localHoldId));
+
+		// Assert
+		assertThat(request, allOf(
+			notNullValue(),
+			HostLmsRequestMatchers.hasLocalId(localHoldId),
+			hasStatus(HOLD_READY)
+		));
+	}
+
+	@Test
+	void shouldDetectRequestIsInTransit() {
+		// Arrange
+		final var localHoldId = "2977175";
+
+		mockPolarisFixture.mockGetHold(localHoldId,
+			LibraryHold.builder()
+				.sysHoldStatus("Shipped")
+				.itemRecordID(6737455)
+				.itemBarcode("785574212")
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var request = singleValueFrom(client.getRequest(localHoldId));
+
+		// Assert
+		assertThat(request, allOf(
+			notNullValue(),
+			HostLmsRequestMatchers.hasLocalId(localHoldId),
+			hasStatus(HOLD_TRANSIT)
+		));
+	}
+
 
 	@Test
 	void shouldBeAbleToCreateVirtualPatron() {
