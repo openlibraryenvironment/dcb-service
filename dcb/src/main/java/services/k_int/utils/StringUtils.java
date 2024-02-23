@@ -23,8 +23,25 @@ public interface StringUtils {
 	}
 
 	public static List<String> parseList(String input) {
-		return (input != null)
-			? Arrays.asList(input.substring(1, input.length() - 1).split(", "))
-			: null;
+		if (input == null)
+			return null;
+
+		int startIndex = input.indexOf("[");
+		int endIndex = input.lastIndexOf("]");
+
+		if (isWrappedWithSquareBrackets(input, startIndex, endIndex)) {
+			String substring = input.substring(startIndex + 1, endIndex);
+
+			return Arrays.asList(substring.split(", "));
+		} else {
+
+			return Arrays.asList(input.split(", "));
+		}
+	}
+
+	private static boolean isWrappedWithSquareBrackets(String input, int startIndex, int endIndex) {
+		return startIndex == 0
+			&& endIndex == input.length() - 1
+			&& startIndex < endIndex;
 	}
 }
