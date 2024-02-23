@@ -411,7 +411,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.requestedItemId(response.getItemRecordID() != null
 					? response.getItemRecordID().toString()
 					: null)
-				.requestedItemId(response.getItemBarcode() != null
+				.requestedItemBarcode(response.getItemBarcode() != null
 					? response.getItemBarcode()
 					: null)
 				.build());

@@ -347,9 +347,8 @@ class PolarisLmsClientTests {
 			notNullValue(),
 			hasLocalId("2977175"),
 			hasLocalStatus("In Processing"),
-			// Incorrectly sets the item ID to the barcode
-			hasRequestedItemId("785574212"),
-			hasRequestedItemBarcode(null)
+			hasRequestedItemId("6737455"),
+			hasRequestedItemBarcode("785574212")
 		));
 	}
 
