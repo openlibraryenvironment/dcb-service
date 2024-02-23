@@ -399,6 +399,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	private Mono<LocalRequest> getPlaceHoldRequestData(Integer holdRequestId) {
 		return appServicesClient.getLocalHoldRequest(holdRequestId)
+			.doOnSuccess(hold -> log.debug("Received hold from Host LMS \"%s\": %s"
+				.formatted(getHostLmsCode(), hold)))
 			.map(response -> LocalRequest.builder()
 				.localId(holdRequestId != null
 					? holdRequestId.toString()

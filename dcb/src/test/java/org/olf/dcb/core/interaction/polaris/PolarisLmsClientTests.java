@@ -36,6 +36,8 @@ import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
+import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemBarcode;
+import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemId;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
 import static org.olf.dcb.test.matchers.ThrowableProblemMatchers.hasParameters;
@@ -341,8 +343,13 @@ class PolarisLmsClientTests {
 		));
 
 		// Assert
-		assertThat(localRequest, hasLocalId("2977175"));
-		assertThat(localRequest, hasLocalStatus("In Processing"));
+		assertThat(localRequest, allOf(
+			notNullValue(),
+			hasLocalId("2977175"),
+			hasLocalStatus("In Processing"),
+			hasRequestedItemId(null),
+			hasRequestedItemBarcode(null)
+		));
 	}
 
 	@Test
