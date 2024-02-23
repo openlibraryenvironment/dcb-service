@@ -9,8 +9,6 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import java.time.Instant;
 import java.util.Comparator;
 
-import org.olf.dcb.utils.PropertyAccessUtils;
-
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;

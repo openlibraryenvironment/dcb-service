@@ -53,6 +53,7 @@ import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.shared.NoNumericRangeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
@@ -184,7 +185,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		return appServicesClient.getLocalHoldRequest(Integer.valueOf(localRequestId))
-			.map(ApplicationServicesClient.LibraryHold::getSysHoldStatus)
+			.map(LibraryHold::getSysHoldStatus)
 			.map(status -> HostLmsRequest.builder()
 				.localId(localRequestId)
 				.status(checkHoldStatus(status))
@@ -405,15 +406,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.localId(holdRequestId != null
 					? holdRequestId.toString()
 					: "")
-				.localStatus(response.getSysHoldStatus() != null
-					? response.getSysHoldStatus()
-					: "")
-				.requestedItemId(response.getItemRecordID() != null
-					? response.getItemRecordID().toString()
-					: null)
-				.requestedItemBarcode(response.getItemBarcode() != null
-					? response.getItemBarcode()
-					: null)
+				.localStatus(getValue(response, LibraryHold::getSysHoldStatus, Object::toString, ""))
+				.requestedItemId(getValue(response, LibraryHold::getItemRecordID, Object::toString))
+				.requestedItemBarcode(getValue(response, LibraryHold::getItemBarcode))
 				.build());
 	}
 
