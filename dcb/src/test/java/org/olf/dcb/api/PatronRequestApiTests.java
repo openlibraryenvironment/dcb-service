@@ -96,6 +96,8 @@ class PatronRequestApiTests {
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
+	
+	
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
@@ -214,7 +216,7 @@ class PatronRequestApiTests {
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
 
 		// Act
-		// We use location UUID for pickup location now and not a  code
+		// We use location UUID for pickup location now and not a code
 		var placedRequestResponse = patronRequestApiClient.placePatronRequest(
 			clusterRecordId, KNOWN_PATRON_LOCAL_ID, "0f102b5a-e300-41c8-9aca-afd170e17921", HOST_LMS_CODE, "home-library");
 

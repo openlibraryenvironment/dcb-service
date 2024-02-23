@@ -1,8 +1,10 @@
 package org.olf.dcb.api;
 
+import java.util.List;
 import java.util.UUID;
 
-import org.olf.dcb.test.clients.LoginClient;
+import org.olf.dcb.security.RoleNames;
+import org.olf.dcb.security.TestStaticTokenValidator;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpRequest;
@@ -17,11 +19,11 @@ import lombok.Value;
 @Singleton
 class PatronRequestApiClient {
 	private final HttpClient httpClient;
-	private final LoginClient loginClient;
+		private static final String accessToken = "test-patreq-client-token";
 
-	public PatronRequestApiClient(@Client("/") HttpClient client, LoginClient loginClient) {
+	public PatronRequestApiClient(@Client("/") HttpClient client) {
 		this.httpClient = client;
-		this.loginClient = loginClient;
+		TestStaticTokenValidator.add(accessToken, "test-patreq-client-token", List.of(RoleNames.ADMINISTRATOR));
 	}
 
 	HttpResponse<PlacedPatronRequest> placePatronRequest(UUID bibClusterId,
@@ -49,9 +51,10 @@ class PatronRequestApiClient {
 				.build())
 			.build());
 	}
+	
+	
 
 	HttpResponse<PlacedPatronRequest> placePatronRequest(PlacePatronRequestCommand command) {
-		final var accessToken = loginClient.getAccessToken();
 
 		final var blockingClient = httpClient.toBlocking();
 

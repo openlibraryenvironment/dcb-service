@@ -20,6 +20,8 @@ import org.mockserver.model.HttpResponse;
 import org.olf.dcb.core.api.serde.AgencyDTO;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.security.RoleNames;
+import org.olf.dcb.security.TestStaticTokenValidator;
 import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -65,8 +67,10 @@ public class PatronAuthApiTests {
 	@Inject
 	private LoginClient loginClient;
 
+	private String accessToken;
+
 	@BeforeAll
-	public void addFakeSierraApis(MockServerClient mockServerClient) {
+	public void setupTests(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://patron-auth-tests.com";
 		final String KEY = "patron-auth-key";
@@ -81,6 +85,10 @@ public class PatronAuthApiTests {
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+
+
+		this.accessToken = "patron-auth-tests-token";
+		TestStaticTokenValidator.add(accessToken, "test-admin", List.of(RoleNames.ADMINISTRATOR));
 	}
 
 	@Test
@@ -88,7 +96,7 @@ public class PatronAuthApiTests {
 	void shouldReturnValidStatusWhenUsingBasicBarcodeAndPinValidation() {
 		// Arrange
 		final var blockingClient = client.toBlocking();
-		final var accessToken = loginClient.getAccessToken();
+		
 		final var agencyDTO = AgencyDTO.builder().id(randomUUID()).code("ab7").name("agencyName")
 			.authProfile("BASIC/BARCODE+PIN").idpUrl("idpUrl").hostLMSCode(HOST_LMS_CODE).build();
 		final var agencyRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(accessToken);
@@ -136,7 +144,6 @@ public class PatronAuthApiTests {
 	@DisplayName("basic barcode and name patron auth test")
 	void shouldReturnValidStatusWhenUsingBasicBarcodeAndNameValidation() {
 		final var blockingClient = client.toBlocking();
-		final var accessToken = loginClient.getAccessToken();
 		final var agencyDTO = AgencyDTO.builder().id(randomUUID()).code("ab6").name("agencyName")
 			.authProfile("BASIC/BARCODE+NAME").idpUrl("idpUrl").hostLMSCode(HOST_LMS_CODE).build();
 		final var agencyRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(accessToken);
@@ -172,7 +179,6 @@ public class PatronAuthApiTests {
 	@DisplayName("Unknown auth method test")
 	void shouldReturnInvalidStatusWhenUnknownAuthMethod() {
 		final var blockingClient = client.toBlocking();
-		final var accessToken = loginClient.getAccessToken();
 		final var agencyDTO = AgencyDTO.builder().id(randomUUID()).code("ab8").name("agencyName")
 			.authProfile("UNKNOWN").hostLMSCode(HOST_LMS_CODE).build();
 		final var agencyRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(accessToken);

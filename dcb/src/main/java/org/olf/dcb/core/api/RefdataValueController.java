@@ -3,7 +3,7 @@ package org.olf.dcb.core.api;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.RefdataValue;
-import org.olf.dcb.core.security.RoleNames;
+import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.RefdataValueRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

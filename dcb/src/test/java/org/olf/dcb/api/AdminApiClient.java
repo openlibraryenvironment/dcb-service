@@ -5,11 +5,14 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.security.RoleNames;
+import org.olf.dcb.security.TestStaticTokenValidator;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
+import io.micronaut.security.authentication.Authentication;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import lombok.Value;
@@ -18,10 +21,20 @@ class AdminApiClient {
 	@Inject
 	@Client("/")
 	HttpClient client;
+	
+	private static final String accessToken = "test-admin-client-token";
+	private static Authentication auth; 
+	
+	public AdminApiClient() {
+		if (auth == null) {
+			auth = TestStaticTokenValidator.add(accessToken, "test-admin-client", List.of(RoleNames.ADMINISTRATOR));
+		}
+	}
 
 	AdminAccessPatronRequest getPatronRequestViaAdminApi(UUID id) {
 		return client.toBlocking()
-			.retrieve(HttpRequest.GET("/admin/patrons/requests/" + id),
+			.retrieve(HttpRequest.GET("/admin/patrons/requests/" + id)
+				.bearerAuth(accessToken),
 				AdminAccessPatronRequest.class);
 	}
 

@@ -1,4 +1,4 @@
-package org.olf.dcb.core.security;
+package org.olf.dcb.security;
 
 import static io.micronaut.security.rules.SecurityRuleResult.ALLOWED;
 import static io.micronaut.security.rules.SecurityRuleResult.REJECTED;

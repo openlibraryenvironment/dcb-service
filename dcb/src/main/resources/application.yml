@@ -28,6 +28,10 @@ micronaut:
         enabled: true
         signatures.jwks.keycloak:
           url: ${KEYCLOAK_CERT_URL:""}
+          
+    endpoints:
+      login:
+        enabled: false
 
     intercept-url-map:
       - pattern: "/openapi/**"

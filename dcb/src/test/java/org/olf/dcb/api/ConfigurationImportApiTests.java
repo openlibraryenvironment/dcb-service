@@ -4,10 +4,14 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.security.RoleNames;
+import org.olf.dcb.security.TestStaticTokenValidator;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 import org.olf.dcb.test.clients.LoginClient;
 import org.olf.dcb.utils.DCBConfigurationService.ConfigImportResult;
@@ -61,12 +65,11 @@ class ConfigurationImportApiTests {
 		log.debug("Admin Login..");
 		// See ./dcb/src/main/java/org/olf/dcb/security/DcbAuthenticationProvider.java
 		// https://guides.micronaut.io/latest/micronaut-security-jwt-gradle-groovy.html
-		final var loginResponse = loginClient.login("admin", "password");
-
-		final var accessToken = loginResponse.getAccessToken();
+		final var accessToken = "config-import-admin-token";
+		var loginResponse = TestStaticTokenValidator.add(accessToken, "test-admin", List.of(RoleNames.ADMINISTRATOR));
 
 		log.debug("Got login response: {} {} {}", accessToken,
-			loginResponse.getUsername(), loginResponse.getRoles());
+			loginResponse.getName(), loginResponse.getRoles());
 
 		HttpRequest<?> requestWithAuthorization = HttpRequest.GET("/secured").accept(MediaType.TEXT_PLAIN).bearerAuth(accessToken);
 		HttpResponse<String> response = client.toBlocking().exchange(requestWithAuthorization, String.class);

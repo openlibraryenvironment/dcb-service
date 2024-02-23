@@ -8,7 +8,7 @@ import java.util.List;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.security.RoleNames;
+import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.slf4j.Logger;

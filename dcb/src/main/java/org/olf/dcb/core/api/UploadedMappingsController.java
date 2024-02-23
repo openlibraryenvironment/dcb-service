@@ -5,7 +5,7 @@ import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
 
 import org.olf.dcb.core.api.exceptions.FileUploadValidationException;
 import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.security.RoleNames;
+import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.olf.dcb.utils.DCBConfigurationService;
 import org.olf.dcb.utils.DCBConfigurationService.UploadedConfigImport;

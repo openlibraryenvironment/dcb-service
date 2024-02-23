@@ -3,7 +3,7 @@ package org.olf.dcb.core.api;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.security.RoleNames;
+import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.BibRepository;
 
 import io.micronaut.data.model.Page;

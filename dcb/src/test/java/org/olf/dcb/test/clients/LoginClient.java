@@ -8,16 +8,16 @@ import io.micronaut.security.token.render.BearerAccessRefreshToken;
 
 @Client("/")
 public interface LoginClient {
-	default String getAccessToken() {
-		return login("admin", "password").getAccessToken();
-	}
-
-	default BearerAccessRefreshToken login(String username, String password) {
-		final var credentials = new UsernamePasswordCredentials(username, password);
-
-		return login(credentials);
-	}
-
-	@Post("/login")
-	BearerAccessRefreshToken login(@Body UsernamePasswordCredentials credentials);
+//	default String getAccessToken() {
+//		return login("admin", "password").getAccessToken();
+//	}
+//
+//	default BearerAccessRefreshToken login(String username, String password) {
+//		final var credentials = new UsernamePasswordCredentials(username, password);
+//
+//		return login(credentials);
+//	}
+//
+//	@Post("/login")
+//	BearerAccessRefreshToken login(@Body UsernamePasswordCredentials credentials);
 }

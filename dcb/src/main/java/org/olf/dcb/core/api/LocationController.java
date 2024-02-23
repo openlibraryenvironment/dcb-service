@@ -6,7 +6,7 @@ import org.olf.dcb.core.api.serde.LocationDTO;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Location;
-import org.olf.dcb.core.security.RoleNames;
+import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.LocationRepository;

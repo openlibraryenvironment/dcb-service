@@ -6,10 +6,14 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.api.serde.AgencyDTO;
+import org.olf.dcb.security.RoleNames;
+import org.olf.dcb.security.TestStaticTokenValidator;
 import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
@@ -53,8 +57,9 @@ class AgencyAPITests {
 		log.info("create hostLmsCode");
 
 		hostLmsFixture.createSierraHostLms("hostLmsCode");
-
-		final var accessToken = loginClient.getAccessToken();
+		final var accessToken = "agency-test-admin-token";
+		TestStaticTokenValidator.add(accessToken, "test-admin", List.of(RoleNames.ADMINISTRATOR));
+		
 
 		log.info("create agency");
 		final var agencyDTO = AgencyDTO.builder().id(randomUUID()).code("ab6").name("agencyName")

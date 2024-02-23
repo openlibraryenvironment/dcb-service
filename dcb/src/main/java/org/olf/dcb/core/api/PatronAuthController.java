@@ -8,7 +8,7 @@ import java.util.List;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.security.RoleNames;
+import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.slf4j.Logger;
@@ -37,7 +37,7 @@ import reactor.core.publisher.Mono;
 
 @Controller("/patron/auth")
 @Validated
-@Secured(RoleNames.ADMINISTRATOR)
+@Secured({ RoleNames.ADMINISTRATOR, RoleNames.INTERNAL_API })
 @Tag(name = "Patron Auth API")
 public class PatronAuthController {
 	private static final Logger log = LoggerFactory.getLogger(PatronAuthController.class);

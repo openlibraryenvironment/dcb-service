@@ -4,6 +4,8 @@ import static io.micronaut.http.MediaType.TEXT_PLAIN;
 
 import java.security.Principal;
 
+import org.olf.dcb.security.RoleNames;
+
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Produces;
@@ -30,7 +32,7 @@ public class HomeController {
 		return principal.getName();
 	}
 
-	@Secured({ "ADMIN" })
+	@Secured(RoleNames.ADMINISTRATOR)
 	@Get(value = "/secured", produces = TEXT_PLAIN)
 	public String securedEndpoint(Principal principal) {
 		io.micronaut.security.authentication.ServerAuthentication sa = (io.micronaut.security.authentication.ServerAuthentication) principal;

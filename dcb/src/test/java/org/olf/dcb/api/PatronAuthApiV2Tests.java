@@ -18,6 +18,8 @@ import org.mockserver.model.HttpResponse;
 import org.olf.dcb.core.api.serde.AgencyDTO;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.security.RoleNames;
+import org.olf.dcb.security.TestStaticTokenValidator;
 import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -86,10 +88,16 @@ public class PatronAuthApiV2Tests {
 	void shouldReturnValidStatusWhenUsingBasicBarcodeAndPinValidation() {
 		// Arrange
 		final var blockingClient = client.toBlocking();
-		final var accessToken = loginClient.getAccessToken();
+
+		final var accessToken = "patron-auth2-test-internal-token";
+		final var adminToken = "patron-auth2-test-admin-token";
+		TestStaticTokenValidator.add(accessToken, "patron-auth2-test-internal", List.of(RoleNames.INTERNAL_API));
+		TestStaticTokenValidator.add(adminToken, "patron-auth2-test-admin", List.of(RoleNames.ADMINISTRATOR));
+		
 		final var agencyDTO = AgencyDTO.builder().id(randomUUID()).code("ab7").name("agencyName")
 			.authProfile("BASIC/BARCODE+PIN").idpUrl("idpUrl").hostLMSCode(HOST_LMS_CODE).build();
-		final var agencyRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(accessToken);
+		final var agencyRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(adminToken);
+		
 		blockingClient.exchange(agencyRequest, AgencyDTO.class);
 		final var patronCredentials = V2PatronCredentials.builder().principal("ab7/3100222227777").credentials("76trombones").build();
 		final var postPatronAuthRequest = HttpRequest.POST("/v2/patron/auth", patronCredentials).bearerAuth(accessToken);

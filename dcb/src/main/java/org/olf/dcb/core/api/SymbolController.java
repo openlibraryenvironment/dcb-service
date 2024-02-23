@@ -5,7 +5,7 @@ import java.util.UUID;
 import org.olf.dcb.core.api.serde.LocationSymbolDTO;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.LocationSymbol;
-import org.olf.dcb.core.security.RoleNames;
+import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.LocationRepository;
 import org.olf.dcb.storage.LocationSymbolRepository;
 

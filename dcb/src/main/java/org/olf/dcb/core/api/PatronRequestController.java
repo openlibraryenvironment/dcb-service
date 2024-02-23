@@ -17,6 +17,7 @@ import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
 import org.olf.dcb.request.workflow.CleanupPatronRequestTransition;
 import org.olf.dcb.request.workflow.PatronRequestStateTransition;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
+import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,7 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.authentication.Authentication;
+import io.micronaut.security.filters.SecurityFilter;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.serde.annotation.Serdeable;
 import io.micronaut.validation.Validated;
@@ -48,9 +50,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
-@Controller("/patron/requests")
+@Controller("/patrons/requests")
 @Validated
-@Secured(SecurityRule.IS_AUTHENTICATED)
+@Secured({RoleNames.ADMINISTRATOR})
 @Tag(name = "Patron Request API")
 public class PatronRequestController {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestController.class);
@@ -129,7 +131,6 @@ public class PatronRequestController {
 	@Post(value = "/place", consumes = APPLICATION_JSON)
 	public Mono<PatronRequestView> placePatronRequest(
 			@Body @Valid PlacePatronRequestCommand command) {
-
 		log.info("REST, place patron request: {}", command);
 
 		return patronRequestService.placePatronRequest(command)
@@ -143,6 +144,7 @@ public class PatronRequestController {
 			.build());
 	}
 
+	@Secured(RoleNames.ADMINISTRATOR)
 	@Operation(summary = "Browse Requests", description = "Paginate through the list of Patron Requests", parameters = {
 			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
 			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100") })

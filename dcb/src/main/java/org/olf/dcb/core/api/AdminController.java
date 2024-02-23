@@ -11,6 +11,7 @@ import org.olf.dcb.indexing.SharedIndexLiveUpdater;
 import org.olf.dcb.indexing.SharedIndexLiveUpdater.ReindexOp;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
+import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.stats.StatsService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.utils.DCBConfigurationService;
@@ -29,8 +30,6 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
-import io.micronaut.security.authentication.Authentication;
-import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -43,7 +42,7 @@ import reactor.function.TupleUtils;
 
 @Controller("/admin")
 @Validated
-@Secured(SecurityRule.IS_ANONYMOUS)
+@Secured(RoleNames.ADMINISTRATOR)
 @Tag(name = "Admin API")
 public class AdminController {
 	private static final Logger log = LoggerFactory.getLogger(AdminController.class);
@@ -79,13 +78,11 @@ public class AdminController {
 				.flatMap(this::assembleAdminView);
 	}
 
-	@Secured({ "ADMIN" })
 	@Operation(summary = "Browse Requests", description = "Paginate through the list of Patron Requests", parameters = {
 			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
 			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100") })
 	@Get("/patrons/requests{?pageable*}")
-	public Mono<Page<PatronRequest>> list(@Parameter(hidden = true) @Valid Pageable pageable,
-			Authentication authentication) {
+	public Mono<Page<PatronRequest>> list( @Parameter(hidden = true) @Valid Pageable pageable ) {
 
 		if (pageable == null) {
 			pageable = Pageable.from(0, 100);
@@ -103,7 +100,6 @@ public class AdminController {
 		.map(TupleUtils.function(PatronRequestAdminView::from));
 	}
 
-	@Secured({ "ADMIN" })
 	@SingleResult
 	@Get(uri = "/statistics", produces = APPLICATION_JSON)
 	public Mono<StatsService.Report> getStatsReport() {
@@ -115,14 +111,12 @@ public class AdminController {
 	// public Mono<ConfigImportResult> importCfg(@Nullable @Body ImportCommand
 	// importCommand) {
 
-	@Secured({ "ADMIN" })
 	@Post(uri = "/cfg", produces = APPLICATION_JSON)
 	public Mono<ConfigImportResult> importCfg(@Body @Valid ImportCommand ic) {
 		log.info("Import configuration request {}", ic);
 		return configurationService.importConfiguration(ic.getProfile(), ic.getUrl());
 	}
 
-	@Secured({ "ADMIN" })
 	@Post(uri = "/reindex{/operation}", produces = APPLICATION_JSON)
 	public Mono<MutableHttpResponse<Object>> reindex(Optional<ReindexOp> operation) {
 		

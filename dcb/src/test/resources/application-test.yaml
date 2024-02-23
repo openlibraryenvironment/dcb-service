@@ -30,25 +30,7 @@ micronaut:
         paths: classpath:META-INF/swagger/views/swagger-ui
         mapping: /swagger-ui/**
   security:
-    # authentication: idtoken
-    authentication: bearer
-    token:
-      jwt:
-        generator:
-          access-token:
-            expiration: 600
-        signatures:
-          secret:
-            generator:
-              secret: cGxlYXNlQ2hhbmdlVGhpc1NlY3JldEZvckFOZXdPbmU
-              base64: true
-              jws-algorithm: HS256
-          # Don't use jwks in test
-          # jwks:
-          #   enabled: false
-          #   keycloak:
-          #     enabled: false
-          #     url: "https://never-used-in-test"
+    authentication: idtoken
 
 r2dbc:
   datasources:
