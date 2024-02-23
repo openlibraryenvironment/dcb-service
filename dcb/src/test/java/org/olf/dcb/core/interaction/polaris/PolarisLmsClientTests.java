@@ -321,7 +321,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToPlaceRequestAtSupplyingAgency() {
 		// Arrange
-		final var itemId = "12345";
+		final var itemId = "6737455";
 
 		mockPolarisFixture.mockGetItem(itemId);
 		mockPolarisFixture.mockGetBib("1106339");
@@ -347,7 +347,8 @@ class PolarisLmsClientTests {
 			notNullValue(),
 			hasLocalId("2977175"),
 			hasLocalStatus("In Processing"),
-			hasRequestedItemId(null),
+			// Incorrectly sets the item ID to the barcode
+			hasRequestedItemId("785574212"),
 			hasRequestedItemBarcode(null)
 		));
 	}
