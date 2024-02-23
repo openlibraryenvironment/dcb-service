@@ -10,9 +10,7 @@ import static java.lang.String.valueOf;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.util.Collections.singletonList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ConfirmBibRecordDelete;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ConfirmItemRecordDelete;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.LastCopyOrRecordOptions;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.*;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Continue;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Retain;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
@@ -269,13 +267,10 @@ class ApplicationServicesClient {
 			.map(request -> request.body(body))
 			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class),
 				noExtraErrorHandling()))
-			.flatMap(resp -> handlePolarisWorkflow(resp, ConfirmBibRecordDelete, Continue))
-			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class),
-				noExtraErrorHandling()));
+			.flatMap(resp -> handlePolarisWorkflow(resp, ConfirmBibRecordDelete, Continue));
 	}
 
-
-	public Mono<ItemCreateResponse> addItemRecord(CreateItemCommand createItemCommand) {
+	public Mono<WorkflowResponse> addItemRecord(CreateItemCommand createItemCommand) {
 		// https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/overview
 		// https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/add_or_update_item_record
 		final var path = createPath("workflow");
@@ -413,41 +408,42 @@ class ApplicationServicesClient {
 			.map(request -> request.body(body))
 			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class),
 				noExtraErrorHandling()))
-			.flatMap(resp -> handlePolarisWorkflow(resp, ConfirmItemRecordDelete, Continue))
-			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class),
-				noExtraErrorHandling()))
-			.flatMap(response -> {
-				if (Objects.equals(response.getWorkflowStatus(), InputRequired)) {
-					return handlePolarisWorkflow(response, LastCopyOrRecordOptions, Retain)
-						.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class),
-							noExtraErrorHandling()));
-				}
-				return Mono.just(response);
-			});
+			.flatMap(response -> handlePolarisWorkflow(response, ConfirmItemRecordDelete, Continue))
+			.flatMap(response -> handlePolarisWorkflow(response, LastCopyOrRecordOptions, Retain));
 	}
 
-	private Mono<MutableHttpRequest<WorkflowReply>> handlePolarisWorkflow(
+	// https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/overview
+	private Mono<WorkflowResponse> handlePolarisWorkflow(
 		WorkflowResponse response, Integer promptID, Integer promptResult) {
 
+		if (!Objects.equals(response.getWorkflowStatus(), InputRequired)) {
+			log.debug("Input was not required for workflow response: {}", response.getWorkflowRequestGuid());
+			return Mono.just(response);
+		}
+
+		log.info("Trying to handle polaris workflow status: {}", response.getWorkflowStatus());
 		return Mono.just(response)
 			.filter(workflowResponse -> workflowResponse.getPrompt() != null)
 			.filter(workflowResponse -> Objects.equals(workflowResponse.getPrompt().getWorkflowPromptID(), promptID))
 			.flatMap(resp -> createItemWorkflowReply(resp.getWorkflowRequestGuid(), promptID, promptResult))
+			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class),
+				noExtraErrorHandling()))
 			.switchIfEmpty(Mono.error(new PolarisWorkflowException("Failed to handle polaris workflow. " +
 				"Response was: " + response + ". Expected to reply to promptID: " + promptID + " with reply: " + promptResult)));
 	}
 
-	private Mono<ItemCreateResponse> createItemRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
-		final var InputRequired = -3;
+	private Mono<WorkflowResponse> createItemRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
 
 		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class),
 				noExtraErrorHandling())
 			.doOnSuccess(r -> log.info("Got create item response {}", r))
 			.doOnError(e -> log.info("Error response for create item {}", workflowReq, e))
-			.filter(workflowResponse -> workflowResponse.getWorkflowStatus() == InputRequired)
-			.map(WorkflowResponse::getWorkflowRequestGuid)
-			.flatMap(this::createItemWorkflowReply)
-			.switchIfEmpty(Mono.error(new PolarisWorkflowException("item request failed expecting workflow response to: " + workflowReq)));
+			// when we save the virtual item we need to confirm we do not want the item to display in pac
+			.flatMap(response -> handlePolarisWorkflow(response, NoDisplayInPAC, Continue))
+			// if the item barcode exists we still want to continue saving the item
+			.flatMap(resp -> handlePolarisWorkflow(resp, DuplicateRecords, Continue))
+			.switchIfEmpty(Mono.error(new PolarisWorkflowException("item request failed expecting workflow response to: "
+				+ workflowReq)));
 	}
 
 	private Mono<MutableHttpRequest<WorkflowReply>> createItemWorkflowReply(
@@ -459,21 +455,6 @@ class ApplicationServicesClient {
 				.workflowPromptResult(promptResult)
 				.build()
 			));
-	}
-
-	private Mono<ItemCreateResponse> createItemWorkflowReply(String guid) {
-		log.info("Responding to workflow for create item - uuid={}",guid);
-
-		final var NoDisplayInPAC = 66;
-		final var Continue = 5;
-
-		return createRequest(PUT, createPath("workflow", guid), uri -> {})
-			.map(request -> request.body(WorkflowReply.builder()
-				.workflowPromptID(NoDisplayInPAC)
-				.workflowPromptResult(Continue).build()))
-			.doOnError(e -> log.error("Error response to workflow", e))
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemCreateResponse.class),
-				noExtraErrorHandling()));
 	}
 
 	public Mono<String> getItemBarcode(String itemId) {
@@ -587,6 +568,10 @@ class ApplicationServicesClient {
 		private Integer workflowStatus;
 		@JsonProperty("Prompt")
 		private Prompt prompt;
+		@JsonProperty("AnswerExtension")
+		private AnswerExtension answerExtension;
+		@JsonProperty("InformationMessages")
+		private List<InformationMessage> informationMessages;
 	}
 
 	@Builder
@@ -596,6 +581,7 @@ class ApplicationServicesClient {
 	static class Prompt {
 		// Prompt Identifiers
 		public static final Integer NoDisplayInPAC = 66;
+		public static final Integer DuplicateRecords = 72;
 		public static final Integer ConfirmItemRecordDelete = 73;
 		public static final Integer ConfirmBibRecordDelete = 79;
 		public static final Integer LastCopyOrRecordOptions = 82;
@@ -659,17 +645,6 @@ class ApplicationServicesClient {
 		private String description;
 		@JsonProperty("MaterialTypeID")
 		private Integer materialTypeID;
-	}
-
-	@Builder
-	@Data
-	@AllArgsConstructor
-	@Serdeable
-	static class ItemCreateResponse {
-		@JsonProperty("AnswerExtension")
-		private AnswerExtension answerExtension;
-		@JsonProperty("InformationMessages")
-		private List<InformationMessage> informationMessages;
 	}
 
 	@Builder

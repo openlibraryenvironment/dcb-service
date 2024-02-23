@@ -185,7 +185,7 @@ public class MockPolarisFixture {
 			responsePath);
 	}
 
-	void mockStartWorkflow(ItemCreateResponse response) {
+	void mockStartWorkflow(WorkflowResponse response) {
 		mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow",
 			response()
 				.withStatusCode(200)
