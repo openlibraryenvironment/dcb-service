@@ -60,6 +60,7 @@ import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
 import org.olf.dcb.core.model.BibRecord;
@@ -326,7 +327,12 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetItem(itemId);
 		mockPolarisFixture.mockGetBib("1106339");
 		mockPolarisFixture.mockPlaceHold();
-		mockPolarisFixture.mockGetHold("2977175");
+		mockPolarisFixture.mockGetHold("2977175",
+			LibraryHold.builder()
+				.sysHoldStatus("In Processing")
+				.itemRecordID(6737455)
+				.itemBarcode("785574212")
+				.build());
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
@@ -389,17 +395,24 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToFindExistingRequest() {
 		// Arrange
-		mockPolarisFixture.mockGetHold("2977175");
+		final var localHoldId = "2977175";
+
+		mockPolarisFixture.mockGetHold(localHoldId,
+			LibraryHold.builder()
+				.sysHoldStatus("In Processing")
+				.itemRecordID(6737455)
+				.itemBarcode("785574212")
+				.build());
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var request = singleValueFrom(client.getRequest("2977175"));
+		final var request = singleValueFrom(client.getRequest(localHoldId));
 
 		// Assert
 		assertThat(request, allOf(
 			notNullValue(),
-			HostLmsRequestMatchers.hasLocalId("2977175"),
+			HostLmsRequestMatchers.hasLocalId(localHoldId),
 			hasStatus("In Processing")
 		));
 	}

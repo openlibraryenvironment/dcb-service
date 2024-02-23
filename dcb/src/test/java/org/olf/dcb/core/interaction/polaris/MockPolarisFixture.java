@@ -6,11 +6,13 @@ import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.*;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.HoldRequestResponse;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse;
 
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.test.TestResourceLoader;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 
@@ -155,9 +157,12 @@ public class MockPolarisFixture {
 				.withBody(json(response)));
 	}
 
-	public void mockGetHold(String holdId) {
+	public void mockGetHold(String holdId, LibraryHold response) {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/" + holdId,
-			"get-hold.json");
+			response()
+				.withStatusCode(200)
+				.withBody(json(response)
+		));
 	}
 
 	void mockCreateBib() {
