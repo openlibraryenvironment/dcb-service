@@ -9,6 +9,7 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
@@ -39,6 +40,8 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
   private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private HostLmsService hostLmsService;
 
+	private static final List<Status> possibleSourceStatus = List.of(Status.RETURN_TRANSIT);
+	
 	public HandleSupplierItemAvailable(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
@@ -66,7 +69,7 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ( ctx.getPatronRequest().getStatus() == PatronRequest.Status.RETURN_TRANSIT ) &&
+		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
 			(ctx.getSupplierRequest() != null ) &&
 			(ctx.getSupplierRequest().getLocalItemStatus() != null ) &&
 			(ctx.getSupplierRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_AVAILABLE)) ;
@@ -85,6 +88,11 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 			.thenReturn(ctx);
 	}
 
+	@Override
+	public List<Status> getPossibleSourceStatus() {
+		return possibleSourceStatus;
+	}
+	
 	@Override
 	public Optional<PatronRequest.Status> getTargetStatus() {
 		return Optional.of(PatronRequest.Status.COMPLETED);

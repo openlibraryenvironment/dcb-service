@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
@@ -24,13 +25,15 @@ import reactor.core.publisher.Mono;
 public class HandleBorrowerItemReceived implements PatronRequestStateTransition {
 	private final PatronRequestRepository patronRequestRepository;
 
+	private static final List<Status> possibleSourceStatus = List.of(Status.PICKUP_TRANSIT);
+	
 	public HandleBorrowerItemReceived(PatronRequestRepository patronRequestRepository) {
 		this.patronRequestRepository = patronRequestRepository;
 	}
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ( ctx.getPatronRequest().getStatus() == PatronRequest.Status.PICKUP_TRANSIT &&
+		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) &&
 			ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_RECEIVED) );
 	}
 
@@ -42,6 +45,11 @@ public class HandleBorrowerItemReceived implements PatronRequestStateTransition 
 		return Mono.just(ctx);
 	}
 
+	@Override
+	public List<Status> getPossibleSourceStatus() {
+		return possibleSourceStatus;
+	}
+	
 	@Override
 	public Optional<PatronRequest.Status> getTargetStatus() {
 		return Optional.of(PatronRequest.Status.RECEIVED_AT_PICKUP);

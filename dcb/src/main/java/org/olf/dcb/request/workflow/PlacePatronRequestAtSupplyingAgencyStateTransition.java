@@ -1,5 +1,6 @@
 package org.olf.dcb.request.workflow;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.olf.dcb.core.model.PatronRequest;
@@ -23,6 +24,8 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 	private final SupplyingAgencyService supplyingAgencyService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
+	private static final List<Status> possibleSourceStatus = List.of(Status.RESOLVED);
+	
 	public PlacePatronRequestAtSupplyingAgencyStateTransition(SupplyingAgencyService supplierRequestService,
 			PatronRequestRepository patronRequestRepository, PatronRequestAuditService patronRequestAuditService) {
 		this.supplyingAgencyService = supplierRequestService;
@@ -59,9 +62,14 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ctx.getPatronRequest().getStatus() == Status.RESOLVED;
+		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
 	}
 
+	@Override
+	public List<Status> getPossibleSourceStatus() {
+		return possibleSourceStatus;
+	}
+	
 	@Override
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY);

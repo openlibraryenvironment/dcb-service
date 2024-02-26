@@ -10,6 +10,7 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.statemodel.DCBGuardCondition;
@@ -40,6 +41,8 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 	private final HostLmsService hostLmsService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
+	private static final List<Status> possibleSourceStatus = List.of(Status.REQUEST_PLACED_AT_BORROWING_AGENCY);
+	
 	public HandleSupplierInTransit(
 		SupplierRequestRepository supplierRequestRepository,
 		PatronRequestRepository patronRequestRepository,
@@ -109,7 +112,7 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		// This action fires when the state is REQUEST_PLACED_AT_BORROWING_AGENCY and we detected
 		// that the supplying library has placed its request IN TRANSIT
-		return ctx.getPatronRequest().getStatus() == PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY &&
+		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) &&
 			ctx.getSupplierRequest() != null &&
 			ctx.getSupplierRequest().getLocalStatus().equals(HostLmsItem.ITEM_TRANSIT);
 	}
@@ -129,6 +132,11 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 			.thenReturn(ctx);
 	}
 
+	@Override
+	public List<Status> getPossibleSourceStatus() {
+		return possibleSourceStatus;
+	}
+	
 	@Override
 	public Optional<PatronRequest.Status> getTargetStatus() {
 		return Optional.of(PatronRequest.Status.PICKUP_TRANSIT);

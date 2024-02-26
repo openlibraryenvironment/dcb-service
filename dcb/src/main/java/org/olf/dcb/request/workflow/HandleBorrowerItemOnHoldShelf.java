@@ -8,6 +8,7 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.statemodel.DCBGuardCondition;
@@ -29,6 +30,8 @@ public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransiti
 	private final PatronRequestRepository patronRequestRepository;
 	private final HostLmsService hostLmsService;
 
+	private static final List<Status> possibleSourceStatus = List.of(Status.RECEIVED_AT_PICKUP, Status.PICKUP_TRANSIT);
+	
 	public HandleBorrowerItemOnHoldShelf(
 		PatronRequestRepository patronRequestRepository,
 		HostLmsService hostLmsService,
@@ -60,8 +63,7 @@ public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransiti
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		return (
-			( ctx.getPatronRequest().getStatus() == PatronRequest.Status.RECEIVED_AT_PICKUP ||
-				ctx.getPatronRequest().getStatus() == PatronRequest.Status.PICKUP_TRANSIT ) &&
+			( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
 			ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_ON_HOLDSHELF) );
 	}
 
@@ -74,6 +76,11 @@ public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransiti
 				.thenReturn(ctx);
 	}
 
+	@Override
+	public List<Status> getPossibleSourceStatus() {
+		return possibleSourceStatus;
+	}
+	
 	@Override
 	public Optional<PatronRequest.Status> getTargetStatus() {
 		return Optional.of(PatronRequest.Status.READY_FOR_PICKUP);

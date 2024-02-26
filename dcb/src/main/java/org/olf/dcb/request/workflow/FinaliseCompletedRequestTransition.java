@@ -28,6 +28,8 @@ public class FinaliseCompletedRequestTransition implements PatronRequestStateTra
 	// this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 
+	private static final List<Status> possibleSourceStatus = List.of(Status.COMPLETED);
+	
 	public FinaliseCompletedRequestTransition(PatronRequestAuditService patronRequestAuditService,
 		SupplyingAgencyService supplyingAgencyService, BorrowingAgencyService borrowingAgencyService,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
@@ -61,9 +63,14 @@ public class FinaliseCompletedRequestTransition implements PatronRequestStateTra
 	
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ctx.getPatronRequest().getStatus() == Status.COMPLETED;
+		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
 	}
 
+	@Override
+	public List<Status> getPossibleSourceStatus() {
+		return possibleSourceStatus;
+	}
+	
 	@Override
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(Status.FINALISED);

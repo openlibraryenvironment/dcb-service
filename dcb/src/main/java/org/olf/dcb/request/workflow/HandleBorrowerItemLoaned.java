@@ -15,6 +15,7 @@ import jakarta.inject.Singleton;
 import jakarta.inject.Named;
 import org.olf.dcb.tracking.model.StateChange;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.storage.PatronRequestRepository;
 import jakarta.transaction.Transactional;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -35,6 +36,8 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 	private final HostLmsService hostLmsService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
+	private static final List<Status> possibleSourceStatus = List.of(Status.READY_FOR_PICKUP, Status.RECEIVED_AT_PICKUP , Status.PICKUP_TRANSIT);
+	
 	public HandleBorrowerItemLoaned(PatronRequestRepository patronRequestRepository,
 		HostLmsService hostLmsService, RequestWorkflowContextHelper requestWorkflowContextHelper,
 		PatronRequestAuditService patronRequestAuditService) {
@@ -123,7 +126,7 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ( ctx.getPatronRequest().getStatus() == PatronRequest.Status.READY_FOR_PICKUP &&
+		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) &&
 			ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_LOANED) );
 	}
 
@@ -136,6 +139,11 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 			.thenReturn(ctx);
 	}
 
+	@Override
+	public List<Status> getPossibleSourceStatus() {
+		return possibleSourceStatus;
+	}
+	
 	@Override
 	public Optional<PatronRequest.Status> getTargetStatus() {
 		return Optional.of(PatronRequest.Status.LOANED);

@@ -1,5 +1,6 @@
 package org.olf.dcb.request.workflow;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -23,6 +24,8 @@ public class CleanupPatronRequestTransition implements PatronRequestStateTransit
 	
 	private static final Logger log = LoggerFactory.getLogger(CleanupPatronRequestTransition.class);
 
+	private static final List<Status> possibleSourceStatus = List.of(Status.ERROR, Status.CANCELLED);
+	
   private final PatronRequestAuditService patronRequestAuditService;
 
   public CleanupPatronRequestTransition(
@@ -31,13 +34,9 @@ public class CleanupPatronRequestTransition implements PatronRequestStateTransit
     this.patronRequestAuditService = patronRequestAuditService;
   }
 
-
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		Status s = ctx.getPatronRequest().getStatus();
-
-		return Stream.of(Status.ERROR, Status.CANCELLED)
-			.anyMatch(s::equals);
+		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
 	}
 
 	@Override
@@ -53,6 +52,11 @@ public class CleanupPatronRequestTransition implements PatronRequestStateTransit
       .thenReturn(ctx);
 	}
 
+	@Override
+	public List<Status> getPossibleSourceStatus() {
+		return possibleSourceStatus;
+	}
+	
 	@Override
 	@NonNull
 	public Optional<Status> getTargetStatus() {

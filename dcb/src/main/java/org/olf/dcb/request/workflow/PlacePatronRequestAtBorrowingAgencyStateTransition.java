@@ -4,6 +4,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.olf.dcb.core.model.PatronRequest;
@@ -23,6 +24,8 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 	private final BorrowingAgencyService borrowingAgencyService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
+	private static final List<Status> possibleSourceStatus = List.of(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY);
+	
 	public PlacePatronRequestAtBorrowingAgencyStateTransition(
 		BorrowingAgencyService borrowingAgencyService,
 		PatronRequestAuditService patronRequestAuditService) {
@@ -52,7 +55,7 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ctx.getPatronRequest().getStatus() == Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
 	}
 
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
@@ -64,6 +67,11 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 			.map(PatronRequestAudit::getPatronRequest);
 	}
 
+	@Override
+	public List<Status> getPossibleSourceStatus() {
+		return possibleSourceStatus;
+	}
+	
 	@Override
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(REQUEST_PLACED_AT_BORROWING_AGENCY);

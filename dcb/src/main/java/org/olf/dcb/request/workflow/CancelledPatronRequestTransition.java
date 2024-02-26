@@ -1,5 +1,6 @@
 package org.olf.dcb.request.workflow;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -19,6 +20,8 @@ import reactor.core.publisher.Mono;
 public class CancelledPatronRequestTransition implements PatronRequestStateTransition {
 	private static final Logger log = LoggerFactory.getLogger(CancelledPatronRequestTransition.class);
 
+	private static final List<Status> possibleSourceStatus = List.of(Status.CANCELLED);
+	
 	// Provider to prevent circular reference exception by allowing lazy access to
 	// this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
@@ -35,7 +38,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ctx.getPatronRequest().getStatus() == Status.CANCELLED;
+		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
 	}
 
 	@Override
@@ -48,6 +51,11 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
       .thenReturn(ctx);
 	}
 
+	@Override
+	public List<Status> getPossibleSourceStatus() {
+		return possibleSourceStatus;
+	}
+	
 	@Override
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(Status.COMPLETED);

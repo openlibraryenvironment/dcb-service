@@ -1,5 +1,6 @@
 package org.olf.dcb.request.workflow;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -31,6 +32,7 @@ public class SupplierNotSuppliedTransition implements PatronRequestStateTransiti
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 	private final PatronRequestAuditService patronRequestAuditService;
 
+	private static final List<Status> possibleSourceStatus = List.of(Status.NOT_SUPPLIED_CURRENT_SUPPLIER);
 	
 	public SupplierNotSuppliedTransition (
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
@@ -42,7 +44,7 @@ public class SupplierNotSuppliedTransition implements PatronRequestStateTransiti
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ctx.getPatronRequest().getStatus() == Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
+		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
 	}
 
 	@Override
@@ -59,6 +61,11 @@ public class SupplierNotSuppliedTransition implements PatronRequestStateTransiti
 			.thenReturn(ctx);
 	}
 
+	@Override
+	public List<Status> getPossibleSourceStatus() {
+		return possibleSourceStatus;
+	}
+	
 	@Override
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY);

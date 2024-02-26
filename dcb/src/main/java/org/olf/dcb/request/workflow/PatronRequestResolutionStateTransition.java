@@ -3,6 +3,7 @@ package org.olf.dcb.request.workflow;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.olf.dcb.core.model.PatronRequest;
@@ -33,7 +34,8 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 
-
+	private static final List<Status> possibleSourceStatus = List.of(Status.PATRON_VERIFIED);
+	
 	public PatronRequestResolutionStateTransition(
 		PatronRequestResolutionService patronRequestResolutionService,
 		PatronRequestRepository patronRequestRepository,
@@ -110,9 +112,14 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 
-		return ctx.getPatronRequest().getStatus() == PATRON_VERIFIED;
+		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
 	}
 
+	@Override
+	public List<Status> getPossibleSourceStatus() {
+		return possibleSourceStatus;
+	}
+	
 	// getTargetStatus tells us where we're trying to get to BUT be aware that the transitions can have error states so the Status
 	// outcome can be OTHER than the status listed here. This is used for goal-seeking when trying to work out which transitions to
 	// apply - it's not a statement of what the status WILL be after applying the transition. n this case - NO_ITEMS_AT_ANY_SUPPLIER can

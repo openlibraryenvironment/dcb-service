@@ -1,6 +1,7 @@
 package org.olf.dcb.request.workflow;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -37,6 +38,8 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 	private static final String DEFAULT_AGENCY_CODE_KEY = "default-agency-code";
 
+	private static final List<Status> possibleSourceStatus = List.of(Status.SUBMITTED_TO_DCB);
+	
 	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository,
 		HostLmsService hostLmsService, PatronRequestAuditService patronRequestAuditService,
 		ReferenceValueMappingService referenceValueMappingService,
@@ -186,9 +189,14 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ctx.getPatronRequest().getStatus() == Status.SUBMITTED_TO_DCB;
+		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
 	}
 
+	@Override
+	public List<Status> getPossibleSourceStatus() {
+		return possibleSourceStatus;
+	}
+	
 	@Override
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(Status.PATRON_VERIFIED);

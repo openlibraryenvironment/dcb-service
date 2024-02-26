@@ -10,6 +10,7 @@ import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
@@ -28,13 +29,15 @@ import reactor.core.publisher.Mono;
 public class HandleSupplierRequestConfirmed implements PatronRequestStateTransition {
 	private final SupplierRequestRepository supplierRequestRepository;
 
+	private static final List<Status> possibleSourceStatus = List.of(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY);
+	
 	public HandleSupplierRequestConfirmed(SupplierRequestRepository supplierRequestRepository) {
 		this.supplierRequestRepository = supplierRequestRepository;
 	}
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ( ctx.getPatronRequest().getStatus() == PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY ) &&
+		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
 			( ctx.getSupplierRequest() != null ) &&
 			( ctx.getSupplierRequest().getLocalStatus() != null ) &&
 			( ctx.getSupplierRequest().getLocalStatus().equals(HOLD_CONFIRMED) );
@@ -49,6 +52,11 @@ public class HandleSupplierRequestConfirmed implements PatronRequestStateTransit
 		return Mono.just(ctx);
 	}
 
+	@Override
+	public List<Status> getPossibleSourceStatus() {
+		return possibleSourceStatus;
+	}
+	
 	@Override
 	public Optional<PatronRequest.Status> getTargetStatus() {
 		return Optional.empty();

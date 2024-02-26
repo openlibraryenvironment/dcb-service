@@ -22,6 +22,9 @@ public interface PatronRequestStateTransition {
 	@NonNull
 	Optional<Status> getTargetStatus();
 
+	@NonNull
+	List<Status> getPossibleSourceStatus();
+
 	// Lets us know if this method is one the system should apply automatically OR
 	// if it's intended to be a user triggered action
 	boolean attemptAutomatically();
