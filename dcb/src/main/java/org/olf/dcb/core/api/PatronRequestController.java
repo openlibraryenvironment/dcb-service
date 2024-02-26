@@ -52,7 +52,7 @@ import reactor.function.TupleUtils;
 
 @Controller("/patrons/requests")
 @Validated
-@Secured({RoleNames.ADMINISTRATOR})
+@Secured(SecurityRule.IS_AUTHENTICATED)
 @Tag(name = "Patron Request API")
 public class PatronRequestController {
 	private static final Logger log = LoggerFactory.getLogger(PatronRequestController.class);
