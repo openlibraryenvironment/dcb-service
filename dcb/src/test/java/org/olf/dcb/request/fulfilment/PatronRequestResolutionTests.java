@@ -25,12 +25,7 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.UnableToResolvePatronRequest;
 import org.olf.dcb.request.workflow.PatronRequestResolutionStateTransition;
-import org.olf.dcb.test.BibRecordFixture;
-import org.olf.dcb.test.ClusterRecordFixture;
-import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.PatronFixture;
-import org.olf.dcb.test.PatronRequestsFixture;
-import org.olf.dcb.test.SupplierRequestsFixture;
+import org.olf.dcb.test.*;
 
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
@@ -67,6 +62,12 @@ class PatronRequestResolutionTests {
 	private PatronRequestsFixture patronRequestsFixture;
 	@Inject
 	private PatronFixture patronFixture;
+	@Inject
+	private RequestWorkflowContextHelper requestWorkflowContextHelper;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 
 	private DataHostLms hostLms;
 
@@ -98,6 +99,12 @@ class PatronRequestResolutionTests {
 	void beforeEach() {
 		log.info("beforeEach\n\n");
 		clusterRecordFixture.deleteAll();
+		// RequestWorkflowContextHelper will complain if the requested pickup location cannot be mapped into an agency
+		referenceValueMappingFixture.deleteAll();
+		agencyFixture.deleteAll();
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,"ABC123","ab8");
+		agencyFixture.defineAgency("ab8", "ab8", hostLms);
 	}
 
 	@Test
@@ -123,6 +130,7 @@ class PatronRequestResolutionTests {
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(HOST_LMS_CODE)
 			.pickupLocationCode("ABC123")
 			.status(PATRON_VERIFIED)
 			.build();
@@ -130,7 +138,10 @@ class PatronRequestResolutionTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		// Act
-		singleValueFrom(patronRequestResolutionStateTransition.attempt(patronRequest));
+		singleValueFrom(
+			requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx))
+		);
 
 		// Assert
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
@@ -187,6 +198,7 @@ class PatronRequestResolutionTests {
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(HOST_LMS_CODE)
 			.pickupLocationCode("ABC123")
 			.status(PATRON_VERIFIED)
 			.build();
@@ -194,7 +206,10 @@ class PatronRequestResolutionTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		// Act
-		singleValueFrom(patronRequestResolutionStateTransition.attempt(patronRequest));
+		singleValueFrom(
+			requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx))
+		);
 
 		// Assert
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
@@ -223,6 +238,7 @@ class PatronRequestResolutionTests {
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
+			.pickupLocationCodeContext(HOST_LMS_CODE)
 			.pickupLocationCode("ABC123")
 			.status(PATRON_VERIFIED)
 			.build();
@@ -231,7 +247,10 @@ class PatronRequestResolutionTests {
 
 		// Act
 		final var exception = assertThrows(CannotFindClusterRecordException.class,
-			() -> singleValueFrom(patronRequestResolutionStateTransition.attempt(patronRequest)));
+			() -> singleValueFrom(
+				requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+						.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx))
+				));
 
 		// Assert
 		assertThat("Exception should not be null", exception, is(notNullValue()));
@@ -267,6 +286,7 @@ class PatronRequestResolutionTests {
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(HOST_LMS_CODE)
 			.pickupLocationCode("ABC123")
 			.status(PATRON_VERIFIED)
 			.build();
@@ -275,7 +295,10 @@ class PatronRequestResolutionTests {
 
 		// Act
 		final var exception = assertThrows(UnableToResolvePatronRequest.class,
-			() -> singleValueFrom(patronRequestResolutionStateTransition.attempt(patronRequest)));
+			() -> singleValueFrom(
+				requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+						.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx))
+				));
 
 		// Assert
 		assertThat("Exception should not be null", exception, is(notNullValue()));

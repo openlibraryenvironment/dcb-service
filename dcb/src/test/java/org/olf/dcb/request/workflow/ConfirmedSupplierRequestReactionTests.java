@@ -21,6 +21,7 @@ import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
+import org.olf.dcb.tracking.HostLmsReactions;
 import org.olf.dcb.tracking.model.StateChange;
 
 import jakarta.inject.Inject;
@@ -28,7 +29,7 @@ import jakarta.inject.Inject;
 @DcbTest
 class ConfirmedSupplierRequestReactionTests {
 	@Inject
-	HostLmsReactions hostLmsReactions;
+    HostLmsReactions hostLmsReactions;
 
 	@Inject
 	PatronRequestsFixture patronRequestsFixture;
@@ -88,8 +89,7 @@ class ConfirmedSupplierRequestReactionTests {
 
 		assertThat(patronRequestsFixture.findOnlyAuditEntry(patronRequest), allOf(
 			notNullValue(),
-			hasBriefDescription("Downstream change to SupplierRequest(%s) to %s from %s triggers SupplierRequestConfirmed"
-				.formatted(supplierRequestId.toString(), "CONFIRMED", "PLACED")),
+			hasBriefDescription("Downstream change to SupplierRequest(%s) to %s from %s".formatted(supplierRequestId.toString(), "CONFIRMED", "PLACED")),
 			hasAuditDataProperty("patronRequestId", patronRequest.getId().toString()),
 			hasAuditDataProperty("resourceType", "SupplierRequest"),
 			hasAuditDataProperty("resourceId", supplierRequestId.toString()),

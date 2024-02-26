@@ -14,6 +14,7 @@ import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -34,25 +35,24 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 	 * Attempts to transition the patron request to the next state, which is placing
 	 * the request at the borrowing agency.
 	 *
-	 * @param patronRequest The patron request to transition.
+	 * @param ctx the request context
 	 * @return A Mono that emits the patron request after the transition, or an
 	 *         error if the transition is not possible.
 	 */
 	@Override
-	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
 
-		assert isApplicableFor(patronRequest);
-
-		log.info("makeTransition({})", patronRequest);
-		return borrowingAgencyService.placePatronRequestAtBorrowingAgency(patronRequest)
+		log.info("makeTransition({})", ctx.getPatronRequest());
+		return borrowingAgencyService.placePatronRequestAtBorrowingAgency(ctx.getPatronRequest())
 				.doOnSuccess(pr -> log.info("Placed patron request to borrowing agency: {}", pr))
         .doOnError(error -> log.error("Error occurred during placing a patron request to borrowing agency: {}", error.getMessage()))
-				.flatMap(this::createAuditEntry);
+				.flatMap(this::createAuditEntry)
+				.thenReturn(ctx);
 	}
 
 	@Override
-	public boolean isApplicableFor(PatronRequest pr) {
-		return pr.getStatus() == Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		return ctx.getPatronRequest().getStatus() == Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 	}
 
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
@@ -68,4 +68,16 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(REQUEST_PLACED_AT_BORROWING_AGENCY);
 	}
+
+  @Override
+  public String getName() {
+    return "PlacePatronRequestAtBorrowingAgencyStateTransition";
+  }
+
+  @Override
+  public boolean attemptAutomatically() {
+    return true;
+  }
+
+
 }

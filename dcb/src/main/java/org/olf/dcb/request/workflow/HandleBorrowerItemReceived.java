@@ -1,8 +1,14 @@
 package org.olf.dcb.request.workflow;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.statemodel.DCBGuardCondition;
+import org.olf.dcb.statemodel.DCBTransitionResult;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
 
@@ -15,28 +21,49 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 @Named("BorrowerRequestItemReceived")
-public class HandleBorrowerItemReceived implements WorkflowAction {
+public class HandleBorrowerItemReceived implements PatronRequestStateTransition {
 	private final PatronRequestRepository patronRequestRepository;
 
 	public HandleBorrowerItemReceived(PatronRequestRepository patronRequestRepository) {
 		this.patronRequestRepository = patronRequestRepository;
 	}
 
-	@Transactional
-	public Mono<Map<String, Object>> execute(Map<String, Object> context) {
-		StateChange sc = (StateChange) context.get("StateChange");
-		log.debug("HandleBorrowerItemReceived {}", sc);
-		PatronRequest pr = (PatronRequest) sc.getResource();
-		if (pr != null) {
-			pr.setLocalItemStatus(sc.getToState());
-			pr.setStatus(PatronRequest.Status.RECEIVED_AT_PICKUP);
-			log.debug("Set local status to RECEIVED and save {}", pr);
-			return Mono.from(patronRequestRepository.saveOrUpdate(pr))
-				.doOnNext(spr -> log.debug("Saved {}", spr))
-				.thenReturn(context);
-		} else {
-			log.warn("Unable to locate patron request to mark as received");
-			return Mono.just(context);
-		}
+	@Override
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		return ( ctx.getPatronRequest().getStatus() == PatronRequest.Status.PICKUP_TRANSIT &&
+			ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_RECEIVED) );
+	}
+
+	@Override
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+		ctx.getPatronRequest().setStatus(PatronRequest.Status.RECEIVED_AT_PICKUP);
+		// For now, PatronRequestWorkflowService will save te patron request, but we should do that here
+		// and not there - flagging this as a change needed when we refactor.
+		return Mono.just(ctx);
+	}
+
+	@Override
+	public Optional<PatronRequest.Status> getTargetStatus() {
+		return Optional.of(PatronRequest.Status.RECEIVED_AT_PICKUP);
+	}
+
+	@Override
+	public boolean attemptAutomatically() {
+		return true;
+	}
+
+	@Override
+	public String getName() {
+		return "HandleBorrowerItemReceived";
+	}
+
+	@Override
+	public List<DCBGuardCondition> getGuardConditions() {
+		return List.of(new DCBGuardCondition("DCBPatronRequest status is PICKUP_TRANSIT AND Item at pickup location is RECEIVED"));
+	}
+
+	@Override
+	public List<DCBTransitionResult> getOutcomes() {
+		return List.of(new DCBTransitionResult("RECEIVED",PatronRequest.Status.RECEIVED_AT_PICKUP.toString()));
 	}
 }

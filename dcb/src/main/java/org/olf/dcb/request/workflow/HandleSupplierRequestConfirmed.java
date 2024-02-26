@@ -2,9 +2,17 @@ package org.olf.dcb.request.workflow;
 
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.statemodel.DCBGuardCondition;
+import org.olf.dcb.statemodel.DCBTransitionResult;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
 
@@ -17,36 +25,53 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 @Named("SupplierRequestConfirmed")
-public class HandleSupplierRequestConfirmed implements WorkflowAction {
+public class HandleSupplierRequestConfirmed implements PatronRequestStateTransition {
 	private final SupplierRequestRepository supplierRequestRepository;
 
 	public HandleSupplierRequestConfirmed(SupplierRequestRepository supplierRequestRepository) {
 		this.supplierRequestRepository = supplierRequestRepository;
 	}
 
-	@Transactional
-	public Mono<Map<String, Object>> execute(Map<String, Object> context) {
-		if (context.get("StateChange") instanceof StateChange stateChange) {
-			log.debug("HandleSupplierRequestConfirmed {}", stateChange);
+	@Override
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		return ( ctx.getPatronRequest().getStatus() == PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY ) &&
+			( ctx.getSupplierRequest() != null ) &&
+			( ctx.getSupplierRequest().getLocalStatus() != null ) &&
+			( ctx.getSupplierRequest().getLocalStatus().equals(HOLD_CONFIRMED) );
+	}
 
-			if (stateChange.getResource() instanceof SupplierRequest supplierRequest) {
-				supplierRequest.setLocalStatus(HOLD_CONFIRMED);
+	@Override
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+		PatronRequest patronRequest = ctx.getPatronRequest();
+		// patronRequest.setStatus(PatronRequest.Status.CONFIRMED)
+		// We need to call get hold on the supplying system and retrieve the actual item ID and barcode and then update
+		// the supplier request with the actual details so we know what to use when placing the borrower request
+		return Mono.just(ctx);
+	}
 
-				log.debug("Set local status to placed and save {}", supplierRequest);
+	@Override
+	public Optional<PatronRequest.Status> getTargetStatus() {
+		return Optional.empty();
+		// return Optional.of(PatronRequest.Status.CONFIRMED);
+	}
 
-				return Mono.from(supplierRequestRepository.saveOrUpdate(supplierRequest))
-					.doOnNext(savedSupplierRequest -> log.debug("Saved {}", savedSupplierRequest))
-					.thenReturn(context);
-			} else {
-				log.warn("Unable to locate supplier request to mark local status as confirmed");
+	@Override
+	public boolean attemptAutomatically() {
+		return true;
+	}
 
-				return Mono.just(context);
-			}
-		}
-		else {
-			log.error("State change from context is incorrect type: {}", context);
+	@Override
+	public String getName() {
+		return "HandleSupplierRequestConfirmed";
+	}
 
-			return Mono.error(new RuntimeException("State change from context is incorrect type"));
-		}
+	@Override
+	public List<DCBGuardCondition> getGuardConditions() {
+		return List.of(new DCBGuardCondition("DCBPatronRequest status is REQUEST_PLACED_AT_SUPPLYING_AGENCY and Supplier Item Status is CONFIRMED"));
+	}
+
+	@Override
+	public List<DCBTransitionResult> getOutcomes() {
+		return List.of(new DCBTransitionResult("CONFIRMED","CONFIRMED"));
 	}
 }

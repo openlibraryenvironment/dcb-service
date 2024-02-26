@@ -7,6 +7,7 @@ import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,18 +41,22 @@ public class SupplierNotSuppliedTransition implements PatronRequestStateTransiti
 	}
 
 	@Override
-	public boolean isApplicableFor(PatronRequest pr) {
-		return pr.getStatus() == Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		return ctx.getPatronRequest().getStatus() == Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 	}
 
 	@Override
-	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+
+		PatronRequest patronRequest = ctx.getPatronRequest();
+
 		log.info("SupplierNotSuppliedTransition firing for {}",patronRequest);
 		Status old_state = patronRequest.getStatus();
 
 		// For now, return ERROR
     patronRequest.setStatus(Status.ERROR);
-    return patronRequestAuditService.addAuditEntry(patronRequest, old_state, Status.ERROR).thenReturn(patronRequest);
+    return patronRequestAuditService.addAuditEntry(patronRequest, old_state, Status.ERROR)
+			.thenReturn(ctx);
 	}
 
 	@Override
@@ -64,5 +69,9 @@ public class SupplierNotSuppliedTransition implements PatronRequestStateTransiti
 		return true;
 	}
 
+	@Override
+	public String getName() {
+		return "SupplierNotSuppliedTransition";
+	}
 }
 

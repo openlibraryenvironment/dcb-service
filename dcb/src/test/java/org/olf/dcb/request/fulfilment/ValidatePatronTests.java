@@ -67,6 +67,8 @@ public class ValidatePatronTests {
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private PatronService patronService;
+	@Inject
+	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mockServerClient) {
@@ -131,7 +133,11 @@ public class ValidatePatronTests {
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
 		// Act
-		final var validatedPatronRequest = validatePatronTransition.attempt(patronRequest).block();
+		final var validatedPatronRequest =
+			requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.flatMap(ctx -> validatePatronTransition.attempt(ctx) )
+				.thenReturn(patronRequest)
+				.block();
 
 		// Assert
 		assertThat(validatedPatronRequest, hasLocalPatronType("15"));
@@ -160,7 +166,10 @@ public class ValidatePatronTests {
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
 		// Act
-		final var validatedPatronRequest = validatePatronTransition.attempt(patronRequest).block();
+		final var validatedPatronRequest = requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+			.flatMap(ctx -> validatePatronTransition.attempt(ctx) )
+			.thenReturn(patronRequest)
+			.block();
 
 		// Assert
 		assertThat(validatedPatronRequest, is(notNullValue()));
@@ -185,7 +194,9 @@ public class ValidatePatronTests {
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
-			() -> validatePatronTransition.attempt(patronRequest).block());
+			() -> requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.flatMap( ctx -> validatePatronTransition.attempt(ctx))
+				.block());
 
 		// Assert
 		final var expectedMessage = "Patron \"" + LOCAL_ID + "\" is not recognised in \"" + HOST_LMS_CODE + "\"";
@@ -219,7 +230,9 @@ public class ValidatePatronTests {
 
 		// Act
 		final var problem = assertThrows(ThrowableProblem.class,
-			() -> validatePatronTransition.attempt(patronRequest).block());
+			() -> requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.flatMap( ctx -> validatePatronTransition.attempt(ctx))
+				.block());
 
 		// Assert
 		assertThat(problem, allOf(
@@ -270,7 +283,9 @@ public class ValidatePatronTests {
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
-			() -> validatePatronTransition.attempt(patronRequest).block());
+			() -> requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.flatMap(ctx -> validatePatronTransition.attempt(ctx))
+				.block());
 
 		// Assert
 		final var expectedError = "Unable to map patronType validate-patron-transition-tests:15 To DCB context";

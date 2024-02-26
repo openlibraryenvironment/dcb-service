@@ -76,6 +76,9 @@ class PlaceRequestAtBorrowingAgencyTests {
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@Inject
+	private RequestWorkflowContextHelper requestWorkflowContextHelper;
+
+	@Inject
 	private PlacePatronRequestAtBorrowingAgencyStateTransition placePatronRequestAtBorrowingAgencyStateTransition;
 
 	@BeforeAll
@@ -138,6 +141,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab6", "ab6");
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			INVALID_HOLD_POLICY_HOST_LMS_CODE, "ab6", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,"ABC123","ab6");
+
 	}
 
 	@Test
@@ -164,6 +169,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
 			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.pickupLocationCodeContext(HOST_LMS_CODE)
 			.pickupLocationCode("ABC123")
 			.build();
 
@@ -226,6 +232,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
+			.pickupLocationCodeContext(HOST_LMS_CODE)
 			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.build();
 
@@ -285,6 +292,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
+			.pickupLocationCodeContext(HOST_LMS_CODE)
 			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.build();
 
@@ -343,6 +351,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.bibClusterId(clusterRecordId)
 			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.pickupLocationCode("ABC123")
+			.pickupLocationCodeContext(HOST_LMS_CODE)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -392,6 +401,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
 			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.pickupLocationCodeContext(HOST_LMS_CODE)
 			.pickupLocationCode("ABC123")
 			.build();
 
@@ -439,6 +449,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.bibClusterId(clusterRecordId)
 			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 			.pickupLocationCode("ABC123")
+			.pickupLocationCodeContext(HOST_LMS_CODE)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -493,6 +504,10 @@ class PlaceRequestAtBorrowingAgencyTests {
 	}
 
 	private PatronRequest placeRequestAtBorrowingAgency(PatronRequest patronRequest) {
-		return placePatronRequestAtBorrowingAgencyStateTransition.attempt(patronRequest).block();
+
+		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.flatMap(ctx -> placePatronRequestAtBorrowingAgencyStateTransition.attempt(ctx) )
+				.thenReturn(patronRequest)
+				.block();
 	}
 }

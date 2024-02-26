@@ -101,8 +101,10 @@ public class RequestWorkflowContextHelper {
 	private Mono<RequestWorkflowContext> decorateContextWithLenderDetails(RequestWorkflowContext ctx) {
 		log.info("decorateContextWithLenderDetails");
 
-		ctx.setLenderAgencyCode(ctx.getSupplierRequest().getLocalAgency());
-		ctx.setLenderSystemCode(ctx.getSupplierRequest().getHostLmsCode());
+		if ( ctx.getSupplierRequest() != null ) {
+			ctx.setLenderAgencyCode(ctx.getSupplierRequest().getLocalAgency());
+			ctx.setLenderSystemCode(ctx.getSupplierRequest().getHostLmsCode());
+		}
 
 		return Mono.just(ctx);
 	}
@@ -257,7 +259,7 @@ public class RequestWorkflowContextHelper {
 			.flatMap(pickupAgency -> Mono.just(ctx.setPickupAgency(pickupAgency)))
 			.flatMap(ctx2 -> Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())))
 			.flatMap(ctx2 -> Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())))
-			.switchIfEmpty(Mono.error(new RuntimeException("No agency found for pickup location: %s".formatted(pickupSymbol))));
+			.switchIfEmpty(Mono.error(new RuntimeException("No agency found for pickup location: %s:%s".formatted(pickupSymbolContext,pickupSymbol))));
 	}
 
 	// If an agency has been directly attached to the location then return it by just walking the model

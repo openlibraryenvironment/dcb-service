@@ -6,19 +6,36 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 
 import io.micronaut.core.annotation.NonNull;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.statemodel.DCBGuardCondition;
+import org.olf.dcb.statemodel.DCBTransitionResult;
 import reactor.core.publisher.Mono;
+import java.util.List;
 
 public interface PatronRequestStateTransition {
 	
-	boolean isApplicableFor(PatronRequest pr);
+	boolean isApplicableFor(RequestWorkflowContext ctx);
 
 	@NonNull
-	Mono<PatronRequest> attempt(PatronRequest patronRequest);
+	Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx);
 	
 	@NonNull
 	Optional<Status> getTargetStatus();
-	
-	public default boolean attemptAutomatically() {
-		return true;
+
+	// Lets us know if this method is one the system should apply automatically OR
+	// if it's intended to be a user triggered action
+	boolean attemptAutomatically();
+
+	@NonNull
+	String getName();
+
+	@NonNull
+	default List<DCBGuardCondition> getGuardConditions() {
+		return List.of();
+	}
+
+	@NonNull
+	default List<DCBTransitionResult> getOutcomes() {
+		return List.of();
 	}
 }

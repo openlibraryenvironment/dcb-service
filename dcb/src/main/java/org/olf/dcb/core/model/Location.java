@@ -91,6 +91,12 @@ public class Location {
 	// List this location in the pickup location lists
 	private Boolean isPickup;
 
+	// Is this location a shelving location
+	private Boolean isShelving;
+
+	// Does this location supply items (Some are reference only or have other flags)
+	private Boolean isSupplyingLocation;
+
 	private Double longitude;
 
 	private Double latitude;

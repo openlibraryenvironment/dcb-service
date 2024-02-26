@@ -83,6 +83,8 @@ class PlaceRequestAtSupplyingAgencyTests {
 	private AgencyFixture agencyFixture;
 	@Inject
 	private PatronService patronService;
+	@Inject
+	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
@@ -413,7 +415,10 @@ class PlaceRequestAtSupplyingAgencyTests {
 	}
 
 	private PatronRequest placeAtSupplyingAgency(PatronRequest patronRequest) {
-		return placePatronRequestAtSupplyingAgencyStateTransition.attempt(patronRequest).block();
+		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+			.flatMap( ctx -> placePatronRequestAtSupplyingAgencyStateTransition.attempt(ctx) )
+			.thenReturn(patronRequest)
+			.block();
 	}
 
 	private void savePatronTypeMappings() {
