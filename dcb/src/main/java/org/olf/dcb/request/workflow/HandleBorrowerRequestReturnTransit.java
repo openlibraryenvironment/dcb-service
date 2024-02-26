@@ -1,8 +1,14 @@
 package org.olf.dcb.request.workflow;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.statemodel.DCBGuardCondition;
+import org.olf.dcb.statemodel.DCBTransitionResult;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
 
@@ -15,28 +21,47 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 @Named("BorrowerRequestReturnTransit")
-public class HandleBorrowerRequestReturnTransit implements WorkflowAction {
+public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTransition {
 	private final PatronRequestRepository patronRequestRepository;
 
 	public HandleBorrowerRequestReturnTransit(PatronRequestRepository patronRequestRepository) {
 		this.patronRequestRepository = patronRequestRepository;
 	}
 
-	@Transactional
-	public Mono<Map<String, Object>> execute(Map<String, Object> context) {
-		StateChange sc = (StateChange) context.get("StateChange");
-		log.debug("HandleBorrowerRequestReturnTransit {}", sc);
+	@Override
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		return ( ( ctx.getPatronRequest().getStatus() == PatronRequest.Status.LOANED ) &&
+			( ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_TRANSIT) ) );
+	}
 
-		PatronRequest pr = (PatronRequest) sc.getResource();
-		if (pr != null) {
-			pr.setLocalItemStatus(sc.getToState());
-			pr.setStatus(PatronRequest.Status.RETURN_TRANSIT);
-			log.debug("Set local status to RET-TRANSIT and save {}", pr);
-			return Mono.from(patronRequestRepository.saveOrUpdate(pr))
-				.thenReturn(context);
-		} else {
-			log.warn("Unable to locate patron request to mark as missing");
-			return Mono.just(context);
-		}
+	@Override
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+		ctx.getPatronRequest().setStatus(PatronRequest.Status.RETURN_TRANSIT);
+		return Mono.just(ctx);
+	}
+
+	@Override
+	public Optional<PatronRequest.Status> getTargetStatus() {
+		return Optional.of(PatronRequest.Status.RETURN_TRANSIT);
+	}
+
+	@Override
+	public boolean attemptAutomatically() {
+		return true;
+	}
+
+	@Override
+	public String getName() {
+		return "HandleBorrowerRequestReturnTransit";
+	}
+
+	@Override
+	public List<DCBGuardCondition> getGuardConditions() {
+		return List.of( new DCBGuardCondition("DCBPatronRequest state is LOANED and Item at Patron or Pickup Library state is TRANSIT"));
+	}
+
+	@Override
+	public List<DCBTransitionResult> getOutcomes() {
+		return List.of(new DCBTransitionResult("RETURNED","RETURN_TRANSIT"));
 	}
 }

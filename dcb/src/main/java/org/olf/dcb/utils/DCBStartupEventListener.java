@@ -119,17 +119,22 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	private void bootstrapStatusCodes() {
 		log.debug("bootstrapStatusCodes");
 		Mono.just ( "start" )
+			// Supplier Request - the hold request at the supplying library
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierRequest", "IDLE", Boolean.FALSE)))
 			// II I think the next one should be removed
-			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", Boolean.TRUE)))
+			// .flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierRequest", "PLACED", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierRequest", "MISSING", Boolean.FALSE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierRequest", "CONFIRMED", Boolean.TRUE)))
+
+			// Supplier Request - the hold request at the patron library
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("PatronRequest", "IDLE", Boolean.FALSE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("PatronRequest", "PLACED", Boolean.TRUE)))
 			// II I think the next one should be removed
-			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("PatronRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", Boolean.TRUE)))
+			// .flatMap( v -> Mono.from(saveOrUpdateStatusCode("PatronRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("PatronRequest", "CANCELLED", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("PatronRequest", "MISSING", Boolean.TRUE)))
+
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "IDLE", Boolean.FALSE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "RET-TRANSIT", Boolean.FALSE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "TRANSIT", Boolean.TRUE)))
@@ -141,6 +146,26 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "MISSING", Boolean.FALSE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierItem", "TRANSIT", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierItem", "RECEIEVED", Boolean.TRUE)))
+
+			// The INTERNAL DCB State model - used to progress DCB requests according to OUR state model
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "SUBMITTED_TO_DCB", Boolean.FALSE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "PATRON_VERIFIED", Boolean.FALSE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "RESOLVED", Boolean.FALSE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "NOT_SUPPLIED_CURRENT_SUPPLIER", Boolean.TRUE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "NO_ITEMS_AVAILABLE_AT_ANY_AGENCY", Boolean.FALSE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", Boolean.FALSE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "REQUEST_PLACED_AT_BORROWING_AGENCY", Boolean.TRUE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "CONFIRMED", Boolean.TRUE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "PICKUP_TRANSIT", Boolean.TRUE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "RECEIVED_AT_PICKUP", Boolean.TRUE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "READY_FOR_PICKUP", Boolean.TRUE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "LOANED", Boolean.TRUE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "RETURN_TRANSIT", Boolean.TRUE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "CANCELLED", Boolean.TRUE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "COMPLETED", Boolean.TRUE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "FINALISED", Boolean.FALSE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "ERROR", Boolean.FALSE)))
+
 			// Grant all permissions on everything to anyone with the ADMIN role (And allow them to pass on grants)
 //			.flatMap( v -> Mono.from(saveOrUpdateGrant("%", "%", "%", "%", "role", "ADMIN", Boolean.TRUE)))
 			.subscribe();

@@ -33,8 +33,10 @@ public class SupplierRequestService {
 			.mapNotNull(supplierRequests ->
 				supplierRequests.stream()
 					.findFirst()
-					.orElse(null))
-			.switchIfEmpty(Mono.error(() -> new RuntimeException("No SupplierRequests found for PatronRequest")));
+					.orElse(null));
+
+			// There may be no supplier request yet for this patron request
+			// .switchIfEmpty(Mono.error(() -> new RuntimeException("No SupplierRequests found for PatronRequest")));
 	}
 
 	public Mono<SupplierRequest> updateSupplierRequest(SupplierRequest supplierRequest) {

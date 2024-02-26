@@ -81,14 +81,18 @@ public class PatronRequestController {
 			default -> patronRequest;
 		};
 	}
-	
+
+
+	/*
 	private Mono<PatronRequestStateTransition> resolvePatronRequestTransition( PatronRequest patronRequest, Predicate<PatronRequestStateTransition> predicate ) {
 		
 		return Flux.fromStream( workflowService.getPossibleStateTransitionsFor(patronRequest) )
 				.filter( predicate )
 				.next();
 	}
-	
+*/
+	/* Does anyone call this?
+
 	@SingleResult
 	@Post(value = "/{patronRequestId}/transtion/{status}", consumes = APPLICATION_JSON)
 	public Mono<PatronRequest> transitionPatronRequest(@NotNull final UUID patronRequestId, @NotNull Status status) {
@@ -103,6 +107,8 @@ public class PatronRequestController {
 			.flatMapMany( TupleUtils.function(workflowService::progressUsing ))
 			.last();
 	}
+
+	 */
 	
 	/**
 	 * Special state transitions that don't have a target state i.e. they leave the state untouched, but

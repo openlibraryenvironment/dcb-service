@@ -7,6 +7,7 @@ import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,17 +34,18 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	}
 
 	@Override
-	public boolean isApplicableFor(PatronRequest pr) {
-		return pr.getStatus() == Status.CANCELLED;
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		return ctx.getPatronRequest().getStatus() == Status.CANCELLED;
 	}
 
 	@Override
-	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
-		log.info("CancelledPatronRequestTransition firing for {}",patronRequest);
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+		log.info("CancelledPatronRequestTransition firing for {}",ctx.getPatronRequest());
+		PatronRequest patronRequest = ctx.getPatronRequest();
 		Status old_state = patronRequest.getStatus();
     patronRequest.setStatus(Status.COMPLETED);
     return patronRequestAuditService.addAuditEntry(patronRequest, old_state, Status.COMPLETED)
-      .thenReturn(patronRequest);
+      .thenReturn(ctx);
 	}
 
 	@Override
@@ -56,5 +58,9 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 		return true;
 	}
 
+	@Override
+	public String getName() {
+		return "CancelledPatronRequestTransition";
+	}
 }
 

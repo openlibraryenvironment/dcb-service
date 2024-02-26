@@ -5,6 +5,7 @@ import java.util.stream.Stream;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,23 +33,24 @@ public class CleanupPatronRequestTransition implements PatronRequestStateTransit
 
 
 	@Override
-	public boolean isApplicableFor(PatronRequest pr) {
-		Status s = pr.getStatus();
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		Status s = ctx.getPatronRequest().getStatus();
 
 		return Stream.of(Status.ERROR, Status.CANCELLED)
 			.anyMatch(s::equals);
 	}
 
 	@Override
-	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
 
+		PatronRequest patronRequest = ctx.getPatronRequest();
     log.info("CleanupPatronRequestTransition firing for {}",patronRequest);
 
 		// Setting the status to completed should cause the cleanup routine to fire which will do all the work we need to FINALISE the request
     Status old_state = patronRequest.getStatus();
     patronRequest.setStatus(Status.COMPLETED);
     return patronRequestAuditService.addAuditEntry(patronRequest, old_state, Status.COMPLETED)
-      .thenReturn(patronRequest);
+      .thenReturn(ctx);
 	}
 
 	@Override
@@ -61,4 +63,10 @@ public class CleanupPatronRequestTransition implements PatronRequestStateTransit
 	public boolean attemptAutomatically() {
 		return false;
 	}
+
+  @Override     
+  public String getName() {
+    return "CleanupPatronRequestTransition";
+  }
+
 }

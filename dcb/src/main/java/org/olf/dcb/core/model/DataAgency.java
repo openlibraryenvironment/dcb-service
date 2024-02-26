@@ -82,6 +82,9 @@ public class DataAgency implements Agency {
 
 	private Double latitude;
 
+	// Does this agency participate in interlending
+	private Boolean isSupplyingAgency;
+
 	public static class DataAgencyBuilder {
 		public DataAgencyBuilder() {
 		}

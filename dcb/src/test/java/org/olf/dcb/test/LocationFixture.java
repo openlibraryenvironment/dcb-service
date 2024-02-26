@@ -31,6 +31,9 @@ public class LocationFixture {
 				.name(name)
 				.code(code)
 				.type("PICKUP")
+				.isPickup(Boolean.TRUE)
+				.isShelving(Boolean.TRUE)
+				.isSupplyingLocation(Boolean.TRUE)
 				.build()));
 	}
 
@@ -40,6 +43,9 @@ public class LocationFixture {
         .name(name)
         .code(code)
         .type("PICKUP")
+				.isPickup(Boolean.TRUE)
+				.isShelving(Boolean.TRUE)
+				.isSupplyingLocation(Boolean.TRUE)
 				.agency(da)
         .build()));
   }

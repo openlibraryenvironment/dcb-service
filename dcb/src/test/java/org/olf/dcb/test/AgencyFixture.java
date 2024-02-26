@@ -5,6 +5,8 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.storage.AgencyRepository;
 
 import io.micronaut.context.annotation.Prototype;
@@ -33,6 +35,19 @@ public class AgencyFixture {
 			.id(UUID.randomUUID())
 			.code(code)
 			.name(name)
+			.isSupplyingAgency(Boolean.TRUE)
 			.build());
 	}
+
+	public DataAgency defineAgency(String code, String name, DataHostLms hostLms) {
+		return saveAgency(DataAgency.builder()
+			.id(UUID.randomUUID())
+			.code(code)
+			.name(name)
+			.isSupplyingAgency(Boolean.TRUE)
+			.hostLms(hostLms)
+			.build());
+	}
+
+
 }

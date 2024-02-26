@@ -4,7 +4,7 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
-import org.olf.dcb.request.workflow.HostLmsReactions;
+import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
@@ -14,6 +14,7 @@ import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import org.reactivestreams.Publisher;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -30,18 +31,21 @@ public class TrackingService implements Runnable {
 	private final SupplyingAgencyService supplyingAgencyService;
 	private final HostLmsService hostLmsService;
 	private final HostLmsReactions hostLmsReactions;
+	private final PatronRequestWorkflowService patronRequestWorkflowService;
 
 	TrackingService(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
 		SupplyingAgencyService supplyingAgencyService,
 		HostLmsService hostLmsService,
-		HostLmsReactions hostLmsReactions) {
+		HostLmsReactions hostLmsReactions,
+		PatronRequestWorkflowService patronRequestWorkflowService) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplyingAgencyService = supplyingAgencyService;
 		this.hostLmsService = hostLmsService;
 		this.hostLmsReactions = hostLmsReactions;
+		this.patronRequestWorkflowService = patronRequestWorkflowService;
 	}
 
 	@AppTask
@@ -57,6 +61,7 @@ public class TrackingService implements Runnable {
 
 		log.info("Starting Scheduled Tracking Ingest");
 
+		// Go out and collect any status information.
 		trackSupplierItems()
 			.flatMap(this::enrichWithPatronRequest)
 			.flatMap(this::checkSupplierItem)
@@ -87,6 +92,22 @@ public class TrackingService implements Runnable {
 				value -> {},
 				error -> log.error("TrackingError (PatronHold): ", error),
 				() -> log.info("active borrower request tracking complete"));
+
+		// We have completed collecting information from downstream systems, now we try and progress the DCB requests
+		// based on the states of downstream systems
+
+		trackActiveDCBRequests()
+			.flatMap(this::tryToProgressDCBRequest)
+			.subscribe(
+				value -> {},
+				error -> log.error("TrackingError (DCBRequest): ", error),
+				() -> log.info("active DCB request tracking complete"));
+
+	}
+
+	private Flux<PatronRequest> trackActiveDCBRequests() {
+		log.info("trackActiveDCBRequests()");
+		return Flux.from(patronRequestRepository.findProgressibleDCBRequests());
 	}
 
 	public Flux<PatronRequest> trackActivePatronRequestHolds() {
@@ -264,4 +285,11 @@ public class TrackingService implements Runnable {
 					.thenReturn(sr);
 			}));
 	}
+
+	@Transactional(Transactional.TxType.REQUIRES_NEW)
+	public Flux<PatronRequest> tryToProgressDCBRequest(PatronRequest patronRequest) {
+		log.debug("Attempt to progress {}:{}",patronRequest.getId(),patronRequest.getStatus());
+		return patronRequestWorkflowService.progressAll(patronRequest);
+	}
+
 }

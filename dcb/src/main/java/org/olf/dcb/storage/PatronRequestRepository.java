@@ -46,6 +46,8 @@ public interface PatronRequestRepository {
 	@Query(value = "SELECT p.* from patron_request p  where p.local_request_status in ( select code from status_code where model = 'PatronRequest' and tracked = true )", nativeQuery = true)
 	Publisher<PatronRequest> findTrackedPatronHolds();
 
+	@Query(value = "SELECT p.* from patron_request p  where p.status_code in ( select code from status_code where model = 'DCBRequest' and tracked = true )", nativeQuery = true)
+	Publisher<PatronRequest> findProgressibleDCBRequests();
 
 	// Find all the virtual items that we need to track
 	@Query(value = "SELECT p.* from patron_request p  where p.local_item_id is not null and ( p.local_item_status is null or p.local_item_status in ( select code from status_code where model = 'VirtualItem' and tracked = true ) )", nativeQuery = true)

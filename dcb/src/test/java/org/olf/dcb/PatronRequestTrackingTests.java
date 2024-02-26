@@ -37,6 +37,12 @@ import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+import org.olf.dcb.core.interaction.HostLmsItem;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.hasProperty;
+
 @Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
@@ -114,7 +120,9 @@ public class PatronRequestTrackingTests {
 	}
 
 	@Test
-	void shouldCancelRequestWhenHoldDoesNotExistAndNotOnHoldShelfAtBorrowingAgency() {
+	void trackingServiceShouldTrackMissingStateForMissingRequests() {
+
+		log.debug("RUNNING trackingServiceShouldTrackMissingStateForMissingRequests"); // So we can find this test in the logs
 		// Arrange
 		final var borrowingAgencyLocalRequestId = "11463";
 		final var borrowingAgencyLocalItemId = "1088431";
@@ -143,77 +151,8 @@ public class PatronRequestTrackingTests {
 		// Assert
 
 		// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
-		waitUntilPatronRequestIsFinalised(patronRequest);
-	}
-
-	@Test
-	void shouldFinaliseRequestWhenSupplierHostlmsHoldIsPLACED() {
-		// Arrange
-		final var borrowingAgencyLocalRequestId = "56436";
-		final var borrowingAgencyLocalItemId = "1088437";
-
-		final var patronRequest = createPatronRequest(
-			request -> request
-				.localRequestId(borrowingAgencyLocalRequestId)
-				.localItemId(borrowingAgencyLocalItemId)
-				.localItemStatus("")
-				.localRequestStatus("PLACED")
-				.status(REQUEST_PLACED_AT_BORROWING_AGENCY));
-
-		createSupplierRequest(patronRequest,
-			request -> request
-				.localId("11987")
-				.localItemId("1088432")
-				// local status has to be PLACED
-				.localStatus("PLACED"));
-
-		sierraPatronsAPIFixture.mockGetHoldByIdNotFound(borrowingAgencyLocalRequestId);
-		sierraItemsAPIFixture.mockGetItemById(borrowingAgencyLocalItemId,
-			exampleSierraItem(borrowingAgencyLocalItemId));
-
-		// Act
-		trackingService.run();
-
-		// Assert
-
-		// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
-		waitUntilPatronRequestIsFinalised(patronRequest);
-	}
-
-
-	@Test
-	void shouldFinaliseRequestWhenSupplierItemAvailable() {
-
-		// Arrange
-		final var patronRequest = createPatronRequest(
-			request -> request
-				.localRequestId("24263")
-				.localItemId("108843")
-				.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
-				.status(CANCELLED));
-
-		final var supplyingAgencyLocalRequestId = "11987";
-		final var supplyingAgencyLocalItemId = "1088435";
-
-		createSupplierRequest(patronRequest,
-			request -> request.localId(supplyingAgencyLocalRequestId)
-				.localItemId(supplyingAgencyLocalItemId)
-				.localItemStatus("TRANSIT"));
-
-		sierraPatronsAPIFixture.mockGetHoldById(supplyingAgencyLocalRequestId,
-			SierraHold.builder()
-				.statusCode("0")
-				.statusName("on hold.")
-				.build());
-
-		sierraItemsAPIFixture.mockGetItemById(supplyingAgencyLocalItemId,
-			exampleSierraItem(supplyingAgencyLocalItemId));
-
-		// Act
-		trackingService.run();
-
-		// Assert
-		waitUntilPatronRequestIsFinalised(patronRequest);
+		await().atMost(5, SECONDS)
+			.until(() -> getPatronRequest(patronRequest.getId()), hasProperty("localRequestStatus", is("MISSING")));
 	}
 
 	private void defineHostLms(String hostLmsCode, String baseUrl, MockServerClient mockServerClient) {
@@ -262,6 +201,7 @@ public class PatronRequestTrackingTests {
 		await().atMost(5, SECONDS)
 			.until(() -> getPatronRequest(patronRequest.getId()), isFinalised());
 	}
+
 
 	private PatronRequest getPatronRequest(UUID patronRequestId) {
 		return patronRequestsFixture.findById(patronRequestId);

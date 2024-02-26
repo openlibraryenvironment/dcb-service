@@ -1,14 +1,19 @@
 package org.olf.dcb.request.workflow;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
+import org.olf.dcb.statemodel.DCBGuardCondition;
+import org.olf.dcb.statemodel.DCBTransitionResult;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
@@ -25,7 +30,7 @@ import static reactor.function.TupleUtils.function;
 @Slf4j
 @Singleton
 @Named("SupplierRequestItemAvailable")
-public class HandleSupplierItemAvailable implements WorkflowAction {
+public class HandleSupplierItemAvailable implements PatronRequestStateTransition {
 	private final PatronRequestRepository patronRequestRepository;
 	private final SupplierRequestRepository supplierRequestRepository;
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
@@ -49,53 +54,6 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 		this.hostLmsService = hostLmsService;
 	}
 
-	@Transactional
-	public Mono<Map<String,Object>> execute(Map<String,Object> context) {
-		StateChange sc = (StateChange) context.get("StateChange");
-		log.debug("HandleSupplierItemAvailable {}",sc);
-		SupplierRequest sr = (SupplierRequest) sc.getResource();
-
-    return requestWorkflowContextHelper.fromSupplierRequest(sr)
-			.flatMap ( ctx -> handleSupplierLocalItemStatusAvailable(ctx) )
-			.thenReturn(context);
-	}
-
-	private Mono<RequestWorkflowContext> handleSupplierLocalItemStatusAvailable(RequestWorkflowContext ctx) {
-
-		SupplierRequest sr = ctx.getSupplierRequest();
-		PatronRequest pr = ctx.getPatronRequest();
-
-		// This should not happen...
-		if ( ( sr == null ) || ( pr == null ) )
-			return Mono.error(new RuntimeException("Unable to locate supplier or patron request"));
-
-		// If this is a new request and we are detecting that the supplier item is available then it is available for the
-		// borrower - update and continue
-		if (sr.getLocalItemStatus() == null) {
-			// Our first time seeing this item set it's state to AVAILABLE
-			log.debug("Initialising supplying library item status");
-			sr.setLocalItemStatus("AVAILABLE");
-			return Mono.from(supplierRequestRepository.saveOrUpdate(sr))
-				.flatMap( ssr -> Mono.from(patronRequestRepository.saveOrUpdate(pr)) )
-				.flatMap( spr -> auditService.addAuditEntry(spr, "Supplier Item Available - Infers selected item is available for request") )
-				.flatMap( aud -> Mono.from(patronRequestWorkflowServiceProvider.get().progressAll(pr)))
-				.thenReturn(ctx);
-		}
-		else {
-			// An item becoming available means the request process has 'completed'
-			sr.setLocalItemStatus("AVAILABLE");
-			pr.setStatus(PatronRequest.Status.COMPLETED);
-
-			// DCB-851 update borrowing lib
-			return updateBorrowerThatItemHasBeenReceivedBack(pr)
-				.flatMap( ok -> Mono.from(supplierRequestRepository.saveOrUpdate(sr) ) )
-				.flatMap( ssr -> Mono.from(patronRequestRepository.saveOrUpdate(pr)) )
-				.flatMap( spr -> auditService.addAuditEntry(spr, "Supplier Item Available - Infers item back on the shelf after loan. Completing request") )
-				.flatMap( aud -> Mono.from(patronRequestWorkflowServiceProvider.get().progressAll(pr)))
-				.thenReturn(ctx);
-		}
-	}
-
 	private Mono<String> updateBorrowerThatItemHasBeenReceivedBack(PatronRequest patronRequest) {
 
 		final var localId = patronRequest.getLocalRequestId();
@@ -103,5 +61,52 @@ public class HandleSupplierItemAvailable implements WorkflowAction {
 
 		return hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode())
 			.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(localItemId, HostLmsClient.CanonicalItemState.COMPLETED, localId));
+	}
+
+
+	@Override
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		return ( ctx.getPatronRequest().getStatus() == PatronRequest.Status.RETURN_TRANSIT ) &&
+			(ctx.getSupplierRequest() != null ) &&
+			(ctx.getSupplierRequest().getLocalItemStatus() != null ) &&
+			(ctx.getSupplierRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_AVAILABLE)) ;
+	}
+
+	@Override
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+
+		ctx.getPatronRequest().setStatus(PatronRequest.Status.COMPLETED);
+
+		// DCB-851 update borrowing lib
+		return updateBorrowerThatItemHasBeenReceivedBack(ctx.getPatronRequest())
+			.flatMap( ok -> Mono.from(supplierRequestRepository.saveOrUpdate(ctx.getSupplierRequest()) ) )
+			.flatMap( ssr -> Mono.from(patronRequestRepository.saveOrUpdate(ctx.getPatronRequest())) )
+			.flatMap( spr -> auditService.addAuditEntry(spr, "Supplier Item Available - Infers item back on the shelf after loan. Completing request") )
+			.thenReturn(ctx);
+	}
+
+	@Override
+	public Optional<PatronRequest.Status> getTargetStatus() {
+		return Optional.of(PatronRequest.Status.COMPLETED);
+	}
+
+	@Override
+	public boolean attemptAutomatically() {
+		return true;
+	}
+
+	@Override
+	public String getName() {
+		return "HandleSupplierItemAvailable";
+	}
+
+	@Override
+	public List<DCBGuardCondition> getGuardConditions() {
+		return List.of( new DCBGuardCondition("DCBPatronRequest state is RETURN_TRANSIT and Supplier item status is AVAILABLE"));
+	}
+
+	@Override
+	public List<DCBTransitionResult> getOutcomes() {
+		return List.of( new DCBTransitionResult("AVAILABLE",PatronRequest.Status.COMPLETED.toString()));
 	}
 }

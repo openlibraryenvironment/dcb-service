@@ -12,6 +12,7 @@ import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
 
@@ -138,15 +139,16 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	 * Attempts to transition the patron request to the next state, which is placing
 	 * the request at the supplying agency.
 	 *
-	 * @param patronRequest The patron request to transition.
+	 * @param ctx The patron request to transition.
 	 * @return A Mono that emits the patron request after the transition, or an
 	 * error if the transition is not possible.
 	 */
 	@Override
-	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
-		log.debug("verifyPatron {}", patronRequest);
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
 
-		assert isApplicableFor(patronRequest);
+		PatronRequest patronRequest = ctx.getPatronRequest();
+
+		log.debug("verifyPatron {}", patronRequest);
 
 		patronRequest.setStatus(Status.PATRON_VERIFIED);
 
@@ -164,7 +166,8 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 			.doOnSuccess( pr -> log.debug("Validated patron request: {}", pr))
 			.doOnError( error -> log.error( "Error occurred validating a patron request: {}", error.getMessage()))
 			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest))
-			.flatMap(this::createAuditEntry);
+			.flatMap(this::createAuditEntry)
+			.thenReturn(ctx);
 	}
 
 	private Mono<PatronRequest> validateLocations(PatronRequest patronRequest) {
@@ -182,12 +185,22 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	}
 
 	@Override
-	public boolean isApplicableFor(PatronRequest pr) {
-		return pr.getStatus() == Status.SUBMITTED_TO_DCB;
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		return ctx.getPatronRequest().getStatus() == Status.SUBMITTED_TO_DCB;
 	}
 
 	@Override
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(Status.PATRON_VERIFIED);
+	}
+
+  @Override     
+  public String getName() {
+    return "ValidatePatronTransition";
+  }
+
+	@Override
+	public boolean attemptAutomatically() {
+		return true;
 	}
 }

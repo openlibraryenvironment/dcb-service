@@ -10,6 +10,8 @@ import java.util.stream.Stream;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.MDC;
@@ -39,18 +41,20 @@ public class PatronRequestWorkflowService {
 
 	private final List<PatronRequestStateTransition> allTransitions;
 
+	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
+
 	public PatronRequestWorkflowService(List<PatronRequestStateTransition> allTransitions,
 		PatronRequestRepository patronRequestRepository,
-		PatronRequestAuditService patronRequestAuditService) {
+		PatronRequestAuditService patronRequestAuditService,
+		RequestWorkflowContextHelper requestWorkflowContextHelper) {
 
 		this.patronRequestAuditService = patronRequestAuditService;
 		// By loading the list of all transitions, we can declare new transitions
 		// without having to modify the
 		// workflow engine constructor every time.
 		this.allTransitions = allTransitions;
-		
 		this.patronRequestRepository = patronRequestRepository;
-
+		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		log.debug("Initialising workflow engine with available transitions");
 		for (PatronRequestStateTransition t : allTransitions) {
 			log.debug(t.getClass().getName());
@@ -71,28 +75,27 @@ public class PatronRequestWorkflowService {
 	public Flux<PatronRequest> progressAll(PatronRequest patronRequest) {
 		log.debug("progressAll({})", patronRequest);
 
-		return progressUsing(patronRequest, getApplicableTransitionFor(patronRequest));
+		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+			.flatMapMany( ctx -> this.progressUsing(ctx, getApplicableTransitionFor(ctx) ));
 	}
 
-	public Flux<PatronRequest> progressUsing(PatronRequest patronRequest,
-		PatronRequestStateTransition action) {
-
-		return this.progressUsing(patronRequest, Optional.ofNullable(action));
+	public Flux<PatronRequest> progressUsing(PatronRequest patronRequest, PatronRequestStateTransition action) {
+		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+			.flatMapMany(ctx -> this.progressUsing(ctx, Optional.ofNullable(action)));
 	}
 	
-	public Flux<PatronRequest> progressUsing(PatronRequest patronRequest,
-		Optional<PatronRequestStateTransition> action) {
+	public Flux<PatronRequest> progressUsing(RequestWorkflowContext ctx, Optional<PatronRequestStateTransition> action) {
 
 		if (action.isEmpty()) {
 			log.debug("Unable to progress {} - no transformations available from state {}",
-				patronRequest.getId(), patronRequest.getStatus());
+				ctx.getPatronRequest().getId(), ctx.getPatronRequest().getStatus());
 		}
 		
 		return Mono.justOrEmpty(action)
 			.flatMapMany(transition -> {
 				log.debug("found action {} applying transition", action.get().getClass().getName());
 
-				final var pr = applyTransition(transition, patronRequest);
+				final var pr = applyTransition(transition, ctx);
 
 				log.debug("start applying actions, there may be subsequent transitions possible");
 
@@ -101,46 +104,25 @@ public class PatronRequestWorkflowService {
 			});
 	}
 
-	public Stream<PatronRequestStateTransition> getPossibleStateTransitionsFor(
-		PatronRequest patronRequest) {
-
+	public Stream<PatronRequestStateTransition> getPossibleStateTransitionsFor(RequestWorkflowContext ctx) {
 		return allTransitions.stream()
-			.filter(transition -> transition.isApplicableFor(patronRequest));
-	}
-	
-	private Stream<PatronRequestStateTransition> getAutomaticStateTransitionsFor(
-		PatronRequest patronRequest) {
-
-		return getPossibleStateTransitionsFor(patronRequest)
-			.filter(PatronRequestStateTransition::attemptAutomatically);
+			.filter(transition -> ( transition.isApplicableFor(ctx) && transition.attemptAutomatically() ) );
 	}
 
-	/**
-	 * Hide the details of matching an object against the workflow here...
-	 * Eventually we wil likely use JXEL, janino or some other expresion language
-	 * here, but for now simple string comparisons are more than sufficient.
-	 */
-	private Optional<PatronRequestStateTransition> getApplicableTransitionFor(
-		PatronRequest patronRequest) {
+	private Flux<PatronRequest> applyTransition(PatronRequestStateTransition action, RequestWorkflowContext ctx) {
 
-		log.debug("getApplicableTransitionFor({})", patronRequest);
-		return getAutomaticStateTransitionsFor(patronRequest)
-			.findFirst();
-	}
+		log.debug("applyTransition({}, {})", action.getName(), ctx.getPatronRequest().getId());
 
-	private Flux<PatronRequest> applyTransition(PatronRequestStateTransition action,
-		PatronRequest patronRequest) {
-
-		log.debug("applyTransition({}, {})", action.getClass().getName(), patronRequest);
-		
-		return action.attempt(patronRequest)
+		return patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), ctx.getPatronRequestStateOnEntry(), ctx.getPatronRequestStateOnEntry(), Optional.of("guard passed : " + action.getName()))
+			.then ( action.attempt(ctx) )
 			.flux()
-			.flatMap(patronRequestRepository::saveOrUpdate)
+			// Ian: I think this save may be unnecessary - it should really be for the transition to do any saving needed
+			// ToDo: Remove this, save in handlers and test
+			.concatMap(nc -> patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), ctx.getPatronRequestStateOnEntry(), ctx.getPatronRequest().getStatus(), Optional.of("Action completed : " + action.getName())))
+			.concatMap(nc -> patronRequestRepository.saveOrUpdate(nc.getPatronRequest()))
 			.concatMap(request -> {
-				// Recall if there are more...
-				return Mono.justOrEmpty(getApplicableTransitionFor( request ))
-					.delayElement(stateTransitionDelay)
-					.flatMapMany(transition -> applyTransition(transition, request));
+				// Recursively call progress all in case there are subsequent steps we can apply
+				return progressAll(ctx.getPatronRequest());
 			});
 	}
 	
@@ -182,4 +164,11 @@ public class PatronRequestWorkflowService {
 					.then(Mono.error(throwable));
 			}));
 	}
+
+	private Optional<PatronRequestStateTransition> getApplicableTransitionFor(RequestWorkflowContext ctx) {
+		log.debug("getApplicableTransitionFor...");
+		return getPossibleStateTransitionsFor(ctx)
+			.findFirst();
+	}
+
 }

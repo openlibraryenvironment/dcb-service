@@ -1,12 +1,17 @@
 package org.olf.dcb.request.workflow;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
+import org.olf.dcb.statemodel.DCBGuardCondition;
+import org.olf.dcb.statemodel.DCBTransitionResult;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
 
@@ -19,7 +24,7 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 @Named("BorrowerRequestItemOnHoldShelf")
-public class HandleBorrowerItemOnHoldShelf implements WorkflowAction {
+public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransition {
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final PatronRequestRepository patronRequestRepository;
 	private final HostLmsService hostLmsService;
@@ -31,29 +36,6 @@ public class HandleBorrowerItemOnHoldShelf implements WorkflowAction {
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.hostLmsService = hostLmsService;
-	}
-
-	@Transactional
-	public Mono<Map<String, Object>> execute(Map<String, Object> context) {
-		StateChange sc = (StateChange) context.get("StateChange");
-		log.info("HandleBorrowerItemOnHoldShelf {}", sc);
-		PatronRequest pr = (PatronRequest) sc.getResource();
-		if (pr != null) {
-			pr.setStatus(PatronRequest.Status.READY_FOR_PICKUP);
-			pr.setLocalItemStatus(sc.getToState());
-			log.debug("Set local status to READY_FOR_PICKUP and save {}", pr);
-			return requestWorkflowContextHelper.fromPatronRequest(pr)
-				.flatMap(this::updateSupplierItemToReceived)
-				.flatMap(rwc -> Mono.from(patronRequestRepository.saveOrUpdate(pr)))
-				.doOnNext(spr -> log.debug("Saved {}", spr))
-				.doOnError(
-					error -> log.error("Error occurred in handle item on hold shelf: ", error))
-				.thenReturn(context);
-		} else {
-			log.warn(
-				"Unable to locate patron request to mark hostlms item status to ON_HOLD_SHELF");
-			return Mono.just(context);
-		}
 	}
 
 	public Mono<RequestWorkflowContext> updateSupplierItemToReceived(
@@ -73,5 +55,47 @@ public class HandleBorrowerItemOnHoldShelf implements WorkflowAction {
 		}
 
 		return Mono.just(rwc);
+	}
+
+	@Override
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		return (
+			( ctx.getPatronRequest().getStatus() == PatronRequest.Status.RECEIVED_AT_PICKUP ||
+				ctx.getPatronRequest().getStatus() == PatronRequest.Status.PICKUP_TRANSIT ) &&
+			ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_ON_HOLDSHELF) );
+	}
+
+	@Override
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+			ctx.getPatronRequest().setStatus(PatronRequest.Status.READY_FOR_PICKUP);
+			return updateSupplierItemToReceived(ctx)
+				// For now, PatronRequestWorkflowService will save the patron request, but we should do that here
+				// and not there - flagging this as a change needed when we refactor.
+				.thenReturn(ctx);
+	}
+
+	@Override
+	public Optional<PatronRequest.Status> getTargetStatus() {
+		return Optional.of(PatronRequest.Status.READY_FOR_PICKUP);
+	}
+
+	@Override
+	public boolean attemptAutomatically() {
+		return true;
+	}
+
+	@Override
+	public String getName() {
+		return "HandleBorrowerItemOnHoldShelf";
+	}
+
+	@Override
+	public List<DCBGuardCondition> getGuardConditions() {
+		return List.of(new DCBGuardCondition("DCBPatronRequest status is one of ( RECEIVED_AT_PICKUP OR PICKUP_TRANSIT ) AND Item status at pickup location is ITEM_ON_HOLDSHELF"));
+	}
+
+	@Override
+	public List<DCBTransitionResult> getOutcomes() {
+		return List.of(new DCBTransitionResult("READY_FOR_PICKUP",PatronRequest.Status.READY_FOR_PICKUP.toString()));
 	}
 }

@@ -9,6 +9,7 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
 import org.olf.dcb.storage.PatronRequestRepository;
@@ -46,7 +47,8 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	}
 
 	@Override
-	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+		PatronRequest patronRequest = ctx.getPatronRequest();
 
 		log.info("PatronRequestResolutionStateTransition attempt for {}", patronRequest);
 
@@ -58,7 +60,8 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.flatMap(this::updatePatronRequest)
 			.map(Resolution::getPatronRequest)
 			.flatMap(this::createAuditEntry)
-			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
+			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest))
+			.thenReturn(ctx);
 	}
 
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
@@ -105,9 +108,9 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	}
 
 	@Override
-	public boolean isApplicableFor(PatronRequest pr) {
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 
-		return pr.getStatus() == PATRON_VERIFIED;
+		return ctx.getPatronRequest().getStatus() == PATRON_VERIFIED;
 	}
 
 	// getTargetStatus tells us where we're trying to get to BUT be aware that the transitions can have error states so the Status
@@ -118,4 +121,15 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(RESOLVED);
 	}
+
+  @Override
+  public String getName() {
+    return "PatronRequestResolutionStateTransition";
+  }
+
+  @Override
+  public boolean attemptAutomatically() {
+    return true;
+  }
+
 }

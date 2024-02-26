@@ -2,9 +2,15 @@ package org.olf.dcb.request.workflow;
 
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.AVAILABLE;
 
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.statemodel.DCBGuardCondition;
+import org.olf.dcb.statemodel.DCBTransitionResult;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+
 import jakarta.inject.Singleton;
 import jakarta.inject.Named;
 import org.olf.dcb.tracking.model.StateChange;
@@ -23,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Singleton
 @Named("BorrowerRequestLoaned")
-public class HandleBorrowerItemLoaned implements WorkflowAction {
+public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final PatronRequestRepository patronRequestRepository;
 	private final HostLmsService hostLmsService;
@@ -38,29 +44,6 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.patronRequestAuditService = patronRequestAuditService;
 	}
-
-	@Transactional
-	public Mono<Map<String, Object>> execute(Map<String, Object> context) {
-		StateChange sc = (StateChange) context.get("StateChange");
-		log.debug("HandleBorrowerLoaned {}", sc);
-		PatronRequest pr = (PatronRequest) sc.getResource();
-		if (pr != null) {
-			pr.setStatus(PatronRequest.Status.LOANED);
-			pr.setLocalItemStatus(sc.getToState());
-
-			return requestWorkflowContextHelper.fromPatronRequest(pr)
-				.flatMap(this::checkHomeItemOutToVirtualPatron)
-				.flatMap(rwc -> Mono.from(patronRequestRepository.saveOrUpdate(pr)))
-				.doOnNext(spr -> log.debug("Saved {}", spr))
-				.doOnError(
-					error -> log.error("Error occurred in handle item Loaned: ", error))
-				.thenReturn(context);
-		} else {
-			log.warn("Unable to locate patron request to mark as available");
-			return Mono.just(context);
-		}
-	}
-
 
 	public Mono<RequestWorkflowContext> checkHomeItemOutToVirtualPatron(
 		RequestWorkflowContext rwc) {
@@ -136,5 +119,45 @@ public class HandleBorrowerItemLoaned implements WorkflowAction {
 			}
 		}
 		return result;
+	}
+
+	@Override
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		return ( ctx.getPatronRequest().getStatus() == PatronRequest.Status.READY_FOR_PICKUP &&
+			ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_LOANED) );
+	}
+
+	@Override
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+		ctx.getPatronRequest().setStatus(PatronRequest.Status.LOANED);
+		return this.checkHomeItemOutToVirtualPatron(ctx)
+			// For now, PatronRequestWorkflowService will save te patron request, but we should do that here
+			// and not there - flagging this as a change needed when we refactor.
+			.thenReturn(ctx);
+	}
+
+	@Override
+	public Optional<PatronRequest.Status> getTargetStatus() {
+		return Optional.of(PatronRequest.Status.LOANED);
+	}
+
+	@Override
+	public boolean attemptAutomatically() {
+		return true;
+	}
+
+	@Override
+	public String getName() {
+		return "HandleBorrowerItemLoaned";
+	}
+
+	@Override
+	public List<DCBGuardCondition> getGuardConditions() {
+		return List.of(new DCBGuardCondition("DCBRequestStatus is READY_FOR_PICKUP AND ItemStatus is LOANED"));
+	}
+
+	@Override
+	public List<DCBTransitionResult> getOutcomes() {
+		return List.of(new DCBTransitionResult("LOANED",PatronRequest.Status.LOANED.toString()));
 	}
 }

@@ -109,12 +109,13 @@ class DCBStartupEventListenerTests {
 		
 		assertThat(statusCodes, containsInAnyOrder(
 			hasStatusCode("SupplierRequest", "IDLE", false),
-			hasStatusCode("SupplierRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", true),
+			// hasStatusCode("SupplierRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", true),
 			hasStatusCode("SupplierRequest", "PLACED", true),
 			hasStatusCode("SupplierRequest", "MISSING", false),
+			hasStatusCode("SupplierRequest", "CONFIRMED", true),
 			hasStatusCode("PatronRequest", "IDLE", false),
 			hasStatusCode("PatronRequest", "PLACED", true),
-			hasStatusCode("PatronRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", true),
+			// hasStatusCode("PatronRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", true),
 			hasStatusCode("PatronRequest", "CANCELLED", true),
 			hasStatusCode("PatronRequest", "MISSING", true),
 			hasStatusCode("VirtualItem", "IDLE", false),
@@ -127,7 +128,24 @@ class DCBStartupEventListenerTests {
 			hasStatusCode("VirtualItem", "HOLDSHELF", true),
 			hasStatusCode("VirtualItem", "MISSING", false),
 			hasStatusCode("SupplierItem", "TRANSIT", true),
-			hasStatusCode("SupplierItem", "RECEIEVED", true)
+			hasStatusCode("SupplierItem", "RECEIEVED", true),
+			hasStatusCode("DCBRequest", "SUBMITTED_TO_DCB", false),
+			hasStatusCode("DCBRequest", "PATRON_VERIFIED", false),
+			hasStatusCode("DCBRequest", "RESOLVED", false),
+			hasStatusCode("DCBRequest", "NOT_SUPPLIED_CURRENT_SUPPLIER", true),
+			hasStatusCode("DCBRequest", "NO_ITEMS_AVAILABLE_AT_ANY_AGENCY", false),
+			hasStatusCode("DCBRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", false),
+			hasStatusCode("DCBRequest", "REQUEST_PLACED_AT_BORROWING_AGENCY", true),
+			hasStatusCode("DCBRequest", "CONFIRMED", true),
+			hasStatusCode("DCBRequest", "PICKUP_TRANSIT", true),
+			hasStatusCode("DCBRequest", "RECEIVED_AT_PICKUP", true),
+			hasStatusCode("DCBRequest", "READY_FOR_PICKUP", true),
+			hasStatusCode("DCBRequest", "LOANED", true),
+			hasStatusCode("DCBRequest", "RETURN_TRANSIT", true),
+			hasStatusCode("DCBRequest", "CANCELLED", true),
+			hasStatusCode("DCBRequest", "COMPLETED", true),
+			hasStatusCode("DCBRequest", "FINALISED", false),
+			hasStatusCode("DCBRequest", "ERROR", false)
 		));
 	}
 

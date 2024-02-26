@@ -1,16 +1,20 @@
 package org.olf.dcb.request.workflow;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.statemodel.DCBGuardCondition;
+import org.olf.dcb.statemodel.DCBTransitionResult;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -37,44 +41,51 @@ public class FinaliseCompletedRequestTransition implements PatronRequestStateTra
 	/**
 	 * Attempts to transition the patron request to the next state, 
 	 *
-	 * @param patronRequest The patron request to transition.
+	 * @param ctx The patron request context to transition.
 	 * @return A Mono that emits the patron request after the transition, or an
 	 *         error if the transition is not possible.
 	 */
 	@Override
-	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+
+		PatronRequest patronRequest = ctx.getPatronRequest();
 		log.debug("FinaliseCompletedRequestTransition firing for {}", patronRequest);
-
-		assert isApplicableFor(patronRequest);
-
-// auditService.addAuditEntry(pr, "Supplier Item Available - Infer item back on the shelf after loan. Completing request");
 
 		return Mono.just(patronRequest)
 			.flatMap(supplyingAgencyService::cleanUp)
 			.flatMap(borrowingAgencyService::cleanUp)
 			.then(Mono.just(patronRequest.setStatus(Status.FINALISED)))
-			.flatMap(this::createAuditEntry)
-			.transform(patronRequestWorkflowServiceProvider.get()
-				.getErrorTransformerFor(patronRequest));
+			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest))
+			.thenReturn(ctx);
 	}
-
-
-	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
-
-		if (patronRequest.getStatus() == Status.ERROR)
-			return Mono.just(patronRequest);
-
-		return patronRequestAuditService.addAuditEntry(patronRequest, Status.COMPLETED, getTargetStatus().get())
-			.thenReturn(patronRequest);
-	}
-
+	
 	@Override
-	public boolean isApplicableFor(PatronRequest pr) {
-		return pr.getStatus() == Status.COMPLETED;
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		return ctx.getPatronRequest().getStatus() == Status.COMPLETED;
 	}
 
 	@Override
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(Status.FINALISED);
+	}
+
+  @Override
+	public boolean attemptAutomatically() {
+		return true;
+	}
+
+  @Override
+  public String getName() {
+    return "FinaliseCompletedRequestTransition";
+  }
+
+	@Override
+	public List<DCBTransitionResult> getOutcomes() {
+		return List.of(new DCBTransitionResult("FINALISED", Status.FINALISED.toString()));
+	}
+
+	@Override
+	public List<DCBGuardCondition> getGuardConditions() {
+		return List.of(new DCBGuardCondition("DCBPatronRequest status is COMPLETED"));
 	}
 }

@@ -6,6 +6,7 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
@@ -32,24 +33,20 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 	 * Attempts to transition the patron request to the next state, which is placing
 	 * the request at the supplying agency.
 	 *
-	 * @param patronRequest The patron request to transition.
+	 * @param ctx The requesting context containing all needed data
 	 * @return A Mono that emits the patron request after the transition, or an
 	 *         error if the transition is not possible.
 	 */
 	@Override
-	public Mono<PatronRequest> attempt(PatronRequest patronRequest) {
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
 
-		// Some of the tests seem to set up odd states and then explicitly invoke the
-		// attempt method. Transitions should
-		// assert the correct state.
-		assert isApplicableFor(patronRequest);
+		log.debug("PlacePatronRequestAtSupplyingAgencyStateTransition firing for {}", ctx.getPatronRequest());
 
-		log.debug("PlacePatronRequestAtSupplyingAgencyStateTransition firing for {}", patronRequest);
-
-		return supplyingAgencyService.placePatronRequestAtSupplyingAgency(patronRequest)
+		return supplyingAgencyService.placePatronRequestAtSupplyingAgency(ctx.getPatronRequest())
 				.doOnSuccess(pr -> log.debug("Placed patron request to supplier: pr={}", pr))
 				.doOnError(error -> log.error("Error occurred during placing a patron request to supplier: {}", error.getMessage()))
-				.flatMap(this::createAuditEntry);
+				.flatMap(this::createAuditEntry)
+				.thenReturn(ctx);
 	}
 
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
@@ -61,12 +58,22 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 	}
 
 	@Override
-	public boolean isApplicableFor(PatronRequest pr) {
-		return pr.getStatus() == Status.RESOLVED;
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		return ctx.getPatronRequest().getStatus() == Status.RESOLVED;
 	}
 
 	@Override
 	public Optional<Status> getTargetStatus() {
 		return Optional.of(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY);
+	}
+
+  @Override     
+  public String getName() {
+    return "PlacePatronRequestAtSupplyingAgencyStateTransition";
+  }
+
+	@Override
+	public boolean attemptAutomatically() {
+		return true;
 	}
 }
