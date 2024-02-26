@@ -161,7 +161,7 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 	@Override
 	public List<DCBGuardCondition> getGuardConditions() {
-		return List.of(new DCBGuardCondition("DCBRequestStatus is READY_FOR_PICKUP AND ItemStatus is LOANED"));
+		return List.of(new DCBGuardCondition("DCBRequestStatus is ( READY_FOR_PICKUP OR RECEIVED_AT_PICKUP OR PICKUP_TRANSIT ) AND ItemStatus is LOANED"));
 	}
 
 	@Override
