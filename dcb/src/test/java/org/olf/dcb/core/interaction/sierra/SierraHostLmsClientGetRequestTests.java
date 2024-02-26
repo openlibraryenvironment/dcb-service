@@ -87,4 +87,32 @@ class SierraHostLmsClientGetRequestTests {
 			hasStatus(HOLD_PLACED)
 		));
 	}
+
+	@Test
+	void itemLevelRequestIsConsideredPlaced() {
+		// Arrange
+		final var localRequestId = "4653851";
+
+		sierraPatronsAPIFixture.mockGetHoldById(localRequestId, SierraPatronHold.builder()
+			.id("%s/iii/sierra-api/v6/patrons/holds/%s".formatted(BASE_URL, localRequestId))
+			.patron("%s/iii/sierra-api/v6/patrons/%s".formatted(BASE_URL, "5729178"))
+			.recordType("i")
+			.record("%s/iii/sierra-api/v6/items/%s".formatted(BASE_URL, "7258531"))
+			.status(SierraCodeTuple.builder()
+				.code("0")
+				.build())
+			.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var foundRequest = singleValueFrom(client.getRequest(localRequestId));
+
+		// Assert
+		assertThat(foundRequest, allOf(
+			notNullValue(),
+			hasLocalId(localRequestId),
+			hasStatus(HOLD_PLACED)
+		));
+	}
 }
