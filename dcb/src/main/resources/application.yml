@@ -47,6 +47,7 @@ micronaut:
     client:
       read-timeout: PT1M
       max-content-length: 20971520
+      connect-ttl: PT30S
       
   metrics:
     enabled: true
