@@ -123,8 +123,13 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ( ctx.getPatronRequest().getStatus() == PatronRequest.Status.READY_FOR_PICKUP &&
-			ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_LOANED) );
+		return
+			(
+				( ctx.getPatronRequest().getStatus() == PatronRequest.Status.READY_FOR_PICKUP ) ||
+				( ctx.getPatronRequest().getStatus() == PatronRequest.Status.RECEIVED_AT_PICKUP ) ||
+				( ctx.getPatronRequest().getStatus() == PatronRequest.Status.PICKUP_TRANSIT )
+			) &&
+			( ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_LOANED) );
 	}
 
 	@Override
@@ -153,7 +158,7 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 	@Override
 	public List<DCBGuardCondition> getGuardConditions() {
-		return List.of(new DCBGuardCondition("DCBRequestStatus is READY_FOR_PICKUP AND ItemStatus is LOANED"));
+		return List.of(new DCBGuardCondition("DCBRequestStatus is ( READY_FOR_PICKUP OR RECEIVED_AT_PICKUP OR PICKUP_TRANSIT ) AND ItemStatus is LOANED"));
 	}
 
 	@Override
