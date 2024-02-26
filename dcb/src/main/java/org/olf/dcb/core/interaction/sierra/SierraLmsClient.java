@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import static io.micronaut.core.util.StringUtils.isEmpty;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
@@ -681,6 +682,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	// Informed by
 	// https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
 	private String mapSierraHoldStatusToDCBHoldStatus(String code) {
+		if (isEmpty(code)) {
+			throw new RuntimeException("Hold from Host LMS \"%s\" has no status code"
+				.formatted(getHostLmsCode()));
+		}
+
 		return switch (code) {
 			case "0" -> HostLmsRequest.HOLD_PLACED;
 			case "b" -> HostLmsRequest.HOLD_READY; // Bib ready for pickup
