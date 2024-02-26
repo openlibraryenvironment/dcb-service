@@ -38,6 +38,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 
+import io.micronaut.http.client.exceptions.ResponseClosedException;
+import io.micronaut.retry.annotation.Retryable;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CannotPlaceRequestException;
@@ -809,7 +811,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	 * @param <TResponse> Type to deserialize the response to
 	 * @param <TRequest> Type of the request body
 	 */
-	private <TResponse, TRequest> Mono<TResponse> makeRequest(
+	@Retryable(attempts="1", includes = ResponseClosedException.class)
+	public <TResponse, TRequest> Mono<TResponse> makeRequest(
 		@NonNull MutableHttpRequest<TRequest> request, @NonNull Argument<TResponse> responseBodyType,
 		Function<Mono<TResponse>, Mono<TResponse>> errorHandlingTransformer) {
 
