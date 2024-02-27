@@ -289,7 +289,7 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.getStatus().getErrorMessage(), is(nullValue()));
 
 		assertThat(fetchedPatronRequest.getLocalRequest().getId(), is("864902"));
-		assertThat(fetchedPatronRequest.getLocalRequest().getStatus(), is("CONFIRMED"));
+		assertThat(fetchedPatronRequest.getLocalRequest().getStatus(), is("PLACED"));
 		assertThat(fetchedPatronRequest.getLocalRequest().getItemId(), is("7916922"));
 		assertThat(fetchedPatronRequest.getLocalRequest().getBibId(), is("7916920"));
 
@@ -319,12 +319,12 @@ class PatronRequestApiTests {
 		assertThat(supplierRequest.getHostLmsCode(), is(HOST_LMS_CODE));
 		assertThat(supplierRequest.getStatus(), is("PLACED"));
 		assertThat(supplierRequest.getLocalHoldId(), is("407557"));
-		assertThat(supplierRequest.getLocalHoldStatus(), is("CONFIRMED"));
+		assertThat(supplierRequest.getLocalHoldStatus(), is("PLACED"));
 
 		assertThat(supplierRequest.getItem(), is(notNullValue()));
 
 		// Sierra HostLMS client has now been changed to adopt the item-id returned in the hold request
-		// This is to cater for bib level holds where the item selected may be different to the item targeted
+		// This is to cater for bib level holds where the item selected may be different to the item targetted
 		// Originally this test checked that the item ID was 1000002 as requested - as of 2024-02-17 we check that
 		// the item ID is the one returned by the patron request.
 		// assertThat(supplierRequest.getItem().getId(), is("1000002"));

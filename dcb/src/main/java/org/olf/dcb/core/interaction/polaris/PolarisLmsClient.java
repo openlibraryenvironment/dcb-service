@@ -185,11 +185,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		return appServicesClient.getLocalHoldRequest(Integer.valueOf(localRequestId))
-			.map(hold -> HostLmsRequest.builder()
+			.map(LibraryHold::getSysHoldStatus)
+			.map(status -> HostLmsRequest.builder()
 				.localId(localRequestId)
-				.status(checkHoldStatus(hold.getSysHoldStatus()))
-				.requestedItemId(getValue(hold, LibraryHold::getItemRecordID, Object::toString))
-				.requestedItemBarcode(getValue(hold, LibraryHold::getItemBarcode))
+				.status(checkHoldStatus(status))
 				.build());
 	}
 

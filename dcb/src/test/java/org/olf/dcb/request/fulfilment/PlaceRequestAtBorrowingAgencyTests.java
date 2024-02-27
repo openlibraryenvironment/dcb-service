@@ -200,7 +200,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		assertThat("Patron request should not be null", pr, is(notNullValue()));
 		assertThat("Status code wasn't expected.", pr.getStatus(), is(Status.REQUEST_PLACED_AT_BORROWING_AGENCY));
 		assertThat("Local request id wasn't expected.", pr.getLocalRequestId(), is("864902"));
-		assertThat("Local request status wasn't expected.", pr.getLocalRequestStatus(), is("CONFIRMED"));
+		assertThat("Local request status wasn't expected.", pr.getLocalRequestStatus(), is("PLACED"));
 
 		assertSuccessfulTransitionAudit(pr);
 

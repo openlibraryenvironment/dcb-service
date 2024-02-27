@@ -1,7 +1,6 @@
 package org.olf.dcb.test.matchers;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.hasProperty;
 
 import org.hamcrest.Matcher;
@@ -12,31 +11,7 @@ public class HostLmsRequestMatchers {
 		return hasProperty("status", is(expectedStatus));
 	}
 
-	public static Matcher<HostLmsRequest> hasNoStatus() {
-		return hasProperty("status", is(nullValue()));
-	}
-
 	public static Matcher<HostLmsRequest> hasLocalId(String expectedId) {
 		return hasProperty("localId", is(expectedId));
-	}
-
-	public static Matcher<HostLmsRequest> hasNoLocalId() {
-		return hasProperty("localId", is(nullValue()));
-	}
-
-	public static Matcher<HostLmsRequest> hasRequestedItemId(String expectedId) {
-		return hasProperty("requestedItemId", is(expectedId));
-	}
-
-	public static Matcher<HostLmsRequest> hasNoRequestedItemId() {
-		return hasProperty("requestedItemId", is(nullValue()));
-	}
-
-	public static Matcher<HostLmsRequest> hasRequestedItemBarcode(String expectedBarcode) {
-		return hasProperty("requestedItemBarcode", is(expectedBarcode));
-	}
-
-	public static Matcher<HostLmsRequest> hasNoRequestedItemBarcode() {
-		return hasProperty("requestedItemBarcode", is(nullValue()));
 	}
 }

@@ -8,8 +8,6 @@ import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasLocalId;
-import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedItemBarcode;
-import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedItemId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
@@ -64,9 +62,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		assertThat(localRequest, allOf(
 			notNullValue(),
 			hasLocalId(localRequestId),
-			hasStatus("CONFIRMED"),
-			hasNoRequestedItemId(),
-			hasNoRequestedItemBarcode()
+			hasStatus("CONFIRMED")
 		));
 	}
 
@@ -86,9 +82,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		assertThat(localRequest, allOf(
 			notNullValue(),
 			hasLocalId(localRequestId),
-			hasStatus("TRANSIT"),
-			hasNoRequestedItemId(),
-			hasNoRequestedItemBarcode()
+			hasStatus("TRANSIT")
 		));
 	}
 
@@ -108,9 +102,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		assertThat(localRequest, allOf(
 			notNullValue(),
 			hasLocalId(localRequestId),
-			hasStatus("CANCELLED"),
-			hasNoRequestedItemId(),
-			hasNoRequestedItemBarcode()
+			hasStatus("CANCELLED")
 		));
 	}
 
@@ -140,9 +132,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		assertThat(localRequest, allOf(
 			notNullValue(),
 			hasLocalId(localRequestId),
-			hasStatus("MISSING"),
-			hasNoRequestedItemId(),
-			hasNoRequestedItemBarcode()
+			hasStatus("MISSING")
 		));
 	}
 
@@ -163,9 +153,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		assertThat(localRequest, allOf(
 			notNullValue(),
 			hasLocalId(localRequestId),
-			hasStatus(transactionStatus),
-			hasNoRequestedItemId(),
-			hasNoRequestedItemBarcode()
+			hasStatus(transactionStatus)
 		));
 	}
 

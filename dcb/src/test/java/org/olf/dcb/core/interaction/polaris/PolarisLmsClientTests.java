@@ -417,9 +417,7 @@ class PolarisLmsClientTests {
 		assertThat(request, allOf(
 			notNullValue(),
 			HostLmsRequestMatchers.hasLocalId(localHoldId),
-			hasStatus(HOLD_CONFIRMED),
-			HostLmsRequestMatchers.hasRequestedItemId("6737455"),
-			HostLmsRequestMatchers.hasRequestedItemBarcode("785574212")
+			hasStatus(HOLD_CONFIRMED)
 		));
 	}
 
@@ -444,9 +442,7 @@ class PolarisLmsClientTests {
 		assertThat(request, allOf(
 			notNullValue(),
 			HostLmsRequestMatchers.hasLocalId(localHoldId),
-			hasStatus(HOLD_CANCELLED),
-			HostLmsRequestMatchers.hasRequestedItemId("6737455"),
-			HostLmsRequestMatchers.hasRequestedItemBarcode("785574212")
+			hasStatus(HOLD_CANCELLED)
 		));
 	}
 
@@ -471,9 +467,7 @@ class PolarisLmsClientTests {
 		assertThat(request, allOf(
 			notNullValue(),
 			HostLmsRequestMatchers.hasLocalId(localHoldId),
-			hasStatus(HOLD_READY),
-			HostLmsRequestMatchers.hasRequestedItemId("6737455"),
-			HostLmsRequestMatchers.hasRequestedItemBarcode("785574212")
+			hasStatus(HOLD_READY)
 		));
 	}
 
@@ -498,11 +492,10 @@ class PolarisLmsClientTests {
 		assertThat(request, allOf(
 			notNullValue(),
 			HostLmsRequestMatchers.hasLocalId(localHoldId),
-			hasStatus(HOLD_TRANSIT),
-			HostLmsRequestMatchers.hasRequestedItemId("6737455"),
-			HostLmsRequestMatchers.hasRequestedItemBarcode("785574212")
+			hasStatus(HOLD_TRANSIT)
 		));
 	}
+
 
 	@Test
 	void shouldBeAbleToCreateVirtualPatron() {
