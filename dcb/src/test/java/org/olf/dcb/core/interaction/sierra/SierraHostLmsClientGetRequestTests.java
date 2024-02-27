@@ -43,6 +43,7 @@ class SierraHostLmsClientGetRequestTests {
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@BeforeEach
 	void beforeEach(MockServerClient mockServerClient) {
@@ -60,6 +61,7 @@ class SierraHostLmsClientGetRequestTests {
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "title");
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 	}
 
 	@Test
@@ -106,6 +108,13 @@ class SierraHostLmsClientGetRequestTests {
 				.code("0")
 				.build())
 			.build());
+
+		sierraItemsAPIFixture.mockGetItemById(localItemId,
+			SierraItem.builder()
+				.id(localItemId)
+				.barcode("6732553")
+				.statusCode("-")
+				.build());
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
