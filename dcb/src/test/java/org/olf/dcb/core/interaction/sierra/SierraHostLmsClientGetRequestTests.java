@@ -7,8 +7,10 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoLocalId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRequestedItemId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedItemId;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoStatus;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -127,6 +129,27 @@ class SierraHostLmsClientGetRequestTests {
 			hasLocalId(localRequestId),
 			hasStatus(HOLD_PLACED),
 			hasRequestedItemId(localItemId)
+		));
+	}
+
+	@Test
+	void shouldTolerateEmptyHoldResponse() {
+		// Arrange
+		final var localRequestId = "374762143";
+
+		sierraPatronsAPIFixture.mockGetHoldById(localRequestId, SierraPatronHold.builder().build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var foundRequest = singleValueFrom(client.getRequest(localRequestId));
+
+		// Assert
+		assertThat(foundRequest, allOf(
+			notNullValue(),
+			hasNoLocalId(),
+			hasNoStatus(),
+			hasNoRequestedItemId()
 		));
 	}
 }

@@ -12,8 +12,16 @@ public class HostLmsRequestMatchers {
 		return hasProperty("status", is(expectedStatus));
 	}
 
+	public static Matcher<HostLmsRequest> hasNoStatus() {
+		return hasProperty("status", is(nullValue()));
+	}
+
 	public static Matcher<HostLmsRequest> hasLocalId(String expectedId) {
 		return hasProperty("localId", is(expectedId));
+	}
+
+	public static Matcher<HostLmsRequest> hasNoLocalId() {
+		return hasProperty("localId", is(nullValue()));
 	}
 
 	public static Matcher<HostLmsRequest> hasRequestedItemId(String expectedId) {
