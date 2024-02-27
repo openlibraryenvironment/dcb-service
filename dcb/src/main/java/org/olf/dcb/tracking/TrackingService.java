@@ -1,5 +1,9 @@
 package org.olf.dcb.tracking;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Function;
+
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -14,14 +18,10 @@ import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
-import org.reactivestreams.Publisher;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.micronaut.scheduling.processor.AppTask;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @Slf4j
 @Refreshable
@@ -62,80 +62,71 @@ public class TrackingService implements Runnable {
 			return;
 		}
 
-		log.info("Starting Scheduled Tracking Ingest");
-
-		// Go out and collect any status information.
-		trackSupplierItems()
-			.flatMap(this::enrichWithPatronRequest)
-			.flatMap(this::checkSupplierItem)
-			.subscribe( 
-				value -> {},
-				error -> log.error("TrackingError (SupplierItem): ", error),
-				() -> log.info("active supplier item tracking complete"));
-
-		trackActiveSupplierHolds()
-      .flatMap(this::enrichWithPatronRequest)
-			.flatMap(this::checkSupplierRequest)
-			.subscribe( 
-				value -> {},
-				error -> log.error("TrackingError (SupplierHold): ", error),
-				() -> log.info("active supplier hold tracking complete"));
-
-		trackVirtualItems()
-			.flatMap(this::checkVirtualItem)
-			.subscribe( 
-				value -> {},
-				error -> log.error("TrackingError (VirtualItem): ", error),
-				() -> log.info("active borrower virtual item tracking complete"));
-
-		// Do this last - to advance requests before dealing with any cancellations
-		trackActivePatronRequestHolds()
-			.flatMap(this::checkPatronRequest)
-			.subscribe( 
-				value -> {},
-				error -> log.error("TrackingError (PatronHold): ", error),
-				() -> log.info("active borrower request tracking complete"));
-
-		// We have completed collecting information from downstream systems, now we try and progress the DCB requests
-		// based on the states of downstream systems
-
-		trackActiveDCBRequests()
-			.flatMap(this::tryToProgressDCBRequest)
+		log.info("Starting Scheduled Tracking Ingest");		
+		Mono.whenDelayError(
+				trackSupplierItems(),
+				trackActiveSupplierHolds(),
+				trackVirtualItems(),
+				trackActivePatronRequestHolds())
+		
+			.onErrorResume( error -> {
+				log.error("Error enriching collecting request data", error);
+				return Mono.empty();
+			})
+			.thenMany( Flux.defer(this::trackActiveDCBRequests) )
+			.count()
 			.subscribe(
-				value -> {},
-				error -> log.error("TrackingError (DCBRequest): ", error),
-				() -> log.info("active DCB request tracking complete"));
+					total -> log.info("Tracking completed for {} total Requests", total),
+					error -> log.error("Error when updating tracking information"));
 
 	}
 
 	private Flux<PatronRequest> trackActiveDCBRequests() {
 		log.info("trackActiveDCBRequests()");
-		return Flux.from(patronRequestRepository.findProgressibleDCBRequests());
+		return Flux.from(patronRequestRepository.findProgressibleDCBRequests())
+			.flatMap(this::tryToProgressDCBRequest)
+			.transform(enrichWithLogging("active DCB request tracking complete", "TrackingError (DCBRequest):"));
 	}
 
-	public Flux<PatronRequest> trackActivePatronRequestHolds() {
+	private Flux<PatronRequest> trackActivePatronRequestHolds() {
 		log.info("trackActivePatronRequestHolds()");
-		return Flux.from(patronRequestRepository.findTrackedPatronHolds());
+		return Flux.from(patronRequestRepository.findTrackedPatronHolds())
+			.flatMap(this::checkPatronRequest)
+			.transform(enrichWithLogging("active borrower request tracking complete", "TrackingError (PatronHold):"));
 	}
 
 	// Track the state of items created in borrowing and pickup locations to track loaned (Or in transit) items
-	public Flux<PatronRequest> trackVirtualItems() {
+	private Flux<PatronRequest> trackVirtualItems() {
 		log.info("trackVirtualItems()");
-		return Flux.from(patronRequestRepository.findTrackedVirtualItems());
+		return Flux.from(patronRequestRepository.findTrackedVirtualItems())
+			.flatMap(this::checkVirtualItem)
+			.transform(enrichWithLogging("active borrower virtual item tracking complete", "TrackingError (VirtualItem):"));
 	}
 
-	public Flux<SupplierRequest> trackSupplierItems() {
+	private <T> Function<Flux<T>, Flux<T>> enrichWithLogging( String successMsg, String errorMsg ) {
+		return (source) -> source
+			.doOnComplete(() -> log.info(successMsg))
+			.doOnError(error -> log.error(errorMsg, error));
+	}
+	
+	private Flux<SupplierRequest> trackSupplierItems() {
 		log.info("trackSupplierItems()");
-		return Flux.from(supplierRequestRepository.findTrackedSupplierItems());
+		return Flux.from(supplierRequestRepository.findTrackedSupplierItems())
+			.flatMap(this::enrichWithPatronRequest)
+			.flatMap(this::checkSupplierItem)
+			.transform(enrichWithLogging("active supplier item tracking complete", "TrackingError (SupplierItem):"));
 	}
 
-	public Flux<SupplierRequest> trackActiveSupplierHolds() {
+	private Flux<SupplierRequest> trackActiveSupplierHolds() {
 		log.info("trackActiveSupplierHolds()");
-		return Flux.from(supplierRequestRepository.findTrackedSupplierHolds());
+		return Flux.from(supplierRequestRepository.findTrackedSupplierHolds())
+      .flatMap(this::enrichWithPatronRequest)
+			.flatMap(this::checkSupplierRequest)
+			.transform(enrichWithLogging("active supplier hold tracking complete", "TrackingError (SupplierHold):"));
 	}
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
-	public Mono<PatronRequest> checkPatronRequest(PatronRequest pr) {
+	protected Mono<PatronRequest> checkPatronRequest(PatronRequest pr) {
 		log.info("TRACKING Check patron request {}", pr);
 
 		return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
@@ -161,7 +152,7 @@ public class TrackingService implements Runnable {
 	}
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
-	public Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
+	protected Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
 		log.info("TRACKING Check (local) virtualItem from patron request {} {} {}",
 			pr.getLocalItemId(), pr.getLocalItemStatus(), pr.getPatronHostlmsCode());
 
@@ -197,7 +188,7 @@ public class TrackingService implements Runnable {
 	}
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
-	public Mono<SupplierRequest> checkSupplierItem(SupplierRequest sr) {
+	protected Mono<SupplierRequest> checkSupplierItem(SupplierRequest sr) {
 		log.info("TRACKING Check (hostlms) supplierItem from supplier request item={} status={} code={}",
 			sr.getLocalItemId(), sr.getLocalItemStatus(), sr.getHostLmsCode());
 
@@ -233,7 +224,7 @@ public class TrackingService implements Runnable {
 	}
 
   // Look up the patron request and add it to the supplier request as a full object instead of a stub
-	public Mono<SupplierRequest> enrichWithPatronRequest(SupplierRequest sr) {
+	private Mono<SupplierRequest> enrichWithPatronRequest(SupplierRequest sr) {
 		return Mono.from(patronRequestRepository.findById(sr.getPatronRequest().getId()))
 			.flatMap(pr -> {
 				sr.setPatronRequest(pr);
@@ -242,7 +233,7 @@ public class TrackingService implements Runnable {
 	}
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
-	public Mono<SupplierRequest> checkSupplierRequest(SupplierRequest sr) {
+	protected Mono<SupplierRequest> checkSupplierRequest(SupplierRequest sr) {
 		log.info("TRACKING Check supplier request {} with local status \"{}\"", sr.getId(), sr.getLocalStatus());
 
 		// We fetch the state of the hold at the supplying library. If it is different to the last state
@@ -294,7 +285,7 @@ public class TrackingService implements Runnable {
 	}
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
-	public Flux<PatronRequest> tryToProgressDCBRequest(PatronRequest patronRequest) {
+	protected Flux<PatronRequest> tryToProgressDCBRequest(PatronRequest patronRequest) {
 		log.debug("Attempt to progress {}:{}",patronRequest.getId(),patronRequest.getStatus());
 		return patronRequestWorkflowService.progressAll(patronRequest);
 	}
