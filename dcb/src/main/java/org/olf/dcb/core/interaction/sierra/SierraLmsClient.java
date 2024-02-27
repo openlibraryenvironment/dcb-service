@@ -13,6 +13,7 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.booleanProp
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.integerPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_READY;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
@@ -693,7 +694,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		}
 
 		return switch (code) {
-			case "0" -> HOLD_PLACED;
+			case "0" -> {
+				// Hold is only considered confirmed when it is for a specific item
+				if (hold.recordType().equals("i")) {
+					yield HOLD_CONFIRMED;
+				}
+				else {
+					yield HOLD_PLACED;
+				}
+			}
 			case "b" -> HOLD_READY; // Bib ready for pickup
 			case "j" -> HOLD_READY; // volume ready for pickup
 			case "i" -> HOLD_READY; // Item ready for pickup

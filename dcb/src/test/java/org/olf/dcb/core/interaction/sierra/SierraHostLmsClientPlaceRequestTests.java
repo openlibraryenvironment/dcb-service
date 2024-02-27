@@ -102,7 +102,7 @@ class SierraHostLmsClientPlaceRequestTests {
 			hasLocalId("864904"),
 			hasRequestedItemId("6747235"),
 			hasRequestedItemBarcode("38275735"),
-			hasLocalStatus("PLACED")
+			hasLocalStatus("CONFIRMED")
 		));
 	}
 
@@ -147,7 +147,7 @@ class SierraHostLmsClientPlaceRequestTests {
 			hasLocalId("864904"),
 			hasRequestedItemId("4635563"),
 			hasRequestedItemBarcode("6732553"),
-			hasLocalStatus("PLACED")
+			hasLocalStatus("CONFIRMED")
 		));
 	}
 
@@ -188,7 +188,7 @@ class SierraHostLmsClientPlaceRequestTests {
 			hasLocalId("864904"),
 			hasRequestedItemId(localItemId),
 			hasNoRequestedItemBarcode(),
-			hasLocalStatus("PLACED")
+			hasLocalStatus("CONFIRMED")
 		));
 	}
 
