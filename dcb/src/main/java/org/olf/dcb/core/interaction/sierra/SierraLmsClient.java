@@ -1046,8 +1046,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("mapToHostLmsRequest({})", sierraHold);
 
 		if ((sierraHold != null) && (sierraHold.id() != null)) {
-			// Hold API sends back a hatheos style URI - we just want the hold ID
-			String holdId = sierraHold.id().substring(sierraHold.id().lastIndexOf('/') + 1);
+			final var holdId = deRestify(sierraHold.id());
 
 			String requestedItemId = null;
 
@@ -1069,7 +1068,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		log.debug("getRequest({})", localRequestId);
-		
+
 		return Mono.from(client.getHold(Long.valueOf(localRequestId)))
 			.flatMap(this::mapToHostLmsRequest)
 			.defaultIfEmpty(new HostLmsRequest(localRequestId, "MISSING"));
