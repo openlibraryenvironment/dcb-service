@@ -16,6 +16,12 @@ import io.micronaut.core.annotation.Nullable;
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
 public class HostLmsRequest {
+
+	public HostLmsRequest(String localId, String status) {
+		this.localId = localId;
+		this.status = status;
+	}
+
 	// Likely that the hold has been deleted from the host system
 	public static final String HOLD_MISSING="MISSING";
 
@@ -40,4 +46,8 @@ public class HostLmsRequest {
 	// N.B. That if we are unable to map a status, this string MAY contain a value not from the set above!
 	@Nullable
 	String status;
+
+	/** Once known, the local id of the item actually requested */
+	@Nullable
+	String requestedItemId;
 }

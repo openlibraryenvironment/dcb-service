@@ -1,5 +1,6 @@
 package org.olf.dcb.tracking.model;
 
+import java.util.Map;
 import java.util.UUID;
 
 import io.micronaut.serde.annotation.Serdeable;
@@ -30,6 +31,9 @@ public class StateChange implements TrackingRecord {
 
 	@ToString.Exclude
 	private Object resource;
+
+	@ToString.Exclude
+	private Map<String, Object> additionalProperties;
 
 	@Override
 	public String getTrackingRecordType() {

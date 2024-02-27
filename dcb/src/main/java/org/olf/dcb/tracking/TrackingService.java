@@ -20,6 +20,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Slf4j
 @Refreshable
 @Singleton
@@ -255,6 +258,9 @@ public class TrackingService implements Runnable {
 			.filter(hold -> !hold.getStatus().equals(sr.getLocalStatus()))
 			.flatMap(hold -> {
 				log.debug("current request status: {}", hold);
+
+				Map<String,Object> additionalProperties = new HashMap<String,Object>();
+
 				StateChange sc = StateChange.builder()
 					.patronRequestId(sr.getPatronRequest().getId())
 					.resourceType("SupplierRequest")
@@ -262,6 +268,7 @@ public class TrackingService implements Runnable {
 					.fromState(sr.getLocalStatus())
 					.toState(hold.getStatus())
 					.resource(sr)
+					.additionalProperties(additionalProperties)
 					.build();
 
 				log.info("TRACKING Publishing state change event for supplier request {}", sc);
