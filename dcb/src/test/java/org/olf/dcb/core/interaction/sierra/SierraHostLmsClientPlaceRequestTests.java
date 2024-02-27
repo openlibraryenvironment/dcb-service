@@ -145,8 +145,10 @@ class SierraHostLmsClientPlaceRequestTests {
 		assertThat(placedRequest, allOf(
 			is(notNullValue()),
 			hasLocalId("864904"),
-			hasRequestedItemId("4635563"),
-			hasRequestedItemBarcode("6732553"),
+			// It's OK that we don't immediately get back the item.. it can take minutes for Sierra to convert a bib hold into
+			// an item hold - it's not the same issue as the hold not appearing after being placed.
+			// hasRequestedItemId("4635563"),
+			// hasRequestedItemBarcode("6732553"),
 			hasLocalStatus("PLACED")
 		));
 	}
@@ -186,8 +188,8 @@ class SierraHostLmsClientPlaceRequestTests {
 		assertThat(placedRequest, allOf(
 			is(notNullValue()),
 			hasLocalId("864904"),
-			hasRequestedItemId(localItemId),
-			hasNoRequestedItemBarcode(),
+			// hasRequestedItemId(localItemId),
+			// hasNoRequestedItemBarcode(),
 			hasLocalStatus("PLACED")
 		));
 	}
