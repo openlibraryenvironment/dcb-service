@@ -14,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.cp.lock.FencedLock;
 
 import io.micronaut.context.annotation.Value;
 import io.micronaut.context.event.ApplicationEventListener;
@@ -31,6 +30,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
+import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.micronaut.concurrency.ConcurrencyGroupService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
@@ -59,24 +59,23 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 	private final List<IngestSourcesProvider> sourceProviders;
 	private final PublisherTransformationService publisherTransformationService;
 	private final RecordClusteringService recordClusteringService;
-	private final HazelcastInstance hazelcastInstance;
-	private FencedLock lock;
   private final ConcurrencyGroupService concurrency;
+  private final ReactorFederatedLockService lockService;
 
 	IngestService(BibRecordService bibRecordService, 
 		List<IngestSourcesProvider> sourceProviders, 
 		PublisherTransformationService publisherHooksService, 
 		RecordClusteringService recordClusteringService, 
-		HazelcastInstance hazelcastInstance,
+		HazelcastInstance hazelcastInstanc,
 		ConversionService conversionService,
-		ConcurrencyGroupService concurrencyGroupService) {
+		ConcurrencyGroupService concurrencyGroupService, ReactorFederatedLockService lockService) {
 
 		this.bibRecordService = bibRecordService;
 		this.sourceProviders = sourceProviders;
 		this.publisherTransformationService = publisherHooksService;
 		this.recordClusteringService = recordClusteringService;
-		this.hazelcastInstance = hazelcastInstance;
 		this.concurrency = concurrencyGroupService;
+		this.lockService = lockService;
 	}
 
 
@@ -182,26 +181,14 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 				
 				return theBib;
 			})
-//			.flatMap(this::reReadBib)
 			.doOnError ( throwable -> log.warn("ONERROR Error after clustering step", throwable) );
 	}
-	
-//	@Transactional(propagation = Propagation.MANDATORY)
-//	protected Mono<BibRecord> reReadBib ( BibRecord bib ) {
-//		return bibRecordService.getById( bib.getId() )
-//			.map( theBib -> {
-//				if (theBib.getContributesTo() == null)
-//					log.warn("Bib {} doesn't have cluster record", theBib);
-//				
-//				return theBib;
-//			});
-//	}
 
 	// Extracted from run() method.
 	private boolean isIngestRunning() {
     return (this.mutex != null && !this.mutex.isDisposed());
 	}
-
+	
 	@Override
 	@Scheduled(initialDelay = "20s", fixedDelay = "${dcb.ingest.interval:1m}")
 	@AppTask
@@ -214,23 +201,17 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 			return;
 		}
 
-//		if ( appState.getRunStatus() != AppStatus.RUNNING ) {
-//			log.info("App is shuttuing down - not creating any new tasks");
-//			return;
-//		}
-
 		if (lastRun != null && ChronoUnit.MINUTES.between(lastRun, Instant.now()) < 2 ) {
 			log.info("At least 2 minutes must elapse between ingest runs. Skipping as last run was {}.", lastRun);
 			return;
 		}
 		
-		log.info("Scheduled Ingest");
 
 		final long start = System.currentTimeMillis();
 
 		// Interleave sources to form 1 flux of ingest records.
 		this.mutex = getBibRecordStream()
-
+			.doOnSubscribe(_s -> log.info("Scheduled Ingest"))
 			// General handlers.
 			.doOnCancel(cleanUp(Instant.now())) // Don't change the last run
 			.onErrorResume(t -> {
@@ -258,6 +239,7 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 			})
 
 			.then(Mono.from( bibRecordService.cleanup() ))
+			.transformDeferred(lockService.withLockOrEmpty("ingest-job"))
 			.subscribe();
 	}
 

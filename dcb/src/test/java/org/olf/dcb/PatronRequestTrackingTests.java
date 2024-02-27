@@ -3,9 +3,11 @@ package org.olf.dcb;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PLACED;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.isFinalised;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalStatus;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.parallel.ResourceLock;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraHold;
@@ -34,14 +37,11 @@ import org.olf.dcb.tracking.TrackingService;
 
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import services.k_int.federation.FederatedLockService;
+import services.k_int.interaction.sierra.SierraCodeTuple;
 import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import org.olf.dcb.core.interaction.HostLmsItem;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.hasProperty;
 
 @Slf4j
 @MockServerMicronautTest
@@ -49,7 +49,7 @@ import static org.hamcrest.Matchers.hasProperty;
 public class PatronRequestTrackingTests {
 	private static final String BORROWING_HOST_LMS_CODE = "borrowing-agency-tracking-tests";
 	private static final String SUPPLYING_HOST_LMS_CODE = "supplying-agency-tracking-tests";
-
+	
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
@@ -66,9 +66,13 @@ public class PatronRequestTrackingTests {
 	private PatronRequestsFixture patronRequestsFixture;
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
+	
+	@Inject
+	private FederatedLockService federatedLockService;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
+	
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
@@ -92,7 +96,7 @@ public class PatronRequestTrackingTests {
 		// Arrange
 		final var patronRequest = createPatronRequest(
 			request -> request
-				.status(REQUEST_PLACED_AT_BORROWING_AGENCY));
+				.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 
 		final var supplyingAgencyLocalRequestId = "11567";
 
@@ -104,12 +108,23 @@ public class PatronRequestTrackingTests {
 				// This may be somewhat artificial in order to be able to check for a change
 				.localStatus(""));
 
-		sierraPatronsAPIFixture.mockGetHoldById(supplyingAgencyLocalRequestId,
-			SierraHold.builder()
-				.statusCode("0")
-				.statusName("on hold.")
-				.build());
+		SierraHold hold = SierraHold.builder()
+			.statusCode("0")
+			.statusName("on hold.")
+			.build();
+		sierraPatronsAPIFixture.mockGetHoldById(supplyingAgencyLocalRequestId, SierraPatronHold.builder()
+			.id("https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/" + supplyingAgencyLocalRequestId)
+			.patron("https://sandbox.iii.com/iii/sierra-api/v6/patrons/6747241")
+			.recordType("b")
+			.record("https://sandbox.iii.com/iii/sierra-api/v6/items/4735431")
+			.status(SierraCodeTuple.builder()
+				.code("0")
+				.build())
+			.build());
 
+		// Because there is locking on runs of the tracking service we need to wait until we know it'll run.
+		federatedLockService.waitMaxForNoFederatedLock(TrackingService.LOCK_NAME, 10000);
+		
 		// Act
 		trackingService.run();
 
@@ -145,6 +160,9 @@ public class PatronRequestTrackingTests {
 		sierraItemsAPIFixture.mockGetItemById(borrowingAgencyLocalItemId,
 			exampleSierraItem(borrowingAgencyLocalItemId));
 
+		// Because there is locking on runs of the tracking service we need to wait until we know it'll run.
+		federatedLockService.waitMaxForNoFederatedLock(TrackingService.LOCK_NAME, 10000);
+		
 		// Act
 		trackingService.run();
 
@@ -195,11 +213,6 @@ public class PatronRequestTrackingTests {
 		additionalAttributes.accept(builder);
 
 		return supplierRequestsFixture.saveSupplierRequest(builder.build());
-	}
-
-	private void waitUntilPatronRequestIsFinalised(PatronRequest patronRequest) {
-		await().atMost(5, SECONDS)
-			.until(() -> getPatronRequest(patronRequest.getId()), isFinalised());
 	}
 
 
