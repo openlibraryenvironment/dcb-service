@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRequestedItemId;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedItemId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -84,7 +86,8 @@ class SierraHostLmsClientGetRequestTests {
 		assertThat(foundRequest, allOf(
 			notNullValue(),
 			hasLocalId(localRequestId),
-			hasStatus(HOLD_PLACED)
+			hasStatus(HOLD_PLACED),
+			hasNoRequestedItemId()
 		));
 	}
 
@@ -92,12 +95,13 @@ class SierraHostLmsClientGetRequestTests {
 	void itemLevelRequestIsConsideredPlaced() {
 		// Arrange
 		final var localRequestId = "4653851";
+		final var localItemId = "7258531";
 
 		sierraPatronsAPIFixture.mockGetHoldById(localRequestId, SierraPatronHold.builder()
 			.id("%s/iii/sierra-api/v6/patrons/holds/%s".formatted(BASE_URL, localRequestId))
 			.patron("%s/iii/sierra-api/v6/patrons/%s".formatted(BASE_URL, "5729178"))
 			.recordType("i")
-			.record("%s/iii/sierra-api/v6/items/%s".formatted(BASE_URL, "7258531"))
+			.record("%s/iii/sierra-api/v6/items/%s".formatted(BASE_URL, localItemId))
 			.status(SierraCodeTuple.builder()
 				.code("0")
 				.build())
@@ -112,7 +116,8 @@ class SierraHostLmsClientGetRequestTests {
 		assertThat(foundRequest, allOf(
 			notNullValue(),
 			hasLocalId(localRequestId),
-			hasStatus(HOLD_PLACED)
+			hasStatus(HOLD_PLACED),
+			hasRequestedItemId(localItemId)
 		));
 	}
 }
