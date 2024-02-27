@@ -1051,11 +1051,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		final var holdId = deRestify(sierraHold.id());
 
-		String requestedItemId = null;
-
-		if ((sierraHold.recordType() != null) && (sierraHold.recordType().equals("i"))) {
-			requestedItemId = deRestify(sierraHold.record());
-		}
+		final var requestedItemId = (sierraHold.recordType() != null) && (sierraHold.recordType().equals("i"))
+			? deRestify(sierraHold.record())
+			: null;
 
 		// Map the hold status into a canonical value
 		return Mono.just(new HostLmsRequest(holdId,
