@@ -3,9 +3,11 @@ package org.olf.dcb;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PLACED;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.isFinalised;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalStatus;
@@ -34,14 +36,10 @@ import org.olf.dcb.tracking.TrackingService;
 
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import services.k_int.interaction.sierra.SierraCodeTuple;
 import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import org.olf.dcb.core.interaction.HostLmsItem;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.hasProperty;
 
 @Slf4j
 @MockServerMicronautTest
@@ -92,7 +90,7 @@ public class PatronRequestTrackingTests {
 		// Arrange
 		final var patronRequest = createPatronRequest(
 			request -> request
-				.status(REQUEST_PLACED_AT_BORROWING_AGENCY));
+				.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 
 		final var supplyingAgencyLocalRequestId = "11567";
 
@@ -104,11 +102,19 @@ public class PatronRequestTrackingTests {
 				// This may be somewhat artificial in order to be able to check for a change
 				.localStatus(""));
 
-		sierraPatronsAPIFixture.mockGetHoldById(supplyingAgencyLocalRequestId,
-			SierraHold.builder()
-				.statusCode("0")
-				.statusName("on hold.")
-				.build());
+		SierraHold hold = SierraHold.builder()
+			.statusCode("0")
+			.statusName("on hold.")
+			.build();
+		sierraPatronsAPIFixture.mockGetHoldById(supplyingAgencyLocalRequestId, SierraPatronHold.builder()
+			.id("https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/" + supplyingAgencyLocalRequestId)
+			.patron("https://sandbox.iii.com/iii/sierra-api/v6/patrons/6747241")
+			.recordType("b")
+			.record("https://sandbox.iii.com/iii/sierra-api/v6/items/4735431")
+			.status(SierraCodeTuple.builder()
+				.code("0")
+				.build())
+			.build());
 
 		// Act
 		trackingService.run();
