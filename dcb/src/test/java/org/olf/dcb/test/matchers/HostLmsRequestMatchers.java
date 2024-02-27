@@ -31,4 +31,12 @@ public class HostLmsRequestMatchers {
 	public static Matcher<HostLmsRequest> hasNoRequestedItemId() {
 		return hasProperty("requestedItemId", is(nullValue()));
 	}
+
+	public static Matcher<HostLmsRequest> hasRequestedItemBarcode(String expectedBarcode) {
+		return hasProperty("requestedItemBarcode", is(expectedBarcode));
+	}
+
+	public static Matcher<HostLmsRequest> hasNoRequestedItemBarcode() {
+		return hasProperty("requestedItemBarcode", is(nullValue()));
+	}
 }

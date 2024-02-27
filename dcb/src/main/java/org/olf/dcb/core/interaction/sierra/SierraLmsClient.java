@@ -1058,7 +1058,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// Map the hold status into a canonical value
 		final var status = determineLocalStatus(sierraHold);
 
-		return Mono.just(new HostLmsRequest(holdId, status, requestedItemId));
+		if (requestedItemId != null) {
+			return getItem(requestedItemId, holdId)
+				.map(item -> new HostLmsRequest(holdId, status, requestedItemId, item.getBarcode()));
+		}
+		else {
+			return Mono.just(new HostLmsRequest(holdId, status, requestedItemId, null));
+		}
 	}
 
 	private String determineLocalStatus(SierraPatronHold sierraHold) {

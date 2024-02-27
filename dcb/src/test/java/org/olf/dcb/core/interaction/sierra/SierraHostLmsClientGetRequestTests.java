@@ -8,9 +8,11 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoLocalId;
-import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRequestedItemId;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedItemBarcode;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedItemId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoStatus;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRequestedItemBarcode;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRequestedItemId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -128,9 +130,44 @@ class SierraHostLmsClientGetRequestTests {
 			notNullValue(),
 			hasLocalId(localRequestId),
 			hasStatus(HOLD_PLACED),
-			hasRequestedItemId(localItemId)
+			hasRequestedItemId(localItemId),
+			hasRequestedItemBarcode("6732553")
 		));
 	}
+
+	@Test
+	void shouldTolerateItemNotFoundForItemLevelRequest() {
+		// Arrange
+		final var localRequestId = "7859234";
+		final var localItemId = "4825621";
+
+		sierraPatronsAPIFixture.mockGetHoldById(localRequestId, SierraPatronHold.builder()
+			.id("%s/iii/sierra-api/v6/patrons/holds/%s".formatted(BASE_URL, localRequestId))
+			.patron("%s/iii/sierra-api/v6/patrons/%s".formatted(BASE_URL, "5729178"))
+			.recordType("i")
+			.record("%s/iii/sierra-api/v6/items/%s".formatted(BASE_URL, localItemId))
+			.status(SierraCodeTuple.builder()
+				.code("0")
+				.build())
+			.build());
+
+		sierraItemsAPIFixture.mockGetItemByIdReturnNoRecordsFound(localItemId);
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var foundRequest = singleValueFrom(client.getRequest(localRequestId));
+
+		// Assert
+		assertThat(foundRequest, allOf(
+			notNullValue(),
+			hasLocalId(localRequestId),
+			hasStatus(HOLD_PLACED),
+			hasRequestedItemId(localItemId),
+			hasNoRequestedItemBarcode()
+		));
+	}
+
 
 	@Test
 	void shouldTolerateEmptyHoldResponse() {
@@ -149,7 +186,8 @@ class SierraHostLmsClientGetRequestTests {
 			notNullValue(),
 			hasNoLocalId(),
 			hasNoStatus(),
-			hasNoRequestedItemId()
+			hasNoRequestedItemId(),
+			hasNoRequestedItemBarcode()
 		));
 	}
 }
