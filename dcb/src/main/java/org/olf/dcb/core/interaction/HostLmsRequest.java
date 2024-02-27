@@ -50,4 +50,8 @@ public class HostLmsRequest {
 	/** Once known, the local id of the item actually requested */
 	@Nullable
 	String requestedItemId;
+
+	/** Once known, the local barcode of the item actually requested */
+	@Nullable
+	String requestedItemBarcode;
 }

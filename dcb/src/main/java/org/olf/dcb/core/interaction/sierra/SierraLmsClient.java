@@ -1070,8 +1070,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 			// Map the hold status into a canonical value
 			return new HostLmsRequest(holdId,
-				sierraHold.status() != null ? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code(), requestedItemId) : "",
-				requestedItemId);
+				sierraHold.status() != null
+					? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code(), requestedItemId)
+					: "",
+				requestedItemId, null);
 		} else {
 			return new HostLmsRequest();
 		}
