@@ -1045,24 +1045,24 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<HostLmsRequest> mapToHostLmsRequest(SierraPatronHold sierraHold) {
 		log.debug("mapToHostLmsRequest({})", sierraHold);
 
-		if ((sierraHold != null) && (sierraHold.id() != null)) {
-			final var holdId = deRestify(sierraHold.id());
-
-			String requestedItemId = null;
-
-			if ((sierraHold.recordType() != null) && (sierraHold.recordType().equals("i"))) {
-				requestedItemId = deRestify(sierraHold.record());
-			}
-
-			// Map the hold status into a canonical value
-			return Mono.just(new HostLmsRequest(holdId,
-				sierraHold.status() != null
-					? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code())
-					: "",
-				requestedItemId));
-		} else {
+		if ((sierraHold == null) || (sierraHold.id() == null)) {
 			return Mono.just(new HostLmsRequest());
 		}
+
+		final var holdId = deRestify(sierraHold.id());
+
+		String requestedItemId = null;
+
+		if ((sierraHold.recordType() != null) && (sierraHold.recordType().equals("i"))) {
+			requestedItemId = deRestify(sierraHold.record());
+		}
+
+		// Map the hold status into a canonical value
+		return Mono.just(new HostLmsRequest(holdId,
+			sierraHold.status() != null
+				? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code())
+				: "",
+			requestedItemId));
 	}
 
 	@Override
