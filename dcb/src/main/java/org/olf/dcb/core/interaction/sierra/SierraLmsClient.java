@@ -13,6 +13,9 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.booleanProp
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.integerPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_READY;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
@@ -681,18 +684,20 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	// Informed by
 	// https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
-	private String mapSierraHoldStatusToDCBHoldStatus(String code) {
+	private String mapSierraHoldStatusToDCBHoldStatus(SierraPatronHold hold) {
+		final var code = hold.status().code();
+
 		if (isEmpty(code)) {
-			throw new RuntimeException("Hold from Host LMS \"%s\" has no status code"
-				.formatted(getHostLmsCode()));
+			throw new RuntimeException("Hold from Host LMS \"%s\" has no status code: \"%s\""
+				.formatted(getHostLmsCode(), hold));
 		}
 
 		return switch (code) {
-			case "0" -> HostLmsRequest.HOLD_PLACED;
-			case "b" -> HostLmsRequest.HOLD_READY; // Bib ready for pickup
-			case "j" -> HostLmsRequest.HOLD_READY; // volume ready for pickup
-			case "i" -> HostLmsRequest.HOLD_READY; // Item ready for pickup
-			case "t" -> HostLmsRequest.HOLD_TRANSIT; // IN Transit
+			case "0" -> HOLD_PLACED;
+			case "b" -> HOLD_READY; // Bib ready for pickup
+			case "j" -> HOLD_READY; // volume ready for pickup
+			case "i" -> HOLD_READY; // Item ready for pickup
+			case "t" -> HOLD_TRANSIT; // IN Transit
 			default -> code;
 		};
 	}
@@ -728,21 +733,20 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("chooseHold({},{})", note, filteredHolds);
 
 		if (filteredHolds.size() == 1) {
+			final var hold = filteredHolds.get(0);
 
-			SierraPatronHold sph = filteredHolds.get(0);
-
-			final var extractedId = deRestify(sph.id());
-			final var localStatus = mapSierraHoldStatusToDCBHoldStatus(sph.status().code());
+			final var extractedId = deRestify(hold.id());
+			final var localStatus = mapSierraHoldStatusToDCBHoldStatus(hold);
 
 			String requestedItemId = null;
 
-			if ( ( sph.recordType().equals("i") ) && ( sph.record() != null ) ) {	
-				log.info("Found item ID returned by hold.... get the details and set requested item ID to {}", sph.record());
-				requestedItemId = deRestify(sph.record());
+			if ( ( hold.recordType().equals("i") ) && ( hold.record() != null ) ) {
+				log.info("Found item ID returned by hold.... get the details and set requested item ID to {}", hold.record());
+				requestedItemId = deRestify(hold.record());
 			}
 			else {
 				final var errorMessage = "chooseHold returned a record which was NOT an item or record was null %s:%s"
-					.formatted(sph.recordType(), sph.record());
+					.formatted(hold.recordType(), hold.record());
 
 				log.warn(errorMessage);
 
@@ -1069,7 +1073,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	private String determineLocalStatus(SierraPatronHold sierraHold) {
 		return sierraHold.status() != null
-			? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code())
+			? mapSierraHoldStatusToDCBHoldStatus(sierraHold)
 			: "";
 	}
 
