@@ -1042,31 +1042,36 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLmsCode())));
 	}
 
-	public HostLmsRequest sierraPatronHoldToHostLmsHold(SierraPatronHold sierraHold) {
-		log.debug("sierraHoldToHostLmsHold({})", sierraHold);
+	public Mono<HostLmsRequest> mapToHostLmsRequest(SierraPatronHold sierraHold) {
+		log.debug("mapToHostLmsRequest({})", sierraHold);
+
 		if ((sierraHold != null) && (sierraHold.id() != null)) {
 			// Hold API sends back a hatheos style URI - we just want the hold ID
 			String holdId = sierraHold.id().substring(sierraHold.id().lastIndexOf('/') + 1);
 
 			String requestedItemId = null;
-			if ( ( sierraHold.recordType() != null ) && ( sierraHold.recordType().equals("i")) ) {
+
+			if ((sierraHold.recordType() != null) && (sierraHold.recordType().equals("i"))) {
 				requestedItemId = deRestify(sierraHold.record());
 			}
 
 			// Map the hold status into a canonical value
-			return new HostLmsRequest(holdId,
-				sierraHold.status() != null ? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code()) : "",
-				requestedItemId);
+			return Mono.just(new HostLmsRequest(holdId,
+				sierraHold.status() != null
+					? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code())
+					: "",
+				requestedItemId));
 		} else {
-			return new HostLmsRequest();
+			return Mono.just(new HostLmsRequest());
 		}
 	}
 
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		log.debug("getRequest({})", localRequestId);
+		
 		return Mono.from(client.getHold(Long.valueOf(localRequestId)))
-			.flatMap(sh -> Mono.just(sierraPatronHoldToHostLmsHold(sh)))
+			.flatMap(this::mapToHostLmsRequest)
 			.defaultIfEmpty(new HostLmsRequest(localRequestId, "MISSING"));
 	}
 
