@@ -60,11 +60,13 @@ public class TrackingService implements Runnable {
 	public void run() {
 		log.debug("DCB Tracking Service run");
 		
-		Mono.whenDelayError(
-				trackSupplierItems(),
-				trackActiveSupplierHolds(),
-				trackVirtualItems(),
-				trackActivePatronRequestHolds())
+		
+		Flux.concatDelayError(
+				Flux.defer(this::trackSupplierItems),
+				Flux.defer(this::trackActiveSupplierHolds),
+				Flux.defer(this::trackVirtualItems),
+				Flux.defer(this::trackActivePatronRequestHolds))
+		
 			.doOnSubscribe( _s -> log.info("Starting Scheduled Tracking Ingest"))
 			.onErrorResume( error -> {
 				log.error("Error enriching collecting request data", error);
