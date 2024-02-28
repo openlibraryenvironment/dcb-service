@@ -59,6 +59,8 @@ public class PatronRequest {
 		NOT_SUPPLIED_CURRENT_SUPPLIER,
 		NO_ITEMS_AVAILABLE_AT_ANY_AGENCY,
 		REQUEST_PLACED_AT_SUPPLYING_AGENCY,
+		// The supplying agency has confirmed the actual item which will be shipped
+		CONFIRMED,
 		REQUEST_PLACED_AT_BORROWING_AGENCY,
 		RECEIVED_AT_PICKUP,
 		READY_FOR_PICKUP,

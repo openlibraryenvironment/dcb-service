@@ -46,7 +46,7 @@ public class HandleSupplierRequestConfirmed implements PatronRequestStateTransit
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
 		PatronRequest patronRequest = ctx.getPatronRequest();
-		// patronRequest.setStatus(PatronRequest.Status.CONFIRMED)
+		patronRequest.setStatus(PatronRequest.Status.CONFIRMED);
 		// We need to call get hold on the supplying system and retrieve the actual item ID and barcode and then update
 		// the supplier request with the actual details so we know what to use when placing the borrower request
 		return Mono.just(ctx);
@@ -59,8 +59,7 @@ public class HandleSupplierRequestConfirmed implements PatronRequestStateTransit
 	
 	@Override
 	public Optional<PatronRequest.Status> getTargetStatus() {
-		return Optional.empty();
-		// return Optional.of(PatronRequest.Status.CONFIRMED);
+		return Optional.of(PatronRequest.Status.CONFIRMED);
 	}
 
 	@Override
