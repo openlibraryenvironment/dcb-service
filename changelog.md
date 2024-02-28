@@ -1,9 +1,90 @@
 # Changelog
 
+## Version 5.8.0
+
+### Additions
+* [General]
+	* Search hooks
+	* Distributed Federated locks in reactive flow
+	* Secure the various internal endpoints by IP or ROLE_SYSTEM
+	* Remove option to disable patron request preflight checks DCB-892
+
+### Changes
+* [Chore]
+	* stop emitting guard passed audit message - it's confusing
+	* revert change which required a bib hold to be converted to an item hold within the retry period - we can't force that and need to be able to cope with this happening asynchronously
+	* Include item information when fetching Polaris hold DCB-844
+	* Consider on hold item request from Sierra confirmed DCB-884
+	* Fetch Sierra item after fetching hold DCB-884
+	* Use elvis operator for interpreting item ID from Sierra hold DCB-884
+	* Use derestify method for interpreting Sierra hold ID DCB-884
+	* Added the ability for state changes to have additional properties
+	* added micronaut.http.client.connect-ttl to application.yml
+	* Raise error when Sierra hold status is null or empty DCB-884
+	* make place request endpoint callable by any authenticated user not just administrator role
+	* Disable DCB as a Token issuer
+	* Map pending Polaris hold to confirmed local status DCB-884
+	* Use property accessor to get Polaris hold properties DCB-884
+	* Map created folio transaction to confirmed local status DCB-884
+	* Introduce dedicated workflow action for confirmed supplier request DCB-884
+	* Replace spaces with tabs in unhandle state action DCB-884
+	* Remove typo from get tracking record type method name DCB-884
+	* Describe why audit method in Host LMS reactions has to be public
+	* Introduce confirmed Host LMS request status DCB-884
+* [Feature]
+	* Propagate hold item ID through tracking service
+	* Updates to workflow to allow bypass of borrowing library hold states and jump directly to LOANED from IN_TRANSIT
+	* Refactor to cleanly decouple tracking service and state model, merge location participation database changes.
+* [Refactor]
+	* Remove map to hold status only when fetching hold from Polaris DCB-884
+	* Pass hold instead of only status when determining status DCB-884
+	* Extract method for determining Sierra hold status DCB-884
+	* Introduce guard clause for empty hold response from Sierra DCB-884
+	* Return publisher when mapping Sierra hold to request DCB-884
+	* handle virtual item with duplicate barcode - polaris workflow [DCB-809]
+	* Make tracking record an interface DCB-884
+	* Move Host LMS reactions class DCB-884
+* [Test]
+	* Demonstrate fetch FOLIO request does not have item information DCB-884
+	* Demonstrate empty hold being returned by Sierra DCB-884
+	* Mock getting item after getting hold from Sierra DCB-884
+	* Check for item ID when getting request from Sierra DCB-884
+	* Use title level hold when detecting request is placed at supplying agency DCB-884
+	* Demonstrate getting item level request from Sierra DCB-884
+	* Demonstrate getting title level request from Sierra DCB-884
+	* Demonstrate detection of expected local status changes DCB-884
+	* Remove Polaris hold example json DCB-884
+	* Use serialisation to provide mock response for Polaris hold DCB-884
+	* Include item ID and barcode in example Polaris hold used in mocks DCB-884
+	* Check item properties for placed hold in Polaris DCB-884
+	* Check supplier request local status changed to confirmed DCB-884
+	* Check audit record is recorded after confirmation DCB-884
+	* Pass patron request with confirmed state change DCB-884
+	* Pass supplier request with confirmed state change DCB-884
+	* Invoke Host LMS reactions during confirmation test DCB-884
+	* Delete all Host LMS before confirmation reaction tests DCB-884
+	* Delete all agencies before confirmation reaction tests DCB-884
+	* Delete all supplier requests before confirmation reaction tests DCB-884
+	* Delete all patron requests before confirmation reaction tests DCB-884
+	* Introduce test class for reactions to supplier request confirmation DCB-884
+	* Use fixture to create agency before fetching all agencies DCB-884
+	* Use fixture to create host LMS when creating agency DCB-884
+	* Make agency repository tests independent DCB-884
+
+### Fixes
+* [General]
+	* Ensure tracking service is sequential.
+	* Added the means to generate the state table model as a diagram
+	* Request tracking flow out of order
+	* Added getPossibleSourceStatus to workspace handlers
+	* Map item barcode for Polaris hold to barcode instead of item ID DCB-872
+	* parse patron barcodes in folio requests
+
 ## Version 5.7.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* tune timeout on RTAC api call - 7s instead of 5
 	* logging around missing patron hold request tracking
 
