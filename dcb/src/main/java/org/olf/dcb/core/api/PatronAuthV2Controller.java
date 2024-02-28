@@ -42,8 +42,6 @@ import reactor.core.publisher.Mono;
  * create very specialised identity providers
  */
 @Controller("/v2/patron/auth")
-@Validated
-@Secured({ RoleNames.ADMINISTRATOR, RoleNames.INTERNAL_API })
 @Tag(name = "Patron Auth API v2")
 public class PatronAuthV2Controller {
 
