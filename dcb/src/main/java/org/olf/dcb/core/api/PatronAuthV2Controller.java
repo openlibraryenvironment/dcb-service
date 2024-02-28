@@ -8,7 +8,6 @@ import java.util.List;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.slf4j.Logger;
@@ -20,8 +19,8 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
+import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.serde.annotation.Serdeable;
-import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -43,6 +42,7 @@ import reactor.core.publisher.Mono;
  */
 @Controller("/v2/patron/auth")
 @Tag(name = "Patron Auth API v2")
+@Secured(SecurityRule.IS_ANONYMOUS)
 public class PatronAuthV2Controller {
 
 	private static final Logger log = LoggerFactory.getLogger(PatronAuthV2Controller.class);
