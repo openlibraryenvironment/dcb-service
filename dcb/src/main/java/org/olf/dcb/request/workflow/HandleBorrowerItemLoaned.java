@@ -58,8 +58,7 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 			// In some systems a patron can have multiple barcodes. In those systems getLocalBarcode will be encoded as [value, value, value]
 			// So we trim the opening and closing [] and split on the ", " Otherwise just split on ", " just in case
-			final String[] patron_barcodes = extractPatronBarcodes(
-				rwc.getPatronVirtualIdentity().getLocalBarcode());
+			final String[] patron_barcodes = extractPatronBarcodes(rwc.getPatronVirtualIdentity().getLocalBarcode());
 
 			if ((patron_barcodes != null) && (patron_barcodes.length > 0)) {
 
@@ -132,7 +131,10 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+
+		log.info("Execute action: HandleBorrowerItemLoaned...");
 		ctx.getPatronRequest().setStatus(PatronRequest.Status.LOANED);
+
 		return this.checkHomeItemOutToVirtualPatron(ctx)
 			// For now, PatronRequestWorkflowService will save te patron request, but we should do that here
 			// and not there - flagging this as a change needed when we refactor.
