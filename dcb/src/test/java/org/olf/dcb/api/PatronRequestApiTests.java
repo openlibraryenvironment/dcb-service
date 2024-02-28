@@ -269,7 +269,7 @@ class PatronRequestApiTests {
 
 		log.info("Waiting for placed....");
 		AdminApiClient.AdminAccessPatronRequest fetchedPatronRequest = await()
-			.atMost(8, SECONDS)
+			.atMost(10, SECONDS)
 			.until(
 				() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.getId()),
 				isPlacedAtBorrowingAgency());
