@@ -18,30 +18,32 @@ import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
 @Slf4j
 @Refreshable
 @Singleton
 public class TrackingService implements Runnable {
-	private final Disposable mutex = null;
 
+	public static final String LOCK_NAME = "tracking-service";
 	private final PatronRequestRepository patronRequestRepository;
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final SupplyingAgencyService supplyingAgencyService;
 	private final HostLmsService hostLmsService;
 	private final HostLmsReactions hostLmsReactions;
 	private final PatronRequestWorkflowService patronRequestWorkflowService;
+	private final ReactorFederatedLockService reactorFederatedLockService;
 
 	TrackingService(PatronRequestRepository patronRequestRepository,
-		SupplierRequestRepository supplierRequestRepository,
-		SupplyingAgencyService supplyingAgencyService,
-		HostLmsService hostLmsService,
-		HostLmsReactions hostLmsReactions,
-		PatronRequestWorkflowService patronRequestWorkflowService) {
+			SupplierRequestRepository supplierRequestRepository,
+			SupplyingAgencyService supplyingAgencyService,
+			HostLmsService hostLmsService,
+			HostLmsReactions hostLmsReactions,
+			PatronRequestWorkflowService patronRequestWorkflowService,
+			ReactorFederatedLockService reactorFederatedLockService) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
@@ -49,6 +51,7 @@ public class TrackingService implements Runnable {
 		this.hostLmsService = hostLmsService;
 		this.hostLmsReactions = hostLmsReactions;
 		this.patronRequestWorkflowService = patronRequestWorkflowService;
+		this.reactorFederatedLockService = reactorFederatedLockService;
 	}
 
 	@AppTask
@@ -56,24 +59,19 @@ public class TrackingService implements Runnable {
 	@Scheduled(initialDelay = "2m", fixedDelay = "${dcb.tracking.interval:5m}")
 	public void run() {
 		log.debug("DCB Tracking Service run");
-
-		if ((this.mutex != null && !this.mutex.isDisposed())) {
-			log.warn("Tracking already running skipping. Mutex: {}", this.mutex);
-			return;
-		}
-
-		log.info("Starting Scheduled Tracking Ingest");		
+		
 		Mono.whenDelayError(
 				trackSupplierItems(),
 				trackActiveSupplierHolds(),
 				trackVirtualItems(),
 				trackActivePatronRequestHolds())
-		
+			.doOnSubscribe( _s -> log.info("Starting Scheduled Tracking Ingest"))
 			.onErrorResume( error -> {
 				log.error("Error enriching collecting request data", error);
 				return Mono.empty();
 			})
 			.thenMany( Flux.defer(this::trackActiveDCBRequests) )
+			.transformDeferred(reactorFederatedLockService.withLockOrEmpty(LOCK_NAME))
 			.count()
 			.subscribe(
 					total -> log.info("Tracking completed for {} total Requests", total),
@@ -82,23 +80,23 @@ public class TrackingService implements Runnable {
 	}
 
 	private Flux<PatronRequest> trackActiveDCBRequests() {
-		log.info("trackActiveDCBRequests()");
 		return Flux.from(patronRequestRepository.findProgressibleDCBRequests())
+			.doOnSubscribe(_s -> log.info("trackActiveDCBRequests()"))
 			.flatMap(this::tryToProgressDCBRequest)
 			.transform(enrichWithLogging("active DCB request tracking complete", "TrackingError (DCBRequest):"));
 	}
 
 	private Flux<PatronRequest> trackActivePatronRequestHolds() {
-		log.info("trackActivePatronRequestHolds()");
 		return Flux.from(patronRequestRepository.findTrackedPatronHolds())
+			.doOnSubscribe(_s -> log.info("trackActivePatronRequestHolds()"))
 			.flatMap(this::checkPatronRequest)
 			.transform(enrichWithLogging("active borrower request tracking complete", "TrackingError (PatronHold):"));
 	}
 
 	// Track the state of items created in borrowing and pickup locations to track loaned (Or in transit) items
 	private Flux<PatronRequest> trackVirtualItems() {
-		log.info("trackVirtualItems()");
 		return Flux.from(patronRequestRepository.findTrackedVirtualItems())
+			.doOnSubscribe(_s -> log.info("trackVirtualItems()"))
 			.flatMap(this::checkVirtualItem)
 			.transform(enrichWithLogging("active borrower virtual item tracking complete", "TrackingError (VirtualItem):"));
 	}
@@ -110,16 +108,16 @@ public class TrackingService implements Runnable {
 	}
 	
 	private Flux<SupplierRequest> trackSupplierItems() {
-		log.info("trackSupplierItems()");
 		return Flux.from(supplierRequestRepository.findTrackedSupplierItems())
+			.doOnSubscribe(_s -> log.info("trackSupplierItems()"))
 			.flatMap(this::enrichWithPatronRequest)
 			.flatMap(this::checkSupplierItem)
 			.transform(enrichWithLogging("active supplier item tracking complete", "TrackingError (SupplierItem):"));
 	}
 
 	private Flux<SupplierRequest> trackActiveSupplierHolds() {
-		log.info("trackActiveSupplierHolds()");
 		return Flux.from(supplierRequestRepository.findTrackedSupplierHolds())
+				.doOnSubscribe(_s -> log.info("trackActiveSupplierHolds()"))
       .flatMap(this::enrichWithPatronRequest)
 			.flatMap(this::checkSupplierRequest)
 			.transform(enrichWithLogging("active supplier hold tracking complete", "TrackingError (SupplierHold):"));
@@ -250,7 +248,10 @@ public class TrackingService implements Runnable {
 			.flatMap(hold -> {
 				log.debug("current request status: {}", hold);
 
+				// If the hold has an item and/or a barcode attached, pass it along
 				Map<String,Object> additionalProperties = new HashMap<String,Object>();
+				if ( hold.getRequestedItemId() != null )
+					additionalProperties.put("RequestedItemId", hold.getRequestedItemId());
 
 				StateChange sc = StateChange.builder()
 					.patronRequestId(sr.getPatronRequest().getId())

@@ -67,6 +67,13 @@
 	<logger name="io.r2dbc.postgresql.PARAM" level="WARN" />
 	<logger name="io.r2dbc.postgresql.client.ReactorNettyClient" level="WARN" />
 	<logger name="io.micronaut.security" level="WARN" />
+	
+	
+	<logger name="services.k_int.federation" level="DEBUG"/>
+	<logger name="services.k_int.hazelcast" level="DEBUG"/>
+	
+	<logger name="com.hazelcast" level="error" />
+	<logger name="com.hazelcast.internal.cluster.ClusterService" level="info" />
 
 	<root level="info">
 		<appender-ref ref="${DCB_LOG_APPENDERS:-STDOUT_SYNC}"/>

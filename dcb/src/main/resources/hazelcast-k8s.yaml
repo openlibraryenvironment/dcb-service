@@ -8,3 +8,5 @@ hazelcast:
         enabled: true
         service-label-name: hazelcastCluster
         service-label-value: dcb
+  properties:
+    hazelcast.logging.type: slf4j

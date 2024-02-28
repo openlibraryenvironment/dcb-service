@@ -632,18 +632,27 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.then(Mono.defer(() -> getPatronHoldRequestId(parameters.getLocalPatronId(),
 					recordNumber, parameters.getNote(), parameters.getPatronRequestId()))
 				.retry(getHoldsRetryAttempts))
-			.flatMap(localRequest ->
-				getItem(localRequest.getRequestedItemId(), localRequest.getLocalId())
-					.map(item -> LocalRequest.builder()
-						.localId(localRequest.getLocalId())
-						.localStatus(localRequest.getLocalStatus())
-						.requestedItemId(localRequest.getRequestedItemId())
-						.requestedItemBarcode(item.getBarcode())
-						.build()))
+			// If we were lucky enough to get back an Item ID, go fetch the barcode, otherwise this is just a bib or volume request
+			.flatMap(localRequest -> addBarcodeIfItemIdPresent(localRequest) )
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Hold"));
 			});
+	}
+
+	private Mono<LocalRequest> addBarcodeIfItemIdPresent(LocalRequest localRequest) {
+		if ( localRequest.getRequestedItemId() != null ) {
+			return getItem(localRequest.getRequestedItemId(), localRequest.getLocalId())
+          .map(item -> LocalRequest.builder()
+            .localId(localRequest.getLocalId())
+            .localStatus(localRequest.getLocalStatus())
+            .requestedItemId(localRequest.getRequestedItemId())
+            .requestedItemBarcode(item.getBarcode())
+            .build());
+		}
+		else {
+			return Mono.just(localRequest);
+		}
 	}
 
 	private boolean shouldIncludeHold(SierraPatronHold hold, String patronRequestId) {
@@ -681,14 +690,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	// Informed by
 	// https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
-	private String mapSierraHoldStatusToDCBHoldStatus(String code) {
+	private String mapSierraHoldStatusToDCBHoldStatus(String code, String itemId) {
+
 		if (isEmpty(code)) {
 			throw new RuntimeException("Hold from Host LMS \"%s\" has no status code"
 				.formatted(getHostLmsCode()));
 		}
 
 		return switch (code) {
-			case "0" -> HostLmsRequest.HOLD_PLACED;
+			case "0" -> ( itemId != null ? HostLmsRequest.HOLD_CONFIRMED : HostLmsRequest.HOLD_PLACED );
 			case "b" -> HostLmsRequest.HOLD_READY; // Bib ready for pickup
 			case "j" -> HostLmsRequest.HOLD_READY; // volume ready for pickup
 			case "i" -> HostLmsRequest.HOLD_READY; // Item ready for pickup
@@ -732,7 +742,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			SierraPatronHold sph = filteredHolds.get(0);
 
 			final var extractedId = deRestify(sph.id());
-			final var localStatus = mapSierraHoldStatusToDCBHoldStatus(sph.status().code());
 
 			String requestedItemId = null;
 
@@ -740,15 +749,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				log.info("Found item ID returned by hold.... get the details and set requested item ID to {}", sph.record());
 				requestedItemId = deRestify(sph.record());
 			}
-			else {
-				final var errorMessage = "chooseHold returned a record which was NOT an item or record was null %s:%s"
-					.formatted(sph.recordType(), sph.record());
+			final var localStatus = mapSierraHoldStatusToDCBHoldStatus(sph.status().code(), requestedItemId);
 
-				log.warn(errorMessage);
-
+			// 
+			// It's not an error if the hold returns a bib record - that just means that this hold has not yet confirmed
+			// Choose hold is about selecting the hold for the request by checking that the note contains the request ID
+			// IF it's become an item level hold then we return the selected item ID, but we don't want to throw an exception
+			// just because the bib hold has not yet been converted to an item hold
+			//
+			// else {
+			// 	final var errorMessage = "chooseHold returned a record which was NOT an item or record was null %s:%s"
+			// 		.formatted(sph.recordType(), sph.record());
+			// 	log.warn(errorMessage);
 				// Retries are triggered on error signal
-				throw new RuntimeException(errorMessage);
-			}
+			// 	throw new RuntimeException(errorMessage);
+			// }
 
 			return LocalRequest.builder()
 				.localId(extractedId)
@@ -1055,7 +1070,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 			// Map the hold status into a canonical value
 			return new HostLmsRequest(holdId,
-				sierraHold.status() != null ? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code()) : "",
+				sierraHold.status() != null ? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code(), requestedItemId) : "",
 				requestedItemId);
 		} else {
 			return new HostLmsRequest();

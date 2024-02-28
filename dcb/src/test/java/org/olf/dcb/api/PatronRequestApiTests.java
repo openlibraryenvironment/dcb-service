@@ -289,7 +289,7 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.getStatus().getErrorMessage(), is(nullValue()));
 
 		assertThat(fetchedPatronRequest.getLocalRequest().getId(), is("864902"));
-		assertThat(fetchedPatronRequest.getLocalRequest().getStatus(), is("PLACED"));
+		assertThat(fetchedPatronRequest.getLocalRequest().getStatus(), is("CONFIRMED"));
 		assertThat(fetchedPatronRequest.getLocalRequest().getItemId(), is("7916922"));
 		assertThat(fetchedPatronRequest.getLocalRequest().getBibId(), is("7916920"));
 
@@ -319,7 +319,7 @@ class PatronRequestApiTests {
 		assertThat(supplierRequest.getHostLmsCode(), is(HOST_LMS_CODE));
 		assertThat(supplierRequest.getStatus(), is("PLACED"));
 		assertThat(supplierRequest.getLocalHoldId(), is("407557"));
-		assertThat(supplierRequest.getLocalHoldStatus(), is("PLACED"));
+		assertThat(supplierRequest.getLocalHoldStatus(), is("CONFIRMED"));
 
 		assertThat(supplierRequest.getItem(), is(notNullValue()));
 
