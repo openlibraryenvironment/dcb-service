@@ -182,7 +182,10 @@ dependencies {
 
 	//aotPlugins platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
 	//aotPlugins ("io.micronaut.security:micronaut-security-aot")
-
+	
+	// For graphviz
+	implementation 'guru.nidi:graphviz-java-all-j2v8:0.18.1'
+  
 }
 
 application {
