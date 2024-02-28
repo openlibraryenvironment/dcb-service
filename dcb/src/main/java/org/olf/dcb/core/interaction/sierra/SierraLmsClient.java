@@ -701,8 +701,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			case "0" -> HostLmsRequest.HOLD_PLACED;
 			case "b" -> HostLmsRequest.HOLD_READY; // Bib ready for pickup
 			case "j" -> HostLmsRequest.HOLD_READY; // volume ready for pickup
-			// If the hold has changed from a "b" to an "i" then the hold is confirmed and we know what item has been selected
-			case "i" -> HostLmsRequest.HOLD_CONFIRMED; // READY; // Item ready for pickup
+			case "i" -> HostLmsRequest.HOLD_READY; // Item ready for pickup
 			case "t" -> HostLmsRequest.HOLD_TRANSIT; // IN Transit
 			default -> code;
 		};

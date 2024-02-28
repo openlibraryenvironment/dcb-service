@@ -248,7 +248,10 @@ public class TrackingService implements Runnable {
 			.flatMap(hold -> {
 				log.debug("current request status: {}", hold);
 
+				// If the hold has an item and/or a barcode attached, pass it along
 				Map<String,Object> additionalProperties = new HashMap<String,Object>();
+				if ( hold.getRequestedItemId() != null )
+					additionalProperties.put("RequestedItemId", hold.getRequestedItemId());
 
 				StateChange sc = StateChange.builder()
 					.patronRequestId(sr.getPatronRequest().getId())
