@@ -113,11 +113,10 @@ public class PatronRequestWorkflowService {
 
 		log.debug("applyTransition({}, {})", action.getName(), ctx.getPatronRequest().getId());
 
-		return patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), ctx.getPatronRequestStateOnEntry(), ctx.getPatronRequestStateOnEntry(), Optional.of("guard passed : " + action.getName()))
-			.then ( action.attempt(ctx) )
+		// return patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), ctx.getPatronRequestStateOnEntry(), 
+					// ctx.getPatronRequestStateOnEntry(), Optional.of("guard passed : " + action.getName()))
+			return action.attempt(ctx)
 			.flux()
-			// Ian: I think this save may be unnecessary - it should really be for the transition to do any saving needed
-			// ToDo: Remove this, save in handlers and test
 			.concatMap(nc -> patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), ctx.getPatronRequestStateOnEntry(), ctx.getPatronRequest().getStatus(), Optional.of("Action completed : " + action.getName())))
 			.concatMap(nc -> patronRequestRepository.saveOrUpdate(nc.getPatronRequest()))
 			.concatMap(request -> {
