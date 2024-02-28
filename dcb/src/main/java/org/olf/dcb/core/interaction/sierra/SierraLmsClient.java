@@ -313,7 +313,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		if ( resource.fixedFields() != null ) {
 			FixedField location = resource.fixedFields().get(26);
 			// log.info("Got location {}",location);
-			if ( location.getValue() != null ) {
+			if ( ( location != null ) && ( location.getValue() != null ) ) {
 				if ( location.getValue().toString().equalsIgnoreCase("MULTI")) {
 					// log.info("multi");
 					// The resource is held in multiple locations = SOME of those may be electronic, some may be physical - we need to actually parse the MARC to work out which is which
