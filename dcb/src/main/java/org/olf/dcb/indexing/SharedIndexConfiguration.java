@@ -1,5 +1,6 @@
 package org.olf.dcb.indexing;
 
+import java.time.Duration;
 import java.util.Optional;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
@@ -11,7 +12,10 @@ public record SharedIndexConfiguration (
 		
 	String name,
 	Optional<String> username,
-	Optional<String> password
+	Optional<String> password,
+	
+	Optional<Integer> maxResourceListSize,
+	Optional<Duration> minUpdateFrequency
 		) {
 	public static final String PREFIX = "dcb.index";
 	

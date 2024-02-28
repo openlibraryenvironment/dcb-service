@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.svc.RecordClusteringService;
+import org.olf.dcb.indexing.SharedIndexConfiguration;
 import org.olf.dcb.indexing.SharedIndexService;
 import org.olf.dcb.indexing.model.SharedIndexQueueEntry;
 import org.olf.dcb.indexing.storage.SharedIndexQueueRepository;
@@ -39,17 +40,19 @@ import services.k_int.micronaut.PublisherTransformationService;
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 public abstract class BulkSharedIndexService implements SharedIndexService {
 	private static final Logger log = LoggerFactory.getLogger(BulkSharedIndexService.class);
-	
+
 	private final AtomicBoolean circuitOpen = new AtomicBoolean(false);
+	
+	private final AtomicBoolean rateThresholdOpen = new AtomicBoolean(false);
 
 	private FluxSink<String> theSink = null;
 	
 	private final RecordClusteringService clusters;
 	
 	// Maximum size of each chunk to send to the shared index.
-	final int maxSize = 1000;
+	final int maxSize;
 	
-	final Duration throttleTimeout = Duration.ofSeconds(30);
+	final Duration throttleTimeout;
 
 	private final SharedIndexQueueRepository sharedIndexQueueRepository;
 	private final PublisherTransformationService publisherTransformer;
@@ -58,9 +61,11 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 		return publisherTransformer;
 	}
 
-	protected BulkSharedIndexService( RecordClusteringService clusters, SharedIndexQueueRepository sharedIndexQueueRepository, PublisherTransformationService publisherTransformationService ) {
+	protected BulkSharedIndexService( RecordClusteringService clusters, SharedIndexQueueRepository sharedIndexQueueRepository, PublisherTransformationService publisherTransformationService, SharedIndexConfiguration conf ) {
 		
 		this.clusters = clusters;
+		this.maxSize = conf.maxResourceListSize().orElse(1000); // Default to 1000
+		this.throttleTimeout = conf.minUpdateFrequency().orElse(Duration.ofSeconds(30)); // Default 30 seconds.
 		this.sharedIndexQueueRepository = sharedIndexQueueRepository;
 		this.publisherTransformer = publisherTransformationService;
 		initializeQueue();
@@ -90,7 +95,8 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	}
 	
 	protected void initializeQueue() {
-		Flux.create( this::setSink )
+		Flux.create( this::setSink )		
+			.transform( this::addHooks )	
 			.transform( publisherTransformer::executeOnBlockingThreadPool )
 			.transform( this::collectAndDedupe )
 			.transform( this::expandAndProcess )
@@ -100,7 +106,57 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 				log.atError().log("Index service cannot be initialized", t);
 			});
 	}
-	
+
+	private Flux<String> addHooks(Flux<String> source) {
+
+		// Using shared allows for multiple receivers of the emissions without multiple subscriptions.
+		Flux<String> common = source.share();
+		
+		// Calculate our trigger values.
+		final Duration trigger = throttleTimeout.dividedBy(3);
+		final long triggerMillis = trigger.toMillis();
+		
+		common
+			.buffer(trigger)
+			.map(List::size)
+			.filter(size -> {
+				log.trace("Collected {} in {}", size, trigger);
+				long ratePerItem = size > 0 ? (triggerMillis / size) : 0;
+				log.trace("Rate per item: {}", ratePerItem);
+				return ratePerItem <= 1000; // At least 1 second or less per item
+				
+			}) // First part emits the rate if it's sustained
+			
+			.doOnNext( rate -> {
+				if (rateThresholdOpen.get()) {
+					log.trace("Rate threshold already opened: NOOP");
+					return;
+				}
+				
+				// Open it and run hooks.
+				rateThresholdOpen.set(true);
+				
+				log.debug("Running rate threshold open hooks");
+				rateThresholdOpenHook();
+				
+			})
+			.sampleTimeout( rate -> Mono.delay(throttleTimeout) )
+			.subscribe(rate -> {
+				if (!rateThresholdOpen.get()) {
+					log.trace("Rate threshold already closed: NOOP");
+					return;
+				}
+				
+				// close it and run hooks
+				rateThresholdOpen.set(false);
+				
+				log.debug("Running rate threshold closed hooks");
+				rateThresholdClosedHook(); 
+			});
+		
+		return common;
+	}
+
 	@Override
 	public Publisher<List<IndexOperation<UUID, ClusterRecord>>> expandAndProcess( Flux<List<UUID>> idFlux ) {
 		return idFlux
@@ -298,6 +354,14 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	@Override
 	public void update(UUID clusterID) {
 		queueId(clusterID);
+	}
+	
+	protected void rateThresholdOpenHook( ) {
+		// NOOP
+	}
+	
+	protected void rateThresholdClosedHook( ) {
+		// NOOP
 	}
 
 	@PreDestroy

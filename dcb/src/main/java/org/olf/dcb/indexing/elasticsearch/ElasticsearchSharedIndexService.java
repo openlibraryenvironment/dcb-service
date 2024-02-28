@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import org.olf.dcb.core.error.DcbError;
@@ -22,6 +23,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
+import co.elastic.clients.elasticsearch._types.AcknowledgedResponse;
+import co.elastic.clients.elasticsearch._types.Time;
 import co.elastic.clients.elasticsearch._types.analysis.Analyzer;
 import co.elastic.clients.elasticsearch._types.analysis.CharFilter;
 import co.elastic.clients.elasticsearch._types.analysis.Normalizer;
@@ -34,7 +37,9 @@ import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import co.elastic.clients.elasticsearch.indices.CreateIndexResponse;
 import co.elastic.clients.elasticsearch.indices.DeleteIndexResponse;
+import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsResponse;
 import co.elastic.clients.elasticsearch.indices.IndexSettings;
+import co.elastic.clients.elasticsearch.indices.IndexState;
 import co.elastic.clients.transport.endpoints.BooleanResponse;
 import co.elastic.clients.util.ObjectBuilder;
 import io.micronaut.context.annotation.Requires;
@@ -74,7 +79,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	private final String indexName; 
 	
 	public ElasticsearchSharedIndexService(SharedIndexConfiguration conf, ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, SharedIndexQueueRepository sharedIndexQueueRepository, PublisherTransformationService pubs) {
-		super(recordClusteringService, sharedIndexQueueRepository, pubs);
+		super(recordClusteringService, sharedIndexQueueRepository, pubs, conf);
 		this.client = client;
 		this.conversionService = conversionService;
 		this.indexName = conf.name();
@@ -383,5 +388,70 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 			})
 			.doOnError( err -> log.error("Error using Elasticearch bulk operation", err));
 	}
+
+	// Default to 30 seconds.
+	private volatile AtomicReference<Time> refreshInterval = new AtomicReference<Time>(Time.of(t->t.time("30s")));
 	
+	private Mono<IndexSettings> getIndexSettings() {
+		
+		try {
+			return Mono.fromFuture(
+					client.indices()
+					.getSettings( ind -> ind
+						.index( indexName )))
+				.map( GetIndicesSettingsResponse::result )
+				.map( indexMap -> indexMap.get(indexName) )
+				.map( IndexState::settings );
+			
+		} catch (Throwable e) {
+			return Mono.error( new DcbError("Error fetching index settings", e) );
+		}
+	}
+	
+	private Mono<Boolean> changeIndexSettings(Function<IndexSettings.Builder, ObjectBuilder<IndexSettings>> settings) {
+		
+		try {
+			return Mono.fromFuture(
+					client.indices()
+					.putSettings( s -> s.index(indexName)
+						.settings(settings)))
+				.map(AcknowledgedResponse::acknowledged);
+			
+		} catch (Throwable e) {
+			return Mono.error( new DcbError("Error fetching index settings", e) );
+		}
+	}
+	
+private final static Time REFRESH_INTERVAL_DISABLED = Time.of(t -> t.time("-1"));
+	
+	private Mono<Boolean> restoreRefresh() {
+		
+		return Mono.just(refreshInterval.get())
+			.flatMap( val -> changeIndexSettings( s -> s
+			  .index(i -> i.refreshInterval(val))));
+	}
+	
+	private Mono<Boolean> disableRefresh() {
+		
+		return getIndexSettings()
+			.map( state -> {
+				var existingInterval = state.index().refreshInterval();
+				if (existingInterval != null) {
+					refreshInterval.set(existingInterval);
+				}
+				return refreshInterval.get();
+			})
+			.flatMap( previousInterval -> changeIndexSettings( s -> s
+				.index(i -> i.refreshInterval(REFRESH_INTERVAL_DISABLED)) ));
+	}
+	
+	@Override
+	protected void rateThresholdClosedHook() {
+		restoreRefresh().subscribe( res -> log.debug("Re-enabled refresh in Elasticsearch") );
+	}
+	
+	@Override
+	protected void rateThresholdOpenHook() {
+		disableRefresh().subscribe( res -> log.debug("Disabled refresh in Elasticsearch") );
+	}
 }

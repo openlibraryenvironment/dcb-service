@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import org.olf.dcb.core.error.DcbError;
@@ -18,6 +19,8 @@ import org.olf.dcb.indexing.bulk.BulkSharedIndexService;
 import org.olf.dcb.indexing.model.ClusterRecordIndexDoc;
 import org.olf.dcb.indexing.storage.SharedIndexQueueRepository;
 import org.opensearch.client.opensearch.OpenSearchAsyncClient;
+import org.opensearch.client.opensearch._types.AcknowledgedResponseBase;
+import org.opensearch.client.opensearch._types.Time;
 import org.opensearch.client.opensearch._types.analysis.Analyzer;
 import org.opensearch.client.opensearch._types.analysis.CharFilter;
 import org.opensearch.client.opensearch._types.analysis.Normalizer;
@@ -30,7 +33,9 @@ import org.opensearch.client.opensearch.core.BulkResponse;
 import org.opensearch.client.opensearch.core.bulk.BulkResponseItem;
 import org.opensearch.client.opensearch.indices.CreateIndexResponse;
 import org.opensearch.client.opensearch.indices.DeleteIndexResponse;
+import org.opensearch.client.opensearch.indices.GetIndicesSettingsResponse;
 import org.opensearch.client.opensearch.indices.IndexSettings;
+import org.opensearch.client.opensearch.indices.IndexState;
 import org.opensearch.client.transport.endpoints.BooleanResponse;
 import org.opensearch.client.util.ObjectBuilder;
 import org.reactivestreams.Publisher;
@@ -79,7 +84,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	private final String indexName;
 	
 	public OpenSearchSharedIndexService(SharedIndexConfiguration conf, OpenSearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, SharedIndexQueueRepository sharedIndexQueueRepository, PublisherTransformationService pubs) {
-		super(recordClusteringService, sharedIndexQueueRepository, pubs);
+		super(recordClusteringService, sharedIndexQueueRepository, pubs, conf);
 		this.client = client;
 		this.conversionService = conversionService;
 		this.indexName = conf.name();
@@ -388,6 +393,72 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 				}
 			})
 			.doOnError( err -> log.error("Error using OpenSearch bulk operation", err));
+	}
+	
+	// Default to 30 seconds.
+	private volatile AtomicReference<Time> refreshInterval = new AtomicReference<Time>(Time.of(t->t.time("30s")));
+	
+	private Mono<IndexSettings> getIndexSettings() {
+		
+		try {
+			return Mono.fromFuture(
+					client.indices()
+					.getSettings( ind -> ind
+						.index( indexName )))
+				.map( GetIndicesSettingsResponse::result )
+				.map( indexMap -> indexMap.get(indexName) )
+				.map( IndexState::settings );
+			
+		} catch (Throwable e) {
+			return Mono.error( new DcbError("Error fetching index settings", e) );
+		}
+	}
+	
+	private Mono<Boolean> changeIndexSettings(Function<IndexSettings.Builder, ObjectBuilder<IndexSettings>> settings) {
+		
+		try {
+			return Mono.fromFuture(
+					client.indices()
+					.putSettings( s -> s.index(indexName)
+						.settings(settings)))
+				.map(AcknowledgedResponseBase::acknowledged);
+			
+		} catch (Throwable e) {
+			return Mono.error( new DcbError("Error fetching index settings", e) );
+		}
+	}
+	
+	private final static Time REFRESH_INTERVAL_DISABLED = Time.of(t -> t.time("-1"));
+	
+	private Mono<Boolean> restoreRefresh() {
+		
+		return Mono.just(refreshInterval.get())
+			.flatMap( val -> changeIndexSettings( s -> s
+			  .index(i -> i.refreshInterval(val))));
+	}
+	
+	private Mono<Boolean> disableRefresh() {
+		
+		return getIndexSettings()
+			.map( state -> {
+				var existingInterval = state.index().refreshInterval();
+				if (existingInterval != null) {
+					refreshInterval.set(existingInterval);
+				}
+				return refreshInterval.get();
+			})
+			.flatMap( previousInterval -> changeIndexSettings( s -> s
+				.index(i -> i.refreshInterval(REFRESH_INTERVAL_DISABLED)) ));
+	}
+	
+	@Override
+	protected void rateThresholdClosedHook() {
+		restoreRefresh().subscribe( res -> log.debug("Re-enabled refresh in OpenSearch") );
+	}
+	
+	@Override
+	protected void rateThresholdOpenHook() {
+		disableRefresh().subscribe( res -> log.debug("Disabled refresh in OpenSearch") );
 	}
 	
 }
