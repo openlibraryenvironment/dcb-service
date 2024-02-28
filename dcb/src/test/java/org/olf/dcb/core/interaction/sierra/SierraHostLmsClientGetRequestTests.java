@@ -5,6 +5,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
@@ -112,7 +113,7 @@ class SierraHostLmsClientGetRequestTests {
 		assertThat(foundRequest, allOf(
 			notNullValue(),
 			hasLocalId(localRequestId),
-			hasStatus(HOLD_PLACED)
+			hasStatus(HOLD_CONFIRMED)
 		));
 	}
 }

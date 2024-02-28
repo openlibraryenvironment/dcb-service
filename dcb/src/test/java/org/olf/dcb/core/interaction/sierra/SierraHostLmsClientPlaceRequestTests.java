@@ -102,7 +102,7 @@ class SierraHostLmsClientPlaceRequestTests {
 			hasLocalId("864904"),
 			hasRequestedItemId("6747235"),
 			hasRequestedItemBarcode("38275735"),
-			hasLocalStatus("PLACED")
+			hasLocalStatus("CONFIRMED")
 		));
 	}
 
