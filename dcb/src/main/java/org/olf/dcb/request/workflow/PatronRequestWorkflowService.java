@@ -1,6 +1,7 @@
 package org.olf.dcb.request.workflow;
 
 import java.time.Duration;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -106,7 +107,8 @@ public class PatronRequestWorkflowService {
 
 	public Stream<PatronRequestStateTransition> getPossibleStateTransitionsFor(RequestWorkflowContext ctx) {
 		return allTransitions.stream()
-			.filter(transition -> ( transition.isApplicableFor(ctx) && transition.attemptAutomatically() ) );
+			.sorted(Comparator.comparing(PatronRequestStateTransition::getName).reversed())
+			.filter(transition -> (transition.isApplicableFor(ctx) && transition.attemptAutomatically()));
 	}
 
 	private Flux<PatronRequest> applyTransition(PatronRequestStateTransition action, RequestWorkflowContext ctx) {
@@ -166,8 +168,17 @@ public class PatronRequestWorkflowService {
 
 	private Optional<PatronRequestStateTransition> getApplicableTransitionFor(RequestWorkflowContext ctx) {
 		log.debug("getApplicableTransitionFor...");
-		return getPossibleStateTransitionsFor(ctx)
-			.findFirst();
-	}
 
+		log.debug("Possible transitions: {}", getPossibleStateTransitionsFor(ctx)
+			.map(PatronRequestStateTransition::getName)
+			.toList());
+
+		final var firstApplicable = getPossibleStateTransitionsFor(ctx).findFirst();
+
+		log.debug("First applicable transition: {}", firstApplicable
+			.map(PatronRequestStateTransition::getName)
+			.orElse("None"));
+
+		return firstApplicable;
+	}
 }
