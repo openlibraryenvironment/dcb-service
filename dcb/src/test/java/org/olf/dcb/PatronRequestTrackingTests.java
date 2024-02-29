@@ -90,14 +90,19 @@ public class PatronRequestTrackingTests {
 				.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 
 		final var supplyingAgencyLocalRequestId = "11567";
+		final var supplyingAgencyLocalItemId = "84356375";
 
 		final var supplierRequest = createSupplierRequest(patronRequest,
 			request -> request
 				.localId(supplyingAgencyLocalRequestId)
-				.localItemId("84356375")
+				.localItemId(supplyingAgencyLocalItemId)
 				.statusCode(PLACED)
 				// This may be somewhat artificial in order to be able to check for a change
 				.localStatus(""));
+
+		// Not needed for the use case, only to remove errors in the logs from tracking
+		sierraItemsAPIFixture.mockGetItemById(supplyingAgencyLocalItemId,
+			exampleSierraItem(supplyingAgencyLocalItemId));
 
 		sierraPatronsAPIFixture.mockGetHoldById(supplyingAgencyLocalRequestId,
 			SierraPatronHold.builder()
@@ -121,8 +126,8 @@ public class PatronRequestTrackingTests {
 
 	@Test
 	void trackingServiceShouldTrackMissingStateForMissingRequests() {
-
 		log.debug("RUNNING trackingServiceShouldTrackMissingStateForMissingRequests"); // So we can find this test in the logs
+
 		// Arrange
 		final var borrowingAgencyLocalRequestId = "11463";
 		final var borrowingAgencyLocalItemId = "1088431";
@@ -136,15 +141,22 @@ public class PatronRequestTrackingTests {
 				.localRequestStatus("PLACED")
 				.status(REQUEST_PLACED_AT_BORROWING_AGENCY));
 
+		final var supplyingAgencyLocalItemId = "1088432";
+
 		createSupplierRequest(patronRequest,
 			request -> request
 				.localId("11987")
-				.localItemId("1088432"));
+				.localItemId(supplyingAgencyLocalItemId)
+				.localStatus(""));
 
 		sierraPatronsAPIFixture.mockGetHoldByIdNotFound(borrowingAgencyLocalRequestId);
 		sierraItemsAPIFixture.mockGetItemById(borrowingAgencyLocalItemId,
 			exampleSierraItem(borrowingAgencyLocalItemId));
 
+		// Not needed for the use case, only to remove errors in the logs from tracking
+		sierraItemsAPIFixture.mockGetItemById(supplyingAgencyLocalItemId,
+			exampleSierraItem(supplyingAgencyLocalItemId));
+		
 		// Because there is locking on runs of the tracking service we need to wait until we know it'll run.
 		trackingFixture.runTracking();
 
@@ -195,7 +207,7 @@ public class PatronRequestTrackingTests {
 
 		return supplierRequestsFixture.saveSupplierRequest(builder.build());
 	}
-	
+
 	private PatronRequest getPatronRequest(UUID patronRequestId) {
 		return patronRequestsFixture.findById(patronRequestId);
 	}
