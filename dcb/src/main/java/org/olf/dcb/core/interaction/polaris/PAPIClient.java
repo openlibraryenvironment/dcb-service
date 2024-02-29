@@ -182,13 +182,6 @@ public class PAPIClient {
 			.map(ItemGetResponse::getItemGetRows);
 	}
 
-	public Mono<PatronSearchRow> patronSearch(String barcode) {
-		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
-		final var ccl = "PATB=" + barcode + " OR PATNF=" + barcode;
-
-		return makePatronSearchRequest(path, ccl);
-	}
-
 	/**
 	 * Search for a patron in Polaris
 	 * @param barcode barcode to search for in patron's first, middle, last name (PATNF) field

@@ -379,7 +379,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<Patron> getPatronByUsername(String username) {
-		return patronFind(username)
+
+		// note: the auth controller is passing a patron barcode here
+		log.info("getPatronByUsername using barcode: {}", username);
+		final var barcode = username;
+
+		return appServicesClient.getPatronIdByIdentifier(barcode, "barcode")
+			.doOnSuccess(id -> log.info("getPatronByUsername found patron id: {}", id))
+			.flatMap(id -> getPatronByLocalId(id))
 			.switchIfEmpty(Mono.defer(() -> Mono.error(patronNotFound(username, getHostLmsCode()))));
 	}
 
@@ -458,14 +465,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.filter(status -> circStatusName.equals(status.getName()))
 			.next()
 			.map(PolarisItemStatus::getItemStatusID);
-	}
-
-	private Mono<Patron> patronFind(String barcode) {
-		return papiClient.patronSearch(barcode)
-			.map(PAPIClient.PatronSearchRow::getPatronID)
-			.flatMap(appServicesClient::handlePatronBlock)
-			.map(String::valueOf)
-			.flatMap(this::getPatronByLocalId);
 	}
 
 	/**
