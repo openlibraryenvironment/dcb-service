@@ -206,6 +206,16 @@ class ApplicationServicesClient {
 			.map(string -> string.replace("\"", ""));
 	}
 
+	public Mono<String> getPatronIdByIdentifier(String identifier, String identifierType) {
+		final var path = createPath("ids", "patrons");
+		return createRequest(GET, path,
+			uri -> uri
+				.queryParam("id", identifier)
+				.queryParam("type", identifierType))
+			.flatMap(request -> client.retrieve(request, Argument.of(String.class),
+				noExtraErrorHandling()));
+	}
+
 	private Mono<Integer> getHoldRequestDefaults() {
 		final var path = createPath("holdsdefaults");
 		final Integer defaultExpirationDatePeriod = 999;
