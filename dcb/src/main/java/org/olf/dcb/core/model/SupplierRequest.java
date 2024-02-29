@@ -126,13 +126,14 @@ public class SupplierRequest {
 	private DataAgency resolvedAgency;
 
 	@Nullable
-	private Boolean isActive;
+	@Builder.Default
+	private Boolean isActive = true;
 
 	@Nullable
 	private String protocol;
 
 	/**
-	 * A place request on a bib record MAY change the item selected, if thet are set, store the actual values in here
+	 * A place request on a bib record MAY change the item selected, if the fields are set, store the actual values in here
 	 */
 	public SupplierRequest placed(String localId, String localStatus, String localItemId, String localItemBarcode) {
 		setLocalId(localId);
