@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PLACED;
-import static org.olf.dcb.test.matchers.PatronRequestMatchers.isFinalised;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalStatus;
 
 import java.util.UUID;
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.parallel.ResourceLock;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraHold;
@@ -122,11 +120,9 @@ public class PatronRequestTrackingTests {
 				.build())
 			.build());
 
-		// Because there is locking on runs of the tracking service we need to wait until we know it'll run.
-		federatedLockService.waitMaxForNoFederatedLock(TrackingService.LOCK_NAME, 10000);
-		
 		// Act
-		trackingService.run();
+
+		runTrackingService();
 
 		// Assert
 		await().atMost(5, SECONDS)
@@ -161,10 +157,7 @@ public class PatronRequestTrackingTests {
 			exampleSierraItem(borrowingAgencyLocalItemId));
 
 		// Because there is locking on runs of the tracking service we need to wait until we know it'll run.
-		federatedLockService.waitMaxForNoFederatedLock(TrackingService.LOCK_NAME, 10000);
-		
-		// Act
-		trackingService.run();
+		runTrackingService();
 
 		// Assert
 
@@ -225,5 +218,12 @@ public class PatronRequestTrackingTests {
 			.id(id)
 			.statusCode("-")
 			.build();
+	}
+
+	private void runTrackingService() {
+		// Because there is locking on runs of the tracking service we need to wait until we know it'll run.
+		federatedLockService.waitMaxForNoFederatedLock(TrackingService.LOCK_NAME, 10000);
+
+		trackingService.run();
 	}
 }
