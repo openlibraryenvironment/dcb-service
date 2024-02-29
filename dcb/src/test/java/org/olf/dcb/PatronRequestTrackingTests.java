@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
-import org.olf.dcb.core.interaction.sierra.SierraHold;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
@@ -31,11 +30,10 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
-import org.olf.dcb.tracking.TrackingService;
+import org.olf.dcb.test.TrackingFixture;
 
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import services.k_int.federation.FederatedLockService;
 import services.k_int.interaction.sierra.SierraCodeTuple;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
@@ -52,9 +50,6 @@ public class PatronRequestTrackingTests {
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
 	@Inject
-	TrackingService trackingService;
-
-	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private PatronFixture patronFixture;
@@ -64,13 +59,11 @@ public class PatronRequestTrackingTests {
 	private PatronRequestsFixture patronRequestsFixture;
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
-	
 	@Inject
-	private FederatedLockService federatedLockService;
+	private TrackingFixture trackingFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
-	
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
@@ -106,23 +99,19 @@ public class PatronRequestTrackingTests {
 				// This may be somewhat artificial in order to be able to check for a change
 				.localStatus(""));
 
-		SierraHold hold = SierraHold.builder()
-			.statusCode("0")
-			.statusName("on hold.")
-			.build();
-		sierraPatronsAPIFixture.mockGetHoldById(supplyingAgencyLocalRequestId, SierraPatronHold.builder()
-			.id("https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/" + supplyingAgencyLocalRequestId)
-			.patron("https://sandbox.iii.com/iii/sierra-api/v6/patrons/6747241")
-			.recordType("b")
-			.record("https://sandbox.iii.com/iii/sierra-api/v6/items/4735431")
-			.status(SierraCodeTuple.builder()
-				.code("0")
-				.build())
-			.build());
+		sierraPatronsAPIFixture.mockGetHoldById(supplyingAgencyLocalRequestId,
+			SierraPatronHold.builder()
+				.id("https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/" + supplyingAgencyLocalRequestId)
+				.patron("https://sandbox.iii.com/iii/sierra-api/v6/patrons/6747241")
+				.recordType("b")
+				.record("https://sandbox.iii.com/iii/sierra-api/v6/items/4735431")
+				.status(SierraCodeTuple.builder()
+					.code("0")
+					.build())
+				.build());
 
 		// Act
-
-		runTrackingService();
+		trackingFixture.runTracking();
 
 		// Assert
 		await().atMost(5, SECONDS)
@@ -157,7 +146,7 @@ public class PatronRequestTrackingTests {
 			exampleSierraItem(borrowingAgencyLocalItemId));
 
 		// Because there is locking on runs of the tracking service we need to wait until we know it'll run.
-		runTrackingService();
+		trackingFixture.runTracking();
 
 		// Assert
 
@@ -182,7 +171,6 @@ public class PatronRequestTrackingTests {
 
 		// Arrange
 		final var patron = patronFixture.savePatron("homeLibraryCode");
-		// final var patronIdentity = patronFixture.savePatronIdentity(patron);
 
 		final var builder = PatronRequest.builder()
 			.id(randomUUID())
@@ -207,8 +195,7 @@ public class PatronRequestTrackingTests {
 
 		return supplierRequestsFixture.saveSupplierRequest(builder.build());
 	}
-
-
+	
 	private PatronRequest getPatronRequest(UUID patronRequestId) {
 		return patronRequestsFixture.findById(patronRequestId);
 	}
@@ -218,12 +205,5 @@ public class PatronRequestTrackingTests {
 			.id(id)
 			.statusCode("-")
 			.build();
-	}
-
-	private void runTrackingService() {
-		// Because there is locking on runs of the tracking service we need to wait until we know it'll run.
-		federatedLockService.waitMaxForNoFederatedLock(TrackingService.LOCK_NAME, 10000);
-
-		trackingService.run();
 	}
 }
