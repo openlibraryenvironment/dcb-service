@@ -40,7 +40,7 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
   private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private HostLmsService hostLmsService;
 
-	private static final List<Status> possibleSourceStatus = List.of(Status.RETURN_TRANSIT);
+	private static final List<Status> possibleSourceStatus = List.of(Status.RETURN_TRANSIT, Status.LOANED);
 	
 	public HandleSupplierItemAvailable(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
