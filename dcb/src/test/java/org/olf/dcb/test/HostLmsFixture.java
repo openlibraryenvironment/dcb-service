@@ -156,7 +156,11 @@ public class HostLmsFixture {
 	}
 
 	public DataHostLms saveHostLms(DataHostLms hostLms) {
-		return singleValueFrom(hostLmsRepository.save(hostLms));
+		final DataHostLms savedHostLms = singleValueFrom(hostLmsRepository.save(hostLms));
+
+		log.debug("Saved host LMS: {}", savedHostLms);
+
+		return savedHostLms;
 	}
 
 	public void deleteAll() {

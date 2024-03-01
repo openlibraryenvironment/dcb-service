@@ -21,8 +21,16 @@ public class TrackingFixture {
 
 	public void runTracking() {
 		// Because there is locking on runs of the tracking service we need to wait until we know it'll run.
-		federatedLockService.waitMaxForNoFederatedLock(LOCK_NAME, 10000);
+		final var lockRelinquishedBefore = federatedLockService.waitMaxForNoFederatedLock(LOCK_NAME,
+			10000);
+
+		if (!lockRelinquishedBefore) {
+			throw new RuntimeException("Lock prior to running tracking was not relinquished in time");
+		}
 
 		trackingService.run();
+
+		// Wait for the lock to be released
+		federatedLockService.waitMaxForNoFederatedLock(LOCK_NAME, 10000);
 	}
 }

@@ -6,11 +6,12 @@ import java.util.UUID;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.storage.AgencyRepository;
 
 import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Prototype
 public class AgencyFixture {
 	private final DataAccess dataAccess = new DataAccess();
@@ -27,7 +28,11 @@ public class AgencyFixture {
 	}
 
 	public DataAgency saveAgency(DataAgency agency) {
-		return singleValueFrom(agencyRepository.save(agency));
+		final DataAgency savedAgency = singleValueFrom(agencyRepository.save(agency));
+
+		log.debug("Saved agency: {}", savedAgency);
+
+		return savedAgency;
 	}
 
 	public DataAgency defineAgency(String code, String name) {

@@ -106,8 +106,11 @@ public class PatronRequestWorkflowService {
 	}
 
 	public Stream<PatronRequestStateTransition> getPossibleStateTransitionsFor(RequestWorkflowContext ctx) {
-		return allTransitions.stream()
+		final var sortedTransitions = allTransitions.stream()
 			.sorted(Comparator.comparing(PatronRequestStateTransition::getName).reversed())
+			.toList();
+
+		return sortedTransitions.stream()
 			.filter(transition -> (transition.isApplicableFor(ctx) && transition.attemptAutomatically()));
 	}
 

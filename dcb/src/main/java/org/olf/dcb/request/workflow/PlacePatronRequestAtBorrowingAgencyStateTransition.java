@@ -1,8 +1,8 @@
 package org.olf.dcb.request.workflow;
 
+import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 
 import java.util.List;
 import java.util.Optional;
@@ -12,10 +12,10 @@ import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -24,7 +24,7 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 	private final BorrowingAgencyService borrowingAgencyService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
-	private static final List<Status> possibleSourceStatus = List.of(Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY);
+	private static final List<Status> possibleSourceStatus = List.of(CONFIRMED);
 	
 	public PlacePatronRequestAtBorrowingAgencyStateTransition(
 		BorrowingAgencyService borrowingAgencyService,
@@ -44,13 +44,15 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 	 */
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
-
 		log.info("makeTransition({})", ctx.getPatronRequest());
+
+		final var statusUponEntry = ctx.getPatronRequest().getStatus();
+
 		return borrowingAgencyService.placePatronRequestAtBorrowingAgency(ctx.getPatronRequest())
-				.doOnSuccess(pr -> log.info("Placed patron request to borrowing agency: {}", pr))
-        .doOnError(error -> log.error("Error occurred during placing a patron request to borrowing agency: {}", error.getMessage()))
-				.flatMap(this::createAuditEntry)
-				.thenReturn(ctx);
+			.doOnSuccess(pr -> log.info("Placed patron request to borrowing agency: {}", pr))
+			.doOnError(error -> log.error("Error occurred during placing a patron request to borrowing agency: {}", error.getMessage()))
+			.flatMap(patronRequest -> createAuditEntry(patronRequest, statusUponEntry))
+			.thenReturn(ctx);
 	}
 
 	@Override
@@ -58,12 +60,14 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
 	}
 
-	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
+	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest,
+		Status statusUponEntry) {
+
 		if (patronRequest.getStatus() == ERROR)
 			return Mono.just(patronRequest);
 
 		return patronRequestAuditService
-				.addAuditEntry(patronRequest, REQUEST_PLACED_AT_SUPPLYING_AGENCY, getTargetStatus().get())
+			.addAuditEntry(patronRequest, statusUponEntry, getTargetStatus().get())
 			.map(PatronRequestAudit::getPatronRequest);
 	}
 

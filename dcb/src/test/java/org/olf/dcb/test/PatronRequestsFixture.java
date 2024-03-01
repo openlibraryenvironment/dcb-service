@@ -71,7 +71,7 @@ public class PatronRequestsFixture {
 		return entries.get(0);
 	}
 
-	private List<PatronRequestAudit> findAuditEntries(PatronRequest patronRequest) {
+	public List<PatronRequestAudit> findAuditEntries(PatronRequest patronRequest) {
 		return manyValuesFrom(patronRequestAuditRepository.findByPatronRequest(patronRequest));
 	}
 }

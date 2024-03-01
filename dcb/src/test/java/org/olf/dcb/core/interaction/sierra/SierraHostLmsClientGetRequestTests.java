@@ -8,6 +8,11 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoLocalId;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedItemBarcode;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedItemId;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoStatus;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRequestedItemId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +22,7 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.matchers.HostLmsRequestMatchers;
 
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +48,7 @@ class SierraHostLmsClientGetRequestTests {
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@BeforeEach
 	void beforeEach(MockServerClient mockServerClient) {
@@ -59,6 +66,7 @@ class SierraHostLmsClientGetRequestTests {
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "title");
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 	}
 
 	@Test
@@ -85,20 +93,23 @@ class SierraHostLmsClientGetRequestTests {
 		assertThat(foundRequest, allOf(
 			notNullValue(),
 			hasLocalId(localRequestId),
-			hasStatus(HOLD_PLACED)
+			hasStatus(HOLD_PLACED),
+			hasNoRequestedItemId(),
+			hasNoRequestedItemBarcode()
 		));
 	}
 
 	@Test
-	void itemLevelRequestIsConsideredPlaced() {
+	void itemLevelRequestIsConsideredConfirmed() {
 		// Arrange
 		final var localRequestId = "4653851";
+		final var localItemId = "7258531";
 
 		sierraPatronsAPIFixture.mockGetHoldById(localRequestId, SierraPatronHold.builder()
 			.id("%s/iii/sierra-api/v6/patrons/holds/%s".formatted(BASE_URL, localRequestId))
 			.patron("%s/iii/sierra-api/v6/patrons/%s".formatted(BASE_URL, "5729178"))
 			.recordType("i")
-			.record("%s/iii/sierra-api/v6/items/%s".formatted(BASE_URL, "7258531"))
+			.record("%s/iii/sierra-api/v6/items/%s".formatted(BASE_URL, localItemId))
 			.status(SierraCodeTuple.builder()
 				.code("0")
 				.build())
@@ -113,7 +124,30 @@ class SierraHostLmsClientGetRequestTests {
 		assertThat(foundRequest, allOf(
 			notNullValue(),
 			hasLocalId(localRequestId),
-			hasStatus(HOLD_CONFIRMED)
+			hasStatus(HOLD_CONFIRMED),
+			hasRequestedItemId(localItemId),
+			hasNoRequestedItemBarcode()
+		));
+	}
+
+	@Test
+	void shouldTolerateEmptyHoldResponse() {
+		// Arrange
+		final var localRequestId = "374762143";
+
+		sierraPatronsAPIFixture.mockGetHoldById(localRequestId, SierraPatronHold.builder().build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var foundRequest = singleValueFrom(client.getRequest(localRequestId));
+
+		// Assert
+		assertThat(foundRequest, allOf(
+			notNullValue(),
+			hasNoLocalId(),
+			hasNoStatus(),
+			hasNoRequestedItemId()
 		));
 	}
 }

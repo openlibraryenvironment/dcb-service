@@ -7,8 +7,10 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
@@ -27,7 +29,6 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.CannotFindSelectedBibException;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtBorrowingAgencyStateTransition;
@@ -42,6 +43,7 @@ import org.olf.dcb.test.SupplierRequestsFixture;
 import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
+import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -107,10 +109,9 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.hostLms(sierraHostLms)
 			.build());
 
-		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
-		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
-		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
 
 		final var bibPatch = BibPatch.builder()
@@ -142,11 +143,10 @@ class PlaceRequestAtBorrowingAgencyTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			INVALID_HOLD_POLICY_HOST_LMS_CODE, "ab6", "ab6");
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,"ABC123","ab6");
-
 	}
 
 	@Test
-	void placeRequestAtBorrowingAgencySucceeds() {
+	void shouldProgressConfirmedSuccessfully() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var bibRecordId = randomUUID();
@@ -159,16 +159,17 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
-		final var patron = patronFixture.savePatron("872321");
+		final var localPatronId = "562967";
+		final var patron = patronFixture.savePatron("Home");
 
-		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-", "872321", null);
+		patronFixture.saveIdentity(patron, hostLms, localPatronId, true, "-", localPatronId, null);
 
 		final var patronRequestId = randomUUID();
 		var patronRequest = PatronRequest.builder()
 			.id(patronRequestId)
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
-			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.status(CONFIRMED)
 			.pickupLocationCodeContext(HOST_LMS_CODE)
 			.pickupLocationCode("ABC123")
 			.build();
@@ -178,17 +179,17 @@ class PlaceRequestAtBorrowingAgencyTests {
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
 			"ab6", "9849123490", hostLms.code, "ab6");
 
-		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("872321", "b", 7916921);
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(localPatronId, "b", 7916921);
 
 		// This one is for the borrower side hold - we now match a hold using the note instead of the itemid - so we have to fix up a hold with the
 		// correct note containing the patronRequestId
-		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold("872321",
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold(localPatronId,
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864902",
-			"Consortial Hold. tno="+patronRequest.getId(), "872321");
+			"Consortial Hold. tno="+patronRequest.getId(), localPatronId);
 
-		sierraItemsAPIFixture.mockGetItemById("872321",
+		sierraItemsAPIFixture.mockGetItemById(localPatronId,
 			SierraItem.builder()
-				.id("872321")
+				.id(localPatronId)
 				.barcode("6736255")
 				.statusCode("-")
 				.build());
@@ -198,13 +199,13 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		// Assert
 		assertThat("Patron request should not be null", pr, is(notNullValue()));
-		assertThat("Status code wasn't expected.", pr.getStatus(), is(Status.REQUEST_PLACED_AT_BORROWING_AGENCY));
+		assertThat("Status code wasn't expected.", pr.getStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
 		assertThat("Local request id wasn't expected.", pr.getLocalRequestId(), is("864902"));
 		assertThat("Local request status wasn't expected.", pr.getLocalRequestStatus(), is("CONFIRMED"));
 
-		assertSuccessfulTransitionAudit(pr);
+		assertSuccessfulTransitionAudit(pr, CONFIRMED);
 
-		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("872321", "b",
+		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade(localPatronId, "b",
 			7916921, "ABC123", "Consortial Hold. tno=" + pr.getId());
 	}
 
@@ -233,7 +234,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
 			.pickupLocationCodeContext(HOST_LMS_CODE)
-			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.status(CONFIRMED)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -293,7 +294,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
 			.pickupLocationCodeContext(HOST_LMS_CODE)
-			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.status(CONFIRMED)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -349,7 +350,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.id(patronRequestId)
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
-			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.status(CONFIRMED)
 			.pickupLocationCode("ABC123")
 			.pickupLocationCodeContext(HOST_LMS_CODE)
 			.build();
@@ -400,7 +401,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.id(patronRequestId)
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
-			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.status(CONFIRMED)
 			.pickupLocationCodeContext(HOST_LMS_CODE)
 			.pickupLocationCode("ABC123")
 			.build();
@@ -447,7 +448,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.id(patronRequestId)
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
-			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.status(CONFIRMED)
 			.pickupLocationCode("ABC123")
 			.pickupLocationCodeContext(HOST_LMS_CODE)
 			.build();
@@ -477,17 +478,19 @@ class PlaceRequestAtBorrowingAgencyTests {
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
 	}
 
-	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
+	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest,
+		PatronRequest.Status expectedFromStatus) {
+
 		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
 		assertThat("Patron Request audit should NOT have brief description",
 			fetchedAudit.getBriefDescription(), is(nullValue()));
 
 		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+			fetchedAudit.getFromStatus(), is(expectedFromStatus));
 
 		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(Status.REQUEST_PLACED_AT_BORROWING_AGENCY));
+			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
 	}
 
 	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
@@ -497,17 +500,21 @@ class PlaceRequestAtBorrowingAgencyTests {
 			fetchedAudit.getBriefDescription(), is(description));
 
 		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+			fetchedAudit.getFromStatus(), is(CONFIRMED));
 
 		assertThat("Patron Request audit should have to state",
 			fetchedAudit.getToStatus(), is(ERROR));
 	}
 
 	private PatronRequest placeRequestAtBorrowingAgency(PatronRequest patronRequest) {
+		return singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+			.flatMap(ctx -> {
+				if (!placePatronRequestAtBorrowingAgencyStateTransition.isApplicableFor(ctx)) {
+					return Mono.error(new RuntimeException("Place request at borrowing agency is not applicable for request"));
+				}
 
-		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-				.flatMap(ctx -> placePatronRequestAtBorrowingAgencyStateTransition.attempt(ctx) )
-				.thenReturn(patronRequest)
-				.block();
+				return placePatronRequestAtBorrowingAgencyStateTransition.attempt(ctx);
+			})
+			.thenReturn(patronRequest));
 	}
 }

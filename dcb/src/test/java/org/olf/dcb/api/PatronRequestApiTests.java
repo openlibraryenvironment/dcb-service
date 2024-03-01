@@ -11,25 +11,32 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.EventType.FAILED_CHECK;
+import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.clients.ChecksFailure.Check.hasDescription;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemId;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalStatus;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
@@ -39,6 +46,7 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Event;
+import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -48,30 +56,39 @@ import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
+import org.olf.dcb.test.TrackingFixture;
 import org.olf.dcb.test.clients.ChecksFailure;
 
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import services.k_int.interaction.sierra.SierraCodeTuple;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 @Slf4j
 class PatronRequestApiTests {
-	private static final String HOST_LMS_CODE = "patron-request-api-tests";
+	private static final String SUPPLYING_HOST_LMS_CODE = "pr-api-tests-supplying-agency";
+	private static final String BORROWING_HOST_LMS_CODE = "pr-api-tests-borrowing-agency";
+
 	private static final String KNOWN_PATRON_LOCAL_ID = "872321";
 	private static final String PICKUP_LOCATION_CODE = "ABC123";
 	private static final String SUPPLYING_LOCATION_CODE = "ab6";
-	private final String SUPPLYING_ITEM_BARCODE = "6565750674";
+	private static final String SUPPLYING_ITEM_BARCODE = "6565750674";
+	private final String VALID_PICKUP_LOCATION_ID = "0f102b5a-e300-41c8-9aca-afd170e17921";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
 	@Inject
 	private PatronRequestsFixture patronRequestsFixture;
+	@Inject
+	private SupplierRequestsFixture supplierRequestsFixture;
 	@Inject
 	private PatronFixture patronFixture;
 	@Inject
@@ -88,6 +105,8 @@ class PatronRequestApiTests {
 	private LocationFixture locationFixture;
 	@Inject
 	private EventLogFixture eventLogFixture;
+	@Inject
+	private TrackingFixture trackingFixture;
 
 	@Inject
 	private PatronRequestApiClient patronRequestApiClient;
@@ -96,8 +115,7 @@ class PatronRequestApiTests {
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
-	
-	
+
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
@@ -113,11 +131,8 @@ class PatronRequestApiTests {
 		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 
-		final var h1 = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL);
-		log.debug("Created dataHostLms {}", h1);
-
-		final var h3 = hostLmsFixture.createSierraHostLms("codeBB", KEY, SECRET, BASE_URL);
-		log.debug("Created dataHostLms {}", h3);
+		final var supplyingHostLms = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, KEY, SECRET, BASE_URL);
+		final var borrowingHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, KEY, SECRET, BASE_URL);
 
 		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
@@ -158,26 +173,26 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_LOCATION_CODE, SUPPLYING_ITEM_BARCODE);
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(KNOWN_PATRON_LOCAL_ID, "i", null);
 
-		final var da = agencyFixture.saveAgency(DataAgency.builder()
+		final var borrowingAgency = agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
 			.code("AGENCY1")
 			.name("Test AGENCY1")
-			.hostLms(h1)
+			.hostLms(borrowingHostLms)
 			.build());
-		log.debug("Create dataAgency {}", da);
 
 		agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
 			.code(SUPPLYING_LOCATION_CODE)
 			.name("AB6")
-			.hostLms(h3)
+			.hostLms(supplyingHostLms)
 			.build());
 
 		sierraPatronsAPIFixture.addPatronGetExpectation("43546");
 		sierraPatronsAPIFixture.addPatronGetExpectation(KNOWN_PATRON_LOCAL_ID);
 
 		// AGENCY1 has 1 PICKUP location of PICKUP_LOCATION_CODE (ABC123)
-		locationFixture.createPickupLocation(UUID.fromString("0f102b5a-e300-41c8-9aca-afd170e17921"), PICKUP_LOCATION_CODE, PICKUP_LOCATION_CODE, da);
+		locationFixture.createPickupLocation(UUID.fromString(
+			VALID_PICKUP_LOCATION_ID), PICKUP_LOCATION_CODE, PICKUP_LOCATION_CODE, borrowingAgency);
 	}
 
 	@BeforeEach
@@ -192,23 +207,27 @@ class PatronRequestApiTests {
 
 		eventLogFixture.deleteAll();
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, SUPPLYING_LOCATION_CODE, SUPPLYING_LOCATION_CODE);
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			SUPPLYING_HOST_LMS_CODE, SUPPLYING_LOCATION_CODE, SUPPLYING_LOCATION_CODE);
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping( HOST_LMS_CODE, "tstce", SUPPLYING_LOCATION_CODE);
-		referenceValueMappingFixture.defineLocationToAgencyMapping( HOST_LMS_CODE, "tstr", SUPPLYING_LOCATION_CODE);
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			SUPPLYING_HOST_LMS_CODE, "tstce", SUPPLYING_LOCATION_CODE);
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			SUPPLYING_HOST_LMS_CODE, "tstr", SUPPLYING_LOCATION_CODE);
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, PICKUP_LOCATION_CODE, "AGENCY1");
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			SUPPLYING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, "AGENCY1");
 		referenceValueMappingFixture.defineLocationToAgencyMapping(PICKUP_LOCATION_CODE, "AGENCY1");
 	}
 
 	@Test
-	@DisplayName("should be able to place patron request for new patron")
-	void shouldBeAbleToPlaceRequestForNewPatron() {
-		log.info("\n\nshouldBeAbleToPlacePatronForNewPatron\n\n");
+	void shouldBeAbleToPlaceRequestThatProgressesImmediately() {
+		log.info("\n\nshouldBeAbleToPlaceRequestThatProgressesImmediately\n\n");
+
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
-		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var hostLms = hostLmsFixture.findByCode(SUPPLYING_HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
 		savePatronTypeMappings();
@@ -218,7 +237,8 @@ class PatronRequestApiTests {
 		// Act
 		// We use location UUID for pickup location now and not a code
 		var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, KNOWN_PATRON_LOCAL_ID, "0f102b5a-e300-41c8-9aca-afd170e17921", HOST_LMS_CODE, "home-library");
+			clusterRecordId, KNOWN_PATRON_LOCAL_ID, VALID_PICKUP_LOCATION_ID,
+			SUPPLYING_HOST_LMS_CODE, "home-library");
 
 		// Assert
 		assertThat(placedRequestResponse.getStatus(), is(OK));
@@ -227,19 +247,32 @@ class PatronRequestApiTests {
 
 		assertThat(placedPatronRequest, is(notNullValue()));
 
+		final var localSupplyingHoldId = "407557";
+		final var localSupplyingItemId = "2745326";
+
 		// Fix up the sierra mock so that it finds a hold with the right note in it
 		// 2745326 will be the identity of this patron in the supplier side system
 		log.info("Inserting hold response for patron 2745326 - placedPatronRequest.id=" + placedPatronRequest.getId());
-		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold("2745326",
-			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/407557",
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold(localSupplyingItemId,
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/" + localSupplyingHoldId,
 			"Consortial Hold. tno=" + placedPatronRequest.getId(),
-			"2745326");
+			localSupplyingItemId);
 
-		sierraItemsAPIFixture.mockGetItemById("2745326",
+		sierraItemsAPIFixture.mockGetItemById(localSupplyingItemId,
 			SierraItem.builder()
-				.id("2745326")
+				.id(localSupplyingItemId)
 				.barcode(SUPPLYING_ITEM_BARCODE)
 				.statusCode("-")
+				.build());
+
+		sierraPatronsAPIFixture.mockGetHoldById(localSupplyingHoldId,
+			SierraPatronHold.builder()
+				.id(localSupplyingHoldId)
+				.recordType("i")
+				.record("http://some-record/" + localSupplyingItemId)
+				.status(SierraCodeTuple.builder()
+					.code("0")
+					.build())
 				.build());
 
 		// This one is for the borrower side hold
@@ -264,7 +297,8 @@ class PatronRequestApiTests {
 
 		assertThat(placedPatronRequest.getRequestor(), is(notNullValue()));
 		assertThat(placedPatronRequest.getRequestor().getHomeLibraryCode(), is("home-library"));
-		assertThat(placedPatronRequest.getRequestor().getLocalSystemCode(), is(HOST_LMS_CODE));
+		assertThat(placedPatronRequest.getRequestor().getLocalSystemCode(), is(
+			SUPPLYING_HOST_LMS_CODE));
 		assertThat(placedPatronRequest.getRequestor().getLocalId(), is(KNOWN_PATRON_LOCAL_ID));
 
 		log.info("Waiting for placed....");
@@ -272,7 +306,7 @@ class PatronRequestApiTests {
 			.atMost(20, SECONDS)
 			.until(
 				() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.getId()),
-				isPlacedAtBorrowingAgency());
+					isPlacedAtBorrowingAgency());
 
 		assertThat(fetchedPatronRequest, is(notNullValue()));
 
@@ -281,7 +315,8 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.getCitation().getVolumeDesignator(), is(nullValue()));
 
 		assertThat(fetchedPatronRequest.getPickupLocation(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is("0f102b5a-e300-41c8-9aca-afd170e17921"));
+		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is(
+			VALID_PICKUP_LOCATION_ID));
 		// assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is(PICKUP_LOCATION_CODE));
 
 		assertThat(fetchedPatronRequest.getStatus(), is(notNullValue()));
@@ -305,20 +340,20 @@ class PatronRequestApiTests {
 
 		assertThat(homeIdentity.getLocalId(), is(KNOWN_PATRON_LOCAL_ID));
 		assertThat(homeIdentity.getHomeIdentity(), is(true));
-		assertThat(homeIdentity.getHostLmsCode(), is(HOST_LMS_CODE));
+		assertThat(homeIdentity.getHostLmsCode(), is(SUPPLYING_HOST_LMS_CODE));
 
 		final var supplierIdentity = fetchedPatronRequest.getRequestor().getIdentities().get(0);
 
-		assertThat(supplierIdentity.getLocalId(), is("2745326"));
+		assertThat(supplierIdentity.getLocalId(), is(localSupplyingItemId));
 		assertThat(supplierIdentity.getHomeIdentity(), is(false));
-		assertThat(supplierIdentity.getHostLmsCode(), is(HOST_LMS_CODE));
+		assertThat(supplierIdentity.getHostLmsCode(), is(SUPPLYING_HOST_LMS_CODE));
 
 		final var supplierRequest = fetchedPatronRequest.getSupplierRequests().get(0);
 
 		assertThat(supplierRequest.getId(), is(notNullValue()));
-		assertThat(supplierRequest.getHostLmsCode(), is(HOST_LMS_CODE));
+		assertThat(supplierRequest.getHostLmsCode(), is(SUPPLYING_HOST_LMS_CODE));
 		assertThat(supplierRequest.getStatus(), is("PLACED"));
-		assertThat(supplierRequest.getLocalHoldId(), is("407557"));
+		assertThat(supplierRequest.getLocalHoldId(), is(localSupplyingHoldId));
 		assertThat(supplierRequest.getLocalHoldStatus(), is("CONFIRMED"));
 
 		assertThat(supplierRequest.getItem(), is(notNullValue()));
@@ -328,23 +363,168 @@ class PatronRequestApiTests {
 		// Originally this test checked that the item ID was 1000002 as requested - as of 2024-02-17 we check that
 		// the item ID is the one returned by the patron request.
 		// assertThat(supplierRequest.getItem().getId(), is("1000002"));
-		assertThat(supplierRequest.getItem().getId(), is("2745326"));
+		assertThat(supplierRequest.getItem().getId(), is(localSupplyingItemId));
 		assertThat(supplierRequest.getItem().getLocalItemBarcode(), is(SUPPLYING_ITEM_BARCODE));
 		assertThat(supplierRequest.getItem().getLocalItemLocationCode(), is(SUPPLYING_LOCATION_CODE));
 
-		assertThat(fetchedPatronRequest.getAudits(), is(notNullValue()));
+		final var sortedDistinctToStatus = fetchedPatronRequest.getAudits()
+			.stream()
+			.sorted(Comparator.comparing(AdminApiClient.AdminAccessPatronRequest.Audit::getDate))
+			.map(AdminApiClient.AdminAccessPatronRequest.Audit::getToStatus)
+			.distinct()
+			.toList();
 
-		final var lastAuditValue = fetchedPatronRequest.getAudits().size();
-		final var lastAudit = fetchedPatronRequest.getAudits().get(lastAuditValue - 1);
-
-		assertThat(lastAudit.getPatronRequestId(), is(fetchedPatronRequest.getId().toString()));
-		assertThat(lastAudit.getDescription(), is("Action completed : PlacePatronRequestAtBorrowingAgencyStateTransition"));
-		assertThat(lastAudit.getFromStatus(), is(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
-		assertThat(lastAudit.getToStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
-		assertThat(lastAudit.getDate(), is(notNullValue()));
+		assertThat(sortedDistinctToStatus, contains(
+			is(PATRON_VERIFIED),
+			is(RESOLVED),
+			is(REQUEST_PLACED_AT_SUPPLYING_AGENCY),
+			is(CONFIRMED),
+			is(REQUEST_PLACED_AT_BORROWING_AGENCY)
+		));
 
 		assertThat("Should not record any failed check event log entries",
 			eventLogFixture.findAll(), hasSize(0));
+	}
+
+	@Test
+	void shouldBeAbleToPlaceRequestThatProgressesAfterDeferredConfirmation() {
+		log.info("\n\nshouldBeAbleToPlaceRequestThatProgressesAfterDeferredConfirmation\n\n");
+
+		// Arrange
+		final var supplyingHostLms = hostLmsFixture.findByCode(SUPPLYING_HOST_LMS_CODE);
+		final var sourceSystemId = supplyingHostLms.getId();
+
+		final var clusterRecordId = randomUUID();
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
+		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+
+		savePatronTypeMappings();
+
+		// We use location UUID for pickup location now and not a code
+		var placedRequestResponse = patronRequestApiClient.placePatronRequest(
+			clusterRecordId, KNOWN_PATRON_LOCAL_ID, VALID_PICKUP_LOCATION_ID,
+			SUPPLYING_HOST_LMS_CODE, "home-library");
+
+		// Assert
+		assertThat(placedRequestResponse.getStatus(), is(OK));
+
+		final var placedPatronRequest = placedRequestResponse.body();
+
+		assertThat(placedPatronRequest, is(notNullValue()));
+
+		// Supplying Host LMS mocks
+
+		// Has to be set up after placing, as relies on knowing patron request ID
+		final var localSupplyingHoldId = "407557";
+
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleBibHold("2745326",
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/" + localSupplyingHoldId,
+			"Consortial Hold. tno=" + placedPatronRequest.getId(),
+			"2425425");
+
+		sierraItemsAPIFixture.mockGetItemById("674355",
+			SierraItem.builder()
+				.id("674355")
+				.barcode(SUPPLYING_ITEM_BARCODE)
+				.statusCode("-")
+				.build());
+
+		// Borrowing Host LMS mocks
+
+		// Has to be set up after placing, as relies on knowing patron request ID
+		final var localBorrowingHoldId = "864902";
+		final var localBorrowingItemId = "563655";
+
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold(KNOWN_PATRON_LOCAL_ID,
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/" + localBorrowingHoldId,
+			"Consortial Hold. tno=" + placedPatronRequest.getId(),
+			localBorrowingItemId);
+
+		sierraItemsAPIFixture.mockGetItemById(localBorrowingItemId,
+			SierraItem.builder()
+				.id(localBorrowingItemId)
+				.barcode(SUPPLYING_ITEM_BARCODE)
+				.statusCode("-")
+				.build());
+
+		log.info("Waiting for placed at supplying agency");
+		await()
+			.atMost(10, SECONDS)
+			.until(() -> patronRequestsFixture.findById(placedPatronRequest.getId()),
+				hasStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+
+		final var updatedLocalSupplyingItemId = "4737553";
+		final var updatedLocalSupplyingItemBarcode = "276425536";
+
+		// Change hold from bib to item level
+		sierraPatronsAPIFixture.mockGetHoldById(localSupplyingHoldId,
+			SierraPatronHold.builder()
+				.id(localSupplyingHoldId)
+				.recordType("i")
+				.record("http://some-record/" + updatedLocalSupplyingItemId)
+				.status(SierraCodeTuple.builder()
+					.code("0")
+					.build())
+				.build());
+
+		// Mocks needed for other tracking activities
+		sierraItemsAPIFixture.mockGetItemById("1000002", SierraItem.builder()
+			.id("1000002")
+			.statusCode("-")
+			.barcode(updatedLocalSupplyingItemBarcode)
+			.build());
+
+		sierraPatronsAPIFixture.mockGetHoldById(localBorrowingHoldId,
+			SierraPatronHold.builder()
+				.id(localSupplyingHoldId)
+				.recordType("i")
+				.record("http://some-record/" + updatedLocalSupplyingItemId)
+				.status(SierraCodeTuple.builder()
+					.code("0")
+					.build())
+				.build());
+
+		trackingFixture.runTracking();
+
+		await()
+			.atMost(10, SECONDS)
+			.until(() -> patronRequestsFixture.findById(placedPatronRequest.getId()),
+				hasStatus(CONFIRMED));
+
+		trackingFixture.runTracking();
+
+		log.info("Waiting for placed at borrowing agency");
+		final var fetchedPatronRequest = await()
+			.atMost(10, SECONDS)
+			.until(() -> patronRequestsFixture.findById(placedPatronRequest.getId()),
+				hasStatus(REQUEST_PLACED_AT_BORROWING_AGENCY));
+
+		assertThat(fetchedPatronRequest, is(notNullValue()));
+
+		assertThat(fetchedPatronRequest, hasStatus(REQUEST_PLACED_AT_BORROWING_AGENCY));
+
+		final var updatedSupplierRequest = supplierRequestsFixture.findFor(fetchedPatronRequest);
+
+		assertThat(updatedSupplierRequest, allOf(
+			notNullValue(),
+			hasLocalItemId(updatedLocalSupplyingItemId),
+			hasLocalStatus("CONFIRMED")
+		));
+
+		final var sortedDistinctToStatus = patronRequestsFixture.findAuditEntries(fetchedPatronRequest)
+			.stream()
+			.sorted(Comparator.comparing(PatronRequestAudit::getAuditDate))
+			.map(PatronRequestAudit::getToStatus)
+			.distinct()
+			.toList();
+
+		assertThat(sortedDistinctToStatus, contains(
+			is(PATRON_VERIFIED),
+			is(RESOLVED),
+			is(REQUEST_PLACED_AT_SUPPLYING_AGENCY),
+			is(CONFIRMED),
+			is(REQUEST_PLACED_AT_BORROWING_AGENCY)
+		));
 	}
 
 	@Test
@@ -353,17 +533,17 @@ class PatronRequestApiTests {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
-		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var hostLms = hostLmsFixture.findByCode(SUPPLYING_HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "565382", clusterRecord);
 
 		savePatronTypeMappings();
 
-		final String requested_pickup_location = "0f102b5a-e300-41c8-9aca-afd170e17921";
 		// Act
 		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, "43546", requested_pickup_location, HOST_LMS_CODE, "homeLibraryCode");
+			clusterRecordId, "43546", VALID_PICKUP_LOCATION_ID,
+			SUPPLYING_HOST_LMS_CODE, "homeLibraryCode");
 
 		assertThat(placedRequestResponse.getStatus(), is(OK));
 
@@ -382,7 +562,7 @@ class PatronRequestApiTests {
 		assertThat(fetchedPatronRequest.getCitation().getBibClusterId(), is(clusterRecordId));
 
 		assertThat(fetchedPatronRequest.getPickupLocation(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is(requested_pickup_location));
+		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is(VALID_PICKUP_LOCATION_ID));
 
 		assertThat(fetchedPatronRequest.getStatus(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.getStatus().getCode(), is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY"));
@@ -393,7 +573,7 @@ class PatronRequestApiTests {
 
 		final var homeIdentity = fetchedPatronRequest.getRequestor().getIdentities().get(0);
 		assertThat(homeIdentity.getHomeIdentity(), is(true));
-		assertThat(homeIdentity.getHostLmsCode(), is(HOST_LMS_CODE));
+		assertThat(homeIdentity.getHostLmsCode(), is(SUPPLYING_HOST_LMS_CODE));
 		assertThat(homeIdentity.getLocalId(), is("43546"));
 
 		// No supplier request
@@ -431,7 +611,7 @@ class PatronRequestApiTests {
 		// When placing a request with an invalid request body
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> patronRequestApiClient.placePatronRequest(randomUUID(),
-				KNOWN_PATRON_LOCAL_ID, null, HOST_LMS_CODE, "home-library-code"));
+				KNOWN_PATRON_LOCAL_ID, null, SUPPLYING_HOST_LMS_CODE, "home-library-code"));
 
 		// Then a bad request response should be returned
 		final var response = exception.getResponse();
@@ -443,7 +623,7 @@ class PatronRequestApiTests {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
-		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var hostLms = hostLmsFixture.findByCode(SUPPLYING_HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
@@ -453,7 +633,8 @@ class PatronRequestApiTests {
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
-				KNOWN_PATRON_LOCAL_ID, "unknown-pickup-location", HOST_LMS_CODE, "home-library-code"));
+				KNOWN_PATRON_LOCAL_ID, "unknown-pickup-location",
+				SUPPLYING_HOST_LMS_CODE, "home-library-code"));
 
 		// Assert
 		final var response = exception.getResponse();
@@ -482,7 +663,7 @@ class PatronRequestApiTests {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
-		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var hostLms = hostLmsFixture.findByCode(SUPPLYING_HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
@@ -494,7 +675,8 @@ class PatronRequestApiTests {
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
-				KNOWN_PATRON_LOCAL_ID, "unmapped-pickup-location", HOST_LMS_CODE, "home-library-code"));
+				KNOWN_PATRON_LOCAL_ID, "unmapped-pickup-location",
+				SUPPLYING_HOST_LMS_CODE, "home-library-code"));
 
 		// Assert
 		final var response = exception.getResponse();
@@ -553,10 +735,12 @@ class PatronRequestApiTests {
 
 		// Define a mapping from patron-request-api-tests:[10-20] to DCB:15 - so any value between 10 and 20 can be mapped
 		// to our canonical DCB:15 type
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE, 10, 20, "DCB", "15");
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			SUPPLYING_HOST_LMS_CODE, 10, 20, "DCB", "15");
 		// was referenceValueMappingFixture.definePatronTypeMapping("patron-request-api-tests", "15", "DCB", "15");
 
 		// Define a mapping from the spine reference DCB:15 to a TARGET vocal (patron-request-api-tests) value 15
-		referenceValueMappingFixture.definePatronTypeMapping("DCB", "15", HOST_LMS_CODE, "15");
+		referenceValueMappingFixture.definePatronTypeMapping("DCB", "15",
+			SUPPLYING_HOST_LMS_CODE, "15");
 	}
 }

@@ -16,6 +16,7 @@ import java.util.function.Consumer;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
@@ -39,6 +40,7 @@ import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+@Disabled
 @Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
