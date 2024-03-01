@@ -1,5 +1,22 @@
 # Changelog
 
+## Version 5.9.0
+
+### Additions
+* [General]
+	* Wait for confirmation before placing request at borrowing agency DCB-884
+	* Test integration that selects the correct TransactionManager
+
+### Changes
+* [Chore]
+	* enable requests to be completed without a return transit
+
+### Fixes
+* [General]
+	* Revert health endpoint to being insecure
+	* multiple patron records being found during polaris patron lookup [DCB-907]
+	* Extra defensive code when looking into location data from sierra
+
 ## Version 5.8.0
 
 ### Additions
@@ -11,6 +28,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* stop emitting guard passed audit message - it's confusing
 	* revert change which required a bib hold to be converted to an item hold within the retry period - we can't force that and need to be able to cope with this happening asynchronously
 	* Include item information when fetching Polaris hold DCB-844
