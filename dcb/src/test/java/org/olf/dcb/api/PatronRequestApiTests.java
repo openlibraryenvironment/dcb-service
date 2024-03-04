@@ -492,6 +492,9 @@ class PatronRequestApiTests {
 					.build())
 				.build());
 
+		// Mock required for placing request with different item barcode
+		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_LOCATION_CODE, updatedLocalSupplyingItemBarcode);
+
 		trackingFixture.runTracking();
 
 		await()
@@ -516,7 +519,7 @@ class PatronRequestApiTests {
 		assertThat(updatedSupplierRequest, allOf(
 			notNullValue(),
 			hasLocalItemId(updatedLocalSupplyingItemId),
-			hasLocalItemBarcode(SUPPLYING_ITEM_BARCODE),
+			hasLocalItemBarcode(updatedLocalSupplyingItemBarcode),
 			hasLocalStatus("CONFIRMED")
 		));
 

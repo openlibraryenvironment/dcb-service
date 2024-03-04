@@ -12,6 +12,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemId;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalStatus;
 
@@ -121,6 +122,7 @@ class HandleSupplierRequestConfirmedTests {
 				.localStatus(HOLD_CONFIRMED)
 				.localId(localSupplyingHoldId)
 				.localItemId("647375678")
+				.localItemBarcode("26123553")
 				.patronRequest(patronRequest)
 				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
 				.build());
@@ -138,10 +140,12 @@ class HandleSupplierRequestConfirmedTests {
 					.build())
 				.build());
 
+		final var updatedLocalSupplyingBarcode = "6837533";
+
 		sierraItemsAPIFixture.mockGetItemById(updatedLocalSupplyingItemId,
 			SierraItem.builder()
 				.id(updatedLocalSupplyingItemId)
-				.barcode("6837533")
+				.barcode(updatedLocalSupplyingBarcode)
 				.statusCode("-")
 				.build());
 
@@ -158,7 +162,8 @@ class HandleSupplierRequestConfirmedTests {
 
 		assertThat(updatedSupplierRequest, allOf(
 			hasLocalStatus(HOLD_CONFIRMED),
-			hasLocalItemId(updatedLocalSupplyingItemId)
+			hasLocalItemId(updatedLocalSupplyingItemId),
+			hasLocalItemBarcode(updatedLocalSupplyingBarcode)
 		));
 	}
 
@@ -179,7 +184,7 @@ class HandleSupplierRequestConfirmedTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		final var localSupplyingHoldId = "7357356";
+		final var localSupplyingHoldId = "4625522";
 		final var originalLocalItemId = "647375678";
 
 		supplierRequestsFixture.saveSupplierRequest(
@@ -221,6 +226,75 @@ class HandleSupplierRequestConfirmedTests {
 	}
 
 	@Test
+	void shouldNotUpdateTheLocalItemBarcodeWhenNoneProvided() {
+		// Arrange
+		final var patron = Patron.builder()
+			.id(randomUUID())
+			.build();
+
+		patronFixture.savePatron(patron);
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		final var localSupplyingHoldId = "2632353";
+		final var originalLocalItemId = "5365332";
+		final var originalLocalItemBarcode = "2645245";
+
+		supplierRequestsFixture.saveSupplierRequest(
+			SupplierRequest.builder()
+				.id(randomUUID())
+				.localStatus(HOLD_CONFIRMED)
+				.localId(localSupplyingHoldId)
+				.localItemId(originalLocalItemId)
+				.localItemBarcode(originalLocalItemBarcode)
+				.patronRequest(patronRequest)
+				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.build());
+
+		// Update the hold to be an item level hold
+		final var updatedLocalSupplyingItemId = "3436532";
+
+		sierraPatronsAPIFixture.mockGetHoldById(localSupplyingHoldId,
+			SierraPatronHold.builder()
+				.id(localSupplyingHoldId)
+				.recordType("i")
+				.record(updatedLocalSupplyingItemId)
+				.status(SierraCodeTuple.builder()
+					.code("0")
+					.build())
+				.build());
+
+		sierraItemsAPIFixture.mockGetItemById(updatedLocalSupplyingItemId,
+			SierraItem.builder()
+				.id(updatedLocalSupplyingItemId)
+				.statusCode("-")
+				.build());
+
+		// Act
+		final var updatedPatronRequest = confirmRequestPlacedAtSupplyingAgency(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(CONFIRMED)
+		));
+
+		final var updatedSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
+
+		assertThat(updatedSupplierRequest, allOf(
+			hasLocalStatus(HOLD_CONFIRMED),
+			hasLocalItemId(updatedLocalSupplyingItemId),
+			hasLocalItemBarcode(originalLocalItemBarcode)
+		));
+	}
+
+	@Test
 	void shouldFailWhenLocalRequestCannotBeFetched() {
 		// Arrange
 		final var patron = Patron.builder()
@@ -237,8 +311,8 @@ class HandleSupplierRequestConfirmedTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		final var localSupplyingHoldId = "7357356";
-		final var originalLocalItemId = "647375678";
+		final var localSupplyingHoldId = "5724732";
+		final var originalLocalItemId = "73456242";
 
 		supplierRequestsFixture.saveSupplierRequest(
 			SupplierRequest.builder()

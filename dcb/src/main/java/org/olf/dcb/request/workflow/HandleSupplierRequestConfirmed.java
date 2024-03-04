@@ -54,10 +54,19 @@ public class HandleSupplierRequestConfirmed implements PatronRequestStateTransit
 			.flatMap(hostLmsClient -> hostLmsClient.getRequest(supplierRequest.getLocalId()))
 			.flatMap(localRequest -> {
 				final var localItemId = localRequest.getRequestedItemId();
+				final var localItemBarcode = localRequest.getRequestedItemBarcode();
 
 				if (localItemId != null) {
 					supplierRequest.setLocalItemId(localItemId);
 
+					if (localItemBarcode != null) {
+						// This could lead to an inconsistent barcode if the new item has no barcode
+						// However FOLIO cannot provide the item ID or barcode when getting requests
+						// Eager confirmation for FOLIO might mean this could be avoided
+						supplierRequest.setLocalItemBarcode(localItemBarcode);
+					}
+
+					// This update could happen even if the item information hasn't changed from the original resolution
 					return supplierRequestService.updateSupplierRequest(supplierRequest);
 				}
 				else {
