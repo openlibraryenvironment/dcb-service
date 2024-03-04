@@ -10,6 +10,7 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasNoRequestedItemBarcode;
+import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasNoRequestedItemId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemBarcode;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemId;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
@@ -118,18 +119,7 @@ class SierraHostLmsClientPlaceRequestTests {
 
 		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleBibHold(localPatronId,
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
-			"Consortial Hold. tno=" + patronRequestId, "26436174");
-
-		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold(localPatronId,
-			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
-			"Consortial Hold. tno=" + patronRequestId, "4635563");
-
-		sierraItemsAPIFixture.mockGetItemById("4635563",
-			SierraItem.builder()
-				.id("4635563")
-				.barcode("6732553")
-				.statusCode("-")
-				.build());
+			"Consortial Hold. tno=" + patronRequestId, "4573643");
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
@@ -145,11 +135,9 @@ class SierraHostLmsClientPlaceRequestTests {
 		assertThat(placedRequest, allOf(
 			is(notNullValue()),
 			hasLocalId("864904"),
-			// It's OK that we don't immediately get back the item.. it can take minutes for Sierra to convert a bib hold into
-			// an item hold - it's not the same issue as the hold not appearing after being placed.
-			// hasRequestedItemId("4635563"),
-			// hasRequestedItemBarcode("6732553"),
-			hasLocalStatus("PLACED")
+			hasLocalStatus("PLACED"),
+			hasNoRequestedItemId(),
+			hasNoRequestedItemBarcode()
 		));
 	}
 
@@ -163,10 +151,6 @@ class SierraHostLmsClientPlaceRequestTests {
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(localPatronId, "b",
 			localBibId);
-
-		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleBibHold(localPatronId,
-			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
-			"Consortial Hold. tno=" + patronRequestId, "26436174");
 
 		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold(localPatronId,
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864904",
@@ -188,9 +172,9 @@ class SierraHostLmsClientPlaceRequestTests {
 		assertThat(placedRequest, allOf(
 			is(notNullValue()),
 			hasLocalId("864904"),
-			// hasRequestedItemId(localItemId),
-			// hasNoRequestedItemBarcode(),
-			hasLocalStatus("PLACED")
+			hasRequestedItemId(localItemId),
+			hasNoRequestedItemBarcode(),
+			hasLocalStatus("CONFIRMED")
 		));
 	}
 

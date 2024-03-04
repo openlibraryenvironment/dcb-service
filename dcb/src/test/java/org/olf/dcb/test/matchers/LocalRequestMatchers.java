@@ -25,6 +25,10 @@ public class LocalRequestMatchers {
 		return hasProperty("requestedItemId", is(expectedItemId));
 	}
 
+	public static Matcher<LocalRequest> hasNoRequestedItemId() {
+		return hasProperty("requestedItemId", is(nullValue()));
+	}
+
 	public static Matcher<LocalRequest> hasRequestedItemBarcode(String expectedBarcode) {
 		return hasProperty("requestedItemBarcode", is(expectedBarcode));
 	}
