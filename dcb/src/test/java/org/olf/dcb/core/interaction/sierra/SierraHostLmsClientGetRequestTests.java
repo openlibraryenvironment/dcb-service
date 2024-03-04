@@ -4,14 +4,15 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoLocalId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedItemBarcode;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedItemId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoStatus;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRequestedItemBarcode;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRequestedItemId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
 
@@ -22,7 +23,6 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-import org.olf.dcb.test.matchers.HostLmsRequestMatchers;
 
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -115,6 +115,13 @@ class SierraHostLmsClientGetRequestTests {
 				.build())
 			.build());
 
+		sierraItemsAPIFixture.mockGetItemById(localItemId,
+			SierraItem.builder()
+				.id(localItemId)
+				.barcode("26368890")
+				.statusCode("-")
+				.build());
+
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
@@ -126,7 +133,7 @@ class SierraHostLmsClientGetRequestTests {
 			hasLocalId(localRequestId),
 			hasStatus(HOLD_CONFIRMED),
 			hasRequestedItemId(localItemId),
-			hasNoRequestedItemBarcode()
+			hasRequestedItemBarcode("26368890")
 		));
 	}
 
@@ -147,7 +154,74 @@ class SierraHostLmsClientGetRequestTests {
 			notNullValue(),
 			hasNoLocalId(),
 			hasNoStatus(),
-			hasNoRequestedItemId()
+			hasNoRequestedItemId(),
+			hasNoRequestedItemBarcode()
+		));
+	}
+
+	@Test
+	void shouldTolerateEmptyItemResponse() {
+		// Arrange
+		final var localRequestId = "374762143";
+		final var localItemId = "4653553";
+
+		sierraPatronsAPIFixture.mockGetHoldById(localRequestId, SierraPatronHold.builder()
+			.id("%s/iii/sierra-api/v6/patrons/holds/%s".formatted(BASE_URL, localRequestId))
+			.patron("%s/iii/sierra-api/v6/patrons/%s".formatted(BASE_URL, "5729178"))
+			.recordType("i")
+			.record("%s/iii/sierra-api/v6/items/%s".formatted(BASE_URL, localItemId))
+			.status(SierraCodeTuple.builder()
+				.code("0")
+				.build())
+			.build());
+
+		sierraItemsAPIFixture.mockGetItemById(localItemId, SierraItem.builder().build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var foundRequest = singleValueFrom(client.getRequest(localRequestId));
+
+		// Assert
+		assertThat(foundRequest, allOf(
+			notNullValue(),
+			hasLocalId(localRequestId),
+			hasStatus(HOLD_CONFIRMED),
+			hasRequestedItemId(localItemId),
+			hasNoRequestedItemBarcode()
+		));
+	}
+
+	@Test
+	void shouldTolerateItemNotFoundResponse() {
+		// Arrange
+		final var localRequestId = "27746533";
+		final var localItemId = "8472421";
+
+		sierraPatronsAPIFixture.mockGetHoldById(localRequestId, SierraPatronHold.builder()
+			.id("%s/iii/sierra-api/v6/patrons/holds/%s".formatted(BASE_URL, localRequestId))
+			.patron("%s/iii/sierra-api/v6/patrons/%s".formatted(BASE_URL, "5729178"))
+			.recordType("i")
+			.record("%s/iii/sierra-api/v6/items/%s".formatted(BASE_URL, localItemId))
+			.status(SierraCodeTuple.builder()
+				.code("0")
+				.build())
+			.build());
+
+		sierraItemsAPIFixture.mockGetItemByIdReturnNoRecordsFound(localItemId);
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var foundRequest = singleValueFrom(client.getRequest(localRequestId));
+
+		// Assert
+		assertThat(foundRequest, allOf(
+			notNullValue(),
+			hasLocalId(localRequestId),
+			hasStatus(HOLD_CONFIRMED),
+			hasRequestedItemId(localItemId),
+			hasNoRequestedItemBarcode()
 		));
 	}
 }

@@ -27,6 +27,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPP
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.clients.ChecksFailure.Check.hasDescription;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemId;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalStatus;
 
@@ -467,11 +468,18 @@ class PatronRequestApiTests {
 					.build())
 				.build());
 
+		sierraItemsAPIFixture.mockGetItemById(updatedLocalSupplyingItemId,
+			SierraItem.builder()
+				.id(updatedLocalSupplyingItemId)
+				.barcode(updatedLocalSupplyingItemBarcode)
+				.statusCode("-")
+				.build());
+
 		// Mocks needed for other tracking activities
 		sierraItemsAPIFixture.mockGetItemById("1000002", SierraItem.builder()
 			.id("1000002")
 			.statusCode("-")
-			.barcode(updatedLocalSupplyingItemBarcode)
+			.barcode(SUPPLYING_ITEM_BARCODE)
 			.build());
 
 		sierraPatronsAPIFixture.mockGetHoldById(localBorrowingHoldId,
@@ -508,6 +516,7 @@ class PatronRequestApiTests {
 		assertThat(updatedSupplierRequest, allOf(
 			notNullValue(),
 			hasLocalItemId(updatedLocalSupplyingItemId),
+			hasLocalItemBarcode(SUPPLYING_ITEM_BARCODE),
 			hasLocalStatus("CONFIRMED")
 		));
 

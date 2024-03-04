@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItem;
+import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
@@ -60,6 +62,7 @@ class HandleSupplierRequestConfirmedTests {
 	private SupplierRequestsFixture supplierRequestsFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@Inject
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
@@ -83,6 +86,7 @@ class HandleSupplierRequestConfirmedTests {
 			SECRET, BASE_URL, "title");
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 	}
 
 	@BeforeEach
@@ -132,6 +136,13 @@ class HandleSupplierRequestConfirmedTests {
 				.status(SierraCodeTuple.builder()
 					.code("0")
 					.build())
+				.build());
+
+		sierraItemsAPIFixture.mockGetItemById(updatedLocalSupplyingItemId,
+			SierraItem.builder()
+				.id(updatedLocalSupplyingItemId)
+				.barcode("6837533")
+				.statusCode("-")
 				.build());
 
 		// Act

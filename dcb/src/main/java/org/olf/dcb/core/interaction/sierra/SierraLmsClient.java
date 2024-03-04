@@ -9,6 +9,16 @@ import static java.util.Calendar.YEAR;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.nonNull;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_MISSING;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_OFFSITE;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_ON_HOLDSHELF;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_RECEIVED;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_REQUESTED;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_RETURNED;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
+import static org.olf.dcb.core.interaction.HostLmsItem.LIBRARY_USE_ONLY;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.booleanPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.integerPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
@@ -709,29 +719,30 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	// Informed by
 	// https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
-	// private String mapSierraItemStatusToDCBHoldStatus(String code) {
 	private String mapSierraItemStatusToDCBHoldStatus(Status status) {
 		String result;
 
-		if ((status.getDuedate() != null) && (!status.getCode().trim().isEmpty())) {
-			log.info("Item has a due date, setting item status to LOANED");
-			result = HostLmsItem.ITEM_LOANED;
-		} else {
-			switch (status.getCode()) {
-				case "-" -> result = HostLmsItem.ITEM_AVAILABLE;
-				case "t" -> result = HostLmsItem.ITEM_TRANSIT; // IN Transit
-				case "@" -> result = HostLmsItem.ITEM_OFFSITE;
-				case "#" -> result = HostLmsItem.ITEM_RECEIVED;
-				case "!" -> result = HostLmsItem.ITEM_ON_HOLDSHELF;
-				case "o" -> result = HostLmsItem.LIBRARY_USE_ONLY;
-				case "%" -> result = HostLmsItem.ITEM_RETURNED;
-				case "m" -> result = HostLmsItem.ITEM_MISSING;
-				case "&" -> result = HostLmsItem.ITEM_REQUESTED;
-				default -> result = status.getCode();
-			}
+		if (status == null || status.getCode() == null) {
+			return null;
 		}
 
-		return result;
+		if ((status.getDuedate() != null) && (!status.getCode().trim().isEmpty())) {
+			log.info("Item has a due date, setting item status to LOANED");
+			return ITEM_LOANED;
+		}
+
+		return switch (status.getCode()) {
+			case "-" -> ITEM_AVAILABLE;
+			case "t" -> ITEM_TRANSIT; // IN Transit
+			case "@" -> ITEM_OFFSITE;
+			case "#" -> ITEM_RECEIVED;
+			case "!" -> ITEM_ON_HOLDSHELF;
+			case "o" -> LIBRARY_USE_ONLY;
+			case "%" -> ITEM_RETURNED;
+			case "m" -> ITEM_MISSING;
+			case "&" -> ITEM_REQUESTED;
+			default -> status.getCode();
+		};
 	}
 
 	private LocalRequest chooseHold(String note, List<SierraPatronHold> filteredHolds) {
@@ -1075,7 +1086,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code(), requestedItemId)
 			: "";
 
-		return Mono.just(new HostLmsRequest(holdId, status, requestedItemId, null));
+		return getItem(requestedItemId, holdId)
+			.map(item -> new HostLmsRequest(holdId, status, requestedItemId, item.getBarcode()))
+			.defaultIfEmpty(new HostLmsRequest(holdId, status, requestedItemId, null));
 	}
 
 	@Override
@@ -1128,31 +1141,35 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		}
 	}
 
-	private HostLmsItem sierraItemToHostLmsItem(SierraItem si) {
-		log.debug("convert {} to HostLmsItem", si);
+	private HostLmsItem sierraItemToHostLmsItem(SierraItem item) {
+		log.debug("convert {} to HostLmsItem", item);
 
-		if ( ( si.getStatus() == null ) || ( si.getBarcode() == null ) || ( si.getId() == null ) ) {
-			log.warn("Detected a sierra item with null status: {}",si);
+		if ((item.getStatus() == null) || (item.getBarcode() == null) || (item.getId() == null)) {
+			log.warn("Detected a sierra item with null status: {}", item);
 		}
 
-		String resolved_status = si.getStatus() != null
-			? mapSierraItemStatusToDCBHoldStatus(si.getStatus())
-			: (si.getDeleted() ? "MISSING" : "UNKNOWN");
+		final var resolvedStatus = item.getStatus() != null
+			? mapSierraItemStatusToDCBHoldStatus(item.getStatus())
+			: (item.getDeleted() ? "MISSING" : "UNKNOWN");
 
 		return HostLmsItem.builder()
-			.localId(si.getId())
-			.barcode(si.getBarcode())
-			.status(resolved_status).build();
+			.localId(item.getId())
+			.barcode(item.getBarcode())
+			.status(resolvedStatus)
+			.build();
 	}
 
 	@Override
 	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
 		log.debug("getItem({}, {})", localItemId, localRequestId);
 
-		if ( localItemId != null ) {
+		if (localItemId != null) {
 			return Mono.from(client.getItem(localItemId))
 				.flatMap(sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)))
-				.defaultIfEmpty(HostLmsItem.builder().localId(localItemId).status("MISSING").build());
+				.defaultIfEmpty(HostLmsItem.builder()
+					.localId(localItemId)
+					.status("MISSING")
+					.build());
 		}
 
 		log.warn("getItem called with null itemId");
