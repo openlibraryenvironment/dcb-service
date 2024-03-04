@@ -1060,8 +1060,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<HostLmsRequest> sierraPatronHoldToHostLmsHold(SierraPatronHold sierraHold) {
 		log.debug("sierraHoldToHostLmsHold({})", sierraHold);
 		if ((sierraHold != null) && (sierraHold.id() != null)) {
-			// Hold API sends back a hatheos style URI - we just want the hold ID
-			String holdId = sierraHold.id().substring(sierraHold.id().lastIndexOf('/') + 1);
+			final var holdId = deRestify(sierraHold.id());
 
 			String requestedItemId = null;
 
