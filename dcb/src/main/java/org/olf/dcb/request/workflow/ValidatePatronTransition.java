@@ -155,15 +155,21 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 		patronRequest.setStatus(Status.PATRON_VERIFIED);
 
+				
 		// This version searches through the patron identities attached to the patron request and selects the home identity
 		return Flux.fromIterable(patronRequest.getPatron().getPatronIdentities())
 			.filter(PatronIdentity::getHomeIdentity)
 			.flatMap(this::validatePatronIdentity)
 			.map( resolvedPatronIdentity -> {
-				 patronRequest.setRequestingIdentity(resolvedPatronIdentity);
-				 if ( ( resolvedPatronIdentity != null ) && ( resolvedPatronIdentity.getHostLms() != null ) )
-					 patronRequest.setPatronHostlmsCode(resolvedPatronIdentity.getHostLms().getCode());
-				 return patronRequest;
+				if ( ( resolvedPatronIdentity != null ) && ( resolvedPatronIdentity.getHostLms() != null ) ) {
+					patronRequest.setRequestingIdentity(resolvedPatronIdentity);
+					patronRequest.setPatronHostlmsCode(resolvedPatronIdentity.getHostLms().getCode());
+					ctx.getWorkflowMessages().add("Resolved patron home agency to "+resolvedPatronIdentity.getHostLms().getCode());
+				}
+				else {
+					ctx.getWorkflowMessages().add("Unable to resolve patron identity");
+				}
+				return patronRequest;
 			})
 			.then(validateLocations(patronRequest))
 			.doOnSuccess( pr -> log.debug("Validated patron request: {}", pr))
