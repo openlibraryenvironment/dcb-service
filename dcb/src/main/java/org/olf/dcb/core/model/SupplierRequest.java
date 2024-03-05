@@ -85,6 +85,9 @@ public class SupplierRequest {
 	private String localItemStatus;
 
 	@Nullable
+	Instant localItemLastCheckTimestamp;
+
+	@Nullable
 	@Size(max = 32)
 	private String localItemType;
 
@@ -117,6 +120,9 @@ public class SupplierRequest {
 	@Nullable
 	@Size(max = 32)
 	private String localStatus;
+
+	@Nullable
+	Instant localRequestLastCheckTimestamp;
 
 	@Nullable
 	private String localAgency;

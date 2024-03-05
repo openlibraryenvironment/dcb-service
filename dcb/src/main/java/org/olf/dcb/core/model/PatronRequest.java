@@ -142,6 +142,10 @@ public class PatronRequest {
 	@Size(max = 200)
 	private String pickupItemStatus;
 
+	// When did we last poll for pickup item status (May only be used in 3-legged)
+	@Nullable
+	private Instant pickupItemLastCheckTimestamp;
+
 	// In order to hand the temporary item over the patron at the pickup
 	// library, place a hold at the pickup lib and record it here
 	@Nullable
@@ -152,6 +156,10 @@ public class PatronRequest {
 	@Nullable
 	@Size(max = 200)
 	private String pickupRequestStatus;
+
+	// When did we last poll for pickup request status (May only be used in 3-legged)
+	@Nullable
+	private Instant pickupRequestLastCheckTimestamp;
 
 	// Ignore at this property level. We provide explicit ignore/serializing
 	// instructions at a getter and setter level to prevent any JSON binding to this
@@ -170,11 +178,19 @@ public class PatronRequest {
 	@Nullable
 	private String localRequestStatus;
 
+	// When did we last poll the local request
+	@Nullable
+	Instant localRequestLastCheckTimestamp;
+
 	@Nullable
 	private String localItemId;
 
 	@Nullable
 	private String localItemStatus;
+
+	// When did we last poll the local item
+	@Nullable
+	Instant localItemLastCheckTimestamp;
 
 	@Nullable
 	@Size(max = 32)

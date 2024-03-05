@@ -1,0 +1,6 @@
+alter table patron_request add pickup_item_last_check_timestamp timestamp;
+alter table patron_request add pickup_request_last_check_timestamp timestamp;
+alter table patron_request add local_item_last_check_timestamp timestamp;
+alter table patron_request add local_request_last_check_timestamp timestamp;
+alter table supplier_request add local_item_last_check_timestamp timestamp;
+alter table supplier_request add local_request_last_check_timestamp timestamp;
