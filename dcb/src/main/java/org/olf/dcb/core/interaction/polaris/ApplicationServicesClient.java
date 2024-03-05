@@ -14,17 +14,7 @@ import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Pro
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Continue;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Retain;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.BARCODE_PREFIX;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.FINE_CODE_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.HISTORY_ACTION_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.ITEM;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOAN_PERIOD_CODE_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_BRANCH_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_USER_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.RENEW_LIMIT;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_PRODUCT_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WORKSTATION_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SHELVING_SCHEME_ID;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.APPLICATION_SERVICES;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.noExtraErrorHandling;
@@ -292,8 +282,8 @@ class ApplicationServicesClient {
 		final var servicesConfig = client.getServicesConfig();
 		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
 
-		final var itemMap = (Map<String, Object>) conf.get(ITEM);
-		final var barcodePrefix = extractMapValue(itemMap, BARCODE_PREFIX, String.class);
+		final var itemConfig = client.getItemConfig();
+		final var barcodePrefix = extractMapValue(itemConfig, BARCODE_PREFIX, String.class);
 
 		final var itemRecordType = 8;
 		final var itemRecordData = 6;
@@ -308,15 +298,8 @@ class ApplicationServicesClient {
 				final var request = tuple.getT1();
 				final var itemtype = Integer.parseInt(tuple.getT2());
 
-				String strPatronHomeLocation = createItemCommand.getPatronHomeLocation();
+				final Integer itemLocationId = determineLocationForVirtualItem(itemConfig, createItemCommand);
 
-				if (strPatronHomeLocation == null)
-					throw new RuntimeException("Missing patron home location for sierra user - createItemCommand=" + createItemCommand);
-
-				// Ian: 2024-01-10 We use the patrons home location for these values - see the note in Borrowing Library Services
-			  // final var itemLocationId = tuple.getT3();
-				final Integer itemLocationId = Integer.valueOf(strPatronHomeLocation);
-				
 				final var body = WorkflowRequest.builder()
 					.workflowRequestType(itemRecordType)
 					.txnUserID(user)
@@ -332,11 +315,11 @@ class ApplicationServicesClient {
 							.assignedBranchID(itemLocationId)
 							.owningBranchID(itemLocationId)
 							.homeBranchID(itemLocationId)
-							.renewalLimit(extractMapValue(itemMap, RENEW_LIMIT, Integer.class))
-							.fineCodeID(extractMapValue(itemMap, FINE_CODE_ID, Integer.class))
-							.itemRecordHistoryActionID(extractMapValue(itemMap, HISTORY_ACTION_ID, Integer.class))
-							.loanPeriodCodeID(extractMapValue(itemMap, LOAN_PERIOD_CODE_ID, Integer.class))
-							.shelvingSchemeID(extractMapValue(itemMap, SHELVING_SCHEME_ID, Integer.class))
+							.renewalLimit(extractMapValue(itemConfig, RENEW_LIMIT, Integer.class))
+							.fineCodeID(extractMapValue(itemConfig, FINE_CODE_ID, Integer.class))
+							.itemRecordHistoryActionID(extractMapValue(itemConfig, HISTORY_ACTION_ID, Integer.class))
+							.loanPeriodCodeID(extractMapValue(itemConfig, LOAN_PERIOD_CODE_ID, Integer.class))
+							.shelvingSchemeID(extractMapValue(itemConfig, SHELVING_SCHEME_ID, Integer.class))
 							.isProvisionalSave(FALSE)
 							.nonCircluating(FALSE)
 							.loneableOutsideSystem(TRUE)
@@ -351,6 +334,26 @@ class ApplicationServicesClient {
 				return request.body(body);
 			})
 			.flatMap(this::createItemRequest);
+	}
+
+	private static Integer determineLocationForVirtualItem(Map<String, Object> itemConfig,
+		CreateItemCommand createItemCommand) {
+
+		final var patronHomeLocation = createItemCommand.getPatronHomeLocation();
+		if (patronHomeLocation == null) {
+			throw new IllegalArgumentException(
+				"Missing patron home location for polaris user - createItemCommand=" + createItemCommand);
+		}
+
+		// Check if the item has a specified ILL location, otherwise use the patron's home location
+		Integer itemLocationId = extractMapValue(itemConfig, ILL_LOCATION_ID, Integer.class);
+		return (itemLocationId != null) ? successfullyUsingIllLocation(itemLocationId) : Integer.valueOf(patronHomeLocation);
+	}
+
+	private static Integer successfullyUsingIllLocation(Integer itemLocationId) {
+		log.info("ILL location id: ' {} ' found for virtual item.", itemLocationId);
+
+		return itemLocationId;
 	}
 
 	public Mono<Void> updateItemRecord(String itemId, Integer fromStatus, Integer toStatus) {
