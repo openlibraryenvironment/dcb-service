@@ -36,6 +36,7 @@ class PolarisConstants {
 	public static final String LOAN_PERIOD_CODE_ID = "loan-period-code-id";
 	public static final String SHELVING_SCHEME_ID = "shelving-scheme-id";
 	public static final String BARCODE_PREFIX = "barcode-prefix";
+	public static final String ILL_LOCATION_ID = "ill-location-id";
 
 	// item statuses (using name)
 	public static final String AVAILABLE = "In";

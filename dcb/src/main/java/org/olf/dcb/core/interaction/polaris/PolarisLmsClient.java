@@ -6,23 +6,7 @@ import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpec
 import static org.olf.dcb.core.interaction.polaris.Direction.HOST_LMS_TO_POLARIS;
 import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
 import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.AVAILABLE;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.CLIENT_BASE_URL;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.MAX_BIBS;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_APP_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_LANG_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_ORG_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PAPI_VERSION;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_LANGUAGE;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_ORG_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_PRODUCT_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_SITE_DOMAIN;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_VERSION;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WORKSTATION_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.TRANSFERRED;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.StringUtils.parseList;
@@ -732,6 +716,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	Map<String, Object> getServicesConfig() {
 		return (Map<String, Object>) getConfig().get(SERVICES);
+	}
+
+	Map<String, Object> getItemConfig() {
+		return (Map<String, Object>) getConfig().get(ITEM);
 	}
 
 	private Map<String, Object> getPAPIConfig() {
