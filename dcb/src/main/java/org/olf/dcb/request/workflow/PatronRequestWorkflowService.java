@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -120,9 +121,18 @@ public class PatronRequestWorkflowService {
 
 		// return patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), ctx.getPatronRequestStateOnEntry(), 
 					// ctx.getPatronRequestStateOnEntry(), Optional.of("guard passed : " + action.getName()))
+
+			Map<String,Object> auditData=new HashMap<String,Object>();
+			auditData.put("workflowMessages", ctx.getWorkflowMessages());
+
 			return action.attempt(ctx)
 			.flux()
-			.concatMap(nc -> patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), ctx.getPatronRequestStateOnEntry(), ctx.getPatronRequest().getStatus(), Optional.of("Action completed : " + action.getName())))
+			.concatMap(nc -> patronRequestAuditService.addAuditEntry(
+				ctx.getPatronRequest(), 
+				ctx.getPatronRequestStateOnEntry(), 
+				ctx.getPatronRequest().getStatus(), 
+				Optional.of("Action completed : " + action.getName()),
+				Optional.of(auditData)))
 			.concatMap(nc -> patronRequestRepository.saveOrUpdate(nc.getPatronRequest()))
 			.concatMap(request -> {
 				// Recursively call progress all in case there are subsequent steps we can apply

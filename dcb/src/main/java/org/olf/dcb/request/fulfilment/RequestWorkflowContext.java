@@ -5,6 +5,8 @@ import org.olf.dcb.core.model.*;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.experimental.Accessors;
 import lombok.Data;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Core attributes needed for workflow steps.
@@ -43,5 +45,8 @@ public class RequestWorkflowContext {
 	Patron patron;
 
 	PatronRequest.Status patronRequestStateOnEntry;
+
+	// Provide a list of strings that workflow actions can use to propagate messages to the audit log
+	List<String> workflowMessages = new ArrayList<String>();
 }
 

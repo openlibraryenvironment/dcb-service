@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.olf.dcb.core.api.serde.ImportCommand;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.RecordCountSummary;
 import org.olf.dcb.indexing.SharedIndexLiveUpdater;
 import org.olf.dcb.indexing.SharedIndexLiveUpdater.ReindexOp;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
@@ -14,6 +15,7 @@ import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.stats.StatsService;
 import org.olf.dcb.storage.PatronRequestRepository;
+import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.utils.DCBConfigurationService;
 import org.olf.dcb.utils.DCBConfigurationService.ConfigImportResult;
 import org.slf4j.Logger;
@@ -50,19 +52,23 @@ public class AdminController {
 	private final PatronRequestService patronRequestService;
 	private final SupplierRequestService supplierRequestService;
 	private final PatronRequestRepository patronRequestRepository;
+	private final BibRepository bibRepository;
 	private final StatsService statsService;
 	private final DCBConfigurationService configurationService;
 	private final Optional<SharedIndexLiveUpdater> sharedIndexUpdater;
 
 	public AdminController(PatronRequestService patronRequestService, SupplierRequestService supplierRequestService,
 			StatsService statsService, PatronRequestRepository patronRequestRepository,
-			DCBConfigurationService configurationService, Optional<SharedIndexLiveUpdater> sharedIndexUpdater) {
+			DCBConfigurationService configurationService, 
+			BibRepository bibRepository,
+			Optional<SharedIndexLiveUpdater> sharedIndexUpdater) {
 
 		this.patronRequestService = patronRequestService;
 		this.supplierRequestService = supplierRequestService;
 		this.statsService = statsService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.configurationService = configurationService;
+		this.bibRepository = bibRepository;
 		this.sharedIndexUpdater = sharedIndexUpdater;
 	}
 
@@ -107,6 +113,13 @@ public class AdminController {
 		log.debug("report: {}", report);
 		return Mono.just(report);
 	}
+
+  @SingleResult
+  @Get(uri = "/recordCounts", produces = APPLICATION_JSON)
+  public Mono<RecordCountSummary> getRecordCounts() {
+    return Mono.from(bibRepository.getIngestReport());
+  }
+
 
 	// public Mono<ConfigImportResult> importCfg(@Nullable @Body ImportCommand
 	// importCommand) {
