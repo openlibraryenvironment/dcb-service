@@ -40,6 +40,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 import reactor.function.TupleUtils;
 
 @Controller("/admin")
@@ -114,10 +115,9 @@ public class AdminController {
 		return Mono.just(report);
 	}
 
-  @SingleResult
   @Get(uri = "/recordCounts", produces = APPLICATION_JSON)
-  public Mono<RecordCountSummary> getRecordCounts() {
-    return Mono.from(bibRepository.getIngestReport());
+  public Flux<RecordCountSummary> getRecordCounts() {
+    return Flux.from(bibRepository.getIngestReport());
   }
 
 
