@@ -298,7 +298,9 @@ class ApplicationServicesClient {
 				final var request = tuple.getT1();
 				final var itemtype = Integer.parseInt(tuple.getT2());
 
-				final Integer itemLocationId = determineLocationForVirtualItem(itemConfig, createItemCommand);
+				// used for branches - note: different combinations important here
+				final Integer interLibraryLoanBranch = getInterLibraryLoanBranch(itemConfig);
+				final Integer patronHomeBranch = getPatronHomeBranch(createItemCommand);
 
 				final var body = WorkflowRequest.builder()
 					.workflowRequestType(itemRecordType)
@@ -312,9 +314,9 @@ class ApplicationServicesClient {
 							.barcode((barcodePrefix!=null?barcodePrefix:"") + createItemCommand.getBarcode())
 							.isNew(TRUE)
 							.displayInPAC(FALSE)
-							.assignedBranchID(itemLocationId)
-							.owningBranchID(itemLocationId)
-							.homeBranchID(itemLocationId)
+							.assignedBranchID( isInterLibraryLoanBranchIfNotNull(interLibraryLoanBranch, patronHomeBranch) )
+							.owningBranchID(patronHomeBranch)
+							.homeBranchID(patronHomeBranch)
 							.renewalLimit(extractMapValue(itemConfig, RENEW_LIMIT, Integer.class))
 							.fineCodeID(extractMapValue(itemConfig, FINE_CODE_ID, Integer.class))
 							.itemRecordHistoryActionID(extractMapValue(itemConfig, HISTORY_ACTION_ID, Integer.class))
@@ -336,24 +338,23 @@ class ApplicationServicesClient {
 			.flatMap(this::createItemRequest);
 	}
 
-	private static Integer determineLocationForVirtualItem(Map<String, Object> itemConfig,
-		CreateItemCommand createItemCommand) {
+	private static Integer isInterLibraryLoanBranchIfNotNull(Integer interLibraryLoanBranch, Integer patronHomeBranch) {
+		return interLibraryLoanBranch != null ? interLibraryLoanBranch : patronHomeBranch;
+	}
 
+	private Integer getPatronHomeBranch(CreateItemCommand createItemCommand) {
 		final var patronHomeLocation = createItemCommand.getPatronHomeLocation();
 		if (patronHomeLocation == null) {
 			throw new IllegalArgumentException(
 				"Missing patron home location for polaris user - createItemCommand=" + createItemCommand);
 		}
 
-		// Check if the item has a specified ILL location, otherwise use the patron's home location
-		Integer itemLocationId = extractMapValue(itemConfig, ILL_LOCATION_ID, Integer.class);
-		return (itemLocationId != null) ? successfullyUsingIllLocation(itemLocationId) : Integer.valueOf(patronHomeLocation);
+		return Integer.valueOf(patronHomeLocation);
 	}
 
-	private static Integer successfullyUsingIllLocation(Integer itemLocationId) {
-		log.info("ILL location id: ' {} ' found for virtual item.", itemLocationId);
+	private static Integer getInterLibraryLoanBranch(Map<String, Object> itemConfig) {
 
-		return itemLocationId;
+		return extractMapValue(itemConfig, ILL_LOCATION_ID, Integer.class);
 	}
 
 	public Mono<Void> updateItemRecord(String itemId, Integer fromStatus, Integer toStatus) {
