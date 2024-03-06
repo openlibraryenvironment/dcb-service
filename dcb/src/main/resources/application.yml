@@ -56,9 +56,11 @@ micronaut:
         enabled: true
         step: PT1M
         descriptions: true
+      jmx:
+        enabled: true
       cloudwatch:
         # MICRONAUT_METRICS_EXPORT_CLOUDWATCH_ENABLED=true
-        enabled: true
+        enabled: false
         namespace: dcb
 
 endpoints:
