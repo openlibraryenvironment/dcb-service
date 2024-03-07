@@ -13,6 +13,8 @@ import io.micronaut.data.annotation.Query;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Mono;
+import java.time.Instant;
+
 
 public interface SupplierRequestRepository {
 	@NonNull
@@ -63,5 +65,8 @@ public interface SupplierRequestRepository {
 	@Query(value = "SELECT s.* from supplier_request s, patron_request pr where pr.id = s.patron_request_id and s.local_item_id is not null and ( s.local_item_status is null or s.local_item_status in ( select code from status_code where model = 'SupplierItem' and tracked = true ) ) and pr.status_code not in ('ERROR', 'FINALISED', 'COMPLETED')", nativeQuery = true)
 	Publisher<SupplierRequest> findTrackedSupplierItems();
 	Publisher<PatronIdentity> findVirtualIdentityById(UUID supplierRequestId);
+
+	Publisher<Void> updateLocalItemLastCheckTimestamp(@NotNull UUID id, Instant localItemLastCheckTimestamp);
+	Publisher<Void> updateLocalRequestLastCheckTimestamp(@NotNull UUID id, Instant localRequestLastCheckTimestamp);
 }
 

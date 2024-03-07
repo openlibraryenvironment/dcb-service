@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.olf.dcb.core.api.serde.ImportCommand;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.RecordCountSummary;
+import org.olf.dcb.core.model.ProcessState;
 import org.olf.dcb.indexing.SharedIndexLiveUpdater;
 import org.olf.dcb.indexing.SharedIndexLiveUpdater.ReindexOp;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
@@ -16,6 +17,7 @@ import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.stats.StatsService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.BibRepository;
+import org.olf.dcb.storage.ProcessStateRepository;
 import org.olf.dcb.utils.DCBConfigurationService;
 import org.olf.dcb.utils.DCBConfigurationService.ConfigImportResult;
 import org.slf4j.Logger;
@@ -53,6 +55,7 @@ public class AdminController {
 	private final PatronRequestService patronRequestService;
 	private final SupplierRequestService supplierRequestService;
 	private final PatronRequestRepository patronRequestRepository;
+	private final ProcessStateRepository processStateRepository;
 	private final BibRepository bibRepository;
 	private final StatsService statsService;
 	private final DCBConfigurationService configurationService;
@@ -60,6 +63,7 @@ public class AdminController {
 
 	public AdminController(PatronRequestService patronRequestService, SupplierRequestService supplierRequestService,
 			StatsService statsService, PatronRequestRepository patronRequestRepository,
+			ProcessStateRepository processStateRepository,
 			DCBConfigurationService configurationService, 
 			BibRepository bibRepository,
 			Optional<SharedIndexLiveUpdater> sharedIndexUpdater) {
@@ -68,6 +72,7 @@ public class AdminController {
 		this.supplierRequestService = supplierRequestService;
 		this.statsService = statsService;
 		this.patronRequestRepository = patronRequestRepository;
+		this.processStateRepository = processStateRepository;
 		this.configurationService = configurationService;
 		this.bibRepository = bibRepository;
 		this.sharedIndexUpdater = sharedIndexUpdater;
@@ -118,6 +123,11 @@ public class AdminController {
   @Get(uri = "/recordCounts", produces = APPLICATION_JSON)
   public Flux<RecordCountSummary> getRecordCounts() {
     return Flux.from(bibRepository.getIngestReport());
+  }
+
+  @Get(uri = "/processStates", produces = APPLICATION_JSON)
+  public Flux<ProcessState> getProcessState() {
+    return Flux.from(processStateRepository.findAll());
   }
 
 

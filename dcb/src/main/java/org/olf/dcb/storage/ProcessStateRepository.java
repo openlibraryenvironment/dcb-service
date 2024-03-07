@@ -33,5 +33,8 @@ public interface ProcessStateRepository {
 	@SingleResult
 	Publisher<Boolean> existsById(@NonNull UUID id);
 
+	@NonNull
+	Publisher<ProcessState> findAll();
+
 	Publisher<Void> delete(UUID id);
 }
