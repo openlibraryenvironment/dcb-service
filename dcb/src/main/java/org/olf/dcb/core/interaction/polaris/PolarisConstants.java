@@ -45,4 +45,5 @@ class PolarisConstants {
 	public static final String CHECKED_OUT = "Out";
 	public static final String IN_TRANSIT = "In-Transit";
 	public static final String MISSING = "Missing";
+	public static final String SHELVING = "Shelving";
 }
