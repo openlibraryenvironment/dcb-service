@@ -13,7 +13,9 @@ class PolarisItem {
 	// Ref: https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/2669510868/DCB+Circulation+Lifecycle+Events
 	private static final Map<Direction, Function<String, String>> STATUS_MAP = Map.of(
 		Direction.POLARIS_TO_HOST_LMS, status -> switch (status) {
-			case AVAILABLE -> HostLmsItem.ITEM_AVAILABLE;
+			case AVAILABLE,
+				// for when returned by patron and checked back in
+				SHELVING -> HostLmsItem.ITEM_AVAILABLE;
 			// In transit to pickup location
 			case TRANSFERRED,
 				// In transit back to supplier

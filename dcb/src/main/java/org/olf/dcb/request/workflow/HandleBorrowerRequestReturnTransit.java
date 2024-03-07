@@ -26,6 +26,8 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 	private final PatronRequestRepository patronRequestRepository;
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.LOANED);
+	private static final List<String> possibleLocalItemStatus = List.of(
+		HostLmsItem.ITEM_TRANSIT, HostLmsItem.ITEM_AVAILABLE);
 	
 	public HandleBorrowerRequestReturnTransit(PatronRequestRepository patronRequestRepository) {
 		this.patronRequestRepository = patronRequestRepository;
@@ -34,7 +36,7 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		return ( ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
-			( ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_TRANSIT) ) );
+			getPossibleLocalItemStatus().contains(ctx.getPatronRequest().getLocalItemStatus()) );
 	}
 
 	@Override
@@ -46,6 +48,10 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 	@Override
 	public List<Status> getPossibleSourceStatus() {
 		return possibleSourceStatus;
+	}
+
+	public List<String> getPossibleLocalItemStatus() {
+		return possibleLocalItemStatus;
 	}
 	
 	@Override
