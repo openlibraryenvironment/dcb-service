@@ -144,6 +144,9 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "PICKUP_TRANSIT", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "HOLDSHELF", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "MISSING", Boolean.FALSE)))
+
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierItem", "AVAILABLE", Boolean.TRUE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierItem", "LOANED", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierItem", "TRANSIT", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierItem", "RECEIEVED", Boolean.TRUE)))
 
