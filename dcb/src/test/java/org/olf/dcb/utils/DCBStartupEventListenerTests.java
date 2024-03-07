@@ -127,6 +127,8 @@ class DCBStartupEventListenerTests {
 			hasStatusCode("VirtualItem", "PICKUP_TRANSIT", true),
 			hasStatusCode("VirtualItem", "HOLDSHELF", true),
 			hasStatusCode("VirtualItem", "MISSING", false),
+			hasStatusCode("SupplierItem", "AVAILABLE", true),
+			hasStatusCode("SupplierItem", "LOANED", true),
 			hasStatusCode("SupplierItem", "TRANSIT", true),
 			hasStatusCode("SupplierItem", "RECEIEVED", true),
 			hasStatusCode("DCBRequest", "SUBMITTED_TO_DCB", false),
