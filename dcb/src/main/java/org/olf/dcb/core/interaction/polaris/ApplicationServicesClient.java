@@ -315,7 +315,7 @@ class ApplicationServicesClient {
 							.isNew(TRUE)
 							.displayInPAC(FALSE)
 							.assignedBranchID( isInterLibraryLoanBranchIfNotNull(interLibraryLoanBranch, patronHomeBranch) )
-							.owningBranchID(patronHomeBranch)
+							.owningBranchID( isInterLibraryLoanBranchIfNotNull(interLibraryLoanBranch, patronHomeBranch) )
 							.homeBranchID(patronHomeBranch)
 							.renewalLimit(extractMapValue(itemConfig, RENEW_LIMIT, Integer.class))
 							.fineCodeID(extractMapValue(itemConfig, FINE_CODE_ID, Integer.class))
