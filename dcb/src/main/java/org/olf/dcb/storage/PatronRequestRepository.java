@@ -18,6 +18,8 @@ import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Mono;
+import java.time.Instant;
+
 
 public interface PatronRequestRepository {
 	@NonNull
@@ -88,4 +90,10 @@ public interface PatronRequestRepository {
 	@SingleResult
 	@Query(value = "SELECT pr.* from patron_request pr, supplier_request sr where sr.patron_request_id = pr.id and sr.id = :srid", nativeQuery = true)
 	Publisher<PatronRequest> getPRForSRID(UUID srid);
+
+  Publisher<Void> updatePickupItemLastCheckTimestamp(@NotNull UUID id, Instant pickupItemLastCheckTimestamp);
+  Publisher<Void> updatePickupRequestLastCheckTimestamp(@NotNull UUID id, Instant pickupRequestLastCheckTimestamp);
+  Publisher<Void> updateLocalRequestLastCheckTimestamp(@NotNull UUID id, Instant localRequestLastCheckTimestamp);
+  Publisher<Void> updateLocalItemLastCheckTimestamp(@NotNull UUID id, Instant localItemLastCheckTimestamp);
+
 }
