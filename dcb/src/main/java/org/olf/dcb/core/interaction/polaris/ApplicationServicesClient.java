@@ -314,7 +314,7 @@ class ApplicationServicesClient {
 							.barcode((barcodePrefix!=null?barcodePrefix:"") + createItemCommand.getBarcode())
 							.isNew(TRUE)
 							.displayInPAC(FALSE)
-							.assignedBranchID( patronHomeBranch )
+							.assignedBranchID( isInterLibraryLoanBranchIfNotNull(interLibraryLoanBranch, patronHomeBranch) )
 							.owningBranchID( isInterLibraryLoanBranchIfNotNull(interLibraryLoanBranch, patronHomeBranch) )
 							.homeBranchID( isInterLibraryLoanBranchIfNotNull(interLibraryLoanBranch, patronHomeBranch) )
 							.renewalLimit(extractMapValue(itemConfig, RENEW_LIMIT, Integer.class))
