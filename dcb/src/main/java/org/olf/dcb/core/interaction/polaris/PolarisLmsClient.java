@@ -787,4 +787,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		log.debug("POLARIS Supplier Preflight {} {} {} {}",borrowingAgencyCode,supplyingAgencyCode,canonicalItemType,canonicalPatronType);
     return Mono.just(Boolean.TRUE);
   }
+
+  public boolean reflectPatronLoanAtSupplier() {
+    return false;
+  }
+
 }

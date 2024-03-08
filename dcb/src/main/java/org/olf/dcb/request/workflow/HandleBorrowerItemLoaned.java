@@ -104,11 +104,17 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 		final var supplierRequest = rwc.getSupplierRequest();
 
-		return hostLmsClient.updateItemStatus(supplierRequest.getLocalItemId(),
-				AVAILABLE, supplierRequest.getLocalId())
-			.then(hostLmsClient.checkOutItemToPatron(rwc.getSupplierRequest().getLocalItemBarcode(),
-				patronBarcode[0], supplierRequest.getLocalId()))
-			.thenReturn(rwc);
+		if ( hostLmsClient.reflectPatronLoanAtSupplier() ) {
+			return hostLmsClient.updateItemStatus(supplierRequest.getLocalItemId(),
+					AVAILABLE, supplierRequest.getLocalId())
+				.then(hostLmsClient.checkOutItemToPatron(rwc.getSupplierRequest().getLocalItemBarcode(),
+					patronBarcode[0], supplierRequest.getLocalId()))
+				.thenReturn(rwc);
+		}
+		else {
+			rwc.getWorkflowMessages().add("reflectPatronLoanAtSupplier disabled for this client");
+			return Mono.just(rwc);
+		}
 	}
 
 	private String[] extractPatronBarcodes(String inputstr) {

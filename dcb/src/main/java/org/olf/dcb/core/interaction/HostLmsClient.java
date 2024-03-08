@@ -90,4 +90,8 @@ public interface HostLmsClient {
 	 * the patron home agency.
 	 */
 	Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType);
+
+	default boolean reflectPatronLoanAtSupplier() {
+		return true;
+	}
 }
