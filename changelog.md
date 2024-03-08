@@ -1,5 +1,33 @@
 # Changelog
 
+## Version 5.10.0
+
+### Additions
+* [General]
+	* JVM properties as source and startup reporter.
+	* determine assigned branch id for Polaris virtual item creation [DCB-910]
+	* Update item barcode uupon confirmation DCB-884
+
+### Changes
+* [Chore]
+	* add update methods to patron request repository for more granular polling control
+	* add update methods to supplier request repository for more granular polling control
+	* Add extra tracking states to test
+	* Add LOANED and AVAILABLE to list of tracked states on supplier item
+	* Add fields to enable more fine grained control of the polling period for downstream systems
+	* Add an audit message on validation
+* [Feature]
+	* add method to HostLmsClient which controls if borrower checkouts should be reflected back to the supplying library
+	* Add record counts to admin endpoint, add workflow messages to request workflow context
+* [Refactor]
+	* add HostLmsItem status Available to applicable for HandleBorrowerRequestReturnTransit
+
+### Fixes
+* [General]
+	* Correct received token, log mapping failures as errors
+	* Temporarily revert the extra property sources.
+	* cloudwatch op-in MICRONAUT_METRICS_EXPORT_CLOUDWATCH_ENABLED=true
+
 ## Version 5.9.0
 
 ### Additions
@@ -9,6 +37,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* enable requests to be completed without a return transit
 
 ### Fixes
