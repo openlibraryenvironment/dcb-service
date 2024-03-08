@@ -422,7 +422,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			return referenceValueMappingService.findMappingUsingHierarchy("ItemType", "DCB", itemTypeCode, "ItemType", contextHierarchy)
 			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.defer(() -> {
-				log.warn("Unable to map item type DCB:{} to target system {}",itemTypeCode,targetSystemCode);
+				log.error("Unable to map item type DCB:{} to target system {}",itemTypeCode,targetSystemCode);
 				return Mono.just("UNKNOWN");
 			}));
 		}

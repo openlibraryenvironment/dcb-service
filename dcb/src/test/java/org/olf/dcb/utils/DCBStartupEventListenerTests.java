@@ -130,7 +130,7 @@ class DCBStartupEventListenerTests {
 			hasStatusCode("SupplierItem", "AVAILABLE", true),
 			hasStatusCode("SupplierItem", "LOANED", true),
 			hasStatusCode("SupplierItem", "TRANSIT", true),
-			hasStatusCode("SupplierItem", "RECEIEVED", true),
+			hasStatusCode("SupplierItem", "RECEIVED", true),
 			hasStatusCode("DCBRequest", "SUBMITTED_TO_DCB", false),
 			hasStatusCode("DCBRequest", "PATRON_VERIFIED", false),
 			hasStatusCode("DCBRequest", "RESOLVED", false),

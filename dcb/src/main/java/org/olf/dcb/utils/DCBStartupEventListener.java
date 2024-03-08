@@ -32,6 +32,8 @@ import jakarta.annotation.PreDestroy;
 
 import org.olf.dcb.core.AppConfig;
 
+import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
+
 @Slf4j
 @Singleton
 public class DCBStartupEventListener implements ApplicationEventListener<StartupEvent> {
@@ -148,7 +150,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierItem", "AVAILABLE", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierItem", "LOANED", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierItem", "TRANSIT", Boolean.TRUE)))
-			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierItem", "RECEIEVED", Boolean.TRUE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("SupplierItem", CanonicalItemState.RECEIVED.toString(), Boolean.TRUE)))
 
 			// The INTERNAL DCB State model - used to progress DCB requests according to OUR state model
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "SUBMITTED_TO_DCB", Boolean.FALSE)))
