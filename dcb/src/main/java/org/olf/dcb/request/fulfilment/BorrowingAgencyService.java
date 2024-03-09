@@ -67,23 +67,36 @@ public class BorrowingAgencyService {
 	public Mono<String> cleanUp(PatronRequest patronRequest) {
 		log.info("WORKFLOW cleanUp {}", patronRequest);
 		if (patronRequest.getPatronHostlmsCode() != null) {
-			return Mono.from(hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode())).flatMap(client -> {
-				if (patronRequest.getLocalItemId() != null)
-					client.deleteItem(patronRequest.getLocalItemId());
-				else
-					log.warn("No local item to delete at borrower system");
-
-				if (patronRequest.getLocalBibId() != null)
-					client.deleteBib(patronRequest.getLocalBibId());
-				else
-					log.warn("No local bib to delete at borrower system");
-
-				return Mono.just(patronRequest);
-			}).thenReturn("OK").defaultIfEmpty("ERROR");
+			return Mono.from(hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode()))
+				.flatMap(client -> deleteItemIfPresent(client, patronRequest) )
+				.flatMap(client -> deleteBibIfPresent(client, patronRequest) )
+				.thenReturn("OK")
+				.defaultIfEmpty("ERROR");
 		}
 
 		return Mono.just("ERROR");
 	}
+
+	public Mono<HostLmsClient> deleteItemIfPresent(HostLmsClient client, PatronRequest patronRequest) {
+		if (patronRequest.getLocalItemId() != null) {
+			return client.deleteItem(patronRequest.getLocalItemId())
+				.thenReturn(client);
+		}
+		else {
+			return Mono.just(client);
+		}
+	}
+
+  public Mono<HostLmsClient> deleteBibIfPresent(HostLmsClient client, PatronRequest patronRequest) {
+		if (patronRequest.getLocalBibId() != null) {
+			return client.deleteBib(patronRequest.getLocalBibId())
+        .thenReturn(client);
+    }
+    else {
+      return Mono.just(client);
+    }
+  }
+
 
 	private Mono<Tuple2<PatronRequest, String>> createVirtualBib(
 		PatronRequest patronRequest, HostLmsClient hostLmsClient) {
