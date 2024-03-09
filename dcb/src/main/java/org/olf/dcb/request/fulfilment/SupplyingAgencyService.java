@@ -110,7 +110,7 @@ public class SupplyingAgencyService {
 	}
 
 	public Mono<PatronRequest> cleanUp(PatronRequest patronRequest) {
-		log.info("cleanup {}",patronRequest);
+		log.info("WORKFLOW cleanup {}",patronRequest);
 		return Mono.just(patronRequest);
 	}
 

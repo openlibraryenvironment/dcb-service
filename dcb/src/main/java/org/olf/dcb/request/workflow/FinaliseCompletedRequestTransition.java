@@ -51,7 +51,7 @@ public class FinaliseCompletedRequestTransition implements PatronRequestStateTra
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
 
 		PatronRequest patronRequest = ctx.getPatronRequest();
-		log.debug("FinaliseCompletedRequestTransition firing for {}", patronRequest);
+		log.debug("WORKFLOW FinaliseCompletedRequestTransition firing for {}", patronRequest);
 
 		return Mono.just(patronRequest)
 			.flatMap(supplyingAgencyService::cleanUp)

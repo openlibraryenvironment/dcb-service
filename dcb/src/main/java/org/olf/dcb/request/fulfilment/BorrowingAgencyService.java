@@ -65,17 +65,19 @@ public class BorrowingAgencyService {
 	}
 
 	public Mono<String> cleanUp(PatronRequest patronRequest) {
-		log.info("cleanUp {}", patronRequest);
+		log.info("WORKFLOW cleanUp {}", patronRequest);
 		if (patronRequest.getPatronHostlmsCode() != null) {
 			return Mono.from(hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode())).flatMap(client -> {
 				if (patronRequest.getLocalItemId() != null)
 					client.deleteItem(patronRequest.getLocalItemId());
 				else
-					log.info("No local item to delete at borrower system");
+					log.warn("No local item to delete at borrower system");
+
 				if (patronRequest.getLocalBibId() != null)
 					client.deleteBib(patronRequest.getLocalBibId());
 				else
-					log.info("No local bib to delete at borrower system");
+					log.warn("No local bib to delete at borrower system");
+
 				return Mono.just(patronRequest);
 			}).thenReturn("OK").defaultIfEmpty("ERROR");
 		}

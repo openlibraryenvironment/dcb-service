@@ -1122,7 +1122,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			var_fields.add(
 				VarField.builder()
 					.fieldTag("m")
-					.content("-")
+					.content("") // 2024-03-09 trying "" instead of "-" to clear the message
 					.build()
 			);
 
