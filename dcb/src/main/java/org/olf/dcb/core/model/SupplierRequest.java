@@ -87,6 +87,10 @@ public class SupplierRequest {
 	@Nullable
 	Instant localItemLastCheckTimestamp;
 
+  // How many times have we seen this localRequestStatus when tracking? Used for backoff polling
+  @Nullable
+  private Long localItemStatusRepeat;
+
 	@Nullable
 	@Size(max = 32)
 	private String localItemType;
@@ -123,6 +127,10 @@ public class SupplierRequest {
 
 	@Nullable
 	Instant localRequestLastCheckTimestamp;
+
+  // How many times have we seen this localRequestStatus when tracking? Used for backoff polling
+  @Nullable
+  private Long localRequestStatusRepeat;
 
 	@Nullable
 	private String localAgency;

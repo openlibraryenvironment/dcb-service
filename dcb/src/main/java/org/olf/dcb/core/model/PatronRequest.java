@@ -146,6 +146,10 @@ public class PatronRequest {
 	@Nullable
 	private Instant pickupItemLastCheckTimestamp;
 
+	// How many times have we seen this pickupItemStatus when tracking? Used for backoff polling
+	@Nullable
+	private Long pickupItemStatusRepeat;
+
 	// In order to hand the temporary item over the patron at the pickup
 	// library, place a hold at the pickup lib and record it here
 	@Nullable
@@ -160,6 +164,10 @@ public class PatronRequest {
 	// When did we last poll for pickup request status (May only be used in 3-legged)
 	@Nullable
 	private Instant pickupRequestLastCheckTimestamp;
+
+	// How many times have we seen this pickupRequestStatus when tracking? Used for backoff polling
+	@Nullable
+	private Long pickupRequestStatusRepeat;
 
 	// Ignore at this property level. We provide explicit ignore/serializing
 	// instructions at a getter and setter level to prevent any JSON binding to this
@@ -182,6 +190,10 @@ public class PatronRequest {
 	@Nullable
 	Instant localRequestLastCheckTimestamp;
 
+	// How many times have we seen this localRequestStatus when tracking? Used for backoff polling
+	@Nullable
+	private Long localRequestStatusRepeat;
+
 	@Nullable
 	private String localItemId;
 
@@ -191,6 +203,10 @@ public class PatronRequest {
 	// When did we last poll the local item
 	@Nullable
 	Instant localItemLastCheckTimestamp;
+
+	// How many times have we seen this localRequestStatus when tracking? Used for backoff polling
+	@Nullable
+	private Long localItemStatusRepeat;
 
 	@Nullable
 	@Size(max = 32)
