@@ -109,4 +109,9 @@ public class Location {
 	private String printLabel;
 
 	private String deliveryStops;
+
+	// Some systems such as Polaris allow a location "Uber Library" to have a code "UL" as well as an ID 1245. 
+	// obviously some systems use strings (or UUIDs) and some use integers - so we store it as a string. Each hostLmsClient
+	// will need to do some conversion to coerce the value here into what it needs.
+	private String localId;
 }

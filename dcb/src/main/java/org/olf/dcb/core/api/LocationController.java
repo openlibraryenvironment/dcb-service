@@ -95,10 +95,21 @@ public class LocationController {
 				hostSystem = agency.getHostLms();
 
 			// Convert AgencyDTO into DataAgency with correctly linked HostLMS
-			Location l = Location.builder().id(location.id()).code(location.code()).name(location.name())
-					.type(location.type()).agency(agency).hostSystem(hostSystem).isPickup(location.isPickup())
-					.longitude(location.longitude()).latitude(location.latitude()).deliveryStops(location.deliveryStops())
-					.printLabel(location.printLabel()).build();
+			Location l = Location.builder()
+				.id(location.id())
+				.code(location.code())
+				.name(location.name())
+				.type(location.type())
+				.agency(agency)
+				.hostSystem(hostSystem)
+				.isPickup(location.isPickup())
+				.isShelving(location.isShelving())
+				.longitude(location.longitude())
+				.latitude(location.latitude())
+				.deliveryStops(location.deliveryStops())
+				.printLabel(location.printLabel())
+				.localId(location.localId())
+				.build();
 
 			return Mono.from(locationRepository.existsById(l.getId()))
 					.flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)));
