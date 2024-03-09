@@ -448,16 +448,14 @@ class ApplicationServicesClient {
 
 	private Mono<WorkflowResponse> createItemRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
 
-		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class),
-				noExtraErrorHandling())
+		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class), noExtraErrorHandling())
 			.doOnSuccess(r -> log.info("Got create item response {}", r))
-			.doOnError(e -> log.info("Error response for create item {}", workflowReq, e))
+			.doOnError(e -> log.info("Error response for create item {} {}", workflowReq, e))
 			// when we save the virtual item we need to confirm we do not want the item to display in pac
 			.flatMap(response -> handlePolarisWorkflow(response, NoDisplayInPAC, Continue))
 			// if the item barcode exists we still want to continue saving the item
 			.flatMap(resp -> handlePolarisWorkflow(resp, DuplicateRecords, Continue))
-			.switchIfEmpty(Mono.error(new PolarisWorkflowException("item request failed expecting workflow response to: "
-				+ workflowReq)));
+			.switchIfEmpty(Mono.error(new PolarisWorkflowException("item request failed expecting workflow response to: " + workflowReq)));
 	}
 
 	private Mono<MutableHttpRequest<WorkflowReply>> createItemWorkflowReply(
