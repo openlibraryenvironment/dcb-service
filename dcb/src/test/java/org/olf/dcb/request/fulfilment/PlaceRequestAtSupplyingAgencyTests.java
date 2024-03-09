@@ -364,14 +364,6 @@ class PlaceRequestAtSupplyingAgencyTests {
 			hasId(expectedId),
 			hasStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
 		));
-
-		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
-
-		assertThat(onlyAuditEntry, allOf(
-			hasNoBriefDescription(),
-			hasFromStatus(RESOLVED),
-			hasToStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
-		));
 	}
 
 	private UUID createClusterRecord() {

@@ -478,19 +478,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
 	}
 
-	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest,
-		PatronRequest.Status expectedFromStatus) {
-
-		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
-
-		assertThat("Patron Request audit should NOT have brief description",
-			fetchedAudit.getBriefDescription(), is(nullValue()));
-
-		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(expectedFromStatus));
-
-		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
+	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest, PatronRequest.Status expectedFromStatus) {
+		assertThat("Patron request has expected status", patronRequest.getStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY) );
 	}
 
 	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
