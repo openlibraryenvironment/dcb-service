@@ -181,32 +181,39 @@ public class TrackingService implements Runnable {
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	protected Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
-		log.info("TRACKING Check (local) virtualItem from patron request {} {} {}",
-			pr.getLocalItemId(), pr.getLocalItemStatus(), pr.getPatronHostlmsCode());
+
+		log.info("TRACKING Check (local) virtualItem from patron request {} {} {}", pr.getLocalItemId(), pr.getLocalItemStatus(), pr.getPatronHostlmsCode());
 
 		if ((pr.getPatronHostlmsCode() != null) && (pr.getLocalItemId() != null)) {
 			return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
 				.flatMap(client -> Mono.from(client.getItem(pr.getLocalItemId(), pr.getLocalRequestId())))
-				.filter(item -> (
-					((item.getStatus() == null) && (pr.getLocalItemStatus() != null)) ||
-						((item.getStatus() != null) && (pr.getLocalItemStatus() == null)) ||
-						(!item.getStatus().equals(pr.getLocalItemStatus()))
-					) )
-				.flatMap(item -> {
-					log.debug("TRACKING Detected borrowing system - virtual item status change {} to {}",
-						pr.getLocalItemStatus(), item.getStatus());
-					StateChange sc = StateChange.builder()
-						.patronRequestId(pr.getId())
-						.resourceType("BorrowerVirtualItem")
-						.resourceId(pr.getId().toString())
-						.fromState(pr.getLocalItemStatus())
-						.toState(item.getStatus())
-						.resource(pr)
-						.build();
-
-					log.info("TRACKING-EVENT vitem change event {}", sc);
-					return hostLmsReactions.onTrackingEvent(sc)
-						.thenReturn(pr);
+				.flatMap( item -> {
+					if ( ((item.getStatus() == null) && (pr.getLocalItemStatus() != null)) ||
+            ((item.getStatus() != null) && (pr.getLocalItemStatus() == null)) ||
+            (!item.getStatus().equals(pr.getLocalItemStatus()))) {
+						// Item status has changed - so issue an update
+	          log.debug("TRACKING Detected borrowing system - virtual item status change {} to {}", pr.getLocalItemStatus(), item.getStatus());
+	          StateChange sc = StateChange.builder()
+		          .patronRequestId(pr.getId())
+			        .resourceType("BorrowerVirtualItem")
+				      .resourceId(pr.getId().toString())
+					    .fromState(pr.getLocalItemStatus())
+						  .toState(item.getStatus())
+							.resource(pr)
+	            .build();
+		        log.info("TRACKING-EVENT vitem change event {}", sc);
+			      return hostLmsReactions.onTrackingEvent(sc)
+				      .thenReturn(pr);
+					}
+					else {
+						// virtual item status has not changed - just update trackig stats
+	          log.debug("TRACKING - update virtual item repeat counter {} {} {}",pr.getId(), pr.getLocalItemStatus(), pr.getLocalItemStatusRepeat());
+		        return Mono.from(patronRequestRepository.updateLocalItemTracking(pr.getId(), pr.getLocalItemStatus(), Instant.now(),
+			          incrementRepeatCounter(pr.getLocalItemStatusRepeat())))
+				      .doOnNext(count -> log.debug("update count {}",count))
+					    .thenReturn(pr);
+					}
+			
 				});
 		}
 		else {
