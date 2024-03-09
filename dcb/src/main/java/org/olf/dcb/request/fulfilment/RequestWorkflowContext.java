@@ -27,9 +27,16 @@ public class RequestWorkflowContext {
 	Agency patronAgency;
 	DataHostLms patronSystem;
 
+	// Information about the AGENCY being used for pickup
 	String pickupAgencyCode;
 	String pickupSystemCode;
 	Agency pickupAgency;
+
+	// the ID of the pickup location as it is known to the pickup agency
+	// For example in polaris this is the internal integer primary key of the pickup location.
+	String pickupLocationLocalId;
+	// The actual location record for the pickup location.
+	Location pickupLocation;
 
 	String lenderAgencyCode;
 	String lenderSystemCode;

@@ -243,12 +243,21 @@ public class RequestWorkflowContextHelper {
 			// We've been passed a UUID in the pickup location symbol... try to unpick that
 			// Convert the location UUID into a location, extract the code, find the agency for that code and context
 			return locationService.findById(pickupSymbol)
-					.flatMap(this::getAgencyDirectlyFromLocation)
-					// the Location row in the DB MUST be directly attached to an agency
-				.flatMap(pickupAgency -> Mono.just(ctx.setPickupAgency(pickupAgency)))
-				.flatMap(ctx2 -> Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())))
-				.flatMap(ctx2 -> Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())))
-					.switchIfEmpty(Mono.error(new RuntimeException("No agency found for pickup location: %s".formatted(pickupSymbol))));
+				.flatMap( pickupLocation -> {
+					// Set the local ID of the pickup location in the request context - in case we need it to specify
+					// pickup location when placing a hold etc.
+					ctx.setPickupLocation(pickupLocation);
+					ctx.setPickupLocationLocalId(pickupLocation.getLocalId());
+					return getAgencyDirectlyFromLocation(pickupLocation);
+				})
+				// the Location row in the DB MUST be directly attached to an agency
+				.flatMap(pickupAgency -> {
+					ctx.setPickupAgency(pickupAgency);
+					ctx.setPickupAgencyCode(pickupAgency.getCode());
+					ctx.setPickupSystemCode(pickupAgency.getHostLms().getCode());
+					return Mono.just(ctx);
+				})
+				.switchIfEmpty(Mono.error(new RuntimeException("No agency found for pickup location: %s".formatted(pickupSymbol))));
 		}
 
 		return agencyForPickupLocationSymbol(pickupSymbolContext, pickupSymbol)
