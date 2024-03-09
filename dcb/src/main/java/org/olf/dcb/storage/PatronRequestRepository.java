@@ -91,9 +91,9 @@ public interface PatronRequestRepository {
 	@Query(value = "SELECT pr.* from patron_request pr, supplier_request sr where sr.patron_request_id = pr.id and sr.id = :srid", nativeQuery = true)
 	Publisher<PatronRequest> getPRForSRID(UUID srid);
 
-  Publisher<Void> updatePickupItemLastCheckTimestamp(@NotNull UUID id, Instant pickupItemLastCheckTimestamp);
-  Publisher<Void> updatePickupRequestLastCheckTimestamp(@NotNull UUID id, Instant pickupRequestLastCheckTimestamp);
-  Publisher<Void> updateLocalRequestLastCheckTimestamp(@NotNull UUID id, Instant localRequestLastCheckTimestamp);
-  Publisher<Void> updateLocalItemLastCheckTimestamp(@NotNull UUID id, Instant localItemLastCheckTimestamp);
+  Publisher<Void> updatePickupItemTracking(@NotNull UUID id, Instant pickupItemLastCheckTimestamp);
+  Publisher<Void> updatePickupRequestTracking(@NotNull UUID id, Instant pickupRequestLastCheckTimestamp);
+  Publisher<Void> updateLocalRequestTracking(@NotNull UUID id, Instant localRequestLastCheckTimestamp);
+  Publisher<Void> updateLocalItemTracking(@NotNull UUID id, Instant localItemLastCheckTimestamp);
 
 }

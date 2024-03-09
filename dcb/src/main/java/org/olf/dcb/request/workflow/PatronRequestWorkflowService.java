@@ -64,18 +64,18 @@ public class PatronRequestWorkflowService {
 	}
 
 	public void initiate(PatronRequest patronRequest) {
-		log.info("initiate({})", patronRequest);
+		log.info("WORKFLOW initiate({})", patronRequest);
 
 		// Inspired by https://blogs.ashrithgn.com/adding-transaction-trace-id-correlation-id-for-each-request-in-micronaut-for-tracing-the-log-easily/
 		MDC.put("prID", patronRequest.getId().toString());
 
 		progressAll(patronRequest)
-			.doFinally(signalType -> log.info("Completed processing for {}", patronRequest.getId()))
+			.doFinally(signalType -> log.info("WORKFLOW Completed processing for {}", patronRequest.getId()))
 			.subscribe();
 	}
 	
 	public Flux<PatronRequest> progressAll(PatronRequest patronRequest) {
-		log.debug("progressAll({})", patronRequest);
+		log.debug("WORKFLOW progressAll({})", patronRequest);
 
 		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
 			.flatMapMany( ctx -> this.progressUsing(ctx, getApplicableTransitionFor(ctx) ));
@@ -89,17 +89,17 @@ public class PatronRequestWorkflowService {
 	public Flux<PatronRequest> progressUsing(RequestWorkflowContext ctx, Optional<PatronRequestStateTransition> action) {
 
 		if (action.isEmpty()) {
-			log.debug("Unable to progress {} - no transformations available from state {}",
+			log.debug("WORKFLOW Unable to progress {} - no transformations available from state {}",
 				ctx.getPatronRequest().getId(), ctx.getPatronRequest().getStatus());
 		}
 		
 		return Mono.justOrEmpty(action)
 			.flatMapMany(transition -> {
-				log.debug("found action {} applying transition", action.get().getClass().getName());
+				log.debug("WORKFLOW found action {} applying transition", action.get().getClass().getName());
 
 				final var pr = applyTransition(transition, ctx);
 
-				log.debug("start applying actions, there may be subsequent transitions possible");
+				log.debug("WORKFLOW start applying actions, there may be subsequent transitions possible");
 
 				// Resolve as incomplete.
 				return pr;
@@ -117,7 +117,7 @@ public class PatronRequestWorkflowService {
 
 	private Flux<PatronRequest> applyTransition(PatronRequestStateTransition action, RequestWorkflowContext ctx) {
 
-		log.debug("applyTransition({}, {})", action.getName(), ctx.getPatronRequest().getId());
+		log.debug("WORKFLOW applyTransition({}, {})", action.getName(), ctx.getPatronRequest().getId());
 
 		// return patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), ctx.getPatronRequestStateOnEntry(), 
 					// ctx.getPatronRequestStateOnEntry(), Optional.of("guard passed : " + action.getName()))
@@ -159,7 +159,7 @@ public class PatronRequestWorkflowService {
 				// When we encounter an error we should set the status in the DB only to avoid,
 				// partial state saves.
 
-				log.error("update patron request {} to error state ({}) - {}",
+				log.error("WORKFLOW update patron request {} to error state ({}) - {}",
 					prId, throwable.getMessage(), throwable.getClass().getName());
 
 				Map<String, Object> auditData = null;
@@ -172,7 +172,7 @@ public class PatronRequestWorkflowService {
 					.then(patronRequestAuditService.addErrorAuditEntry(patronRequest,
 						fromState, throwable, auditData))
 					.onErrorResume(saveError -> {
-						log.error("Could not update PatronRequest with error state", saveError);
+						log.error("WORKFLOW Could not update PatronRequest with error state", saveError);
 						return Mono.empty();
 					})
 					.then(Mono.error(throwable));
@@ -182,13 +182,13 @@ public class PatronRequestWorkflowService {
 	private Optional<PatronRequestStateTransition> getApplicableTransitionFor(RequestWorkflowContext ctx) {
 		log.debug("getApplicableTransitionFor...");
 
-		log.debug("Possible transitions: {}", getPossibleStateTransitionsFor(ctx)
+		log.debug("WORKFLOW Possible transitions: {}", getPossibleStateTransitionsFor(ctx)
 			.map(PatronRequestStateTransition::getName)
 			.toList());
 
 		final var firstApplicable = getPossibleStateTransitionsFor(ctx).findFirst();
 
-		log.debug("First applicable transition: {}", firstApplicable
+		log.debug("WORKFLOW First applicable transition: {}", firstApplicable
 			.map(PatronRequestStateTransition::getName)
 			.orElse("None"));
 

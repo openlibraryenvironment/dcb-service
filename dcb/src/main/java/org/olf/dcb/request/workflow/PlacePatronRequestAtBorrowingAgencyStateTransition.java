@@ -49,9 +49,14 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 		final var statusUponEntry = ctx.getPatronRequest().getStatus();
 
 		return borrowingAgencyService.placePatronRequestAtBorrowingAgency(ctx.getPatronRequest())
-			.doOnSuccess(pr -> log.info("Placed patron request to borrowing agency: {}", pr))
-			.doOnError(error -> log.error("Error occurred during placing a patron request to borrowing agency: {}", error.getMessage()))
-			.flatMap(patronRequest -> createAuditEntry(patronRequest, statusUponEntry))
+			.doOnSuccess(pr -> {
+				log.info("Placed patron request to borrowing agency: {}", pr);
+				ctx.getWorkflowMessages().add("Placed patron request to borrowing agency");
+			})
+			.doOnError(error -> {
+				log.error("Error occurred during placing a patron request to borrowing agency: {}", error.getMessage());
+				ctx.getWorkflowMessages().add("Error occurred during placing a patron request to borrowing agency: "+error.getMessage());
+			})
 			.thenReturn(ctx);
 	}
 

@@ -45,11 +45,18 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 
 		log.debug("PlacePatronRequestAtSupplyingAgencyStateTransition firing for {}", ctx.getPatronRequest());
 
+		// Note: supplyingAgencyService.placePatronRequestAtSupplyingAgency will eventually call PatronRequest::placedAtSupplyingAgency
+
 		return supplyingAgencyService.placePatronRequestAtSupplyingAgency(ctx.getPatronRequest())
-				.doOnSuccess(pr -> log.debug("Placed patron request to supplier: pr={}", pr))
-				.doOnError(error -> log.error("Error occurred during placing a patron request to supplier: {}", error.getMessage()))
-				.flatMap(this::createAuditEntry)
-				.thenReturn(ctx);
+			.doOnSuccess(pr -> {
+				log.debug("Placed patron request to supplier: pr={}", pr);
+				ctx.getWorkflowMessages().add("Placed patron request to supplier");
+			})
+			.doOnError(error -> {
+				log.error("Error occurred during placing a patron request to supplier: {}", error.getMessage());
+				ctx.getWorkflowMessages().add("Error occurred during placing a patron request to supplier: "+error.getMessage());
+			})
+			.thenReturn(ctx);
 	}
 
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
