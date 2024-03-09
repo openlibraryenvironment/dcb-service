@@ -22,6 +22,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
+import java.time.Instant;
 
 @Slf4j
 @Refreshable
@@ -125,6 +126,13 @@ public class TrackingService implements Runnable {
 			.transform(enrichWithLogging("TRACKING active supplier hold tracking complete", "TrackingError (SupplierHold):"));
 	}
 
+
+
+	// The check methods themselves
+
+
+
+
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	protected Mono<PatronRequest> checkPatronRequest(PatronRequest pr) {
 		log.info("TRACKING Check patron request {}", pr);
@@ -132,23 +140,41 @@ public class TrackingService implements Runnable {
 		return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
 			.flatMap(client -> client.getRequest(pr.getLocalRequestId()))
 			.onErrorContinue((e, o) -> log.error("Error occurred: " + e.getMessage(), e))
-			.doOnNext(hold -> log.info("TRACKING Compare patron request {} states: {} and {}",
-				pr.getId(), hold.getStatus(), pr.getLocalRequestStatus()))
-			.filter(hold -> !hold.getStatus().equals(pr.getLocalRequestStatus()))
-			.flatMap(hold -> {
-				StateChange sc = StateChange.builder()
-					.patronRequestId(pr.getId())
-					.resourceType("PatronRequest")
-					.resourceId(pr.getId().toString())
-					.fromState(pr.getLocalRequestStatus())
-					.toState(hold.getStatus())
-					.resource(pr)
-					.build();
+			.doOnNext(hold -> log.info("TRACKING Compare patron request {} states: {} and {}", pr.getId(), hold.getStatus(), pr.getLocalRequestStatus()))
+			.flatMap( hold -> {
+				if ( hold.getStatus().equals(pr.getLocalRequestStatus()) ) {
+					// The hold status is the same as the last time we checked - update the tracking info and return
+					return Mono.from(patronRequestRepository.updateLocalRequestTracking(pr.getId(), pr.getLocalRequestStatus(), Instant.now(),
+							incrementRepeatCounter(pr.getLocalRequestStatusRepeat())))
+						.thenReturn(pr);
+				}
+				else {
+					// The hold status has changed - do something different
+					StateChange sc = StateChange.builder()
+						.patronRequestId(pr.getId())
+						.resourceType("PatronRequest")
+						.resourceId(pr.getId().toString())
+						.fromState(pr.getLocalRequestStatus())
+						.toState(hold.getStatus())
+						.resource(pr)
+						.build();
 
-				log.info("TRACKING-EVENT PR state change event {}",sc);
-				return hostLmsReactions.onTrackingEvent(sc)
-					.thenReturn(pr);
+					log.info("TRACKING-EVENT PR state change event {}",sc);
+					return hostLmsReactions.onTrackingEvent(sc)
+						.thenReturn(pr);
+				}
 			});
+	}
+
+	private Long incrementRepeatCounter(Long current) {
+		Long repeat_count = current;
+
+		if ( repeat_count == null ) 
+			repeat_count = Long.valueOf(1);
+		else
+			repeat_count = Long.valueOf(repeat_count.longValue() + 1);
+
+		return repeat_count;
 	}
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)

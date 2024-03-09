@@ -21,6 +21,7 @@ import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.zalando.problem.Problem;
 import reactor.core.publisher.Mono;
+import java.time.Instant;
 
 /**
  * This class gathers together the code which detects that an object in a remote system has
@@ -74,23 +75,27 @@ public class HostLmsReactions {
 				case "SupplierRequest":
 					SupplierRequest sr = (SupplierRequest) sc.getResource();
 					sr.setLocalStatus(sc.getToState());
-					return Mono.from(supplierRequestRepository.update(sr))
-						.flatMap( ssr -> auditEventIndication( context, trackingRecord));
+					sr.setLocalRequestLastCheckTimestamp(Instant.now());
+					sr.setLocalRequestStatusRepeat(Long.valueOf(0));
+					return Mono.from(supplierRequestRepository.update(sr)).flatMap( ssr -> auditEventIndication( context, trackingRecord));
 				case "PatronRequest":
 					PatronRequest pr = (PatronRequest) sc.getResource();
 					pr.setLocalRequestStatus(sc.getToState());
-					return Mono.from(patronRequestRepository.update(pr))
-						.flatMap( spr -> auditEventIndication( context, trackingRecord));
+					pr.setLocalRequestLastCheckTimestamp(Instant.now());
+					pr.setLocalRequestStatusRepeat(Long.valueOf(0));
+					return Mono.from(patronRequestRepository.update(pr)).flatMap( spr -> auditEventIndication( context, trackingRecord));
 				case "BorrowerVirtualItem":
 					PatronRequest pr2 = (PatronRequest) sc.getResource();
 					pr2.setLocalItemStatus(sc.getToState());
-					return Mono.from(patronRequestRepository.update(pr2))
-						.flatMap( spr -> auditEventIndication( context, trackingRecord));
+					pr2.setLocalItemLastCheckTimestamp(Instant.now());
+					pr2.setLocalItemStatusRepeat(Long.valueOf(0));
+					return Mono.from(patronRequestRepository.update(pr2)).flatMap( spr -> auditEventIndication( context, trackingRecord));
 				case "SupplierItem":
 					SupplierRequest sr2 = (SupplierRequest) sc.getResource();
 					sr2.setLocalItemStatus(sc.getToState());
-					return Mono.from(supplierRequestRepository.update(sr2))
-						.flatMap( ssr -> auditEventIndication( context, trackingRecord));
+					sr2.setLocalItemLastCheckTimestamp(Instant.now());
+					sr2.setLocalItemStatusRepeat(Long.valueOf(0));
+					return Mono.from(supplierRequestRepository.update(sr2)).flatMap( ssr -> auditEventIndication( context, trackingRecord));
 			}
 
 			throw Problem.builder()
