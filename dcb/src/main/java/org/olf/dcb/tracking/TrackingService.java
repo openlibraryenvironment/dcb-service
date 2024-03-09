@@ -144,8 +144,10 @@ public class TrackingService implements Runnable {
 			.flatMap( hold -> {
 				if ( hold.getStatus().equals(pr.getLocalRequestStatus()) ) {
 					// The hold status is the same as the last time we checked - update the tracking info and return
+					log.debug("TRACKING - update PR repeat counter {} {} {}",pr.getId(), pr.getLocalRequestStatus(), pr.getLocalRequestStatusRepeat());
 					return Mono.from(patronRequestRepository.updateLocalRequestTracking(pr.getId(), pr.getLocalRequestStatus(), Instant.now(),
 							incrementRepeatCounter(pr.getLocalRequestStatusRepeat())))
+						.doOnNext(count -> log.debug("update count {}",count))
 						.thenReturn(pr);
 				}
 				else {

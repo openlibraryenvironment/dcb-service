@@ -135,7 +135,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			// II I think the next one should be removed
 			// .flatMap( v -> Mono.from(saveOrUpdateStatusCode("PatronRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("PatronRequest", "CANCELLED", Boolean.TRUE)))
-			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("PatronRequest", "MISSING", Boolean.TRUE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("PatronRequest", "MISSING", Boolean.FALSE)))
 
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "IDLE", Boolean.FALSE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "RET-TRANSIT", Boolean.FALSE)))

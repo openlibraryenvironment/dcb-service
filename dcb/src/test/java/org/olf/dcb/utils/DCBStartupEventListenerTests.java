@@ -117,7 +117,7 @@ class DCBStartupEventListenerTests {
 			hasStatusCode("PatronRequest", "PLACED", true),
 			// hasStatusCode("PatronRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", true),
 			hasStatusCode("PatronRequest", "CANCELLED", true),
-			hasStatusCode("PatronRequest", "MISSING", true),
+			hasStatusCode("PatronRequest", "MISSING", false),
 			hasStatusCode("VirtualItem", "IDLE", false),
 			hasStatusCode("VirtualItem", "RET-TRANSIT", false),
 			hasStatusCode("VirtualItem", "TRANSIT", true),
