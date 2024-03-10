@@ -77,7 +77,7 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 					.supplyingAgencyCode(supplyingAgencyCode)
 					.localPatronId(patronId)
 					.localPatronBarcode(patronBarcode)
-					.pickupLocation(pickupLocationCode)
+					.pickupLocationCode(pickupLocationCode)
 					.build()));
 
 		// Assert
@@ -128,7 +128,7 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 					.supplyingAgencyCode(supplyingAgencyCode)
 					.localPatronId(patronId)
 					.localPatronBarcode(patronBarcode)
-					.pickupLocation(pickupLocationCode)
+					.pickupLocationCode(pickupLocationCode)
 					.build())));
 
 		// Assert

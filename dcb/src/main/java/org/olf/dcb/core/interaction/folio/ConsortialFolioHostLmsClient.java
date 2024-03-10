@@ -399,7 +399,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 						.barcode(firstPatronBarcodeInList)
 						.build())
 					.pickup(CreateTransactionRequest.Pickup.builder()
-						.servicePointId(parameters.getPickupLocation())
+						.servicePointId(parameters.getPickupLocationCode())
 						.build())
 					.build()));
 	}

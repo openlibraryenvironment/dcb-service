@@ -131,18 +131,22 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(
 		PlaceHoldRequestParameters parameters) {
 
-		return placeHoldRequest(parameters);
+		return placeHoldRequest(parameters, false);
 	}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(
 		PlaceHoldRequestParameters parameters) {
 
-		return placeHoldRequest(parameters);
+		return placeHoldRequest(parameters, true);
 	}
 
+	/**
+	 * Borrower requests use a real pickup location, supplier requests will usually pass through
+	 * the agency code so we have a rough idea where the item is going
+	 */
 	private Mono<LocalRequest> placeHoldRequest(
-		PlaceHoldRequestParameters parameters) {
+		PlaceHoldRequestParameters parameters, boolean isBorrower) {
 		return getBibIdFromItemId(parameters.getLocalItemId())
 			.flatMap(this::getBib)
 			.zipWith(papiClient.synch_ItemGet(parameters.getLocalItemId()))
@@ -150,12 +154,22 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				final var bib = tuple.getT1();
 				final var item = tuple.getT2();
 
+				// Different systems will use different pickup locations - we default to passing through
+				// parameters.getPickupLocationCode
+				String pickup_location = parameters.getPickupLocationCode();
+				// However - polaris as a pickup location actually needs to local ID of the pickup location
+				// So if we have a specific local ID, pass that down the chain instead.
+				if ( isBorrower && ( parameters.getPickupLocation() != null ) ) {
+					if ( parameters.getPickupLocation().getLocalId() != null )
+						pickup_location = parameters.getPickupLocation().getLocalId();
+				}
+
 				return HoldRequestParameters.builder()
 					.localPatronId(parameters.getLocalPatronId())
 					.recordNumber(parameters.getLocalItemId())
 					.title(bib.getBrowseTitle())
 					.primaryMARCTOMID(bib.getPrimaryMARCTOMID())
-					.pickupLocation(parameters.getPickupLocation())
+					.pickupLocation(pickup_location)
 					.note(parameters.getNote())
 					.dcbPatronRequestId(parameters.getPatronRequestId())
 					.localItemLocationId(item.getLocationID())

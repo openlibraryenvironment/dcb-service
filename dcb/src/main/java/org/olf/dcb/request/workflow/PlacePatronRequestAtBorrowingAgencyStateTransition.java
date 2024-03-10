@@ -48,7 +48,7 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 
 		final var statusUponEntry = ctx.getPatronRequest().getStatus();
 
-		return borrowingAgencyService.placePatronRequestAtBorrowingAgency(ctx.getPatronRequest())
+		return borrowingAgencyService.placePatronRequestAtBorrowingAgency(ctx)
 			.doOnSuccess(pr -> {
 				log.info("Placed patron request to borrowing agency: {}", pr);
 				ctx.getWorkflowMessages().add("Placed patron request to borrowing agency");

@@ -191,7 +191,7 @@ public class SupplyingAgencyService {
 					.localItemId(supplierRequest.getLocalItemId())
 					.localItemBarcode(supplierRequest.getLocalItemBarcode())
 					// Have to pass both because Sierra and Polaris still use code only
-					.pickupLocation(context.getPickupAgencyCode())
+					.pickupLocationCode(context.getPickupAgencyCode())
 					.pickupAgency(context.getPickupAgency())
 					.note(note)
 					.patronRequestId(patronRequest.getId().toString())

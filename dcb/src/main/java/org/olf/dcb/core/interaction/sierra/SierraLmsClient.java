@@ -588,7 +588,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// location where the item currently resides
 		// return placeHoldRequest(parameters, parameters.getSupplyingLocalItemLocation());
 
-		return placeHoldRequest(parameters, parameters.getPickupLocation());
+		return placeHoldRequest(parameters, parameters.getPickupLocationCode());
 	}
 
 	@Override
@@ -596,7 +596,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		PlaceHoldRequestParameters parameters) {
 		// When placing the hold at a borrower system we want to use the pickup location code as selected by
 		// the patron
-		return placeHoldRequest(parameters, parameters.getPickupLocation());
+		return placeHoldRequest(parameters, parameters.getPickupLocationCode());
 	}
 
 	private Mono<LocalRequest> placeHoldRequest(

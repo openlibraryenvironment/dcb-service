@@ -18,6 +18,7 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.resolution.SharedIndexService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.storage.PatronIdentityRepository;
 
 import io.micronaut.context.BeanProvider;
@@ -52,12 +53,14 @@ public class BorrowingAgencyService {
 		this.sharedIndexService = sharedIndexService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
-    }
+	}
 
-	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(PatronRequest patronRequest) {
+	public Mono<PatronRequest> placePatronRequestAtBorrowingAgency(RequestWorkflowContext ctx) {
+
+		PatronRequest patronRequest = ctx.getPatronRequest();
 		log.info("placePatronRequestAtBorrowingAgency {}", patronRequest.getId());
 
-		return fetchRequiredData(patronRequest)
+		return fetchRequiredData(patronRequest, ctx)
 			.flatMap(function(this::borrowingRequestFlow))
 			.map(function(patronRequest::placedAtBorrowingAgency))
 			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest))
@@ -99,7 +102,7 @@ public class BorrowingAgencyService {
 
 
 	private Mono<Tuple2<PatronRequest, String>> createVirtualBib(
-		PatronRequest patronRequest, HostLmsClient hostLmsClient) {
+		RequestWorkflowContext ctx, PatronRequest patronRequest, HostLmsClient hostLmsClient) {
 
 		final UUID bibClusterId = patronRequest.getBibClusterId();
 
@@ -186,10 +189,11 @@ public class BorrowingAgencyService {
 				new DcbError("Failed to resolve shelving loc "+context+":"+code+" to agency"))));
 	}
 
-	private Mono<Tuple2<String, String>> borrowingRequestFlow(PatronRequest patronRequest, PatronIdentity borrowingIdentity,
+	private Mono<Tuple2<String, String>> borrowingRequestFlow(RequestWorkflowContext ctx,
+		PatronRequest patronRequest, PatronIdentity borrowingIdentity,
 		HostLmsClient hostLmsClient, SupplierRequest supplierRequest) {
 
-		return createVirtualBib(patronRequest, hostLmsClient)
+		return createVirtualBib(ctx, patronRequest, hostLmsClient)
 			// Have a suspicion that Polaris needs breathing space in between the virtual bib and the virtual item
 			.flatMap(tuple -> {
 				final var pr = tuple.getT1();
@@ -203,7 +207,7 @@ public class BorrowingAgencyService {
 				final var supplyingAgencyCode = tuple.getT3();
 
 				return createHoldRequest(
-					pr, borrowingIdentity, hostLmsClient, supplierRequest, bibRecordTitle, supplyingAgencyCode);
+					ctx, pr, borrowingIdentity, hostLmsClient, supplierRequest, bibRecordTitle, supplyingAgencyCode);
 			})
 			.transform(extractLocalIdAndLocalStatus())
 			.switchIfEmpty( Mono.defer(() -> Mono.error(new DcbError("Failed to place hold request."))) );
@@ -213,7 +217,8 @@ public class BorrowingAgencyService {
 		return mono -> mono.map(localRequest -> Tuples.of(localRequest.getLocalId(), localRequest.getLocalStatus()));
 	}
 
-	private static Mono<LocalRequest> createHoldRequest(PatronRequest patronRequest, PatronIdentity borrowingIdentity,
+	private static Mono<LocalRequest> createHoldRequest(RequestWorkflowContext ctx,
+		PatronRequest patronRequest, PatronIdentity borrowingIdentity,
 		HostLmsClient hostLmsClient, SupplierRequest supplierRequest, String bibRecordTitle, String supplyingAgencyCode) {
 		var note = "Consortial Hold. tno=" + patronRequest.getId();
 
@@ -222,7 +227,8 @@ public class BorrowingAgencyService {
 			.localPatronBarcode(borrowingIdentity.getLocalBarcode())
 			.localBibId(patronRequest.getLocalBibId())
 			.localItemId(patronRequest.getLocalItemId())
-			.pickupLocation(patronRequest.getPickupLocationCode())
+			.pickupLocationCode(patronRequest.getPickupLocationCode())
+			.pickupLocation(ctx.getPickupLocation())
 			.note(note)
 			.patronRequestId(patronRequest.getId().toString())
 			.title(bibRecordTitle)
@@ -233,13 +239,14 @@ public class BorrowingAgencyService {
 			.build());
 	}
 
-	private Mono<Tuple4<PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest>> fetchRequiredData(
-		PatronRequest patronRequest) {
+	private Mono<Tuple5<RequestWorkflowContext, PatronRequest, PatronIdentity, HostLmsClient, SupplierRequest>> fetchRequiredData(
+		PatronRequest patronRequest, RequestWorkflowContext ctx) {
 
 		final var patronId = patronRequest.getPatron().getId();
 
 		return Mono.from(patronIdentityRepository.findOneByPatronIdAndHomeIdentity(patronId, Boolean.TRUE))
 			.flatMap(borrowingIdentity -> Mono.zip(
+				Mono.just(ctx),
 				Mono.just(patronRequest),
 				Mono.just(borrowingIdentity),
 				fetchClientFor(borrowingIdentity),
