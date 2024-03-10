@@ -8,6 +8,7 @@ import org.olf.dcb.core.model.SupplierRequest;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.data.annotation.Id;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.annotation.Query;
 import jakarta.validation.Valid;
@@ -66,7 +67,8 @@ public interface SupplierRequestRepository {
 	Publisher<SupplierRequest> findTrackedSupplierItems();
 	Publisher<PatronIdentity> findVirtualIdentityById(UUID supplierRequestId);
 
-	Publisher<Void> updateLocalItemLastCheckTimestamp(@NotNull UUID id, Instant localItemLastCheckTimestamp);
-	Publisher<Void> updateLocalRequestLastCheckTimestamp(@NotNull UUID id, Instant localRequestLastCheckTimestamp);
+  Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, String localStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
+  Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
+
 }
 
