@@ -318,7 +318,7 @@ public class TrackingService implements Runnable {
 		        .thenReturn(sr);
 				}
 				else {
-					log.debug("TRACKING - update supplier item counter {} {} {}",sr.getId(), sr.getLocalItemStatus(), sr.getLocalItemStatusRepeat());
+					log.debug("TRACKING - update supplier request counter {} {} {}",sr.getId(), sr.getLocalStatus(), sr.getLocalRequestStatusRepeat());
           return Mono.from(supplierRequestRepository.updateLocalRequestTracking(sr.getId(), sr.getLocalStatus(), Instant.now(),
                 incrementRepeatCounter(sr.getLocalRequestStatusRepeat())))
             .doOnNext(count -> log.debug("update count {}",count))

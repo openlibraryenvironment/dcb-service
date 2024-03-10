@@ -175,7 +175,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.localItemLocationId(item.getLocationID())
 					.build();
 			})
+			.doOnNext( hr -> log.info("Attempt to place hold {}",hr) )
 			.flatMap(appServicesClient::addLocalHoldRequest)
+			.doOnNext( hr -> log.info("got hold response {}",hr) )
 			.map(ApplicationServicesClient.HoldRequestResponse::getHoldRequestID)
 			.flatMap(this::getPlaceHoldRequestData);
 	}
@@ -405,6 +407,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<LocalRequest> getPlaceHoldRequestData(Integer holdRequestId) {
+		log.info("Get hold request data for {}",holdRequestId);
 		return appServicesClient.getLocalHoldRequest(holdRequestId)
 			.doOnSuccess(hold -> log.debug("Received hold from Host LMS \"%s\": %s"
 				.formatted(getHostLmsCode(), hold)))
