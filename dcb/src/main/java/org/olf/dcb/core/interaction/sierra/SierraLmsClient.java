@@ -636,6 +636,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.build();
 
 		// Ian: NOTE... SIERRA needs time between placeHoldRequest and
+		// Allow a grace period for Sierra
+		try { Thread.sleep(2000); } catch ( Exception e ) { }
+
 		// getPatronHoldRequestId completing... Either
 		// we need retries or a delay.
 		return Mono.from(client.placeHoldRequest(parameters.getLocalPatronId(), patronHoldPost))
