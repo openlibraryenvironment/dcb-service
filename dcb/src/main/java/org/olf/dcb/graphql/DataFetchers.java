@@ -347,8 +347,8 @@ public class DataFetchers {
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
-                        String order = env.getArgument("order");
-												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(env.getArgument("orderBy"));
+
+												
 												if ( pageno == null ) pageno = Integer.valueOf(0);
                         if ( pagesize == null ) pagesize = Integer.valueOf(10);
 
