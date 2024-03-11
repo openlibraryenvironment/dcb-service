@@ -212,9 +212,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		final var zonedDateTime = ZonedDateTime.parse(sysHoldRequest.getActivationDate());
 		final var formattedDate = zonedDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
-		if (Objects.equals(sysHoldRequest.getBibliographicRecordID(), bibId) &&
-			Objects.equals(formattedDate, activationDate)) {
-			log.info("hold matched on bib Id and activation date.");
+		if (Objects.equals(sysHoldRequest.getBibliographicRecordID(), bibId)) {
+			log.info("hold matched on bib Id.");
 
 			return TRUE;
 		}
