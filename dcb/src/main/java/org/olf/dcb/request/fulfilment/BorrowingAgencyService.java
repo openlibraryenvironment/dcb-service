@@ -203,11 +203,12 @@ public class BorrowingAgencyService {
 
 				return createVirtualItem(pr, borrowingIdentity, hostLmsClient, supplierRequest, bibRecordTitle);
 			})
-			.delayElements(Duration.ofSeconds(5))
 			.flatMap(tuple -> {
 				final var pr = tuple.getT1();
 				final var bibRecordTitle = tuple.getT2();
 				final var supplyingAgencyCode = tuple.getT3();
+
+				try { Thread.sleep(5000); } catch (Exception e) { }
 
 				return createHoldRequest(
 					ctx, pr, borrowingIdentity, hostLmsClient, supplierRequest, bibRecordTitle, supplyingAgencyCode);
