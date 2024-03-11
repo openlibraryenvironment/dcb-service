@@ -51,8 +51,8 @@ public class ProcessState {
 	@Size(max = 200)
 	private String processName;
 
-        @NonNull
-        @Singular("processState")
-        @TypeDef(type = DataType.JSON)
-        Map<String, Object> processState;
+	@NonNull
+	@Singular("processState")
+	@TypeDef(type = DataType.JSON)
+	Map<String, Object> processState;
 }

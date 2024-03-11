@@ -41,7 +41,7 @@ type ProcessState {
   id: ID
   context: ID
   processName: String
-  processState: String
+  processState: JSON
 }
 
 type HostLms {
