@@ -27,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 import reactor.util.function.*;
+import java.time.Duration;
 
 @Slf4j
 @Prototype
@@ -202,6 +203,7 @@ public class BorrowingAgencyService {
 
 				return createVirtualItem(pr, borrowingIdentity, hostLmsClient, supplierRequest, bibRecordTitle);
 			})
+			.delayElements(Duration.ofSeconds(5))
 			.flatMap(tuple -> {
 				final var pr = tuple.getT1();
 				final var bibRecordTitle = tuple.getT2();
