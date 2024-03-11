@@ -219,7 +219,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			return TRUE;
 		}
 
-		log.error("did match on known bib id {} and activation date {} with sysHoldRequest {}",
+		log.error("did not match on known bib id {} and known activation date {} with sysHoldRequest {}",
 			bibId, activationDate, sysHoldRequest);
 		return FALSE;
 	}
