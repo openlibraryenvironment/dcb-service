@@ -154,12 +154,24 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	 */
 	private Mono<LocalRequest> placeHoldRequest(
 		PlaceHoldRequestParameters parameters, boolean isBorrower) {
-		
+
+		log.info("placeHoldRequest {} {}",parameters,isBorrower);
+
+		// If this is a borrowing agency then we are placing a hold on a virtual item. The item should have been created
+		// with a home location of the declared ILL location. The pickup location should be the pickup location specified
+		// by the borrower.
+
+		// if this is a supplying agency then we will be using the ILL location as the pickup location for an item that
+		// already exists. The vpatron should have been created at the ILL location.
+
 		return getBibWithItem(parameters)
 			.map(tuple -> {
 				final var bib = tuple.getT1();
 				final var item = tuple.getT2();
+
 				String pickup_location = getPickupLocation(parameters, isBorrower);
+
+				log.info("Derived pickup location for hold isBorrower={} : {}",isBorrower, pickup_location);
 
 				return HoldRequestParameters.builder()
 					.localPatronId(parameters.getLocalPatronId())
@@ -188,13 +200,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		// visible
 		synchronized (this) {
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(2000);
 			} catch (Exception e) {
 			}
 		}
 
 		return appServicesClient.listPatronLocalHolds(patronId)
-			.doOnNext(entries -> log.debug("Holds: {}", entries))
+			.doOnNext(entries -> log.debug("Got Polaris Holds: {}", entries))
 			.flatMapMany(Flux::fromIterable)
 			.filter(holds -> shouldIncludeHold(holds, bibId, activationDate))
 			.collectList()
@@ -244,11 +256,15 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private static String getPickupLocation(PlaceHoldRequestParameters parameters, boolean isBorrower) {
 		// Different systems will use different pickup locations - we default to passing through
 		// parameters.getPickupLocationCode
+
+		// This is the code passed through from the users selected pickup location
 		String pickup_location = parameters.getPickupLocationCode();
-		// However - polaris as a pickup location actually needs to local ID of the pickup location
+
+		// However - polaris as a pickup location actually needs to use the local ID of the pickup location
 		// So if we have a specific local ID, pass that down the chain instead.
 		if ( isBorrower && ( parameters.getPickupLocation() != null ) ) {
 			if ( parameters.getPickupLocation().getLocalId() != null )
+				log.debug("Overriding pickup location code with ID from selected record");
 				pickup_location = parameters.getPickupLocation().getLocalId();
 		}
 		return pickup_location;
