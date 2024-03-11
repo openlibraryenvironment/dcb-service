@@ -208,10 +208,11 @@ public class BorrowingAgencyService {
 				final var bibRecordTitle = tuple.getT2();
 				final var supplyingAgencyCode = tuple.getT3();
 
-				try { Thread.sleep(5000); } catch (Exception e) { }
+				// try { Thread.sleep(5000); } catch (Exception e) { }
 
 				return createHoldRequest(
-					ctx, pr, borrowingIdentity, hostLmsClient, supplierRequest, bibRecordTitle, supplyingAgencyCode);
+					ctx, pr, borrowingIdentity, hostLmsClient, supplierRequest, bibRecordTitle, supplyingAgencyCode)
+					  .delaySubscription(Duration.ofSeconds(5));
 			})
 			.transform(extractLocalIdAndLocalStatus())
 			.switchIfEmpty( Mono.defer(() -> Mono.error(new DcbError("Failed to place hold request."))) );
