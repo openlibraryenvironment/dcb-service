@@ -160,6 +160,7 @@ public class BorrowingAgencyService {
 		log.info("slToAgency:{} {} {} {} {}", "Location", supplierRequest.getHostLmsCode(),
 			supplierRequest.getLocalItemLocationCode(), "AGENCY", "DCB");
 
+		// Resolve the shelving location of the selected item into an agency code
 		String agencyCode = referenceValueMapping.getToValue();
 		supplierRequest.setLocalAgency(agencyCode);
 

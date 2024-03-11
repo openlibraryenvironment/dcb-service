@@ -384,6 +384,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 							.bibIds(List.of(Integer.parseInt(cic.getBibId())))
 							.location(cic.getLocationCode())
 							.barcodes(List.of(cic.getBarcode()))
+							.owningLocations(List.of(cic.getLocationCode()))
 							.fixedFields(fixedFields).build()));
 			})
 			.doOnSuccess(result -> log.debug("the result of createItem({})", result))

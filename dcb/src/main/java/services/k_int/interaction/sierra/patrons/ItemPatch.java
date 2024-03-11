@@ -21,6 +21,7 @@ public class ItemPatch {
 	String itemMessage;
 	List<String> messages;
 	List<String> barcodes;
+	List<String> owningLocations;
 	@Nullable Map<Integer, FixedField> fixedFields;
 	@Nullable List<VarField> varFields;
 }
