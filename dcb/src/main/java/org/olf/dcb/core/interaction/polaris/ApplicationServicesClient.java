@@ -86,14 +86,12 @@ class ApplicationServicesClient {
 			.zipWith(getLocalRequestBody(holdRequestParameters, activationDate))
 			.map(function(ApplicationServicesClient::addBodyToRequest))
 			.flatMap(workflowReq -> client.retrieve(workflowReq, Argument.of(WorkflowResponse.class),
-					noExtraErrorHandling())
-				.map(response -> validateHoldResponse(response))
-				.thenReturn(Tuples.of(
-					holdRequestParameters.getLocalPatronId(),
-					holdRequestParameters.getBibliographicRecordID(),
-					activationDate))
-				.doOnSuccess(r -> log.info("Got create item response {}", r))
-				.doOnError(e -> log.info("Error response for create item {}", workflowReq, e)));
+					noExtraErrorHandling()))
+			.map(response -> validateHoldResponse(response))
+			.thenReturn(Tuples.of(
+				holdRequestParameters.getLocalPatronId(),
+				holdRequestParameters.getBibliographicRecordID(),
+				activationDate));
 	}
 
 	private WorkflowResponse validateHoldResponse(WorkflowResponse workflowResponse) {
