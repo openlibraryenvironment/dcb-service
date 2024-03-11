@@ -1,0 +1,49 @@
+{
+	"WorkflowRequestGuid": "c07ba982-b123-48df-99fb-e9b03cd82dab",
+	"WorkflowRequestType": 5,
+	"WorkflowStatus": -3,
+	"Prompt": {
+		"WorkflowPromptID": 94,
+		"Name": null,
+		"Description": null,
+		"WorkflowPromptType": 33,
+		"WorkflowPromptOptions": 6,
+		"DefaultPromptOption": 4,
+		"Title": "Serial Holds",
+		"Message": "You have selected a serial title. A request placed on the title will trap any available item.\nSelect one of the following:",
+		"AlternateMessage": "",
+		"AlternateYesText": "",
+		"AlternateNoText": "",
+		"AlternateCancelText": "",
+		"AlternateContinueText": "",
+		"PromptExtension": {
+			"WorkflowPromptExtensionType": 33,
+			"Data": {
+				"ItemRecordCount": 0,
+				"DesignationsOrVolumes": [
+					"Vol. 18  (Dec. 2009)",
+					"Vol. 15  (Sep. 2009)",
+					"Vol. 12  (June 2009)",
+					"Vol. 11  (May 2009)",
+					"Vol. 10  (Apr. 2009)",
+					"Vol. 9  (Mar. 2009)",
+					"Vol. 8  (Feb. 2009)",
+					"Vol. 7  (Jan. 2009)",
+					"Vol. 6  (Dec. 2008)",
+					"Vol. 5  (Nov. 2008)",
+					"Vol. 4  (Oct. 2008)",
+					"Vol. 3  (Sep. 2008)",
+					"Vol. 2  (Aug. 2008)",
+					"Vol. 1  (July 2008)"
+				],
+				"IsDesignation": true
+			}
+		}
+	},
+	"InformationMessages": [],
+	"AnswerExtension": null,
+	"CircTranType": 0,
+	"ReceiptType": 0,
+	"ReceiptUrl": "",
+	"FineEReceiptSent": false
+}

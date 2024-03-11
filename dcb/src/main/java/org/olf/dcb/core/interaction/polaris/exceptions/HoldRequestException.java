@@ -1,6 +1,8 @@
 package org.olf.dcb.core.interaction.polaris.exceptions;
 
-public class HoldRequestException extends RuntimeException {
+import org.olf.dcb.core.error.DcbError;
+
+public class HoldRequestException extends DcbError {
 	public HoldRequestException(String string) {
 		super(string);
 	}

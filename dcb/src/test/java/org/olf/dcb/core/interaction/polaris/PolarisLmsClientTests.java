@@ -18,7 +18,6 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_READY;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ERR0210;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.HoldRequestResponse;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.InformationMessage;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
@@ -331,7 +330,8 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetItem(itemId);
 		mockPolarisFixture.mockGetBib("1106339");
 		mockPolarisFixture.mockPlaceHold();
-		mockPolarisFixture.mockGetHold("2977175",
+		mockPolarisFixture.mockListPatronLocalHolds();
+		mockPolarisFixture.mockGetHold("3773060",
 			LibraryHold.builder()
 				.sysHoldStatus("In Processing")
 				.itemRecordID(6737455)
@@ -355,7 +355,7 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(localRequest, allOf(
 			notNullValue(),
-			hasLocalId("2977175"),
+			hasLocalId("3773060"),
 			hasLocalStatus("In Processing"),
 			hasRequestedItemId("6737455"),
 			hasRequestedItemBarcode("785574212")
@@ -369,10 +369,8 @@ class PolarisLmsClientTests {
 
 		mockPolarisFixture.mockGetItem(itemId);
 		mockPolarisFixture.mockGetBib("1106339");
-		mockPolarisFixture.mockPlaceHold(HoldRequestResponse.builder()
-			.success(false)
-			.message("placing hold failed")
-			.build());
+		mockPolarisFixture.mockPlaceHoldUnsuccessful();
+
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
@@ -392,7 +390,7 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(exception, allOf(
 			notNullValue(),
-			hasMessage("placing hold failed")
+			hasMessage("You have selected a serial title. A request placed on the title will trap any available item.\nSelect one of the following:")
 		));
 	}
 

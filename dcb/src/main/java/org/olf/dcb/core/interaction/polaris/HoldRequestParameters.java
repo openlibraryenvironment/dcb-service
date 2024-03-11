@@ -14,4 +14,6 @@ class HoldRequestParameters {
 	String note;
 	Integer primaryMARCTOMID;
 	Integer localItemLocationId;
+	Integer bibliographicRecordID;
+	String itemBarcode;
 }
