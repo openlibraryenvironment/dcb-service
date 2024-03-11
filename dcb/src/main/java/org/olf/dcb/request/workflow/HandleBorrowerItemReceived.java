@@ -25,7 +25,9 @@ import reactor.core.publisher.Mono;
 public class HandleBorrowerItemReceived implements PatronRequestStateTransition {
 	private final PatronRequestRepository patronRequestRepository;
 
-	private static final List<Status> possibleSourceStatus = List.of(Status.PICKUP_TRANSIT);
+	// If the item is received at the patron library, then maybe we just skipped the whole transit dance because
+	// it wasn't checked out before it was put on the van
+	private static final List<Status> possibleSourceStatus = List.of(Status.PICKUP_TRANSIT, Status.REQUEST_PLACED_AT_BORROWING_AGENCY);
 	
 	public HandleBorrowerItemReceived(PatronRequestRepository patronRequestRepository) {
 		this.patronRequestRepository = patronRequestRepository;
