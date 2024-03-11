@@ -1,6 +1,8 @@
 package org.olf.dcb.core.interaction.polaris;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.core.interaction.polaris.Direction.HOST_LMS_TO_POLARIS;
@@ -9,10 +11,13 @@ import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRe
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.StringUtils.parseList;
 
 import java.net.URI;
 import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -38,6 +43,7 @@ import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
+import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
 import org.olf.dcb.core.interaction.shared.NoNumericRangeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
@@ -80,6 +86,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
@@ -147,22 +154,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	 */
 	private Mono<LocalRequest> placeHoldRequest(
 		PlaceHoldRequestParameters parameters, boolean isBorrower) {
-		return getBibIdFromItemId(parameters.getLocalItemId())
-			.flatMap(this::getBib)
-			.zipWith(papiClient.synch_ItemGet(parameters.getLocalItemId()))
+		
+		return getBibWithItem(parameters)
 			.map(tuple -> {
 				final var bib = tuple.getT1();
 				final var item = tuple.getT2();
-
-				// Different systems will use different pickup locations - we default to passing through
-				// parameters.getPickupLocationCode
-				String pickup_location = parameters.getPickupLocationCode();
-				// However - polaris as a pickup location actually needs to local ID of the pickup location
-				// So if we have a specific local ID, pass that down the chain instead.
-				if ( isBorrower && ( parameters.getPickupLocation() != null ) ) {
-					if ( parameters.getPickupLocation().getLocalId() != null )
-						pickup_location = parameters.getPickupLocation().getLocalId();
-				}
+				String pickup_location = getPickupLocation(parameters, isBorrower);
 
 				return HoldRequestParameters.builder()
 					.localPatronId(parameters.getLocalPatronId())
@@ -173,13 +170,96 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.note(parameters.getNote())
 					.dcbPatronRequestId(parameters.getPatronRequestId())
 					.localItemLocationId(item.getLocationID())
+					.bibliographicRecordID(bib.getBibliographicRecordID())
+					.itemBarcode(item.getBarcode())
 					.build();
 			})
 			.doOnNext( hr -> log.info("Attempt to place hold {}",hr) )
-			.flatMap(appServicesClient::addLocalHoldRequest)
+			.flatMap(appServicesClient::createHoldRequestWorkflow)
 			.doOnNext( hr -> log.info("got hold response {}",hr) )
-			.map(ApplicationServicesClient.HoldRequestResponse::getHoldRequestID)
-			.flatMap(this::getPlaceHoldRequestData);
+			.flatMap(function(this::getLocalHoldRequestId));
+	}
+
+	public <R> Mono<LocalRequest> getLocalHoldRequestId(String patronId, Integer bibId, String activationDate) {
+
+		log.debug("getPatronHoldRequestId({}, {})", bibId, activationDate);
+
+		// TEMPORARY WORKAROUND - Wait for polaris to process the hold and make it
+		// visible
+		synchronized (this) {
+			try {
+				Thread.sleep(1000);
+			} catch (Exception e) {
+			}
+		}
+
+		return appServicesClient.listPatronLocalHolds(patronId)
+			.doOnNext(entries -> log.debug("Holds: {}", entries))
+			.flatMapMany(Flux::fromIterable)
+			.filter(holds -> shouldIncludeHold(holds, bibId, activationDate))
+			.collectList()
+			.flatMap(filteredHolds -> chooseHold(filteredHolds))
+			// We should retrieve the item record for the selected hold and store the barcode here
+			.onErrorResume(NullPointerException.class, error -> {
+				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
+				return Mono.error(new HoldRequestException("Error occurred when getting Hold"));
+			});
+	}
+
+	private Boolean shouldIncludeHold(
+		ApplicationServicesClient.SysHoldRequest sysHoldRequest, Integer bibId, String activationDate) {
+
+		final var zonedDateTime = ZonedDateTime.parse(sysHoldRequest.getActivationDate());
+		final var formattedDate = zonedDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+		if (Objects.equals(sysHoldRequest.getBibliographicRecordID(), bibId) &&
+			Objects.equals(formattedDate, activationDate)) {
+			log.info("hold matched on bib Id and activation date.");
+
+			return TRUE;
+		}
+
+		log.error("did match on known bib id {} and activation date {} with sysHoldRequest {}",
+			bibId, activationDate, sysHoldRequest);
+		return FALSE;
+	}
+
+	private Mono<LocalRequest> chooseHold(List<ApplicationServicesClient.SysHoldRequest> filteredHolds) {
+		log.debug("chooseHold({})", filteredHolds);
+
+		if (filteredHolds.size() == 1) {
+
+			final var sph = filteredHolds.get(0);
+
+			final var extractedId = sph.getSysHoldRequestID();
+
+			return getPlaceHoldRequestData(extractedId);
+
+		} else if (filteredHolds.size() > 1) {
+			throw new HoldRequestException("Multiple hold requests found: " + filteredHolds);
+		} else {
+			throw new HoldRequestException("No hold requests found: " + filteredHolds);
+		}
+	}
+
+	private static String getPickupLocation(PlaceHoldRequestParameters parameters, boolean isBorrower) {
+		// Different systems will use different pickup locations - we default to passing through
+		// parameters.getPickupLocationCode
+		String pickup_location = parameters.getPickupLocationCode();
+		// However - polaris as a pickup location actually needs to local ID of the pickup location
+		// So if we have a specific local ID, pass that down the chain instead.
+		if ( isBorrower && ( parameters.getPickupLocation() != null ) ) {
+			if ( parameters.getPickupLocation().getLocalId() != null )
+				pickup_location = parameters.getPickupLocation().getLocalId();
+		}
+		return pickup_location;
+	}
+
+	private Mono<Tuple2<ApplicationServicesClient.BibliographicRecord, PAPIClient.ItemGetRow>> getBibWithItem(
+		PlaceHoldRequestParameters parameters) {
+		return getBibIdFromItemId(parameters.getLocalItemId())
+			.flatMap(this::getBib)
+			.zipWith(papiClient.synch_ItemGet(parameters.getLocalItemId()));
 	}
 
 	@Override
@@ -408,7 +488,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	private Mono<LocalRequest> getPlaceHoldRequestData(Integer holdRequestId) {
 		log.info("Get hold request data for {}",holdRequestId);
+
 		return appServicesClient.getLocalHoldRequest(holdRequestId)
+			.doOnSuccess(hold -> {
+				// TODO: add extra check on notes
+				final var nonPublicNotes = hold.getNonPublicNotes();
+				final var staffDisplayNotes = hold.getStaffDisplayNotes();
+				log.info("nonPublicNotes: {}, staffDisplayNotes: {}", nonPublicNotes, staffDisplayNotes);
+			})
 			.doOnSuccess(hold -> log.debug("Received hold from Host LMS \"%s\": %s"
 				.formatted(getHostLmsCode(), hold)))
 			.map(response -> LocalRequest.builder()
@@ -536,7 +623,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public boolean isEnabled() {
-		return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(Boolean.TRUE);
+		return MapUtils.getAsOptionalString(lms.getClientConfig(), "ingest").map(StringUtils::isTrue).orElse(TRUE);
 	}
 
 	@Override
@@ -802,7 +889,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
   public Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType) {
 		log.debug("POLARIS Supplier Preflight {} {} {} {}",borrowingAgencyCode,supplyingAgencyCode,canonicalItemType,canonicalPatronType);
-    return Mono.just(Boolean.TRUE);
+    return Mono.just(TRUE);
   }
 
   public boolean reflectPatronLoanAtSupplier() {

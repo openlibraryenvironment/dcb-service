@@ -30,12 +30,11 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
 import org.olf.dcb.core.interaction.polaris.exceptions.PatronBlockException;
 import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
+import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.zalando.problem.Problem;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -51,7 +50,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuple3;
+import reactor.util.function.Tuples;
+import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 
 @Slf4j
 class ApplicationServicesClient {
@@ -69,36 +73,39 @@ class ApplicationServicesClient {
 	}
 
 	/**
-	 * Based upon <a href="https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/holdrequests/post_holdrequest_local">post hold request docs</a>
+	 * Based upon <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/create_hold_request">post hold request docs</a>
 	 */
-	Mono<HoldRequestResponse> addLocalHoldRequest(HoldRequestParameters holdRequestParameters) {
-		log.debug("addLocalHoldRequest with holdRequestParameters {}", holdRequestParameters);
+	Mono<Tuple3<String, Integer,String>> createHoldRequestWorkflow(HoldRequestParameters holdRequestParameters) {
+		log.debug("createHoldRequestWorkflow with holdRequestParameters {}", holdRequestParameters);
 
-		final var path = createPath("holds");
+		final var path = createPath("workflow");
 
-		return createRequest(POST, path, uri -> uri.queryParam("bulkmode", true))
-			.zipWith(getLocalRequestBody(holdRequestParameters))
+		final String activationDate = LocalDateTime.now().format( ofPattern("yyyy-MM-dd"));
+
+		return createRequest(POST, path, uri -> {})
+			.zipWith(getLocalRequestBody(holdRequestParameters, activationDate))
 			.map(function(ApplicationServicesClient::addBodyToRequest))
-			.flatMap(request -> client.exchange(request, HoldRequestResponse.class))
-			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
-			.map(this::validateHoldResponse)
-			.onErrorResume(Exception.class, error -> {
-				if (error instanceof HoldRequestException) {
-					return Mono.error(error);
-				} else {
-					log.debug("An error occurred when creating a hold: {}", error.getMessage());
-					return Mono.error(new HoldRequestException("Error occurred when creating a hold"));
-				}
-			});
+			.flatMap(workflowReq -> client.retrieve(workflowReq, Argument.of(WorkflowResponse.class),
+					noExtraErrorHandling())
+				.map(response -> validateHoldResponse(response))
+				.thenReturn(Tuples.of(
+					holdRequestParameters.getLocalPatronId(),
+					holdRequestParameters.getBibliographicRecordID(),
+					activationDate))
+				.doOnSuccess(r -> log.info("Got create item response {}", r))
+				.doOnError(e -> log.info("Error response for create item {}", workflowReq, e)));
 	}
 
-	private HoldRequestResponse validateHoldResponse(HoldRequestResponse holdResponse) {
-		if (!holdResponse.getSuccess()) {
-			log.error(holdResponse.getMessage());
-			throw new HoldRequestException(holdResponse.getMessage());
+	private WorkflowResponse validateHoldResponse(WorkflowResponse workflowResponse) {
+		if (workflowResponse.getWorkflowStatus() < 1) {
+			String messages = workflowResponse.getPrompt().getMessage() != null
+				? workflowResponse.getPrompt().getMessage().toString()
+				: "NO DETAILS";
+
+			throw new HoldRequestException(messages);
 		}
 
-		return holdResponse;
+		return workflowResponse;
 	}
 
 	Mono<LibraryHold> getLocalHoldRequest(Integer id) {
@@ -216,6 +223,18 @@ class ApplicationServicesClient {
 			.map(HoldRequestDefault::getExpirationDatePeriod)
 			.doOnError(e -> log.debug("Error occurred when getting hold request defaults", e))
 			.onErrorReturn(defaultExpirationDatePeriod);
+	}
+
+//	https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/patrons/get_requests_local
+	public Mono<List<SysHoldRequest>> listPatronLocalHolds(String patronId) {
+//		Returns list of local hold requests associated with the patron.
+//		Server returns the list sorted by SysHoldStatusID and LastStatusTransitionDate in ascending order.
+//		Leap client displays the list sorted by Author in ascending order.
+
+		final var path = createPath("patrons", patronId, "requests", "local");
+		return createRequest(GET, path, uri -> {})
+			.flatMap(request -> client.retrieve(request, Argument.listOf(SysHoldRequest.class),
+				noExtraErrorHandling()));
 	}
 
 	public Mono<Integer> createBibliographicRecord(Bib bib) {
@@ -503,24 +522,45 @@ class ApplicationServicesClient {
 			.flatMap(response -> Mono.justOrEmpty(response.getBody()));
 	}
 
-	private Mono<LocalRequest> getLocalRequestBody(HoldRequestParameters data) {
+	private Mono<WorkflowRequest> getLocalRequestBody(HoldRequestParameters holdRequestParameters, String activationDate) {
+
+		final var conf = client.getConfig();
+		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
+		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+
 		final var servicesConfig = client.getServicesConfig();
+		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
+
+		final var placeHoldRequest = 5;
+		final var holdRequestData = 9;
 
 		return getHoldRequestDefaults()
-			.map(expiration -> LocalRequest.builder()
-				.procedureStep(20) // bypass
-				.answer(1) // default
-				.activationDate(LocalDateTime.now().format( ofPattern("yyyy-MM-dd")))
-				.expirationDate(LocalDateTime.now().plusDays(expiration).format( ofPattern("MM/dd/yyyy")))
-				.origin(extractMapValue(servicesConfig, SERVICES_PRODUCT_ID, Integer.class))
-				.patronID(Optional.ofNullable(data.getLocalPatronId()).map(Integer::valueOf).orElse(null))
-				.pickupBranchID(checkPickupBranchID(data))
-				.trackingNumber(data.getDcbPatronRequestId())
-				.unlockedRequest(true)
-				.itemRecordID(Optional.ofNullable(data.getRecordNumber()).map(Integer::valueOf).orElse(null))
-				.title(data.getTitle())
-				.mARCTOMID(data.getPrimaryMARCTOMID())
-				.nonPublicNotes("PickupLoc: " + data.getPickupLocation() + "\r\nTrackingID: " + data.getDcbPatronRequestId())
+			.map(expiration -> WorkflowRequest.builder()
+				.workflowRequestType(placeHoldRequest)
+				.txnUserID(user)
+				.txnBranchID(branch)
+				.txnWorkstationID(workstation)
+				.requestExtension( RequestExtension.builder()
+					.workflowRequestExtensionType(holdRequestData)
+					.data(RequestExtensionData.builder()
+						.patronID(Optional.ofNullable(holdRequestParameters.getLocalPatronId()).map(Integer::valueOf).orElse(null))
+						//.patronBranchID( branch )
+						.pickupBranchID( checkPickupBranchID(holdRequestParameters) )
+						.origin(2)
+						.activationDate(activationDate)
+						.expirationDate(LocalDateTime.now().plusDays(expiration).format( ofPattern("MM/dd/yyyy")))
+						.staffDisplayNotes(holdRequestParameters.getNote())
+						.nonPublicNotes(holdRequestParameters.getNote())
+						.bibliographicRecordID(holdRequestParameters.getBibliographicRecordID())
+						.itemRecordID(Optional.ofNullable(holdRequestParameters.getRecordNumber()).map(Integer::valueOf).orElse(null))
+						.itemBarcode(holdRequestParameters.getItemBarcode())
+						.itemLevelHold(TRUE)
+						.ignorePatronBlocksPrompt(TRUE)
+						.bulkMode(FALSE)
+						.patronBlocksOnlyPrompt(FALSE)
+						.ignoreMaximumHoldsPrompt(FALSE)
+						.build())
+					.build())
 				.build());
 	}
 
@@ -545,11 +585,76 @@ class ApplicationServicesClient {
 		return URI_PARAMETERS + "/" + Arrays.stream(pathSegments).map(Object::toString).collect(Collectors.joining("/"));
 	}
 
-	private static MutableHttpRequest<LocalRequest> addBodyToRequest(
-		MutableHttpRequest<?> request, LocalRequest body) {
+	private static MutableHttpRequest<WorkflowRequest> addBodyToRequest(
+		MutableHttpRequest<?> request, WorkflowRequest body) {
 
 		log.debug("trying addLocalHoldRequest with body {}", body);
 		return request.body(body);
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class SysHoldRequest {
+		@JsonProperty("SysHoldRequestID")
+		private Integer sysHoldRequestID;
+		@JsonProperty("SysHoldStatusID")
+		private Integer sysHoldStatusID;
+		@JsonProperty("Author")
+		private String author;
+		@JsonProperty("Title")
+		private String title;
+		@JsonProperty("BrowseTitleNonFilingCount")
+		private Integer browseTitleNonFilingCount;
+		@JsonProperty("MARCTOMIDDescription")
+		private String marcTomIDDescription;
+		@JsonProperty("ActivationDate")
+		private String activationDate;
+		@JsonProperty("Status")
+		private String status;
+		@JsonProperty("ExpirationDate")
+		private String expirationDate;
+		@JsonProperty("PickupBranch")
+		private String pickupBranch;
+		@JsonProperty("MARCTOMID")
+		private Integer marcTomID;
+		@JsonProperty("Queue")
+		private Integer queue;
+		@JsonProperty("HoldUntilDate")
+		private String holdUntilDate;
+		@JsonProperty("GroupName")
+		private String groupName;
+		@JsonProperty("QueueTTL")
+		private Integer queueTTL;
+		@JsonProperty("PickupBranchID")
+		private Integer pickupBranchID;
+		@JsonProperty("ItemLevelHold")
+		private Boolean itemLevelHold;
+		@JsonProperty("BorrowByMail")
+		private Boolean borrowByMail;
+		@JsonProperty("BibliographicRecordID")
+		private Integer bibliographicRecordID;
+		@JsonProperty("DisplayInPAC")
+		private Boolean displayInPAC;
+		@JsonProperty("LastStatusTransitionDate")
+		private String lastStatusTransitionDate;
+		@JsonProperty("PACDisplayNotes")
+		private String pacDisplayNotes;
+		@JsonProperty("TrappingItemRecordID")
+		private Integer trappingItemRecordID;
+		@JsonProperty("TrappingItemAssignedBranchID")
+		private Integer trappingItemAssignedBranchID;
+		@JsonProperty("ConstituentBibRecordID")
+		private Integer constituentBibRecordID;
+		@JsonProperty("HasConstituentBib")
+		private Boolean hasConstituentBib;
+		@JsonProperty("NewPickupBranchID")
+		private Integer newPickupBranchID;
+		@JsonProperty("NewPickupBranch")
+		private String newPickupBranch;
+		@JsonProperty("InnReachType")
+		private Integer innReachType;
 	}
 
 	// https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/overview
@@ -736,6 +841,7 @@ class ApplicationServicesClient {
 	@AllArgsConstructor
 	@Serdeable
 	static class RequestExtensionData {
+
 		@JsonProperty("IsNew")
 		private Boolean isNew;
 		@JsonProperty("ItemRecordHistoryActionID")
@@ -808,6 +914,45 @@ class ApplicationServicesClient {
 		// delete bib fields
 		@JsonProperty("BibRecordIDs")
 		private List<Integer> bibRecordIDs;
+
+
+		// fields below are for hold requests
+		@JsonProperty("PatronID")
+		private Integer patronID;
+		@JsonProperty("PatronBranchID")
+		private Integer patronBranchID;
+		@JsonProperty("PickupBranchID")
+		private Integer pickupBranchID;
+		@JsonProperty("Origin")
+		private Integer origin;
+		@JsonProperty("ActivationDate")
+		private String activationDate;
+		@JsonProperty("ExpirationDate")
+		private String expirationDate;
+		@JsonProperty("StaffDisplayNotes")
+		private String staffDisplayNotes;
+		@JsonProperty("NonPublicNotes")
+		private String nonPublicNotes;
+		@JsonProperty("PACDisplayNotes")
+		private String pACDisplayNotes;
+		@JsonProperty("BibliographicRecordID")
+		private Integer bibliographicRecordID;
+		@JsonProperty("ConstituentBibRecordID")
+		private Integer constituentBibRecordID;
+		@JsonProperty("ItemBarcode")
+		private String itemBarcode;
+		@JsonProperty("ItemLevelHold")
+		private Boolean itemLevelHold;
+		@JsonProperty("IgnorePatronBlocksPrompt")
+		private Boolean ignorePatronBlocksPrompt;
+		@JsonProperty("BulkMode")
+		private Boolean bulkMode;
+		@JsonProperty("IgnorePromptForMaterialTypeIDs")
+		private List<Integer> ignorePromptForMaterialTypeIDs;
+		@JsonProperty("PatronBlocksOnlyPrompt")
+		private Boolean patronBlocksOnlyPrompt;
+		@JsonProperty("IgnoreMaximumHoldsPrompt")
+		private Boolean ignoreMaximumHoldsPrompt;
 	}
 
 	@Builder

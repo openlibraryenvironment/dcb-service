@@ -6,7 +6,6 @@ import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.HoldRequestResponse;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse;
 
 import org.mockserver.client.MockServerClient;
@@ -146,15 +145,18 @@ public class MockPolarisFixture {
 	}
 
 	void mockPlaceHold() {
-		mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds*",
+		mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow",
 			"successful-place-request.json");
 	}
 
-	public void mockPlaceHold(HoldRequestResponse response) {
-		mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds*",
-			response()
-				.withStatusCode(200)
-				.withBody(json(response)));
+	public void mockPlaceHoldUnsuccessful() {
+		mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow",
+			"unsuccessful-place-request.json");
+	}
+
+	public void mockListPatronLocalHolds() {
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/1/requests/local",
+			"listPatronLocalHolds.json");
 	}
 
 	public void mockGetHold(String holdId, LibraryHold response) {
