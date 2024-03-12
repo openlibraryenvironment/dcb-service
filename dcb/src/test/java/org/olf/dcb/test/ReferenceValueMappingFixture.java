@@ -107,6 +107,20 @@ public class ReferenceValueMappingFixture {
 		);
 	}
 
+  public void defineMapping(String fromContext, String fromCategory, String fromValue, String toContext, String toCategory, String toValue) {
+    
+    singleValueFrom(referenceValueMappingRepository.save(ReferenceValueMapping.builder()
+      .id(randomUUID())
+      .fromContext(fromContext)
+      .fromCategory(fromCategory)
+      .fromValue(fromValue)
+      .toContext(toContext)
+      .toCategory(toCategory)
+      .toValue(toValue)
+      .build()));
+  }
+
+
 	public void defineLocalToCanonicalItemTypeMapping(String hostLmsCode,
 		String localItemType, String canonicalItemType) {
 
