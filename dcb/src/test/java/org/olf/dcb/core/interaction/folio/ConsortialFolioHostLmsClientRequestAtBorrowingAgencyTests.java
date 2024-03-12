@@ -62,8 +62,9 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 			.status("CREATED")
 			.build());
 
-		referenceValueMappingFixture.defineLocalToCanonicalItemTypeMapping(HOST_LMS_CODE,
-			"book", "canonical");
+    referenceValueMappingFixture.defineMapping("DCB", "ItemType", "canonical", HOST_LMS_CODE, "ItemType", "book");
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeMapping(HOST_LMS_CODE, "book", "canonical");
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);

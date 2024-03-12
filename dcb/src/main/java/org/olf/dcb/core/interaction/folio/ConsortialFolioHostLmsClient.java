@@ -419,13 +419,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	public Mono<String> findLocalItemType(String canonicalItemType) {
+
 		if (canonicalItemType == null) {
 			return Mono.empty();
 		}
 
-		return referenceValueMappingService.findReciprocalMapping("ItemType",
-				"DCB", canonicalItemType, "ItemType", getHostLmsCode())
-			.map(ReferenceValueMapping::getFromValue)
+		// Because mappings from host systems TO canonical types are M:1 we can't use reciprocal mappings, so always
+		// look for an explict DCB:ItemType:CIRC -> FOLIO1234:ItemType:book mapping
+		//
+		// return referenceValueMappingService.findReciprocalMapping("ItemType", "DCB", canonicalItemType, "ItemType", getHostLmsCode())
+		return referenceValueMappingService.findMapping("ItemType", "DCB", canonicalItemType, "ItemType", getHostLmsCode())
+			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.error(new NoItemTypeMappingFoundException(
 				"Unable to map canonical item type \"" + canonicalItemType + "\" to a item type on Host LMS: \"" + getHostLmsCode() + "\"",
 				getHostLmsCode(), canonicalItemType)));
@@ -437,9 +441,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			return Mono.empty();
 		}
 
-		return referenceValueMappingService.findReciprocalMapping("patronType",
-				"DCB", canonicalPatronType, "patronType", getHostLmsCode())
-			.map(ReferenceValueMapping::getFromValue)
+		// return referenceValueMappingService.findReciprocalMapping("patronType", "DCB", canonicalPatronType, "patronType", getHostLmsCode())
+		return referenceValueMappingService.findMapping("patronType", "DCB", canonicalPatronType, "patronType", getHostLmsCode())
+			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
 				"Unable to map canonical patron type \"" + canonicalPatronType + "\" to a patron type on Host LMS: \"" + getHostLmsCode() + "\"",
 				getHostLmsCode(), canonicalPatronType)));
