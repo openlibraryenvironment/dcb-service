@@ -85,14 +85,14 @@ public class TrackingService implements Runnable {
 	private Flux<PatronRequest> trackActiveDCBRequests() {
 		return Flux.from(patronRequestRepository.findProgressibleDCBRequests())
 			.doOnSubscribe(_s -> log.info("TRACKING trackActiveDCBRequests()"))
-			.flatMap(this::tryToProgressDCBRequest)
+			.concatMap(this::tryToProgressDCBRequest)
 			.transform(enrichWithLogging("TRACKING active DCB request tracking complete", "TrackingError (DCBRequest):"));
 	}
 
 	private Flux<PatronRequest> trackActivePatronRequestHolds() {
 		return Flux.from(patronRequestRepository.findTrackedPatronHolds())
 			.doOnSubscribe(_s -> log.info("TRACKING trackActivePatronRequestHolds()"))
-			.flatMap(this::checkPatronRequest)
+			.flatMap(this::checkPatronRequest,2)
 			.transform(enrichWithLogging("TRACKING active borrower request tracking complete", "TrackingError (PatronHold):"));
 	}
 
@@ -100,7 +100,7 @@ public class TrackingService implements Runnable {
 	private Flux<PatronRequest> trackVirtualItems() {
 		return Flux.from(patronRequestRepository.findTrackedVirtualItems())
 			.doOnSubscribe(_s -> log.info("TRACKING trackVirtualItems()"))
-			.flatMap(this::checkVirtualItem)
+			.flatMap(this::checkVirtualItem,2)
 			.transform(enrichWithLogging("TRACKING active borrower virtual item tracking complete", "TrackingError (VirtualItem):"));
 	}
 
@@ -113,16 +113,16 @@ public class TrackingService implements Runnable {
 	private Flux<SupplierRequest> trackSupplierItems() {
 		return Flux.from(supplierRequestRepository.findTrackedSupplierItems())
 			.doOnSubscribe(_s -> log.info("TRACKING trackSupplierItems()"))
-			.flatMap(this::enrichWithPatronRequest)
-			.flatMap(this::checkSupplierItem)
+			.flatMap(this::enrichWithPatronRequest,2)
+			.concatMap(this::checkSupplierItem)
 			.transform(enrichWithLogging("TRACKING active supplier item tracking complete", "TrackingError (SupplierItem):"));
 	}
 
 	private Flux<SupplierRequest> trackActiveSupplierHolds() {
 		return Flux.from(supplierRequestRepository.findTrackedSupplierHolds())
 				.doOnSubscribe(_s -> log.info("TRACKING trackActiveSupplierHolds()"))
-      .flatMap(this::enrichWithPatronRequest)
-			.flatMap(this::checkSupplierRequest)
+      .flatMap(this::enrichWithPatronRequest,2)
+			.concatMap(this::checkSupplierRequest)
 			.transform(enrichWithLogging("TRACKING active supplier hold tracking complete", "TrackingError (SupplierHold):"));
 	}
 
