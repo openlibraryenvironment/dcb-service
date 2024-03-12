@@ -34,7 +34,6 @@ import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
 import org.olf.dcb.core.interaction.polaris.exceptions.PatronBlockException;
 import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
-import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.zalando.problem.Problem;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -50,12 +49,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
+import reactor.util.function.Tuple4;
 import reactor.util.function.Tuples;
-import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 
 @Slf4j
 class ApplicationServicesClient {
@@ -75,7 +72,63 @@ class ApplicationServicesClient {
 	/**
 	 * Based upon <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/create_hold_request">post hold request docs</a>
 	 */
-	Mono<Tuple3<String, Integer,String>> createHoldRequestWorkflow(HoldRequestParameters holdRequestParameters) {
+	Mono<Tuple4<String, String, String, String>> createILLHoldRequestWorkflow(HoldRequestParameters holdRequestParameters) {
+		log.debug("createILLHoldRequestWorkflow with holdRequestParameters {}", holdRequestParameters);
+
+		final var path = createPath("workflow");
+		final String activationDate = LocalDateTime.now().format( ofPattern("yyyy-MM-dd"));
+		final var conf = client.getConfig();
+		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
+		final var servicesConfig = client.getServicesConfig();
+		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
+
+		final var workflowRequest = WorkflowRequest.builder()
+			.workflowRequestType(5)
+			.txnUserID(user)
+			.txnBranchID(holdRequestParameters.getLocalItemLocationId())
+			.txnWorkstationID(workstation)
+			.requestExtension( RequestExtension.builder()
+				.workflowRequestExtensionType(9)
+				.data(RequestExtensionData.builder()
+					.patronID(Optional.ofNullable(holdRequestParameters.getLocalPatronId()).map(Integer::valueOf).orElse(null))
+					.pickupBranchID( Integer.valueOf(holdRequestParameters.getPickupLocation()) )
+					.origin(2)
+					.activationDate(activationDate)
+					.expirationDate(LocalDateTime.now().plusDays(999).format( ofPattern("MM/dd/yyyy")))
+					.staffDisplayNotes(holdRequestParameters.getNote())
+					.nonPublicNotes(holdRequestParameters.getNote())
+					.pACDisplayNotes(holdRequestParameters.getNote())
+					.bibliographicRecordID(0)
+					.itemRecordID(0)
+					.itemLevelHold(FALSE)
+					.ignorePatronBlocksPrompt(TRUE)
+					.bulkMode(FALSE)
+					.patronBlocksOnlyPrompt(FALSE)
+					.ignoreMaximumHoldsPrompt(TRUE)
+					.unlockedRequest(TRUE)
+					.title(holdRequestParameters.getTitle())
+					.browseTitle(holdRequestParameters.getTitle())
+					.build())
+				.build())
+			.build();
+
+		return createRequest(POST, path, uri -> {})
+			.zipWith(Mono.just(workflowRequest))
+			.map(function(ApplicationServicesClient::addBodyToRequest))
+			.flatMap(workflowReq -> client.retrieve(workflowReq, Argument.of(WorkflowResponse.class),
+				noExtraErrorHandling()))
+			.map(response -> validateHoldResponse(response))
+			.thenReturn(Tuples.of(
+				holdRequestParameters.getLocalPatronId(),
+				holdRequestParameters.getTitle(),
+				holdRequestParameters.getNote(),
+				activationDate));
+	}
+
+	/**
+	 * Based upon <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/create_hold_request">post hold request docs</a>
+	 */
+	Mono<Tuple3<String, Integer, String>> createHoldRequestWorkflow(HoldRequestParameters holdRequestParameters) {
 		log.debug("createHoldRequestWorkflow with holdRequestParameters {}", holdRequestParameters);
 
 		final var path = createPath("workflow");
@@ -101,6 +154,13 @@ class ApplicationServicesClient {
 				: "NO DETAILS";
 
 			throw new HoldRequestException(messages);
+		}
+
+		if (workflowResponse.getWorkflowStatus() == 1) {
+			// should be: "The hold request has been created."
+			if (workflowResponse.getPrompt() != null && workflowResponse.getPrompt().getMessage() != null) {
+				log.info(">>>>>>>" + workflowResponse.getPrompt().getMessage() + "<<<<<<<<");
+			}
 		}
 
 		return workflowResponse;
@@ -235,6 +295,15 @@ class ApplicationServicesClient {
 				noExtraErrorHandling()));
 	}
 
+	public Mono<List<ILLRequest>> getIllRequest(String patronLocalId) {
+
+		final var path = createPath("patrons", patronLocalId, "requests", "ill");
+		return createRequest(GET, path, uri -> {})
+			.flatMap(request -> client.retrieve(request, Argument.listOf(ILLRequest.class),
+				noExtraErrorHandling()));
+	}
+
+
 	public Mono<Integer> createBibliographicRecord(Bib bib) {
 		final var path = createPath("bibliographicrecords");
 		final var body = DtoBibliographicCreationData.builder()
@@ -285,6 +354,87 @@ class ApplicationServicesClient {
 			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class),
 				noExtraErrorHandling()))
 			.flatMap(resp -> handlePolarisWorkflow(resp, ConfirmBibRecordDelete, Continue));
+	}
+
+
+	public Mono<WorkflowResponse> convertToIll(Integer illLocationId, String localId) {
+		final var path = createPath("workflow");
+
+		final var conf = client.getConfig();
+		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
+		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+
+		final var servicesConfig = client.getServicesConfig();
+		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
+
+		final var body = WorkflowRequest.builder()
+			.workflowRequestType(20)
+			.txnUserID(user)
+			.txnBranchID(illLocationId)
+			.txnWorkstationID(workstation)
+			.requestExtension( RequestExtension.builder()
+				.workflowRequestExtensionType(16)
+				.data(RequestExtensionData.builder()
+					.sysHoldRequestID(localId)
+					.skipTotalILLLimitExceededPrompt(TRUE)
+					.build())
+				.build())
+			.build();
+
+		return createRequest(POST, path, uri -> {})
+			.map(request -> request.body(body))
+			.flatMap(this::convertToIllRequest);
+	}
+
+
+	public Mono<ILLRequestInfo> transferRequest(Integer illLocationId, Integer illRequestId) {
+		final var path = createPath("workflow");
+
+		final var conf = client.getConfig();
+		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
+		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+
+		final var servicesConfig = client.getServicesConfig();
+		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
+
+		final var body = WorkflowRequest.builder()
+			.workflowRequestType(18)
+			.txnUserID(user)
+			.txnBranchID(illLocationId)
+			.txnWorkstationID(workstation)
+			.requestExtension( RequestExtension.builder()
+				.workflowRequestExtensionType(14)
+				.data(RequestExtensionData.builder()
+					.iLLRequestID(illRequestId)
+					.circTranType(12)
+					.build())
+				.build())
+			.build();
+
+		return createRequest(POST, path, uri -> {})
+			.map(request -> request.body(body))
+			.flatMap(this::createTransferRequest);
+	}
+
+	private <R> Mono<ILLRequestInfo> createTransferRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
+
+			return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class), noExtraErrorHandling())
+				.doOnSuccess(r -> log.info("Got transfer request response {}", r))
+				.doOnError(e -> log.info("Error response for transferring ILL request {} {}", workflowReq, e))
+				// when we save the virtual item we need to confirm we do not want the item to display in pac
+				.flatMap(response -> handlePolarisWorkflow(response, 55, 5))
+				.switchIfEmpty(
+					Mono.error(new PolarisWorkflowException("transferring ILL request failed expecting workflow response to: " + workflowReq)))
+				.map(workflowResponse -> workflowResponse.getAnswerExtension().getAnswerData().getILLRequestInfo());
+		}
+
+	private Mono<WorkflowResponse> convertToIllRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
+
+		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class), noExtraErrorHandling())
+			.doOnSuccess(r -> log.info(">>>>>>> {} <<<<<<<", r.getPrompt().getMessage()))
+			.doOnError(e -> log.info("Error response for convert ILL request {} {}", workflowReq, e))
+			.switchIfEmpty(Mono.error(new PolarisWorkflowException(
+				"convert ILL request failed expecting workflow response to: " + workflowReq)));
 	}
 
 	public Mono<WorkflowResponse> addItemRecord(CreateItemCommand createItemCommand) {
@@ -594,6 +744,156 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
+	static class ILLRequestInfo {
+		@JsonProperty("ILLRequestID")
+		private Integer illRequestID;
+		@JsonProperty("PatronName")
+		private String patronName;
+		@JsonProperty("PatronBarcode")
+		private String patronBarcode;
+		@JsonProperty("PatronPhone")
+		private String patronPhone;
+		@JsonProperty("PatronEmail")
+		private String patronEmail;
+		@JsonProperty("PatronID")
+		private Integer patronID;
+		@JsonProperty("PickupBranchID")
+		private Integer pickupBranchID;
+		@JsonProperty("CreationDate")
+		private String creationDate;
+		@JsonProperty("NeedByDate")
+		private String needByDate;
+		@JsonProperty("ActivationDate")
+		private String activationDate;
+		@JsonProperty("Author")
+		private String author;
+		@JsonProperty("Title")
+		private String title;
+		@JsonProperty("BrowseAuthor")
+		private String browseAuthor;
+		@JsonProperty("BrowseTitle")
+		private String browseTitle;
+		@JsonProperty("MARCTOMID")
+		private Integer marcTomID;
+		@JsonProperty("MediumType")
+		private String mediumType;
+		@JsonProperty("Publisher")
+		private String publisher;
+		@JsonProperty("PublicationYear")
+		private Integer publicationYear;
+		@JsonProperty("LCCN")
+		private String lccn;
+		@JsonProperty("ISBN")
+		private String isbn;
+		@JsonProperty("ISSN")
+		private String issn;
+		@JsonProperty("VolumeAndIssue")
+		private String volumeAndIssue;
+		@JsonProperty("Series")
+		private String series;
+		@JsonProperty("Edition")
+		private String edition;
+		@JsonProperty("RequestType")
+		private String requestType;
+		@JsonProperty("RequestTypeID")
+		private Integer requestTypeID;
+		@JsonProperty("ItemBarcode")
+		private String itemBarcode;
+		@JsonProperty("ILLStatusID")
+		private Integer illStatusID;
+		@JsonProperty("CurrentStatus")
+		private String currentStatus;
+		@JsonProperty("PreviousStatus")
+		private String previousStatus;
+		@JsonProperty("StatusTransitionDate")
+		private String statusTransitionDate;
+		@JsonProperty("StaffNotes1")
+		private String staffNotes1;
+		@JsonProperty("StaffNotes2")
+		private String staffNotes2;
+		@JsonProperty("OPACNotes")
+		private String opacNotes;
+		@JsonProperty("InnReachType")
+		private Integer innReachType;
+		@JsonProperty("MARCTOMDescription")
+		private String marcTomDescription;
+		@JsonProperty("CentralItemType")
+		private Integer centralItemType;
+		@JsonProperty("CentralCode")
+		private String centralCode;
+		@JsonProperty("ReturnUncirc")
+		private Boolean returnUncirc;
+		@JsonProperty("InnReachBibCallNumber")
+		private String innReachBibCallNumber;
+		@JsonProperty("BibliographicRecordID")
+		private Integer bibliographicRecordID;
+		@JsonProperty("HoldTillDate")
+		private String holdTillDate;
+		@JsonProperty("ItemStatusID")
+		private Integer itemStatusID;
+		@JsonProperty("ItemRecordID")
+		private Integer itemRecordID;
+		@JsonProperty("InnReachTrackingID")
+		private Integer innReachTrackingID;
+		@JsonProperty("AssignedBranchID")
+		private Integer assignedBranchID;
+		@JsonProperty("ILLMessageDetailSentDate")
+		private String illMessageDetailSentDate;
+		@JsonProperty("InnReachItemBarcode")
+		private String innReachItemBarcode;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class ILLRequest {
+		@JsonProperty("ILLRequestID")
+		private Integer illRequestID;
+		@JsonProperty("ILLStatusID")
+		private Integer illStatusID;
+		@JsonProperty("PatronID")
+		private Integer patronID;
+		@JsonProperty("ItemRecordID")
+		private Integer itemRecordID;
+		@JsonProperty("BibRecordID")
+		private Integer bibRecordID;
+		@JsonProperty("PickupLibID")
+		private Integer pickupLibID;
+		@JsonProperty("Author")
+		private String author;
+		@JsonProperty("Title")
+		private String title;
+		@JsonProperty("BrowseTitleNonFilingCount")
+		private Integer browseTitleNonFilingCount;
+		@JsonProperty("FormatDescription")
+		private String formatDescription;
+		@JsonProperty("CreationDate")
+		private String creationDate;
+		@JsonProperty("ActivationDate")
+		private String activationDate;
+		@JsonProperty("ILLStatusDescription")
+		private String illStatusDescription;
+		@JsonProperty("ItemStatusID")
+		private Integer itemStatusID;
+		@JsonProperty("ItemStatusDescription")
+		private String itemStatusDescription;
+		@JsonProperty("NeedByDate")
+		private String needByDate;
+		@JsonProperty("PickupBranch")
+		private String pickupBranch;
+		@JsonProperty("FormatID")
+		private Integer formatID;
+		@JsonProperty("LastStatusTransitionDate")
+		private String lastStatusTransitionDate;
+		@JsonProperty("INNReachTrackingID")
+		private Integer innReachTrackingID;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
 	static class SysHoldRequest {
 		@JsonProperty("SysHoldRequestID")
 		private Integer sysHoldRequestID;
@@ -778,6 +1078,8 @@ class ApplicationServicesClient {
 	static class AnswerData {
 		@JsonProperty("ItemRecord")
 		private ItemRecord itemRecord;
+		@JsonProperty("ILLRequestInfo")
+		private ILLRequestInfo iLLRequestInfo;
 	}
 
 	@Builder
@@ -951,6 +1253,26 @@ class ApplicationServicesClient {
 		private Boolean patronBlocksOnlyPrompt;
 		@JsonProperty("IgnoreMaximumHoldsPrompt")
 		private Boolean ignoreMaximumHoldsPrompt;
+		@JsonProperty("UnlockedRequest")
+		private Boolean unlockedRequest;
+		@JsonProperty("Title")
+		private String title;
+		@JsonProperty("BrowseTitle")
+		private String browseTitle;
+
+
+		// convert to ILL request
+		@JsonProperty("SysHoldRequestID")
+		private String sysHoldRequestID;
+		@JsonProperty("SkipTotalILLLimitExceededPrompt")
+		private Boolean skipTotalILLLimitExceededPrompt;
+
+
+		// transfer ILL request
+		@JsonProperty("ILLRequestID")
+		private Integer iLLRequestID;
+		@JsonProperty("circTranType")
+		private Integer circTranType;
 	}
 
 	@Builder

@@ -145,7 +145,128 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(
 		PlaceHoldRequestParameters parameters) {
 
+		final var illLocationId = illLocationId();
+		if (illLocationId != null) {
+			return placeILLHoldRequest(illLocationId, parameters);
+		}
+
 		return placeHoldRequest(parameters, true);
+	}
+
+	private Integer illLocationId() {
+		return extractMapValue(getItemConfig(), ILL_LOCATION_ID, Integer.class);
+	}
+
+	private Mono<LocalRequest> placeILLHoldRequest(Integer illLocationId, PlaceHoldRequestParameters parameters) {
+		log.info("placeILLHoldRequest {} {}",parameters);
+
+		final var patronLocalId = parameters.getLocalPatronId();
+		final var title = "DCB-" + parameters.getTitle();
+		final var pickupLocation = getPickupLocation(parameters, TRUE);
+		final var note = parameters.getNote();
+
+		final var createHoldParams = HoldRequestParameters.builder()
+			.localPatronId(patronLocalId)
+			.title(title)
+			.pickupLocation(pickupLocation)
+			.note(note)
+			// TODO: change this to it's own field
+			.localItemLocationId(illLocationId)
+			.build();
+
+		return appServicesClient.createILLHoldRequestWorkflow(createHoldParams)
+			.doOnNext( hr -> log.info("got hold response {}",hr) )
+			.flatMap(function(this::getLocalHoldRequestIdv2))
+			.flatMap(localRequest -> appServicesClient.convertToIll(illLocationId, localRequest.getLocalId()))
+			.flatMap(listOfILLRequests -> getILLRequestId(patronLocalId, title))
+			.flatMap(illRequestId -> appServicesClient.transferRequest(illLocationId, illRequestId))
+			.map(illRequestInfo -> extractNeededInfo(illRequestInfo));
+	}
+
+	private LocalRequest extractNeededInfo(ApplicationServicesClient.ILLRequestInfo illRequestInfo) {
+		log.info("extractNeededInfo for {}",illRequestInfo);
+
+		return LocalRequest.builder()
+				.localId(illRequestInfo.getIllRequestID() != null
+					? illRequestInfo.getIllRequestID().toString()
+					: "")
+				.localStatus( String.valueOf(illRequestInfo.getIllRequestID()) )
+				.requestedItemId( String.valueOf(illRequestInfo.getItemRecordID()) )
+				.requestedItemBarcode( illRequestInfo.getItemBarcode() )
+				.build();
+	}
+
+	private Mono<Integer> getILLRequestId(String patronLocalId, String title) {
+
+		// TEMPORARY WORKAROUND - Wait for polaris to process the hold and make it
+		// visible
+		synchronized (this) {
+			try {
+				Thread.sleep(2000);
+			} catch (Exception e) {
+			}
+		}
+
+		return appServicesClient.getIllRequest(patronLocalId)
+			.doOnNext(entries -> log.debug("Got Polaris Holds: {}", entries))
+			.flatMapMany(Flux::fromIterable)
+			.filter(illRequest -> Objects.equals(illRequest.getTitle(), title))
+			.next()
+			.map(illRequest -> illRequest.getIllRequestID())
+			// We should retrieve the item record for the selected hold and store the barcode here
+			.switchIfEmpty(Mono.error(new HoldRequestException("Error occurred when getting ILL Hold - filtering by title didn't match any request")))
+			.onErrorResume(NullPointerException.class, error -> {
+				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
+				return Mono.error(new HoldRequestException("NullPointerException occurred when getting ILL Hold"));
+			});
+
+	}
+
+	public <R> Mono<LocalRequest> getLocalHoldRequestIdv2(String patronId, String title, String note, String activationDate) {
+
+		log.debug("getLocalHoldRequestIdv2({}, {}, {}, {})", patronId, title, note, activationDate);
+
+		// TEMPORARY WORKAROUND - Wait for polaris to process the hold and make it
+		// visible
+		synchronized (this) {
+			try {
+				Thread.sleep(2000);
+			} catch (Exception e) {
+			}
+		}
+
+		return appServicesClient.listPatronLocalHolds(patronId)
+			.doOnNext(entries -> log.debug("Got Polaris Holds: {}", entries))
+			.flatMapMany(Flux::fromIterable)
+			.filter(holds -> shouldIncludeHold(holds, title, note, activationDate))
+			.collectList()
+			.flatMap(filteredHolds -> chooseHold(filteredHolds))
+			// We should retrieve the item record for the selected hold and store the barcode here
+			.onErrorResume(NullPointerException.class, error -> {
+				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
+				return Mono.error(new HoldRequestException("Error occurred when getting Hold"));
+			});
+	}
+
+	private Boolean shouldIncludeHold(
+		ApplicationServicesClient.SysHoldRequest sysHoldRequest, String title, String note, String activationDate) {
+
+		final var zonedDateTime = ZonedDateTime.parse(sysHoldRequest.getActivationDate());
+		final var formattedDate = zonedDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+		if (Objects.equals(sysHoldRequest.getPacDisplayNotes(), note)) {
+			log.info("hold matched on getPacDisplayNotes.");
+			log.info("known title: {}=={}, " +
+					"known activation date: {}=={}",
+				title, sysHoldRequest.getTitle(),
+				activationDate, formattedDate);
+
+			return TRUE;
+		}
+
+		log.error("did not match on known note {} with getPacDisplayNotes {}",
+			note, sysHoldRequest.getPacDisplayNotes());
+		return FALSE;
 	}
 
 	/**
@@ -216,6 +337,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
 				return Mono.error(new HoldRequestException("Error occurred when getting Hold"));
 			});
+
 	}
 
 	private Boolean shouldIncludeHold(
@@ -304,12 +426,25 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<String> createBib(Bib bib) {
+
+		final var illLocationId = illLocationId();
+		if (illLocationId != null) {
+			log.warn("ILL LOCATION ID SET FOR POLARIS, CREATE BIB WILL RETURN PLACEHOLDER");
+			return Mono.just("ILL_REQUEST_BIB_ID_PLACEHOLDER");
+		}
+
 		return appServicesClient.createBibliographicRecord(bib).map(String::valueOf);
 	}
 
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand) {
 		log.info("createItem({})",createItemCommand);
+
+		final var illLocationId = illLocationId();
+		if (illLocationId != null) {
+			log.warn("ILL LOCATION ID SET FOR POLARIS, CREATE ITEM WILL RETURN PLACEHOLDER");
+			return Mono.just(HostLmsItem.builder().localId("ILL_REQUEST_ITEM_ID_PLACEHOLDER").build());
+		}
 
 		return appServicesClient.addItemRecord(createItemCommand)
 			.doOnSuccess(r -> log.info("Got create item response from Polaris: {}",r))
