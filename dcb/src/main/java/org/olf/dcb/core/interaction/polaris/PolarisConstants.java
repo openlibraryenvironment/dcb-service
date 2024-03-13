@@ -12,6 +12,9 @@ class PolarisConstants {
 	public static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
 	public static final String LOGON_BRANCH_ID = "logon-branch-id";
 	public static final String LOGON_USER_ID = "logon-user-id";
+
+	public static final String BORROWER_LENDING_FLOW = "borrower-lending-flow"; // can be set to DCB or ILL
+
 	// PAPIService
 	public static final String PAPI = "papi";
 	public static final String PAPI_VERSION = "papi-version";

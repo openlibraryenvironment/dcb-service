@@ -111,6 +111,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	// ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
 
+	private static final String DCB_BORROWING_FLOW = "DCB";
+	private static final String ILL_BORROWING_FLOW = "ILL";
 	@Creator
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,
 		ProcessStateService processStateService, RawSourceRepository rawSourceRepository,
@@ -145,16 +147,26 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(
 		PlaceHoldRequestParameters parameters) {
 
-		final var illLocationId = illLocationId();
-		if (illLocationId != null) {
-			return placeILLHoldRequest(illLocationId, parameters);
-		}
-
-		return placeHoldRequest(parameters, true);
+		return switch (borrowerlendingFlow()) {
+			case DCB_BORROWING_FLOW -> placeHoldRequest(parameters, TRUE);
+			case ILL_BORROWING_FLOW -> placeILLHoldRequest(illLocationId(), parameters);
+			default -> placeHoldRequest(parameters, TRUE);
+		};
 	}
 
 	private Integer illLocationId() {
-		return extractMapValue(getItemConfig(), ILL_LOCATION_ID, Integer.class);
+		final var illLocationId = extractMapValue(getItemConfig(), ILL_LOCATION_ID, Integer.class);
+
+		if (illLocationId == null) {
+			throw new IllegalArgumentException(
+				"config value: 'ill-location-id' not set in Polaris config for hostlms:" + getHostLms().getName());
+		}
+
+		return illLocationId;
+	}
+
+	private String borrowerlendingFlow() {
+		return extractMapValue(getConfig(), BORROWER_LENDING_FLOW, String.class);
 	}
 
 	private Mono<LocalRequest> placeILLHoldRequest(Integer illLocationId, PlaceHoldRequestParameters parameters) {
@@ -429,9 +441,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<String> createBib(Bib bib) {
 
-		final var illLocationId = illLocationId();
-		if (illLocationId != null) {
-			log.warn("ILL LOCATION ID SET FOR POLARIS, CREATE BIB WILL RETURN PLACEHOLDER");
+		if (ILL_BORROWING_FLOW.equals(borrowerlendingFlow())) {
+			log.warn(ILL_BORROWING_FLOW + " SET FOR POLARIS, CREATE BIB WILL RETURN PLACEHOLDER");
 			return Mono.just("ILL_REQUEST_BIB_ID_PLACEHOLDER");
 		}
 
@@ -442,9 +453,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand) {
 		log.info("createItem({})",createItemCommand);
 
-		final var illLocationId = illLocationId();
-		if (illLocationId != null) {
-			log.warn("ILL LOCATION ID SET FOR POLARIS, CREATE ITEM WILL RETURN PLACEHOLDER");
+		if (ILL_BORROWING_FLOW.equals(borrowerlendingFlow())) {
+			log.warn(ILL_BORROWING_FLOW + " SET FOR POLARIS, CREATE ITEM WILL RETURN PLACEHOLDER");
 			return Mono.just(HostLmsItem.builder().localId("ILL_REQUEST_ITEM_ID_PLACEHOLDER").build());
 		}
 
