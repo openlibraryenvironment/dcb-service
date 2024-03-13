@@ -132,6 +132,7 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) &&
+			( ctx.getPatronRequest().getLocalItemStatus() != null ) &&
 			ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_LOANED) );
 	}
 
