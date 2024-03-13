@@ -1098,6 +1098,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		log.debug("getRequest({})", localRequestId);
+
+		if ( localRequestId == null )
+			return Mono.empty();
+
 		return Mono.from(client.getHold(Long.valueOf(localRequestId)))
 			.flatMap(this::sierraPatronHoldToHostLmsHold)
 			.defaultIfEmpty(new HostLmsRequest(localRequestId, "MISSING"));
