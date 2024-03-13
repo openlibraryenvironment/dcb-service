@@ -432,7 +432,9 @@ class ApplicationServicesClient {
 	private Mono<WorkflowResponse> convertToIllRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
 
 		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class), noExtraErrorHandling())
-			.doOnSuccess(r -> log.info(">>>>>>> {} <<<<<<<", r.getPrompt().getMessage()))
+			.doOnSuccess(r -> log.info(">>>>>>> {} <<<<<<<", r.getInformationMessages() != null
+				? r.getInformationMessages()
+				: "No information messages available."))
 			.doOnError(e -> log.info("Error response for convert ILL request {} {}", workflowReq, e))
 			.switchIfEmpty(Mono.error(new PolarisWorkflowException(
 				"convert ILL request failed expecting workflow response to: " + workflowReq)));
