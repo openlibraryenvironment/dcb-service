@@ -264,8 +264,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			return TRUE;
 		}
 
-		log.error("did not match on known note {} with getPacDisplayNotes {}",
-			note, sysHoldRequest.getPacDisplayNotes());
 		return FALSE;
 	}
 
@@ -313,7 +311,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.flatMap(function(this::getLocalHoldRequestId));
 	}
 
-	public <R> Mono<LocalRequest> getLocalHoldRequestId(String patronId, Integer bibId, String activationDate) {
+	public <R> Mono<LocalRequest> getLocalHoldRequestId(
+		String patronId, Integer bibId, String activationDate, String note) {
 
 		log.debug("getPatronHoldRequestId({}, {})", bibId, activationDate);
 
@@ -329,7 +328,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return appServicesClient.listPatronLocalHolds(patronId)
 			.doOnNext(entries -> log.debug("Got Polaris Holds: {}", entries))
 			.flatMapMany(Flux::fromIterable)
-			.filter(holds -> shouldIncludeHold(holds, bibId, activationDate))
+			.filter(holds -> shouldIncludeHold(holds, bibId, activationDate, note))
 			.collectList()
 			.flatMap(filteredHolds -> chooseHold(filteredHolds))
 			// We should retrieve the item record for the selected hold and store the barcode here
@@ -341,19 +340,22 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Boolean shouldIncludeHold(
-		ApplicationServicesClient.SysHoldRequest sysHoldRequest, Integer bibId, String activationDate) {
+		ApplicationServicesClient.SysHoldRequest sysHoldRequest, Integer bibId, String activationDate, String note) {
 
 		final var zonedDateTime = ZonedDateTime.parse(sysHoldRequest.getActivationDate());
 		final var formattedDate = zonedDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
-		if (Objects.equals(sysHoldRequest.getBibliographicRecordID(), bibId)) {
+		if (Objects.equals(sysHoldRequest.getBibliographicRecordID(), bibId) &&
+			Objects.equals(sysHoldRequest.getPacDisplayNotes() != null
+				? sysHoldRequest.getPacDisplayNotes()
+				: "", note)) {
+
 			log.info("hold matched on bib Id.");
+			log.info("known activation date: {}=={} hold activation date.", activationDate, formattedDate);
 
 			return TRUE;
 		}
-
-		log.error("did not match on known bib id {} and known activation date {} with sysHoldRequest {}",
-			bibId, activationDate, sysHoldRequest);
+		
 		return FALSE;
 	}
 
