@@ -126,7 +126,6 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 			// This will cause st.setLocalStatus("TRANSIT") above to be saved and mean our local state is aligned with the supplier req
 			.flatMap(this::saveSupplierRequest)
 			.flatMap(this::updatePatronRequest)
-			.flatMap(ctxp -> patronRequestAuditService.addAuditEntry(ctx, ctx.getPatronRequestStateOnEntry(), ctx.getPatronRequest().getStatus(), Optional.of("HandleSupplierInTransit"), Optional.empty()))
 			.doOnError(error -> patronRequestAuditService.addErrorAuditEntry(
 				ctx.getPatronRequest(), "Error attempting to set inTransit state on downstream systems:" + error))
 			.thenReturn(ctx);

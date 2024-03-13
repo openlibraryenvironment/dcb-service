@@ -31,6 +31,7 @@ public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransiti
 	private final HostLmsService hostLmsService;
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.RECEIVED_AT_PICKUP, Status.PICKUP_TRANSIT);
+	private static final List<String> triggeringItemStates = List.of(HostLmsItem.ITEM_ON_HOLDSHELF, HostLmsItem.ITEM_LOANED);
 	
 	public HandleBorrowerItemOnHoldShelf(
 		PatronRequestRepository patronRequestRepository,
@@ -43,9 +44,7 @@ public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransiti
 
 	public Mono<RequestWorkflowContext> updateSupplierItemToReceived(
 		RequestWorkflowContext rwc) {
-		if ((rwc.getSupplierRequest() != null) &&
-			(rwc.getSupplierRequest().getLocalItemId() != null) &&
-			(rwc.getLenderSystemCode() != null)) {
+		if ((rwc.getSupplierRequest() != null) && (rwc.getLenderSystemCode() != null)) {
 
 			final var supplierRequest = rwc.getSupplierRequest();
 
@@ -64,8 +63,7 @@ public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransiti
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		return (
 			( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
-			( ctx.getPatronRequest().getLocalItemStatus() != null ) &&
-			( ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_ON_HOLDSHELF) ) );
+			( triggeringItemStates.contains(ctx.getPatronRequest().getLocalItemStatus()) ) );
 	}
 
 	@Override
