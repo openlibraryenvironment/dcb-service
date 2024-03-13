@@ -28,6 +28,9 @@ public class HandleBorrowerItemReceived implements PatronRequestStateTransition 
 	// If the item is received at the patron library, then maybe we just skipped the whole transit dance because
 	// it wasn't checked out before it was put on the van
 	private static final List<Status> possibleSourceStatus = List.of(Status.PICKUP_TRANSIT, Status.REQUEST_PLACED_AT_BORROWING_AGENCY);
+
+	// If we're in one of posisbleSourceStates, but  the actual item state is one of these - then we have been received - do that first
+	private static final List<String> triggeringItemStates = List.of(HostLmsItem.ITEM_RECEIVED, HostLmsItem.ITEM_LOANED);
 	
 	public HandleBorrowerItemReceived(PatronRequestRepository patronRequestRepository) {
 		this.patronRequestRepository = patronRequestRepository;
@@ -36,7 +39,7 @@ public class HandleBorrowerItemReceived implements PatronRequestStateTransition 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) &&
-			HostLmsItem.ITEM_RECEIVED.equals(ctx.getPatronRequest().getLocalItemStatus()) );
+			triggeringItemStates.contains(ctx.getPatronRequest().getLocalItemStatus() ) );
 	}
 
 	@Override
