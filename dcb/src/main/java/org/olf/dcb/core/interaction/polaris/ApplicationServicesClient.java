@@ -128,7 +128,7 @@ class ApplicationServicesClient {
 	/**
 	 * Based upon <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/create_hold_request">post hold request docs</a>
 	 */
-	Mono<Tuple3<String, Integer, String>> createHoldRequestWorkflow(HoldRequestParameters holdRequestParameters) {
+	Mono<Tuple4<String, Integer, String, String>> createHoldRequestWorkflow(HoldRequestParameters holdRequestParameters) {
 		log.debug("createHoldRequestWorkflow with holdRequestParameters {}", holdRequestParameters);
 
 		final var path = createPath("workflow");
@@ -144,7 +144,8 @@ class ApplicationServicesClient {
 			.thenReturn(Tuples.of(
 				holdRequestParameters.getLocalPatronId(),
 				holdRequestParameters.getBibliographicRecordID(),
-				activationDate));
+				activationDate,
+				holdRequestParameters.getNote()));
 	}
 
 	private WorkflowResponse validateHoldResponse(WorkflowResponse workflowResponse) {
@@ -699,6 +700,7 @@ class ApplicationServicesClient {
 						.expirationDate(LocalDateTime.now().plusDays(expiration).format( ofPattern("MM/dd/yyyy")))
 						.staffDisplayNotes(holdRequestParameters.getNote())
 						.nonPublicNotes(holdRequestParameters.getNote())
+						.pACDisplayNotes(holdRequestParameters.getNote())
 						.bibliographicRecordID(holdRequestParameters.getBibliographicRecordID())
 						.itemRecordID(Optional.ofNullable(holdRequestParameters.getRecordNumber()).map(Integer::valueOf).orElse(null))
 						.itemBarcode(holdRequestParameters.getItemBarcode())
