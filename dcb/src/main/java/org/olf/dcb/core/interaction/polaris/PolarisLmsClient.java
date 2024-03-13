@@ -1043,7 +1043,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
   }
 
   public boolean reflectPatronLoanAtSupplier() {
-    return false;
+    return true;
   }
+
+  @Override
+  public Mono<String> deleteHold(String id) {
+		log.info("Delete hold is not currently implemented for Polaris");
+    return Mono.just("OK");
+  }
+
 
 }

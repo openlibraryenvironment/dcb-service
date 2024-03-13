@@ -1207,6 +1207,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
+  public Mono<String> deleteHold(String id) {
+		log.info("Delete hold is not currently implemented for Sierra");
+		return Mono.just("OK");
+	}
+
+
+	@Override
 	public ProcessStateService getProcessStateService() {
 		return this.processStateService;
 	}

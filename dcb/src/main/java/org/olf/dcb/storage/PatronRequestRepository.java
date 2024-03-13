@@ -45,7 +45,7 @@ public interface PatronRequestRepository {
 	Publisher<Void> delete(UUID id);
 
 	// local_request_id must be not null, it must currently be in a tracked state and the request itself must be trackable
-	@Query(value = "SELECT p.* from patron_request p  where p.local_request_id is not null and p.local_request_status in ( select code from status_code where model = 'PatronRequest' and tracked = true ) and p.status_code in ( select code from status_code where model = 'DCBRequest' and tracked = true )", nativeQuery = true)
+	@Query(value = "SELECT p.* from patron_request p  where p.local_request_id is not null and ( p.local_request_status is null OR p.local_request_status in ( select code from status_code where model = 'PatronRequest' and tracked = true ) ) and p.status_code in ( select code from status_code where model = 'DCBRequest' and tracked = true )", nativeQuery = true)
 	Publisher<PatronRequest> findTrackedPatronHolds();
 
 

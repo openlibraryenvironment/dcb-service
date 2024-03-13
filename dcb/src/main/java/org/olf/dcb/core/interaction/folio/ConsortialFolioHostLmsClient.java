@@ -799,6 +799,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return Mono.just("OK");
 	}
 
+  @Override
+  public Mono<String> deleteHold(String id) {
+		log.info("Delete hold is not currently implemented for FOLIO");
+    return Mono.just("OK");
+  }
+
+
+
 	@Override
 	public Mono<String> deleteBib(String id) {
 		log.info("Delete virtual bib is not currently implemented for FOLIO");

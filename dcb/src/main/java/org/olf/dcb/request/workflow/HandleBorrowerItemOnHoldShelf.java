@@ -64,7 +64,8 @@ public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransiti
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		return (
 			( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
-			ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_ON_HOLDSHELF) );
+			( ctx.getPatronRequest().getLocalItemStatus() != null ) &&
+			( ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_ON_HOLDSHELF) ) );
 	}
 
 	@Override

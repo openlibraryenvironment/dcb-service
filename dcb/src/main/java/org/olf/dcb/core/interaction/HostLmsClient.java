@@ -81,6 +81,8 @@ public interface HostLmsClient {
 
 	Mono<String> deleteBib(String id);
 
+	Mono<String> deleteHold(String id);
+
 	/**
 	 * Return a boolean value which tests if an agency is able to act as a supplier for an item identified
 	 * via RTAC. Should test if the canonical item and patron types needed to fulfil the role can be mapped.
