@@ -145,7 +145,7 @@ class ApplicationServicesClient {
 				holdRequestParameters.getLocalPatronId(),
 				holdRequestParameters.getBibliographicRecordID(),
 				activationDate,
-				holdRequestParameters.getNote()));
+				holdRequestParameters.getNote() != null ? holdRequestParameters.getNote() : ""));
 	}
 
 	private WorkflowResponse validateHoldResponse(WorkflowResponse workflowResponse) {
