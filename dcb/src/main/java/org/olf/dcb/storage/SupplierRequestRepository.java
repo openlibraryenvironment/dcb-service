@@ -43,7 +43,7 @@ public interface SupplierRequestRepository {
 
 	Publisher<Void> delete(UUID id);
 
-	@Query(value = "SELECT sr.* from supplier_request sr, patron_request pr where pr.id = sr.patron_request_id and sr.status_code in ( select code from status_code where model = 'SupplierRequest' and tracked = true ) and ( sr.local_id is not null ) and ( sr.local_status <> 'MISSING') and pr.status_code not in ('ERROR', 'FINALISED', 'COMPLETED')", nativeQuery = true)
+	@Query(value = "SELECT sr.* from supplier_request sr, patron_request pr where pr.id = sr.patron_request_id and sr.status_code in ( select code from status_code where model = 'SupplierRequest' and tracked = true ) and ( sr.local_status <> 'MISSING') and pr.status_code not in ('ERROR', 'FINALISED', 'COMPLETED')", nativeQuery = true)
 	Publisher<SupplierRequest>  findTrackedSupplierHolds();
 
         @NonNull
@@ -63,7 +63,7 @@ public interface SupplierRequestRepository {
         Publisher<PatronRequest> findPatronRequestById(UUID supplierRequestId);
 
 
-	@Query(value = "SELECT s.* from supplier_request s, patron_request pr where pr.id = s.patron_request_id and s.local_item_id is not null and ( s.local_item_status is null or s.local_item_status in ( select code from status_code where model = 'SupplierItem' and tracked = true ) ) and pr.status_code not in ('ERROR', 'FINALISED', 'COMPLETED')", nativeQuery = true)
+	@Query(value = "SELECT s.* from supplier_request s, patron_request pr where pr.id = s.patron_request_id and ( s.local_item_status is null or s.local_item_status in ( select code from status_code where model = 'SupplierItem' and tracked = true ) ) and pr.status_code not in ('ERROR', 'FINALISED', 'COMPLETED')", nativeQuery = true)
 	Publisher<SupplierRequest> findTrackedSupplierItems();
 	Publisher<PatronIdentity> findVirtualIdentityById(UUID supplierRequestId);
 
