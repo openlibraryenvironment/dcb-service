@@ -61,23 +61,10 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.flatMap(this::saveSupplierRequest)
 			.flatMap(this::updatePatronRequest)
 			.map(Resolution::getPatronRequest)
-			.flatMap(this::createAuditEntry)
 			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest))
 			.thenReturn(ctx);
 	}
 
-	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
-
-		// If we are already in an ERROR state, then just don't do anything more
-		if (patronRequest.getStatus() == Status.ERROR) return Mono.just(patronRequest);
-		
-		// Regardless of what the outcome was, set the audit record to VERIFIED -> RESOLVED that seems not right... Because
-		// The result of patronRequestResolutionService.resolvePatronRequest may be NO_ITEMS_AVAILABLE_AT_ANY_LENDER...
-		log.debug("createAuditEntry {} {}-> {}",patronRequest.getId(),PATRON_VERIFIED, patronRequest.getStatus());
-
-		return patronRequestAuditService.addAuditEntry(patronRequest, PATRON_VERIFIED, patronRequest.getStatus()).thenReturn(patronRequest);
-	}
-	
 	private Mono<Resolution> updatePatronRequest(Resolution resolution) {
 		log.debug("updatePatronRequest({})", resolution);
 

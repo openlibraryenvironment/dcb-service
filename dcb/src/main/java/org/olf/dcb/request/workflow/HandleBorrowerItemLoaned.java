@@ -36,7 +36,8 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 	private final HostLmsService hostLmsService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
-	private static final List<Status> possibleSourceStatus = List.of(Status.READY_FOR_PICKUP, Status.RECEIVED_AT_PICKUP , Status.PICKUP_TRANSIT);
+	private static final List<Status> possibleSourceStatus = List.of(Status.READY_FOR_PICKUP);
+	private static final List<String> triggeringItemStates = List.of(HostLmsItem.ITEM_LOANED);
 	
 	public HandleBorrowerItemLoaned(PatronRequestRepository patronRequestRepository,
 		HostLmsService hostLmsService, RequestWorkflowContextHelper requestWorkflowContextHelper,
@@ -105,8 +106,7 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 		final var supplierRequest = rwc.getSupplierRequest();
 
 		if ( hostLmsClient.reflectPatronLoanAtSupplier() ) {
-			return hostLmsClient.updateItemStatus(supplierRequest.getLocalItemId(),
-					AVAILABLE, supplierRequest.getLocalId())
+			return hostLmsClient.updateItemStatus(supplierRequest.getLocalItemId(), AVAILABLE, supplierRequest.getLocalId())
 				.then(hostLmsClient.checkOutItemToPatron(rwc.getSupplierRequest().getLocalItemBarcode(),
 					patronBarcode[0], supplierRequest.getLocalId()))
 				.thenReturn(rwc);
@@ -132,8 +132,7 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) &&
-			( ctx.getPatronRequest().getLocalItemStatus() != null ) &&
-			ctx.getPatronRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_LOANED) );
+			( triggeringItemStates.contains(ctx.getPatronRequest().getLocalItemStatus() ) ) );
 	}
 
 	@Override

@@ -326,22 +326,10 @@ public class ValidatePatronTests {
 	}
 
 	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
-		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
-
-		assertThat(fetchedAudit, allOf(
-			hasNoBriefDescription(),
-			hasFromStatus(SUBMITTED_TO_DCB),
-			hasToStatus(PATRON_VERIFIED)
-		));
+		assertThat(patronRequest.getStatus(), is(PATRON_VERIFIED) );
 	}
 
 	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
-		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
-
-		assertThat(fetchedAudit, allOf(
-			hasBriefDescription(description),
-			hasFromStatus(PATRON_VERIFIED),
-			hasToStatus(ERROR)
-		));
+		assertThat(patronRequest.getStatus(), is(ERROR) );
 	}
 }

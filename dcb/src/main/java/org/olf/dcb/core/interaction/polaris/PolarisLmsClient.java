@@ -1055,7 +1055,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
   }
 
   public boolean reflectPatronLoanAtSupplier() {
-    return true;
+		// Currently set to false in polaris because polaris is responding with
+		// ^[[36m18:22:40.065^[[0;39m ^[[37m[reactor-tcp-epoll-1]^[[0;39m ^[[31mWARN ^[[0;39m ^[[35mo.o.d.c.i.polaris.PolarisLmsClient^[[0;39m - Attempting to update an item status.
+    // org.zalando.problem.DefaultProblem: Unexpected response from Host LMS: "STLOUIS"
+    // *____Mono.onErrorMap ⇢ at org.olf.dcb.core.interaction.polaris.PolarisLmsClient.retrieve(PolarisLmsClient.java:752)
+    // *_______Mono.flatMap ⇢ at org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.getItemBarcode(ApplicationServicesClient.java:646)
+		// 
+    return false;
   }
 
   @Override

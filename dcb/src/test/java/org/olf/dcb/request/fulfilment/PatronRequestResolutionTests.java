@@ -315,17 +315,7 @@ class PatronRequestResolutionTests {
 	}
 
 	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest, Status expectedToStatus) {
-		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
-
-		assertThat("Patron Request audit should NOT have brief description",
-			fetchedAudit.getBriefDescription(),
-			is(nullValue()));
-
-		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(PATRON_VERIFIED));
-
-		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(expectedToStatus));
+		assertThat("Patron Request should have state", patronRequest.getStatus(), is(expectedToStatus));
 	}
 
 	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
