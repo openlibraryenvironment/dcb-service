@@ -1,16 +1,18 @@
 package services.k_int.integration.marc4j;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Leader;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
+import org.marc4j.marc.VariableField;
+
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 
 public interface Marc4jRecordUtils {
 	
@@ -58,9 +60,28 @@ public interface Marc4jRecordUtils {
                         case 'o' -> "Kit";
 			case 'm' -> "Electronic Resource";
 			case 'p' -> "Mixed Material";
-			case 't' -> "Book";			
-			case 'r' -> "Object";			
+			case 't' -> "Book";
+			case 'r' -> "Object";
 			default -> "Unknown";
 		};
+	}
+
+	static List<String> interpretLanguages(Record marcRecord) {
+		final var languageCodeFields = marcRecord.getVariableFields("041");
+
+		return languageCodeFields.stream()
+			.flatMap(Marc4jRecordUtils::parseSubFields)
+			.toList();
+	}
+
+	static Stream<String> parseSubFields(final VariableField field) {
+		if (field instanceof DataField dataField) {
+			return dataField.getSubfields('a')
+				.stream()
+				.map(Subfield::getData);
+		}
+		else {
+			return Stream.of();
+		}
 	}
 }

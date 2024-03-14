@@ -6,14 +6,10 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 
 import java.util.List;
-import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
-import org.marc4j.marc.DataField;
 import org.marc4j.marc.MarcFactory;
 import org.marc4j.marc.Record;
-import org.marc4j.marc.Subfield;
-import org.marc4j.marc.VariableField;
 import org.marc4j.marc.impl.MarcFactoryImpl;
 
 import lombok.extern.slf4j.Slf4j;
@@ -90,22 +86,7 @@ class MarcLanguageInterpretationTests {
 
 		assertThat(marcFactory.validateRecord(marcRecord), is(true));
 
-		final var languageCodeFields = marcRecord.getVariableFields("041");
-
-		return languageCodeFields.stream()
-			.flatMap(MarcLanguageInterpretationTests::parseSubFields)
-			.toList();
-	}
-
-	private static Stream<String> parseSubFields(final VariableField languageCodeField) {
-		if (languageCodeField instanceof DataField languageDataField) {
-			return languageDataField.getSubfields('a')
-				.stream()
-				.map(Subfield::getData);
-		}
-		else {
-			return Stream.of();
-		}
+		return Marc4jRecordUtils.interpretLanguages(marcRecord);
 	}
 
 	private static Record createMarcRecord(String... languageCodes) {
