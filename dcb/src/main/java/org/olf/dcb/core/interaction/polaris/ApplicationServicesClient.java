@@ -170,13 +170,13 @@ class ApplicationServicesClient {
 	Mono<LibraryHold> getLocalHoldRequest(Integer id) {
 		final var path = createPath("holds", id);
 		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.exchange(request, LibraryHold.class))
+			.flatMap(request -> client.exchange(request, LibraryHold.class, FALSE))
 			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
 			.onErrorResume(error -> {
-				log.error("An error occurred when trying to get hold {} : {}", id, error.getMessage());
+				log.error("An error occured when trying to get hold {} : {}", id, error.getMessage());
 				if ((error instanceof HttpClientResponseException) &&
 					(((HttpClientResponseException) error).getStatus() == HttpStatus.NOT_FOUND)) {
-					// This situation could mean the hold has been checked out to patron
+					// This is situation could mean the hold has been checked out to patron
 					return Mono.just(LibraryHold.builder().sysHoldStatus("Missing").build());
 				} else {
 					return Mono.error(new HoldRequestException("Unexpected error when trying to get hold with id: " + id));
@@ -187,7 +187,7 @@ class ApplicationServicesClient {
 	Mono<Patron> getPatron(String localPatronId) {
 		final var path = createPath("patrons", localPatronId);
 		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.exchange(request, PatronData.class))
+			.flatMap(request -> client.exchange(request, PatronData.class, TRUE))
 			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
 			.map(data -> Patron.builder()
 				.localId(singletonList(valueOf(data.getPatronID())))
@@ -300,7 +300,7 @@ class ApplicationServicesClient {
 		final Integer defaultExpirationDatePeriod = 999;
 		return createRequest(GET, path, uri -> {})
 			// should the org id be pick up org id?
-			.flatMap(request -> client.exchange(request, HoldRequestDefault.class))
+			.flatMap(request -> client.exchange(request, HoldRequestDefault.class, TRUE))
 			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
 			.map(HoldRequestDefault::getExpirationDatePeriod)
 			.doOnError(e -> log.debug("Error occurred when getting hold request defaults", e))
@@ -692,7 +692,7 @@ class ApplicationServicesClient {
 		final var path = createPath("bibliographicrecords", localBibId);
 
 		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.exchange(request, BibliographicRecord.class))
+			.flatMap(request -> client.exchange(request, BibliographicRecord.class, TRUE))
 			.flatMap(response -> Mono.justOrEmpty(response.getBody()));
 	}
 

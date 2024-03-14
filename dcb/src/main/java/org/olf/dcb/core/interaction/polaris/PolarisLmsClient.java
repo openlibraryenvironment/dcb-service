@@ -732,12 +732,16 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	 * @return Deserialized response body or error
 	 * @param <T> Type to deserialize the response to
 	 */
-	<T> Mono<HttpResponse<T>> exchange(MutableHttpRequest<?> request, Class<T> returnClass) {
+	<T> Mono<HttpResponse<T>> exchange(MutableHttpRequest<?> request, Class<T> returnClass,
+		Boolean useGenericHttpClientResponseExceptionHandler) {
 		return Mono.from(client.exchange(request, returnClass))
-		// This has to go after more specific error handling
-		// as will convert any client response exception to a problem
-			.onErrorMap(HttpClientResponseException.class, responseException ->
-				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
+			.onErrorResume(HttpClientResponseException.class, responseException -> {
+				if (useGenericHttpClientResponseExceptionHandler) {
+					// Generic error handling
+					return Mono.error(unexpectedResponseProblem(responseException, request, getHostLmsCode()));
+				}
+				return Mono.error(responseException); // Propagate the error
+			});
 	}
 
 	/**

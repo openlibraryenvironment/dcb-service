@@ -107,7 +107,7 @@ class PAPIAuthFilter {
 
 	private Mono<PatronAuthToken> patronAuthenticator(PAPIClient.PatronCredentials patronCredentials) {
 		return Mono.defer(() -> createPatronAuthRequest(patronCredentials)
-			.flatMap(request -> client.exchange(request, PatronAuthToken.class))
+			.flatMap(request -> client.exchange(request, PatronAuthToken.class, TRUE))
 			.flatMap(response -> Mono.justOrEmpty(response.getBody())));
 	}
 
