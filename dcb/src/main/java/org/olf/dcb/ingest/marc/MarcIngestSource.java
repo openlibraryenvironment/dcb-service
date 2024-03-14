@@ -2,6 +2,7 @@ package org.olf.dcb.ingest.marc;
 
 import static services.k_int.integration.marc4j.Marc4jRecordUtils.concatSubfieldData;
 import static services.k_int.integration.marc4j.Marc4jRecordUtils.extractOrderedSubfields;
+import static services.k_int.integration.marc4j.Marc4jRecordUtils.interpretLanguages;
 import static services.k_int.integration.marc4j.Marc4jRecordUtils.typeFromLeader;
 
 import java.time.Instant;
@@ -376,9 +377,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 			addToCanonicalMetadata("series", vf, "abcdefghijklmnopqrstuvwxyz", canonical_metadata);
 		}
 
-		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("041")) {
-			addToCanonicalMetadata("language", vf, "a", canonical_metadata);
-		}
+		canonical_metadata.put("language", interpretLanguages(marcRecord));
 
 		// Commented - 700s need to be added as author objects
 		// addToCanonicalMetadata("author", "700", "other", marcRecord,
