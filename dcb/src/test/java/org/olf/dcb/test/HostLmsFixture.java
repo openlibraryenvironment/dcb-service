@@ -132,6 +132,7 @@ public class HostLmsFixture {
 		item.put("loan-period-code-id", "9");
 		item.put("shelving-scheme-id", "3");
 		item.put("barcode-prefix", "test");
+		item.put("ill-location-id", "73");
 
 		clientConfig.put("item", item);
 

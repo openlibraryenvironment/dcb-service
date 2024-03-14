@@ -691,7 +691,7 @@ class ApplicationServicesClient {
 		final var conf = client.getConfig();
 		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
 		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
-		final var illLocationId = extractMapValue(conf, ILL_LOCATION_ID, Integer.class);
+		final var illLocationId = client.illLocationId();
 
 		final var servicesConfig = client.getServicesConfig();
 		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
@@ -710,7 +710,7 @@ class ApplicationServicesClient {
 					.data(RequestExtensionData.builder()
 						.patronID(Optional.ofNullable(holdRequestParameters.getLocalPatronId()).map(Integer::valueOf).orElse(null))
 						//.patronBranchID( branch )
-						.pickupBranchID( checkPickupBranchID(illLocationId != null ? illLocationId : holdRequestParameters.getLocalItemLocationId() ))
+						.pickupBranchID( checkPickupBranchID(illLocationId))
 						.origin(2)
 						.activationDate(activationDate)
 						.expirationDate(LocalDateTime.now().plusDays(expiration).format( ofPattern("MM/dd/yyyy")))
