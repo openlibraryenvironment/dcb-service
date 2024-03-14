@@ -730,13 +730,13 @@ class ApplicationServicesClient {
 	}
 
 	private static Integer checkPickupBranchID(HoldRequestParameters data) {
-		log.debug("checking pickup branch id from passed pickup location: '{}'", data.getLocalItemLocationId());
+		log.debug("checking pickup branch id from passed pickup location: '{}'", data.getPickupLocation());
 
 		try {
-			return Optional.ofNullable(data.getLocalItemLocationId())
+			return Optional.ofNullable(  Integer.valueOf(data.getPickupLocation())   )
 				.orElseThrow(() -> new NumberFormatException("Invalid number format"));
 		} catch (NumberFormatException e) {
-			throw new HoldRequestException("Cannot use pickup location '" + data.getLocalItemLocationId() + "' for pickupBranchID.");
+			throw new HoldRequestException("Cannot use pickup location '" + data.getPickupLocation() + "' for pickupBranchID.");
 		}
 	}
 
