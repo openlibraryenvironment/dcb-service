@@ -42,8 +42,9 @@
 						<marc:subfield code="d">CStRLIN</marc:subfield>
 						<marc:subfield code="d">NIC</marc:subfield>
 					</marc:datafield>
-					<marc:datafield tag="041" ind1="1" ind2=" ">
+					<marc:datafield tag="041" ind1="0" ind2=" ">
 						<marc:subfield code="a">eng</marc:subfield>
+						<marc:subfield code="a">egy</marc:subfield>
 					</marc:datafield>
 					<marc:datafield tag="050" ind1="0" ind2=" ">
 						<marc:subfield code="a">BR140</marc:subfield>
