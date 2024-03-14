@@ -30,7 +30,8 @@ public class HandleBorrowerItemReceived implements PatronRequestStateTransition 
 	private static final List<Status> possibleSourceStatus = List.of(Status.PICKUP_TRANSIT, Status.REQUEST_PLACED_AT_BORROWING_AGENCY);
 
 	// If we're in one of posisbleSourceStates, but  the actual item state is one of these - then we have been received - do that first
-	private static final List<String> triggeringItemStates = List.of(HostLmsItem.ITEM_RECEIVED, HostLmsItem.ITEM_LOANED);
+	// This will allow us to wind forwards through the model in the event that we missed a state change
+	private static final List<String> triggeringItemStates = List.of(HostLmsItem.ITEM_RECEIVED, HostLmsItem.ITEM_LOANED, HostLmsItem.ITEM_ON_HOLDSHELF );
 	
 	public HandleBorrowerItemReceived(PatronRequestRepository patronRequestRepository) {
 		this.patronRequestRepository = patronRequestRepository;
