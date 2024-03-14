@@ -434,6 +434,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			case "Pending" -> HostLmsRequest.HOLD_CONFIRMED;
 			case "Held" -> HostLmsRequest.HOLD_READY;
 			case "Shipped" -> HostLmsRequest.HOLD_TRANSIT;
+			case "Missing" -> HostLmsRequest.HOLD_MISSING;
 			default -> status;
 		};
 	}
