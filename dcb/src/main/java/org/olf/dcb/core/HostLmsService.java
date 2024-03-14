@@ -51,7 +51,7 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	public Mono<DataHostLms> findByCode(String code) {
-		log.debug("findHostLmsByCode {}", code);
+		// log.debug("findHostLmsByCode {}", code);
 
 		return Mono.from(hostLmsRepository.findByCode(code))
 			.switchIfEmpty(Mono.error(new UnknownHostLmsException("code", code)));
@@ -59,7 +59,7 @@ public class HostLmsService implements IngestSourcesProvider {
 
 	public Mono<HostLmsClient> getClientFor(final HostLms hostLms) {
 		return Mono.justOrEmpty(hostLms.getClientType())
-			.doOnSuccess(type -> log.debug("Found client type: {}", type))
+			// .doOnSuccess(type -> log.debug("Found client type: {}", type))
 			.filter(HostLmsClient.class::isAssignableFrom)
 			.switchIfEmpty(Mono.error(new InvalidHostLmsConfigurationException(
 				hostLms.getCode(), "client class is either unknown or invalid")))
@@ -83,7 +83,7 @@ public class HostLmsService implements IngestSourcesProvider {
 			: hostLms.getClientType();
 
 		return Mono.justOrEmpty(ingestSource)
-			.doOnSuccess(type -> log.debug("Found ingest source type: {} for {}", type, hostLms.getCode()))
+			// .doOnSuccess(type -> log.debug("Found ingest source type: {} for {}", type, hostLms.getCode()))
 			.filter(IngestSource.class::isAssignableFrom)
 			.switchIfEmpty(Mono.error(new InvalidHostLmsConfigurationException( hostLms.getCode(), "ingest source class is either unknown or invalid")))
 			.map(type -> context.createBean(type, hostLms))
@@ -104,7 +104,7 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	private Flux<DataHostLms> getAllHostLms() {
-		log.debug("getAllHostLms()");
+		// log.debug("getAllHostLms()");
 
 		return Flux.from(hostLmsRepository.queryAll());
 	}

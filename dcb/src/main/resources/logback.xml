@@ -74,6 +74,7 @@
 	
 	<logger name="com.hazelcast" level="error" />
 	<logger name="com.hazelcast.internal.cluster.ClusterService" level="info" />
+	<logger name="org.olf.dcb.core.interaction.RelativeUriResolver" level="warn" />
 
 	<root level="info">
 		<appender-ref ref="${DCB_LOG_APPENDERS:-STDOUT_SYNC}"/>

@@ -69,13 +69,9 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 					home_item_barcode, patron_barcodes[0], rwc.getLenderSystemCode());
 
 				return hostLmsService.getClientFor(rwc.getLenderSystemCode())
-					.flatMap(hostLmsClient -> updateThenCheckoutItem(rwc, hostLmsClient,
-						patron_barcodes))
-					.flatMap(srwc -> patronRequestAuditService.addAuditEntry(
-						srwc.getPatronRequest(),
-						"Home item (b=" + home_item_barcode + "@" + rwc.getLenderSystemCode() + ") checked out to virtual patron (b=" + patron_barcodes[0] + ")"))
-					.doOnError(error -> patronRequestAuditService.addErrorAuditEntry(
-							rwc.getPatronRequest(), "Error attempting to check out home item to vpatron:" + error))
+					.flatMap(hostLmsClient -> updateThenCheckoutItem(rwc, hostLmsClient, patron_barcodes))
+					.doOnNext(srwc -> rwc.getWorkflowMessages().add("Home item (b=" + home_item_barcode + "@" + rwc.getLenderSystemCode() + ") checked out to virtual patron (b=" + patron_barcodes[0] + ")") )
+					.doOnError(error -> patronRequestAuditService.addErrorAuditEntry( rwc.getPatronRequest(), "Error attempting to check out home item to vpatron:" + error))
 					.thenReturn(rwc);
 			} else {
 
