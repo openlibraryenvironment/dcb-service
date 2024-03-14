@@ -1,7 +1,7 @@
 package org.olf.dcb.ingest;
 
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
@@ -9,9 +9,10 @@ import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.MediaType.TEXT_XML;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
-import static org.olf.dcb.test.matchers.BibRecordMatchers.hasMetadataProperty;
+import static org.olf.dcb.test.matchers.BibRecordMatchers.hasLanguageMetadata;
 import static org.olf.dcb.test.matchers.BibRecordMatchers.hasSourceRecordId;
 import static org.olf.dcb.test.matchers.BibRecordMatchers.hasSourceSystemIdFor;
+import static org.olf.dcb.test.matchers.BibRecordMatchers.hasTitleMetadata;
 
 import java.util.List;
 
@@ -63,7 +64,8 @@ class FolioIngestTests {
 			allOf(
 				hasSourceRecordId("087b84b3-fe04-4d41-bfa5-ac0d85980d62"),
 				hasSourceSystemIdFor(hostLmsFixture.findByCode("folio-host-lms")),
-				hasMetadataProperty("title", "The Journal of ecclesiastical history.")
+				hasTitleMetadata("The Journal of ecclesiastical history."),
+				hasLanguageMetadata("eng")
 			)
 		));
 	}
@@ -95,7 +97,6 @@ class FolioIngestTests {
 				.withHeader("Authorization", "api-key")
 				.withQueryStringParameter("verb", "ListRecords")
 				.withQueryStringParameter("metadataPrefix", "marc21_withholdings")
-				// .withQueryStringParameter("apikey", "api-key")
 			)
 			.respond(response()
 				.withStatusCode(200)
