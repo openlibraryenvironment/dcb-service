@@ -34,6 +34,18 @@ class MarcLanguageInterpretationTests {
 	}
 
 	@Test
+	void shouldFindNoLanguagesWhenNo041aSubfieldPresent() {
+		// Arrange
+		final var marcRecord = createMarcRecord();
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, is(empty()));
+	}
+
+	@Test
 	void shouldFindSingleLanguageForSingle041aSubfieldWithSingleLanguageCode() {
 		// Arrange
 		final var marcRecord = createMarcRecord("eng");
