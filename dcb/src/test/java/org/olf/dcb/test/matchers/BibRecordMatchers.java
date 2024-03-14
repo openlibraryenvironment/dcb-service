@@ -1,6 +1,7 @@
 package org.olf.dcb.test.matchers;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 
 import org.hamcrest.Matcher;
@@ -14,5 +15,9 @@ public class BibRecordMatchers {
 
 	public static Matcher<BibRecord> hasSourceSystemIdFor(DataHostLms expectedHostLms) {
 		return hasProperty("sourceSystemId", is(expectedHostLms.getId()));
+	}
+
+	public static Matcher<BibRecord> hasMetadataProperty(String key, String expectedValue) {
+		return hasProperty("canonicalMetadata", hasEntry(key, expectedValue));
 	}
 }

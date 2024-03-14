@@ -9,11 +9,16 @@ import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.MediaType.TEXT_XML;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
+import static org.olf.dcb.test.matchers.BibRecordMatchers.hasMetadataProperty;
 import static org.olf.dcb.test.matchers.BibRecordMatchers.hasSourceRecordId;
+import static org.olf.dcb.test.matchers.BibRecordMatchers.hasSourceSystemIdFor;
+
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.TestResourceLoaderProvider;
@@ -49,14 +54,16 @@ class FolioIngestTests {
 		mockOaiResponse(mockServerClient, "fake-folio", "example-oai-response.xml");
 
 		// Act
-		final var ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream());
+		final List<BibRecord> ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream());
 
 		// Assert
 		assertThat(ingestedBibRecords, hasSize(1));
 
 		assertThat(ingestedBibRecords, containsInAnyOrder(
 			allOf(
-				hasSourceRecordId("087b84b3-fe04-4d41-bfa5-ac0d85980d62")
+				hasSourceRecordId("087b84b3-fe04-4d41-bfa5-ac0d85980d62"),
+				hasSourceSystemIdFor(hostLmsFixture.findByCode("folio-host-lms")),
+				hasMetadataProperty("title", "The Journal of ecclesiastical history.")
 			)
 		));
 	}
