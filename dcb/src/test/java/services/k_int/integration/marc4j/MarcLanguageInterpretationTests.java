@@ -72,6 +72,8 @@ class MarcLanguageInterpretationTests {
 	List<String> interpretLanguages(final Record marcRecord) {
 		log.debug("MARC record: {}", marcRecord);
 
+		assertThat(marcFactory.validateRecord(marcRecord), is(true));
+
 		final var languageCodeField = marcRecord.getVariableField("041");
 
 		if (languageCodeField instanceof DataField languageDataField) {
