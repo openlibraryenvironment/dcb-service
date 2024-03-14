@@ -709,7 +709,7 @@ class ApplicationServicesClient {
 					.data(RequestExtensionData.builder()
 						.patronID(Optional.ofNullable(holdRequestParameters.getLocalPatronId()).map(Integer::valueOf).orElse(null))
 						//.patronBranchID( branch )
-						.pickupBranchID( checkPickupBranchID(holdRequestParameters) )
+						.pickupBranchID( checkPickupBranchID(extractMapValue(conf, ILL_LOCATION_ID, Integer.class)) )
 						.origin(2)
 						.activationDate(activationDate)
 						.expirationDate(LocalDateTime.now().plusDays(expiration).format( ofPattern("MM/dd/yyyy")))
@@ -729,14 +729,14 @@ class ApplicationServicesClient {
 				.build());
 	}
 
-	private static Integer checkPickupBranchID(HoldRequestParameters data) {
-		log.debug("checking pickup branch id from passed pickup location: '{}'", data.getPickupLocation());
+	private static Integer checkPickupBranchID(Integer pickupLocation) {
+		log.debug("checking pickup branch id from passed pickup location: '{}'", pickupLocation);
 
 		try {
-			return Optional.ofNullable(  Integer.valueOf(data.getPickupLocation())   )
+			return Optional.ofNullable( pickupLocation )
 				.orElseThrow(() -> new NumberFormatException("Invalid number format"));
 		} catch (NumberFormatException e) {
-			throw new HoldRequestException("Cannot use pickup location '" + data.getPickupLocation() + "' for pickupBranchID.");
+			throw new HoldRequestException("Cannot use pickup location '" + pickupLocation + "' for pickupBranchID.");
 		}
 	}
 
