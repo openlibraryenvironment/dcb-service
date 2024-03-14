@@ -154,7 +154,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		};
 	}
 
-	private Integer illLocationId() {
+	Integer illLocationId() {
 		final var illLocationId = extractMapValue(getItemConfig(), ILL_LOCATION_ID, Integer.class);
 
 		if (illLocationId == null) {

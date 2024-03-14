@@ -257,7 +257,20 @@ class ApplicationServicesClient {
 		final var path = createPath("barcodes", "patrons", localId);
 		return createRequest(GET, path, uri -> {})
 			.flatMap(request -> client.retrieve(request, Argument.of(String.class),
-				noExtraErrorHandling()))
+				response -> response
+					.onErrorResume(error -> {
+						log.error("Error attempting to retrieve patron barcode with patron id {} : {}",
+							localId, error.getMessage());
+						if ((error instanceof HttpClientResponseException) &&
+							(((HttpClientResponseException) error).getStatus() == HttpStatus.NOT_FOUND)) {
+							// Not found is not really an error
+							return Mono.empty();
+						} else {
+							return Mono.error(new PolarisWorkflowException(
+								"Error attempting to retrieve patron barcode with patron id " +localId+ " : " +error.getMessage()));
+						}
+					})
+			))
 			// remove quotes
 			.map(string -> string.replace("\"", ""));
 	}
@@ -678,6 +691,7 @@ class ApplicationServicesClient {
 		final var conf = client.getConfig();
 		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
 		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+		final var illLocationId = client.illLocationId();
 
 		final var servicesConfig = client.getServicesConfig();
 		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
@@ -696,7 +710,7 @@ class ApplicationServicesClient {
 					.data(RequestExtensionData.builder()
 						.patronID(Optional.ofNullable(holdRequestParameters.getLocalPatronId()).map(Integer::valueOf).orElse(null))
 						//.patronBranchID( branch )
-						.pickupBranchID( checkPickupBranchID(holdRequestParameters) )
+						.pickupBranchID( checkPickupBranchID(illLocationId))
 						.origin(2)
 						.activationDate(activationDate)
 						.expirationDate(LocalDateTime.now().plusDays(expiration).format( ofPattern("MM/dd/yyyy")))
@@ -716,14 +730,14 @@ class ApplicationServicesClient {
 				.build());
 	}
 
-	private static Integer checkPickupBranchID(HoldRequestParameters data) {
-		log.debug("checking pickup branch id from passed pickup location: '{}'", data.getLocalItemLocationId());
+	private static Integer checkPickupBranchID(Integer pickupLocation) {
+		log.debug("checking pickup branch id from passed pickup location: '{}'", pickupLocation);
 
 		try {
-			return Optional.ofNullable(data.getLocalItemLocationId())
+			return Optional.ofNullable( pickupLocation )
 				.orElseThrow(() -> new NumberFormatException("Invalid number format"));
 		} catch (NumberFormatException e) {
-			throw new HoldRequestException("Cannot use pickup location '" + data.getLocalItemLocationId() + "' for pickupBranchID.");
+			throw new HoldRequestException("Cannot use pickup location '" + pickupLocation + "' for pickupBranchID.");
 		}
 	}
 
