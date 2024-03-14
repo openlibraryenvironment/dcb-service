@@ -434,6 +434,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			case "Pending" -> HostLmsRequest.HOLD_CONFIRMED;
 			case "Held" -> HostLmsRequest.HOLD_READY;
 			case "Shipped" -> HostLmsRequest.HOLD_TRANSIT;
+			case "Missing" -> HostLmsRequest.HOLD_MISSING;
 			default -> status;
 		};
 	}
@@ -646,8 +647,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		log.info("checkOutItemToPatron({},{},{})",itemId,patronBarcode,localRequestId);
 
+		final var patronBarcodePrefix = extractMapValueWithDefault(
+			getServicesConfig(), PATRON_BARCODE_PREFIX, String.class, "DCB-");
+		final var barcodeWithPrefix = patronBarcodePrefix + patronBarcode;
+
 		return appServicesClient.getItemBarcode(itemId)
-			.flatMap(itemBarcode -> papiClient.itemCheckoutPost(itemBarcode, patronBarcode))
+			.flatMap(itemBarcode -> papiClient.itemCheckoutPost(itemBarcode, barcodeWithPrefix))
 			.map(itemCheckoutResult -> "OK");
 	}
 

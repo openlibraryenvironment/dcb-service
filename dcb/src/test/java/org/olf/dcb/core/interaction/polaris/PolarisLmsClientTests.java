@@ -590,10 +590,11 @@ class PolarisLmsClientTests {
 	void shouldBeAbleToCheckOutAnItemToPatron() {
 		// Arrange
 		final var localItemId = "2273395";
+		final var localPatronBarcodePrefix = "DCB-";
 		final var localPatronBarcode = "0077777777";
 
 		mockPolarisFixture.mockGetItemBarcode(localItemId, "126448190");
-		mockPolarisFixture.mockCheckoutItemToPatron(localPatronBarcode);
+		mockPolarisFixture.mockCheckoutItemToPatron(localPatronBarcodePrefix + localPatronBarcode);
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);

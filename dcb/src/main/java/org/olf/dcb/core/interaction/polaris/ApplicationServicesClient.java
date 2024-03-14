@@ -171,7 +171,17 @@ class ApplicationServicesClient {
 		final var path = createPath("holds", id);
 		return createRequest(GET, path, uri -> {})
 			.flatMap(request -> client.exchange(request, LibraryHold.class))
-			.flatMap(response -> Mono.justOrEmpty(response.getBody()));
+			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
+			.onErrorResume(error -> {
+				log.error("An error occurred when trying to get hold {} : {}", id, error.getMessage());
+				if ((error instanceof HttpClientResponseException) &&
+					(((HttpClientResponseException) error).getStatus() == HttpStatus.NOT_FOUND)) {
+					// This situation could mean the hold has been checked out to patron
+					return Mono.just(LibraryHold.builder().sysHoldStatus("Missing").build());
+				} else {
+					return Mono.error(new HoldRequestException("Unexpected error when trying to get hold with id: " + id));
+				}
+			});
 	}
 
 	Mono<Patron> getPatron(String localPatronId) {
