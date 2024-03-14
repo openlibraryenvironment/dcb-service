@@ -93,6 +93,7 @@ public class TrackingService implements Runnable {
 	private Flux<PatronRequest> trackActivePatronRequestHolds() {
 		return Flux.from(patronRequestRepository.findTrackedPatronHolds())
 			.doOnSubscribe(_s -> log.info("TRACKING trackActivePatronRequestHolds()"))
+			.filter( pr -> passBackoffPolling("PatronRequest", pr.getId(), pr.getLocalRequestLastCheckTimestamp(), pr.getLocalRequestStatusRepeat()) )
 			.flatMap(this::checkPatronRequest,2)
 			.transform(enrichWithLogging("TRACKING active borrower request tracking complete", "TrackingError (PatronHold):"));
 	}
@@ -101,6 +102,7 @@ public class TrackingService implements Runnable {
 	private Flux<PatronRequest> trackVirtualItems() {
 		return Flux.from(patronRequestRepository.findTrackedVirtualItems())
 			.doOnSubscribe(_s -> log.info("TRACKING trackVirtualItems()"))
+			.filter( pr -> passBackoffPolling("VirtualItem", pr.getId(), pr.getLocalItemLastCheckTimestamp(), pr.getLocalItemStatusRepeat()) )
 			.flatMap(this::checkVirtualItem,2)
 			.transform(enrichWithLogging("TRACKING active borrower virtual item tracking complete", "TrackingError (VirtualItem):"));
 	}
@@ -114,6 +116,7 @@ public class TrackingService implements Runnable {
 	private Flux<SupplierRequest> trackSupplierItems() {
 		return Flux.from(supplierRequestRepository.findTrackedSupplierItems())
 			.doOnSubscribe(_s -> log.info("TRACKING trackSupplierItems()"))
+			.filter( sr -> passBackoffPolling("SupplierItem", sr.getId(), sr.getLocalItemLastCheckTimestamp(), sr.getLocalItemStatusRepeat()) )
 			.flatMap(this::enrichWithPatronRequest,2)
 			.concatMap(this::checkSupplierItem)
 			.transform(enrichWithLogging("TRACKING active supplier item tracking complete", "TrackingError (SupplierItem):"));
