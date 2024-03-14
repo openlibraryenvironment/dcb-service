@@ -145,7 +145,8 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "LOANED", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "PICKUP_TRANSIT", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "HOLDSHELF", Boolean.TRUE)))
-			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "MISSING", Boolean.FALSE)))
+			// Another folio oddity - track missing
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "MISSING", Boolean.TRUE)))
 			// CREATED is a FOLIO oddity - somehow we are seeing this in the database
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "CREATED", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("VirtualItem", "OPEN", Boolean.TRUE)))

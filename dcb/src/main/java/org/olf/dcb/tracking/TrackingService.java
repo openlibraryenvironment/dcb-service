@@ -3,6 +3,7 @@ package org.olf.dcb.tracking;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
@@ -121,12 +122,25 @@ public class TrackingService implements Runnable {
 	private Flux<SupplierRequest> trackActiveSupplierHolds() {
 		return Flux.from(supplierRequestRepository.findTrackedSupplierHolds())
 				.doOnSubscribe(_s -> log.info("TRACKING trackActiveSupplierHolds()"))
+			.filter( sr -> passBackoffPolling("SupplierRequest", sr.getId(), sr.getLocalRequestLastCheckTimestamp(), sr.getLocalRequestStatusRepeat()) )
       .flatMap(this::enrichWithPatronRequest,2)
 			.concatMap(this::checkSupplierRequest)
 			.transform(enrichWithLogging("TRACKING active supplier hold tracking complete", "TrackingError (SupplierHold):"));
 	}
 
 
+
+	/**
+	 * This method is used to provide backoff period for polling.. In the first moments after a change has been made we want to poll
+   * pretty persistently - because users in testing will be changing things and expecting to see a result. As time goes on however,
+   * it is not sensible to poll every request constantly so we back off
+   *
+	 */
+	private boolean passBackoffPolling(String tp, UUID id, Instant lastCheck, Long repeatCount) {
+		boolean result = true;
+		log.debug("passBackoffPolling({},{},{},{}:{})",tp,id,lastCheck,repeatCount,result);
+		return result;
+	}
 
 	// The check methods themselves
 
