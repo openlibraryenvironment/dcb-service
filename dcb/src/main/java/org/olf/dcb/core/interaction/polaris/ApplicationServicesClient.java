@@ -257,7 +257,20 @@ class ApplicationServicesClient {
 		final var path = createPath("barcodes", "patrons", localId);
 		return createRequest(GET, path, uri -> {})
 			.flatMap(request -> client.retrieve(request, Argument.of(String.class),
-				noExtraErrorHandling()))
+				response -> response
+					.onErrorResume(error -> {
+						log.error("Error attempting to retrieve patron barcode with patron id {} : {}",
+							localId, error.getMessage());
+						if ((error instanceof HttpClientResponseException) &&
+							(((HttpClientResponseException) error).getStatus() == HttpStatus.NOT_FOUND)) {
+							// Not found is not really an error
+							return Mono.empty();
+						} else {
+							return Mono.error(new PolarisWorkflowException(
+								"Error attempting to retrieve patron barcode with patron id " +localId+ " : " +error.getMessage()));
+						}
+					})
+			))
 			// remove quotes
 			.map(string -> string.replace("\"", ""));
 	}
