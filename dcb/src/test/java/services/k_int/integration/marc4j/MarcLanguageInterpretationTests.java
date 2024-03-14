@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.MarcFactory;
 import org.marc4j.marc.Record;
+import org.marc4j.marc.Subfield;
 import org.marc4j.marc.impl.MarcFactoryImpl;
 
 import lombok.extern.slf4j.Slf4j;
@@ -35,15 +36,7 @@ class MarcLanguageInterpretationTests {
 	@Test
 	void shouldFindSingleLanguageForSingle041aSubfieldWithSingleLanguageCode() {
 		// Arrange
-		final var marcRecord = marcFactory.newRecord();
-
-		final var languageCodeField = marcFactory.newDataField("041", '#', '#');
-
-		final var aSubfield = marcFactory.newSubfield('a', "eng");
-
-		languageCodeField.addSubfield(aSubfield);
-
-		marcRecord.addVariableField(languageCodeField);
+		final var marcRecord = createMarcRecord("eng");
 
 		// Act
 		final var languages = interpretLanguages(marcRecord);
@@ -52,16 +45,49 @@ class MarcLanguageInterpretationTests {
 		assertThat(languages, containsInAnyOrder("eng"));
 	}
 
+	@Test
+	void shouldFindMultipleLanguagesForMultiple041aSubfieldEachWithSingleLanguageCode() {
+		// Arrange
+		final var marcRecord = createMarcRecord("eng", "fre");
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, containsInAnyOrder("eng", "fre"));
+	}
+
 	List<String> interpretLanguages(final Record marcRecord) {
 		log.debug("MARC record: {}", marcRecord);
 
 		final var languageCodeField = marcRecord.getVariableField("041");
 
 		if (languageCodeField instanceof DataField languageDataField) {
-			return List.of(languageDataField.getSubfield('a').getData());
+			return languageDataField.getSubfields('a')
+				.stream()
+				.map(Subfield::getData)
+				.toList();
 		}
 		else {
 			return emptyList();
 		}
+	}
+
+	private static Record createMarcRecord(String... languageCodes) {
+		final var marcRecord = marcFactory.newRecord();
+
+		final var languageCodeField = marcFactory.newDataField("041", '#', '#');
+
+		final var languageCodesList = List.of(languageCodes);
+
+		languageCodesList.forEach(languageCode -> {
+			final var aSubfield = marcFactory.newSubfield('a', languageCode);
+
+			languageCodeField.addSubfield(aSubfield);
+		});
+
+		marcRecord.addVariableField(languageCodeField);
+
+		return marcRecord;
 	}
 }
