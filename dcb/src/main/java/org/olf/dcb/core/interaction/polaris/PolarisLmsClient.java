@@ -393,7 +393,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		}
 	}
 
-	private static String getPickupLocation(PlaceHoldRequestParameters parameters, boolean isBorrower) {
+	private String getPickupLocation(PlaceHoldRequestParameters parameters, boolean isBorrower) {
 		// Different systems will use different pickup locations - we default to passing through
 		// parameters.getPickupLocationCode
 
@@ -407,6 +407,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				log.debug("Overriding pickup location code with ID from selected record");
 				pickup_location = parameters.getPickupLocation().getLocalId();
 		}
+
+		// supplier requests need the pickup location to be set as ILL
+		if (isBorrower == FALSE) {
+			pickup_location = extractMapValue(getItemConfig(), ILL_LOCATION_ID, String.class);
+			return pickup_location;
+		}
+
 		return pickup_location;
 	}
 

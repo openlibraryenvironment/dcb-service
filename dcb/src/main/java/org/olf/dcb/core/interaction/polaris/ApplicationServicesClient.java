@@ -701,7 +701,6 @@ class ApplicationServicesClient {
 		final var conf = client.getConfig();
 		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
 		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
-		final var illLocationId = client.illLocationId();
 
 		final var servicesConfig = client.getServicesConfig();
 		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
@@ -720,7 +719,7 @@ class ApplicationServicesClient {
 					.data(RequestExtensionData.builder()
 						.patronID(Optional.ofNullable(holdRequestParameters.getLocalPatronId()).map(Integer::valueOf).orElse(null))
 						//.patronBranchID( branch )
-						.pickupBranchID( checkPickupBranchID(illLocationId))
+						.pickupBranchID( checkPickupBranchID(holdRequestParameters.getPickupLocation()))
 						.origin(2)
 						.activationDate(activationDate)
 						.expirationDate(LocalDateTime.now().plusDays(expiration).format( ofPattern("MM/dd/yyyy")))
@@ -740,11 +739,11 @@ class ApplicationServicesClient {
 				.build());
 	}
 
-	private static Integer checkPickupBranchID(Integer pickupLocation) {
+	private static Integer checkPickupBranchID(String pickupLocation) {
 		log.debug("checking pickup branch id from passed pickup location: '{}'", pickupLocation);
 
 		try {
-			return Optional.ofNullable( pickupLocation )
+			return Optional.ofNullable( Integer.valueOf(pickupLocation) )
 				.orElseThrow(() -> new NumberFormatException("Invalid number format"));
 		} catch (NumberFormatException e) {
 			throw new HoldRequestException("Cannot use pickup location '" + pickupLocation + "' for pickupBranchID.");
