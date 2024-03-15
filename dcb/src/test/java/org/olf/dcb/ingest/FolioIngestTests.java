@@ -58,7 +58,7 @@ class FolioIngestTests {
 		final List<BibRecord> ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream());
 
 		// Assert
-		assertThat(ingestedBibRecords, hasSize(1));
+		assertThat(ingestedBibRecords, hasSize(2));
 
 		assertThat(ingestedBibRecords, containsInAnyOrder(
 			allOf(
@@ -67,6 +67,10 @@ class FolioIngestTests {
 				hasTitleMetadata("The Journal of ecclesiastical history."),
 				// These are artificial examples to try to exercise language parsing
 				hasLanguageMetadata("eng", "egy", "swe", "fre")
+			),
+			allOf(
+				hasTitleMetadata("The Ferrari V-12 sports cars, 1946-56."),
+				hasLanguageMetadata("eng")
 			)
 		));
 	}
