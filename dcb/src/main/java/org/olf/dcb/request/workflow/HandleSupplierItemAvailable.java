@@ -67,13 +67,13 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 	}
 
 
-	@Override
-	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
-			(ctx.getSupplierRequest() != null ) &&
-			(ctx.getSupplierRequest().getLocalItemStatus() != null ) &&
-			(ctx.getSupplierRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_AVAILABLE)) ;
-	}
+  @Override
+  public boolean isApplicableFor(RequestWorkflowContext ctx) {
+    return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
+      ( ctx.getSupplierRequest() != null ) &&
+			// N.B. CLOSED is somewhat FOLIO specific - should be revisited soon
+      ( (HostLmsItem.ITEM_AVAILABLE.equals(ctx.getSupplierRequest().getLocalItemStatus())) || ( ("CLOSED".equals(ctx.getSupplierRequest().getLocalStatus() ) ) ) );
+  }
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
