@@ -144,10 +144,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(
-		PlaceHoldRequestParameters parameters) {
+	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
 
-		return switch (borrowerlendingFlow()) {
+		final var borrowerlendingFlow = borrowerlendingFlow();
+		if (borrowerlendingFlow == null) {
+			return placeHoldRequest(parameters, TRUE);
+		}
+
+		return switch (borrowerlendingFlow) {
 			case DCB_BORROWING_FLOW -> placeHoldRequest(parameters, TRUE);
 			case ILL_BORROWING_FLOW -> placeILLHoldRequest(illLocationId(), parameters);
 			default -> placeHoldRequest(parameters, TRUE);
@@ -500,6 +504,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
+
+		if (localItemId == null) {
+			log.warn("getItem called with null localItemId, returning empty mono.");
+			return Mono.empty();
+		}
+
 		return papiClient.synch_ItemGet(localItemId)
 			.flatMap(this::setCircStatus)
 			.map(result -> HostLmsItem.builder()
