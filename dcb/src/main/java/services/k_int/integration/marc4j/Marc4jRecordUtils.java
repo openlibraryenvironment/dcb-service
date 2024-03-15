@@ -3,6 +3,7 @@ package services.k_int.integration.marc4j;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.hasText;
 import static java.util.Collections.emptyList;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.List;
 import java.util.Objects;
@@ -83,8 +84,12 @@ public interface Marc4jRecordUtils {
 	static List<String> interpretLanguages(Record marcRecord) {
 		final var languageCodeFields = marcRecord.getVariableFields("041");
 
+		if (isEmpty(languageCodeFields)) {
+			return emptyList();
+		}
+
 		final var languageCodes = languageCodeFields.stream()
-			.flatMap(Marc4jRecordUtils::parseSubFields)
+			.flatMap(Marc4jRecordUtils::parseSubfields)
 			.filter(StringUtils::isNotEmpty)
 			.map(String::toLowerCase)
 			.map(Marc4jRecordUtils::removeWhitespace)
@@ -111,7 +116,11 @@ public interface Marc4jRecordUtils {
 		final var generalInformationField = marcRecord.getVariableField("008");
 
 		if (generalInformationField instanceof ControlField generalInfoControlField) {
-			final var generalInfo = generalInfoControlField.getData();
+			final var generalInfo = getValue(generalInfoControlField, ControlField::getData);
+
+			if (StringUtils.isEmpty(generalInfo)) {
+				return emptyList();
+			}
 
 			if (generalInfo.length() < 38) {
 				return emptyList();
@@ -141,14 +150,20 @@ public interface Marc4jRecordUtils {
 			.map(MatchResult::group);
 	}
 
-	static Stream<String> parseSubFields(final VariableField field) {
+	static Stream<String> parseSubfields(final VariableField field) {
 		if (field instanceof DataField dataField) {
-			return dataField.getSubfields('a')
+			final var subfields = dataField.getSubfields('a');
+
+			if (isEmpty(subfields)) {
+				return Stream.empty();
+			}
+
+			return subfields
 				.stream()
 				.map(Subfield::getData);
 		}
 		else {
-			return Stream.of();
+			return Stream.empty();
 		}
 	}
 

@@ -21,21 +21,9 @@ class MarcLanguageInterpretationTests {
 	private static final MarcFactory marcFactory = new MarcFactoryImpl();
 
 	@Test
-	void shouldFindNoLanguagesWhenNo041FieldIsPresent() {
-		// Arrange
-		final var marcRecord = marcFactory.newRecord();
-
-		// Act
-		final var languages = interpretLanguages(marcRecord);
-
-		// Assert
-		assertThat(languages, is(empty()));
-	}
-
-	@Test
 	void shouldFindNoLanguagesWhenNo041aSubfieldOr008fieldArePresent() {
 		// Arrange
-		final var marcRecord = createMarcRecord();
+		final var marcRecord = marcFactory.newRecord();
 
 		// Act
 		final var languages = interpretLanguages(marcRecord);
@@ -197,6 +185,38 @@ class MarcLanguageInterpretationTests {
 		assertThat(languages, empty());
 	}
 
+	@Test
+	void shouldNotFallbackTo008FieldWhenFixedLengthFieldIsEmpty() {
+		// Arrange
+		final var marcRecord = createMarcRecord();
+
+		final var fixedLengthControlField = marcFactory.newControlField("008", "");
+
+		marcRecord.addVariableField(fixedLengthControlField);
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, empty());
+	}
+
+	@Test
+	void shouldNotFallbackTo008FieldWhenFixedLengthFieldIsNull() {
+		// Arrange
+		final var marcRecord = createMarcRecord();
+
+		final var fixedLengthControlField = marcFactory.newControlField("008", null);
+
+		marcRecord.addVariableField(fixedLengthControlField);
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, empty());
+	}
+
 	@ParameterizedTest
 	@CsvSource({"GRC,grc", "Eng,eng"})
 	void languageCodesShouldBeLowerCase(String inputLanguageCode, String expectedLanguageCode) {
@@ -242,8 +262,6 @@ class MarcLanguageInterpretationTests {
 
 	List<String> interpretLanguages(final Record marcRecord) {
 		log.debug("MARC record: {}", marcRecord);
-
-		assertThat(marcFactory.validateRecord(marcRecord), is(true));
 
 		return Marc4jRecordUtils.interpretLanguages(marcRecord);
 	}
