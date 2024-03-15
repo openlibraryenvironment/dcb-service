@@ -71,6 +71,7 @@ public interface Marc4jRecordUtils {
 
 		return languageCodeFields.stream()
 			.flatMap(Marc4jRecordUtils::parseSubFields)
+			.map(String::toLowerCase)
 			.toList();
 	}
 

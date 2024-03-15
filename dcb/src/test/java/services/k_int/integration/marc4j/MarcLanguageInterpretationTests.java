@@ -8,6 +8,8 @@ import static org.hamcrest.Matchers.empty;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.marc4j.marc.MarcFactory;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.impl.MarcFactoryImpl;
@@ -79,6 +81,23 @@ class MarcLanguageInterpretationTests {
 
 		// Assert
 		assertThat(languages, containsInAnyOrder("ger", "swe"));
+	}
+
+	@ParameterizedTest
+	@CsvSource({"GRC,grc", "Eng,eng"})
+	void languageCodesShouldBeLowerCase(String inputLanguageCode, String expectedLanguageCode) {
+		/* "Capitalization - All language codes are recorded in lowercase alphabetic characters."
+			from https://www.loc.gov/marc/bibliographic/bd041.html
+		*/
+
+		// Arrange
+		final var marcRecord = createMarcRecord(inputLanguageCode);
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, containsInAnyOrder(expectedLanguageCode));
 	}
 
 	List<String> interpretLanguages(final Record marcRecord) {
