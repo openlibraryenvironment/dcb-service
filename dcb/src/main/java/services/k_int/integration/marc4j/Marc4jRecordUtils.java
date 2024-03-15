@@ -80,6 +80,7 @@ public interface Marc4jRecordUtils {
 			.flatMap(Marc4jRecordUtils::parseSubFields)
 			.filter(StringUtils::isNotEmpty)
 			.map(String::toLowerCase)
+			.map(Marc4jRecordUtils::removeWhitespace)
 			.flatMap(Marc4jRecordUtils::splitConcatenatedLanguageCodes)
 			.toList();
 
@@ -141,5 +142,9 @@ public interface Marc4jRecordUtils {
 		else {
 			return Stream.of();
 		}
+	}
+
+	private static String removeWhitespace(String s) {
+		return s.replaceAll("\\s", "");
 	}
 }
