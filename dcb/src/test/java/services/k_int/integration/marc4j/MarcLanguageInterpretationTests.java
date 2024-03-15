@@ -237,6 +237,22 @@ class MarcLanguageInterpretationTests {
 		assertThat(languages, empty());
 	}
 
+	@Test
+	void shouldLowercaseValueIn008Field() {
+		// Arrange
+		final var marcRecord = marcFactory.newRecord();
+
+		final var fixedLengthControlField = marcFactory.newControlField("008", "741030s1958    nyu           000 0 ENG u");
+
+		marcRecord.addVariableField(fixedLengthControlField);
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, containsInAnyOrder("eng"));
+	}
+
 	@ParameterizedTest
 	@CsvSource({"GRC,grc", "Eng,eng"})
 	void languageCodesShouldBeLowerCase(String inputLanguageCode, String expectedLanguageCode) {

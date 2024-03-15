@@ -129,7 +129,7 @@ public interface Marc4jRecordUtils {
 			final var language = generalInfo.substring(35, 38);
 
 			if (hasText(language)) {
-				return List.of(language);
+				return List.of(language.toLowerCase());
 			}
 
 			return emptyList();
