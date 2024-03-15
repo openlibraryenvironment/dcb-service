@@ -976,7 +976,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			}
 		}
 
-		log.error("Unable to extract key: {}, from map: {}, to type: {}", key, map, type);
+		log.warn("Unable to extract key: {}, from map: {}, to type: {}", key, map, type);
 		return null;
 	}
 
