@@ -100,6 +100,20 @@ class MarcLanguageInterpretationTests {
 		assertThat(languages, containsInAnyOrder(expectedLanguageCode));
 	}
 
+	@Test
+	void shouldTolerateEmptyLanguageCode() {
+		// Arrange
+		final var marcRecord = marcFactory.newRecord();
+
+		addLanguageCodeField(marcRecord, "");
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, empty());
+	}
+
 	List<String> interpretLanguages(final Record marcRecord) {
 		log.debug("MARC record: {}", marcRecord);
 

@@ -11,6 +11,7 @@ import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 
+import io.micronaut.core.util.StringUtils;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
@@ -71,6 +72,7 @@ public interface Marc4jRecordUtils {
 
 		return languageCodeFields.stream()
 			.flatMap(Marc4jRecordUtils::parseSubFields)
+			.filter(StringUtils::isNotEmpty)
 			.map(String::toLowerCase)
 			.toList();
 	}
