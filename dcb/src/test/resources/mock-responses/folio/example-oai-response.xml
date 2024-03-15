@@ -46,6 +46,9 @@
 						<marc:subfield code="a">eng</marc:subfield>
 						<marc:subfield code="a">egy</marc:subfield>
 					</marc:datafield>
+					<marc:datafield tag="041" ind1="0" ind2=" ">
+						<marc:subfield code="a">swefre</marc:subfield>
+					</marc:datafield>
 					<marc:datafield tag="050" ind1="0" ind2=" ">
 						<marc:subfield code="a">BR140</marc:subfield>
 						<marc:subfield code="b">.J6</marc:subfield>

@@ -65,7 +65,8 @@ class FolioIngestTests {
 				hasSourceRecordId("087b84b3-fe04-4d41-bfa5-ac0d85980d62"),
 				hasSourceSystemIdFor(hostLmsFixture.findByCode("folio-host-lms")),
 				hasTitleMetadata("The Journal of ecclesiastical history."),
-				hasLanguageMetadata("eng", "egy")
+				// These are artificial examples to try to exercise language parsing
+				hasLanguageMetadata("eng", "egy", "swe", "fre")
 			)
 		));
 	}

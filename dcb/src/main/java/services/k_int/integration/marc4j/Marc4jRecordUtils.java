@@ -2,6 +2,8 @@ package services.k_int.integration.marc4j;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.MatchResult;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -74,7 +76,19 @@ public interface Marc4jRecordUtils {
 			.flatMap(Marc4jRecordUtils::parseSubFields)
 			.filter(StringUtils::isNotEmpty)
 			.map(String::toLowerCase)
+			.flatMap(Marc4jRecordUtils::splitConcatenatedLanguageCodes)
 			.toList();
+	}
+
+	static Stream<String> splitConcatenatedLanguageCodes(String languageCode) {
+		if (languageCode.length() % 3 != 0) {
+			return Stream.of(languageCode);
+		}
+
+		return Pattern.compile(".{1,3}")
+			.matcher(languageCode)
+			.results()
+			.map(MatchResult::group);
 	}
 
 	static Stream<String> parseSubFields(final VariableField field) {

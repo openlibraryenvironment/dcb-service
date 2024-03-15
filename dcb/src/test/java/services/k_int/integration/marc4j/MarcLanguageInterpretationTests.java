@@ -83,6 +83,40 @@ class MarcLanguageInterpretationTests {
 		assertThat(languages, containsInAnyOrder("ger", "swe"));
 	}
 
+	@Test
+	void shouldSplitConcatenatedLanguageCodesWithinSingle041aSubfield() {
+		// Arrange
+		final var marcRecord = marcFactory.newRecord();
+
+		/* In 2001: the practice of placing multiple language codes in one subfield,
+			e.g., $aengfreger, was made obsolete and subfields $a, ... to Repeatable (R)
+
+			from https://www.loc.gov/marc/bibliographic/bd041.html
+		*/
+		addLanguageCodeField(marcRecord, "itamac");
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, containsInAnyOrder("ita", "mac"));
+	}
+
+	@Test
+	void shouldNotSplitNonDivisibleLanguageCodes() {
+		// Arrange
+		final var marcRecord = marcFactory.newRecord();
+
+		// Language codes should be
+		addLanguageCodeField(marcRecord, "swedish");
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, containsInAnyOrder("swedish"));
+	}
+
 	@ParameterizedTest
 	@CsvSource({"GRC,grc", "Eng,eng"})
 	void languageCodesShouldBeLowerCase(String inputLanguageCode, String expectedLanguageCode) {
