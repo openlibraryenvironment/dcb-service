@@ -1,5 +1,9 @@
 package services.k_int.integration.marc4j;
 
+import static io.micronaut.core.util.CollectionUtils.isEmpty;
+import static io.micronaut.core.util.StringUtils.hasText;
+import static java.util.Collections.emptyList;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.MatchResult;
@@ -7,6 +11,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Leader;
 import org.marc4j.marc.Record;
@@ -18,7 +23,6 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
 public interface Marc4jRecordUtils {
-	
 	public static Stream<String> concatSubfieldData(final Record marcRecord, @NotEmpty final String tag, @NotEmpty final String subfields) {
 		return concatSubfieldData(marcRecord, tag, subfields, " ");
 	}
@@ -72,12 +76,49 @@ public interface Marc4jRecordUtils {
 	static List<String> interpretLanguages(Record marcRecord) {
 		final var languageCodeFields = marcRecord.getVariableFields("041");
 
-		return languageCodeFields.stream()
+		final var languageCodes = languageCodeFields.stream()
 			.flatMap(Marc4jRecordUtils::parseSubFields)
 			.filter(StringUtils::isNotEmpty)
 			.map(String::toLowerCase)
 			.flatMap(Marc4jRecordUtils::splitConcatenatedLanguageCodes)
 			.toList();
+
+		if (isEmpty(languageCodes)) {
+			return parseLanguageInGeneralInformationField(marcRecord);
+		}
+		else {
+			return languageCodes;
+		}
+	}
+
+	/**
+	 * Parse the 008 general information field for language code
+	 * Based upon this <a href="https://www.loc.gov/marc/bibliographic/bd008.html">document</a>
+	 *
+	 * @param marcRecord MARC record to parse
+	 * @return list of only language code from 008 field or empty list
+	 */
+	private static List<String> parseLanguageInGeneralInformationField(Record marcRecord) {
+		final var generalInformationField = marcRecord.getVariableField("008");
+
+		if (generalInformationField instanceof ControlField generalInfoControlField) {
+			final var generalInfo = generalInfoControlField.getData();
+
+			if (generalInfo.length() < 38) {
+				return emptyList();
+			}
+
+			final var language = generalInfo.substring(35, 38);
+
+			if (hasText(language)) {
+				return List.of(language);
+			}
+
+			return emptyList();
+		}
+		else {
+			return emptyList();
+		}
 	}
 
 	static Stream<String> splitConcatenatedLanguageCodes(String languageCode) {

@@ -33,7 +33,7 @@ class MarcLanguageInterpretationTests {
 	}
 
 	@Test
-	void shouldFindNoLanguagesWhenNo041aSubfieldPresent() {
+	void shouldFindNoLanguagesWhenNo041aSubfieldOr008fieldArePresent() {
 		// Arrange
 		final var marcRecord = createMarcRecord();
 
@@ -115,6 +115,72 @@ class MarcLanguageInterpretationTests {
 
 		// Assert
 		assertThat(languages, containsInAnyOrder("swedish"));
+	}
+
+	@Test
+	void shouldFallbackTo008FieldWhen041aSubfieldIsNotPresent() {
+		// Arrange
+		final var marcRecord = createMarcRecord();
+
+		final var fixedLengthControlField = marcFactory.newControlField("008", "741030s1958    nyu           000 0 per u");
+
+		marcRecord.addVariableField(fixedLengthControlField);
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, containsInAnyOrder("per"));
+	}
+
+	@Test
+	void shouldNotFallbackTo008FieldWhen041aSubfieldIsPresent() {
+		// Arrange
+		final var marcRecord = createMarcRecord();
+
+		final var fixedLengthControlField = marcFactory.newControlField("008", "741030s1958    nyu           000 0 pol u");
+
+		marcRecord.addVariableField(fixedLengthControlField);
+
+		addLanguageCodeField(marcRecord, "eng");
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, containsInAnyOrder("eng"));
+	}
+
+	@Test
+	void shouldNotFallbackTo008FieldWhenFixedLengthLanguageCodeIsBlank() {
+		// Arrange
+		final var marcRecord = createMarcRecord();
+
+		final var fixedLengthControlField = marcFactory.newControlField("008", "741030s1958    nyu           000 0     u");
+
+		marcRecord.addVariableField(fixedLengthControlField);
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, empty());
+	}
+
+	@Test
+	void shouldNotFallbackTo008FieldWhenFixedLengthFieldIsTooShort() {
+		// Arrange
+		final var marcRecord = createMarcRecord();
+
+		final var fixedLengthControlField = marcFactory.newControlField("008", "741030s1958    nyu           000 0 en");
+
+		marcRecord.addVariableField(fixedLengthControlField);
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, empty());
 	}
 
 	@ParameterizedTest
