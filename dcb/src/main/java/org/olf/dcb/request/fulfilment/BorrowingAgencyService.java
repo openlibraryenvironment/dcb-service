@@ -223,7 +223,9 @@ public class BorrowingAgencyService {
 	private static Mono<LocalRequest> createHoldRequest(RequestWorkflowContext ctx,
 		PatronRequest patronRequest, PatronIdentity borrowingIdentity,
 		HostLmsClient hostLmsClient, SupplierRequest supplierRequest, String bibRecordTitle, String supplyingAgencyCode) {
-		var note = "Consortial Hold. tno=" + patronRequest.getId();
+		// var note = "Consortial Hold. tno=" + patronRequest.getId();
+    String note = ctx.generateTransactionNote();
+
 
 		return hostLmsClient.placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters.builder()
 			.localPatronId(borrowingIdentity.getLocalId())

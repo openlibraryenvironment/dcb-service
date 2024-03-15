@@ -173,7 +173,8 @@ public class SupplyingAgencyService {
 			.orElseThrow(() -> new NoHomeIdentityException(patron.getId(),
 				patron.getPatronIdentities()));
 
-		String note = "Consortial Hold. tno=" + patronRequest.getId();
+		// String note = "Consortial Hold. tno=" + patronRequest.getId();
+		String note = context.generateTransactionNote();
 
 		// The patron type and barcode are needed by FOLIO
 		// due to how edge-dcb creates a virtual patron on DCB's behalf

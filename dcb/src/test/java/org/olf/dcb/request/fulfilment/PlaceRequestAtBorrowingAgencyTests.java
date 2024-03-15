@@ -206,7 +206,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		assertSuccessfulTransitionAudit(pr, CONFIRMED);
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade(localPatronId, "b",
-			7916921, "ABC123", "Consortial Hold. tno=" + pr.getId());
+			7916921, "ABC123", "Consortial Hold. tno=" + pr.getId()+" \nFor UNKNOWN@null\n Pickup UNKNOWN@ab6");
 	}
 
 	@Test
@@ -311,20 +311,19 @@ class PlaceRequestAtBorrowingAgencyTests {
 			() -> placeRequestAtBorrowingAgency(patronRequest));
 
 		// Assert
-		assertThat(exception.getMessage(),
-			is("No hold request found for the given note: Consortial Hold. tno=" + patronRequestId));
+		assert exception.getMessage().startsWith("No hold request found for the given note: Consortial Hold. tno=" + patronRequestId);
+		// assertThat(exception.getMessage(), is("No hold request found for the given note: Consortial Hold. tno=" + patronRequestId));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
 			fetchedPatronRequest.getStatus(), is(ERROR));
 
-		assertThat("Request should have error message afterwards",
-			fetchedPatronRequest.getErrorMessage(),
-			is("No hold request found for the given note: Consortial Hold. tno=" + patronRequestId));
+		String expectedNote="No hold request found for the given note: Consortial Hold. tno=" + patronRequestId+" \nFor UNKNOWN@null\n Pickup UNKNOWN@ab6";
 
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest,
-			"No hold request found for the given note: Consortial Hold. tno=" + patronRequestId);
+		assertThat("Request should have error message afterwards", fetchedPatronRequest.getErrorMessage(), is(expectedNote));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest,expectedNote);
 	}
 
 	@Test

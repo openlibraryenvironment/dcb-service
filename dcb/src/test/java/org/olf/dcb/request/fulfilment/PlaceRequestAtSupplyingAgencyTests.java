@@ -186,7 +186,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
 			563653, "borrowing-agency",
-			"Consortial Hold. tno=" + patronRequest.getId());
+			"Consortial Hold. tno=" + patronRequest.getId()+" \nFor 8675309012@supplying-agency\n Pickup UNKNOWN@borrowing-agency");
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
@@ -244,7 +244,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
 			563653, "borrowing-agency",
-			"Consortial Hold. tno=" + patronRequest.getId());
+			"Consortial Hold. tno=" + patronRequest.getId()+" \nFor 8675309012@supplying-agency\n Pickup UNKNOWN@borrowing-agency");
 	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
@@ -295,7 +295,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000003", "b",
 			563653, "borrowing-agency",
-			"Consortial Hold. tno=" + patronRequest.getId());
+			"Consortial Hold. tno=" + patronRequest.getId()+" \nFor 8675309012@supplying-agency\n Pickup UNKNOWN@borrowing-agency");
 	}
 
 	@DisplayName("Should fail when supplying agency's Host LMS sends unexpected response whilst placing request")
