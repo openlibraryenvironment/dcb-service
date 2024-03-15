@@ -24,6 +24,7 @@ import reactor.core.publisher.Mono;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 import java.time.Instant;
+import java.time.Duration;
 
 @Slf4j
 @Refreshable
@@ -141,6 +142,23 @@ public class TrackingService implements Runnable {
 	 */
 	private boolean passBackoffPolling(String tp, UUID id, Instant lastCheck, Long repeatCount) {
 		boolean result = true;
+
+		long rc = repeatCount != null ? repeatCount.longValue() : 0;
+		if ( lastCheck == null )
+			rc = 0;
+
+		// First 10 poll immediately, otherwise
+		if ( rc > 10 ) {
+			Duration duration_since_last_check = Duration.between(lastCheck, Instant.now());
+			long seconds_since_last_check = duration_since_last_check.getSeconds();
+			if ( rc < 20 ) {
+				// Next 10 - wait 10 mins before asking again
+				if ( seconds_since_last_check < 600 )
+					return false;
+			}
+			if ( seconds_since_last_check < 5400 )
+				return false;  // At least check every 90m
+		}
 		log.debug("passBackoffPolling({},{},{},{}:{})",tp,id,lastCheck,repeatCount,result);
 		return result;
 	}
