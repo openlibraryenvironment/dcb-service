@@ -85,7 +85,7 @@ public interface Marc4jRecordUtils {
 		final var languageCodeFields = marcRecord.getVariableFields("041");
 
 		if (isEmpty(languageCodeFields)) {
-			return emptyList();
+			return parseLanguageInGeneralInformationField(marcRecord);
 		}
 
 		final var languageCodes = languageCodeFields.stream()

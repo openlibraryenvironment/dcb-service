@@ -120,9 +120,29 @@ class MarcLanguageInterpretationTests {
 	}
 
 	@Test
+	void shouldFallbackTo008FieldWhen041FieldIsNotPresent() {
+		// Arrange
+		final var marcRecord = marcFactory.newRecord();
+
+		final var fixedLengthControlField = marcFactory.newControlField("008", "741030s1958    nyu           000 0 hrv u");
+
+		marcRecord.addVariableField(fixedLengthControlField);
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, containsInAnyOrder("hrv"));
+	}
+
+	@Test
 	void shouldFallbackTo008FieldWhen041aSubfieldIsNotPresent() {
 		// Arrange
-		final var marcRecord = createMarcRecord();
+		final var marcRecord = marcFactory.newRecord();
+
+		final var languageCodeField = marcFactory.newDataField("041", '#', '#');
+
+		marcRecord.addVariableField(languageCodeField);
 
 		final var fixedLengthControlField = marcFactory.newControlField("008", "741030s1958    nyu           000 0 per u");
 
@@ -138,7 +158,7 @@ class MarcLanguageInterpretationTests {
 	@Test
 	void shouldNotFallbackTo008FieldWhen041aSubfieldIsPresent() {
 		// Arrange
-		final var marcRecord = createMarcRecord();
+		final var marcRecord = marcFactory.newRecord();
 
 		final var fixedLengthControlField = marcFactory.newControlField("008", "741030s1958    nyu           000 0 pol u");
 
