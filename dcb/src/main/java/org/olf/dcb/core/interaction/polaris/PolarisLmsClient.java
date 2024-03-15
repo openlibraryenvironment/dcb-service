@@ -411,6 +411,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		// supplier requests need the pickup location to be set as ILL
 		if (isBorrower == FALSE) {
 			pickup_location = extractMapValue(getItemConfig(), ILL_LOCATION_ID, String.class);
+			if (pickup_location == null) {
+				throw new IllegalArgumentException("Please add the config value 'ill-location-id' for polaris.");
+			}
 			return pickup_location;
 		}
 
@@ -986,10 +989,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		if (value != null) {
 			if (type.isInstance(value)) {
 				return type.cast(value);
-			} else {
-				if (type == Integer.class && value instanceof String) {
-					return type.cast(Integer.valueOf((String) value));
-				}
+			} else if (type == String.class && value instanceof Integer) {
+				return type.cast(value.toString());
+			} else if (type == Integer.class && value instanceof String) {
+				return type.cast(Integer.valueOf((String) value));
 			}
 		}
 
