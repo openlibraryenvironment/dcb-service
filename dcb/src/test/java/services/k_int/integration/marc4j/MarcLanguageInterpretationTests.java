@@ -215,6 +215,18 @@ class MarcLanguageInterpretationTests {
 	}
 
 	@Test
+	void shouldNotIncludeDuplicateLanguageCodes() {
+		// Arrange
+		final var marcRecord = createMarcRecord("eng", "eng");
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, containsInAnyOrder("eng"));
+	}
+
+	@Test
 	void shouldTolerateEmptyLanguageCode() {
 		// Arrange
 		final var marcRecord = marcFactory.newRecord();

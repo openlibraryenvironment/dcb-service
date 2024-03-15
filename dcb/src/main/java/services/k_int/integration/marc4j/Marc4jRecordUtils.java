@@ -72,7 +72,14 @@ public interface Marc4jRecordUtils {
 			default -> "Unknown";
 		};
 	}
-
+	
+	/**
+	 * Parse the 041 language code fields
+	 * Based upon this <a href="https://www.loc.gov/marc/bibliographic/bd041.html">document</a>
+	 *
+	 * @param marcRecord MARC record to parse
+	 * @return list of non-duplicated language codes from 041a subfields, or 008 field, if none present
+	 */
 	static List<String> interpretLanguages(Record marcRecord) {
 		final var languageCodeFields = marcRecord.getVariableFields("041");
 
@@ -82,6 +89,7 @@ public interface Marc4jRecordUtils {
 			.map(String::toLowerCase)
 			.map(Marc4jRecordUtils::removeWhitespace)
 			.flatMap(Marc4jRecordUtils::splitConcatenatedLanguageCodes)
+			.distinct()
 			.toList();
 
 		if (isEmpty(languageCodes)) {
