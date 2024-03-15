@@ -55,5 +55,20 @@ public class RequestWorkflowContext {
 
 	// Provide a list of strings that workflow actions can use to propagate messages to the audit log
 	List<String> workflowMessages = new ArrayList<String>();
+
+	public String generateTransactionNote() {
+    String note = "Consortial Hold. tno=" + patronRequest.getId() + " \nFor " +
+			( patronHomeIdentity != null ? patronHomeIdentity.getLocalBarcode() : "UNKNOWN" ) + 
+			"@" + patronAgencyCode +
+			generatePickupNote();
+		return note;
+	}
+
+	private String generatePickupNote() {
+		String note = "\n Pickup "+
+			( pickupLocation != null ? pickupLocation.getName() : "UNKNOWN" ) +
+			"@"+pickupAgencyCode;
+		return note;
+	}
 }
 
