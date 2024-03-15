@@ -346,17 +346,22 @@ public class TrackingService implements Runnable {
 			.onErrorResume( error -> Mono.defer(() -> {
 				log.error("TRACKING Error occurred: " + error.getMessage(), error);
 
-        StateChange sc = StateChange.builder()
-          .patronRequestId(sr.getPatronRequest().getId())
-          .resourceType("SupplierRequest")
-          .resourceId(sr.getId().toString())
-          .fromState(sr.getLocalStatus())
-          .toState("ERROR")
-          .resource(sr)
-          .build();
+				if ( ! "ERROR".equals(sr.getLocalStatus()) ) {
+	        StateChange sc = StateChange.builder()
+  	        .patronRequestId(sr.getPatronRequest().getId())
+    	      .resourceType("SupplierRequest")
+      	    .resourceId(sr.getId().toString())
+        	  .fromState(sr.getLocalStatus())
+          	.toState("ERROR")
+	          .resource(sr)
+  	        .build();
 
-				return hostLmsReactions.onTrackingEvent(sc)
-					.thenReturn(sr);
+					return hostLmsReactions.onTrackingEvent(sc)
+						.thenReturn(sr);
+				}
+				else {
+					return Mono.just(sr);
+				}
 			}));
 	}
 
