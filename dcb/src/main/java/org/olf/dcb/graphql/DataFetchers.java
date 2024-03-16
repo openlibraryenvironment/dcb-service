@@ -535,4 +535,10 @@ public class DataFetchers {
 		};
 	}
 
+	public DataFetcher<CompletableFuture<List<Location>>> getPickupLocationsDataFetcher() {
+		return env -> {                 
+			String agency = env.getArgument("forAgency");
+			return Flux.from(postgresLocationRepository.getSortedPickupLocations(agency)).collectList().toFuture();
+		};
+	}
 }

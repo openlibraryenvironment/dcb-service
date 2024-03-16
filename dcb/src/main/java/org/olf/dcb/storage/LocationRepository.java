@@ -12,6 +12,8 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import io.micronaut.data.annotation.Id;
+import io.micronaut.data.annotation.Query;
 
 public interface LocationRepository {
 
@@ -51,4 +53,15 @@ public interface LocationRepository {
 	@NonNull
 	@SingleResult
 	Publisher<Location> queryAllByAgency(@NotNull DataAgency agency);
+
+/*
+SELECT 
+select l.id, l.name, a.name, a.code, CASE WHEN a.code='6cals' THEN 1 ELSE 0 END AS is_local 
+from location l, agency a 
+where l.agency_fk = a.id 
+order by is_local desc, l.name; 
+*/
+
+	@Query(value = "SELECT l.*, CASE WHEN a.code=:agency THEN 1 ELSE 0 END AS is_local from location l, agency a where l.agency_fk = a.id and is_pickup = true order by is_local desc, l.name", nativeQuery = true)
+  Publisher<Location> getSortedPickupLocations(String agency);
 }

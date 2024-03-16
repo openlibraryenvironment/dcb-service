@@ -72,6 +72,7 @@ public class GraphQLFactory {
 						.dataFetcher("patronIdentities", dataFetchers.getPatronIdentitiesDataFetcher())
 						.dataFetcher("numericRangeMappings", dataFetchers.getNumericRangeMappingsDataFetcher())
 						.dataFetcher("referenceValueMappings", dataFetchers.getReferenceValueMappingsDataFetcher())
+						.dataFetcher("pickupLocations", dataFetchers.getPickupLocationsDataFetcher())
 				)
 				.type("Mutation",
 					typeWiring -> typeWiring

@@ -14,6 +14,8 @@ type Query {
     patronIdentities(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): PatronIdentityPage!
     numericRangeMappings(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): NumericRangeMappingPage!
     referenceValueMappings(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): ReferenceValueMappingPage!
+
+    pickupLocations(forAgency: String): [Location]
 }
 
 type Mutation {
