@@ -25,6 +25,7 @@ import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 import java.time.Instant;
 import java.time.Duration;
+import io.micrometer.core.annotation.Timed;
 
 @Slf4j
 @Refreshable
@@ -57,6 +58,7 @@ public class TrackingService implements Runnable {
 		this.reactorFederatedLockService = reactorFederatedLockService;
 	}
 
+  @Timed("tracking.run")
 	@AppTask
 	@Override
 	@Scheduled(initialDelay = "2m", fixedDelay = "${dcb.tracking.interval:5m}")
@@ -84,7 +86,8 @@ public class TrackingService implements Runnable {
 
 	}
 
-	private Flux<PatronRequest> trackActiveDCBRequests() {
+  @Timed("tracking.dcb-requests")
+	public Flux<PatronRequest> trackActiveDCBRequests() {
 		return Flux.from(patronRequestRepository.findProgressibleDCBRequests())
 			.doOnSubscribe(_s -> log.info("TRACKING trackActiveDCBRequests()"))
 			.concatMap(this::tryToProgressDCBRequest)
