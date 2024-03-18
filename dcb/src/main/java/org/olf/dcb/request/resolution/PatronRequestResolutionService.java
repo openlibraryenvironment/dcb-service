@@ -125,6 +125,8 @@ public class PatronRequestResolutionService {
 			.localItemLocationCode(item.getLocation().getCode())
 			.localItemType(item.getLocalItemType())
 			.canonicalItemType(item.getCanonicalItemType())
+			// ToDo - This no longer holds true - we need to find the hostLMS attached to the supplying agency and use that
+			// instead - as the item may have come from a different HostLMS
 			.hostLmsCode(item.getHostLmsCode())
 			.localAgency(agency != null ? agency.getCode() : null)
 			.statusCode(PENDING)
