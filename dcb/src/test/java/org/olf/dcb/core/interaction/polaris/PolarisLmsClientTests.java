@@ -65,7 +65,7 @@ import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
-import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
+import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronIdentity;
@@ -347,7 +347,7 @@ class PolarisLmsClientTests {
 				.localBibId(null)
 				.localItemId(itemId)
 				.pickupLocationCode("5324532")
-				.note("No special note")
+				.note("DCB Testing PACDisplayNotes")
 				.patronRequestId(UUID.randomUUID().toString())
 				.build()
 		));
@@ -371,11 +371,10 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetBib("1106339");
 		mockPolarisFixture.mockPlaceHoldUnsuccessful();
 
-
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var exception = assertThrows(HoldRequestException.class,
+		final var exception = assertThrows(PolarisWorkflowException.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
 					.localPatronId("1")
@@ -390,7 +389,7 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(exception, allOf(
 			notNullValue(),
-			hasMessage("You have selected a serial title. A request placed on the title will trap any available item.\nSelect one of the following:")
+			hasMessage("Unexpected Polaris workflow response for: Failed to handle polaris workflow. Response was: ApplicationServicesClient.WorkflowResponse(workflowRequestGuid=c07ba982-b123-48df-99fb-e9b03cd82dab, workflowStatus=-3, prompt=ApplicationServicesClient.Prompt(WorkflowPromptID=94, title=Serial Holds, message=You have selected a serial title. A request placed on the title will trap any available item.\nSelect one of the following:), answerExtension=null, informationMessages=[]). Expected to reply to promptID: 77 with reply: 5")
 		));
 	}
 
