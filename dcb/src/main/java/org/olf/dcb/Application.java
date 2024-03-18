@@ -9,6 +9,7 @@ import io.micronaut.core.annotation.TypeHint;
 import io.micronaut.runtime.Micronaut;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Info;
+import services.k_int.bootstrap.SystemInformationSource;
 
 @TypeHint(value = { Instant[].class, ZonedDateTime[].class, URI[].class, URL[].class })
 @OpenAPIDefinition(info = @Info(title = "DCB", description = "Direct Consortial Borrowing Service", version = "1.0.0"))
