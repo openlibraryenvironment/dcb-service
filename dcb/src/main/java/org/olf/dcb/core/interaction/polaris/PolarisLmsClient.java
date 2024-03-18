@@ -362,17 +362,29 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		final var formattedDate = zonedDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
 		if (Objects.equals(sysHoldRequest.getBibliographicRecordID(), bibId) &&
-			Objects.equals(sysHoldRequest.getPacDisplayNotes() != null
-				? sysHoldRequest.getPacDisplayNotes()
-				: "", note)) {
+			isEqualDisplayNoteIfPresent(sysHoldRequest, note) &&
+			Objects.equals(activationDate, formattedDate)) {
 
-			log.info("hold matched on bib Id.");
-			log.info("known activation date: {}=={} hold activation date.", activationDate, formattedDate);
+			log.info("Hold retrieved.");
 
 			return TRUE;
 		}
 		
 		return FALSE;
+	}
+
+	private static boolean isEqualDisplayNoteIfPresent(ApplicationServicesClient.SysHoldRequest sysHoldRequest, String note) {
+		final var returnedDisplayNote = notNullDisplayNote(sysHoldRequest);
+
+		if (returnedDisplayNote != null && note != null) {
+			return Objects.equals(returnedDisplayNote, note);
+		}
+
+		return TRUE;
+	}
+
+	private static String notNullDisplayNote(ApplicationServicesClient.SysHoldRequest sysHoldRequest) {
+		return sysHoldRequest.getPacDisplayNotes() != null ? sysHoldRequest.getPacDisplayNotes() : null;
 	}
 
 	private Mono<LocalRequest> chooseHold(List<ApplicationServicesClient.SysHoldRequest> filteredHolds) {

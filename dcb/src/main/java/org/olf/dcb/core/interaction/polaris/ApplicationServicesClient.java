@@ -140,6 +140,7 @@ class ApplicationServicesClient {
 			.map(function(ApplicationServicesClient::addBodyToRequest))
 			.flatMap(workflowReq -> client.retrieve(workflowReq, Argument.of(WorkflowResponse.class),
 					noExtraErrorHandling()))
+			.flatMap(resp -> handlePolarisWorkflow(resp, DuplicateHoldRequests, Continue))
 			.map(response -> validateHoldResponse(response))
 			.thenReturn(Tuples.of(
 				holdRequestParameters.getLocalPatronId(),
@@ -150,11 +151,12 @@ class ApplicationServicesClient {
 
 	private WorkflowResponse validateHoldResponse(WorkflowResponse workflowResponse) {
 		if (workflowResponse.getWorkflowStatus() < 1) {
-			String messages = workflowResponse.getPrompt().getMessage() != null
-				? workflowResponse.getPrompt().getMessage().toString()
-				: "NO DETAILS";
+			if (workflowResponse.getPrompt() != null && workflowResponse.getPrompt().getTitle() != null) {
 
-			throw new HoldRequestException(messages);
+				throw new HoldRequestException("Polaris workflow response: " + workflowResponse.getPrompt().getTitle());
+			}
+
+			throw new HoldRequestException("Unknown polaris workflow response error. Response: " + workflowResponse);
 		}
 
 		if (workflowResponse.getWorkflowStatus() == 1) {
@@ -628,7 +630,13 @@ class ApplicationServicesClient {
 			return Mono.just(response);
 		}
 
-		log.info("Trying to handle polaris workflow status: {}", response.getWorkflowStatus());
+		if (response.getPrompt() != null && response.getPrompt().getTitle() != null) {
+			log.info("Trying to handle polaris workflow: {}", response.getPrompt().getTitle());
+		} else {
+			log.warn("Trying to handle polaris workflow prompt ID: {}, more information found at: {}",
+				promptID, "https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/overview");
+		}
+
 		return Mono.just(response)
 			.filter(workflowResponse -> workflowResponse.getPrompt() != null)
 			.filter(workflowResponse -> Objects.equals(workflowResponse.getPrompt().getWorkflowPromptID(), promptID))
@@ -1025,6 +1033,7 @@ class ApplicationServicesClient {
 		public static final Integer NoDisplayInPAC = 66;
 		public static final Integer DuplicateRecords = 72;
 		public static final Integer ConfirmItemRecordDelete = 73;
+		public static final Integer DuplicateHoldRequests = 77;
 		public static final Integer ConfirmBibRecordDelete = 79;
 		public static final Integer LastCopyOrRecordOptions = 82;
 		@JsonProperty("WorkflowPromptID")
