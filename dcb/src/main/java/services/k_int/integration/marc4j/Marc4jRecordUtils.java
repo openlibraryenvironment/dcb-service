@@ -92,7 +92,7 @@ public interface Marc4jRecordUtils {
 			.flatMap(Marc4jRecordUtils::parseSubfields)
 			.filter(StringUtils::isNotEmpty)
 			.map(String::toLowerCase)
-			.map(Marc4jRecordUtils::removeWhitespace)
+			.map(Marc4jRecordUtils::removeSeparators)
 			.flatMap(Marc4jRecordUtils::splitConcatenatedLanguageCodes)
 			.distinct()
 			.toList();
@@ -167,7 +167,7 @@ public interface Marc4jRecordUtils {
 		}
 	}
 
-	private static String removeWhitespace(String s) {
-		return s.replaceAll("\\s", "");
+	private static String removeSeparators(String s) {
+		return s.replaceAll("[\\s,]", "");
 	}
 }

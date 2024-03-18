@@ -105,6 +105,20 @@ class MarcLanguageInterpretationTests {
 	}
 
 	@Test
+	void shouldSplitConcatenatedLanguageCodesSeparateByComma() {
+		// Arrange
+		final var marcRecord = marcFactory.newRecord();
+
+		addLanguageCodeField(marcRecord, "ger,dan,ara");
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, containsInAnyOrder("ger", "dan", "ara"));
+	}
+
+	@Test
 	void shouldNotSplitNonDivisibleLanguageCodes() {
 		// Arrange
 		final var marcRecord = marcFactory.newRecord();
