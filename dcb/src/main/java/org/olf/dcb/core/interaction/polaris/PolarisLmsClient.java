@@ -358,12 +358,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private Boolean shouldIncludeHold(
 		ApplicationServicesClient.SysHoldRequest sysHoldRequest, Integer bibId, String activationDate, String note) {
 
-		final var zonedDateTime = ZonedDateTime.parse(sysHoldRequest.getActivationDate());
-		final var formattedDate = zonedDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-
 		if (Objects.equals(sysHoldRequest.getBibliographicRecordID(), bibId) &&
 			isEqualDisplayNoteIfPresent(sysHoldRequest, note) &&
-			Objects.equals(activationDate, formattedDate)) {
+			isEqualActivationDateIfPresent(sysHoldRequest, activationDate)) {
 
 			log.info("Hold retrieved.");
 
@@ -373,7 +370,21 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return FALSE;
 	}
 
-	private static boolean isEqualDisplayNoteIfPresent(ApplicationServicesClient.SysHoldRequest sysHoldRequest, String note) {
+	private static boolean isEqualActivationDateIfPresent(
+		ApplicationServicesClient.SysHoldRequest sysHoldRequest, String activationDate) {
+
+		if (sysHoldRequest.getActivationDate() != null && activationDate != null) {
+			final var zonedDateTime = ZonedDateTime.parse(sysHoldRequest.getActivationDate());
+			final var formattedDate = zonedDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+			return Objects.equals(activationDate, formattedDate);
+		}
+
+		return TRUE;
+	}
+
+	private static boolean isEqualDisplayNoteIfPresent(
+		ApplicationServicesClient.SysHoldRequest sysHoldRequest, String note) {
+
 		final var returnedDisplayNote = notNullDisplayNote(sysHoldRequest);
 
 		if (returnedDisplayNote != null && note != null) {

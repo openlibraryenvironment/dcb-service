@@ -7,7 +7,7 @@
 		"BrowseTitleNonFilingCount": 0,
 		"MARCTOMIDDescription": "Book",
 		"CallNumber": null,
-		"ActivationDate": "2024-03-18T00:00:00-05:00",
+		"ActivationDate": null,
 		"Status": "Pending",
 		"ExpirationDate": "2026-12-05T23:59:59-06:00",
 		"PickupBranch": "SLCL zBeckwith Administrative Building_staff only",
