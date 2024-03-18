@@ -25,7 +25,7 @@ import jakarta.inject.Inject;
 class FolioItemStatusMapperTests {
 	/**
 	 * The codes used here come from
-	 * <a href="ttps://github.com/folio-org/mod-inventory-storage/blob/294f8c42b48d9099b49f37fc7c193bb5e36bf918/ramls/item.json#L253>this documentation</a>
+	 * <a href="https://github.com/folio-org/mod-inventory-storage/blob/294f8c42b48d9099b49f37fc7c193bb5e36bf918/ramls/item.json#L253>this documentation</a>
 	 */
 
 	private static final String HOST_LMS_CODE = "folio-host-lms";

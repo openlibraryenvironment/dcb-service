@@ -46,6 +46,7 @@ hosts:
 dcb:
   itemresolver:
     code: Geo
+    
   #  index:
   #    name: mobius-si
 
@@ -54,4 +55,6 @@ dcb:
 
 #elasticsearch:
 #  httpHosts: "http://localhost:9200"
+
+
 

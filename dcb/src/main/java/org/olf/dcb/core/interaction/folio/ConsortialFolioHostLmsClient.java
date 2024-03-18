@@ -254,12 +254,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.allMatch(error -> error.getMessage().contains("Holdings not found for instance"));
 	}
 
-	private Flux<Item> mapHoldingsToItems(OuterHolding outerHoldings) {
-		if (isEmpty(outerHoldings.getHoldings())) {
-			return Flux.empty();
-		}
-
-		return Flux.fromStream(outerHoldings.getHoldings().stream())
+	private Flux<Item> mapHoldingsToItems(OuterHolding outerHoldings) {		
+		return Mono.justOrEmpty(outerHoldings.getHoldings())
+			.flatMapMany(Flux::fromIterable)
 			// When RTAC encounters a holdings record without any items
 			// it includes the holdings record in the response
 			// DCB is only interested in items and thus needs to differentiate between

@@ -42,6 +42,7 @@ import io.micronaut.transaction.annotation.Transactional;
 import jakarta.validation.constraints.NotEmpty;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.function.TupleUtils;
 import services.k_int.integration.marc4j.Marc4jRecordUtils;
 
@@ -243,11 +244,16 @@ public interface MarcIngestSource<T> extends IngestSource {
 
 		log.info("Read from the marc source and publish a stream of IngestRecords");
 
-		return Flux.from(getResources(since, terminator))
+		return Flux.defer(() -> getResources(since, terminator))
+				.publishOn(Schedulers.boundedElastic())
+				.subscribeOn(Schedulers.boundedElastic())
 				.concatMap(this::saveRawAndContinue)
 				.doOnError(throwable -> log.warn("ONERROR saving raw record", throwable))
 				.flatMap(resource -> {
-					return Mono.justOrEmpty(initIngestRecordBuilder(resource))
+					return Mono.justOrEmpty(resource)
+							.publishOn(Schedulers.boundedElastic())
+							.subscribeOn(Schedulers.boundedElastic())
+							.map(this::initIngestRecordBuilder)
 							.zipWith(Mono.just( resourceToMarc(resource) ) )
 									// .map( this::createMatchKey ))
 							.map(TupleUtils.function(( ir, marcRecord ) -> {

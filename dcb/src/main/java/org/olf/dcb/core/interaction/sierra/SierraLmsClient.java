@@ -72,6 +72,8 @@ import org.olf.dcb.ingest.marc.MarcIngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.olf.dcb.ingest.model.RawSource;
+import org.olf.dcb.rules.ObjectRulesService;
+import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.olf.dcb.tracking.model.LenderTrackingEvent;
 import org.olf.dcb.tracking.model.PatronTrackingEvent;
@@ -110,6 +112,7 @@ import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.PatronValidation;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
+import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.utils.UUIDUtils;
 
 
@@ -137,7 +140,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final RawSourceRepository rawSourceRepository;
 	private final NumericPatronTypeMapper numericPatronTypeMapper;
 	private final SierraItemMapper itemMapper;
-
+	private final ObjectRulesService objectRuleService;
+  private final PublisherTransformationService publishers;
+	
 	private final Integer getHoldsRetryAttempts;
 
 	public SierraLmsClient(@Parameter HostLms lms,
@@ -147,7 +152,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		ReferenceValueMappingService referenceValueMappingService,
 		ConversionService conversionService,
 		NumericPatronTypeMapper numericPatronTypeMapper, 
-		SierraItemMapper itemMapper) {
+		SierraItemMapper itemMapper,
+		ObjectRulesService objectRuleService, PublisherTransformationService publisherTransformationService) {
 
 		this.lms = lms;
 
@@ -161,6 +167,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.conversionService = conversionService;
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
+		this.objectRuleService = objectRuleService;
+		this.publishers = publisherTransformationService;
 	}
 
 	private static Integer getGetHoldsRetryAttempts(Map<String, Object> clientConfig) {
@@ -322,15 +330,50 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		final String concat = UUID5_PREFIX + ":" + lms.getCode() + ":" + result.id();
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
+	
+	private Mono<ObjectRuleset> _lmsRuleset = null;
+	private synchronized Optional<ObjectRuleset> getLmsRuleset() {
+		
+		if (_lmsRuleset == null) {
+			var supSetName = lms.getSuppressionRulesetName();
+			
+			_lmsRuleset = Mono.justOrEmpty( supSetName )
+				.flatMap( name -> objectRuleService.findByName(name)
+						.doOnSuccess(val -> {
+							if (val == null) {
+								log.warn("Host LMS [{}] specified using ruleset [{}], but no ruleset with that name could be found", lms.getCode(), name);
+								return;
+							}
+							
+							log.debug("");
+						}))
+				.cache();
+		}
+		
+		// TODO: Blocking!!!! Needs refactoring
+		return  _lmsRuleset.blockOptional();
+	}
+	
+	private boolean derriveSuppressedFlag( BibResult resource ) {
+		
+		if ( Boolean.TRUE.equals(resource.suppressed()) ) return true;
+		
+		// Grab the suppression rules set against the Host Lms
+		// False is the default value for suppression if we can't find the named ruleset
+		// or if there isn't one.
+		return getLmsRuleset()
+		  .map( rules -> rules.negate().test(resource) ) // Negate as the rules evaluate "true" for inclusion
+		  .orElse(FALSE);
+	}
 
 	@Override
 	public IngestRecordBuilder initIngestRecordBuilder(BibResult resource) {
 
 		// Use the host LMS as the
-		IngestRecordBuilder irb =  IngestRecord.builder().uuid(uuid5ForBibResult(resource))
+		IngestRecordBuilder irb = IngestRecord.builder().uuid(uuid5ForBibResult(resource))
 			.sourceSystem(lms)
 			.sourceRecordId(resource.id())
-			.suppressFromDiscovery(resource.suppressed())
+			.suppressFromDiscovery(derriveSuppressedFlag(resource))
 			.deleted(resource.deleted());
 
 		// log.info("resource id {}",resource.id());

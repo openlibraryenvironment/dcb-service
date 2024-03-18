@@ -24,6 +24,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
 
 @Controller("/symbols")
 @Validated
@@ -31,51 +32,40 @@ import reactor.core.publisher.Mono;
 @Tag(name = "Symbols")
 public class SymbolController {
 
-        private LocationRepository locationRepository;
-        private LocationSymbolRepository locationSymbolRepository;
+	private LocationRepository locationRepository;
+	private LocationSymbolRepository locationSymbolRepository;
 
-	public SymbolController(LocationSymbolRepository locationSymbolRepository,
-                                LocationRepository locationRepository) {
+	public SymbolController(LocationSymbolRepository locationSymbolRepository, LocationRepository locationRepository) {
 		this.locationSymbolRepository = locationSymbolRepository;
 		this.locationRepository = locationRepository;
 	}
 
-        @Operation(
-                summary = "Browse Symbols",
-                description = "Paginate through the list of known symbols",
-                parameters = {
-                        @Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
-                        @Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100")}
-        )
-        @Get("/{?pageable*}")
-        public Mono<Page<LocationSymbol>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
-                if (pageable == null) {
-                        pageable = Pageable.from(0, 100);
-                }
+	@Operation(summary = "Browse Symbols", description = "Paginate through the list of known symbols", parameters = {
+			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
+			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100") })
+	@Get("/{?pageable*}")
+	public Mono<Page<LocationSymbol>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
+		if (pageable == null) {
+			pageable = Pageable.from(0, 100);
+		}
 
-                return Mono.from(locationSymbolRepository.queryAll(pageable));
-        }
+		return Mono.from(locationSymbolRepository.queryAll(pageable));
+	}
 
-        @Get("/{id}")
-        public Mono<LocationSymbol> show(UUID id) {
-                return Mono.from(locationSymbolRepository.findById(id));
-        }
+	@Get("/{id}")
+	public Mono<LocationSymbol> show(UUID id) {
+		return Mono.from(locationSymbolRepository.findById(id));
+	}
 
-        // TODO: Convert return DataAgency to AgencyDTO
-        @Post("/")
-        public Mono<LocationSymbol> postLocationSymbol(@Body LocationSymbolDTO symbol) {
+	@Post("/")
+	public Mono<LocationSymbol> postLocationSymbol(@Body LocationSymbolDTO symbol) {
 
-                Location loc = Mono.from(locationRepository.findById(symbol.locationId())).block();
-
-                LocationSymbol ls = LocationSymbol.builder()
-                                               .id(symbol.id())
-                                               .authority(symbol.authority())
-                                               .code(symbol.code())
-                                               .location(loc)
-                                               .build();
-
-                return Mono.from(locationSymbolRepository.existsById(ls.getId()))
-                       .flatMap(exists -> Mono.fromDirect(exists ? locationSymbolRepository.update(ls) : locationSymbolRepository.save(ls)));
-        }
+		return Mono.from(locationRepository.findById(symbol.locationId()))
+			.zipWith( Mono.just(LocationSymbol.builder().id(symbol.id()).authority(symbol.authority()).code(symbol.code())) )
+			.map( TupleUtils.function( (loc, builder) -> builder.location(loc).build() ))
+			.flatMap( ls -> Mono.from(locationSymbolRepository.existsById(ls.getId()))
+					.flatMap(
+							exists -> Mono.fromDirect(exists ? locationSymbolRepository.update(ls) : locationSymbolRepository.save(ls))));
+	}
 
 }

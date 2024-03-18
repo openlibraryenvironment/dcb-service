@@ -3,11 +3,9 @@ package org.olf.dcb.core.model;
 import java.util.Map;
 import java.util.UUID;
 
-import io.micronaut.core.annotation.Introspected;
 import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
-@Introspected
 public interface HostLms {
 	UUID getId();
 
@@ -17,6 +15,8 @@ public interface HostLms {
 
 	Class<?> getClientType();
 	Class<?> getIngestSourceType();
+	
+	String getSuppressionRulesetName();
 
 	Map<String, Object> getClientConfig();
 }

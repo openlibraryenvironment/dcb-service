@@ -14,6 +14,7 @@ import io.micronaut.context.annotation.Parameter;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Getter;
+import lombok.Setter;
 import services.k_int.utils.UUIDUtils;
 
 @Serdeable
@@ -26,6 +27,9 @@ public class ConfigHostLms implements HostLms{
 	private final String code;
 	private Class<? extends HostLmsClient> type;
 	private Class<? extends IngestSource> ingestSourceType;
+	
+	@Setter
+	private String suppressionRulesetName;
 
 	public ConfigHostLms(@Parameter("code") @NonNull String code, @Parameter("name") String name) {
 		this.code = code;

@@ -3,6 +3,7 @@ package org.olf.dcb.core.model;
 import static io.micronaut.data.model.DataType.JSON;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -48,6 +49,10 @@ public class DataHostLms implements HostLms {
 	@Nullable
 	@Size(max = 200)
 	public String name;
+
+	@Nullable
+	@Size(max = 128)
+	public String suppressionRulesetName;
 
 	@ToString.Exclude
 	@Nullable

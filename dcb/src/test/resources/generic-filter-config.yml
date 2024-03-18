@@ -1,0 +1,21 @@
+dcb:
+  rulesets:
+    slu-bib-suppression:
+      type: DISJUNCTIVE # Makes this set OR'd
+      conditions: # Predicates must pass to include resource
+      
+        # This first operation allows contribution of results that do not contain 
+        - operation : propertyPresent
+          property: "fixedFields.3.value" # Tests for presence of property (non-null)
+          negated: true                   # Changes to make valid if property not present.
+          
+          # OR
+          
+        - operation : propertyValueAnyOf 
+          property: "fixedFields.3.value"
+          values:
+            - 'z'                         # NO MOB / DIS SLU suppress from MOBIUS
+            - 's'                         # NO MOB / NO SLU suppress from MOBIUS
+            - 'f'                         # ON THE FLY suppress from MOBIUS
+            - 'n'                         # SUP DISPLAY suppress from MOBIUS
+          negated: true                   # Valid if fixedFields.3.value is set to a value that isn't in the list above
