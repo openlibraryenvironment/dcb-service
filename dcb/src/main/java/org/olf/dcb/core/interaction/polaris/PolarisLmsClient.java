@@ -452,7 +452,20 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
-		return appServicesClient.getLocalHoldRequest(Integer.valueOf(localRequestId))
+		if (localRequestId == null) {
+			log.error("localRequestId was null.");
+			return Mono.empty();
+		}
+
+		Integer parsedLocalRequestId;
+		try {
+			parsedLocalRequestId = Integer.valueOf(localRequestId);
+		} catch (NumberFormatException e) {
+			return Mono.error(
+				new NumberFormatException("Cannot convert localRequestId: "+localRequestId+" to an Integer."));
+		}
+
+		return appServicesClient.getLocalHoldRequest(parsedLocalRequestId)
 			.map(hold -> HostLmsRequest.builder()
 				.localId(localRequestId)
 				.status(checkHoldStatus(hold.getSysHoldStatus()))
@@ -468,7 +481,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		log.debug("Checking hold status: {}", status);
 		return switch (status) {
 			case "Cancelled" -> HostLmsRequest.HOLD_CANCELLED;
-			case "Pending" -> HostLmsRequest.HOLD_CONFIRMED;
+			case "Pending", "Active" -> HostLmsRequest.HOLD_CONFIRMED;
 			case "Held" -> HostLmsRequest.HOLD_READY;
 			case "Shipped" -> HostLmsRequest.HOLD_TRANSIT;
 			case "Missing" -> HostLmsRequest.HOLD_MISSING;
