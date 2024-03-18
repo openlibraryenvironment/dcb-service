@@ -119,6 +119,20 @@ class MarcLanguageInterpretationTests {
 	}
 
 	@Test
+	void shouldTolerateCombinedCodeAndName() {
+		// Arrange
+		final var marcRecord = marcFactory.newRecord();
+
+		addLanguageCodeField(marcRecord, "gre:greek, modern (1453eng:Englishlat:latinmul:multiple languages");
+
+		// Act
+		final var languages = interpretLanguages(marcRecord);
+
+		// Assert
+		assertThat(languages, containsInAnyOrder("gre", "eng", "lat", "mul"));
+	}
+
+	@Test
 	void shouldNotSplitNonDivisibleLanguageCodes() {
 		// Arrange
 		final var marcRecord = marcFactory.newRecord();

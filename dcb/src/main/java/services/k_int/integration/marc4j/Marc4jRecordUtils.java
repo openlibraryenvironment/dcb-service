@@ -140,6 +140,15 @@ public interface Marc4jRecordUtils {
 	}
 
 	static Stream<String> splitConcatenatedLanguageCodes(String languageCode) {
+		if (languageCode.contains(":")) {
+			// Match the 3 characters before the colon
+			// in order to match combinations like eng:english
+			return Pattern.compile(".{3}(?=:)")
+				.matcher(languageCode)
+				.results()
+				.map(MatchResult::group);
+		}
+
 		if (languageCode.length() % 3 != 0) {
 			return Stream.of(languageCode);
 		}
