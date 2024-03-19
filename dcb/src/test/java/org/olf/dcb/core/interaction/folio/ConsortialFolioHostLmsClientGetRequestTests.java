@@ -1,7 +1,9 @@
 package org.olf.dcb.core.interaction.folio;
 
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockserver.model.HttpResponse.response;
@@ -144,6 +146,17 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 			hasNoRequestedItemId(),
 			hasNoRequestedItemBarcode()
 		));
+	}
+
+	@Test
+	void shouldNotRequestTransactionStatusForNullId() {
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var localRequest = singleValueFrom(client.getRequest(null));
+
+		// Assert
+		assertThat("Should be an empty publisher", localRequest, is(nullValue()));
 	}
 
 	@ParameterizedTest
