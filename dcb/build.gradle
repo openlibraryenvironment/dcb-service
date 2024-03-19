@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 buildscript {
 	repositories {
 		mavenCentral()
@@ -324,4 +326,9 @@ graalvmNative {
             buildArgs.add('-H:+AddAllCharsets')
         }
     }
+}
+
+
+tasks.withType(ShadowJar) {
+    setZip64(true)
 }

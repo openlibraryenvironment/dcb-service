@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 buildscript {
 	repositories {
 		mavenCentral()
@@ -48,4 +50,9 @@ task staticCopyOpenApi(type: Copy) {
 	// Promote the redoc index page to the open api sub-path
 	from('dcb/build/classes/java/main/META-INF/swagger/views/redoc/index.html')
 	into 'build/docs/asciidoc/openapi'
+}
+
+
+tasks.withType(ShadowJar) {
+    setZip64(true)
 }
