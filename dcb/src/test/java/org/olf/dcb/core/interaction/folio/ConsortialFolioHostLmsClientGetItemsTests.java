@@ -69,6 +69,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MockServerMicronautTest
 class ConsortialFolioHostLmsClientGetItemsTests {
 	private static final String CATALOGUING_HOST_LMS_CODE = "folio-cataloguing-host-lms";
+	private static final String CIRCULATING_HOST_LMS_CODE = "folio-circulating-host-lms";
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
@@ -91,6 +92,10 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 		hostLmsFixture.createFolioHostLms(CATALOGUING_HOST_LMS_CODE, "https://fake-cataloguing-folio",
 			API_KEY, "", "");
 
+		hostLmsFixture.createFolioHostLms(CIRCULATING_HOST_LMS_CODE, "https://fake-circulating-folio",
+			API_KEY, "", "");
+
+		// Only mock responses from the cataloguing Host LMS
 		mockFolioFixture = new MockFolioFixture(mockServerClient, "fake-cataloguing-folio", API_KEY);
 
 		client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
@@ -107,7 +112,8 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 			CATALOGUING_HOST_LMS_CODE,
 			"book", "canonical-book");
 
-		agencyFixture.defineAgency("known-agency", "Known agency");
+		agencyFixture.defineAgency("known-agency", "Known agency",
+			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
 		final var instanceId = randomUUID().toString();
 
