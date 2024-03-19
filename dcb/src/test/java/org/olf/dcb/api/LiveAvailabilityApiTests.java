@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
-import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -32,6 +31,9 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LiveAvailabilityApiTests {
 	private static final String HOST_LMS_CODE = "live-availability-api-tests";
+
+	private static final String SUPPLYING_AGENCY_CODE = "345test";
+	private static final String SUPPLYING_AGENCY_NAME = "Test College";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -89,14 +91,12 @@ class LiveAvailabilityApiTests {
 		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId,
 			"798472", clusterRecord);
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping( "live-availability-api-tests", "ab6", "345test");
+		final var locationCode = "ab6";
 
-		agencyFixture.saveAgency(
-			DataAgency.builder()
-				.id(randomUUID())
-				.code("345test")
-				.name("Test College")
-				.build());
+		referenceValueMappingFixture.defineLocationToAgencyMapping( "live-availability-api-tests",
+			locationCode, SUPPLYING_AGENCY_CODE);
+
+		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_NAME);
 
 		// Act
 		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
@@ -121,8 +121,8 @@ class LiveAvailabilityApiTests {
 		assertThat(firstItem.getHoldCount(), is(0));
 		assertThat(firstItem.getLocalItemType(), is("999"));
 		assertThat(firstItem.getCanonicalItemType(), is("BKM"));
-		assertThat(firstItem.getAgency().getCode(), is("345test"));
-		assertThat(firstItem.getAgency().getDescription(), is("Test College"));
+		assertThat(firstItem.getAgency().getCode(), is(SUPPLYING_AGENCY_CODE));
+		assertThat(firstItem.getAgency().getDescription(), is(SUPPLYING_AGENCY_NAME));
 
 		final var firstItemStatus = firstItem.getStatus();
 
@@ -132,7 +132,7 @@ class LiveAvailabilityApiTests {
 		final var firstItemLocation = firstItem.getLocation();
 
 		assertThat(firstItemLocation, is(notNullValue()));
-		assertThat(firstItemLocation.getCode(), is("ab6"));
+		assertThat(firstItemLocation.getCode(), is(locationCode));
 		assertThat(firstItemLocation.getName(), is("King 6th Floor"));
 
 		final var secondItem = items.get(1);
@@ -146,8 +146,8 @@ class LiveAvailabilityApiTests {
 		assertThat(secondItem.getHoldCount(), is(0));
 		assertThat(secondItem.getLocalItemType(), is("999"));
 		assertThat(secondItem.getCanonicalItemType(), is("BKM"));
-		assertThat(secondItem.getAgency().getCode(), is("345test"));
-		assertThat(secondItem.getAgency().getDescription(), is("Test College"));
+		assertThat(secondItem.getAgency().getCode(), is(SUPPLYING_AGENCY_CODE));
+		assertThat(secondItem.getAgency().getDescription(), is(SUPPLYING_AGENCY_NAME));
 
 		final var secondItemStatus = secondItem.getStatus();
 
@@ -157,7 +157,7 @@ class LiveAvailabilityApiTests {
 		final var secondItemLocation = secondItem.getLocation();
 
 		assertThat(secondItemLocation, is(notNullValue()));
-		assertThat(secondItemLocation.getCode(), is("ab6"));
+		assertThat(secondItemLocation.getCode(), is(locationCode));
 		assertThat(secondItemLocation.getName(), is("King 6th Floor"));
 	}
 
