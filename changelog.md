@@ -1,5 +1,66 @@
 # Changelog
 
+## Version 5.11.0
+
+### Additions
+* [General]
+	* Confirm FOLIO supplying agency request immediately DCB-884
+	* Startup defaults and JVM info sources
+	* Fallback to general information field for language DCB-394
+	* Split concatenated language codes during MARC ingest DCB-394
+	* implement borrower ILL flow for polaris
+	* DCB-918 add local-id to location modelling to allow DCB to reference host lms locations by their internal ID
+
+### Changes
+* [Chore]
+	* use concatMap when tracking rather than constrained flatmap
+	* Added necessary options for larger zip file archives
+	* Stop explicitly specifying db pool size and instead compute defaults from allocated cores
+	* add timers to tracking service
+	* signpost for todo needed on hierarchical host LMS setup
+	* Wire in remaining test backoff poll calls
+	* allow awaiting pickup at borrower to progress in transit
+	* Allow virtual items to be tracked even in a missing state
+	* remove another extra audit message, use ctx.workflowMessages instead. Tone down logging on polaris url factory
+	* additional logging
+	* Reinstate flag to not reflect loaned back to polaris, remove additional excessive audit messages
+	* remove excessive state change message
+	* Bump commit to force CI
+	* push nullsafe protection down into sierra client
+	* Back off nullsafe protections in tracking code
+	* preparation for hold cleanup and defensive code on action tracking
+	* tidy
+	* more logging
+	* Refactor to allow pickup location to propagate to borrowing system hold
+	* logging for new tracking options
+	* add missing migration file
+	* Report host lms code when constructing the adapter to aid in troubleshooting from logs
+* [Feature]
+	* DCB-939 - graphql endpoint for pickup locations sorted by local agency locations first
+	* Use more descriptive note text
+	* Introduce common function to generate more descriptive note to request workflow context
+	* Add backoff timing on tracking service
+	* Allow an item state of LOANED to allow the RECEVED flow to trigger - letting us handle a failed detection of check-in
+	* DCB-926 add remaining tracking
+	* DCB-925 first part of tracking improvements
+	* DCB-926 add domain model fields for better control of poll intervals when tracking
+	* DCB-919 Add pickup location fields in to request workflow context
+* [Refactor]
+	* revise place hold method in polaris
+
+### Fixes
+* [General]
+	* Stop requesting FOLIO transaction status for empty ID
+	* Trying a different engine to see if that resolves the statemodel generation problem
+	* Allow FOLIO CLOSED state to complete a dcb request
+	* repeated error detection for supplier request
+	* updateItemThenCheckout should be passed itemid and not item barcode
+	* DCB-931 - Use explicit mapping for canonical item type to folio
+	* don't assume process graphql will come with a sort option
+	* Owning location not being set in sierra, preventing return transit flow
+	* DCB-923 include calls to delete item and bib in reactive flow
+	* DCB-922 attempt to clear transit message in sierra by setting message to zero length string
+
 ## Version 5.10.0
 
 ### Additions
@@ -10,6 +71,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* add update methods to patron request repository for more granular polling control
 	* add update methods to supplier request repository for more granular polling control
 	* Add extra tracking states to test
