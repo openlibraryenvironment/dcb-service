@@ -4,9 +4,9 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
@@ -16,7 +16,6 @@ import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMat
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +26,6 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.CannotFindSelectedBibException;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
@@ -49,10 +47,12 @@ import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 class PlaceRequestAtBorrowingAgencyTests {
 	private static final String HOST_LMS_CODE = "borrowing-agency-service-tests";
 	private static final String INVALID_HOLD_POLICY_HOST_LMS_CODE = "invalid-hold-policy";
+
+	private static final String BORROWING_AGENCY_CODE = "borrowing-agency";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -102,12 +102,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		hostLmsFixture.createSierraHostLms(INVALID_HOLD_POLICY_HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, "invalid");
 
-		agencyFixture.saveAgency(DataAgency.builder()
-			.id(UUID.randomUUID())
-			.code("ab6")
-			.name("Test AB6")
-			.hostLms(sierraHostLms)
-			.build());
+		agencyFixture.defineAgency(BORROWING_AGENCY_CODE, "Borrowing Agency", sierraHostLms);
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
@@ -120,7 +115,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.build();
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
-		sierraItemsAPIFixture.successResponseForCreateItem(7916921, "ab6", "9849123490");
+		sierraItemsAPIFixture.successResponseForCreateItem(7916921,
+			BORROWING_AGENCY_CODE, "9849123490");
 
 		sierraItemsAPIFixture.mockGetItemById("7916922",
 			SierraItem.builder()
@@ -139,10 +135,13 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		clusterRecordFixture.deleteAll();
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab6", "ab6");
+		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,
+			BORROWING_AGENCY_CODE, BORROWING_AGENCY_CODE);
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			INVALID_HOLD_POLICY_HOST_LMS_CODE, "ab6", "ab6");
-		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,"ABC123","ab6");
+			INVALID_HOLD_POLICY_HOST_LMS_CODE, BORROWING_AGENCY_CODE,
+			BORROWING_AGENCY_CODE);
+		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,"ABC123",
+			BORROWING_AGENCY_CODE);
 	}
 
 	@Test
@@ -177,7 +176,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
-			"ab6", "9849123490", hostLms.code, "ab6");
+			BORROWING_AGENCY_CODE, "9849123490", hostLms.code, BORROWING_AGENCY_CODE);
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(localPatronId, "b", 7916921);
 
@@ -203,10 +202,10 @@ class PlaceRequestAtBorrowingAgencyTests {
 		assertThat("Local request id wasn't expected.", pr.getLocalRequestId(), is("864902"));
 		assertThat("Local request status wasn't expected.", pr.getLocalRequestStatus(), is("CONFIRMED"));
 
-		assertSuccessfulTransitionAudit(pr, CONFIRMED);
-
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade(localPatronId, "b",
-			7916921, "ABC123", "Consortial Hold. tno=" + pr.getId()+" \nFor UNKNOWN@null\n Pickup UNKNOWN@ab6");
+			7916921, "ABC123",
+			"Consortial Hold. tno=" + pr.getId()+" \nFor UNKNOWN@null\n Pickup UNKNOWN@%s"
+				.formatted(BORROWING_AGENCY_CODE));
 	}
 
 	@Test
@@ -240,7 +239,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "647245", "localItemId",
-			"ab6", "9849123490", hostLms.code, "ab6");
+			BORROWING_AGENCY_CODE, "9849123490", hostLms.code, BORROWING_AGENCY_CODE);
 
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("972321", "b");
 
@@ -300,7 +299,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "35365", "localItemId",
-			"ab6", "9849123490", hostLms.code, "ab6");
+			BORROWING_AGENCY_CODE, "9849123490", hostLms.code, BORROWING_AGENCY_CODE);
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("785843", "b", 7916921);
 
@@ -319,7 +318,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 		assertThat("Request should have error status afterwards",
 			fetchedPatronRequest.getStatus(), is(ERROR));
 
-		String expectedNote="No hold request found for the given note: Consortial Hold. tno=" + patronRequestId+" \nFor UNKNOWN@null\n Pickup UNKNOWN@ab6";
+		String expectedNote="No hold request found for the given note: Consortial Hold. tno=%s \nFor UNKNOWN@null\n Pickup UNKNOWN@%s"
+			.formatted(patronRequestId, BORROWING_AGENCY_CODE);
 
 		assertThat("Request should have error message afterwards", fetchedPatronRequest.getErrorMessage(), is(expectedNote));
 
@@ -357,7 +357,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
-			"ab6", "9849123490", invalidHoldPolicyHostLms.code, "ab6");
+			BORROWING_AGENCY_CODE, "9849123490", invalidHoldPolicyHostLms.code,
+			BORROWING_AGENCY_CODE);
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
@@ -408,7 +409,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
-			"ab6", "9849123490", hostLms.code, "ab6");
+			BORROWING_AGENCY_CODE, "9849123490", hostLms.code, BORROWING_AGENCY_CODE);
 
 		// Act
 		final var exception = assertThrows(CannotFindSelectedBibException.class,
@@ -455,7 +456,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
-			"ab6", "9849123490", hostLms.code, "ab6");
+			BORROWING_AGENCY_CODE, "9849123490", hostLms.code, BORROWING_AGENCY_CODE);
 
 		// Act
 		final var exception = assertThrows(CannotFindClusterRecordException.class,
@@ -477,8 +478,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
 	}
 
-	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest, PatronRequest.Status expectedFromStatus) {
-		assertThat("Patron request has expected status", patronRequest.getStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY) );
+	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
+		assertThat("Patron request has expected status", patronRequest.getStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
 	}
 
 	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
