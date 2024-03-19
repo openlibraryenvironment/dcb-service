@@ -67,7 +67,7 @@ import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-class ConsortialFolioHostLmsClientItemTests {
+class ConsortialFolioHostLmsClientGetItemsTests {
 	private static final String HOST_LMS_CODE = "folio-lms-client-item-tests";
 
 	@Inject
