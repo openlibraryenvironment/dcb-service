@@ -1,8 +1,7 @@
 package org.olf.dcb.test;
 
+import static java.util.UUID.randomUUID;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-
-import java.util.UUID;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
@@ -36,23 +35,16 @@ public class AgencyFixture {
 	}
 
 	public DataAgency defineAgency(String code, String name) {
-		return saveAgency(DataAgency.builder()
-			.id(UUID.randomUUID())
-			.code(code)
-			.name(name)
-			.isSupplyingAgency(Boolean.TRUE)
-			.build());
+		return defineAgency(code, name, null);
 	}
 
 	public DataAgency defineAgency(String code, String name, DataHostLms hostLms) {
 		return saveAgency(DataAgency.builder()
-			.id(UUID.randomUUID())
+			.id(randomUUID())
 			.code(code)
 			.name(name)
-			.isSupplyingAgency(Boolean.TRUE)
+			.isSupplyingAgency(true)
 			.hostLms(hostLms)
 			.build());
 	}
-
-
 }
