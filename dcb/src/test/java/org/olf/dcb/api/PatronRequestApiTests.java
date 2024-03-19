@@ -80,6 +80,7 @@ class PatronRequestApiTests {
 	private static final String KNOWN_PATRON_LOCAL_ID = "872321";
 	private static final String PICKUP_LOCATION_CODE = "ABC123";
 	private static final String SUPPLYING_LOCATION_CODE = "ab6";
+	private static final String SUPPLYING_AGENCY_CODE = "supplying-agency";
 	private static final String SUPPLYING_ITEM_BARCODE = "6565750674";
 	private final String VALID_PICKUP_LOCATION_ID = "0f102b5a-e300-41c8-9aca-afd170e17921";
 
@@ -158,8 +159,10 @@ class PatronRequestApiTests {
 				.build());
 
 		// patron service
-		sierraPatronsAPIFixture.patronNotFoundResponse("u", "872321@ab6");
-		sierraPatronsAPIFixture.postPatronResponse("872321@ab6", 2745326);
+		final var expectedUniqueId = "%s@%s".formatted(KNOWN_PATRON_LOCAL_ID, SUPPLYING_AGENCY_CODE);
+
+		sierraPatronsAPIFixture.patronNotFoundResponse("u", expectedUniqueId);
+		sierraPatronsAPIFixture.postPatronResponse(expectedUniqueId, 2745326);
 
 		// supplying agency service
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("2745326", "i", null);
@@ -171,7 +174,7 @@ class PatronRequestApiTests {
 			.build();
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
-		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_LOCATION_CODE, SUPPLYING_ITEM_BARCODE);
+		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_AGENCY_CODE, SUPPLYING_ITEM_BARCODE);
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(KNOWN_PATRON_LOCAL_ID, "i", null);
 
 		final var borrowingAgency = agencyFixture.saveAgency(DataAgency.builder()
@@ -183,8 +186,8 @@ class PatronRequestApiTests {
 
 		agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
-			.code(SUPPLYING_LOCATION_CODE)
-			.name("AB6")
+			.code(SUPPLYING_AGENCY_CODE)
+			.name("Supplying Agency")
 			.hostLms(supplyingHostLms)
 			.build());
 
@@ -192,8 +195,8 @@ class PatronRequestApiTests {
 		sierraPatronsAPIFixture.addPatronGetExpectation(KNOWN_PATRON_LOCAL_ID);
 
 		// AGENCY1 has 1 PICKUP location of PICKUP_LOCATION_CODE (ABC123)
-		locationFixture.createPickupLocation(UUID.fromString(
-			VALID_PICKUP_LOCATION_ID), PICKUP_LOCATION_CODE, PICKUP_LOCATION_CODE, borrowingAgency);
+		locationFixture.createPickupLocation(UUID.fromString(VALID_PICKUP_LOCATION_ID),
+			PICKUP_LOCATION_CODE, PICKUP_LOCATION_CODE, borrowingAgency);
 	}
 
 	@BeforeEach
@@ -209,12 +212,12 @@ class PatronRequestApiTests {
 		eventLogFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			SUPPLYING_HOST_LMS_CODE, SUPPLYING_LOCATION_CODE, SUPPLYING_LOCATION_CODE);
+			SUPPLYING_HOST_LMS_CODE, SUPPLYING_LOCATION_CODE, SUPPLYING_AGENCY_CODE);
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			SUPPLYING_HOST_LMS_CODE, "tstce", SUPPLYING_LOCATION_CODE);
+			SUPPLYING_HOST_LMS_CODE, "tstce", SUPPLYING_AGENCY_CODE);
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			SUPPLYING_HOST_LMS_CODE, "tstr", SUPPLYING_LOCATION_CODE);
+			SUPPLYING_HOST_LMS_CODE, "tstr", SUPPLYING_AGENCY_CODE);
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			SUPPLYING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, "AGENCY1");
@@ -493,7 +496,7 @@ class PatronRequestApiTests {
 				.build());
 
 		// Mock required for placing request with different item barcode
-		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_LOCATION_CODE, updatedLocalSupplyingItemBarcode);
+		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_AGENCY_CODE, updatedLocalSupplyingItemBarcode);
 
 		trackingFixture.runTracking();
 
