@@ -23,6 +23,7 @@ import guru.nidi.graphviz.attribute.Rank;
 import guru.nidi.graphviz.attribute.Shape;
 import guru.nidi.graphviz.engine.Format;
 import guru.nidi.graphviz.engine.Graphviz;
+import guru.nidi.graphviz.engine.GraphvizJdkEngine;
 import guru.nidi.graphviz.model.Graph;
 import guru.nidi.graphviz.model.LinkSource;
 import io.micronaut.context.annotation.Prototype;
@@ -49,6 +50,9 @@ public class StateModelService {
     ) {
     	byte [] result = new byte[0];
         try {
+        	// Use the JDK engine
+        	Graphviz.useEngine(new GraphvizJdkEngine());
+        	
             // Now build up the list of the links
             // First the actions
             List<LinkSource> links = new ArrayList<LinkSource>();
