@@ -185,7 +185,8 @@ dependencies {
 	
 	// For graphviz
 	implementation 'guru.nidi:graphviz-java-all-j2v8:0.18.1'
-  
+	implementation 'org.graalvm.js:js:23.0.3'
+
 }
 
 application {
