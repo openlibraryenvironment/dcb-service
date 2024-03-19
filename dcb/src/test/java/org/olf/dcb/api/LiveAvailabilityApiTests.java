@@ -8,6 +8,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,9 +29,10 @@ import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 class LiveAvailabilityApiTests {
-	private static final String HOST_LMS_CODE = "live-availability-api-tests";
+	private static final String CATALOGUING_HOST_LMS_CODE = "live-availability-cataloguing";
+	private static final String CIRCULATING_HOST_LMS_CODE = "live-availability-circulating";
 
 	private static final String SUPPLYING_AGENCY_CODE = "345test";
 	private static final String SUPPLYING_AGENCY_NAME = "Test College";
@@ -69,7 +71,8 @@ class LiveAvailabilityApiTests {
 
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
+		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
+		hostLmsFixture.createSierraHostLms(CIRCULATING_HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 	}
 
 	@BeforeEach
@@ -84,7 +87,7 @@ class LiveAvailabilityApiTests {
 
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 
-		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var hostLms = hostLmsFixture.findByCode(CATALOGUING_HOST_LMS_CODE);
 
 		final var sourceSystemId = hostLms.getId();
 
@@ -93,10 +96,11 @@ class LiveAvailabilityApiTests {
 
 		final var locationCode = "ab6";
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping( "live-availability-api-tests",
-			locationCode, SUPPLYING_AGENCY_CODE);
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CATALOGUING_HOST_LMS_CODE, locationCode, SUPPLYING_AGENCY_CODE);
 
-		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_NAME);
+		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_NAME,
+			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
 		// Act
 		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
