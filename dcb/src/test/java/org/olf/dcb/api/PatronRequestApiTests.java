@@ -81,8 +81,9 @@ class PatronRequestApiTests {
 	private static final String PICKUP_LOCATION_CODE = "ABC123";
 	private static final String SUPPLYING_LOCATION_CODE = "ab6";
 	private static final String SUPPLYING_AGENCY_CODE = "supplying-agency";
+	private static final String BORROWING_AGENCY_CODE = "borrowing-agency";
 	private static final String SUPPLYING_ITEM_BARCODE = "6565750674";
-	private final String VALID_PICKUP_LOCATION_ID = "0f102b5a-e300-41c8-9aca-afd170e17921";
+	private static final String VALID_PICKUP_LOCATION_ID = "0f102b5a-e300-41c8-9aca-afd170e17921";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -179,8 +180,8 @@ class PatronRequestApiTests {
 
 		final var borrowingAgency = agencyFixture.saveAgency(DataAgency.builder()
 			.id(UUID.randomUUID())
-			.code("AGENCY1")
-			.name("Test AGENCY1")
+			.code(BORROWING_AGENCY_CODE)
+			.name("Borrowing Agency")
 			.hostLms(borrowingHostLms)
 			.build());
 
@@ -220,8 +221,9 @@ class PatronRequestApiTests {
 			SUPPLYING_HOST_LMS_CODE, "tstr", SUPPLYING_AGENCY_CODE);
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			SUPPLYING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, "AGENCY1");
-		referenceValueMappingFixture.defineLocationToAgencyMapping(PICKUP_LOCATION_CODE, "AGENCY1");
+			SUPPLYING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, BORROWING_AGENCY_CODE);
+		referenceValueMappingFixture.defineLocationToAgencyMapping(PICKUP_LOCATION_CODE,
+			BORROWING_AGENCY_CODE);
 	}
 
 	@Test
