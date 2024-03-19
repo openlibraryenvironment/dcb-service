@@ -45,7 +45,6 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Event;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.test.AgencyFixture;
@@ -178,19 +177,10 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_AGENCY_CODE, SUPPLYING_ITEM_BARCODE);
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(KNOWN_PATRON_LOCAL_ID, "i", null);
 
-		final var borrowingAgency = agencyFixture.saveAgency(DataAgency.builder()
-			.id(UUID.randomUUID())
-			.code(BORROWING_AGENCY_CODE)
-			.name("Borrowing Agency")
-			.hostLms(borrowingHostLms)
-			.build());
+		final var borrowingAgency = agencyFixture.defineAgency(BORROWING_AGENCY_CODE,
+			"Borrowing Agency", borrowingHostLms);
 
-		agencyFixture.saveAgency(DataAgency.builder()
-			.id(UUID.randomUUID())
-			.code(SUPPLYING_AGENCY_CODE)
-			.name("Supplying Agency")
-			.hostLms(supplyingHostLms)
-			.build());
+		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, "Supplying Agency", supplyingHostLms);
 
 		sierraPatronsAPIFixture.addPatronGetExpectation("43546");
 		sierraPatronsAPIFixture.addPatronGetExpectation(KNOWN_PATRON_LOCAL_ID);
