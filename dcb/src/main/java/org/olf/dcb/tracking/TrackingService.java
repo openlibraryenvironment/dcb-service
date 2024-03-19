@@ -98,7 +98,7 @@ public class TrackingService implements Runnable {
 		return Flux.from(patronRequestRepository.findTrackedPatronHolds())
 			.doOnSubscribe(_s -> log.info("TRACKING trackActivePatronRequestHolds()"))
 			.filter( pr -> passBackoffPolling("PatronRequest", pr.getId(), pr.getLocalRequestLastCheckTimestamp(), pr.getLocalRequestStatusRepeat()) )
-			.flatMap(this::checkPatronRequest,2)
+			.concatMap(this::checkPatronRequest)
 			.transform(enrichWithLogging("TRACKING active borrower request tracking complete", "TrackingError (PatronHold):"));
 	}
 
@@ -107,7 +107,7 @@ public class TrackingService implements Runnable {
 		return Flux.from(patronRequestRepository.findTrackedVirtualItems())
 			.doOnSubscribe(_s -> log.info("TRACKING trackVirtualItems()"))
 			.filter( pr -> passBackoffPolling("VirtualItem", pr.getId(), pr.getLocalItemLastCheckTimestamp(), pr.getLocalItemStatusRepeat()) )
-			.flatMap(this::checkVirtualItem,2)
+			.concatMap(this::checkVirtualItem)
 			.transform(enrichWithLogging("TRACKING active borrower virtual item tracking complete", "TrackingError (VirtualItem):"));
 	}
 
@@ -121,7 +121,7 @@ public class TrackingService implements Runnable {
 		return Flux.from(supplierRequestRepository.findTrackedSupplierItems())
 			.doOnSubscribe(_s -> log.info("TRACKING trackSupplierItems()"))
 			.filter( sr -> passBackoffPolling("SupplierItem", sr.getId(), sr.getLocalItemLastCheckTimestamp(), sr.getLocalItemStatusRepeat()) )
-			.flatMap(this::enrichWithPatronRequest,2)
+			.concatMap(this::enrichWithPatronRequest)
 			.concatMap(this::checkSupplierItem)
 			.transform(enrichWithLogging("TRACKING active supplier item tracking complete", "TrackingError (SupplierItem):"));
 	}
@@ -130,7 +130,7 @@ public class TrackingService implements Runnable {
 		return Flux.from(supplierRequestRepository.findTrackedSupplierHolds())
 				.doOnSubscribe(_s -> log.info("TRACKING trackActiveSupplierHolds()"))
 			.filter( sr -> passBackoffPolling("SupplierRequest", sr.getId(), sr.getLocalRequestLastCheckTimestamp(), sr.getLocalRequestStatusRepeat()) )
-      .flatMap(this::enrichWithPatronRequest,2)
+      .concatMap(this::enrichWithPatronRequest)
 			.concatMap(this::checkSupplierRequest)
 			.transform(enrichWithLogging("TRACKING active supplier hold tracking complete", "TrackingError (SupplierHold):"));
 	}
