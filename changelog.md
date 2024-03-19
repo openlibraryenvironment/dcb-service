@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 5.11.1
+
+### Changes
+* [Chore]
+	* comment out graalvm jar it causes the native image build to explode
+
 ## Version 5.11.0
 
 ### Additions
@@ -13,6 +19,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* use concatMap when tracking rather than constrained flatmap
 	* Added necessary options for larger zip file archives
 	* Stop explicitly specifying db pool size and instead compute defaults from allocated cores
