@@ -38,8 +38,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 
-import io.micronaut.http.client.exceptions.ResponseClosedException;
-import io.micronaut.retry.annotation.Retryable;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CannotPlaceRequestException;
@@ -79,8 +77,10 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.http.client.exceptions.ResponseClosedException;
 import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.retry.annotation.Retryable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
@@ -327,7 +327,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return createTransaction(request)
 			.map(response -> LocalRequest.builder()
 				.localId(transactionId)
-				.localStatus(HOLD_PLACED)
+				.localStatus(HOLD_CONFIRMED)
 				.build());
 	}
 
