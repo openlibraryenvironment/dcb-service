@@ -449,8 +449,6 @@ class ConsortialFolioHostLmsClientItemTests {
 			.withBody(json(Map.of("message", "something went wrong"))));
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
 		final var problem = assertThrows(ThrowableProblem.class, () -> getItems(instanceId));
 
 		// Assert
