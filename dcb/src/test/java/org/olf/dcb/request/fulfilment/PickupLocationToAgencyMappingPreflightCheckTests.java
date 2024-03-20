@@ -3,19 +3,20 @@ package org.olf.dcb.request.fulfilment;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
-import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-import java.util.UUID;
-import org.olf.dcb.core.model.DataAgency;
+
 import jakarta.inject.Inject;
 
 @DcbTest
-public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPreflightCheckTests {
+class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Inject
 	private PickupLocationToAgencyMappingPreflightCheck check;
 
@@ -41,18 +42,15 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 		// Arrange
     final var hostLms = hostLmsFixture.createSierraHostLms("TESTHOST", "1234", "5678", "http://nowhere.com/");
 
-    final var da = agencyFixture.saveAgency(DataAgency.builder()
-      .id(UUID.randomUUID())
-      .code("known-agency")
-      .name("Test AGENCY1")
-      .hostLms(hostLms)
-      .build());
+    final var agency = agencyFixture.defineAgency("test-agency", "Test Agency", hostLms);
 
-    // AGENCY1 has 1 PICKUP location of PICKUP_LOCATION_CODE (ABC123)
-    locationFixture.createPickupLocation(UUID.fromString("0f102b5a-e300-41c8-9aca-afd170e17921"), "PickupLocationName", "PickupLocationCode", da);
+    // Agency has 1 PICKUP location of PICKUP_LOCATION_CODE
+    locationFixture.createPickupLocation(UUID.fromString("0f102b5a-e300-41c8-9aca-afd170e17921"),
+			"PickupLocationName", "PickupLocationCode", agency);
 
 		// Act
-		final var command = placeRequestCommand("0f102b5a-e300-41c8-9aca-afd170e17921", null, "requester-host-lms-code");
+		final var command = placeRequestCommand("0f102b5a-e300-41c8-9aca-afd170e17921",
+			null, "requester-host-lms-code");
 
 		final var results = check.check(command).block();
 
@@ -63,11 +61,13 @@ public class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPr
 	@Test
 	void shouldFailWhenPickupLocationIsNotMappedToAnAgency() {
 		// Act
-		final var command = placeRequestCommand("known-pickup-location", "pickup-context", "requester-host-lms-code");
+		final var command = placeRequestCommand("known-pickup-location",
+			"pickup-context", "requester-host-lms-code");
+
 		final var results = check.check(command).block();
 
 		// Assert
-		assertThat(results, containsInAnyOrder(failedCheck("Pickup location \"known-pickup-location\" is not mapped to an agency")));
+		assertThat(results, containsInAnyOrder(failedCheck(
+			"Pickup location \"known-pickup-location\" is not mapped to an agency")));
 	}
-
 }
