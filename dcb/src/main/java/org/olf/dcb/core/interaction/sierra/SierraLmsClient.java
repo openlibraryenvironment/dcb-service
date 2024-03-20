@@ -30,6 +30,7 @@ import static services.k_int.utils.MapUtils.getAsOptionalString;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -225,6 +226,17 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					// Increment the offset for the next fetch
 					state.offset += bibs.size();
 
+					// Track the highest record timestamp we have seen so we know where to pick up next run
+					for ( BibResult br : bibs ) {
+						if ( br.updatedDate() != null ) {
+							long ts = br.updatedDate().toInstant(ZoneOffset.UTC).toEpochMilli();
+							if ( ts > state.highest_record_timestamp ) {
+								log.debug("Advancing highest timestamp");
+								state.highest_record_timestamp = ts;
+							}
+						}
+					}
+
 					// If we have exhausted the currently cached page, and we are at the end,
 					// terminate.
 					if (!state.possiblyMore) {
@@ -237,6 +249,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						state.storred_state.put("name", lms.getName());
 						state.storred_state.put("lastCompletedHRTS", new Date().toString());
 						state.storred_state.put("status", "COMPLETED");
+						state.storred_state.put("highest_record_timestamp", Long.valueOf(state.highest_record_timestamp).toString());
 
 						log.info("No more results to fetch from {}", lms.getName());
 						return Mono.empty();
@@ -245,6 +258,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 						log.trace("Exhausted current page from {} , prep next", lms.getName());
 						// We have finished consuming a page of data, but there is more to come.
 						// Remember where we got up to and stash it in the DB
+						state.storred_state.put("highest_record_timestamp", Long.valueOf(state.highest_record_timestamp).toString());
 						if (state.since != null) {
 							state.storred_state.put("deltaHRTS", new Date(state.sinceMillis).toString());
 							state.storred_state.put("cursor", "deltaSince:" + state.sinceMillis + ":" + state.offset);
@@ -1227,6 +1241,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		PublisherState generator_state = new PublisherState(current_state);
 		log.info("backpressureAwareBibResultGenerator - state=" + current_state + " lmsid=" + lms.getId() + " thread="
 				+ Thread.currentThread().getName());
+
+		// If we have a recorded highest record timestampe, reconstitute it here
+		String highest_record_timestamp_as_str = (String) current_state.get("highest_record_timestamp");
+		if ( highest_record_timestamp_as_str != null ) {
+			generator_state.highest_record_timestamp = Long.parseLong(highest_record_timestamp_as_str);
+		}
 
 		String cursor = (String) current_state.get("cursor");
 		if (cursor != null) {

@@ -36,4 +36,7 @@ public class PublisherState {
 	@Builder.Default
 	public int page_counter = 0;
 
+	@Builder.Default
+	public long highest_record_timestamp = 0;
+
 }
