@@ -199,16 +199,18 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 	void shouldTolerateLocationNotBeingMappedToAnAgency() {
 		// Arrange
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeMapping(
-			CATALOGUING_HOST_LMS_CODE,
-			"book", "canonical-book");
+			CATALOGUING_HOST_LMS_CODE, "book", "canonical-book");
 
 		final var instanceId = randomUUID().toString();
+
+		final var locationName = "Unmapped Location";
+		final var locationCode = "unmapped-location";
 
 		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
 			Holding.builder()
 				.id("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2")
-				.location("Unmapped Location")
-				.locationCode("unmapped-location")
+				.location(locationName)
+				.locationCode(locationCode)
 				.status("Available")
 				.totalHoldRequests(1)
 				.suppressFromDiscovery(true)
@@ -234,7 +236,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 				hasLocalItemType("book"),
 				hasLocalItemTypeCode("book"),
 				hasCanonicalItemType("canonical-book"),
-				hasLocation("Unmapped Location", "unmapped-location"),
+				hasLocation(locationName, locationCode),
 				isSuppressed(),
 				isNotDeleted(),
 				hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
@@ -243,7 +245,66 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 			)
 		));
 	}
-	
+
+	@Test
+	void shouldTolerateAgencyWithoutHostLms() {
+		// Arrange
+		final var locationName = "Unmapped Location";
+		final var locationCode = "unmapped-location";
+
+		final var agencyCode = "known-agency";
+		final var agencyName = "Known agency";
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CATALOGUING_HOST_LMS_CODE, locationCode, agencyCode);
+
+		agencyFixture.defineAgency(agencyCode, agencyName, null);
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeMapping(
+			CATALOGUING_HOST_LMS_CODE, "book", "canonical-book");
+
+		final var instanceId = randomUUID().toString();
+		
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
+			Holding.builder()
+				.id("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2")
+				.location(locationName)
+				.locationCode(locationCode)
+				.status("Available")
+				.totalHoldRequests(1)
+				.suppressFromDiscovery(true)
+				.materialType(MaterialType.builder()
+					.name("book")
+					.build())
+				.build()
+		);
+
+		// Act
+		final var items = getItems(instanceId);
+
+		// Assert
+		assertThat(items, containsInAnyOrder(
+			allOf(
+				hasLocalId("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2"),
+				hasLocalBibId(instanceId),
+				hasNoBarcode(),
+				hasNoCallNumber(),
+				hasStatus(AVAILABLE),
+				hasNoDueDate(),
+				hasHoldCount(1),
+				hasLocalItemType("book"),
+				hasLocalItemTypeCode("book"),
+				hasCanonicalItemType("canonical-book"),
+				hasLocation(locationName, locationCode),
+				isSuppressed(),
+				isNotDeleted(),
+				hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
+				hasAgencyCode(agencyCode),
+				hasAgencyName(agencyName)
+			)
+		));
+	}
+
 	@Test
 	void shouldMapItemStatusUsingReferenceValueMappings() {
 		// Arrange
