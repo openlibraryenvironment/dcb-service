@@ -1,16 +1,15 @@
 package org.olf.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
-import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
-import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
-import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNoBriefDescription;
-import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasLocalPatronType;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolvedAgency;
@@ -29,7 +28,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
@@ -46,9 +44,11 @@ import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 public class ValidatePatronTests {
-	private static final String HOST_LMS_CODE = "validate-patron-transition-tests";
+	private static final String BORROWING_HOST_LMS_CODE = "validate-patron-transition-tests";
+	private static final String AGENCY_CODE = "example-agency";
+	private static final String HOME_LIBRARY_CODE = "home-library-code";
 
 	@Inject
 	SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -77,12 +77,15 @@ public class ValidatePatronTests {
 		final String KEY = "validate-patron-transition-key";
 		final String SECRET = "validate-patron-transition-secret";
 
+		referenceValueMappingFixture.deleteAll();
+		agencyFixture.deleteAll();
+		hostLmsFixture.deleteAll();
+
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		hostLmsFixture.deleteAll();
-
-		final var hostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY,
+		final var hostLms = hostLmsFixture.createSierraHostLms(
+			BORROWING_HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, "item");
 
 		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
@@ -91,7 +94,7 @@ public class ValidatePatronTests {
 			SierraPatronsAPIFixture.Patron.builder()
 				.id(1000002)
 				.patronType(15)
-				.homeLibraryCode("testccc")
+				.homeLibraryCode(HOME_LIBRARY_CODE)
 				.barcodes(List.of("647647746"))
 				.names(List.of("Bob"))
 				.build());
@@ -105,15 +108,7 @@ public class ValidatePatronTests {
 				.names(List.of("Bob"))
 				.build());
 
-		referenceValueMappingFixture.deleteAll();
-
-		agencyFixture.deleteAll();
-		agencyFixture.saveAgency(DataAgency.builder()
-			.id(UUID.randomUUID())
-			.code("AGENCY1")
-			.name("Test AGENCY1")
-			.hostLms(hostLms)
-			.build());
+		agencyFixture.defineAgency(AGENCY_CODE, "Example Agency", hostLms);
 	}
 
 	@Test
@@ -121,14 +116,14 @@ public class ValidatePatronTests {
 		// Arrange
 		final var patronRequestId = randomUUID();
 		final var localId = "467295";
-		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 		final var patron = createPatron(localId, hostLms, "123456");
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			"validate-patron-transition-tests", 10, 25, "DCB", "15");
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			"validate-patron-transition-tests", "testccc", "AGENCY1");
+			"validate-patron-transition-tests", HOME_LIBRARY_CODE, AGENCY_CODE);
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
@@ -150,24 +145,22 @@ public class ValidatePatronTests {
 		// Arrange
 		final var patronRequestId = randomUUID();
 		final var localId = "248303";
-		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
-		final var patron = createPatron(localId, hostLms, null);
+
+		final var borrowingHostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
+
+		final var patron = createPatron(localId, borrowingHostLms, null);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			"validate-patron-transition-tests", 10, 25, "DCB", "15");
 
-		final var agency = agencyFixture.saveAgency(DataAgency.builder()
-			.id(UUID.randomUUID())
-			.code("default-agency-code")
-			.name("Default Agency")
-			.hostLms(hostLms)
-			.build());
+		final var agency = agencyFixture.defineAgency("default-agency-code",
+			"Default Agency", borrowingHostLms);
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
 
 		// Act
 		final var validatedPatronRequest = requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-			.flatMap(ctx -> validatePatronTransition.attempt(ctx) )
+			.flatMap(ctx -> validatePatronTransition.attempt(ctx))
 			.thenReturn(patronRequest)
 			.block();
 
@@ -183,7 +176,7 @@ public class ValidatePatronTests {
 		final var LOCAL_ID = "672954";
 		final var patronRequestId = randomUUID();
 
-		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 		final var patron = createPatron(LOCAL_ID, hostLms, "123456");
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
@@ -199,7 +192,7 @@ public class ValidatePatronTests {
 				.block());
 
 		// Assert
-		final var expectedMessage = "Patron \"" + LOCAL_ID + "\" is not recognised in \"" + HOST_LMS_CODE + "\"";
+		final var expectedMessage = "Patron \"" + LOCAL_ID + "\" is not recognised in \"" + BORROWING_HOST_LMS_CODE + "\"";
 
 		assertThat(exception.getMessage(), is(expectedMessage));
 
@@ -211,7 +204,7 @@ public class ValidatePatronTests {
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is(expectedMessage));
 
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedMessage);
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest);
 	}
 
 	@Test
@@ -219,7 +212,7 @@ public class ValidatePatronTests {
 		// Arrange
 		final var patronRequestId = randomUUID();
 		final var localId = "236462";
-		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 		final var patron = createPatron(localId, hostLms, "123456");
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
@@ -255,7 +248,7 @@ public class ValidatePatronTests {
 			hasErrorMessage(expectedMessage)
 		));
 
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedMessage);
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest);
 	}
 
 	@Test
@@ -264,7 +257,7 @@ public class ValidatePatronTests {
 		final var patronRequestId = randomUUID();
 		final var localId = "783742";
 
-		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 
 		final var patron = createPatron(localId, hostLms, "123456");
 
@@ -276,7 +269,7 @@ public class ValidatePatronTests {
 			SierraPatronsAPIFixture.Patron.builder()
 				.id(1000002)
 				.patronType(15)
-				.homeLibraryCode("testccc")
+				.homeLibraryCode(HOME_LIBRARY_CODE)
 				.barcodes(List.of("647647746"))
 				.names(List.of("Bob"))
 				.build());
@@ -300,7 +293,7 @@ public class ValidatePatronTests {
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is(expectedError));
 
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedError);
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest);
 	}
 
 	private Patron createPatron(String localId, DataHostLms hostLms, String homeLibraryCode) {
@@ -329,7 +322,7 @@ public class ValidatePatronTests {
 		assertThat(patronRequest.getStatus(), is(PATRON_VERIFIED) );
 	}
 
-	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
+	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest) {
 		assertThat(patronRequest.getStatus(), is(ERROR) );
 	}
 }

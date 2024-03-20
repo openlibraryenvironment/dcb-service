@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.CannotPlaceRequestException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.zalando.problem.ThrowableProblem;
@@ -38,7 +39,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
-	private static final String HOST_LMS_CODE = "folio-supplying-request-tests";
+	private static final String SUPPLYING_HOST_LMS_CODE = "folio-supplying-host-lms";
+	private static final String PICKUP_HOST_LMS_CODE = "pickup-host-lms";
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
@@ -54,8 +56,11 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		hostLmsFixture.deleteAll();
 		agencyFixture.deleteAll();
 
-		hostLmsFixture.createFolioHostLms(HOST_LMS_CODE, "https://fake-folio",
+		hostLmsFixture.createFolioHostLms(SUPPLYING_HOST_LMS_CODE, "https://fake-folio",
 			API_KEY, "", "");
+
+		hostLmsFixture.createFolioHostLms(PICKUP_HOST_LMS_CODE,
+			"https://fake-pickup-folio", "", "", "");
 
 		mockFolioFixture = new MockFolioFixture(mockServerClient, "fake-folio", API_KEY);
 	}
@@ -74,10 +79,10 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 			.status("CREATED")
 			.build());
 
-		final var pickupAgency = agencyFixture.defineAgency("pickup-agency", "Pickup Agency");
+		final var pickupAgency = definePickupAgency();
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
 		final var placedRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
@@ -128,10 +133,10 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.build()))
 				.build())));
 
-		final var pickupAgency = agencyFixture.defineAgency("pickup-agency", "Pickup Agency");
+		final var pickupAgency = definePickupAgency();
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
 		final var exception = assertThrows(CannotPlaceRequestException.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
@@ -161,10 +166,10 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.build()))
 				.build())));
 
-		final var pickupAgency = agencyFixture.defineAgency("pickup-agency", "Pickup Agency");
+		final var pickupAgency = definePickupAgency();
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
 		final var exception = assertThrows(CannotPlaceRequestException.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
@@ -195,10 +200,10 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 				.path("/dcbService/transactions/9fc11ffd-3c07-4b75-a6db-045127c43dc1")
 				.build())));
 
-		final var pickupAgency = agencyFixture.defineAgency("pickup-agency", "Pickup Agency");
+		final var pickupAgency = definePickupAgency();
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
 		final var exception = assertThrows(InvalidApiKeyException.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
@@ -224,10 +229,10 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 			// This is a made up body that is only intended to demonstrate how it's captured
 			.withBody(json(Map.of("message", "something went wrong"))));
 
-		final var pickupAgency = agencyFixture.defineAgency("pickup-agency", "Pickup Agency");
+		final var pickupAgency = definePickupAgency();
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
 		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
@@ -242,9 +247,14 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 
 		// Assert
 		assertThat(problem, allOf(
-			hasMessageForHostLms(HOST_LMS_CODE),
+			hasMessageForHostLms(SUPPLYING_HOST_LMS_CODE),
 			hasResponseStatusCodeParameter(400),
 			hasJsonResponseBodyProperty("message", "something went wrong")
 		));
+	}
+
+	private DataAgency definePickupAgency() {
+		return agencyFixture.defineAgency("pickup-agency",
+			"Pickup Agency", hostLmsFixture.findByCode(PICKUP_HOST_LMS_CODE));
 	}
 }

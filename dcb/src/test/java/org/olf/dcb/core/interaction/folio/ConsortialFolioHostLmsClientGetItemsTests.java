@@ -68,7 +68,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 class ConsortialFolioHostLmsClientGetItemsTests {
-	private static final String HOST_LMS_CODE = "folio-lms-client-item-tests";
+	private static final String CATALOGUING_HOST_LMS_CODE = "folio-cataloguing-host-lms";
+	private static final String CIRCULATING_HOST_LMS_CODE = "folio-circulating-host-lms";
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
@@ -88,24 +89,31 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
 
-		hostLmsFixture.createFolioHostLms(HOST_LMS_CODE, "https://fake-folio",
+		hostLmsFixture.createFolioHostLms(CATALOGUING_HOST_LMS_CODE, "https://fake-cataloguing-folio",
 			API_KEY, "", "");
 
-		mockFolioFixture = new MockFolioFixture(mockServerClient, "fake-folio", API_KEY);
+		hostLmsFixture.createFolioHostLms(CIRCULATING_HOST_LMS_CODE, "https://fake-circulating-folio",
+			API_KEY, "", "");
 
-		client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		// Only mock responses from the cataloguing Host LMS
+		mockFolioFixture = new MockFolioFixture(mockServerClient, "fake-cataloguing-folio", API_KEY);
+
+		client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 	}
 
 	@Test
 	void shouldBeAbleToGetItems() {
 		// Arrange
-		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CATALOGUING_HOST_LMS_CODE,
 			"CLLA", "known-agency");
 
-		referenceValueMappingFixture.defineLocalToCanonicalItemTypeMapping(HOST_LMS_CODE,
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeMapping(
+			CATALOGUING_HOST_LMS_CODE,
 			"book", "canonical-book");
 
-		agencyFixture.defineAgency("known-agency", "Known agency");
+		agencyFixture.defineAgency("known-agency", "Known agency",
+			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
 		final var instanceId = randomUUID().toString();
 
@@ -161,7 +169,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 					hasLocation("Crerar, Lower Level, Bookstacks", "CLLA"),
 					isSuppressed(),
 					isNotDeleted(),
-					hasHostLmsCode(HOST_LMS_CODE),
+					hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
 					hasAgencyCode("known-agency"),
 					hasAgencyName("Known agency")
 				),
@@ -179,7 +187,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 					hasLocation("Social Service Administration", "SSA"),
 					isNotSuppressed(),
 					isNotDeleted(),
-					hasHostLmsCode(HOST_LMS_CODE),
+					hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
 					hasNoAgencyCode(),
 					hasNoAgencyName()
 				)
@@ -304,7 +312,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 		assertThat("Error should not be null", exception, is(notNullValue()));
 		assertThat(exception, hasProperty("message",
 			is("No errors or outer holdings (instances) returned from RTAC for instance ID: \""
-				+ instanceId + "\". Likely caused by invalid API key for Host LMS: \"folio-lms-client-item-tests\"")));
+				+ instanceId + "\". Likely caused by invalid API key for Host LMS: \"%s\"".formatted(CATALOGUING_HOST_LMS_CODE))));
 	}
 
 	@Test
@@ -453,7 +461,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 
 		// Assert
 		assertThat(problem, allOf(
-			hasMessageForHostLms(HOST_LMS_CODE),
+			hasMessageForHostLms(CATALOGUING_HOST_LMS_CODE),
 			hasResponseStatusCodeParameter(400),
 			hasJsonResponseBodyProperty("message", "something went wrong")
 		));
@@ -489,7 +497,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 
 	private void mapStatus(String localStatus, ItemStatusCode canonicalStatus) {
 		referenceValueMappingFixture
-			.defineItemStatusMapping(HOST_LMS_CODE, localStatus, canonicalStatus.name());
+			.defineItemStatusMapping(CATALOGUING_HOST_LMS_CODE, localStatus, canonicalStatus.name());
 	}
 
 	private static Holding.HoldingBuilder exampleHolding() {

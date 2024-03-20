@@ -144,7 +144,8 @@ class SierraHostLmsClientItemTests {
 
 		numericRangeMappingFixture.createMapping(HOST_LMS_CODE, "ItemType", 999L, 999L, "DCB", "BKM");
 
-		agencyFixture.defineAgency("sierra-agency", "Sierra Agency");
+		agencyFixture.defineAgency("sierra-agency", "Sierra Agency",
+			hostLmsFixture.findByCode(HOST_LMS_CODE));
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab5", "sierra-agency");
 

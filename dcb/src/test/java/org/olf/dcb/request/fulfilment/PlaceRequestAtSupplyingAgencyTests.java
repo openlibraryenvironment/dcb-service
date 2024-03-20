@@ -13,7 +13,6 @@ import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.briefDescript
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNestedAuditDataProperty;
-import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNoBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasId;
@@ -62,6 +61,9 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 class PlaceRequestAtSupplyingAgencyTests {
 	private static final String HOST_LMS_CODE = "supplying-agency-service-tests";
 
+	private static final String SUPPLYING_AGENCY_CODE = "supplying-agency";
+	private static final String BORROWING_AGENCY_CODE = "borrowing-agency";
+
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
 
@@ -107,20 +109,11 @@ class PlaceRequestAtSupplyingAgencyTests {
 		final var sierraHostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE,
 			KEY, SECRET, BASE_URL, "title");
 
-		supplyingAgency = agencyFixture.saveAgency(DataAgency.builder()
-			.id(randomUUID())
-			.code("supplying-agency")
-			.name("Supplying Agency")
-			.hostLms(sierraHostLms)
-			.build());
+		supplyingAgency = agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE,
+			"Supplying Agency", sierraHostLms);
 
-		agencyFixture.saveAgency(DataAgency.builder()
-			.id(randomUUID())
-			.code("borrowing-agency")
-			.name("Borrowing Agency")
-			// Any agency associated with a pickup location MUST also be associated with a host LMS
-			.hostLms(sierraHostLms)
-			.build());
+		// Any agency associated with a pickup location MUST also be associated with a host LMS
+		agencyFixture.defineAgency(BORROWING_AGENCY_CODE, "Borrowing Agency", sierraHostLms);
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
@@ -180,13 +173,14 @@ class PlaceRequestAtSupplyingAgencyTests {
 		// 	hasLocalItemBarcode("67324231")
 		// ));
 
-		sierraPatronsAPIFixture.verifyFindPatronRequestMade("872321@supplying-agency");
-		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("872321@supplying-agency");
+		sierraPatronsAPIFixture.verifyFindPatronRequestMade("872321@%s".formatted(SUPPLYING_AGENCY_CODE));
+		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("872321@%s".formatted(SUPPLYING_AGENCY_CODE));
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestMade("1000002");
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
-			563653, "borrowing-agency",
-			"Consortial Hold. tno=" + patronRequest.getId()+" \nFor 8675309012@supplying-agency\n Pickup UNKNOWN@borrowing-agency");
+			563653, BORROWING_AGENCY_CODE,
+			"Consortial Hold. tno=" + patronRequest.getId()+" \nFor 8675309012@%s\n Pickup UNKNOWN@%s"
+				.formatted(SUPPLYING_AGENCY_CODE, BORROWING_AGENCY_CODE));
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
@@ -201,7 +195,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronFoundResponse("u", "32453@supplying-agency",
+		sierraPatronsAPIFixture.patronFoundResponse("u", "32453@%s".formatted(SUPPLYING_AGENCY_CODE),
 			SierraPatronsAPIFixture.Patron.builder()
 				.id(1000002)
 				.patronType(15)
@@ -238,13 +232,14 @@ class PlaceRequestAtSupplyingAgencyTests {
 		 	hasLocalItemBarcode("67324231")
 		 ));
 
-		sierraPatronsAPIFixture.verifyFindPatronRequestMade("32453@supplying-agency");
-		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("32453@supplying-agency");
+		sierraPatronsAPIFixture.verifyFindPatronRequestMade("32453@%s".formatted(SUPPLYING_AGENCY_CODE));
+		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("32453@%s".formatted(SUPPLYING_AGENCY_CODE));
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestNotMade("1000002");
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
-			563653, "borrowing-agency",
-			"Consortial Hold. tno=" + patronRequest.getId()+" \nFor 8675309012@supplying-agency\n Pickup UNKNOWN@borrowing-agency");
+			563653, BORROWING_AGENCY_CODE,
+			"Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup UNKNOWN@%s".formatted(
+				patronRequest.getId(), SUPPLYING_AGENCY_CODE, BORROWING_AGENCY_CODE));
 	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
@@ -259,8 +254,8 @@ class PlaceRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronNotFoundResponse("u", "546730@supplying-agency");
-		sierraPatronsAPIFixture.postPatronResponse("546730@supplying-agency", 1000003);
+		sierraPatronsAPIFixture.patronNotFoundResponse("u", "546730@%s".formatted(SUPPLYING_AGENCY_CODE));
+		sierraPatronsAPIFixture.postPatronResponse("546730@%s".formatted(SUPPLYING_AGENCY_CODE), 1000003);
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000003", "b", 563653);
 
@@ -290,12 +285,14 @@ class PlaceRequestAtSupplyingAgencyTests {
 		// Assert
 		patronRequestWasPlaced(placedPatronRequest, patronRequestId);
 
-		sierraPatronsAPIFixture.verifyFindPatronRequestMade("546730@supplying-agency");
-		sierraPatronsAPIFixture.verifyCreatePatronRequestMade("546730@supplying-agency");
+		sierraPatronsAPIFixture.verifyFindPatronRequestMade("546730@%s".formatted(
+			SUPPLYING_AGENCY_CODE));
+		sierraPatronsAPIFixture.verifyCreatePatronRequestMade(
+			"546730@%s".formatted(SUPPLYING_AGENCY_CODE));
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000003", "b",
-			563653, "borrowing-agency",
-			"Consortial Hold. tno=" + patronRequest.getId()+" \nFor 8675309012@supplying-agency\n Pickup UNKNOWN@borrowing-agency");
+			563653, BORROWING_AGENCY_CODE, "Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup UNKNOWN@%s"
+				.formatted(patronRequest.getId(), SUPPLYING_AGENCY_CODE, BORROWING_AGENCY_CODE));
 	}
 
 	@DisplayName("Should fail when supplying agency's Host LMS sends unexpected response whilst placing request")
@@ -310,8 +307,8 @@ class PlaceRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronNotFoundResponse("u", "931824@supplying-agency");
-		sierraPatronsAPIFixture.postPatronResponse("931824@supplying-agency", 1000001);
+		sierraPatronsAPIFixture.patronNotFoundResponse("u", "931824@%s".formatted(SUPPLYING_AGENCY_CODE));
+		sierraPatronsAPIFixture.postPatronResponse("931824@%s".formatted(SUPPLYING_AGENCY_CODE), 1000001);
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", "b");
 
 		// Act
@@ -403,7 +400,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 	private void saveSupplierRequest(PatronRequest patronRequest, String hostLmsCode) {
 		supplierRequestsFixture.saveSupplierRequest(
 			randomUUID(), patronRequest, "563653", "7916922",
-			"supplying-agency", "9849123490", hostLmsCode, "supplying-location");
+			SUPPLYING_AGENCY_CODE, "9849123490", hostLmsCode, "supplying-location");
 	}
 
 	private PatronRequest placeAtSupplyingAgency(PatronRequest patronRequest) {
@@ -420,6 +417,6 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", "SQUIGGLE", HOST_LMS_CODE, "15");
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", "borrowing-agency");
+		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", BORROWING_AGENCY_CODE);
 	}
 }

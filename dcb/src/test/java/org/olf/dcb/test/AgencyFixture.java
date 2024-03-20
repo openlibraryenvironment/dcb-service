@@ -34,10 +34,6 @@ public class AgencyFixture {
 		return savedAgency;
 	}
 
-	public DataAgency defineAgency(String code, String name) {
-		return defineAgency(code, name, null);
-	}
-
 	public DataAgency defineAgency(String code, String name, DataHostLms hostLms) {
 		return saveAgency(DataAgency.builder()
 			.id(randomUUID())
