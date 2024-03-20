@@ -33,6 +33,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyName;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoBarcode;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoLocalItemTypeCode;
@@ -194,6 +195,55 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 			));
 	}
 
+	@Test
+	void shouldTolerateLocationNotBeingMappedToAnAgency() {
+		// Arrange
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeMapping(
+			CATALOGUING_HOST_LMS_CODE,
+			"book", "canonical-book");
+
+		final var instanceId = randomUUID().toString();
+
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
+			Holding.builder()
+				.id("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2")
+				.location("Unmapped Location")
+				.locationCode("unmapped-location")
+				.status("Available")
+				.totalHoldRequests(1)
+				.suppressFromDiscovery(true)
+				.materialType(MaterialType.builder()
+					.name("book")
+					.build())
+				.build()
+		);
+
+		// Act
+		final var items = getItems(instanceId);
+
+		// Assert
+		assertThat(items, containsInAnyOrder(
+			allOf(
+				hasLocalId("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2"),
+				hasLocalBibId(instanceId),
+				hasNoBarcode(),
+				hasNoCallNumber(),
+				hasStatus(AVAILABLE),
+				hasNoDueDate(),
+				hasHoldCount(1),
+				hasLocalItemType("book"),
+				hasLocalItemTypeCode("book"),
+				hasCanonicalItemType("canonical-book"),
+				hasLocation("Unmapped Location", "unmapped-location"),
+				isSuppressed(),
+				isNotDeleted(),
+				hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
+				hasNoAgencyCode(),
+				hasNoAgencyName()
+			)
+		));
+	}
+	
 	@Test
 	void shouldMapItemStatusUsingReferenceValueMappings() {
 		// Arrange

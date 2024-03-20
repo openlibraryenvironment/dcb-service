@@ -32,6 +32,10 @@ public class ItemMatchers {
 		return hasProperty("callNumber", is(expectedCallNumber));
 	}
 
+	public static Matcher<Item> hasNoCallNumber() {
+		return hasProperty("callNumber", is(nullValue()));
+	}
+
 	public static Matcher<Item> hasLocation(String expectedName, String expectedCode) {
 		return hasProperty("location", allOf(
 			hasProperty("name", is(expectedName)),
