@@ -104,6 +104,31 @@ class LocationToAgencyMappingServiceTests {
 	}
 
 	@Test
+	void shouldTolerateAgencyWithoutHostLmsWhenEnrichingItemWithAgency() {
+		// Arrange
+		final var agencyCode = "known-agency";
+
+		agencyFixture.defineAgency(agencyCode, "Known agency", null);
+
+		final var locationCode = "location-with-mapping";
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(CATALOGUING_HOST_LMS_CODE,
+			locationCode, agencyCode);
+
+		// Act
+		final var item = exampleItem(Location.builder()
+			.code(locationCode)
+			.build());
+
+		final var enrichedItem = enrichItemWithAgency(item);
+
+		// Assert
+		assertThat(enrichedItem, hasAgencyCode(agencyCode));
+		assertThat(enrichedItem, hasAgencyName("Known agency"));
+		assertThat(enrichedItem, hasNoHostLmsCode());
+	}
+
+	@Test
 	void shouldTolerateNullLocationWhenEnrichingItemWithAgency() {
 		// Act
 		final var itemWithNullLocation = exampleItem(null);
