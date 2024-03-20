@@ -66,6 +66,10 @@ public class ItemMatchers {
 		return hasProperty("hostLmsCode", is(expectedHostLmsCode));
 	}
 
+	public static Matcher<Item> hasNoHostLmsCode() {
+		return hasProperty("hostLmsCode", is(nullValue()));
+	}
+
 	public static Matcher<Item> hasLocalItemType(String expectedLocalItemType) {
 		return hasProperty("localItemType", is(expectedLocalItemType));
 	}
