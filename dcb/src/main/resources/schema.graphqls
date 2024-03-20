@@ -181,6 +181,7 @@ type Location {
   locationReference: String
   deliveryStops: String
   printLabel: String
+  localId: String
 }
 
 """
