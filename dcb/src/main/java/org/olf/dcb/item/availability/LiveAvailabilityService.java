@@ -79,15 +79,15 @@ public class LiveAvailabilityService {
 			.orElse(report);
 	}
 
-	public Mono<AvailabilityReport> checkAvaiability(UUID clusteredBibId) {
-		return checkAvaiability( clusteredBibId, Optional.empty() );
+	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId) {
+		return checkAvailability( clusteredBibId, Optional.empty() );
 	}
 	
-	public Mono<AvailabilityReport> checkAvaiability(UUID clusteredBibId, Duration timeout) {
-		return checkAvaiability(clusteredBibId, Optional.ofNullable(timeout));
+	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId, Duration timeout) {
+		return checkAvailability(clusteredBibId, Optional.ofNullable(timeout));
 	}
 	
-	private Mono<AvailabilityReport> checkAvaiability(UUID clusteredBibId, Optional<Duration> timeout) {
+	private Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId, Optional<Duration> timeout) {
 		log.debug("getAvailableItems({})", clusteredBibId);
 
 		return Mono.just( clusteredBibId )

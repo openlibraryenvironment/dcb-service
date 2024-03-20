@@ -58,7 +58,7 @@ public class PatronRequestResolutionService {
 			.findFirst()
 			.orElseThrow(() -> new RuntimeException("No resolver with code " + this.itemResolver));
 
-		return liveAvailabilityService.checkAvaiability(clusterRecordId)
+		return liveAvailabilityService.checkAvailability(clusterRecordId)
 			.onErrorMap(NoBibsForClusterRecordException.class, error -> {
 				log.error("Something went wrong with liveAvailabilityService.getAvailableItems",error);
 				return new UnableToResolvePatronRequest(error.getMessage());

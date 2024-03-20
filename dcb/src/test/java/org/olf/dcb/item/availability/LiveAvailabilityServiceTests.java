@@ -109,7 +109,7 @@ class LiveAvailabilityServiceTests {
 
 		// Act
 		final var report = liveAvailabilityService
-			.checkAvaiability(clusterRecord.getId()).block();
+			.checkAvailability(clusterRecord.getId()).block();
 
 		// Assert
 		// This is a compromise that checks the rough identity of each item
@@ -141,7 +141,7 @@ class LiveAvailabilityServiceTests {
 
 		// Act
 		final var report = liveAvailabilityService
-			.checkAvaiability(clusterRecord.getId()).block();
+			.checkAvailability(clusterRecord.getId()).block();
 
 		// Assert
 		assertThat(report, hasNoItems());
@@ -163,7 +163,7 @@ class LiveAvailabilityServiceTests {
 
 		// Act
 		final var report = liveAvailabilityService
-			.checkAvaiability(clusterRecord.getId()).block();
+			.checkAvailability(clusterRecord.getId()).block();
 
 		// Assert
 		assertThat(report, hasNoItems());
@@ -178,7 +178,7 @@ class LiveAvailabilityServiceTests {
 
 		// Act
 		final var exception = assertThrows(CannotFindClusterRecordException.class,
-			() -> liveAvailabilityService.checkAvaiability(clusterRecordId).block());
+			() -> liveAvailabilityService.checkAvailability(clusterRecordId).block());
 
 		// Assert
 		assertThat(exception, hasMessage("Cannot find cluster record for: " + clusterRecordId));
@@ -191,7 +191,7 @@ class LiveAvailabilityServiceTests {
 
 		// Act
 		final var exception = assertThrows(NoBibsForClusterRecordException.class,
-			() -> liveAvailabilityService.checkAvaiability(clusterRecord.getId()).block());
+			() -> liveAvailabilityService.checkAvailability(clusterRecord.getId()).block());
 
 		// Assert
 		assertThat(exception, hasMessage(
@@ -210,7 +210,7 @@ class LiveAvailabilityServiceTests {
 			"7657673", clusterRecord);
 
 		final var exception = assertThrows(UnknownHostLmsException.class,
-			() -> liveAvailabilityService.checkAvaiability(clusterRecordId).block());
+			() -> liveAvailabilityService.checkAvailability(clusterRecordId).block());
 
 		assertThat(exception, hasMessage("No Host LMS found for ID: " + unknownHostId));
 	}
