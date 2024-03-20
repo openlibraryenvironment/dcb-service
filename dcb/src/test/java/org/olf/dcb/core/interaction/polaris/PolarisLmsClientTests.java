@@ -132,7 +132,8 @@ class PolarisLmsClientTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			"polaris-hostlms-tests", "15", "345test");
 
-		agencyFixture.defineAgency("345test", "Test College");
+		agencyFixture.defineAgency("345test", "Test College",
+			hostLmsFixture.findByCode(HOST_LMS_CODE));
 
 		final var bibId = "643425";
 
