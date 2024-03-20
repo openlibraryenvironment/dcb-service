@@ -38,6 +38,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasUnknownCanonicalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.ItemMatchers.isSuppressed;
@@ -295,6 +296,65 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 				hasLocalItemType("book"),
 				hasLocalItemTypeCode("book"),
 				hasCanonicalItemType("canonical-book"),
+				hasLocation(locationName, locationCode),
+				isSuppressed(),
+				isNotDeleted(),
+				hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
+				hasAgencyCode(agencyCode),
+				hasAgencyName(agencyName)
+			)
+		));
+	}
+
+	@Test
+	void shouldTolerateMaterialTypeNotBeingMappedToItemType() {
+		// Arrange
+		final var locationName = "Unmapped Location";
+		final var locationCode = "unmapped-location";
+
+		final var agencyCode = "known-agency";
+		final var agencyName = "Known agency";
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CATALOGUING_HOST_LMS_CODE, locationCode, agencyCode);
+
+		agencyFixture.defineAgency(agencyCode, agencyName,
+			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
+
+		final var instanceId = randomUUID().toString();
+
+		final var materialType = "Unmapped material type";
+
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
+			Holding.builder()
+				.id("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2")
+				.location(locationName)
+				.locationCode(locationCode)
+				.status("Available")
+				.totalHoldRequests(1)
+				.suppressFromDiscovery(true)
+				.materialType(MaterialType.builder()
+					.name(materialType)
+					.build())
+				.build()
+		);
+
+		// Act
+		final var items = getItems(instanceId);
+
+		// Assert
+		assertThat(items, containsInAnyOrder(
+			allOf(
+				hasLocalId("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2"),
+				hasLocalBibId(instanceId),
+				hasNoBarcode(),
+				hasNoCallNumber(),
+				hasStatus(AVAILABLE),
+				hasNoDueDate(),
+				hasHoldCount(1),
+				hasLocalItemType(materialType),
+				hasLocalItemTypeCode(materialType),
+				hasUnknownCanonicalItemType(),
 				hasLocation(locationName, locationCode),
 				isSuppressed(),
 				isNotDeleted(),
