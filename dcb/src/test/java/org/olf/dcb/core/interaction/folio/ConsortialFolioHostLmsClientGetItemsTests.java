@@ -30,6 +30,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgency;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyName;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoBarcode;
@@ -190,6 +191,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 					isNotSuppressed(),
 					isNotDeleted(),
 					hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
+					hasNoAgency(),
 					hasNoAgencyCode(),
 					hasNoAgencyName()
 				)
@@ -241,6 +243,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 				isSuppressed(),
 				isNotDeleted(),
 				hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
+				hasNoAgency(),
 				hasNoAgencyCode(),
 				hasNoAgencyName()
 			)

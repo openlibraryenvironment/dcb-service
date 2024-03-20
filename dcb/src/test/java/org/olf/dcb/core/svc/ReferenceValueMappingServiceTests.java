@@ -1,24 +1,16 @@
 package org.olf.dcb.core.svc;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyCode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgencyName;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.Location;
-import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import reactor.core.publisher.Mono;
 
 import jakarta.inject.Inject;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 /**
  * Test the TVM service in a context free way

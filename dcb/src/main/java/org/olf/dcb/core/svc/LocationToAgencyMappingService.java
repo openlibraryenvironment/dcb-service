@@ -12,6 +12,7 @@ import org.olf.dcb.core.model.ReferenceValueMapping;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
 
 @Slf4j
 @Singleton
@@ -35,7 +36,11 @@ public class LocationToAgencyMappingService {
 
 	public Mono<Item> enrichItemAgencyFromLocation(Item incomingItem, String hostLmsCode) {
 		return Mono.just(incomingItem)
-			.zipWhen(item -> findLocationToAgencyMapping(item, hostLmsCode), Item::setAgency)
+			.zipWhen(item -> findLocationToAgencyMapping(item, hostLmsCode))
+			.map(TupleUtils.function((item, agency) ->
+				item.setAgency(agency)
+					.setAgencyCode(agency.getCode())
+					.setAgencyName(agency.getName())))
 			.defaultIfEmpty(incomingItem);
 	}
 
