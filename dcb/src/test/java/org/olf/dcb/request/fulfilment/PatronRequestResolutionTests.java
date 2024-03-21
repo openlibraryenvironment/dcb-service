@@ -206,7 +206,7 @@ class PatronRequestResolutionTests {
 	}
 
 	@Test
-	void shouldChooseItemEvenWhenLocationCannotBeMappedToAgency() {
+	void shouldExcludeItemWhenLocationIsNotMappedToAgency() {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
@@ -244,27 +244,16 @@ class PatronRequestResolutionTests {
 		// Assert
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
-		assertThat(fetchedPatronRequest, hasStatus(RESOLVED));
+		assertThat(fetchedPatronRequest, hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
 
-		final var onlySupplierRequest = supplierRequestsFixture.findFor(patronRequest);
+		assertThat("Should not find any supplier requests",
+			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
 
-		assertThat(onlySupplierRequest, allOf(
-			notNullValue(),
-			hasProperty("hostLmsCode", is(HOST_LMS_CODE)),
-			hasLocalItemId("2656456"),
-			hasLocalItemBarcode("6736553266"),
-			hasLocalBibId("673634"),
-			hasLocalItemLocationCode("unknown-location"),
-			hasNoLocalItemStatus(),
-			hasNoLocalId(),
-			hasNoLocalStatus()
-		));
-
-		assertSuccessfulTransitionAudit(fetchedPatronRequest, RESOLVED);
+		assertSuccessfulTransitionAudit(fetchedPatronRequest, NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
 	}
 
 	@Test
-	void shouldResolveVerifiedRequestToNoAvailableItemsWhenNoItemCanBeChosen() {
+	void shouldResolveToNoAvailableItemsWhenNoItemsToChooseFrom() {
 		// Arrange
 		final var bibRecordId = randomUUID();
 

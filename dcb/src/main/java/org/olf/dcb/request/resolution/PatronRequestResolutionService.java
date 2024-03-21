@@ -65,20 +65,26 @@ public class PatronRequestResolutionService {
 			})
 			// ToDo ROTA : Filter the list by any suppliers we have already tried for this request
 			.map(AvailabilityReport::getItems)
+			.map(this::excludeItemsWithoutAgency)
 			.flatMap(items -> resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest))
-			.doOnNext(item -> log.debug("Selected item {}",item))
+			.doOnNext(item -> log.debug("Selected item {}", item))
 			.flatMap(item -> createSupplierRequest(item, patronRequest))
 			.map(PatronRequestResolutionService::mapToResolution)
 			// pretty sure this onErrorReturn is being evaluated eagerly and is updating the patron request regardless of the 
 			// presence of an error. If there was an error, the stream should be empty and the case should be caught by the
 			// switchIfEmpty, so trying without the explicitOnErrorReturn for now
 			// .onErrorReturn(NoItemsRequestableAtAnyAgency.class, resolveToNoItemsAvailable(patronRequest))
-			.doOnError( error -> log.warn("There was an error in the liveAvailabilityService.getAvailableItems stream : {}",error.getMessage()) )
-			// .onErrorResume( error -> {
-			.onErrorResume( NoItemsRequestableAtAnyAgency.class, error -> {
-				return Mono.defer(() -> Mono.just(resolveToNoItemsAvailable(patronRequest,error)));
-			})
+			.doOnError( error -> log.warn(
+				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))
+			.onErrorResume(NoItemsRequestableAtAnyAgency.class,
+				error -> Mono.defer(() -> Mono.just(resolveToNoItemsAvailable(patronRequest,error))))
 			.switchIfEmpty(Mono.defer(() -> Mono.just(resolveToNoItemsAvailable(patronRequest))));
+	}
+
+	private List<Item> excludeItemsWithoutAgency(List<Item> items) {
+		return items.stream()
+			.filter(item -> item.getAgency() != null)
+			.toList();
 	}
 
 	private Mono<SupplierRequest> createSupplierRequest(Item item, PatronRequest patronRequest) {
