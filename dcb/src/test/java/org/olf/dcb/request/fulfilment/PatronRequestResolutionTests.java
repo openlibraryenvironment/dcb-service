@@ -133,7 +133,7 @@ class PatronRequestResolutionTests {
 	}
 
 	@Test
-	void shouldResolveVerifiedRequestWhenFirstItemOfMultipleIsChosen() {
+	void shouldChooseFirstAvailableItem() {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
@@ -189,6 +189,64 @@ class PatronRequestResolutionTests {
 			hasLocalItemBarcode("6565750674"),
 			hasLocalBibId("465675"),
 			hasLocalItemLocationCode("ab6"),
+			hasNoLocalItemStatus(),
+			hasNoLocalId(),
+			hasNoLocalStatus()
+		));
+
+		assertSuccessfulTransitionAudit(fetchedPatronRequest, RESOLVED);
+	}
+
+	@Test
+	void shouldChooseItemEvenWhenLocationCannotBeMappedToAgency() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		bibRecordFixture.createBibRecord(bibRecordId, hostLms.getId(),
+			"673634", clusterRecord);
+
+		sierraItemsAPIFixture.itemsForBibId("673634", List.of(
+			SierraItem.builder()
+				.id("2656456")
+				.barcode("6736553266")
+				.locationCode("unknown-location")
+				.statusCode("-")
+				.build()
+		));
+
+		final var patron = patronFixture.savePatron("465636");
+		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-", "465636", null);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(HOST_LMS_CODE)
+			.pickupLocationCode("ABC123")
+			.status(PATRON_VERIFIED)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		resolve(patronRequest);
+
+		// Assert
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat(fetchedPatronRequest, hasStatus(RESOLVED));
+
+		final var onlySupplierRequest = supplierRequestsFixture.findFor(patronRequest);
+
+		assertThat(onlySupplierRequest, allOf(
+			notNullValue(),
+			hasProperty("hostLmsCode", is(HOST_LMS_CODE)),
+			hasLocalItemId("2656456"),
+			hasLocalItemBarcode("6736553266"),
+			hasLocalBibId("673634"),
+			hasLocalItemLocationCode("unknown-location"),
 			hasNoLocalItemStatus(),
 			hasNoLocalId(),
 			hasNoLocalStatus()
