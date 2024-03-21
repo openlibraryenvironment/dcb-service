@@ -13,6 +13,7 @@ import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.*;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Continue;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Retain;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.CompletedSuccessfully;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.APPLICATION_SERVICES;
@@ -49,9 +50,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple3;
 import reactor.util.function.Tuple4;
 import reactor.util.function.Tuples;
 
@@ -60,7 +59,9 @@ class ApplicationServicesClient {
 	private final PolarisLmsClient client;
 	private final ApplicationServicesAuthFilter authFilter;
 	private final String URI_PARAMETERS;
-
+	private final Integer TransactingPolarisUserID;
+	private final Integer TransactingWorkstationID;
+	private final Integer TransactingBranchID;
 	// ToDo align these URLs
 	public static final URI ERR0210 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0210/Polaris/UnableToLoadPatronBlocks");
 
@@ -68,62 +69,14 @@ class ApplicationServicesClient {
 		this.client = client;
 		this.authFilter = new ApplicationServicesAuthFilter(client);
 		this.URI_PARAMETERS = "/polaris.applicationservices/api" + client.getGeneralUriParameters(APPLICATION_SERVICES);
-	}
 
-	/**
-	 * Based upon <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/create_hold_request">post hold request docs</a>
-	 */
-	Mono<Tuple4<String, String, String, String>> createILLHoldRequestWorkflow(HoldRequestParameters holdRequestParameters) {
-		log.debug("createILLHoldRequestWorkflow with holdRequestParameters {}", holdRequestParameters);
-
-		final var path = createPath("workflow");
-		final String activationDate = LocalDateTime.now().format( ofPattern("yyyy-MM-dd"));
-		final var conf = client.getConfig();
-		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
 		final var servicesConfig = client.getServicesConfig();
-		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
+		final var conf = client.getConfig();
 
-		final var workflowRequest = WorkflowRequest.builder()
-			.workflowRequestType(5)
-			.txnUserID(user)
-			.txnBranchID(holdRequestParameters.getLocalItemLocationId())
-			.txnWorkstationID(workstation)
-			.requestExtension( RequestExtension.builder()
-				.workflowRequestExtensionType(9)
-				.data(RequestExtensionData.builder()
-					.patronID(Optional.ofNullable(holdRequestParameters.getLocalPatronId()).map(Integer::valueOf).orElse(null))
-					.pickupBranchID( Integer.valueOf(holdRequestParameters.getPickupLocation()) )
-					.origin(2)
-					.activationDate(activationDate)
-					.expirationDate(LocalDateTime.now().plusDays(999).format( ofPattern("MM/dd/yyyy")))
-					.staffDisplayNotes(holdRequestParameters.getNote())
-					.nonPublicNotes(holdRequestParameters.getNote())
-					.pACDisplayNotes(holdRequestParameters.getNote())
-					.bibliographicRecordID(0)
-					.itemRecordID(0)
-					.itemLevelHold(FALSE)
-					.ignorePatronBlocksPrompt(TRUE)
-					.bulkMode(FALSE)
-					.patronBlocksOnlyPrompt(FALSE)
-					.ignoreMaximumHoldsPrompt(TRUE)
-					.unlockedRequest(TRUE)
-					.title(holdRequestParameters.getTitle())
-					.browseTitle(holdRequestParameters.getTitle())
-					.build())
-				.build())
-			.build();
-
-		return createRequest(POST, path, uri -> {})
-			.zipWith(Mono.just(workflowRequest))
-			.map(function(ApplicationServicesClient::addBodyToRequest))
-			.flatMap(workflowReq -> client.retrieve(workflowReq, Argument.of(WorkflowResponse.class),
-				noExtraErrorHandling()))
-			.map(response -> validateHoldResponse(response))
-			.thenReturn(Tuples.of(
-				holdRequestParameters.getLocalPatronId(),
-				holdRequestParameters.getTitle(),
-				holdRequestParameters.getNote(),
-				activationDate));
+		// get common map values for request bodies
+		this.TransactingPolarisUserID = extractMapValue(conf, LOGON_USER_ID, Integer.class);
+		this.TransactingWorkstationID = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
+		this.TransactingBranchID = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
 	}
 
 	/**
@@ -133,7 +86,6 @@ class ApplicationServicesClient {
 		log.debug("createHoldRequestWorkflow with holdRequestParameters {}", holdRequestParameters);
 
 		final var path = createPath("workflow");
-
 		final String activationDate = LocalDateTime.now().format( ofPattern("yyyy-MM-dd"));
 
 		return createRequest(POST, path, uri -> {})
@@ -142,7 +94,7 @@ class ApplicationServicesClient {
 			.flatMap(workflowReq -> client.retrieve(workflowReq, Argument.of(WorkflowResponse.class),
 					noExtraErrorHandling()))
 			.flatMap(resp -> handlePolarisWorkflow(resp, DuplicateHoldRequests, Continue))
-			.map(response -> validateHoldResponse(response))
+			.map(response -> validateWorkflowResponse(response))
 			.thenReturn(Tuples.of(
 				holdRequestParameters.getLocalPatronId(),
 				holdRequestParameters.getBibliographicRecordID(),
@@ -150,21 +102,24 @@ class ApplicationServicesClient {
 				holdRequestParameters.getNote() != null ? holdRequestParameters.getNote() : ""));
 	}
 
-	private WorkflowResponse validateHoldResponse(WorkflowResponse workflowResponse) {
-		if (workflowResponse.getWorkflowStatus() < 1) {
-			if (workflowResponse.getPrompt() != null && workflowResponse.getPrompt().getTitle() != null) {
+	private WorkflowResponse validateWorkflowResponse(WorkflowResponse workflowResponse) {
+		if (workflowResponse.getWorkflowStatus() < CompletedSuccessfully) {
+			log.error("Polaris response: " + workflowResponse);
 
-				throw new HoldRequestException("Polaris workflow response: " + workflowResponse.getPrompt().getTitle());
+			if (workflowResponse.getPrompt() != null && workflowResponse.getPrompt().getTitle() != null) {
+				final var titleOfError = workflowResponse.getPrompt().getTitle();
+
+				throw new PolarisWorkflowException(titleOfError);
 			}
 
-			throw new HoldRequestException("Unknown polaris workflow response error. Response: " + workflowResponse);
+			throw new PolarisWorkflowException("Unknown response");
 		}
 
-		if (workflowResponse.getWorkflowStatus() == 1) {
-			// should be: "The hold request has been created."
-			if (workflowResponse.getPrompt() != null && workflowResponse.getPrompt().getMessage() != null) {
-				log.info(">>>>>>>" + workflowResponse.getPrompt().getMessage() + "<<<<<<<<");
-			}
+		if (workflowResponse.getWorkflowStatus().equals(CompletedSuccessfully) &&
+			workflowResponse.getPrompt() != null &&
+			workflowResponse.getPrompt().getMessage() != null) {
+
+			log.info(">>>>>>>" + workflowResponse.getPrompt().getMessage() + "<<<<<<<<");
 		}
 
 		return workflowResponse;
@@ -220,11 +175,10 @@ class ApplicationServicesClient {
 	}
 
 	private Mono<List<PatronBlockGetRow>> getPatronBlocks(Integer localPatronId) {
-		final var conf = client.getConfig();
 		final var path = createPath("patrons", localPatronId, "blockssummary");
 
 		return createRequest(GET, path, uri -> uri
-				.queryParam("logonBranchID", conf.get(LOGON_BRANCH_ID))
+				.queryParam("logonBranchID", TransactingBranchID)
 				.queryParam("associatedblocks", false))
 			.flatMap(request -> client.retrieve(request,
 				Argument.listOf(PatronBlockGetRow.class), response -> response
@@ -289,7 +243,9 @@ class ApplicationServicesClient {
 	}
 
 	public Mono<String> getPatronIdByIdentifier(String identifier, String identifierType) {
+
 		final var path = createPath("ids", "patrons");
+
 		return createRequest(GET, path,
 			uri -> uri
 				.queryParam("id", identifier)
@@ -299,10 +255,11 @@ class ApplicationServicesClient {
 	}
 
 	private Mono<Integer> getHoldRequestDefaults() {
+
 		final var path = createPath("holdsdefaults");
 		final Integer defaultExpirationDatePeriod = 999;
+
 		return createRequest(GET, path, uri -> {})
-			// should the org id be pick up org id?
 			.flatMap(request -> client.exchange(request, HoldRequestDefault.class, TRUE))
 			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
 			.map(HoldRequestDefault::getExpirationDatePeriod)
@@ -322,168 +279,59 @@ class ApplicationServicesClient {
 				noExtraErrorHandling()));
 	}
 
-	public Mono<List<ILLRequest>> getIllRequest(String patronLocalId) {
-
-		final var path = createPath("patrons", patronLocalId, "requests", "ill");
-		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.listOf(ILLRequest.class),
-				noExtraErrorHandling()));
-	}
-
-
 	public Mono<Integer> createBibliographicRecord(Bib bib) {
 		final var path = createPath("bibliographicrecords");
-		final var body = DtoBibliographicCreationData.builder()
-			.recordOwnerID(1)
-			.displayInPAC(FALSE)
-			.doNotOverlay(TRUE)
-			.record(DtoMARC21Record.builder()
-				.leader(randomAlphanumeric(24))
-				.controlfields(List.of(DtoMARC21ControlField.builder().tag("008").data(randomAlphanumeric(24)).build()))
-				.datafields( List.of( DtoMARC21DataField.builder()
-					.tag("245").ind1("0").ind2("0")
-					.subfields( List.of(DtoMARC21Subfield.builder().code("a").data(bib.getTitle()).build()) )
-					.build())).build()).build();
 
 		return createRequest(POST, path, uri -> uri.queryParam("type", "create"))
-			.map(request -> request.body(body))
+			.map(request -> request.body(DtoBibliographicCreationData.builder()
+				.recordOwnerID(1)
+				.displayInPAC(FALSE)
+				.doNotOverlay(TRUE)
+				.record(DtoMARC21Record.builder()
+					.leader(randomAlphanumeric(24))
+					.controlfields(List.of(DtoMARC21ControlField.builder().tag("008").data(randomAlphanumeric(24)).build()))
+					.datafields( List.of( DtoMARC21DataField.builder()
+						.tag("245").ind1("0").ind2("0")
+						.subfields( List.of(DtoMARC21Subfield.builder().code("a").data(bib.getTitle()).build()) )
+						.build())).build()).build()))
 			.flatMap(request -> client.retrieve(request, Argument.of(Integer.class),
 				noExtraErrorHandling()));
 	}
 
 	public Mono<WorkflowResponse> deleteBibliographicRecord(String id) {
+
 		final var path = createPath("workflow");
-
-		final var conf = client.getConfig();
-		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
-		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
-
-		final var servicesConfig = client.getServicesConfig();
-		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
-
 		final var DeleteBibRecord = 11;
 		final var DeleteBibRecordData = 10;
-		final var body = WorkflowRequest.builder()
-			.workflowRequestType(DeleteBibRecord)
-			.txnUserID(user)
-			.txnBranchID(branch)
-			.txnWorkstationID(workstation)
-			.requestExtension(RequestExtension.builder()
-				.workflowRequestExtensionType(DeleteBibRecordData)
-				.data(RequestExtensionData.builder()
-					.bibRecordIDs( singletonList(Integer.valueOf(id)) )
-					.build())
-				.build())
-			.build();
+
 		return createRequest(POST, path, uri -> {
 		})
-			.map(request -> request.body(body))
+			.map(request -> request.body(WorkflowRequest.builder()
+				.workflowRequestType(DeleteBibRecord)
+				.txnUserID(TransactingPolarisUserID)
+				.txnBranchID(TransactingBranchID)
+				.txnWorkstationID(TransactingWorkstationID)
+				.requestExtension(RequestExtension.builder()
+					.workflowRequestExtensionType(DeleteBibRecordData)
+					.data(RequestExtensionData.builder()
+						.bibRecordIDs( singletonList(Integer.valueOf(id)) )
+						.build())
+					.build())
+				.build()))
 			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class),
 				noExtraErrorHandling()))
 			.flatMap(resp -> handlePolarisWorkflow(resp, ConfirmBibRecordDelete, Continue));
 	}
 
-
-	public Mono<WorkflowResponse> convertToIll(Integer illLocationId, String localId) {
-		final var path = createPath("workflow");
-
-		final var conf = client.getConfig();
-		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
-		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
-
-		final var servicesConfig = client.getServicesConfig();
-		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
-
-		final var body = WorkflowRequest.builder()
-			.workflowRequestType(20)
-			.txnUserID(user)
-			.txnBranchID(illLocationId)
-			.txnWorkstationID(workstation)
-			.requestExtension( RequestExtension.builder()
-				.workflowRequestExtensionType(16)
-				.data(RequestExtensionData.builder()
-					.sysHoldRequestID(localId)
-					.skipTotalILLLimitExceededPrompt(TRUE)
-					.build())
-				.build())
-			.build();
-
-		return createRequest(POST, path, uri -> {})
-			.map(request -> request.body(body))
-			.flatMap(this::convertToIllRequest);
-	}
-
-
-	public Mono<ILLRequestInfo> transferRequest(Integer illLocationId, Integer illRequestId) {
-		final var path = createPath("workflow");
-
-		final var conf = client.getConfig();
-		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
-		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
-
-		final var servicesConfig = client.getServicesConfig();
-		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
-
-		final var body = WorkflowRequest.builder()
-			.workflowRequestType(18)
-			.txnUserID(user)
-			.txnBranchID(illLocationId)
-			.txnWorkstationID(workstation)
-			.requestExtension( RequestExtension.builder()
-				.workflowRequestExtensionType(14)
-				.data(RequestExtensionData.builder()
-					.iLLRequestID(illRequestId)
-					.circTranType(12)
-					.build())
-				.build())
-			.build();
-
-		return createRequest(POST, path, uri -> {})
-			.map(request -> request.body(body))
-			.flatMap(this::createTransferRequest);
-	}
-
-	private <R> Mono<ILLRequestInfo> createTransferRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
-
-			return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class), noExtraErrorHandling())
-				.doOnSuccess(r -> log.info("Got transfer request response {}", r))
-				.doOnError(e -> log.info("Error response for transferring ILL request {} {}", workflowReq, e))
-				// when we save the virtual item we need to confirm we do not want the item to display in pac
-				.flatMap(response -> handlePolarisWorkflow(response, 55, 5))
-				.switchIfEmpty(
-					Mono.error(new PolarisWorkflowException("transferring ILL request failed expecting workflow response to: " + workflowReq)))
-				.map(workflowResponse -> workflowResponse.getAnswerExtension().getAnswerData().getILLRequestInfo());
-		}
-
-	private Mono<WorkflowResponse> convertToIllRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
-
-		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class), noExtraErrorHandling())
-			.doOnSuccess(r -> log.info(">>>>>>> {} <<<<<<<", r.getInformationMessages() != null
-				? r.getInformationMessages()
-				: "No information messages available."))
-			.doOnError(e -> log.info("Error response for convert ILL request {} {}", workflowReq, e))
-			.switchIfEmpty(Mono.error(new PolarisWorkflowException(
-				"convert ILL request failed expecting workflow response to: " + workflowReq)));
-	}
-
 	public Mono<WorkflowResponse> addItemRecord(CreateItemCommand createItemCommand) {
+
 		// https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/overview
 		// https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/add_or_update_item_record
 		final var path = createPath("workflow");
-
-		final var conf = client.getConfig();
-		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
-		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
-
-		final var servicesConfig = client.getServicesConfig();
-		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
-
 		final var itemConfig = client.getItemConfig();
 		final var barcodePrefix = extractMapValue(itemConfig, BARCODE_PREFIX, String.class);
-
 		final var itemRecordType = 8;
 		final var itemRecordData = 6;
-
 		final var Available = 1; // In
 
 		// The createItemCommand for polaris should use the home location of the patron placing the request
@@ -500,9 +348,9 @@ class ApplicationServicesClient {
 
 				final var body = WorkflowRequest.builder()
 					.workflowRequestType(itemRecordType)
-					.txnUserID(user)
-					.txnBranchID(branch)
-					.txnWorkstationID(workstation)
+					.txnUserID(TransactingPolarisUserID)
+					.txnBranchID(TransactingBranchID)
+					.txnWorkstationID(TransactingWorkstationID)
 					.requestExtension( RequestExtension.builder()
 						.workflowRequestExtensionType(itemRecordData)
 						.data(RequestExtensionData.builder()
@@ -554,15 +402,8 @@ class ApplicationServicesClient {
 	}
 
 	public Mono<Void> updateItemRecord(String itemId, Integer fromStatus, Integer toStatus) {
+
 		final var path = createPath("workflow");
-
-		final var conf = client.getConfig();
-		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
-		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
-
-		final var servicesConfig = client.getServicesConfig();
-		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
-
 		final var itemRecordType = 8;
 		final var itemRecordData = 6;
 
@@ -570,9 +411,9 @@ class ApplicationServicesClient {
 			.map(request -> {
 				final var body = WorkflowRequest.builder()
 					.workflowRequestType(itemRecordType)
-					.txnUserID(user)
-					.txnBranchID(branch)
-					.txnWorkstationID(workstation)
+					.txnUserID(TransactingPolarisUserID)
+					.txnBranchID(TransactingBranchID)
+					.txnWorkstationID(TransactingWorkstationID)
 					.requestExtension( RequestExtension.builder()
 						.workflowRequestExtensionType(itemRecordData)
 						.data(RequestExtensionData.builder()
@@ -589,33 +430,26 @@ class ApplicationServicesClient {
 	}
 
 	public Mono<WorkflowResponse> deleteItemRecord(String id) {
+
 		final var path = createPath("workflow");
-
-		final var conf = client.getConfig();
-		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
-		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
-
-		final var servicesConfig = client.getServicesConfig();
-		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
-
 		final var DeleteItemRecord = 10;
 		final var DeleteItemRecordData = 8;
-		final var body = WorkflowRequest.builder()
-			.workflowRequestType(DeleteItemRecord)
-			.txnUserID(user)
-			.txnBranchID(branch)
-			.txnWorkstationID(workstation)
-			.requestExtension(RequestExtension.builder()
-				.workflowRequestExtensionType(DeleteItemRecordData)
-				.data(RequestExtensionData.builder()
-					.isAutoDelete(FALSE)
-					.itemRecordIDs( singletonList(Integer.valueOf(id)) )
-					.build())
-				.build())
-			.build();
+
 		return createRequest(POST, path, uri -> {
 		})
-			.map(request -> request.body(body))
+			.map(request -> request.body(WorkflowRequest.builder()
+				.workflowRequestType(DeleteItemRecord)
+				.txnUserID(TransactingPolarisUserID)
+				.txnBranchID(TransactingBranchID)
+				.txnWorkstationID(TransactingWorkstationID)
+				.requestExtension(RequestExtension.builder()
+					.workflowRequestExtensionType(DeleteItemRecordData)
+					.data(RequestExtensionData.builder()
+						.isAutoDelete(FALSE)
+						.itemRecordIDs( singletonList(Integer.valueOf(id)) )
+						.build())
+					.build())
+				.build()))
 			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class),
 				noExtraErrorHandling()))
 			.flatMap(response -> handlePolarisWorkflow(response, ConfirmItemRecordDelete, Continue))
@@ -648,16 +482,18 @@ class ApplicationServicesClient {
 				"Response was: " + response + ". Expected to reply to promptID: " + promptID + " with reply: " + promptResult)));
 	}
 
-	private Mono<WorkflowResponse> createItemRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
 
-		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class), noExtraErrorHandling())
-			.doOnSuccess(r -> log.info("Got create item response {}", r))
-			.doOnError(e -> log.info("Error response for create item {} {}", workflowReq, e))
+	private Mono<WorkflowResponse> createItemRequest(MutableHttpRequest<WorkflowRequest> workflowRequest) {
+		// https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/add_or_update_item_record
+
+		return client.retrieve(workflowRequest, Argument.of(WorkflowResponse.class), noExtraErrorHandling())
+			.doOnError(e -> log.info("Error response for create item {} {}", workflowRequest, e))
 			// when we save the virtual item we need to confirm we do not want the item to display in pac
 			.flatMap(response -> handlePolarisWorkflow(response, NoDisplayInPAC, Continue))
 			// if the item barcode exists we still want to continue saving the item
 			.flatMap(resp -> handlePolarisWorkflow(resp, DuplicateRecords, Continue))
-			.switchIfEmpty(Mono.error(new PolarisWorkflowException("item request failed expecting workflow response to: " + workflowReq)));
+			.switchIfEmpty(Mono.error(new PolarisWorkflowException(
+				"item request failed expecting workflow response to: " + workflowRequest)));
 	}
 
 	private Mono<MutableHttpRequest<WorkflowReply>> createItemWorkflowReply(
@@ -707,27 +543,20 @@ class ApplicationServicesClient {
 
 	private Mono<WorkflowRequest> getLocalRequestBody(HoldRequestParameters holdRequestParameters, String activationDate) {
 
-		final var conf = client.getConfig();
-		final var user = extractMapValue(conf, LOGON_USER_ID, Integer.class);
-		final var branch = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
-
-		final var servicesConfig = client.getServicesConfig();
-		final var workstation = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
-
 		final var placeHoldRequest = 5;
 		final var holdRequestData = 9;
 
 		return getHoldRequestDefaults()
 			.map(expiration -> WorkflowRequest.builder()
 				.workflowRequestType(placeHoldRequest)
-				.txnUserID(user)
-				.txnBranchID(branch)
-				.txnWorkstationID(workstation)
+				.txnUserID(TransactingPolarisUserID)
+				.txnBranchID(TransactingBranchID)
+				.txnWorkstationID(TransactingWorkstationID)
 				.requestExtension( RequestExtension.builder()
 					.workflowRequestExtensionType(holdRequestData)
 					.data(RequestExtensionData.builder()
-						.patronID(Optional.ofNullable(holdRequestParameters.getLocalPatronId()).map(Integer::valueOf).orElse(null))
-						//.patronBranchID( branch )
+						.patronID(Optional.ofNullable(
+							holdRequestParameters.getLocalPatronId()).map(Integer::valueOf).orElse(null))
 						.pickupBranchID( checkPickupBranchID(holdRequestParameters.getPickupLocation()))
 						.origin(2)
 						.activationDate(activationDate)
@@ -783,6 +612,171 @@ class ApplicationServicesClient {
 			.flatMap(request -> client.retrieve(request, Argument.of(ItemRecordFull.class),
 				noExtraErrorHandling()));
 	}
+
+	public Mono<WorkflowResponse> checkIn(String itemId, Integer illLocationId) {
+
+		final var path = createPath("workflow");
+		final var CheckInWorkflowRequestType = 1;
+		final var CheckInDataWorkflowRequestExtensionType = 2;
+		final var CHKIN_NORM = 1;
+		final var NumberOfFreeDaysGivenToThePatron = 0;
+
+		return getItemBarcode(itemId)
+			.flatMap(barcode -> createRequest(POST, path, uri -> {})
+				.map(request -> request.body(WorkflowRequest.builder()
+					.workflowRequestType(CheckInWorkflowRequestType)
+					.txnUserID(TransactingPolarisUserID)
+					.txnBranchID(illLocationId)
+					.txnWorkstationID(TransactingWorkstationID)
+					.requestExtension(RequestExtension.builder()
+						.workflowRequestExtensionType(CheckInDataWorkflowRequestExtensionType)
+						.data(RequestExtensionData.builder()
+							.checkinTypeID(CHKIN_NORM)
+							.itemBarcode(barcode)
+							.freeDays(NumberOfFreeDaysGivenToThePatron)
+							.ignoreInventoryStatusMessages(FALSE)
+							.build())
+						.build())
+					.build())))
+			.flatMap(this::createCheckInRequest);
+	}
+
+	private <R> Mono<WorkflowResponse> createCheckInRequest(MutableHttpRequest<WorkflowRequest> workflowRequest) {
+			return client.retrieve(workflowRequest, Argument.of(WorkflowResponse.class), noExtraErrorHandling())
+				.map(response -> validateWorkflowResponse(response));
+	}
+
+	/**
+	 * Based upon <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/create_hold_request">post hold request docs</a>
+	 */
+	Mono<Tuple4<String, String, String, String>> createILLHoldRequestWorkflow(HoldRequestParameters holdRequestParameters) {
+		log.debug("createILLHoldRequestWorkflow with holdRequestParameters {}", holdRequestParameters);
+
+		final var path = createPath("workflow");
+		final String activationDate = LocalDateTime.now().format( ofPattern("yyyy-MM-dd"));
+
+		return createRequest(POST, path, uri -> {})
+			.zipWith(Mono.just(WorkflowRequest.builder()
+				.workflowRequestType(5)
+				.txnUserID(TransactingPolarisUserID)
+				.txnBranchID(holdRequestParameters.getLocalItemLocationId())
+				.txnWorkstationID(TransactingWorkstationID)
+				.requestExtension( RequestExtension.builder()
+					.workflowRequestExtensionType(9)
+					.data(RequestExtensionData.builder()
+						.patronID(Optional.ofNullable(holdRequestParameters.getLocalPatronId()).map(Integer::valueOf).orElse(null))
+						.pickupBranchID( Integer.valueOf(holdRequestParameters.getPickupLocation()) )
+						.origin(2)
+						.activationDate(activationDate)
+						.expirationDate(LocalDateTime.now().plusDays(999).format( ofPattern("MM/dd/yyyy")))
+						.staffDisplayNotes(holdRequestParameters.getNote())
+						.nonPublicNotes(holdRequestParameters.getNote())
+						.pACDisplayNotes(holdRequestParameters.getNote())
+						.bibliographicRecordID(0)
+						.itemRecordID(0)
+						.itemLevelHold(FALSE)
+						.ignorePatronBlocksPrompt(TRUE)
+						.bulkMode(FALSE)
+						.patronBlocksOnlyPrompt(FALSE)
+						.ignoreMaximumHoldsPrompt(TRUE)
+						.unlockedRequest(TRUE)
+						.title(holdRequestParameters.getTitle())
+						.browseTitle(holdRequestParameters.getTitle())
+						.build())
+					.build())
+				.build()))
+			.map(function(ApplicationServicesClient::addBodyToRequest))
+			.flatMap(workflowReq -> client.retrieve(workflowReq, Argument.of(WorkflowResponse.class),
+				noExtraErrorHandling()))
+			.map(response -> validateWorkflowResponse(response))
+			.thenReturn(Tuples.of(
+				holdRequestParameters.getLocalPatronId(),
+				holdRequestParameters.getTitle(),
+				holdRequestParameters.getNote(),
+				activationDate));
+	}
+
+	public Mono<List<ILLRequest>> getIllRequest(String patronLocalId) {
+
+		final var path = createPath("patrons", patronLocalId, "requests", "ill");
+		return createRequest(GET, path, uri -> {})
+			.flatMap(request -> client.retrieve(request, Argument.listOf(ILLRequest.class),
+				noExtraErrorHandling()));
+	}
+
+	public Mono<WorkflowResponse> convertToIll(Integer illLocationId, String localId) {
+
+		final var path = createPath("workflow");
+		final var ConvertHoldRequestToILLRequest = 20;
+		final var ConvertToILLRequestData = 16;
+
+		return createRequest(POST, path, uri -> {})
+			.map(request -> request.body(WorkflowRequest.builder()
+				.workflowRequestType(ConvertHoldRequestToILLRequest)
+				.txnUserID(TransactingPolarisUserID)
+				.txnBranchID(illLocationId)
+				.txnWorkstationID(TransactingWorkstationID)
+				.requestExtension( RequestExtension.builder()
+					.workflowRequestExtensionType(ConvertToILLRequestData)
+					.data(RequestExtensionData.builder()
+						.sysHoldRequestID(localId)
+						.skipTotalILLLimitExceededPrompt(TRUE)
+						.build())
+					.build())
+				.build()))
+			.flatMap(this::convertToIllRequest);
+	}
+
+	public Mono<ILLRequestInfo> transferRequest(Integer illLocationId, Integer illRequestId) {
+
+		final var path = createPath("workflow");
+		final var ReceiveILLRequest = 18;
+		final var ReceiveILLData = 14;
+
+		return createRequest(POST, path, uri -> {})
+			.map(request -> request.body(WorkflowRequest.builder()
+				.workflowRequestType(ReceiveILLRequest)
+				.txnUserID(TransactingPolarisUserID)
+				.txnBranchID(illLocationId)
+				.txnWorkstationID(TransactingWorkstationID)
+				.requestExtension( RequestExtension.builder()
+					.workflowRequestExtensionType(ReceiveILLData)
+					.data(RequestExtensionData.builder()
+						.iLLRequestID(illRequestId)
+						.circTranType(12)
+						.build())
+					.build())
+				.build()))
+			.flatMap(this::createTransferRequest);
+	}
+
+	private <R> Mono<ILLRequestInfo> createTransferRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
+
+		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class), noExtraErrorHandling())
+			.doOnSuccess(r -> log.info("Got transfer request response {}", r))
+			.doOnError(e -> log.info("Error response for transferring ILL request {} {}", workflowReq, e))
+			// when we save the virtual item we need to confirm we do not want the item to display in pac
+			.flatMap(response -> handlePolarisWorkflow(response, BriefItemEntry, Continue))
+			.switchIfEmpty( Mono.error(new PolarisWorkflowException(
+				"transferring ILL request failed expecting workflow response to: " + workflowReq)))
+			.map(workflowResponse -> workflowResponse.getAnswerExtension().getAnswerData().getILLRequestInfo());
+	}
+
+	private Mono<WorkflowResponse> convertToIllRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
+
+		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class), noExtraErrorHandling())
+			.doOnSuccess(ApplicationServicesClient::logSuccessfulResponseMessage)
+			.doOnError(e -> log.info("Error response for convert ILL request {} {}", workflowReq, e))
+			.switchIfEmpty(Mono.error(new PolarisWorkflowException(
+				"convert ILL request failed expecting workflow response to: " + workflowReq)));
+	}
+
+	private static void logSuccessfulResponseMessage(WorkflowResponse r) {
+		log.info(">>>>>>> {} <<<<<<<", r.getInformationMessages() != null
+			? r.getInformationMessages()
+			: "No information messages available.");
+	}
+
 
 	@Builder
 	@Data
@@ -1083,6 +1077,7 @@ class ApplicationServicesClient {
 	@Serdeable
 	static class Prompt {
 		// Prompt Identifiers
+		public static final Integer BriefItemEntry = 55;
 		public static final Integer NoDisplayInPAC = 66;
 		public static final Integer DuplicateRecords = 72;
 		public static final Integer ConfirmItemRecordDelete = 73;
@@ -1362,6 +1357,14 @@ class ApplicationServicesClient {
 		private Integer iLLRequestID;
 		@JsonProperty("circTranType")
 		private Integer circTranType;
+
+		// check in item
+		@JsonProperty("CheckinTypeID")
+		private Integer checkinTypeID;
+		@JsonProperty("FreeDays")
+		private Integer freeDays;
+		@JsonProperty("ignoreInventoryStatusMessages")
+		private Boolean ignoreInventoryStatusMessages;
 	}
 
 	@Builder
