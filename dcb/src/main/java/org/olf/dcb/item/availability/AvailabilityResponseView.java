@@ -1,9 +1,12 @@
 package org.olf.dcb.item.availability;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 
 import io.micronaut.core.annotation.Nullable;
@@ -37,8 +40,12 @@ public class AvailabilityResponseView {
 	}
 
 	private static ARVItem mapItem(Item item) {
-		final var agency = item.getAgency() != null
-			? new Agency(item.getAgencyCode(), item.getAgencyName())
+		final var agency = getValue(item, Item::getAgency);
+		final var agencyCode = getValue(agency, DataAgency::getCode);
+		final var agencyName = getValue(agency, DataAgency::getName);
+
+		final var mappedAgency = agency != null
+			? new Agency(agencyCode, agencyName)
 			: null;
 
 		return new ARVItem(item.getLocalId(),
@@ -48,7 +55,7 @@ public class AvailabilityResponseView {
 			item.getIsRequestable(), item.getHoldCount(), item.getLocalItemType(),
 			item.getCanonicalItemType(),
 			item.getLocalItemTypeCode(),
-			agency,
+			mappedAgency,
 			item.getRawVolumeStatement(),
 			item.getParsedVolumeStatement()
 		);
