@@ -1,6 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
 import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -13,6 +14,9 @@ import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -244,23 +248,24 @@ class PatronRequestResolutionTests {
 			() -> resolve(patronRequest));
 
 		// Assert
-		assertThat("Exception should not be null", exception, is(notNullValue()));
-		assertThat("Exception should have a message",
-			exception.getMessage(), is("Cannot find cluster record for: " + clusterRecordId));
+		final var expectedErrorMessage = "Cannot find cluster record for: " + clusterRecordId;
+
+		assertThat(exception, allOf(
+			notNullValue(),
+			hasMessage(expectedErrorMessage)
+		));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
-		assertThat("Request should be in error status",
-			fetchedPatronRequest.getStatus(), is(ERROR));
-
-		assertThat("Request should have error message afterwards",
-			fetchedPatronRequest.getErrorMessage(), is("Cannot find cluster record for: " + clusterRecordId));
+		assertThat(fetchedPatronRequest, allOf(
+			hasStatus(ERROR),
+			hasErrorMessage(expectedErrorMessage)
+		));
 
 		assertThat("Should not find any supplier requests",
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
 
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest,
-			"Cannot find cluster record for: " + clusterRecordId);
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
 
 		log.info("shouldFailToResolveVerifiedRequestWhenClusterRecordCannotBeFound - exiting\n\n");
 	}
@@ -289,14 +294,19 @@ class PatronRequestResolutionTests {
 			() -> resolve(patronRequest));
 
 		// Assert
-		assertThat("Exception should not be null", exception, is(notNullValue()));
-		assertThat("Exception should have a message",
-			exception.getMessage(), is("Cluster record: \"" + clusterRecord.getId() + "\" has no bibs"));
+		final var expectedErrorMessage = "Cluster record: \"" + clusterRecord.getId() + "\" has no bibs";
+
+		assertThat(exception, allOf(
+			notNullValue(),
+			hasMessage(expectedErrorMessage)
+		));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
-		assertThat("Request should be in error status",
-			fetchedPatronRequest.getStatus(), is(ERROR));
+		assertThat(fetchedPatronRequest, allOf(
+			hasStatus(ERROR),
+			hasErrorMessage(expectedErrorMessage)
+		));
 
 		assertThat("Should not find any supplier requests",
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
