@@ -213,8 +213,7 @@ class LiveAvailabilityApiTests {
 		assertThat(firstItem.getLocation().getCode(), is("example-location"));
 		assertThat(firstItem.getLocation().getName(), is("Example Location"));
 
-		assertThat(firstItem.getAgency().getCode(), is(nullValue()));
-		assertThat(firstItem.getAgency().getDescription(), is(nullValue()));
+		assertThat(firstItem.getAgency(), is(nullValue()));
 	}
 
 	@Test
