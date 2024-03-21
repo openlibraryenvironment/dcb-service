@@ -111,6 +111,8 @@ class PatronRequestResolutionTests {
 		agencyFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,"ABC123","ab8");
+		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,"ab6","ab8");
+
 		agencyFixture.defineAgency("ab8", "ab8", hostLms);
 	}
 
