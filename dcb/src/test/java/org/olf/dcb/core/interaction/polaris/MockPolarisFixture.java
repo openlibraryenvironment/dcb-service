@@ -128,11 +128,11 @@ public class MockPolarisFixture {
 	}
 
 	public void mockGetItem(String itemId) {
-		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/" + itemId, "items-get.json");
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemrecords/" + itemId, "item-by-id.json");
 	}
 
 	public void mockGetItemServerErrorResponse(String itemId) {
-		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/item/" + itemId,
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemrecords/" + itemId,
 			response()
 				.withStatusCode(500)
 				.withBody("Something went wrong"));

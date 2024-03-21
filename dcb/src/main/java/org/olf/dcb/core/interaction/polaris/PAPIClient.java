@@ -250,18 +250,6 @@ public class PAPIClient {
 		return Mono.just(patronSearchResult.getPatronSearchRows().get(0));
 	}
 
-	public Mono<ItemGetRow> synch_ItemGet(String recordNumber) {
-		final var path = createPath(PROTECTED_PARAMETERS, "synch", "item", recordNumber);
-
-		return createRequest(GET, path, uri -> {})
-			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemGetResponse.class),
-				noExtraErrorHandling()))
-			.map(ItemGetResponse::getItemGetRows)
-			.filter(itemGetRows -> itemGetRows.size() > 0)
-			.map(itemGetRows -> itemGetRows.get(0));
-	}
-
 	private Mono<MutableHttpRequest<?>> createRequest(HttpMethod httpMethod, String path,
 		Consumer<UriBuilder> uriBuilderConsumer) {
 
