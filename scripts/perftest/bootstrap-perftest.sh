@@ -49,6 +49,7 @@ curl -X POST $TARGET/hostlmss -H "Content-Type: application/json"  -H "Authoriza
   } 
 }'
 
+# Generate a system with 0 holdings - we will use this as our requester
 echo Dummy3
 curl -X POST $TARGET/hostlmss -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
   "id":"'`uuidgen --sha1 -n $HOSTLMS_NS_UUID --name DUMMY3`'", 
@@ -57,7 +58,7 @@ curl -X POST $TARGET/hostlmss -H "Content-Type: application/json"  -H "Authoriza
   "lmsClientClass": "org.olf.dcb.devtools.interaction.dummy.DummyLmsClient", 
   "clientConfig": { 
     "ingest": "true",
-    "num-records-to-generate": 500,
+    "num-records-to-generate": 0,
     "shelving-locations": "LM3-A1-SL1,LM3-A2-SL1"
   } 
 }'

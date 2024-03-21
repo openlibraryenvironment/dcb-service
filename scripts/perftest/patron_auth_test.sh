@@ -13,6 +13,6 @@ TOKEN=`../login`
 sleep 1
 echo
 echo "Patron auth: "
-auth_request_data='{"agencyCode": "DA-1-1", "patronPrinciple": "1234", "secret": "1234"}'
+auth_request_data='{"agencyCode": "DA-3-1", "patronPrinciple": "1234", "secret": "1234"}'
 curl -s -X POST "$TARGET/patron/auth" -H "Accept-Language: en" -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d "${auth_request_data}" | json_pp
 
