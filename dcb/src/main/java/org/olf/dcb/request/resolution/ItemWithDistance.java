@@ -3,7 +3,7 @@ package org.olf.dcb.request.resolution;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
-import org.olf.dcb.core.model.PatronRequest;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,9 +18,9 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Builder
 @Accessors(chain = true)
 public class ItemWithDistance {
-        private Location pickupLocation;
+	private Location pickupLocation;
 	private Item item;
-        private DataAgency itemAgency;
-        private double distance;
+	private DataAgency itemAgency;
+	private double distance;
 }
 
