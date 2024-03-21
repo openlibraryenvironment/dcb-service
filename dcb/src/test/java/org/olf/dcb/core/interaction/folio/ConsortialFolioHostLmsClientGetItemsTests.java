@@ -108,12 +108,10 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 	void shouldBeAbleToGetItems() {
 		// Arrange
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			CATALOGUING_HOST_LMS_CODE,
-			"CLLA", "known-agency");
+			CATALOGUING_HOST_LMS_CODE, "CLLA", "known-agency");
 
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeMapping(
-			CATALOGUING_HOST_LMS_CODE,
-			"book", "canonical-book");
+			CATALOGUING_HOST_LMS_CODE, "book", "canonical-book");
 
 		agencyFixture.defineAgency("known-agency", "Known agency",
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));

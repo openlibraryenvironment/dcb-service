@@ -3,6 +3,7 @@ package org.olf.dcb.core.svc;
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.trimToNull;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.consumeOnSuccess;
 
 import org.olf.dcb.core.model.DataAgency;
@@ -12,7 +13,6 @@ import org.olf.dcb.core.model.ReferenceValueMapping;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-import reactor.function.TupleUtils;
 
 @Slf4j
 @Singleton
@@ -37,11 +37,14 @@ public class LocationToAgencyMappingService {
 	public Mono<Item> enrichItemAgencyFromLocation(Item incomingItem, String hostLmsCode) {
 		return Mono.just(incomingItem)
 			.zipWhen(item -> findLocationToAgencyMapping(item, hostLmsCode))
-			.map(TupleUtils.function((item, agency) ->
+			.map(function((item, agency) ->
 				item.setAgency(agency)
 					.setAgencyCode(agency.getCode())
-					.setAgencyName(agency.getName())))
-			.defaultIfEmpty(incomingItem);
+					.setAgencyName(agency.getName())
+			))
+			.defaultIfEmpty(incomingItem)
+			// This has to be set separately in case agency is not found
+			.map(item -> item.setHostLmsCode(hostLmsCode));
 	}
 
 	private Mono<DataAgency> findLocationToAgencyMapping(Item item, String hostLmsCode) {

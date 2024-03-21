@@ -72,7 +72,6 @@ public class SierraItemMapper {
 					.build())
 				.barcode(itemResult.getBarcode())
 				.callNumber(itemResult.getCallNumber())
-				.hostLmsCode(hostLmsCode)
 				.holdCount(itemResult.getHoldCount())
 				.localBibId(localBibId)
 				.localItemType(itemResult.getItemType())
