@@ -1,5 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
+import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
@@ -25,12 +26,16 @@ import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasNoLocalItemSt
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasNoLocalStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
+import java.time.Instant;
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
@@ -137,7 +142,21 @@ class PatronRequestResolutionTests {
 		bibRecordFixture.createBibRecord(bibRecordId, hostLms.getId(),
 			"465675", clusterRecord);
 
-		sierraItemsAPIFixture.twoItemsResponseForBibId("465675");
+		sierraItemsAPIFixture.itemsForBibId("465675", List.of(
+			SierraItem.builder()
+				.id("1000001")
+				.barcode("30800005238487")
+				.locationCode("ab6")
+				.statusCode("-")
+				.dueDate(Instant.parse("2021-02-25T12:00:00Z"))
+				.build(),
+			SierraItem.builder()
+				.id("1000002")
+				.barcode("6565750674")
+				.locationCode("ab6")
+				.statusCode("-")
+				.build()
+		));
 
 		final var patron = patronFixture.savePatron("465636");
 		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-", "465636", null);
@@ -188,7 +207,7 @@ class PatronRequestResolutionTests {
 		bibRecordFixture.createBibRecord(bibRecordId, hostLms.getId(),
 			"245375", clusterRecord);
 
-		sierraItemsAPIFixture.zeroItemsResponseForBibId("245375");
+		sierraItemsAPIFixture.itemsForBibId("245375", emptyList());
 
 		final var patron = patronFixture.savePatron("294385");
 		patronFixture.saveIdentity(patron, hostLms, "872321", true,"-", "294385", null);
