@@ -143,8 +143,7 @@ class PatronRequestResolutionTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		// Act
-		singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-			.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx)));
+		resolve(patronRequest);
 
 		// Assert
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
@@ -205,8 +204,7 @@ class PatronRequestResolutionTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		// Act
-		singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-			.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx)));
+		resolve(patronRequest);
 
 		// Assert
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
@@ -243,9 +241,7 @@ class PatronRequestResolutionTests {
 
 		// Act
 		final var exception = assertThrows(CannotFindClusterRecordException.class,
-			() -> singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-				.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx))
-			));
+			() -> resolve(patronRequest));
 
 		// Assert
 		assertThat("Exception should not be null", exception, is(notNullValue()));
@@ -290,9 +286,7 @@ class PatronRequestResolutionTests {
 
 		// Act
 		final var exception = assertThrows(UnableToResolvePatronRequest.class,
-			() -> singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-				.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx))
-			));
+			() -> resolve(patronRequest));
 
 		// Assert
 		assertThat("Exception should not be null", exception, is(notNullValue()));
@@ -308,13 +302,18 @@ class PatronRequestResolutionTests {
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
 	}
 
+	private void resolve(PatronRequest patronRequest) {singleValueFrom(
+		requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+			.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx)));
+	}
+
 	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest, Status expectedToStatus) {
 		assertThat("Patron Request should have state", patronRequest.getStatus(), is(expectedToStatus));
 	}
 
 	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
 		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
-		
+
 		assertThat("Patron Request audit should have brief description",
 			fetchedAudit.getBriefDescription(),
 			is(description));
