@@ -7,11 +7,11 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
-import org.olf.dcb.core.model.PatronRequest.Status;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -20,29 +20,33 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.UnableToResolvePatronRequest;
 import org.olf.dcb.request.workflow.PatronRequestResolutionStateTransition;
-import org.olf.dcb.test.*;
+import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.test.BibRecordFixture;
+import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
 
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-
+@Slf4j
 @MockServerMicronautTest
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 class PatronRequestResolutionTests {
-
 	private final String HOST_LMS_CODE = "resolution-local-system";
-
-	private static final Logger log = LoggerFactory.getLogger(PatronRequestResolutionTests.class);
 
 	@Inject
 	private PatronRequestResolutionStateTransition patronRequestResolutionStateTransition;
@@ -70,11 +74,11 @@ class PatronRequestResolutionTests {
 	private AgencyFixture agencyFixture;
 
 	private DataHostLms hostLms;
+	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@BeforeAll
 	@SneakyThrows
-	public void beforeAll(MockServerClient mockServer) {
-
+	public void beforeAll(MockServerClient mockServerClient) {
 		log.info("beforeAll\n\n");
 
 		final String HOST_LMS_BASE_URL = "https://resolution-tests.com";
@@ -82,7 +86,7 @@ class PatronRequestResolutionTests {
 		final String HOST_LMS_KEY = "resolution-system-key";
 		final String HOST_LMS_SECRET = "resolution-system-secret";
 
-		SierraTestUtils.mockFor(mockServer, HOST_LMS_BASE_URL)
+		SierraTestUtils.mockFor(mockServerClient, HOST_LMS_BASE_URL)
 			.setValidCredentials(HOST_LMS_KEY, HOST_LMS_SECRET, HOST_LMS_TOKEN, 60);
 
 		supplierRequestsFixture.deleteAll();
@@ -93,11 +97,14 @@ class PatronRequestResolutionTests {
 
 		hostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, HOST_LMS_KEY,
 			HOST_LMS_SECRET, HOST_LMS_BASE_URL, "item");
+
+		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 	}
 
 	@BeforeEach
 	void beforeEach() {
 		log.info("beforeEach\n\n");
+
 		clusterRecordFixture.deleteAll();
 		// RequestWorkflowContextHelper will complain if the requested pickup location cannot be mapped into an agency
 		referenceValueMappingFixture.deleteAll();
@@ -108,9 +115,7 @@ class PatronRequestResolutionTests {
 	}
 
 	@Test
-	void shouldResolveVerifiedRequestWhenFirstItemOfMultipleIsChosen(
-		MockServerClient mockServerClient) {
-
+	void shouldResolveVerifiedRequestWhenFirstItemOfMultipleIsChosen() {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
@@ -118,8 +123,6 @@ class PatronRequestResolutionTests {
 
 		bibRecordFixture.createBibRecord(bibRecordId, hostLms.getId(),
 			"465675", clusterRecord);
-
-		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		sierraItemsAPIFixture.twoItemsResponseForBibId("465675");
 
@@ -138,10 +141,8 @@ class PatronRequestResolutionTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		// Act
-		singleValueFrom(
-			requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-				.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx))
-		);
+		singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+			.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx)));
 
 		// Assert
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
@@ -176,9 +177,7 @@ class PatronRequestResolutionTests {
 	}
 
 	@Test
-	void shouldResolveVerifiedRequestToNoAvailableItemsWhenNoItemCanBeChosen(
-		MockServerClient mockServerClient) {
-
+	void shouldResolveVerifiedRequestToNoAvailableItemsWhenNoItemCanBeChosen() {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
@@ -186,8 +185,6 @@ class PatronRequestResolutionTests {
 
 		bibRecordFixture.createBibRecord(bibRecordId, hostLms.getId(),
 			"245375", clusterRecord);
-
-		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("245375");
 
@@ -206,10 +203,8 @@ class PatronRequestResolutionTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		// Act
-		singleValueFrom(
-			requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-				.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx))
-		);
+		singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+			.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx)));
 
 		// Assert
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
@@ -225,7 +220,6 @@ class PatronRequestResolutionTests {
 
 	@Test
 	void shouldFailToResolveVerifiedRequestWhenClusterRecordCannotBeFound() {
-
 		log.info("shouldFailToResolveVerifiedRequestWhenClusterRecordCannotBeFound - entering\n\n");
 
 		// Arrange
@@ -247,10 +241,9 @@ class PatronRequestResolutionTests {
 
 		// Act
 		final var exception = assertThrows(CannotFindClusterRecordException.class,
-			() -> singleValueFrom(
-				requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-						.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx))
-				));
+			() -> singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx))
+			));
 
 		// Assert
 		assertThat("Exception should not be null", exception, is(notNullValue()));
@@ -295,10 +288,9 @@ class PatronRequestResolutionTests {
 
 		// Act
 		final var exception = assertThrows(UnableToResolvePatronRequest.class,
-			() -> singleValueFrom(
-				requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-						.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx))
-				));
+			() -> singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx))
+			));
 
 		// Assert
 		assertThat("Exception should not be null", exception, is(notNullValue()));
