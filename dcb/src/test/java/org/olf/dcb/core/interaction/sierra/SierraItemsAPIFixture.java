@@ -137,6 +137,17 @@ public class SierraItemsAPIFixture {
 			? item.getDueDate().toString()
 			: null;
 
+		final var itemType = item.getItemType();
+
+		final Map<Integer, FixedField> fixedFields;
+
+		if (itemType != null) {
+			fixedFields = Map.of(61, FixedField.builder().value(itemType).build());
+		}
+		else {
+			fixedFields = Map.of();
+		}
+
 		return SierraItem.builder()
 			.id(item.getId())
 			.barcode(item.getBarcode())
@@ -149,10 +160,8 @@ public class SierraItemsAPIFixture {
 				.name(item.getLocationName())
 				.code(item.getLocationCode())
 				.build())
-			.itemType(item.getItemType())
-			.fixedFields(Map.of(
-				61, FixedField.builder().value(item.getItemType()).build()
-			))
+			.itemType(itemType)
+			.fixedFields(fixedFields)
 			.holdCount(item.getHoldCount())
 			.deleted(false)
 			.build();
