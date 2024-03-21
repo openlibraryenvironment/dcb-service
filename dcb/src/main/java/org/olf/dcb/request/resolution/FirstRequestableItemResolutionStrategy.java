@@ -19,7 +19,7 @@ public class FirstRequestableItemResolutionStrategy implements ResolutionStrateg
 	public String getCode() {
 		return "FirstItem";
 	}
-	
+
 	@Override
 	public Mono<Item> chooseItem(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest) {
 		final var patronRequestId = getValue(patronRequest, PatronRequest::getId);
