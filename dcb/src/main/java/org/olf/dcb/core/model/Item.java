@@ -41,7 +41,7 @@ public class Item implements Comparable<Item> {
 	private Boolean suppressed;
 	private String agencyCode;
 	private String agencyName;
-	private Agency agency;
+	private DataAgency agency;
 
 	// If this item has attached volume information use these two fields to stash the raw
 	// and the processed volume statement. parsed volume statement

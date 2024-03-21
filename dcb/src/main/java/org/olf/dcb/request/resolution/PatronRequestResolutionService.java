@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -88,33 +87,16 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<SupplierRequest> createSupplierRequest(Item item, PatronRequest patronRequest) {
-		log.debug("createSupplierRequest() current pr status = {}",patronRequest.getStatus());
-		return resolveSupplyingAgency(item)
-			.map(agency -> mapToSupplierRequest(item, patronRequest, agency))
-			// This is fugly - it happens because some of the tests don't care about the agency being real
-			.switchIfEmpty(Mono.fromCallable(() -> mapToSupplierRequest(item, patronRequest, null)));
-	}
+		log.debug("createSupplierRequest() current pr status = {}", patronRequest.getStatus());
 
-	private Mono<DataAgency> resolveSupplyingAgency(Item item) {
-		final var host_lms_code = item.getHostLmsCode().trim();
-		final var shelving_location = item.getLocation().getCode().trim();
-
-		log.debug("Attempting to resolveSupplyingAgency(hostSystem={},shelvingLocation={})",
-			host_lms_code, shelving_location);
-
-		return locationToAgencyMappingService.mapLocationToAgency(host_lms_code, shelving_location);
+		return Mono.just(mapToSupplierRequest(item, patronRequest));
 	}
 
 	// Right now we assume that this is always the first supplier we are talking to.. In the future we need to
 	// be able to handle a supplier failing to deliver and creating a new request for a different supplier.
 	// isActive is intended to identify the "Current" supplier as we try different agencies.
-	private static SupplierRequest mapToSupplierRequest(Item item,
-		PatronRequest patronRequest, DataAgency agency) {
-
-		log.debug("mapToSupplierRequest({}, {}, {})", item, patronRequest,agency);
-
-		if (agency == null)
-			log.error("\n\n** NO AGENCY ATTEMPTING TO MAP SUPPLIER REQUEST - The SupplierRequest localAgency will be null - this is test only behaviour**\n\n");
+	private static SupplierRequest mapToSupplierRequest(Item item, PatronRequest patronRequest) {
+		log.debug("mapToSupplierRequest({}, {})", item, patronRequest);
 
 		final var supplierRequestId = UUID.randomUUID();
 
@@ -134,10 +116,10 @@ public class PatronRequestResolutionService {
 			// ToDo - This no longer holds true - we need to find the hostLMS attached to the supplying agency and use that
 			// instead - as the item may have come from a different HostLMS
 			.hostLmsCode(item.getHostLmsCode())
-			.localAgency(agency != null ? agency.getCode() : null)
+			.localAgency(item.getAgency() != null ? item.getAgency().getCode() : null)
 			.statusCode(PENDING)
-			.isActive(Boolean.TRUE)
-			.resolvedAgency(agency)
+			.isActive(true)
+			.resolvedAgency(item.getAgency())
 			.build();
 	}
 
