@@ -24,4 +24,24 @@ public class SupplierRequestMatchers {
 	public static Matcher<SupplierRequest> hasLocalItemId(String expectedId) {
 		return hasProperty("localItemId", is(expectedId));
 	}
+
+	public static Matcher<SupplierRequest> hasNoLocalStatus() {
+		return hasProperty("localStatus", is(nullValue()));
+	}
+
+	public static Matcher<SupplierRequest> hasNoLocalId() {
+		return hasProperty("localId", is(nullValue()));
+	}
+
+	public static Matcher<SupplierRequest> hasNoLocalItemStatus() {
+		return hasProperty("localItemStatus", is(nullValue()));
+	}
+
+	public static Matcher<SupplierRequest> hasLocalItemLocationCode(String expectedCode) {
+		return hasProperty("localItemLocationCode", is(expectedCode));
+	}
+
+	public static Matcher<SupplierRequest> hasLocalBibId(String expectedId) {
+		return hasProperty("localBibId", is(expectedId));
+	}
 }

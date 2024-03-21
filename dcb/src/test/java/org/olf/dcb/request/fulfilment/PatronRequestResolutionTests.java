@@ -4,8 +4,8 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -16,6 +16,13 @@ import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalBibId;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemId;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemLocationCode;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasNoLocalId;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasNoLocalItemStatus;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasNoLocalStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -156,26 +163,17 @@ class PatronRequestResolutionTests {
 
 		final var onlySupplierRequest = supplierRequestsFixture.findFor(patronRequest);
 
-		assertThat("Should be for expected host LMS",
-			onlySupplierRequest.getHostLmsCode(), is(HOST_LMS_CODE));
-
-		assertThat("Should have expected local item ID",
-			onlySupplierRequest.getLocalItemId(), is("1000002"));
-
-		assertThat("Should have expected local bib ID",
-			onlySupplierRequest.getLocalBibId(), is("465675"));
-
-		assertThat("Should have expected local item barcode",
-			onlySupplierRequest.getLocalItemBarcode(), is("6565750674"));
-
-		assertThat("Should have expected local item location code",
-			onlySupplierRequest.getLocalItemLocationCode(), is("ab6"));
-
-		assertThat("Should not have local ID",
-			onlySupplierRequest.getLocalId(), is(nullValue()));
-
-		assertThat("Should not have local status",
-			onlySupplierRequest.getLocalStatus(), is(nullValue()));
+		assertThat(onlySupplierRequest, allOf(
+			notNullValue(),
+			hasProperty("hostLmsCode", is(HOST_LMS_CODE)),
+			hasLocalItemId("1000002"),
+			hasLocalItemBarcode("6565750674"),
+			hasLocalBibId("465675"),
+			hasLocalItemLocationCode("ab6"),
+			hasNoLocalItemStatus(),
+			hasNoLocalId(),
+			hasNoLocalStatus()
+		));
 
 		assertSuccessfulTransitionAudit(fetchedPatronRequest, RESOLVED);
 	}
