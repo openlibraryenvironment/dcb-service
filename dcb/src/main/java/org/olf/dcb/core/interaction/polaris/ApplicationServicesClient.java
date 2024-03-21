@@ -387,7 +387,10 @@ class ApplicationServicesClient {
 	// it will only save the item provisionally
 	// a provisional save will mean the hold can not be placed with this item
 	private static String useBarcodeWithPrefix(CreateItemCommand createItemCommand, String barcodePrefix) {
-		return (barcodePrefix != null ? barcodePrefix : useRandomPrefix()) + createItemCommand.getBarcode();
+		return (barcodePrefix != null && !barcodePrefix.equals("")
+			? barcodePrefix
+			: useRandomPrefix())
+			+ createItemCommand.getBarcode();
 	}
 
 	private static String useRandomPrefix() {
