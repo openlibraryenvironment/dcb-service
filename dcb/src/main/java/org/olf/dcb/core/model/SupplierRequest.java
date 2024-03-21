@@ -132,9 +132,11 @@ public class SupplierRequest {
   @Nullable
   private Long localRequestStatusRepeat;
 
+	@ToString.Include
 	@Nullable
 	private String localAgency;
 
+	@ToString.Include
 	@Nullable
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private DataAgency resolvedAgency;

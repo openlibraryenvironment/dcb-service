@@ -17,6 +17,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalAgencyCode;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemId;
@@ -24,6 +25,7 @@ import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemLoca
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasNoLocalId;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasNoLocalItemStatus;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasNoLocalStatus;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasResolvedAgency;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.time.Instant;
@@ -37,6 +39,7 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -122,11 +125,12 @@ class PatronRequestResolutionTests {
 		log.info("beforeEach\n\n");
 
 		clusterRecordFixture.deleteAll();
-		// RequestWorkflowContextHelper will complain if the requested pickup location cannot be mapped into an agency
+		// RequestWorkflowContextHelper will complain if the requested pickup location cannot be mapped into an expectedAgency
 		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,"ABC123","ab8");
+
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,"ab6","ab8");
 
 		agencyFixture.defineAgency("ab8", "ab8", hostLms);
@@ -182,6 +186,8 @@ class PatronRequestResolutionTests {
 
 		final var onlySupplierRequest = supplierRequestsFixture.findFor(patronRequest);
 
+		final DataAgency expectedAgency = agencyFixture.findByCode("ab8");
+
 		assertThat(onlySupplierRequest, allOf(
 			notNullValue(),
 			hasProperty("hostLmsCode", is(HOST_LMS_CODE)),
@@ -191,7 +197,9 @@ class PatronRequestResolutionTests {
 			hasLocalItemLocationCode("ab6"),
 			hasNoLocalItemStatus(),
 			hasNoLocalId(),
-			hasNoLocalStatus()
+			hasNoLocalStatus(),
+			hasLocalAgencyCode("ab8"),
+			hasResolvedAgency(expectedAgency)
 		));
 
 		assertSuccessfulTransitionAudit(fetchedPatronRequest, RESOLVED);
