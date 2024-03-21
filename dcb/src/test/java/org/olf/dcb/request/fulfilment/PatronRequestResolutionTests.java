@@ -152,8 +152,7 @@ class PatronRequestResolutionTests {
 		// Assert
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
-		assertThat("Request should be resolved",
-			fetchedPatronRequest.getStatus(), is(RESOLVED));
+		assertThat(fetchedPatronRequest, hasStatus(RESOLVED));
 
 		final var onlySupplierRequest = supplierRequestsFixture.findFor(patronRequest);
 
@@ -213,8 +212,7 @@ class PatronRequestResolutionTests {
 		// Assert
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
-		assertThat("Request should have no items available at any agency",
-			fetchedPatronRequest.getStatus(), is(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
+		assertThat(fetchedPatronRequest, hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
 
 		assertThat("Should not find any supplier requests",
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
