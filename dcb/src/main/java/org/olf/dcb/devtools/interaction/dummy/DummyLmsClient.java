@@ -107,19 +107,28 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 			List<Item> result_items = new ArrayList<>();
 			String[] locs = shelvingLocations.split(",");
 			for (String s : locs) {
-				result_items.add(Item.builder().localId(localBibId + "-i" + n).localBibId(localBibId)
-						.status(new ItemStatus(ItemStatusCode.AVAILABLE)).hostLmsCode(lms.getCode())
-						// .dueDate(parsedDueDate)
-						.location(org.olf.dcb.core.model.Location.builder().code(s).name(s).build()).barcode(localBibId + "-i" + n)
-						.callNumber("CN-" + localBibId).holdCount(0).localItemType("Books/Monographs").localItemTypeCode("BKM")
-						.deleted(false).suppressed(false).build());
+				result_items.add(
+					Item.builder()
+						.localId(localBibId + "-i" + n)
+						.localBibId(localBibId)
+						.status(new ItemStatus(ItemStatusCode.AVAILABLE))
+						.location(org.olf.dcb.core.model.Location.builder()
+							.code(s)
+							.name(s)
+							.build())
+						.barcode(localBibId + "-i" + n)
+						.callNumber("CN-" + localBibId).holdCount(0)
+						.localItemType("Books/Monographs")
+						.localItemTypeCode("BKM")
+						.deleted(false)
+						.suppressed(false)
+						.build());
 				n++;
 			}
 
 			return Flux.fromIterable(result_items)
-					.flatMap(
-							item -> enrichItemAgencyFromShelvingLocation(item, item.getHostLmsCode(), item.getLocation().getCode()))
-					.collectList();
+				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()))
+				.collectList();
 		}
 
 		return Mono.empty();
@@ -425,19 +434,6 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 		return Mono.from(processStateService.updateState(lms.getId(), "ingest", state.storred_state))
 			.thenReturn(state);
-	}
-
-	Mono<org.olf.dcb.core.model.Item> enrichItemAgencyFromShelvingLocation(
-		org.olf.dcb.core.model.Item item, String hostSystem, String itemShelvingLocation) {
-		// log.debug("map shelving location to agency
-		// {}:\"{}\"",hostSystem,itemShelvingLocation);
-		return locationToAgencyMappingService.mapLocationToAgency(hostSystem, itemShelvingLocation)
-			.map(dataAgency -> {
-				item.setAgencyCode(dataAgency.getCode());
-				item.setAgencyName(dataAgency.getName());
-				return item;
-			})
-			.defaultIfEmpty(item);
 	}
 
 	@Override
