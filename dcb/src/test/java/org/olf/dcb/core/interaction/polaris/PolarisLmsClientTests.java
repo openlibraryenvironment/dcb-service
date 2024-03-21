@@ -12,6 +12,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.AVAILABLE;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
@@ -846,7 +847,7 @@ class PolarisLmsClientTests {
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-		final var string = singleValueFrom(client.updateItemStatus(localItemId, TRANSIT, null));
+		final var string = singleValueFrom(client.updateItemStatus(localItemId, AVAILABLE, null));
 
 		// Assert
 		assertThat(string, is(notNullValue()));

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -320,9 +321,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.itemBarcode(item.getBarcode())
 					.build();
 			})
-			.doOnNext( hr -> log.info("Attempt to place hold {}",hr) )
+			.doOnNext( hr -> log.info("Attempt to place hold... {}",hr) )
 			.flatMap(ApplicationServices::createHoldRequestWorkflow)
-			.doOnNext( hr -> log.info("got hold response {}",hr) )
 			.flatMap(function(this::getLocalHoldRequestId));
 	}
 
@@ -341,7 +341,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		}
 
 		return ApplicationServices.listPatronLocalHolds(patronId)
-			.doOnNext(entries -> log.debug("Got Polaris Holds: {}", entries))
+			.doOnNext( logLocalHolds() )
 			.flatMapMany(Flux::fromIterable)
 			.filter(holds -> shouldIncludeHold(holds, bibId, activationDate, note))
 			.collectList()
@@ -354,6 +354,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	}
 
+	private static Consumer<List<ApplicationServicesClient.SysHoldRequest>> logLocalHolds() {
+		return entries -> log.debug("Retrieved {} local holds: {}", entries.size(), entries);
+	}
+
 	private Boolean shouldIncludeHold(
 		ApplicationServicesClient.SysHoldRequest sysHoldRequest, Integer bibId, String activationDate, String note) {
 
@@ -361,7 +365,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			isEqualDisplayNoteIfPresent(sysHoldRequest, note) &&
 			isEqualActivationDateIfPresent(sysHoldRequest, activationDate)) {
 
-			log.info("Hold retrieved.");
+			log.info("Hold boolean matched.");
 
 			return TRUE;
 		}
@@ -613,19 +617,18 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		};
 	}
 
-	private Mono<Mono<Void>> updateItemToAvailable(String itemId) {
+	private Mono<Void> updateItemToAvailable(String itemId) {
 		return fetchItemStatusObjectBy(SearchType.NAME, AVAILABLE)
 			.map(PolarisItemStatus::getItemStatusID)
-			.map(statusId -> updateItem(itemId, statusId));
+			.flatMap(statusId -> updateItem(itemId, statusId));
 	}
 
-	private Mono<Mono<Void>> updateItemToPickupTransit(String itemId) {
-		return fetchItemStatusObjectBy(SearchType.NAME, TRANSFERRED)
-			.map(PolarisItemStatus::getItemStatusID)
-			.map(statusId -> updateItem(itemId, statusId));
-	}
+	private Mono<Void> updateItemToPickupTransit(String itemId) {
 
+		return ApplicationServices.checkIn(itemId, illLocationId()).then();
+	}
 	private Mono<Void> updateItem(String itemId, Integer toStatus) {
+
 		return ApplicationServices.itemrecords(itemId)
 			.flatMap(item -> ApplicationServices.updateItemRecord(itemId, item.getItemStatusID(), toStatus));
 	}
