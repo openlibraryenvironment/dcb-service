@@ -17,7 +17,7 @@ import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Wor
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.APPLICATION_SERVICES;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
+import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractRequiredMapValue;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.noExtraErrorHandling;
 import static reactor.function.TupleUtils.function;
 
@@ -74,9 +74,9 @@ class ApplicationServicesClient {
 		final var conf = client.getConfig();
 
 		// get common map values for request bodies
-		this.TransactingPolarisUserID = extractMapValue(conf, LOGON_USER_ID, Integer.class);
-		this.TransactingWorkstationID = extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
-		this.TransactingBranchID = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+		this.TransactingPolarisUserID = extractRequiredMapValue(conf, LOGON_USER_ID, Integer.class);
+		this.TransactingWorkstationID = extractRequiredMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class);
+		this.TransactingBranchID = extractRequiredMapValue(conf, LOGON_BRANCH_ID, Integer.class);
 	}
 
 	/**
@@ -329,7 +329,7 @@ class ApplicationServicesClient {
 		// https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/add_or_update_item_record
 		final var path = createPath("workflow");
 		final var itemConfig = client.getItemConfig();
-		final var barcodePrefix = extractMapValue(itemConfig, BARCODE_PREFIX, String.class);
+		final var barcodePrefix = extractRequiredMapValue(itemConfig, BARCODE_PREFIX, String.class);
 		final var itemRecordType = 8;
 		final var itemRecordData = 6;
 		final var Available = 1; // In
@@ -361,11 +361,11 @@ class ApplicationServicesClient {
 							.assignedBranchID( isInterLibraryLoanBranchIfNotNull(interLibraryLoanBranch, patronHomeBranch) )
 							.owningBranchID( isInterLibraryLoanBranchIfNotNull(interLibraryLoanBranch, patronHomeBranch) )
 							.homeBranchID( isInterLibraryLoanBranchIfNotNull(interLibraryLoanBranch, patronHomeBranch) )
-							.renewalLimit(extractMapValue(itemConfig, RENEW_LIMIT, Integer.class))
-							.fineCodeID(extractMapValue(itemConfig, FINE_CODE_ID, Integer.class))
-							.itemRecordHistoryActionID(extractMapValue(itemConfig, HISTORY_ACTION_ID, Integer.class))
-							.loanPeriodCodeID(extractMapValue(itemConfig, LOAN_PERIOD_CODE_ID, Integer.class))
-							.shelvingSchemeID(extractMapValue(itemConfig, SHELVING_SCHEME_ID, Integer.class))
+							.renewalLimit(extractRequiredMapValue(itemConfig, RENEW_LIMIT, Integer.class))
+							.fineCodeID(extractRequiredMapValue(itemConfig, FINE_CODE_ID, Integer.class))
+							.itemRecordHistoryActionID(extractRequiredMapValue(itemConfig, HISTORY_ACTION_ID, Integer.class))
+							.loanPeriodCodeID(extractRequiredMapValue(itemConfig, LOAN_PERIOD_CODE_ID, Integer.class))
+							.shelvingSchemeID(extractRequiredMapValue(itemConfig, SHELVING_SCHEME_ID, Integer.class))
 							.isProvisionalSave(FALSE)
 							.nonCircluating(FALSE)
 							.loneableOutsideSystem(TRUE)
@@ -398,7 +398,7 @@ class ApplicationServicesClient {
 
 	private static Integer getInterLibraryLoanBranch(Map<String, Object> itemConfig) {
 
-		return extractMapValue(itemConfig, ILL_LOCATION_ID, Integer.class);
+		return extractRequiredMapValue(itemConfig, ILL_LOCATION_ID, Integer.class);
 	}
 
 	public Mono<Void> updateItemRecord(String itemId, Integer fromStatus, Integer toStatus) {

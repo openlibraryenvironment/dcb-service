@@ -159,7 +159,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	Integer illLocationId() {
-		final var illLocationId = extractMapValue(getItemConfig(), ILL_LOCATION_ID, Integer.class);
+		final var illLocationId = extractRequiredMapValue(getItemConfig(), ILL_LOCATION_ID, Integer.class);
 
 		if (illLocationId == null) {
 			throw new IllegalArgumentException(
@@ -170,7 +170,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private String borrowerlendingFlow() {
-		return extractMapValue(getConfig(), BORROWER_LENDING_FLOW, String.class);
+		return extractOptionalMapValue(getConfig(), BORROWER_LENDING_FLOW, String.class);
 	}
 
 	private Mono<LocalRequest> placeILLHoldRequest(Integer illLocationId, PlaceHoldRequestParameters parameters) {
@@ -436,7 +436,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		// supplier requests need the pickup location to be set as ILL
 		if (isBorrower == FALSE) {
-			pickup_location = extractMapValue(getItemConfig(), ILL_LOCATION_ID, String.class);
+			pickup_location = extractRequiredMapValue(getItemConfig(), ILL_LOCATION_ID, String.class);
 			if (pickup_location == null) {
 				throw new IllegalArgumentException("Please add the config value 'ill-location-id' for polaris.");
 			}
@@ -1085,11 +1085,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	static <T> T extractMapValueWithDefault(Map<String, Object> map, String key, Class<T> type, Object defval) {
-		final Object r1 = extractMapValue(map,key,type);
+		final Object r1 = extractRequiredMapValue(map,key,type);
 		return type.cast( r1 != null ? r1 : defval );
 	}
 
-	static <T> T extractMapValue(Map<String, Object> map, String key, Class<T> type) {
+	static <T> T extractRequiredMapValue(Map<String, Object> map, String key, Class<T> type) {
 		Object value = map.get(key);
 
 		if (value != null) {
@@ -1102,7 +1102,23 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			}
 		}
 
-		log.warn("Unable to extract key: {}, from map: {}, to type: {}", key, map, type);
+		log.warn("Unable to extract required key: {}, to type: {}, from map: {},", key, map, type);
+		return null;
+	}
+
+	static <T> T extractOptionalMapValue(Map<String, Object> map, String key, Class<T> type) {
+		Object value = map.get(key);
+
+		if (value != null) {
+			if (type.isInstance(value)) {
+				return type.cast(value);
+			} else if (type == String.class && value instanceof Integer) {
+				return type.cast(value.toString());
+			} else if (type == Integer.class && value instanceof String) {
+				return type.cast(Integer.valueOf((String) value));
+			}
+		}
+
 		return null;
 	}
 
