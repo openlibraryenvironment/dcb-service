@@ -8,8 +8,10 @@ import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.Item;
@@ -27,7 +29,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 		final var item = createItem("78458456", AVAILABLE, true);
 
 		// Act
-		final var chosenItem = resolutionStrategy.chooseItem(List.of(item), randomUUID(), null).block();
+		final var chosenItem = chooseItem(List.of(item), randomUUID());
 
 		// Assert
 		assertThat("Should have expected local ID",
@@ -50,7 +52,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 		final var items = List.of(unavailableItem, unknownStatusItem, checkedOutItem,
 			firstAvailableItem, secondAvailableItem);
 
-		final var chosenItem = resolutionStrategy.chooseItem(items, randomUUID(), null).block();
+		final var chosenItem = chooseItem(items, randomUUID());
 
 		// Assert
 		assertThat("Should have expected local ID",
@@ -87,12 +89,16 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 		final var clusterId = randomUUID();
 
 		final var exception = assertThrows(NoItemsRequestableAtAnyAgency.class,
-			() -> resolutionStrategy.chooseItem(List.of(), clusterId, null));
+			() -> chooseItem(List.of(), clusterId));
 
 		// Assert
 		assertThat("Should get message associated with cluster record",
 			exception.getMessage(),
 			is("No requestable items could be found for cluster record: " + clusterId));
+	}
+
+	private Item chooseItem(List<Item> items, UUID clusterRecordId) {
+		return singleValueFrom(resolutionStrategy.chooseItem(items, clusterRecordId, null));
 	}
 
 	private static Item createItem(String id,
