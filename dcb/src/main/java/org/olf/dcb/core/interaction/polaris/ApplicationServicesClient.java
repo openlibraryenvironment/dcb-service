@@ -10,6 +10,7 @@ import static java.lang.String.valueOf;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.util.Collections.singletonList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
+import static org.apache.commons.lang3.RandomStringUtils.randomNumeric;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.*;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Continue;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Retain;
@@ -355,7 +356,7 @@ class ApplicationServicesClient {
 						.workflowRequestExtensionType(itemRecordData)
 						.data(RequestExtensionData.builder()
 							.associatedBibRecordID(Integer.parseInt(createItemCommand.getBibId()))
-							.barcode((barcodePrefix!=null?barcodePrefix:"") + createItemCommand.getBarcode())
+							.barcode( useBarcodeWithPrefix(createItemCommand, barcodePrefix) )
 							.isNew(TRUE)
 							.displayInPAC(FALSE)
 							.assignedBranchID( isInterLibraryLoanBranchIfNotNull(interLibraryLoanBranch, patronHomeBranch) )
@@ -380,6 +381,18 @@ class ApplicationServicesClient {
 				return request.body(body);
 			})
 			.flatMap(this::createItemRequest);
+	}
+
+	// if we don't add the prefix to the virtual item barcode
+	// it will only save the item provisionally
+	// a provisional save will mean the hold can not be placed with this item
+	private static String useBarcodeWithPrefix(CreateItemCommand createItemCommand, String barcodePrefix) {
+		return (barcodePrefix != null ? barcodePrefix : useRandomPrefix()) + createItemCommand.getBarcode();
+	}
+
+	private static String useRandomPrefix() {
+		log.warn("Using random item barcode prefix.");
+		return randomNumeric(4);
 	}
 
 	private static Integer isInterLibraryLoanBranchIfNotNull(Integer interLibraryLoanBranch, Integer patronHomeBranch) {
