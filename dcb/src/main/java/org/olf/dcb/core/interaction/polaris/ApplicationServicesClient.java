@@ -49,6 +49,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple3;
 import reactor.util.function.Tuple4;
@@ -774,6 +775,58 @@ class ApplicationServicesClient {
 		log.debug("trying addLocalHoldRequest with body {}", body);
 		return request.body(body);
 	}
+
+	public Mono<ItemRecordFull> itemrecords(String localItemId) {
+		final var path = createPath("itemrecords", localItemId);
+
+		return createRequest(GET, path, uri -> {})
+			.flatMap(request -> client.retrieve(request, Argument.of(ItemRecordFull.class),
+				noExtraErrorHandling()));
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class ItemRecordFull {
+		@JsonProperty("ItemRecordID")
+		private Integer itemRecordID;
+		@JsonProperty("Barcode")
+		private String barcode;
+		@JsonProperty("AssignedBranchID")
+		private Integer assignedBranchID;
+		@JsonProperty("ItemStatusID")
+		private Integer itemStatusID;
+		@JsonProperty("ItemStatusDescription")
+		private String itemStatusDescription;
+		@JsonProperty("itemStatusName")
+		private String itemStatusName;
+		@JsonProperty("BibInfo")
+		private BibInfo bibInfo;
+		@JsonProperty("CirculationData")
+		private CirculationData circulationData;
+
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class BibInfo {
+		@JsonProperty("BibliographicRecordID")
+		private Integer bibliographicRecordID;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class CirculationData {
+		@JsonProperty("DueDate")
+		private String dueDate;
+	}
+
+
 
 	@Builder
 	@Data
