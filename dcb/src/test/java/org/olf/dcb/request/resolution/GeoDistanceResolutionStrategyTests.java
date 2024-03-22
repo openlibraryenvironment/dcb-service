@@ -4,10 +4,11 @@ import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,18 +39,26 @@ class GeoDistanceResolutionStrategyTests {
 			"Pickup Location", "pickup-location").getId();
 
 		// Act
-		final var chosenItem = chooseItem(emptyList(), pickupLocationId);
+		final var chosenItem = chooseItem(emptyList(), pickupLocationId.toString());
 
 		// Assert
 		assertThat(chosenItem, nullValue());
 	}
 
-	private Item chooseItem(List<Item> items,
-		UUID pickupLocationId) {
+	@Test
+	void shouldFailWhenPatronRequestHasNoPickupLocation() {
+		// Act
+		final var exception = assertThrows(RuntimeException.class,
+			() -> chooseItem(emptyList(), null));
 
+		// Assert
+		assertThat(exception, hasMessage("No pickup location code"));
+	}
+
+	private Item chooseItem(List<Item> items, String pickupLocationId) {
 		return singleValueFrom(resolutionStrategy.chooseItem(items, randomUUID(),
 			PatronRequest.builder()
-				.pickupLocationCode(pickupLocationId.toString())
+				.pickupLocationCode(pickupLocationId)
 				.build()));
 	}
 }
