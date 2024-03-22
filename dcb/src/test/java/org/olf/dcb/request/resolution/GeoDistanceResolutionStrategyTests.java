@@ -21,6 +21,7 @@ import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.LocationFixture;
 
@@ -33,10 +34,13 @@ class GeoDistanceResolutionStrategyTests {
 
 	@Inject
 	private LocationFixture locationFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 
 	@BeforeEach
 	void beforeEach() {
 		locationFixture.deleteAll();
+		agencyFixture.deleteAll();
 	}
 
 	@Test
