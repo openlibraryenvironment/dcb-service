@@ -127,24 +127,10 @@ public class ItemMatchers {
 	}
 	
 	public static Matcher<Item> hasAgencyCode(String expectedAgencyCode) {
-		return allOf(
-			hasProperty("agencyCode", is(expectedAgencyCode)),
-			hasProperty("agency", hasProperty("code", is(expectedAgencyCode)))
-		);
-	}
-
-	public static Matcher<Item> hasNoAgencyCode() {
-		return hasProperty("agencyCode", is(nullValue()));
+		return hasProperty("agency", hasProperty("code", is(expectedAgencyCode)));
 	}
 
 	public static Matcher<Item> hasAgencyName(String expectedAgencyName) {
-		return allOf(
-			hasProperty("agencyName", is(expectedAgencyName)),
-			hasProperty("agency", hasProperty("name", is(expectedAgencyName)))
-		);
-	}
-
-	public static Matcher<Item> hasNoAgencyName() {
-		return hasProperty("agencyName", is(nullValue()));
+		return hasProperty("agency", hasProperty("name", is(expectedAgencyName)));
 	}
 }

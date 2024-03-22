@@ -30,11 +30,7 @@ public class LocationToAgencyMappingService {
 	public Mono<Item> enrichItemAgencyFromLocation(Item incomingItem, String hostLmsCode) {
 		return Mono.just(incomingItem)
 			.zipWhen(item -> findLocationToAgencyMapping(item, hostLmsCode))
-			.map(function((item, agency) ->
-				item.setAgency(agency)
-					.setAgencyCode(agency.getCode())
-					.setAgencyName(agency.getName())
-			))
+			.map(function(Item::setAgency))
 			.defaultIfEmpty(incomingItem)
 			// This has to be set separately in case agency is not found
 			.map(item -> item.setHostLmsCode(hostLmsCode));
