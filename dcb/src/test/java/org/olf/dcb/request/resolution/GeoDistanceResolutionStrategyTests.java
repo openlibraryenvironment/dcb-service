@@ -5,6 +5,7 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
@@ -57,12 +58,30 @@ class GeoDistanceResolutionStrategyTests {
 		final var pickupLocationId = locationFixture.createPickupLocation(
 			"Pickup Location", "pickup-location").getId();
 
-		final var unavailableItem = createItem("23721346", UNAVAILABLE, false);
-		final var unknownStatusItem = createItem("54737664", UNKNOWN, false);
-		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false);
+		final var unavailableItem = createItem("23721346", UNAVAILABLE, false,
+			"example-agency");
+		final var unknownStatusItem = createItem("54737664", UNKNOWN, false,
+			"example-agency");
+		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false,
+			"example-agency");
 
 		// Act
 		final var items = List.of(unavailableItem, unknownStatusItem, checkedOutItem);
+
+		final var chosenItem = chooseItem(items, pickupLocationId.toString());
+
+		// Assert
+		assertThat(chosenItem, nullValue());
+	}
+
+	@Test
+	void shouldChooseNoItemNoItemHasAnAgencyCode() {
+		// Arrange
+		final var pickupLocationId = locationFixture.createPickupLocation(
+			"Pickup Location", "pickup-location").getId();
+
+		// Act
+		final var items = List.of(createItem("6736564", AVAILABLE, true, null));
 
 		final var chosenItem = chooseItem(items, pickupLocationId.toString());
 
@@ -96,8 +115,8 @@ class GeoDistanceResolutionStrategyTests {
 				.build()));
 	}
 
-	private static Item createItem(String id,
-		ItemStatusCode statusCode, Boolean requestable) {
+	private static Item createItem(String id, ItemStatusCode statusCode,
+		Boolean requestable, String agencyCode) {
 
 		return Item.builder()
 			.localId(id)
@@ -111,7 +130,7 @@ class GeoDistanceResolutionStrategyTests {
 			.hostLmsCode("FAKE_HOST")
 			.isRequestable(requestable)
 			.holdCount(0)
-			.agencyCode("example-agency")
+			.agencyCode(agencyCode)
 			.build();
 	}
 
