@@ -73,8 +73,10 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 	}
 
 	private ItemWithDistance calculateDistanceFromPickupLocation(ItemWithDistance iwd) {
-		final var agency = iwd.getItemAgency();
-		final var pickupLocation = iwd.getPickupLocation();
+		final var item = getValue(iwd, ItemWithDistance::getItem);
+
+		final var agency = getValue(item, Item::getAgency);
+		final var pickupLocation = getValue(iwd, ItemWithDistance::getPickupLocation);
 
 		iwd.setDistance(calculateDistance(agency, pickupLocation));
 		log.debug("Distance:{}", iwd.getDistance());
