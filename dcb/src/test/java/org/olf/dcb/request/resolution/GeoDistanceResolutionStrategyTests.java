@@ -62,6 +62,8 @@ class GeoDistanceResolutionStrategyTests {
 		final var pickupLocationId = locationFixture.createPickupLocation(
 			"Pickup Location", "pickup-location").getId();
 
+		agencyFixture.defineAgency("example-agency", "Example Agency", null);
+
 		final var unavailableItem = createItem("23721346", UNAVAILABLE, false,
 			"example-agency", 0);
 		final var unknownStatusItem = createItem("54737664", UNKNOWN, false,
@@ -95,10 +97,28 @@ class GeoDistanceResolutionStrategyTests {
 	}
 
 	@Test
+	void shouldChooseNoItemNoItemHasAnAgency() {
+		// Arrange
+		final var pickupLocationId = locationFixture.createPickupLocation(
+			"Pickup Location", "pickup-location").getId();
+
+		// Act
+		final var items = List.of(
+			createItem("6736564", AVAILABLE, true, "unknown-agency", 0));
+
+		final var chosenItem = chooseItem(items, pickupLocationId.toString());
+
+		// Assert
+		assertThat(chosenItem, nullValue());
+	}
+
+	@Test
 	void shouldChooseNoItemWhenOnlyItemsWithExistingHoldsAreProvided() {
 		// Arrange
 		final var pickupLocationId = locationFixture.createPickupLocation(
 			"Pickup Location", "pickup-location").getId();
+
+		agencyFixture.defineAgency("example-agency", "Example Agency", null);
 
 		// Act
 		final var items = List.of(
