@@ -9,10 +9,12 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.test.DcbTest;
+import org.olf.dcb.test.LocationFixture;
 
 import jakarta.inject.Inject;
 
@@ -20,6 +22,14 @@ import jakarta.inject.Inject;
 class GeoDistanceResolutionStrategyTests {
 	@Inject
 	private GeoDistanceResolutionStrategy resolutionStrategy;
+
+	@Inject
+	private LocationFixture locationFixture;
+
+	@BeforeEach
+	void beforeEach() {
+		locationFixture.deleteAll();
+	}
 
 	@Test
 	void shouldChooseNoItemWhenNoItemsAreProvided() {
