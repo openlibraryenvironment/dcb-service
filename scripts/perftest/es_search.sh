@@ -1,10 +1,10 @@
 #!/bin/bash
 
-PORT=32781
+ES_CONTAINER=`docker container ls --format "table {{.ID}} {{.Names}} {{.Image}} {{.Ports}}" | grep elastic | cut -f1 -d' '`
+ES_PORT=`docker port $ES_CONTAINER | grep 9200 | grep 0.0.0.0 | cut -f2 -d:`
 
 echo indices
-curl --user elastic:elastic "localhost:$PORT/_cat/indices"
+curl "localhost:$ES_PORT/_cat/indices"
 
 echo search
-curl --user elastic:test "localhost:$PORT/mobius-si/_search?q=*"
-
+curl "localhost:$ES_PORT/mobius-si/_search?q=*"
