@@ -1,7 +1,7 @@
 package org.olf.dcb.request.resolution;
 
 import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
@@ -9,6 +9,8 @@ import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.List;
 import java.util.UUID;
@@ -32,11 +34,9 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 		final var chosenItem = chooseItem(List.of(item), randomUUID());
 
 		// Assert
-		assertThat("Should have expected local ID",
-			chosenItem.getLocalId(), is("78458456"));
-
-		assertThat("Should have expected host LMS",
-			chosenItem.getHostLmsCode(), is("FAKE_HOST"));
+		assertThat(chosenItem, allOf(
+			hasLocalId("78458456")
+		));
 	}
 
 	@Test
@@ -55,11 +55,9 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 		final var chosenItem = chooseItem(items, randomUUID());
 
 		// Assert
-		assertThat("Should have expected local ID",
-			chosenItem.getLocalId(), is("47463572"));
-
-		assertThat("Should have expected host LMS",
-			chosenItem.getHostLmsCode(), is("FAKE_HOST"));
+		assertThat(chosenItem, allOf(
+			hasLocalId("47463572")
+		));
 	}
 
 	@Test
@@ -78,9 +76,8 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 			() -> resolutionStrategy.chooseItem(items, clusterId, null).block());
 
 		// Assert
-		assertThat("Should get message associated with cluster record",
-			exception.getMessage(),
-			is("No requestable items could be found for cluster record: " + clusterId));
+		assertThat(exception, hasMessage(
+			"No requestable items could be found for cluster record: " + clusterId));
 	}
 
 	@Test
@@ -92,9 +89,8 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 			() -> chooseItem(List.of(), clusterId));
 
 		// Assert
-		assertThat("Should get message associated with cluster record",
-			exception.getMessage(),
-			is("No requestable items could be found for cluster record: " + clusterId));
+		assertThat(exception, hasMessage(
+			"No requestable items could be found for cluster record: " + clusterId));
 	}
 
 	private Item chooseItem(List<Item> items, UUID clusterRecordId) {
