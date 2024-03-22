@@ -1,9 +1,13 @@
 package org.olf.dcb.request.resolution;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+
 import java.util.List;
 import java.util.UUID;
 
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.LocationRepository;
@@ -55,45 +59,54 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 							.build())
 					// Look up the items holding agency
 					.flatMap(this::decorateWithAgency)
-					.flatMap(this::calculateDistanceFromPickupLocation))
+					.map(this::calculateDistanceFromPickupLocation))
 			.reduce(GeoDistanceResolutionStrategy::closestToPickupLocation)
 			.map(ItemWithDistance::getItem);
 	}
 
 	// Decorate the ItemWithDistance with the agency that holds the item (And hence, the location of that agency)
-
 	private Mono<ItemWithDistance> decorateWithAgency(ItemWithDistance iwd) {
 		log.debug("decorateWithAgency({})", iwd.getItem().getAgencyCode());
 
 		return Mono.from(agencyRepository.findOneByCode(iwd.getItem().getAgencyCode()))
 			.map(iwd::setItemAgency);
 	}
-	// Do the actual distance calculation
 
-	private Mono<ItemWithDistance> calculateDistanceFromPickupLocation(ItemWithDistance iwd) {
-		log.debug("calculateDistance({},{})", iwd.getItemAgency(), iwd.getPickupLocation());
+	private ItemWithDistance calculateDistanceFromPickupLocation(ItemWithDistance iwd) {
+		final var agency = iwd.getItemAgency();
+		final var pickupLocation = iwd.getPickupLocation();
 
-		if ((iwd.getItemAgency() != null) &&
-			(iwd.getItemAgency().getLatitude() != null) &&
-			(iwd.getItemAgency().getLongitude() != null) &&
-			(iwd.getPickupLocation() != null) &&
-			(iwd.getPickupLocation().getLatitude() != null) &&
-			(iwd.getPickupLocation().getLongitude() != null)) {
-			// Item has a geo location so calculate distance for real
-			iwd.setDistance(distance(
-				iwd.getItemAgency().getLatitude().doubleValue(),
-				iwd.getItemAgency().getLongitude().doubleValue(),
-				iwd.getPickupLocation().getLatitude().doubleValue(),
-				iwd.getPickupLocation().getLongitude().doubleValue(), "K"));
+		iwd.setDistance(calculateDistance(agency, pickupLocation));
+		log.debug("Distance:{}", iwd.getDistance());
+
+		return iwd;
+	}
+
+	private static double calculateDistance(DataAgency agency, Location pickupLocation) {
+		log.debug("calculateDistance({}, {})", agency, pickupLocation);
+
+		final var itemLatitude = getValue(agency, DataAgency::getLatitude);
+		final var itemLongitude = getValue(agency, DataAgency::getLongitude);
+
+		final var pickupLocationLatitude = getValue(pickupLocation, Location::getLatitude);
+		final var pickupLocationLongitude = getValue(pickupLocation, Location::getLongitude);
+
+		if ((itemLatitude != null) &&
+			(itemLongitude != null) &&
+			(pickupLocationLatitude != null) &&
+			(pickupLocationLongitude != null)) {
+
+			// Item and pickup location have geo location so calculate distance for real
+			return distance(itemLatitude, itemLongitude, pickupLocationLatitude,
+				pickupLocationLongitude, "K");
+			
 		} else {
 			// No distance available - put to the back of the queue
 			log.warn("Agency has no location data... Unable to calculate");
-			iwd.setDistance(10000000);
+			return 10000000;
 		}
-		log.debug("Distance:{}", iwd.getDistance());
-
-		return Mono.just(iwd);
 	}
+
 	private static double distance(double lat1, double lon1, double lat2, double lon2, String unit) {
 		if ((lat1 == lat2) && (lon1 == lon2)) {
 			return 0;
