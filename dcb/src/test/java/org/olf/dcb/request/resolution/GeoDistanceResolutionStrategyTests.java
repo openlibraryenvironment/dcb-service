@@ -33,17 +33,23 @@ class GeoDistanceResolutionStrategyTests {
 
 	@Test
 	void shouldChooseNoItemWhenNoItemsAreProvided() {
+		// Arrange
+		final var pickupLocationId = locationFixture.createPickupLocation(
+			"Pickup Location", "pickup-location").getId();
+
 		// Act
-		final var chosenItem = chooseItem(emptyList(), randomUUID());
+		final var chosenItem = chooseItem(emptyList(), pickupLocationId);
 
 		// Assert
 		assertThat(chosenItem, nullValue());
 	}
 
-	private Item chooseItem(List<Item> items, UUID clusterRecordId) {
-		return singleValueFrom(resolutionStrategy.chooseItem(items, clusterRecordId,
+	private Item chooseItem(List<Item> items,
+		UUID pickupLocationId) {
+
+		return singleValueFrom(resolutionStrategy.chooseItem(items, randomUUID(),
 			PatronRequest.builder()
-				.pickupLocationCode(UUID.randomUUID().toString())
+				.pickupLocationCode(pickupLocationId.toString())
 				.build()));
 	}
 }
