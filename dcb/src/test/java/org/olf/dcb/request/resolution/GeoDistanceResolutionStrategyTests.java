@@ -59,11 +59,11 @@ class GeoDistanceResolutionStrategyTests {
 			"Pickup Location", "pickup-location").getId();
 
 		final var unavailableItem = createItem("23721346", UNAVAILABLE, false,
-			"example-agency");
+			"example-agency", 0);
 		final var unknownStatusItem = createItem("54737664", UNKNOWN, false,
-			"example-agency");
+			"example-agency", 0);
 		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false,
-			"example-agency");
+			"example-agency", 0);
 
 		// Act
 		final var items = List.of(unavailableItem, unknownStatusItem, checkedOutItem);
@@ -81,7 +81,24 @@ class GeoDistanceResolutionStrategyTests {
 			"Pickup Location", "pickup-location").getId();
 
 		// Act
-		final var items = List.of(createItem("6736564", AVAILABLE, true, null));
+		final var items = List.of(
+			createItem("6736564", AVAILABLE, true, null, 0));
+
+		final var chosenItem = chooseItem(items, pickupLocationId.toString());
+
+		// Assert
+		assertThat(chosenItem, nullValue());
+	}
+
+	@Test
+	void shouldChooseNoItemWhenOnlyItemsWithExistingHoldsAreProvided() {
+		// Arrange
+		final var pickupLocationId = locationFixture.createPickupLocation(
+			"Pickup Location", "pickup-location").getId();
+
+		// Act
+		final var items = List.of(
+			createItem("6736564", AVAILABLE, true, "example-agency", 1));
 
 		final var chosenItem = chooseItem(items, pickupLocationId.toString());
 
@@ -116,7 +133,7 @@ class GeoDistanceResolutionStrategyTests {
 	}
 
 	private static Item createItem(String id, ItemStatusCode statusCode,
-		Boolean requestable, String agencyCode) {
+		Boolean requestable, String agencyCode, int holdCount) {
 
 		return Item.builder()
 			.localId(id)
@@ -129,7 +146,7 @@ class GeoDistanceResolutionStrategyTests {
 			.callNumber("callNumber")
 			.hostLmsCode("FAKE_HOST")
 			.isRequestable(requestable)
-			.holdCount(0)
+			.holdCount(holdCount)
 			.agencyCode(agencyCode)
 			.build();
 	}
