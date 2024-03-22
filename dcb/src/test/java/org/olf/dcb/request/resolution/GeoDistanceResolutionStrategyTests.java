@@ -46,6 +46,15 @@ class GeoDistanceResolutionStrategyTests {
 	}
 
 	@Test
+	void shouldChooseNoItemWhenNoPickupLocationDoesNotExist() {
+		// Act
+		final var chosenItem = chooseItem(emptyList(), randomUUID().toString());
+
+		// Assert
+		assertThat(chosenItem, nullValue());
+	}
+
+	@Test
 	void shouldFailWhenPatronRequestHasNoPickupLocation() {
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
