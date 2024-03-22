@@ -261,7 +261,6 @@ class GeoDistanceResolutionStrategyTests {
 				.build())
 			.barcode("barcode")
 			.callNumber("callNumber")
-			.hostLmsCode("FAKE_HOST")
 			.isRequestable(requestable)
 			.holdCount(holdCount)
 			.agency(agency)
