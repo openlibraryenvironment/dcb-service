@@ -37,7 +37,23 @@ public class LocationFixture {
 				.build()));
 	}
 
-  public Location createPickupLocation(UUID uuid, String name, String code, DataAgency da) {
+	public Location createPickupLocation(String name, String code,
+		double latitude, double longitude) {
+
+		return singleValueFrom(locationRepository.save(Location.builder()
+			.id(UUID.randomUUID())
+			.name(name)
+			.code(code)
+			.type("PICKUP")
+			.isPickup(Boolean.TRUE)
+			.isShelving(Boolean.TRUE)
+			.isSupplyingLocation(Boolean.TRUE)
+			.latitude(latitude)
+			.longitude(longitude)
+			.build()));
+	}
+
+	public Location createPickupLocation(UUID uuid, String name, String code, DataAgency da) {
     return singleValueFrom(locationRepository.save(Location.builder()
         .id(uuid)
         .name(name)

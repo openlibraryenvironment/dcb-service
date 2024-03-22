@@ -19,7 +19,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
@@ -50,8 +49,7 @@ class GeoDistanceResolutionStrategyTests {
 	@Test
 	void shouldChooseOnlyProvidedItem() {
 		// Arrange
-		final var pickupLocationId = locationFixture.createPickupLocation(
-			"Pickup Location", "pickup-location").getId();
+		final var pickupLocationId = definePickupLocation().getId();
 
 		defineExampleAgency();
 
@@ -69,10 +67,30 @@ class GeoDistanceResolutionStrategyTests {
 	}
 
 	@Test
-	void shouldChooseOnlyProvidedItemEvenWhenAgencyHasNoGeoLocation() {
+	void shouldChooseOnlyProvidedItemEvenWhenPickupLocationHasNoGeoLocation() {
 		// Arrange
 		final var pickupLocationId = locationFixture.createPickupLocation(
 			"Pickup Location", "pickup-location").getId();
+
+		defineExampleAgency();
+
+		// Act
+		final var items = List.of(createItem("536524", AVAILABLE, true,
+			"example-agency", 0));
+
+		final var chosenItem = chooseItem(items, pickupLocationId.toString());
+
+		// Assert
+		assertThat(chosenItem, allOf(
+			notNullValue(),
+			hasLocalId("536524")
+		));
+	}
+
+	@Test
+	void shouldChooseOnlyProvidedItemEvenWhenAgencyHasNoGeoLocation() {
+		// Arrange
+		final var pickupLocationId = definePickupLocation().getId();
 
 		agencyFixture.defineAgency("example-agency", "Example Agency", null);
 
@@ -92,8 +110,7 @@ class GeoDistanceResolutionStrategyTests {
 	@Test
 	void shouldChooseNoItemWhenNoItemsAreProvided() {
 		// Arrange
-		final var pickupLocationId = locationFixture.createPickupLocation(
-			"Pickup Location", "pickup-location").getId();
+		final var pickupLocationId = definePickupLocation().getId();
 
 		// Act
 		final var chosenItem = chooseItem(emptyList(), pickupLocationId.toString());
@@ -105,8 +122,7 @@ class GeoDistanceResolutionStrategyTests {
 	@Test
 	void shouldChooseNoItemNoRequestableItemsAreProvided() {
 		// Arrange
-		final var pickupLocationId = locationFixture.createPickupLocation(
-			"Pickup Location", "pickup-location").getId();
+		final var pickupLocationId = definePickupLocation().getId();
 
 		defineExampleAgency();
 
@@ -129,8 +145,7 @@ class GeoDistanceResolutionStrategyTests {
 	@Test
 	void shouldChooseNoItemNoItemHasAnAgencyCode() {
 		// Arrange
-		final var pickupLocationId = locationFixture.createPickupLocation(
-			"Pickup Location", "pickup-location").getId();
+		final var pickupLocationId = definePickupLocation().getId();
 
 		// Act
 		final var items = List.of(
@@ -145,8 +160,7 @@ class GeoDistanceResolutionStrategyTests {
 	@Test
 	void shouldChooseNoItemNoItemHasAnAgency() {
 		// Arrange
-		final var pickupLocationId = locationFixture.createPickupLocation(
-			"Pickup Location", "pickup-location").getId();
+		final var pickupLocationId = definePickupLocation().getId();
 
 		// Act
 		final var items = List.of(
@@ -161,8 +175,7 @@ class GeoDistanceResolutionStrategyTests {
 	@Test
 	void shouldChooseNoItemWhenOnlyItemsWithExistingHoldsAreProvided() {
 		// Arrange
-		final var pickupLocationId = locationFixture.createPickupLocation(
-			"Pickup Location", "pickup-location").getId();
+		final var pickupLocationId = definePickupLocation().getId();
 
 		defineExampleAgency();
 
@@ -202,10 +215,16 @@ class GeoDistanceResolutionStrategyTests {
 				.build()));
 	}
 
-	private DataAgency defineExampleAgency() {
+	private void defineExampleAgency() {
 		// Is located at Chatsworth House, UK
-		return agencyFixture.defineAgency("example-agency", "Example Agency", null,
+		agencyFixture.defineAgency("example-agency", "Example Agency", null,
 			53.227558, -1.611566);
+	}
+
+	private Location definePickupLocation() {
+		// Is located at Royal Albert Dock, Liverpool, UK
+		return locationFixture.createPickupLocation(
+			"Pickup Location", "pickup-location", 53.399433, -2.992117);
 	}
 
 	private static Item createItem(String id, ItemStatusCode statusCode,
