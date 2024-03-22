@@ -5,6 +5,9 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
+import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
@@ -13,6 +16,9 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ItemStatus;
+import org.olf.dcb.core.model.ItemStatusCode;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.LocationFixture;
@@ -46,6 +52,25 @@ class GeoDistanceResolutionStrategyTests {
 	}
 
 	@Test
+	void shouldChooseNoItemNoRequestableItemsAreProvided() {
+		// Arrange
+		final var pickupLocationId = locationFixture.createPickupLocation(
+			"Pickup Location", "pickup-location").getId();
+
+		final var unavailableItem = createItem("23721346", UNAVAILABLE, false);
+		final var unknownStatusItem = createItem("54737664", UNKNOWN, false);
+		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false);
+
+		// Act
+		final var items = List.of(unavailableItem, unknownStatusItem, checkedOutItem);
+
+		final var chosenItem = chooseItem(items, pickupLocationId.toString());
+
+		// Assert
+		assertThat(chosenItem, nullValue());
+	}
+
+	@Test
 	void shouldChooseNoItemWhenNoPickupLocationDoesNotExist() {
 		// Act
 		final var chosenItem = chooseItem(emptyList(), randomUUID().toString());
@@ -70,4 +95,24 @@ class GeoDistanceResolutionStrategyTests {
 				.pickupLocationCode(pickupLocationId)
 				.build()));
 	}
+
+	private static Item createItem(String id,
+		ItemStatusCode statusCode, Boolean requestable) {
+
+		return Item.builder()
+			.localId(id)
+			.status(new ItemStatus(statusCode))
+			.location(Location.builder()
+				.code("code")
+				.name("name")
+				.build())
+			.barcode("barcode")
+			.callNumber("callNumber")
+			.hostLmsCode("FAKE_HOST")
+			.isRequestable(requestable)
+			.holdCount(0)
+			.agencyCode("example-agency")
+			.build();
+	}
+
 }
