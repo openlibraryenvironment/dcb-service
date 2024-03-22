@@ -49,9 +49,9 @@ class GeoDistanceResolutionStrategyTests {
 	@Test
 	void shouldChooseOnlyProvidedItem() {
 		// Arrange
-		final var pickupLocationId = definePickupLocation().getId();
+		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
 
-		defineExampleAgency();
+		defineAgencyLocatedAtChatsworth("example-agency");
 
 		// Act
 		final var items = List.of(createItem("23721346", AVAILABLE, true,
@@ -67,12 +67,41 @@ class GeoDistanceResolutionStrategyTests {
 	}
 
 	@Test
+	void shouldChooseClosestItemToPickupLocation() {
+		// Arrange
+		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
+
+		defineAgencyLocatedAtMarbleArch("marble-arch");
+
+		final var marbleArchItem = createItem("5634379", AVAILABLE, true,
+			"marble-arch", 0);
+
+		defineAgencyLocatedAtChatsworth("chatsworth");
+
+		final var chatsworthItemId = "5639532";
+
+		final var chatsworthItem = createItem(chatsworthItemId, AVAILABLE, true,
+			"chatsworth", 0);
+
+		// Act
+		final var items = List.of(marbleArchItem, chatsworthItem);
+
+		final var chosenItem = chooseItem(items, pickupLocationId.toString());
+
+		// Assert
+		assertThat(chosenItem, allOf(
+			notNullValue(),
+			hasLocalId(chatsworthItemId)
+		));
+	}
+
+	@Test
 	void shouldChooseOnlyProvidedItemEvenWhenPickupLocationHasNoGeoLocation() {
 		// Arrange
 		final var pickupLocationId = locationFixture.createPickupLocation(
 			"Pickup Location", "pickup-location").getId();
 
-		defineExampleAgency();
+		defineAgencyLocatedAtMarbleArch("example-agency");
 
 		// Act
 		final var items = List.of(createItem("536524", AVAILABLE, true,
@@ -90,7 +119,7 @@ class GeoDistanceResolutionStrategyTests {
 	@Test
 	void shouldChooseOnlyProvidedItemEvenWhenAgencyHasNoGeoLocation() {
 		// Arrange
-		final var pickupLocationId = definePickupLocation().getId();
+		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
 
 		agencyFixture.defineAgency("example-agency", "Example Agency", null);
 
@@ -110,7 +139,7 @@ class GeoDistanceResolutionStrategyTests {
 	@Test
 	void shouldChooseNoItemWhenNoItemsAreProvided() {
 		// Arrange
-		final var pickupLocationId = definePickupLocation().getId();
+		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
 
 		// Act
 		final var chosenItem = chooseItem(emptyList(), pickupLocationId.toString());
@@ -122,9 +151,9 @@ class GeoDistanceResolutionStrategyTests {
 	@Test
 	void shouldChooseNoItemNoRequestableItemsAreProvided() {
 		// Arrange
-		final var pickupLocationId = definePickupLocation().getId();
+		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
 
-		defineExampleAgency();
+		defineAgencyLocatedAtChatsworth("example-agency");
 
 		final var unavailableItem = createItem("23721346", UNAVAILABLE, false,
 			"example-agency", 0);
@@ -145,7 +174,7 @@ class GeoDistanceResolutionStrategyTests {
 	@Test
 	void shouldChooseNoItemNoItemHasAnAgencyCode() {
 		// Arrange
-		final var pickupLocationId = definePickupLocation().getId();
+		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
 
 		// Act
 		final var items = List.of(
@@ -160,7 +189,7 @@ class GeoDistanceResolutionStrategyTests {
 	@Test
 	void shouldChooseNoItemNoItemHasAnAgency() {
 		// Arrange
-		final var pickupLocationId = definePickupLocation().getId();
+		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
 
 		// Act
 		final var items = List.of(
@@ -175,9 +204,9 @@ class GeoDistanceResolutionStrategyTests {
 	@Test
 	void shouldChooseNoItemWhenOnlyItemsWithExistingHoldsAreProvided() {
 		// Arrange
-		final var pickupLocationId = definePickupLocation().getId();
+		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
 
-		defineExampleAgency();
+		defineAgencyLocatedAtChatsworth("example-agency");
 
 		// Act
 		final var items = List.of(
@@ -215,13 +244,19 @@ class GeoDistanceResolutionStrategyTests {
 				.build()));
 	}
 
-	private void defineExampleAgency() {
+	private void defineAgencyLocatedAtChatsworth(String code) {
 		// Is located at Chatsworth House, UK
-		agencyFixture.defineAgency("example-agency", "Example Agency", null,
+		agencyFixture.defineAgency(code, "Example Agency", null,
 			53.227558, -1.611566);
 	}
 
-	private Location definePickupLocation() {
+	private void defineAgencyLocatedAtMarbleArch(String code) {
+		// Is located at Marble Arch, London, UK
+		agencyFixture.defineAgency(code, "Example Agency", null,
+			51.513222, -0.159015);
+	}
+
+	private Location definePickupLocationAtRoyalAlbertDock() {
 		// Is located at Royal Albert Dock, Liverpool, UK
 		return locationFixture.createPickupLocation(
 			"Pickup Location", "pickup-location", 53.399433, -2.992117);
