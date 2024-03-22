@@ -17,9 +17,8 @@ import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Wor
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.CompletedSuccessfully;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
+import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.APPLICATION_SERVICES;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractRequiredMapValue;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.noExtraErrorHandling;
 import static reactor.function.TupleUtils.function;
 
 import java.net.URI;
@@ -330,7 +329,7 @@ class ApplicationServicesClient {
 		// https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/add_or_update_item_record
 		final var path = createPath("workflow");
 		final var itemConfig = client.getItemConfig();
-		final var barcodePrefix = extractRequiredMapValue(itemConfig, BARCODE_PREFIX, String.class);
+		final var barcodePrefix = extractOptionalMapValue(itemConfig, BARCODE_PREFIX, String.class);
 		final var itemRecordType = 8;
 		final var itemRecordData = 6;
 		final var Available = 1; // In
@@ -389,13 +388,13 @@ class ApplicationServicesClient {
 	private static String useBarcodeWithPrefix(CreateItemCommand createItemCommand, String barcodePrefix) {
 		return (barcodePrefix != null && !barcodePrefix.equals("")
 			? barcodePrefix
-			: useRandomPrefix())
+			: emptyBarcodePrefix())
 			+ createItemCommand.getBarcode();
 	}
 
-	private static String useRandomPrefix() {
-		log.warn("Using random item barcode prefix.");
-		return randomNumeric(4);
+	private static String emptyBarcodePrefix() {
+		log.warn("No barcode prefix added.");
+		return "";
 	}
 
 	private static Integer isInterLibraryLoanBranchIfNotNull(Integer interLibraryLoanBranch, Integer patronHomeBranch) {
