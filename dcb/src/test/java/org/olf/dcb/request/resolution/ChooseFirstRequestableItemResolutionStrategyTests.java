@@ -28,7 +28,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 	@Test
 	void shouldChooseOnlyRequestableItem() {
 		// Arrange
-		final var item = createItem("78458456", AVAILABLE, true);
+		final var item = createItem("78458456", AVAILABLE, true, 0);
 
 		// Act
 		final var chosenItem = chooseItem(List.of(item), randomUUID());
@@ -42,11 +42,11 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 	@Test
 	void shouldChooseFirstRequestableItemWhenMultipleItemsAreProvided() {
 		// Arrange
-		final var unavailableItem = createItem("23721346", UNAVAILABLE, false);
-		final var unknownStatusItem = createItem("54737664", UNKNOWN, false);
-		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false);
-		final var firstAvailableItem = createItem("47463572", AVAILABLE, true);
-		final var secondAvailableItem = createItem("97848745", AVAILABLE, true);
+		final var unavailableItem = createItem("23721346", UNAVAILABLE, false, 0);
+		final var unknownStatusItem = createItem("54737664", UNKNOWN, false, 0);
+		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false, 0);
+		final var firstAvailableItem = createItem("47463572", AVAILABLE, true, 0);
+		final var secondAvailableItem = createItem("97848745", AVAILABLE, true, 0);
 
 		// Act
 		final var items = List.of(unavailableItem, unknownStatusItem, checkedOutItem,
@@ -63,12 +63,29 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 	@Test
 	void shouldFailWhenNoRequestableItemsAreProvided() {
 		// Arrange
-		final var unavailableItem = createItem("23721346", UNAVAILABLE, false);
-		final var unknownStatusItem = createItem("54737664", UNKNOWN, false);
-		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false);
+		final var unavailableItem = createItem("23721346", UNAVAILABLE, false, 0);
+		final var unknownStatusItem = createItem("54737664", UNKNOWN, false, 0);
+		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false, 0);
 
 		// Act
 		final var items = List.of(unavailableItem, unknownStatusItem, checkedOutItem);
+
+		final var clusterId = randomUUID();
+
+		final var exception = assertThrows(NoItemsRequestableAtAnyAgency.class,
+			() -> resolutionStrategy.chooseItem(items, clusterId, null).block());
+
+		// Assert
+		assertThat(exception, hasMessage(
+			"No requestable items could be found for cluster record: " + clusterId));
+	}
+
+	@Test
+	void shouldFailWhenOnlyItemsWithExistingHoldsAreProvided() {
+		// Arrange
+
+		// Act
+		final var items = List.of(createItem("23721346", AVAILABLE, true, 1));
 
 		final var clusterId = randomUUID();
 
@@ -98,7 +115,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 	}
 
 	private static Item createItem(String id,
-		ItemStatusCode statusCode, Boolean requestable) {
+		ItemStatusCode statusCode, Boolean requestable, int holdCount) {
 
 		return Item.builder()
 			.localId(id)
@@ -111,7 +128,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 			.callNumber("callNumber")
 			.hostLmsCode("FAKE_HOST")
 			.isRequestable(requestable)
-			.holdCount(0)
+			.holdCount(holdCount)
 			.build();
 	}
 }
