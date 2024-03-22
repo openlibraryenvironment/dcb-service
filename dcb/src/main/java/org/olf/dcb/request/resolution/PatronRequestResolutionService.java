@@ -9,7 +9,6 @@ import java.util.UUID;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
 
@@ -23,18 +22,14 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class PatronRequestResolutionService {
 	private final LiveAvailabilityService liveAvailabilityService;
-	private final LocationToAgencyMappingService locationToAgencyMappingService;
-
 	private final List<ResolutionStrategy> allResolutionStrategies;
 	private final String itemResolver;
 
 	public PatronRequestResolutionService(LiveAvailabilityService liveAvailabilityService,
-		LocationToAgencyMappingService locationToAgencyMappingService,
 		@Value("${dcb.itemresolver.code}") String itemResolver,
 		List<ResolutionStrategy> allResolutionStrategies) {
 
 		this.liveAvailabilityService = liveAvailabilityService;
-		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.itemResolver = itemResolver;
 		this.allResolutionStrategies = allResolutionStrategies;
 
@@ -46,7 +41,6 @@ public class PatronRequestResolutionService {
 	}
 
 	public Mono<Resolution> resolvePatronRequest(PatronRequest patronRequest) {
-
 		log.debug("resolvePatronRequest(id={}) current status ={} resolver={}",
 			patronRequest.getId(), patronRequest.getStatus(), itemResolver);
 
@@ -59,7 +53,7 @@ public class PatronRequestResolutionService {
 
 		return liveAvailabilityService.checkAvailability(clusterRecordId)
 			.onErrorMap(NoBibsForClusterRecordException.class, error -> {
-				log.error("Something went wrong with liveAvailabilityService.getAvailableItems",error);
+				log.error("Something went wrong with liveAvailabilityService.getAvailableItems", error);
 				return new UnableToResolvePatronRequest(error.getMessage());
 			})
 			// ToDo ROTA : Filter the list by any suppliers we have already tried for this request
