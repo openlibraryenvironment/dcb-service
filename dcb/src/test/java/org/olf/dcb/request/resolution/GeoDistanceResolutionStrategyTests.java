@@ -56,7 +56,7 @@ class GeoDistanceResolutionStrategyTests {
 
 		// Act
 		final var items = List.of(createItem("23721346", AVAILABLE, true,
-			0, agency, "example-agency"));
+			0, agency));
 
 		final var chosenItem = chooseItem(items, pickupLocationId.toString());
 
@@ -75,14 +75,14 @@ class GeoDistanceResolutionStrategyTests {
 		final var marbleArchAgency = defineAgencyLocatedAtMarbleArch("marble-arch");
 
 		final var marbleArchItem = createItem("5634379", AVAILABLE, true,
-			0, marbleArchAgency, "marble-arch");
+			0, marbleArchAgency);
 
 		final var chatsworthAgency = defineAgencyLocatedAtChatsworth("chatsworth");
 
 		final var chatsworthItemId = "5639532";
 
 		final var chatsworthItem = createItem(chatsworthItemId, AVAILABLE, true,
-			0, chatsworthAgency, "chatsworth");
+			0, chatsworthAgency);
 
 		// Act
 		final var items = List.of(marbleArchItem, chatsworthItem);
@@ -106,7 +106,7 @@ class GeoDistanceResolutionStrategyTests {
 
 		// Act
 		final var items = List.of(createItem("536524", AVAILABLE, true,
-			0, agency, "example-agency"));
+			0, agency));
 
 		final var chosenItem = chooseItem(items, pickupLocationId.toString());
 
@@ -127,7 +127,7 @@ class GeoDistanceResolutionStrategyTests {
 
 		// Act
 		final var items = List.of(createItem("536524", AVAILABLE, true,
-			0, agency, "example-agency"));
+			0, agency));
 
 		final var chosenItem = chooseItem(items, pickupLocationId.toString());
 
@@ -158,11 +158,11 @@ class GeoDistanceResolutionStrategyTests {
 		final var agency = defineAgencyLocatedAtChatsworth("example-agency");
 
 		final var unavailableItem = createItem("23721346", UNAVAILABLE, false,
-			0, agency, "example-agency");
+			0, agency);
 		final var unknownStatusItem = createItem("54737664", UNKNOWN, false,
-			0, agency, "example-agency");
+			0, agency);
 		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false,
-			0, agency, "example-agency");
+			0, agency);
 
 		// Act
 		final var items = List.of(unavailableItem, unknownStatusItem, checkedOutItem);
@@ -174,28 +174,13 @@ class GeoDistanceResolutionStrategyTests {
 	}
 
 	@Test
-	void shouldChooseNoItemNoItemHasAnAgencyCode() {
+	void shouldChooseNoItemWhenNoItemHasAnAgency() {
 		// Arrange
 		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
 
 		// Act
 		final var items = List.of(
-			createItem("6736564", AVAILABLE, true, 0, null, null));
-
-		final var chosenItem = chooseItem(items, pickupLocationId.toString());
-
-		// Assert
-		assertThat(chosenItem, nullValue());
-	}
-
-	@Test
-	void shouldChooseNoItemNoItemHasAnAgency() {
-		// Arrange
-		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
-
-		// Act
-		final var items = List.of(
-			createItem("6736564", AVAILABLE, true, 0, null, "unknown-agency"));
+			createItem("6736564", AVAILABLE, true, 0, null));
 
 		final var chosenItem = chooseItem(items, pickupLocationId.toString());
 
@@ -212,7 +197,7 @@ class GeoDistanceResolutionStrategyTests {
 
 		// Act
 		final var items = List.of(
-			createItem("6736564", AVAILABLE, true, 1, agency, "example-agency"));
+			createItem("6736564", AVAILABLE, true, 1, agency));
 
 		final var chosenItem = chooseItem(items, pickupLocationId.toString());
 
@@ -265,7 +250,7 @@ class GeoDistanceResolutionStrategyTests {
 	}
 
 	private static Item createItem(String id, ItemStatusCode statusCode,
-		Boolean requestable, int holdCount, DataAgency agency, String agencyCode) {
+		Boolean requestable, int holdCount, DataAgency agency) {
 
 		return Item.builder()
 			.localId(id)
@@ -279,9 +264,7 @@ class GeoDistanceResolutionStrategyTests {
 			.hostLmsCode("FAKE_HOST")
 			.isRequestable(requestable)
 			.holdCount(holdCount)
-			.agencyCode(agencyCode)
 			.agency(agency)
 			.build();
 	}
-
 }

@@ -9,7 +9,6 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.LocationRepository;
 
 import jakarta.inject.Singleton;
@@ -21,13 +20,9 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 	private final LocationRepository locationRepository;
-	private final AgencyRepository agencyRepository;
 
-	public GeoDistanceResolutionStrategy(LocationRepository locationRepository,
-		AgencyRepository agencyRepository) {
-
+	public GeoDistanceResolutionStrategy(LocationRepository locationRepository) {
 		this.locationRepository = locationRepository;
-		this.agencyRepository = agencyRepository;
 	}
 
 	@Override
@@ -51,25 +46,15 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 			// Create an ItemWithDistance for each item that calculates the distance to pickupLocation
 			.flatMapMany(pickupLocation ->
 				Flux.fromIterable(items)
-					.filter(item -> (item.getIsRequestable() && item.hasNoHolds() && (item.getAgencyCode() != null)))
+					.filter(item -> (item.getIsRequestable() && item.hasNoHolds() && (item.getAgency() != null)))
 					.map (item ->
 						ItemWithDistance.builder()
 							.item(item)
 							.pickupLocation(pickupLocation)
 							.build())
-					// Look up the items holding agency
-					.flatMap(this::decorateWithAgency)
 					.map(this::calculateDistanceFromPickupLocation))
 			.reduce(GeoDistanceResolutionStrategy::closestToPickupLocation)
 			.map(ItemWithDistance::getItem);
-	}
-
-	// Decorate the ItemWithDistance with the agency that holds the item (And hence, the location of that agency)
-	private Mono<ItemWithDistance> decorateWithAgency(ItemWithDistance iwd) {
-		log.debug("decorateWithAgency({})", iwd.getItem().getAgencyCode());
-
-		return Mono.from(agencyRepository.findOneByCode(iwd.getItem().getAgencyCode()))
-			.map(iwd::setItemAgency);
 	}
 
 	private ItemWithDistance calculateDistanceFromPickupLocation(ItemWithDistance iwd) {
