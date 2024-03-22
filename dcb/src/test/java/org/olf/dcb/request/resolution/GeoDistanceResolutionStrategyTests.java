@@ -2,6 +2,8 @@ package org.olf.dcb.request.resolution;
 
 import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -10,12 +12,14 @@ import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
@@ -44,6 +48,48 @@ class GeoDistanceResolutionStrategyTests {
 	}
 
 	@Test
+	void shouldChooseOnlyProvidedItem() {
+		// Arrange
+		final var pickupLocationId = locationFixture.createPickupLocation(
+			"Pickup Location", "pickup-location").getId();
+
+		defineExampleAgency();
+
+		// Act
+		final var items = List.of(createItem("23721346", AVAILABLE, true,
+			"example-agency", 0));
+
+		final var chosenItem = chooseItem(items, pickupLocationId.toString());
+
+		// Assert
+		assertThat(chosenItem, allOf(
+			notNullValue(),
+			hasLocalId("23721346")
+		));
+	}
+
+	@Test
+	void shouldChooseOnlyProvidedItemEvenWhenAgencyHasNoGeoLocation() {
+		// Arrange
+		final var pickupLocationId = locationFixture.createPickupLocation(
+			"Pickup Location", "pickup-location").getId();
+
+		agencyFixture.defineAgency("example-agency", "Example Agency", null);
+
+		// Act
+		final var items = List.of(createItem("536524", AVAILABLE, true,
+			"example-agency", 0));
+
+		final var chosenItem = chooseItem(items, pickupLocationId.toString());
+
+		// Assert
+		assertThat(chosenItem, allOf(
+			notNullValue(),
+			hasLocalId("536524")
+		));
+	}
+
+	@Test
 	void shouldChooseNoItemWhenNoItemsAreProvided() {
 		// Arrange
 		final var pickupLocationId = locationFixture.createPickupLocation(
@@ -62,7 +108,7 @@ class GeoDistanceResolutionStrategyTests {
 		final var pickupLocationId = locationFixture.createPickupLocation(
 			"Pickup Location", "pickup-location").getId();
 
-		agencyFixture.defineAgency("example-agency", "Example Agency", null);
+		defineExampleAgency();
 
 		final var unavailableItem = createItem("23721346", UNAVAILABLE, false,
 			"example-agency", 0);
@@ -118,7 +164,7 @@ class GeoDistanceResolutionStrategyTests {
 		final var pickupLocationId = locationFixture.createPickupLocation(
 			"Pickup Location", "pickup-location").getId();
 
-		agencyFixture.defineAgency("example-agency", "Example Agency", null);
+		defineExampleAgency();
 
 		// Act
 		final var items = List.of(
@@ -154,6 +200,12 @@ class GeoDistanceResolutionStrategyTests {
 			PatronRequest.builder()
 				.pickupLocationCode(pickupLocationId)
 				.build()));
+	}
+
+	private DataAgency defineExampleAgency() {
+		// Is located at Chatsworth House, UK
+		return agencyFixture.defineAgency("example-agency", "Example Agency", null,
+			53.227558, -1.611566);
 	}
 
 	private static Item createItem(String id, ItemStatusCode statusCode,

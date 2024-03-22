@@ -47,4 +47,15 @@ public class AgencyFixture {
 			.hostLms(hostLms)
 			.build());
 	}
+	public DataAgency defineAgency(String code, String name, DataHostLms hostLms, Double latitude, Double longitude) {
+		return saveAgency(DataAgency.builder()
+			.id(randomUUID())
+			.code(code)
+			.name(name)
+			.isSupplyingAgency(true)
+			.hostLms(hostLms)
+			.longitude(longitude)
+			.latitude(latitude)
+			.build());
+	}
 }
