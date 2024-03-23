@@ -255,6 +255,19 @@ public class PatronRequest {
 	@OneToMany(mappedBy = "patronRequest")
 	private List<SupplierRequest> supplierRequests;
 
+	// Is tracking this item paused 
+	@Nullable
+	private Boolean isPaused;
+
+	// Is this request flagged as needing administrative attention
+	@Nullable
+	private Boolean needsAttention;
+
+	// Some implementations of the tracking service might scheduled polling in advance - this is the field
+	// which can be used by those implementations
+	@Nullable
+	private Instant nextScheduledPoll;
+
 	public PatronRequest resolve() {
 		return setStatus(RESOLVED);
 	}
