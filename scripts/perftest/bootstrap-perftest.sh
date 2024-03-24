@@ -106,57 +106,57 @@ echo
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
   "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY1-LM1-A1-SL1`'",
-  "fromCategory":"ShelvingLocation", "fromContext":"DUMMY1", "fromValue":"LM1-A1-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-1" }'
+  "fromCategory":"Location", "fromContext":"DUMMY1", "fromValue":"LM1-A1-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-1" }'
 
 echo
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
   "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY1-LM1-A1-SL2`'",
-  "fromCategory":"ShelvingLocation", "fromContext":"DUMMY1", "fromValue":"LM1-A1-SL2", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-1" }'
+  "fromCategory":"Location", "fromContext":"DUMMY1", "fromValue":"LM1-A1-SL2", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-1" }'
 
 echo
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
   "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY1-LM1-A2-SL1`'",
-  "fromCategory":"ShelvingLocation", "fromContext":"DUMMY1", "fromValue":"LM1-A2-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-2" }'
+  "fromCategory":"Location", "fromContext":"DUMMY1", "fromValue":"LM1-A2-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-2" }'
 
 echo
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
   "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY1-LM1-A2-SL2`'",
-  "fromCategory":"ShelvingLocation", "fromContext":"DUMMY1", "fromValue":"LM1-A2-SL2", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-2" }'
+  "fromCategory":"Location", "fromContext":"DUMMY1", "fromValue":"LM1-A2-SL2", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-2" }'
 
 echo
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
   "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY1-LM1-A2-SL3`'",
-  "fromCategory":"ShelvingLocation", "fromContext":"DUMMY1", "fromValue":"LM1-A2-SL3", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-2" }'
+  "fromCategory":"Location", "fromContext":"DUMMY1", "fromValue":"LM1-A2-SL3", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-2" }'
 
 echo
 
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
   "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY2-LM2-A1-SL1`'",
-  "fromCategory":"ShelvingLocation", "fromContext":"DUMMY2", "fromValue":"LM2-A1-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-2-1" }'
+  "fromCategory":"Location", "fromContext":"DUMMY2", "fromValue":"LM2-A1-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-2-1" }'
 
 echo
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
   "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY2-LM2-A2-SL1`'",
-  "fromCategory":"ShelvingLocation", "fromContext":"DUMMY2", "fromValue":"LM2-A2-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-2-2" }'
+  "fromCategory":"Location", "fromContext":"DUMMY2", "fromValue":"LM2-A2-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-2-2" }'
 
 echo
 
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
   "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY3-LM3-A1-SL1`'",
-  "fromCategory":"ShelvingLocation", "fromContext":"DUMMY3", "fromValue":"LM3-A1-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-3-1" }'
+  "fromCategory":"Location", "fromContext":"DUMMY3", "fromValue":"LM3-A1-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-3-1" }'
 
 echo
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
   "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY3-LM3-A2-SL1`'",
-  "fromCategory":"ShelvingLocation", "fromContext":"DUMMY3", "fromValue":"LM3-A2-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-3-2" }'
+  "fromCategory":"Location", "fromContext":"DUMMY3", "fromValue":"LM3-A2-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-3-2" }'
 
 echo
 echo Locations
