@@ -7,4 +7,4 @@ echo indices
 curl "localhost:$ES_PORT/_cat/indices"
 
 echo search
-curl "localhost:$ES_PORT/mobius-si/_search?q=*"
+curl "localhost:$ES_PORT/mobius-si/_search?q=*" | jq
