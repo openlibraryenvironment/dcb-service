@@ -1,15 +1,19 @@
 package org.olf.dcb.request.resolution;
 
 import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.Item;
@@ -24,48 +28,44 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 	@Test
 	void shouldChooseOnlyRequestableItem() {
 		// Arrange
-		final var item = createItem("78458456", AVAILABLE, true);
+		final var item = createItem("78458456", AVAILABLE, true, 0);
 
 		// Act
-		final var chosenItem = resolutionStrategy.chooseItem(List.of(item), randomUUID(), null).block();
+		final var chosenItem = chooseItem(List.of(item), randomUUID());
 
 		// Assert
-		assertThat("Should have expected local ID",
-			chosenItem.getLocalId(), is("78458456"));
-
-		assertThat("Should have expected host LMS",
-			chosenItem.getHostLmsCode(), is("FAKE_HOST"));
+		assertThat(chosenItem, allOf(
+			hasLocalId("78458456")
+		));
 	}
 
 	@Test
 	void shouldChooseFirstRequestableItemWhenMultipleItemsAreProvided() {
 		// Arrange
-		final var unavailableItem = createItem("23721346", UNAVAILABLE, false);
-		final var unknownStatusItem = createItem("54737664", UNKNOWN, false);
-		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false);
-		final var firstAvailableItem = createItem("47463572", AVAILABLE, true);
-		final var secondAvailableItem = createItem("97848745", AVAILABLE, true);
+		final var unavailableItem = createItem("23721346", UNAVAILABLE, false, 0);
+		final var unknownStatusItem = createItem("54737664", UNKNOWN, false, 0);
+		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false, 0);
+		final var firstAvailableItem = createItem("47463572", AVAILABLE, true, 0);
+		final var secondAvailableItem = createItem("97848745", AVAILABLE, true, 0);
 
 		// Act
 		final var items = List.of(unavailableItem, unknownStatusItem, checkedOutItem,
 			firstAvailableItem, secondAvailableItem);
 
-		final var chosenItem = resolutionStrategy.chooseItem(items, randomUUID(), null).block();
+		final var chosenItem = chooseItem(items, randomUUID());
 
 		// Assert
-		assertThat("Should have expected local ID",
-			chosenItem.getLocalId(), is("47463572"));
-
-		assertThat("Should have expected host LMS",
-			chosenItem.getHostLmsCode(), is("FAKE_HOST"));
+		assertThat(chosenItem, allOf(
+			hasLocalId("47463572")
+		));
 	}
 
 	@Test
 	void shouldFailWhenNoRequestableItemsAreProvided() {
 		// Arrange
-		final var unavailableItem = createItem("23721346", UNAVAILABLE, false);
-		final var unknownStatusItem = createItem("54737664", UNKNOWN, false);
-		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false);
+		final var unavailableItem = createItem("23721346", UNAVAILABLE, false, 0);
+		final var unknownStatusItem = createItem("54737664", UNKNOWN, false, 0);
+		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false, 0);
 
 		// Act
 		final var items = List.of(unavailableItem, unknownStatusItem, checkedOutItem);
@@ -76,9 +76,25 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 			() -> resolutionStrategy.chooseItem(items, clusterId, null).block());
 
 		// Assert
-		assertThat("Should get message associated with cluster record",
-			exception.getMessage(),
-			is("No requestable items could be found for cluster record: " + clusterId));
+		assertThat(exception, hasMessage(
+			"No requestable items could be found for cluster record: " + clusterId));
+	}
+
+	@Test
+	void shouldFailWhenOnlyItemsWithExistingHoldsAreProvided() {
+		// Arrange
+
+		// Act
+		final var items = List.of(createItem("23721346", AVAILABLE, true, 1));
+
+		final var clusterId = randomUUID();
+
+		final var exception = assertThrows(NoItemsRequestableAtAnyAgency.class,
+			() -> resolutionStrategy.chooseItem(items, clusterId, null).block());
+
+		// Assert
+		assertThat(exception, hasMessage(
+			"No requestable items could be found for cluster record: " + clusterId));
 	}
 
 	@Test
@@ -87,16 +103,19 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 		final var clusterId = randomUUID();
 
 		final var exception = assertThrows(NoItemsRequestableAtAnyAgency.class,
-			() -> resolutionStrategy.chooseItem(List.of(), clusterId, null));
+			() -> chooseItem(List.of(), clusterId));
 
 		// Assert
-		assertThat("Should get message associated with cluster record",
-			exception.getMessage(),
-			is("No requestable items could be found for cluster record: " + clusterId));
+		assertThat(exception, hasMessage(
+			"No requestable items could be found for cluster record: " + clusterId));
+	}
+
+	private Item chooseItem(List<Item> items, UUID clusterRecordId) {
+		return singleValueFrom(resolutionStrategy.chooseItem(items, clusterRecordId, null));
 	}
 
 	private static Item createItem(String id,
-		ItemStatusCode statusCode, Boolean requestable) {
+		ItemStatusCode statusCode, Boolean requestable, int holdCount) {
 
 		return Item.builder()
 			.localId(id)
@@ -109,7 +128,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 			.callNumber("callNumber")
 			.hostLmsCode("FAKE_HOST")
 			.isRequestable(requestable)
-			.holdCount(0)
+			.holdCount(holdCount)
 			.build();
 	}
 }

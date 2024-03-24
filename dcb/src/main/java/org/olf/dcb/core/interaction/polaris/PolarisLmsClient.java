@@ -5,7 +5,6 @@ import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
-import static org.olf.dcb.core.interaction.polaris.Direction.HOST_LMS_TO_POLARIS;
 import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
 import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
@@ -25,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -103,8 +103,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final NumericPatronTypeMapper numericPatronTypeMapper;
 	private final IngestHelper ingestHelper;
 	private final PolarisItemMapper itemMapper;
-	private final PAPIClient papiClient;
-	private final ApplicationServicesClient appServicesClient;
+	private final PAPIClient PAPIService;
+	private final ApplicationServicesClient ApplicationServices;
 	private final List<ApplicationServicesClient.MaterialType> materialTypes = new ArrayList<>();
 	private final List<PolarisItemStatus> statuses = new ArrayList<>();
 
@@ -124,8 +124,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		rootUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
 		lms = hostLms;
 
-		this.appServicesClient = new ApplicationServicesClient(this);
-		this.papiClient = new PAPIClient(this);
+		this.ApplicationServices = new ApplicationServicesClient(this);
+		this.PAPIService = new PAPIClient(this);
 		this.itemMapper = itemMapper;
 		this.ingestHelper = new IngestHelper(this, hostLms, processStateService);
 		this.processStateService = processStateService;
@@ -159,7 +159,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	Integer illLocationId() {
-		final var illLocationId = extractMapValue(getItemConfig(), ILL_LOCATION_ID, Integer.class);
+		final var illLocationId = extractRequiredMapValue(getItemConfig(), ILL_LOCATION_ID, Integer.class);
 
 		if (illLocationId == null) {
 			throw new IllegalArgumentException(
@@ -170,7 +170,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private String borrowerlendingFlow() {
-		return extractMapValue(getConfig(), BORROWER_LENDING_FLOW, String.class);
+		return extractOptionalMapValue(getConfig(), BORROWER_LENDING_FLOW, String.class);
 	}
 
 	private Mono<LocalRequest> placeILLHoldRequest(Integer illLocationId, PlaceHoldRequestParameters parameters) {
@@ -190,12 +190,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.localItemLocationId(illLocationId)
 			.build();
 
-		return appServicesClient.createILLHoldRequestWorkflow(createHoldParams)
+		return ApplicationServices.createILLHoldRequestWorkflow(createHoldParams)
 			.doOnNext( hr -> log.info("got hold response {}",hr) )
 			.flatMap(function(this::getLocalHoldRequestIdv2))
-			.flatMap(localRequest -> appServicesClient.convertToIll(illLocationId, localRequest.getLocalId()))
+			.flatMap(localRequest -> ApplicationServices.convertToIll(illLocationId, localRequest.getLocalId()))
 			.flatMap(listOfILLRequests -> getILLRequestId(patronLocalId, title))
-			.flatMap(illRequestId -> appServicesClient.transferRequest(illLocationId, illRequestId))
+			.flatMap(illRequestId -> ApplicationServices.transferRequest(illLocationId, illRequestId))
 			.map(illRequestInfo -> extractNeededInfo(illRequestInfo));
 	}
 
@@ -223,7 +223,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			}
 		}
 
-		return appServicesClient.getIllRequest(patronLocalId)
+		return ApplicationServices.getIllRequest(patronLocalId)
 			.doOnNext(entries -> log.debug("Got Polaris Holds: {}", entries))
 			.flatMapMany(Flux::fromIterable)
 			.filter(illRequest -> Objects.equals(illRequest.getTitle(), title))
@@ -251,7 +251,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			}
 		}
 
-		return appServicesClient.listPatronLocalHolds(patronId)
+		return ApplicationServices.listPatronLocalHolds(patronId)
 			.doOnNext(entries -> log.debug("Got Polaris Holds: {}", entries))
 			.flatMapMany(Flux::fromIterable)
 			.filter(holds -> shouldIncludeHold(holds, title, note, activationDate))
@@ -316,14 +316,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.pickupLocation(pickup_location)
 					.note(parameters.getNote())
 					.dcbPatronRequestId(parameters.getPatronRequestId())
-					.localItemLocationId(item.getLocationID())
+					.localItemLocationId(item.getAssignedBranchID())
 					.bibliographicRecordID(bib.getBibliographicRecordID())
 					.itemBarcode(item.getBarcode())
 					.build();
 			})
-			.doOnNext( hr -> log.info("Attempt to place hold {}",hr) )
-			.flatMap(appServicesClient::createHoldRequestWorkflow)
-			.doOnNext( hr -> log.info("got hold response {}",hr) )
+			.doOnNext( hr -> log.info("Attempt to place hold... {}",hr) )
+			.flatMap(ApplicationServices::createHoldRequestWorkflow)
 			.flatMap(function(this::getLocalHoldRequestId));
 	}
 
@@ -341,8 +340,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			}
 		}
 
-		return appServicesClient.listPatronLocalHolds(patronId)
-			.doOnNext(entries -> log.debug("Got Polaris Holds: {}", entries))
+		return ApplicationServices.listPatronLocalHolds(patronId)
+			.doOnNext( logLocalHolds() )
 			.flatMapMany(Flux::fromIterable)
 			.filter(holds -> shouldIncludeHold(holds, bibId, activationDate, note))
 			.collectList()
@@ -355,6 +354,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	}
 
+	private static Consumer<List<ApplicationServicesClient.SysHoldRequest>> logLocalHolds() {
+		return entries -> log.debug("Retrieved {} local holds: {}", entries.size(), entries);
+	}
+
 	private Boolean shouldIncludeHold(
 		ApplicationServicesClient.SysHoldRequest sysHoldRequest, Integer bibId, String activationDate, String note) {
 
@@ -362,7 +365,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			isEqualDisplayNoteIfPresent(sysHoldRequest, note) &&
 			isEqualActivationDateIfPresent(sysHoldRequest, activationDate)) {
 
-			log.info("Hold retrieved.");
+			log.info("Hold boolean matched.");
 
 			return TRUE;
 		}
@@ -433,7 +436,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		// supplier requests need the pickup location to be set as ILL
 		if (isBorrower == FALSE) {
-			pickup_location = extractMapValue(getItemConfig(), ILL_LOCATION_ID, String.class);
+			pickup_location = extractRequiredMapValue(getItemConfig(), ILL_LOCATION_ID, String.class);
 			if (pickup_location == null) {
 				throw new IllegalArgumentException("Please add the config value 'ill-location-id' for polaris.");
 			}
@@ -443,11 +446,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return pickup_location;
 	}
 
-	private Mono<Tuple2<ApplicationServicesClient.BibliographicRecord, PAPIClient.ItemGetRow>> getBibWithItem(
+	private Mono<Tuple2<ApplicationServicesClient.BibliographicRecord, ApplicationServicesClient.ItemRecordFull>> getBibWithItem(
 		PlaceHoldRequestParameters parameters) {
 		return getBibIdFromItemId(parameters.getLocalItemId())
 			.flatMap(this::getBib)
-			.zipWith(papiClient.synch_ItemGet(parameters.getLocalItemId()));
+			.zipWith(ApplicationServices.itemrecords(parameters.getLocalItemId()));
 	}
 
 	@Override
@@ -465,7 +468,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				new NumberFormatException("Cannot convert localRequestId: "+localRequestId+" to an Integer."));
 		}
 
-		return appServicesClient.getLocalHoldRequest(parsedLocalRequestId)
+		return ApplicationServices.getLocalHoldRequest(parsedLocalRequestId)
 			.map(hold -> HostLmsRequest.builder()
 				.localId(localRequestId)
 				.status(checkHoldStatus(hold.getSysHoldStatus()))
@@ -497,7 +500,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			return Mono.just("ILL_REQUEST_BIB_ID_PLACEHOLDER");
 		}
 
-		return appServicesClient.createBibliographicRecord(bib).map(String::valueOf);
+		return ApplicationServices.createBibliographicRecord(bib).map(String::valueOf);
 	}
 
 	@Override
@@ -509,7 +512,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			return Mono.just(HostLmsItem.builder().localId("ILL_REQUEST_ITEM_ID_PLACEHOLDER").build());
 		}
 
-		return appServicesClient.addItemRecord(createItemCommand)
+		return ApplicationServices.addItemRecord(createItemCommand)
 			.doOnSuccess(r -> log.info("Got create item response from Polaris: {}",r))
 			.map(itemCreateResponse -> {
 				if (itemCreateResponse.getAnswerExtension() == null) {
@@ -540,9 +543,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		final var localBibId = bib.getSourceRecordId();
 
 		// @see: https://documentation.iii.com/polaris/PAPI/7.1/PAPIService/Synch_ItemsByBibIDGet.htm
-		return papiClient.synch_ItemGetByBibID(localBibId)
+		return PAPIService.synch_ItemGetByBibID(localBibId)
 			.flatMapMany(Flux::fromIterable)
-			.flatMap(this::setCircStatus)
+			.flatMap(this::fetchFullItemStatus)
 			.flatMap(this::setMaterialTypeCode)
 			.flatMap(result -> itemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId))
 			.collectList();
@@ -553,34 +556,81 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		if (localItemId == null) {
 			log.warn("getItem called with null localItemId, returning empty mono.");
+
 			return Mono.empty();
 		}
 
-		return papiClient.synch_ItemGet(localItemId)
-			.flatMap(this::setCircStatus)
-			.map(result -> HostLmsItem.builder()
-				.localId(String.valueOf(result.getItemRecordID()))
-				.status( mapItemStatus(POLARIS_TO_HOST_LMS, result.getCircStatusName()))
-				.barcode(result.getBarcode())
-				.build());
+		return ApplicationServices.itemrecords(localItemId)
+			.map(item -> validate(localItemId, item))
+			.flatMap(itemRecord -> collectItemStatusName(itemRecord))
+			.map(itemRecord -> {
+				final var hostLmsStatus = mapItemStatus(POLARIS_TO_HOST_LMS, itemRecord.getItemStatusName());
+
+				return HostLmsItem.builder()
+					.localId(String.valueOf(itemRecord.getItemRecordID()))
+					.status(hostLmsStatus)
+					.barcode(itemRecord.getBarcode())
+					.build();
+			});
+	}
+
+	private ApplicationServicesClient.ItemRecordFull validate(
+		String knownId, ApplicationServicesClient.ItemRecordFull item) {
+
+		final var fetchedId = String.valueOf(item.getItemRecordID());
+
+		if (Objects.equals(knownId, fetchedId) &&
+		item.getItemStatusDescription() != null &&
+		item.getBarcode() != null) {
+
+			return item;
+		}
+
+		log.error("Unexpected item record fetched. Known id: {} fetched record: {}", knownId, item);
+		throw new IllegalArgumentException("Fetched record wasn't validated.");
+	}
+
+	private Mono<ApplicationServicesClient.ItemRecordFull> collectItemStatusName(
+		ApplicationServicesClient.ItemRecordFull itemRecord) {
+
+		final var description = itemRecord.getItemStatusDescription();
+
+		return fetchItemStatusObjectBy(SearchType.DESCRIPTION, description)
+			.map(itemStatus -> {
+
+				final var name = itemStatus.getName();
+				itemRecord.setItemStatusName(name);
+
+				return itemRecord;
+			});
 	}
 
 	@Override
 	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs, String localRequestId) {
 		log.warn("Attempting to update an item status.");
+		
 		return switch (crs) {
-			case AVAILABLE -> getCircStatusId(AVAILABLE).map(id -> updateItem(itemId, id)).thenReturn("OK");
-			case TRANSIT -> getCircStatusId(TRANSFERRED).map(id -> updateItem(itemId, id)).thenReturn("OK");
-			default -> Mono.just("OK").doOnSuccess(ok -> log.error("CanonicalItemState: '{}' cannot be updated.", crs));
+			case AVAILABLE -> updateItemToAvailable(itemId).thenReturn("OK");
+			case TRANSIT -> updateItemToPickupTransit(itemId).thenReturn("OK");
+			default -> Mono.just("OK").doOnSuccess(ok ->
+				log.error("CanonicalItemState: '{}' cannot be updated.", crs));
 		};
 	}
 
+	private Mono<Void> updateItemToAvailable(String itemId) {
+		return fetchItemStatusObjectBy(SearchType.NAME, AVAILABLE)
+			.map(PolarisItemStatus::getItemStatusID)
+			.flatMap(statusId -> updateItem(itemId, statusId));
+	}
+
+	private Mono<Void> updateItemToPickupTransit(String itemId) {
+
+		return ApplicationServices.checkIn(itemId, illLocationId()).then();
+	}
 	private Mono<Void> updateItem(String itemId, Integer toStatus) {
-		return getItem(itemId, null)
-			.map(HostLmsItem::getStatus)
-			.map(status -> mapItemStatus(HOST_LMS_TO_POLARIS, status))
-			.flatMap(this::getCircStatusId)
-			.flatMap(fromStatus -> appServicesClient.updateItemRecord(itemId, fromStatus, toStatus));
+
+		return ApplicationServices.itemrecords(itemId)
+			.flatMap(item -> ApplicationServices.updateItemRecord(itemId, item.getItemStatusID(), toStatus));
 	}
 
 	@Override
@@ -592,9 +642,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		final var barcodeListAsString = getValue(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 		final var firstBarcodeInList = parseList(barcodeListAsString).get(0);
 
-		return papiClient.patronSearch(firstBarcodeInList, uniqueId)
+		return PAPIService.patronSearch(firstBarcodeInList, uniqueId)
 			.map(PAPIClient.PatronSearchRow::getPatronID)
-			.flatMap(appServicesClient::handlePatronBlock)
+			.flatMap(ApplicationServices::handlePatronBlock)
 			.map(String::valueOf)
 			.flatMap(this::getPatronByLocalId);
 	}
@@ -603,14 +653,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<String> createPatron(Patron patron) {
 		log.info("createPatron({}) at {}", patron, lms);
 
-		return papiClient.synch_ItemGet(patron.getLocalItemId())
-			.map(itemGetRow -> patron.setLocalItemLocationId(itemGetRow.getLocationID()))
-			.flatMap(papiClient::patronRegistrationCreate)
+		return ApplicationServices.itemrecords(patron.getLocalItemId())
+			.map(item -> patron.setLocalItemLocationId(item.getAssignedBranchID()))
+			.flatMap(PAPIService::patronRegistrationCreate)
 			.flatMap(result -> validateCreatePatronResult(result, patron))
 			.doOnSuccess(res -> log.debug("Successful result creating patron {}",res))
 			.doOnError(error -> log.error("Problem trying to create patron",error))
 			.map(PAPIClient.PatronRegistrationCreateResult::getPatronID)
-			.flatMap(appServicesClient::handlePatronBlock)
+			.flatMap(ApplicationServices::handlePatronBlock)
 			.map(String::valueOf);
 	}
 
@@ -641,8 +691,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<Patron> updatePatron(String localId, String patronType) {
 		// may need to get patron or get patron defaults in order to retrieve data for updating.
-		return appServicesClient.getPatronBarcode(localId)
-			.flatMap(barcode -> papiClient.patronRegistrationUpdate(barcode, patronType))
+		return ApplicationServices.getPatronBarcode(localId)
+			.flatMap(barcode -> PAPIService.patronRegistrationUpdate(barcode, patronType))
 			.flatMap(barcode -> getPatronByLocalId(localId));
 	}
 
@@ -667,12 +717,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					"context: %s, domain: %s, targetContext: %s, mappedValue: %s",
 					getHostLmsCode(), "patronType", "DCB", localPatronType)
 			)));
-	};
-
+	}
 
 	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
-		return appServicesClient.getPatron(localPatronId)
+		return ApplicationServices.getPatron(localPatronId)
 			.switchIfEmpty(Mono.defer(() -> Mono.error(patronNotFound(localPatronId, getHostLmsCode()))));
 	}
 
@@ -683,7 +732,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		log.info("getPatronByUsername using barcode: {}", username);
 		final var barcode = username;
 
-		return appServicesClient.getPatronIdByIdentifier(barcode, "barcode")
+		return ApplicationServices.getPatronIdByIdentifier(barcode, "barcode")
 			.doOnSuccess(id -> log.info("getPatronByUsername found patron id: {}", id))
 			.flatMap(id -> getPatronByLocalId(id))
 			.switchIfEmpty(Mono.defer(() -> Mono.error(patronNotFound(username, getHostLmsCode()))));
@@ -692,8 +741,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
 		return switch (authProfile) {
-			case "BASIC/BARCODE+PIN" -> papiClient.patronValidate(patronPrinciple, secret);
-			case "BASIC/BARCODE+PASSWORD" -> papiClient.patronValidate(patronPrinciple, secret);
+			case "BASIC/BARCODE+PIN" -> PAPIService.patronValidate(patronPrinciple, secret);
+			case "BASIC/BARCODE+PASSWORD" -> PAPIService.patronValidate(patronPrinciple, secret);
 			default -> Mono.empty();
 		};
 	}
@@ -707,15 +756,15 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			getServicesConfig(), PATRON_BARCODE_PREFIX, String.class, "DCB-");
 		final var barcodeWithPrefix = patronBarcodePrefix + patronBarcode;
 
-		return appServicesClient.getItemBarcode(itemId)
-			.flatMap(itemBarcode -> papiClient.itemCheckoutPost(itemBarcode, barcodeWithPrefix))
+		return ApplicationServices.getItemBarcode(itemId)
+			.flatMap(itemBarcode -> PAPIService.itemCheckoutPost(itemBarcode, barcodeWithPrefix))
 			.map(itemCheckoutResult -> "OK");
 	}
 
 	private Mono<LocalRequest> getPlaceHoldRequestData(Integer holdRequestId) {
 		log.info("Get hold request data for {}",holdRequestId);
 
-		return appServicesClient.getLocalHoldRequest(holdRequestId)
+		return ApplicationServices.getLocalHoldRequest(holdRequestId)
 			.doOnSuccess(hold -> {
 				// TODO: add extra check on notes
 				final var nonPublicNotes = hold.getNonPublicNotes();
@@ -735,17 +784,17 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<ApplicationServicesClient.BibliographicRecord> getBib(String localBibId) {
-		return appServicesClient.getBibliographicRecordByID(localBibId);
+		return ApplicationServices.getBibliographicRecordByID(localBibId);
 	}
 
 	private Mono<String> getBibIdFromItemId(String recordNumber) {
-		return papiClient.synch_ItemGet(recordNumber)
-			.map(PAPIClient.ItemGetRow::getBibliographicRecordID)
+		return ApplicationServices.itemrecords(recordNumber)
+			.map(record -> record.getBibInfo().getBibliographicRecordID())
 			.map(String::valueOf);
 	}
 
 	private Mono<PAPIClient.ItemGetRow> setMaterialTypeCode(PAPIClient.ItemGetRow itemGetRow) {
-		return (materialTypes.isEmpty() ? appServicesClient.listMaterialTypes().doOnNext(materialTypes::addAll)
+		return (materialTypes.isEmpty() ? ApplicationServices.listMaterialTypes().doOnNext(materialTypes::addAll)
 			: Mono.just(materialTypes))
 			.flatMapMany(Flux::fromIterable)
 			.filter(materialType -> itemGetRow.getMaterialType().equals(materialType.getDescription()))
@@ -755,30 +804,51 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.thenReturn(itemGetRow);
 	}
 
-	private Mono<PAPIClient.ItemGetRow> setCircStatus(PAPIClient.ItemGetRow itemGetRow) {
-		final var circStatus = itemGetRow.getCircStatus();
-		return (statuses.isEmpty()
-				? appServicesClient.listItemStatuses().doOnNext(statuses::addAll)
-				: Mono.just(statuses))
-			.flatMapMany(Flux::fromIterable)
-			.filter(status -> circStatus.equals(status.getDescription()))
-			.next()
-			.map(polarisItemStatus -> {
-				itemGetRow.setCircStatusID(polarisItemStatus.getItemStatusID());
-				itemGetRow.setCircStatusName(polarisItemStatus.getName());
-				itemGetRow.setCircStatusBanner(polarisItemStatus.getBannerText());
+	private Mono<PAPIClient.ItemGetRow> fetchFullItemStatus(PAPIClient.ItemGetRow itemGetRow) {
+
+		final var description = itemGetRow.getCircStatus();
+
+		return fetchItemStatusObjectBy(SearchType.DESCRIPTION, description)
+			.map(status -> {
+				itemGetRow.setCircStatusID(status.getItemStatusID());
+				itemGetRow.setCircStatusName(status.getName());
+				itemGetRow.setCircStatusBanner(status.getBannerText());
 				return itemGetRow;
 			});
 	}
+	
+	private Mono<PolarisItemStatus> fetchItemStatusObjectBy(SearchType type, String value) {
 
-	private Mono<Integer> getCircStatusId(String circStatusName) {
-		return (statuses.isEmpty()
-					? appServicesClient.listItemStatuses().doOnNext(statuses::addAll)
-					: Mono.just(statuses))
-			.flatMapMany(Flux::fromIterable)
-			.filter(status -> circStatusName.equals(status.getName()))
-			.next()
-			.map(PolarisItemStatus::getItemStatusID);
+		return fetchItemStatusesFromApi()
+			.flatMap(list -> switch (type) {
+				case DESCRIPTION -> matchByDescription(list, value);
+				case NAME -> matchByName(list, value);
+			});
+	}
+
+	enum SearchType { DESCRIPTION, NAME }
+
+	private Mono<PolarisItemStatus> matchByName(List<PolarisItemStatus> list, String name) {
+		return Flux.fromIterable(list)
+			.filter(status -> name.equals(status.getName()))
+			.next() // Take the first matching item status
+			.switchIfEmpty(Mono.error(new IllegalArgumentException("No item status found with name: " + name)));
+	}
+
+	private Mono<PolarisItemStatus> matchByDescription(List<PolarisItemStatus> list, String description) {
+		return Flux.fromIterable(list)
+			.filter(status -> description.equals(status.getDescription()))
+			.next() // Take the first matching item status
+			.switchIfEmpty(Mono.error(new IllegalArgumentException("No item status found with description: " + description)));
+	}
+
+	private Mono<List<PolarisItemStatus>> fetchItemStatusesFromApi() {
+
+		log.info("Fetching item statuses...");
+
+		return statuses.isEmpty()
+			? ApplicationServices.listItemStatuses().doOnNext(statuses::addAll)
+			: Mono.just(statuses);
 	}
 
 	/**
@@ -875,7 +945,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		// workflow PUT continue delete
 		// workflow PUT don't delete bib if last item
 		// ERROR PolarisWorkflowException
-		return appServicesClient.deleteItemRecord(id).thenReturn("OK").defaultIfEmpty("ERROR");
+		return ApplicationServices.deleteItemRecord(id).thenReturn("OK").defaultIfEmpty("ERROR");
 	}
 
 	@Override
@@ -883,7 +953,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		// workflow POST delete
 		// workflow PUT continue delete
 		// ERROR PolarisWorkflowException
-		return appServicesClient.deleteBibliographicRecord(id).thenReturn("OK").defaultIfEmpty("ERROR");
+		return ApplicationServices.deleteBibliographicRecord(id).thenReturn("OK").defaultIfEmpty("ERROR");
 	}
 
 	@Override
@@ -976,7 +1046,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	Publisher<BibsPagedResult> getBibs(String date, Integer lastId, Integer nrecs) {
-		return papiClient.synch_BibsPagedGet(date, lastId, nrecs);
+		return PAPIService.synch_BibsPagedGet(date, lastId, nrecs);
 	}
 
 	public String getGeneralUriParameters(PolarisClient polarisClient) {
@@ -1015,11 +1085,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	static <T> T extractMapValueWithDefault(Map<String, Object> map, String key, Class<T> type, Object defval) {
-		final Object r1 = extractMapValue(map,key,type);
+		final Object r1 = extractRequiredMapValue(map,key,type);
 		return type.cast( r1 != null ? r1 : defval );
 	}
 
-	static <T> T extractMapValue(Map<String, Object> map, String key, Class<T> type) {
+	static <T> T extractRequiredMapValue(Map<String, Object> map, String key, Class<T> type) {
 		Object value = map.get(key);
 
 		if (value != null) {
@@ -1032,7 +1102,23 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			}
 		}
 
-		log.warn("Unable to extract key: {}, from map: {}, to type: {}", key, map, type);
+		log.warn("Unable to extract required key: {}, to type: {}, from map: {},", key, type, map);
+		return null;
+	}
+
+	static <T> T extractOptionalMapValue(Map<String, Object> map, String key, Class<T> type) {
+		Object value = map.get(key);
+
+		if (value != null) {
+			if (type.isInstance(value)) {
+				return type.cast(value);
+			} else if (type == String.class && value instanceof Integer) {
+				return type.cast(value.toString());
+			} else if (type == Integer.class && value instanceof String) {
+				return type.cast(Integer.valueOf((String) value));
+			}
+		}
+
 		return null;
 	}
 

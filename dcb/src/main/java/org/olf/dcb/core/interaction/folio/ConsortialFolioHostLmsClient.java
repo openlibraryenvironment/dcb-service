@@ -288,7 +288,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.build())
 				.suppressed(holding.getSuppressFromDiscovery())
 				.deleted(false)
-				.hostLmsCode(getHostLmsCode())
 				.build())
 			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()))
 			.flatMap(item -> materialTypeToItemTypeMappingService.enrichItemWithMappedItemType(item, getHostLmsCode()));

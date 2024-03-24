@@ -18,6 +18,8 @@ import io.micronaut.scheduling.TaskExecutors;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.ParallelFlux;
+import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 @Singleton
@@ -54,12 +56,24 @@ public class PublisherTransformationService {
 
 		return chain::apply;
 	}
+	
+	private Scheduler blockingScheduler;
+	public Scheduler getBlockingScheduler() {
+		if (blockingScheduler == null) {
+			synchronized (blockingExecutor) {
+				if (blockingScheduler == null) {
+					blockingScheduler = Schedulers.fromExecutorService(blockingExecutor.get());
+				}
+			}
+		}
+		return blockingScheduler;
+	}
 
 	public<T> Publisher<T> executeOnBlockingThreadPool ( @NonNull Publisher<T> pub ) {
-		var blockingScheduler = Schedulers.fromExecutorService(blockingExecutor.get());
+		var sched = getBlockingScheduler();
 		Flux<T> f = Flux.from(pub)
-			.subscribeOn( blockingScheduler )
-			.publishOn( blockingScheduler );
+			.subscribeOn( sched )
+			.publishOn( sched );
 		
 		if ( Publishers.isSingle(pub.getClass()) ) {
 			return f.singleOrEmpty();

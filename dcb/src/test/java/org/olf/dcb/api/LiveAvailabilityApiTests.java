@@ -10,12 +10,16 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItem;
+import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -54,6 +58,8 @@ class LiveAvailabilityApiTests {
 	@Inject
 	private LiveAvailabilityApiClient liveAvailabilityApiClient;
 
+	private SierraItemsAPIFixture sierraItemsAPIFixture;
+
 	@BeforeAll
 	@SneakyThrows
 	public void beforeAll(MockServerClient mockServerClient) {
@@ -65,7 +71,7 @@ class LiveAvailabilityApiTests {
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
 
@@ -163,6 +169,51 @@ class LiveAvailabilityApiTests {
 		assertThat(secondItemLocation, is(notNullValue()));
 		assertThat(secondItemLocation.getCode(), is(locationCode));
 		assertThat(secondItemLocation.getName(), is("King 6th Floor"));
+	}
+
+	@Test
+	void shouldTolerateItemsFromAnUnknownAgency() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
+
+		final var hostLms = hostLmsFixture.findByCode(CATALOGUING_HOST_LMS_CODE);
+
+		final var sourceSystemId = hostLms.getId();
+		final var sourceRecordId = "267635";
+
+		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId, sourceRecordId, clusterRecord);
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			SierraItem.builder()
+				.id("47564655")
+				.locationCode("example-location")
+				.locationName("Example Location")
+				.build()));
+
+		// Act
+		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
+
+		// Assert
+		assertThat(report, is(notNullValue()));
+
+		final var items = report.getItemList();
+
+		assertThat(items, is(notNullValue()));
+		assertThat(items.size(), is(1));
+		assertThat(report.getClusteredBibId(), is(clusterRecordId));
+
+		final var firstItem = items.get(0);
+
+		assertThat(firstItem, is(notNullValue()));
+		assertThat(firstItem.getId(), is("47564655"));
+
+		assertThat(firstItem.getLocation(), is(notNullValue()));
+		assertThat(firstItem.getLocation().getCode(), is("example-location"));
+		assertThat(firstItem.getLocation().getName(), is("Example Location"));
+
+		assertThat(firstItem.getAgency(), is(nullValue()));
 	}
 
 	@Test

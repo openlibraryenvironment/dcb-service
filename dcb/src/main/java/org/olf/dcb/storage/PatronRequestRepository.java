@@ -3,10 +3,12 @@ package org.olf.dcb.storage;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static services.k_int.utils.StringUtils.truncate;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
@@ -18,7 +20,6 @@ import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Mono;
-import java.time.Instant;
 
 
 public interface PatronRequestRepository {
@@ -43,6 +44,8 @@ public interface PatronRequestRepository {
 
 	@SingleResult
 	Publisher<Void> delete(UUID id);
+	
+	Publisher<PatronRequest> findAllTrackableRequests(Iterable<Status> terminalStates, Iterable<String> supplierStatuses, Iterable<String> supplierItemStatuses);
 
 	// local_request_id must be not null, it must currently be in a tracked state and the request itself must be trackable
 	@Query(value = "SELECT p.* from patron_request p  where ( p.local_request_status is null OR p.local_request_status in ( select code from status_code where model = 'PatronRequest' and tracked = true ) ) and p.status_code in ( select code from status_code where model = 'DCBRequest' and tracked = true )", nativeQuery = true)
@@ -100,5 +103,5 @@ public interface PatronRequestRepository {
   Publisher<Void> updatePickupRequestTracking(@NotNull UUID id, String pickupRequestStatus, Instant pickupRequestLastCheckTimestamp, Long pickupRequestStatusRepeat);
   Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, String localRequestStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
   Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
-
+  Publisher<Long> updateNextScheduledPoll(@Id @NotNull UUID id, Instant nextScheduledPoll);
 }

@@ -3,12 +3,12 @@ package org.olf.dcb.core.svc;
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.trimToNull;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.consumeOnSuccess;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.storage.AgencyRepository;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -17,27 +17,34 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 public class LocationToAgencyMappingService {
-	private final AgencyRepository agencyRepository;
+	private final AgencyService agencyService;
 	private final ReferenceValueMappingService referenceValueMappingService;
 
-	public LocationToAgencyMappingService(AgencyRepository agencyRepository,
+	public LocationToAgencyMappingService(AgencyService agencyService,
 		ReferenceValueMappingService referenceValueMappingService) {
 
-		this.agencyRepository = agencyRepository;
+		this.agencyService = agencyService;
 		this.referenceValueMappingService = referenceValueMappingService;
 	}
 
 	public Mono<DataAgency> mapLocationToAgency(String hostLmsCode, String locationCode) {
 		return findLocationToAgencyMapping(hostLmsCode, locationCode)
 			.map(ReferenceValueMapping::getToValue)
-			.flatMap(agencyCode -> Mono.from(agencyRepository.findOneByCode(agencyCode)))
+			.flatMap(agencyService::findByCode)
 			.doOnNext(agency -> log.debug("Found agency for location: {}", agency));
 	}
 
 	public Mono<Item> enrichItemAgencyFromLocation(Item incomingItem, String hostLmsCode) {
 		return Mono.just(incomingItem)
-			.zipWhen(item -> findLocationToAgencyMapping(item, hostLmsCode), Item::setAgency)
-			.defaultIfEmpty(incomingItem);
+			.zipWhen(item -> findLocationToAgencyMapping(item, hostLmsCode))
+			.map(function((item, agency) ->
+				item.setAgency(agency)
+					.setAgencyCode(agency.getCode())
+					.setAgencyName(agency.getName())
+			))
+			.defaultIfEmpty(incomingItem)
+			// This has to be set separately in case agency is not found
+			.map(item -> item.setHostLmsCode(hostLmsCode));
 	}
 
 	private Mono<DataAgency> findLocationToAgencyMapping(Item item, String hostLmsCode) {

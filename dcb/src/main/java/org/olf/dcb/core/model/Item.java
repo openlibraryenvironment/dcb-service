@@ -17,7 +17,6 @@ import lombok.Data;
 
 import lombok.experimental.Accessors;
 
-
 @Data
 @Serdeable
 @Builder(toBuilder = true)
@@ -42,6 +41,7 @@ public class Item implements Comparable<Item> {
 	private Boolean suppressed;
 	private String agencyCode;
 	private String agencyName;
+	private DataAgency agency;
 
 	// If this item has attached volume information use these two fields to stash the raw
 	// and the processed volume statement. parsed volume statement
@@ -58,11 +58,6 @@ public class Item implements Comparable<Item> {
 
 	public String getLocationCode() {
 		return getValue(location, Location::getCode);
-	}
-
-	public Item setAgency(DataAgency agency) {
-		return setAgencyCode(agency.getCode())
-			.setAgencyName(agency.getName());
 	}
 
 	@Override

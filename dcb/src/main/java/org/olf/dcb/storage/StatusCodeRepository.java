@@ -51,6 +51,8 @@ public interface StatusCodeRepository {
                  .flatMap( update -> Mono.from(update ? this.update(sc) : this.save(sc)) )
       ;
     }
+    
+    Publisher<StatusCode> findAllByTracked( Boolean tracked );
 
 }
 

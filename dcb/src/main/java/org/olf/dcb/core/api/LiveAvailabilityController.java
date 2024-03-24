@@ -56,7 +56,7 @@ public class LiveAvailabilityController {
 
 		log.info("REST, getLiveAvailability: {}", clusteredBibId);
 
-		return liveAvailabilityService.checkAvaiability(clusteredBibId, timeout)
+		return liveAvailabilityService.checkAvailability(clusteredBibId, timeout)
 			.onErrorReturn(NoBibsForClusterRecordException.class, emptyReport())
 			.map(report -> AvailabilityResponseView.from(report, clusteredBibId));
 	}

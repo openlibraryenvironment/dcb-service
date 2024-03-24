@@ -74,7 +74,7 @@ endpoints:
       enabled: true
   info:
     enabled: true
-    sensitive: true
+    sensitive: false
 
 info:
   harvest:

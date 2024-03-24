@@ -1,9 +1,13 @@
 package org.olf.dcb.item.availability;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.Item;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
@@ -21,18 +25,9 @@ public class AvailabilityResponseView {
 	public static AvailabilityResponseView from(AvailabilityReport report,
 		UUID clusteredBibId) {
 
-		final List<ARVItem> mappedItems = report.getItems().stream()
-			.map(item -> new ARVItem(item.getLocalId(),
-				new Status(item.getStatus().getCode().name()), item.getDueDate(),
-				new Location(item.getLocation().getCode(), item.getLocation().getName()),
-				item.getBarcode(), item.getCallNumber(), item.getHostLmsCode(),
-				item.getIsRequestable(), item.getHoldCount(), item.getLocalItemType(),
-				item.getCanonicalItemType(), 
-				item.getLocalItemTypeCode(),
-				new Agency(item.getAgencyCode(), item.getAgencyName()),
-				item.getRawVolumeStatement(),
-				item.getParsedVolumeStatement()
-			))
+		final var mappedItems = report.getItems()
+			.stream()
+			.map(AvailabilityResponseView::mapItem)
 			.toList();
 
 		final var mappedErrors = report.getErrors().stream()
@@ -42,6 +37,28 @@ public class AvailabilityResponseView {
 			.toList();
 
 		return new AvailabilityResponseView(mappedItems, mappedErrors, clusteredBibId);
+	}
+
+	private static ARVItem mapItem(Item item) {
+		final var agency = getValue(item, Item::getAgency);
+		final var agencyCode = getValue(agency, DataAgency::getCode);
+		final var agencyName = getValue(agency, DataAgency::getName);
+
+		final var mappedAgency = agency != null
+			? new Agency(agencyCode, agencyName)
+			: null;
+
+		return new ARVItem(item.getLocalId(),
+			new Status(item.getStatus().getCode().name()), item.getDueDate(),
+			new Location(item.getLocation().getCode(), item.getLocation().getName()),
+			item.getBarcode(), item.getCallNumber(), item.getHostLmsCode(),
+			item.getIsRequestable(), item.getHoldCount(), item.getLocalItemType(),
+			item.getCanonicalItemType(),
+			item.getLocalItemTypeCode(),
+			mappedAgency,
+			item.getRawVolumeStatement(),
+			item.getParsedVolumeStatement()
+		);
 	}
 
 	@Data

@@ -1,6 +1,7 @@
 package org.olf.dcb.request.workflow;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,8 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import org.olf.dcb.tracking.TrackingHelpers;
 
 @Slf4j
 @Singleton
@@ -91,6 +94,11 @@ public class PatronRequestWorkflowService {
 		if (action.isEmpty()) {
 			log.debug("WORKFLOW Unable to progress {} - no transformations available from state {}",
 				ctx.getPatronRequest().getId(), ctx.getPatronRequest().getStatus());
+
+			return scheduleNextCheck(ctx)
+				.flatMapMany(ctx2 -> {
+					return Flux.empty();
+				});
 		}
 		
 		return Mono.justOrEmpty(action)
@@ -193,5 +201,19 @@ public class PatronRequestWorkflowService {
 			.orElse("None"));
 
 		return firstApplicable;
+	}
+
+	private Mono<RequestWorkflowContext> scheduleNextCheck(RequestWorkflowContext ctx) {
+		Optional<Duration> d = TrackingHelpers.getDurationFor(ctx.getPatronRequest().getStatus());
+		Instant next_poll = null;
+		if ( d.isEmpty() ) {
+			log.debug("No scheduled check due");
+		}
+		else {
+			next_poll = Instant.now().plus(d.get());
+			log.debug("scheduleNextCheck Extracted duration {} next check is {}",d,next_poll);
+		}
+		return Mono.from(patronRequestRepository.updateNextScheduledPoll(ctx.getPatronRequest().getId(), next_poll))
+			.thenReturn(ctx);
 	}
 }

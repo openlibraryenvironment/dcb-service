@@ -26,8 +26,12 @@ public class AgencyFixture {
 			mapping -> agencyRepository.delete(mapping.getId()));
 	}
 
+	public DataAgency findByCode(String code) {
+		return singleValueFrom(agencyRepository.findOneByCode(code));
+	}
+
 	public DataAgency saveAgency(DataAgency agency) {
-		final DataAgency savedAgency = singleValueFrom(agencyRepository.save(agency));
+		final var savedAgency = singleValueFrom(agencyRepository.save(agency));
 
 		log.debug("Saved agency: {}", savedAgency);
 
@@ -41,6 +45,17 @@ public class AgencyFixture {
 			.name(name)
 			.isSupplyingAgency(true)
 			.hostLms(hostLms)
+			.build());
+	}
+	public DataAgency defineAgency(String code, String name, DataHostLms hostLms, Double latitude, Double longitude) {
+		return saveAgency(DataAgency.builder()
+			.id(randomUUID())
+			.code(code)
+			.name(name)
+			.isSupplyingAgency(true)
+			.hostLms(hostLms)
+			.longitude(longitude)
+			.latitude(latitude)
 			.build());
 	}
 }

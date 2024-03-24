@@ -8,6 +8,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
@@ -16,9 +18,6 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Slf4j
 @Singleton
@@ -57,7 +56,6 @@ public class PolarisItemMapper {
 					.build())
 				.barcode(itemGetRow.getBarcode())
 				.callNumber(itemGetRow.getCallNumber())
-				.hostLmsCode(hostLmsCode)
 				.localBibId(localBibId)
 				.localItemType(itemGetRow.getMaterialType())
 				.localItemTypeCode(itemGetRow.getMaterialTypeID())

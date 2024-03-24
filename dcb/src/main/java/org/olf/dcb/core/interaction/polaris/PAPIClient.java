@@ -13,7 +13,7 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_USER_I
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PATRON_BARCODE_PREFIX;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WORKSTATION_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValue;
+import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractRequiredMapValue;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValueWithDefault;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.noExtraErrorHandling;
 
@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
 import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
@@ -133,9 +132,9 @@ public class PAPIClient {
 		final var servicesConfig = client.getServicesConfig();
 
 		final var body = ItemCheckoutData.builder()
-			.logonBranchID(extractMapValue(conf, LOGON_BRANCH_ID, Integer.class))
-			.logonUserID(extractMapValue(conf, LOGON_USER_ID, Integer.class))
-			.logonWorkstationID(extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class))
+			.logonBranchID(extractRequiredMapValue(conf, LOGON_BRANCH_ID, Integer.class))
+			.logonUserID(extractRequiredMapValue(conf, LOGON_USER_ID, Integer.class))
+			.logonWorkstationID(extractRequiredMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class))
 			.itemBarcode(itemBarcode)
 			.build();
 
@@ -250,18 +249,6 @@ public class PAPIClient {
 		return Mono.just(patronSearchResult.getPatronSearchRows().get(0));
 	}
 
-	public Mono<ItemGetRow> synch_ItemGet(String recordNumber) {
-		final var path = createPath(PROTECTED_PARAMETERS, "synch", "item", recordNumber);
-
-		return createRequest(GET, path, uri -> {})
-			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemGetResponse.class),
-				noExtraErrorHandling()))
-			.map(ItemGetResponse::getItemGetRows)
-			.filter(itemGetRows -> itemGetRows.size() > 0)
-			.map(itemGetRows -> itemGetRows.get(0));
-	}
-
 	private Mono<MutableHttpRequest<?>> createRequest(HttpMethod httpMethod, String path,
 		Consumer<UriBuilder> uriBuilderConsumer) {
 
@@ -278,12 +265,12 @@ public class PAPIClient {
 		final var servicesConfig = client.getServicesConfig();
 
 		final var patronBarcodePrefix = extractMapValueWithDefault(servicesConfig, PATRON_BARCODE_PREFIX, String.class, "DCB-");
-		final var logonBranchID = extractMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+		final var logonBranchID = extractRequiredMapValue(conf, LOGON_BRANCH_ID, Integer.class);
 
 		return PatronRegistration.builder()
 			.logonBranchID(logonBranchID)
-			.logonUserID(extractMapValue(conf, LOGON_USER_ID, Integer.class))
-			.logonWorkstationID(extractMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class))
+			.logonUserID(extractRequiredMapValue(conf, LOGON_USER_ID, Integer.class))
+			.logonWorkstationID(extractRequiredMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class))
 			.patronBranchID(patron.getLocalItemLocationId())
 			.nameFirst(patron.getLocalBarcodes().get(0))
 			.nameLast(patron.getUniqueIds().get(0))

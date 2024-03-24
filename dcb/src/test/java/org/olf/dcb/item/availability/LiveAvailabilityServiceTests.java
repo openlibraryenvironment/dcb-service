@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
@@ -109,7 +110,7 @@ class LiveAvailabilityServiceTests {
 
 		// Act
 		final var report = liveAvailabilityService
-			.checkAvaiability(clusterRecord.getId()).block();
+			.checkAvailability(clusterRecord.getId()).block();
 
 		// Assert
 		// This is a compromise that checks the rough identity of each item
@@ -140,8 +141,8 @@ class LiveAvailabilityServiceTests {
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("762354");
 
 		// Act
-		final var report = liveAvailabilityService
-			.checkAvaiability(clusterRecord.getId()).block();
+		final var report = singleValueFrom(liveAvailabilityService
+			.checkAvailability(clusterRecord.getId()));
 
 		// Assert
 		assertThat(report, hasNoItems());
@@ -162,8 +163,8 @@ class LiveAvailabilityServiceTests {
 		sierraItemsAPIFixture.errorResponseForBibId("839552");
 
 		// Act
-		final var report = liveAvailabilityService
-			.checkAvaiability(clusterRecord.getId()).block();
+		final var report = singleValueFrom(liveAvailabilityService
+			.checkAvailability(clusterRecord.getId()));
 
 		// Assert
 		assertThat(report, hasNoItems());
@@ -178,7 +179,7 @@ class LiveAvailabilityServiceTests {
 
 		// Act
 		final var exception = assertThrows(CannotFindClusterRecordException.class,
-			() -> liveAvailabilityService.checkAvaiability(clusterRecordId).block());
+			() -> singleValueFrom(liveAvailabilityService.checkAvailability(clusterRecordId)));
 
 		// Assert
 		assertThat(exception, hasMessage("Cannot find cluster record for: " + clusterRecordId));
@@ -191,7 +192,7 @@ class LiveAvailabilityServiceTests {
 
 		// Act
 		final var exception = assertThrows(NoBibsForClusterRecordException.class,
-			() -> liveAvailabilityService.checkAvaiability(clusterRecord.getId()).block());
+			() -> singleValueFrom(liveAvailabilityService.checkAvailability(clusterRecord.getId())));
 
 		// Assert
 		assertThat(exception, hasMessage(
@@ -210,7 +211,7 @@ class LiveAvailabilityServiceTests {
 			"7657673", clusterRecord);
 
 		final var exception = assertThrows(UnknownHostLmsException.class,
-			() -> liveAvailabilityService.checkAvaiability(clusterRecordId).block());
+			() -> singleValueFrom(liveAvailabilityService.checkAvailability(clusterRecordId)));
 
 		assertThat(exception, hasMessage("No Host LMS found for ID: " + unknownHostId));
 	}

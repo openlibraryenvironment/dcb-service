@@ -32,6 +32,10 @@ public class ItemMatchers {
 		return hasProperty("callNumber", is(expectedCallNumber));
 	}
 
+	public static Matcher<Item> hasNoCallNumber() {
+		return hasProperty("callNumber", is(nullValue()));
+	}
+
 	public static Matcher<Item> hasLocation(String expectedName, String expectedCode) {
 		return hasProperty("location", allOf(
 			hasProperty("name", is(expectedName)),
@@ -90,6 +94,10 @@ public class ItemMatchers {
 		return hasProperty("canonicalItemType", is(expectedCanonicalItemType));
 	}
 
+	public static Matcher<Item> hasUnknownCanonicalItemType() {
+		return hasCanonicalItemType("UNKNOWN");
+	}
+
 	public static Matcher<Item> hasHoldCount(Integer expectedHoldCount) {
 		return hasProperty("holdCount", is(expectedHoldCount));
 	}
@@ -114,16 +122,26 @@ public class ItemMatchers {
 		return hasProperty("deleted", is(false));
 	}
 
+	public static Matcher<Item> hasNoAgency() {
+		return hasProperty("agency", is(nullValue()));
+	}
+	
 	public static Matcher<Item> hasAgencyCode(String expectedAgencyCode) {
-		return hasProperty("agencyCode", is(expectedAgencyCode));
+		return allOf(
+			hasProperty("agencyCode", is(expectedAgencyCode)),
+			hasProperty("agency", hasProperty("code", is(expectedAgencyCode)))
+		);
 	}
 
 	public static Matcher<Item> hasNoAgencyCode() {
 		return hasProperty("agencyCode", is(nullValue()));
 	}
 
-	public static Matcher<Item> hasAgencyName(String expectedAgencyDescription) {
-		return hasProperty("agencyName", is(expectedAgencyDescription));
+	public static Matcher<Item> hasAgencyName(String expectedAgencyName) {
+		return allOf(
+			hasProperty("agencyName", is(expectedAgencyName)),
+			hasProperty("agency", hasProperty("name", is(expectedAgencyName)))
+		);
 	}
 
 	public static Matcher<Item> hasNoAgencyName() {
