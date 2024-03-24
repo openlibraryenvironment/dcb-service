@@ -16,6 +16,7 @@ public class PlacePatronRequestCommand {
 	@NonNull PickupLocation pickupLocation;
 	@NonNull Requestor requestor;
 	@Nullable String description;
+	@Nullable String requesterNote;
 
 	String getPickupLocationCode() {
 		return getPickupLocation().getCode();
