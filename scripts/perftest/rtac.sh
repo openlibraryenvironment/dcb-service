@@ -18,5 +18,4 @@ FIRST_RECORD_ID=`curl -s "localhost:$ES_PORT/mobius-si/_search?q=*" | jq -r '.hi
 
 echo first record id $FIRST_RECORD_ID
 
-
 curl -X GET -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" "$TARGET/items/availability?clusteredBibId=$FIRST_RECORD_ID" | jq
