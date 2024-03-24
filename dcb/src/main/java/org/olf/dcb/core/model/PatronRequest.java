@@ -268,6 +268,18 @@ public class PatronRequest {
 	@Nullable
 	private Instant nextScheduledPoll;
 
+	// When we go to ERROR this property allows us to know the previous state so that we can RETRY
+  @JsonIgnore
+  @ToString.Include
+  @Nullable
+  @Column(name = "previous_status_code") // Preserve the data mapping value from the old string type.
+  private Status previousStatus;
+
+	// If we are able to tell, is the real item currently loaned to the VPatron. This can be used if the item
+	// is returned to the lender, but then immediately re-loaned. In this scenario, item status is not sufficient
+	// for us to infer that the loan has completed properly. Null if the host LMS is not able to tell us.
+	private Boolean isLoanedToPatron;
+
 	public PatronRequest resolve() {
 		return setStatus(RESOLVED);
 	}
