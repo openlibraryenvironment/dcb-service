@@ -278,6 +278,7 @@ public class PatronRequest {
 	// If we are able to tell, is the real item currently loaned to the VPatron. This can be used if the item
 	// is returned to the lender, but then immediately re-loaned. In this scenario, item status is not sufficient
 	// for us to infer that the loan has completed properly. Null if the host LMS is not able to tell us.
+	@Nullable
 	private Boolean isLoanedToPatron;
 
 	public PatronRequest resolve() {

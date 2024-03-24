@@ -19,6 +19,7 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import io.micronaut.core.annotation.Nullable;
 import reactor.core.publisher.Mono;
 
 
@@ -103,5 +104,5 @@ public interface PatronRequestRepository {
   Publisher<Void> updatePickupRequestTracking(@NotNull UUID id, String pickupRequestStatus, Instant pickupRequestLastCheckTimestamp, Long pickupRequestStatusRepeat);
   Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, String localRequestStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
   Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
-  Publisher<Long> updateNextScheduledPoll(@Id @NotNull UUID id, Instant nextScheduledPoll);
+  Publisher<Long> updateNextScheduledPoll(@Id @NotNull UUID id, @Nullable Instant nextScheduledPoll);
 }
