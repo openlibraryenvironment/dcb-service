@@ -4,10 +4,10 @@ TARGET="http://localhost:8080"
 # TARGET="https://dcb-dev.sph.k-int.com"
 # TARGET="https://dcb.libsdev.k-int.com"
 
-RESHARE_ROOT_UUID=`uuidgen --sha1 -n @dns --name org.olf.dcb`
-AGENCIES_NS_UUID=`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name Agency`
-HOSTLMS_NS_UUID=`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name HostLms`
-LOCATION_NS_UUID=`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name Location`
+OPENRS_ROOT_UUID=`uuidgen --sha1 -n @dns --name org.olf.dcb`
+AGENCIES_NS_UUID=`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name Agency`
+HOSTLMS_NS_UUID=`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name HostLms`
+LOCATION_NS_UUID=`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name Location`
 
 
 # curl https://dcb.libsdev.k-int.com/patrons/requests
@@ -105,57 +105,57 @@ echo Shelving location to agency mappings
 echo
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name SL-DUMMY1-LM1-A1-SL1`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY1-LM1-A1-SL1`'",
   "fromCategory":"ShelvingLocation", "fromContext":"DUMMY1", "fromValue":"LM1-A1-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-1" }'
 
 echo
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name SL-DUMMY1-LM1-A1-SL2`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY1-LM1-A1-SL2`'",
   "fromCategory":"ShelvingLocation", "fromContext":"DUMMY1", "fromValue":"LM1-A1-SL2", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-1" }'
 
 echo
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name SL-DUMMY1-LM1-A2-SL1`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY1-LM1-A2-SL1`'",
   "fromCategory":"ShelvingLocation", "fromContext":"DUMMY1", "fromValue":"LM1-A2-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-2" }'
 
 echo
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name SL-DUMMY1-LM1-A2-SL2`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY1-LM1-A2-SL2`'",
   "fromCategory":"ShelvingLocation", "fromContext":"DUMMY1", "fromValue":"LM1-A2-SL2", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-2" }'
 
 echo
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name SL-DUMMY1-LM1-A2-SL3`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY1-LM1-A2-SL3`'",
   "fromCategory":"ShelvingLocation", "fromContext":"DUMMY1", "fromValue":"LM1-A2-SL3", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-2" }'
 
 echo
 
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name SL-DUMMY2-LM2-A1-SL1`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY2-LM2-A1-SL1`'",
   "fromCategory":"ShelvingLocation", "fromContext":"DUMMY2", "fromValue":"LM2-A1-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-2-1" }'
 
 echo
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name SL-DUMMY2-LM2-A2-SL1`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY2-LM2-A2-SL1`'",
   "fromCategory":"ShelvingLocation", "fromContext":"DUMMY2", "fromValue":"LM2-A2-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-2-2" }'
 
 echo
 
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name SL-DUMMY3-LM3-A1-SL1`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY3-LM3-A1-SL1`'",
   "fromCategory":"ShelvingLocation", "fromContext":"DUMMY3", "fromValue":"LM3-A1-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-3-1" }'
 
 echo
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name SL-DUMMY3-LM3-A2-SL1`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY3-LM3-A2-SL1`'",
   "fromCategory":"ShelvingLocation", "fromContext":"DUMMY3", "fromValue":"LM3-A2-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-3-2" }'
 
 echo
@@ -163,7 +163,7 @@ echo Locations
 echo
 
 curl -X POST $TARGET/locations -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name PU-DA-1-1-KI`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name PU-DA-1-1-KI`'",
   "code":"PU-DA-1-1-KI",
   "name":"K-Int Office",
   "type":"PICKUP",
@@ -180,41 +180,41 @@ echo Location Mappings - from a User HomeLibrary to an agency
 echo
 # DUMMY1:PHS == DA-1-1
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name MAP-Location-DUMMY1-PHS-AGENCY-DCB`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name MAP-Location-DUMMY1-PHS-AGENCY-DCB`'",
   "fromCategory":"Location", "fromContext":"DUMMY1", "fromValue":"PHS", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-1" }'
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name MAP-Location-DUMMY1-TR-AGENCY-DCB`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name MAP-Location-DUMMY1-TR-AGENCY-DCB`'",
   "fromCategory":"Location", "fromContext":"DUMMY1", "fromValue":"TR", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-1" }'
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name MAP-Location-DUMMY1-PU-DA-1-1-KI-AGENCY-DCB`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name MAP-Location-DUMMY1-PU-DA-1-1-KI-AGENCY-DCB`'",
   "fromCategory":"PickupLocation", "fromContext":"DCB", "fromValue":"PU-DA-1-1-KI", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-1-1" }'
 
 # DUMMYn to SPINE
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name DUMMY1-patronType-STD-to-DCB`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name DUMMY1-patronType-STD-to-DCB`'",
   "fromCategory":"patronType", "fromContext":"DUMMY1", "fromValue":"STD", "toCategory":"patronType", "toContext":"DCB", "toValue":"STD" }'
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name DUMMY2-patronType-STD-to-DCB`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name DUMMY2-patronType-STD-to-DCB`'",
   "fromCategory":"patronType", "fromContext":"DUMMY2", "fromValue":"STD", "toCategory":"patronType", "toContext":"DCB", "toValue":"STD" }'
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name DUMMY3-patronType-STD-to-DCB`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name DUMMY3-patronType-STD-to-DCB`'",
   "fromCategory":"patronType", "fromContext":"DUMMY3", "fromValue":"STD", "toCategory":"patronType", "toContext":"DCB", "toValue":"STD" }'
 
 # SPINE to DUMMYn
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name DCB-patronType-STD-to-DUMMY1`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name DCB-patronType-STD-to-DUMMY1`'",
   "fromCategory":"patronType", "fromContext":"DCB", "fromValue":"STD", "toCategory":"patronType", "toContext":"DUMMY1", "toValue":"STD" }'
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name DCB-patronType-STD-to-DUMMY2`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name DCB-patronType-STD-to-DUMMY2`'",
   "fromCategory":"patronType", "fromContext":"DCB", "fromValue":"STD", "toCategory":"patronType", "toContext":"DUMMY2", "toValue":"STD" }'
 
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id": "'`uuidgen --sha1 -n $RESHARE_ROOT_UUID --name DCB-patronType-STD-to-DUMMY3`'",
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name DCB-patronType-STD-to-DUMMY3`'",
   "fromCategory":"patronType", "fromContext":"DCB", "fromValue":"STD", "toCategory":"patronType", "toContext":"DUMMY3", "toValue":"STD" }'
