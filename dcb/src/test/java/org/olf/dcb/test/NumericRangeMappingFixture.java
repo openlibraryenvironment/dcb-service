@@ -13,10 +13,16 @@ import services.k_int.utils.UUIDUtils;
 @Singleton
 public class NumericRangeMappingFixture {
 	private final DataAccess dataAccess = new DataAccess();
+
 	private final NumericRangeMappingRepository repository;
 
 	public NumericRangeMappingFixture(NumericRangeMappingRepository repository) {
 		this.repository = repository;
+	}
+
+	public void deleteAll() {
+		dataAccess.deleteAll(repository.queryAll(),
+			mapping -> repository.delete(mapping.getId()));
 	}
 
 	public void createMapping(String fromContext, String domain,
@@ -40,10 +46,5 @@ public class NumericRangeMappingFixture {
 			.build();
 
 		singleValueFrom(repository.save(mapping));
-	}
-
-	public void deleteAll() {
-		dataAccess.deleteAll(repository.queryAll(),
-			mapping -> repository.delete(mapping.getId()));
 	}
 }
