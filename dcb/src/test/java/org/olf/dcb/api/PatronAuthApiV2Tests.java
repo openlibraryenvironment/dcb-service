@@ -10,6 +10,7 @@ import static org.mockserver.model.JsonBody.json;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -20,10 +21,9 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.security.TestStaticTokenValidator;
-import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-import org.olf.dcb.test.clients.LoginClient;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.type.Argument;
@@ -51,19 +51,15 @@ public class PatronAuthApiV2Tests {
 	private HttpClient client;
 
 	@Inject
-	private PostgresAgencyRepository agencyRepository;
-
-	@Inject
 	private HostLmsFixture hostLmsFixture;
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 
 	private SierraTestUtils.MockSierraV6Host mockSierra;
-
-	@Inject
-	private LoginClient loginClient;
 
 	@BeforeAll
 	public void addFakeSierraApis(MockServerClient mockServerClient) {
@@ -73,7 +69,6 @@ public class PatronAuthApiV2Tests {
 		final String SECRET = "patron-auth-secret";
 
 		hostLmsFixture.deleteAll();
-		agencyRepository.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 
@@ -81,6 +76,12 @@ public class PatronAuthApiV2Tests {
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+	}
+
+	@BeforeEach
+	public void beforeEach() {
+		referenceValueMappingFixture.deleteAll();
+		agencyFixture.deleteAll();
 	}
 
 	@Test
@@ -132,7 +133,6 @@ public class PatronAuthApiV2Tests {
 		assertThat(verificationResponse.uniqueIds.get(0), is("1000002"));
 		assertThat(verificationResponse.agencyCode, is("ab7"));
 		assertThat(verificationResponse.systemCode, is("patron-auth-api-tests"));
-		// assertThat(verificationResponse.homeLocationCode, is("testccc"));
 		assertThat(verificationResponse.homeLocationCode, is("testbbb"));
 	}
 
