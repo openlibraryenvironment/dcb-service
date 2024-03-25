@@ -84,6 +84,7 @@ class LiveAvailabilityApiTests {
 	@BeforeEach
 	void beforeEach() {
 		clusterRecordFixture.deleteAll();
+		agencyFixture.deleteAll();
 	}
 
 	@Test
