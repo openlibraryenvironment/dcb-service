@@ -85,6 +85,7 @@ class LiveAvailabilityApiTests {
 	void beforeEach() {
 		clusterRecordFixture.deleteAll();
 		agencyFixture.deleteAll();
+		referenceValueMappingFixture.deleteAll();
 	}
 
 	@Test
@@ -108,6 +109,9 @@ class LiveAvailabilityApiTests {
 
 		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_NAME,
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			CATALOGUING_HOST_LMS_CODE, 999, 999, "BKM");
 
 		// Act
 		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);

@@ -108,6 +108,12 @@ public class ReferenceValueMappingFixture {
 				.build()));
   }
 
+	public void defineLocalToCanonicalItemTypeRangeMapping(String hostLmsCode,
+		long lowerBound, long upperBound, String canonicalItemType) {
+
+		numericRangeMappingFixture.createMapping(hostLmsCode, "ItemType",
+			lowerBound, upperBound, "DCB", canonicalItemType);
+	}
 
 	public void defineLocalToCanonicalItemTypeMapping(String hostLmsCode,
 		String localItemType, String canonicalItemType) {
@@ -131,7 +137,7 @@ public class ReferenceValueMappingFixture {
 
 	public void defineMapping(String fromContext, String fromCategory, String fromValue,
 		String toContext, String toCategory, String toValue, boolean reciprocal) {
-		
+
 		log.debug("defineMapping({}, {}, {}, {}, {}, {}, {})",
 			fromContext, fromCategory, fromValue, toContext, toCategory, toValue, reciprocal);
 
