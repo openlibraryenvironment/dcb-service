@@ -177,7 +177,7 @@ class PolarisLmsClientTests {
 		assertThat(firstItem, isNotDeleted());
 		assertThat(firstItem, hasAgencyCode("345test"));
 		assertThat(firstItem, hasAgencyName("Test College"));
-		assertThat(firstItem, hasHostLmsCode(CATALOGUING_HOST_LMS_CODE));
+		assertThat(firstItem, hasHostLmsCode(CIRCULATING_HOST_LMS_CODE));
 	}
 
 	@Test

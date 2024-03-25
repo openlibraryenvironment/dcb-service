@@ -140,6 +140,7 @@ class LiveAvailabilityApiTests {
 		assertThat(firstItem.getCanonicalItemType(), is("BKM"));
 		assertThat(firstItem.getAgency().getCode(), is(SUPPLYING_AGENCY_CODE));
 		assertThat(firstItem.getAgency().getDescription(), is(SUPPLYING_AGENCY_NAME));
+		assertThat(firstItem.getHostLmsCode(), is(CIRCULATING_HOST_LMS_CODE));
 
 		final var firstItemStatus = firstItem.getStatus();
 
@@ -165,6 +166,7 @@ class LiveAvailabilityApiTests {
 		assertThat(secondItem.getCanonicalItemType(), is("BKM"));
 		assertThat(secondItem.getAgency().getCode(), is(SUPPLYING_AGENCY_CODE));
 		assertThat(secondItem.getAgency().getDescription(), is(SUPPLYING_AGENCY_NAME));
+		assertThat(secondItem.getHostLmsCode(), is(CIRCULATING_HOST_LMS_CODE));
 
 		final var secondItemStatus = secondItem.getStatus();
 
@@ -221,6 +223,7 @@ class LiveAvailabilityApiTests {
 		assertThat(firstItem.getLocation().getName(), is("Example Location"));
 
 		assertThat(firstItem.getAgency(), is(nullValue()));
+		assertThat(firstItem.getHostLmsCode(), is(nullValue()));
 	}
 
 	@Test
@@ -275,7 +278,8 @@ class LiveAvailabilityApiTests {
 				notNullValue(),
 				hasProperty("code", is("example-agency")),
 				hasProperty("description", is("Example Agency"))
-			))
+			)),
+			hasProperty("hostLmsCode", is(nullValue()))
 		));
 	}
 

@@ -58,6 +58,10 @@ public class Item implements Comparable<Item> {
 		return getValue(location, Location::getCode);
 	}
 
+	public HostLms getHostLms() {
+		return getValue(agency, Agency::getHostLms);
+	}
+
 	@Override
 	public int compareTo(Item other) {
 		return nullsLast(CompareByLocationCodeThenCallNumber())

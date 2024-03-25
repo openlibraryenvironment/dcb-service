@@ -6,7 +6,9 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.consumeOnSuccess;
 
+import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 
@@ -31,9 +33,8 @@ public class LocationToAgencyMappingService {
 		return Mono.just(incomingItem)
 			.zipWhen(item -> findLocationToAgencyMapping(item, hostLmsCode))
 			.map(function(Item::setAgency))
-			.defaultIfEmpty(incomingItem)
-			// This has to be set separately in case agency is not found
-			.map(item -> item.setHostLmsCode(hostLmsCode));
+			.map(LocationToAgencyMappingService::mapAgencyHostLmsCodeToItemLevel)
+			.defaultIfEmpty(incomingItem);
 	}
 
 	private Mono<DataAgency> findLocationToAgencyMapping(Item item, String hostLmsCode) {
@@ -66,6 +67,18 @@ public class LocationToAgencyMappingService {
 
 		return referenceValueMappingService.findMapping("Location", fromContext,
 			locationCode, "AGENCY", "DCB");
+	}
+
+	private static Item mapAgencyHostLmsCodeToItemLevel(Item item) {
+		final var agency = getValue(item, Item::getAgency);
+		final HostLms hostLms = getValue(agency, Agency::getHostLms);
+		final var hostLmsCode = getValue(hostLms, HostLms::getCode);
+
+		if (isEmpty(hostLmsCode)) {
+			return item;
+		}
+
+		return item.setHostLmsCode(hostLmsCode);
 	}
 
 	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(

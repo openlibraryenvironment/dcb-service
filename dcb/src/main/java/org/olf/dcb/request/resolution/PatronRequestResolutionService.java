@@ -58,7 +58,7 @@ public class PatronRequestResolutionService {
 			})
 			// ToDo ROTA : Filter the list by any suppliers we have already tried for this request
 			.map(AvailabilityReport::getItems)
-			.map(this::excludeItemsWithoutAgency)
+			.map(this::excludeItemsWithoutAgencyOrHostLms)
 			.flatMap(items -> resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest))
 			.doOnNext(item -> log.debug("Selected item {}", item))
 			.flatMap(item -> createSupplierRequest(item, patronRequest))
@@ -74,9 +74,9 @@ public class PatronRequestResolutionService {
 			.switchIfEmpty(Mono.defer(() -> Mono.just(resolveToNoItemsAvailable(patronRequest))));
 	}
 
-	private List<Item> excludeItemsWithoutAgency(List<Item> items) {
+	private List<Item> excludeItemsWithoutAgencyOrHostLms(List<Item> items) {
 		return items.stream()
-			.filter(item -> item.getAgency() != null)
+			.filter(item -> item.getHostLms() != null)
 			.toList();
 	}
 
@@ -107,8 +107,6 @@ public class PatronRequestResolutionService {
 			.localItemLocationCode(item.getLocation().getCode())
 			.localItemType(item.getLocalItemType())
 			.canonicalItemType(item.getCanonicalItemType())
-			// ToDo - This no longer holds true - we need to find the hostLMS attached to the supplying agency and use that
-			// instead - as the item may have come from a different HostLMS
 			.hostLmsCode(item.getHostLmsCode())
 			.localAgency(item.getAgency() != null ? item.getAgency().getCode() : null)
 			.statusCode(PENDING)

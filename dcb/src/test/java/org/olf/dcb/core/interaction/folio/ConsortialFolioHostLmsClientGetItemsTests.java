@@ -32,8 +32,8 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgency;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoBarcode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasNoCallNumber;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoLocalItemTypeCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
@@ -105,11 +105,11 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 	@Test
 	void shouldBeAbleToGetItems() {
 		// Arrange
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			CATALOGUING_HOST_LMS_CODE, "CLLA", "known-agency");
-
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeMapping(
 			CATALOGUING_HOST_LMS_CODE, "book", "canonical-book");
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CATALOGUING_HOST_LMS_CODE, "CLLA", "known-agency");
 
 		agencyFixture.defineAgency("known-agency", "Known agency",
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
@@ -168,9 +168,9 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 					hasLocation("Crerar, Lower Level, Bookstacks", "CLLA"),
 					isSuppressed(),
 					isNotDeleted(),
-					hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
 					hasAgencyCode("known-agency"),
-					hasAgencyName("Known agency")
+					hasAgencyName("Known agency"),
+					hasHostLmsCode(CIRCULATING_HOST_LMS_CODE)
 				),
 				allOf(
 					hasLocalId("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3"),
@@ -186,8 +186,8 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 					hasLocation("Social Service Administration", "SSA"),
 					isNotSuppressed(),
 					isNotDeleted(),
-					hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
-					hasNoAgency()
+					hasNoAgency(),
+					hasNoHostLmsCode()
 				)
 			));
 	}
@@ -224,20 +224,9 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 		assertThat(items, containsInAnyOrder(
 			allOf(
 				hasLocalId("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2"),
-				hasLocalBibId(instanceId),
-				hasNoBarcode(),
-				hasNoCallNumber(),
-				hasStatus(AVAILABLE),
-				hasNoDueDate(),
-				hasHoldCount(1),
-				hasLocalItemType("book"),
-				hasLocalItemTypeCode("book"),
-				hasCanonicalItemType("canonical-book"),
 				hasLocation(locationName, locationCode),
-				isSuppressed(),
-				isNotDeleted(),
-				hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
-				hasNoAgency()
+				hasNoAgency(),
+				hasNoHostLmsCode()
 			)
 		));
 	}
@@ -282,21 +271,10 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 		assertThat(items, containsInAnyOrder(
 			allOf(
 				hasLocalId("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2"),
-				hasLocalBibId(instanceId),
-				hasNoBarcode(),
-				hasNoCallNumber(),
-				hasStatus(AVAILABLE),
-				hasNoDueDate(),
-				hasHoldCount(1),
-				hasLocalItemType("book"),
-				hasLocalItemTypeCode("book"),
-				hasCanonicalItemType("canonical-book"),
 				hasLocation(locationName, locationCode),
-				isSuppressed(),
-				isNotDeleted(),
-				hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
 				hasAgencyCode(agencyCode),
-				hasAgencyName(agencyName)
+				hasAgencyName(agencyName),
+				hasNoHostLmsCode()
 			)
 		));
 	}
@@ -341,21 +319,9 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 		assertThat(items, containsInAnyOrder(
 			allOf(
 				hasLocalId("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2"),
-				hasLocalBibId(instanceId),
-				hasNoBarcode(),
-				hasNoCallNumber(),
-				hasStatus(AVAILABLE),
-				hasNoDueDate(),
-				hasHoldCount(1),
 				hasLocalItemType(materialType),
 				hasLocalItemTypeCode(materialType),
-				hasUnknownCanonicalItemType(),
-				hasLocation(locationName, locationCode),
-				isSuppressed(),
-				isNotDeleted(),
-				hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
-				hasAgencyCode(agencyCode),
-				hasAgencyName(agencyName)
+				hasUnknownCanonicalItemType()
 			)
 		));
 	}

@@ -59,4 +59,8 @@ public class SupplierRequestMatchers {
 	public static Matcher<SupplierRequest> hasLocalAgencyCode(String expectedCode) {
 		return hasProperty("localAgency", is(expectedCode));
 	}
+
+    public static Matcher<SupplierRequest> hasHostLmsCode(String expectedHostLmsCode) {
+        return hasProperty("hostLmsCode", is(expectedHostLmsCode));
+    }
 }
