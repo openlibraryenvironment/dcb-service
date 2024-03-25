@@ -262,6 +262,79 @@ class PatronRequestResolutionTests {
 	}
 
 	@Test
+	void shouldTolerateUnknownCirculatingHostLmsForItem() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "265423";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var localItemId = "4275631";
+		final var localItemBarcode = "236464423";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			SierraItem.builder()
+				.id(localItemId)
+				.barcode(localItemBarcode)
+				.locationCode("example-location")
+				.statusCode("-")
+				.build()
+		));
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CATALOGUING_HOST_LMS_CODE, "example-location", "unknown-circulating-host-lms");
+
+		agencyFixture.defineAgency("unknown-circulating-host-lms",
+			"Unknown Circulating Host LMS", null);
+
+		final var patron = patronFixture.savePatron("465636");
+		patronFixture.saveIdentity(patron, cataloguingHostLms, "872321", true, "-", "465636", null);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode("ABC123")
+			.status(PATRON_VERIFIED)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		resolve(patronRequest);
+
+		// Assert
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat(fetchedPatronRequest, hasStatus(RESOLVED));
+
+		final var onlySupplierRequest = supplierRequestsFixture.findFor(patronRequest);
+
+		final DataAgency expectedAgency = agencyFixture.findByCode("unknown-circulating-host-lms");
+
+		assertThat(onlySupplierRequest, allOf(
+			notNullValue(),
+			hasProperty("hostLmsCode", is(CATALOGUING_HOST_LMS_CODE)),
+			hasLocalItemId(localItemId),
+			hasLocalItemBarcode(localItemBarcode),
+			hasLocalBibId(sourceRecordId),
+			hasLocalItemLocationCode("example-location"),
+			hasNoLocalItemStatus(),
+			hasNoLocalId(),
+			hasNoLocalStatus(),
+			hasLocalAgencyCode("unknown-circulating-host-lms"),
+			hasResolvedAgency(expectedAgency)
+		));
+
+		assertSuccessfulTransitionAudit(fetchedPatronRequest, RESOLVED);
+	}
+
+	@Test
 	void shouldResolveToNoAvailableItemsWhenNoItemsToChooseFrom() {
 		// Arrange
 		final var bibRecordId = randomUUID();
