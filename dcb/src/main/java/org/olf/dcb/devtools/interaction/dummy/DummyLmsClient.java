@@ -440,8 +440,15 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 			.requestStatus("HELD")
 			.build();
 
+		DummyItemData did = DummyItemData.builder()
+    	.itemId(parameters.getLocalItemId())
+    	.itemStatus("AVAILABLE")
+    	.itemBarcode(parameters.getLocalItemBarcode())
+			.build();
+
 		log.debug("Store {} as {} in dummyRequestStore",drd,id_as_string);
 		dummyRequestStore.put(id_as_string, drd);
+		dummyItemStore.put(parameters.getLocalItemId(), did);
 
 		return Mono.just(LocalRequest.builder()
 			.localId(id_as_string)
@@ -531,6 +538,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
   static class DummyItemData {
     public String itemId;
     public String itemStatus;
+    public String itemBarcode;
   } 
 
 }
