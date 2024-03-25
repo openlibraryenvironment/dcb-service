@@ -43,6 +43,7 @@ import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.serde.annotation.Serdeable;
@@ -64,14 +65,15 @@ import services.k_int.utils.UUIDUtils;
  * without configuring an external HostLMS.
  */
 @Slf4j
-@Prototype
+@Singleton
 public class DummyLmsClient implements HostLmsClient, IngestSource {
 	private static final String UUID5_PREFIX = "ingest-source:dummy-lms";
 	private final HostLms lms;
 	private final ProcessStateService processStateService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final ReferenceValueMappingService referenceValueMappingService;
-	private final Map<UUID, DummyRequestData> dummyRequestStore = new HashMap<UUID, DummyRequestData>();
+	private final static Map<String, DummyRequestData> dummyRequestStore = new HashMap<String, DummyRequestData>();
+	private final static Map<String, DummyItemData> dummyItemStore = new HashMap<String, DummyItemData>();
 
 	private static final String[] titleWords = { "Science", "Philosophy", "Music", "Art", "Nonsense", "Dialectic",
 			"FlipDeBoop", "FlopLehoop", "Affdgerandunique", "Literacy" };
@@ -253,11 +255,29 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		log.debug("getRequest({})", localRequestId);
+		DummyRequestData drd = dummyRequestStore.get(localRequestId);
+    if ( drd != null ) {
+      log.debug("Looked up request {}",drd);
+    }
+    else {
+      log.warn("unable to locate request {}",localRequestId);
+    }
+
 		return Mono.empty();
 	}
 
 	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
 		log.debug("getItem(localItemId:{}, localRequestId:{})", localItemId, localRequestId);
+
+		DummyRequestData drd = dummyRequestStore.get(localRequestId);
+
+		if ( drd != null ) {
+			log.debug("Looked up request {}",drd);
+		}
+		else {
+			log.warn("unable to locate request {}",localRequestId);
+		}
+
 		return Mono.empty();
 	}
 
@@ -406,16 +426,19 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		log.info("placeHoldRequest({})", parameters);
 
 		UUID generated_request_id = UUID.randomUUID();
+		String id_as_string = generated_request_id.toString();
+
 		DummyRequestData drd = DummyRequestData.builder()
 			.initialParameters(parameters)
-			.requestId(generated_request_id)
+			.requestId(id_as_string)
 			.requestStatus("HELD")
 			.build();
 
-		dummyRequestStore.put(generated_request_id, drd);
+		log.debug("Store {} as {} in dummyRequestStore",drd,id_as_string);
+		dummyRequestStore.put(id_as_string, drd);
 
 		return Mono.just(LocalRequest.builder()
-			.localId(generated_request_id.toString())
+			.localId(id_as_string)
 			.localStatus("HELD")
 			.build());
 	}
@@ -492,7 +515,16 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
   @Serdeable
 	static class DummyRequestData {
 		public PlaceHoldRequestParameters initialParameters;
-		public UUID requestId;
+		public String requestId;
 		public String requestStatus;
 	}
+
+  @Data
+  @Builder
+  @Serdeable
+  static class DummyItemData {
+    public String itemId;
+    public String itemStatus;
+  } 
+
 }
