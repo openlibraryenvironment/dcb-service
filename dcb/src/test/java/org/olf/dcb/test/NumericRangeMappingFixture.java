@@ -28,7 +28,7 @@ public class NumericRangeMappingFixture {
 	public void createMapping(String fromContext, String domain,
 		Long lowerBound, Long upperBound, String targetContext, String targetValue) {
 
-		log.debug("createNumericRangeMapping({},{},{},{},{},{})", fromContext, domain,
+		log.debug("createNumericRangeMapping({}, {}, {}, {}, {}, {})", fromContext, domain,
 			lowerBound, upperBound, targetContext, targetValue);
 
 		final var generatedId = UUIDUtils.dnsUUID(fromContext + ":" + ":" + domain + ":" + targetContext + ":" + lowerBound);

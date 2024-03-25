@@ -137,7 +137,7 @@ public class ReferenceValueMappingFixture {
 
 	public void defineMapping(String fromContext, String fromCategory, String fromValue,
 		String toContext, String toCategory, String toValue, boolean reciprocal) {
-
+		
 		log.debug("defineMapping({}, {}, {}, {}, {}, {}, {})",
 			fromContext, fromCategory, fromValue, toContext, toCategory, toValue, reciprocal);
 
