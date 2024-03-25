@@ -256,14 +256,20 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		log.debug("getRequest({})", localRequestId);
 		DummyRequestData drd = dummyRequestStore.get(localRequestId);
+
     if ( drd != null ) {
       log.debug("Looked up request {}",drd);
-    }
-    else {
-      log.warn("unable to locate request {}",localRequestId);
+			return Mono.just( HostLmsRequest.builder()
+				.localId(localRequestId)
+				.status("CONFIRMED")
+				.requestedItemId(drd.getInitialParameters().getLocalItemId())
+				.requestedItemBarcode(drd.getInitialParameters().getLocalItemBarcode())
+				.build());
     }
 
+    log.warn("unable to locate request {}",localRequestId);
 		return Mono.empty();
+
 	}
 
 	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
