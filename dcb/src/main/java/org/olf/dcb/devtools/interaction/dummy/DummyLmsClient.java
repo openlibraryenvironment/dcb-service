@@ -26,8 +26,8 @@ import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
@@ -55,6 +55,7 @@ import reactor.function.TupleUtils;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
+
 /**
  * This adapter exists to allow devs to run a fully functional local system
  * without configuring an external HostLMS.
@@ -66,7 +67,6 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	private final HostLms lms;
 	private final ProcessStateService processStateService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
-	private final NumericPatronTypeMapper numericPatronTypeMapper;
 	private final ReferenceValueMappingService referenceValueMappingService;
 
 	private static final String[] titleWords = { "Science", "Philosophy", "Music", "Art", "Nonsense", "Dialectic",
@@ -74,13 +74,11 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	public DummyLmsClient(@Parameter HostLms lms, ProcessStateService processStateService,
 		LocationToAgencyMappingService locationToAgencyMappingService,
-		NumericPatronTypeMapper numericPatronTypeMapper,
 		ReferenceValueMappingService referenceValueMappingService) {
 
 		this.lms = lms;
 		this.processStateService = processStateService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
-		this.numericPatronTypeMapper = numericPatronTypeMapper;
 		this.referenceValueMappingService = referenceValueMappingService;
 	}
 
@@ -120,6 +118,8 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 						.callNumber("CN-" + localBibId).holdCount(0)
 						.localItemType("Books/Monographs")
 						.localItemTypeCode("BKM")
+						// Real host lms adapters use mappings to convert item types into canonical codes CIRC, CIRCAV and NONCIRC
+						.canonicalItemType("CIRC")
 						.deleted(false)
 						.suppressed(false)
 						.build());
@@ -143,8 +143,17 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	@Override
 	public Mono<String> findCanonicalPatronType(String localPatronType, String localId) {
-		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(
-			getHostLmsCode(), localPatronType, localId);
+    String hostLmsCode = getHostLmsCode();
+    if (localPatronType == null) {
+      return Mono.empty();
+    }
+    
+    return referenceValueMappingService.findMapping("patronType",
+        hostLmsCode, localPatronType, "patronType", "DCB")
+      .map(ReferenceValueMapping::getToValue)
+      .switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
+        "Unable to map patron type \"" + localPatronType + "\" on Host LMS: \"" + hostLmsCode + "\" to canonical value",
+        hostLmsCode, localPatronType)));
 	}
 
 	@Override

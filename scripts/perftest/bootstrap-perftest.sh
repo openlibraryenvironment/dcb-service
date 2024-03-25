@@ -32,7 +32,8 @@ curl -X POST $TARGET/hostlmss -H "Content-Type: application/json"  -H "Authoriza
   "clientConfig": { 
     "ingest": "true",
     "num-records-to-generate": 5000,
-    "shelving-locations": "LM1-A1-SL1,LM1-A1-SL2,LM1-A2-SL1,LM1-A2-SL2,LM1-A2-SL3"
+    "shelving-locations": "LM1-A1-SL1,LM1-A1-SL2,LM1-A2-SL1,LM1-A2-SL2,LM1-A2-SL3",
+    "contextHierarchy": [ "DUMMY1", "PERFTEST", "GLOBAL" ]
   } 
 }'
 
@@ -45,7 +46,8 @@ curl -X POST $TARGET/hostlmss -H "Content-Type: application/json"  -H "Authoriza
   "clientConfig": { 
     "ingest": "true",
     "num-records-to-generate": 100,
-    "shelving-locations": "LM2-A1-SL1,LM2-A2-SL1"
+    "shelving-locations": "LM2-A1-SL1,LM2-A2-SL1",
+    "contextHierarchy": [ "DUMMY2", "PERFTEST", "GLOBAL" ]
   } 
 }'
 
@@ -59,7 +61,8 @@ curl -X POST $TARGET/hostlmss -H "Content-Type: application/json"  -H "Authoriza
   "clientConfig": { 
     "ingest": "true",
     "num-records-to-generate": 0,
-    "shelving-locations": "LM3-A1-SL1,LM3-A2-SL1"
+    "shelving-locations": "LM3-A1-SL1,LM3-A2-SL1",
+    "contextHierarchy": [ "DUMMY3", "PERFTEST", "GLOBAL" ]
   } 
 }'
 
@@ -157,6 +160,40 @@ echo
 curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
   "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name SL-DUMMY3-LM3-A2-SL1`'",
   "fromCategory":"Location", "fromContext":"DUMMY3", "fromValue":"LM3-A2-SL1", "toCategory":"AGENCY", "toContext":"DCB", "toValue":"DA-3-2" }'
+
+
+echo
+echo Item Type Mappings - to canonical
+echo
+
+curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name IT-DUMMY1-FROM-BKM`'",
+  "fromCategory":"ItemType", "fromContext":"DUMMY1", "fromValue":"BKM", "toCategory":"ItemType", "toContext":"DCB", "toValue":"CIRC" }'
+
+curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name IT-DUMMY2-FROM-BKM`'",
+  "fromCategory":"ItemType", "fromContext":"DUMMY2", "fromValue":"BKM", "toCategory":"ItemType", "toContext":"DCB", "toValue":"CIRC" }'
+
+curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name IT-DUMMY3-FROM-BKM`'",
+  "fromCategory":"ItemType", "fromContext":"DUMMY3", "fromValue":"BKM", "toCategory":"ItemType", "toContext":"DCB", "toValue":"CIRC" }'
+
+echo
+echo Item type mappings - to local
+echo
+
+curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name IT-DUMMY1-TO-BKM`'",
+  "fromCategory":"ItemType", "fromContext":"DCB", "fromValue":"CIRC", "toCategory":"ItemType", "toContext":"DUMMY1", "toValue":"BKM" }'
+
+curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name IT-DUMMY2-TO-BKM`'",
+  "fromCategory":"ItemType", "fromContext":"DCB", "fromValue":"CIRC", "toCategory":"ItemType", "toContext":"DUMMY2", "toValue":"BKM" }'
+
+curl -X POST $TARGET/referenceValueMappings -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name IT-DUMMY3-TO-BKM`'",
+  "fromCategory":"ItemType", "fromContext":"DCB", "fromValue":"CIRC", "toCategory":"ItemType", "toContext":"DUMMY3", "toValue":"BKM" }'
+
 
 echo
 echo Locations
