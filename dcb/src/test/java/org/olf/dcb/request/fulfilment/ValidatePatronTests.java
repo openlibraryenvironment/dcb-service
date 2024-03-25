@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
@@ -65,10 +66,11 @@ public class ValidatePatronTests {
 	private AgencyFixture agencyFixture;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
-	@Inject
-	private PatronService patronService;
+
 	@Inject
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
+	@Inject
+	private PatronService patronService;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mockServerClient) {
@@ -77,16 +79,12 @@ public class ValidatePatronTests {
 		final String KEY = "validate-patron-transition-key";
 		final String SECRET = "validate-patron-transition-secret";
 
-		referenceValueMappingFixture.deleteAll();
-		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		final var hostLms = hostLmsFixture.createSierraHostLms(
-			BORROWING_HOST_LMS_CODE, KEY,
-			SECRET, BASE_URL, "item");
+		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 
 		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
@@ -107,8 +105,15 @@ public class ValidatePatronTests {
 				.barcodes(List.of("647647746"))
 				.names(List.of("Bob"))
 				.build());
+	}
 
-		agencyFixture.defineAgency(AGENCY_CODE, "Example Agency", hostLms);
+	@BeforeEach
+	public void BeforeEach() {
+		referenceValueMappingFixture.deleteAll();
+		agencyFixture.deleteAll();
+
+		agencyFixture.defineAgency(AGENCY_CODE, "Example Agency",
+			hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE));
 	}
 
 	@Test
@@ -130,7 +135,7 @@ public class ValidatePatronTests {
 		// Act
 		final var validatedPatronRequest =
 			requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-				.flatMap(ctx -> validatePatronTransition.attempt(ctx) )
+				.flatMap(ctx -> validatePatronTransition.attempt(ctx))
 				.thenReturn(patronRequest)
 				.block();
 
@@ -319,10 +324,10 @@ public class ValidatePatronTests {
 	}
 
 	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
-		assertThat(patronRequest.getStatus(), is(PATRON_VERIFIED) );
+		assertThat(patronRequest.getStatus(), is(PATRON_VERIFIED));
 	}
 
 	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest) {
-		assertThat(patronRequest.getStatus(), is(ERROR) );
+		assertThat(patronRequest.getStatus(), is(ERROR));
 	}
 }
