@@ -13,7 +13,6 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.AVAILABLE;
-import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_READY;
@@ -85,7 +84,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 class PolarisLmsClientTests {
-	private static final String HOST_LMS_CODE = "polaris-hostlms-tests";
+	private static final String CATALOGUING_HOST_LMS_CODE = "polaris-cataloguing";
+	private static final String CIRCULATING_HOST_LMS_CODE = "polaris-circulating";
 
 	@Inject
 	private TestResourceLoaderProvider testResourceLoaderProvider;
@@ -112,7 +112,10 @@ class PolarisLmsClientTests {
 		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, KEY,
+		hostLmsFixture.createPolarisHostLms(CATALOGUING_HOST_LMS_CODE, KEY,
+			SECRET, BASE_URL, DOMAIN, KEY, SECRET);
+
+		hostLmsFixture.createPolarisHostLms(CIRCULATING_HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, DOMAIN, KEY, SECRET);
 
 		mockPolarisFixture = new MockPolarisFixture("polaris-hostlms-tests.com",
@@ -131,10 +134,10 @@ class PolarisLmsClientTests {
 	void shouldBeAbleToGetItemsByBibId() {
 		// Arrange
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			"polaris-hostlms-tests", "15", "345test");
+			CATALOGUING_HOST_LMS_CODE, "15", "345test");
 
 		agencyFixture.defineAgency("345test", "Test College",
-			hostLmsFixture.findByCode(HOST_LMS_CODE));
+			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
 		final var bibId = "643425";
 
@@ -143,7 +146,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetItemStatuses();
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var itemsList = singleValueFrom(client
 			.getItems(BibRecord.builder()
@@ -165,16 +168,16 @@ class PolarisLmsClientTests {
 		assertThat(firstItem, hasLocation("SLPL Kingshighway", "15"));
 		assertThat(firstItem, hasBarcode("3430470102"));
 		assertThat(firstItem, hasCallNumber("E Bellini Mario"));
-		assertThat(firstItem, hasHostLmsCode(HOST_LMS_CODE));
 		assertThat(firstItem, hasLocalBibId(bibId));
 		assertThat(firstItem, hasLocalItemType("Book"));
 		assertThat(firstItem, hasLocalItemTypeCode("3"));
+		assertThat(firstItem, hasCanonicalItemType("UNKNOWN"));
 		assertThat(firstItem, hasNoHoldCount());
 		assertThat(firstItem, isNotSuppressed());
 		assertThat(firstItem, isNotDeleted());
 		assertThat(firstItem, hasAgencyCode("345test"));
 		assertThat(firstItem, hasAgencyName("Test College"));
-		assertThat(firstItem, hasCanonicalItemType("UNKNOWN"));
+		assertThat(firstItem, hasHostLmsCode(CATALOGUING_HOST_LMS_CODE));
 	}
 
 	@Test
@@ -184,7 +187,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetPatronByBarcode("3100222227777");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var patron = singleValueFrom(client.patronAuth(
 			"BASIC/BARCODE+PASSWORD", "3100222227777", "password123"));
@@ -214,7 +217,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetPatronBlocksSummary(localPatronId);
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var patron = org.olf.dcb.core.model.Patron.builder()
 			.id(randomUUID())
@@ -257,7 +260,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetPatronBlocksSummaryNotFoundResponse(localPatronId);
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var patron = org.olf.dcb.core.model.Patron.builder()
 			.id(randomUUID())
@@ -297,7 +300,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetPatronBlocksSummaryServerErrorResponse(localPatronId);
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var patron = org.olf.dcb.core.model.Patron.builder()
 			.id(randomUUID())
@@ -341,7 +344,7 @@ class PolarisLmsClientTests {
 				.build());
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var localRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 			PlaceHoldRequestParameters.builder()
@@ -374,7 +377,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockPlaceHoldUnsuccessful();
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var exception = assertThrows(PolarisWorkflowException.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
@@ -408,7 +411,7 @@ class PolarisLmsClientTests {
 				.build());
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var request = singleValueFrom(client.getRequest(localHoldId));
 
@@ -435,7 +438,7 @@ class PolarisLmsClientTests {
 				.build());
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var request = singleValueFrom(client.getRequest(localHoldId));
 
@@ -462,7 +465,7 @@ class PolarisLmsClientTests {
 				.build());
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var request = singleValueFrom(client.getRequest(localHoldId));
 
@@ -489,7 +492,7 @@ class PolarisLmsClientTests {
 				.build());
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var request = singleValueFrom(client.getRequest(localHoldId));
 
@@ -521,7 +524,7 @@ class PolarisLmsClientTests {
 			.build();
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var response = singleValueFrom(client.createPatron(patron));
 
@@ -550,7 +553,7 @@ class PolarisLmsClientTests {
 			.build();
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(client.createPatron(patron)));
@@ -575,7 +578,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetPatron(localPatronId);
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var response = singleValueFrom(client.updatePatron(localPatronId, "3"));
 
@@ -598,7 +601,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockCheckoutItemToPatron(localPatronBarcodePrefix + localPatronBarcode);
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var response = singleValueFrom(client
 			.checkOutItemToPatron(localItemId, localPatronBarcode, null));
@@ -616,7 +619,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetPatron(localPatronId);
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var response = singleValueFrom(client.getPatronByLocalId(localPatronId));
 
@@ -636,7 +639,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetPatronServerErrorResponse(localPatronId);
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var exception = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(client.getPatronByLocalId(localPatronId)));
@@ -644,7 +647,7 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(exception, allOf(
 			notNullValue(),
-			hasMessageForHostLms(HOST_LMS_CODE),
+			hasMessageForHostLms(CATALOGUING_HOST_LMS_CODE),
 			hasResponseStatusCodeParameter(500),
 			hasTextResponseBodyParameter("Something went wrong"),
 			hasRequestMethodParameter("GET"),
@@ -660,7 +663,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockCreateBib();
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var bib = singleValueFrom(client.createBib(
 			Bib.builder()
@@ -678,7 +681,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockCreateBibNotAuthorisedResponse();
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(client.createBib(
@@ -688,7 +691,7 @@ class PolarisLmsClientTests {
 
 		// Assert
 		assertThat(problem, allOf(
-			hasMessageForHostLms(HOST_LMS_CODE),
+			hasMessageForHostLms(CATALOGUING_HOST_LMS_CODE),
 			hasResponseStatusCodeParameter(401),
 			hasTextResponseBodyParameter("No body"),
 			hasRequestUrlParameter("https://polaris-hostlms-tests.com/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords?type=create")
@@ -705,7 +708,7 @@ class PolarisLmsClientTests {
 			"successful-bib-delete.json");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var response = singleValueFrom(client.deleteBib(localBibId));
 
@@ -722,7 +725,7 @@ class PolarisLmsClientTests {
 			"create-item-resp.json");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var item = singleValueFrom(client.createItem(
 			CreateItemCommand.builder()
@@ -751,7 +754,7 @@ class PolarisLmsClientTests {
 				.build());
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(client.createItem(
@@ -778,7 +781,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetItemStatuses();
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var localItem = singleValueFrom(client.getItem(localItemId, null));
 
@@ -799,14 +802,14 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetItemServerErrorResponse(localItemId);
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(client.getItem(localItemId, null)));
 
 		// Assert
 		assertThat(problem, allOf(
-			hasMessageForHostLms(HOST_LMS_CODE),
+			hasMessageForHostLms(CATALOGUING_HOST_LMS_CODE),
 			hasResponseStatusCodeParameter(500),
 			hasTextResponseBodyParameter("Something went wrong")
 		));
@@ -823,7 +826,7 @@ class PolarisLmsClientTests {
 			"deleteBibIfLastItem.json");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var response = singleValueFrom(client.deleteItem(localItemId));
 
@@ -846,7 +849,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetItemStatuses();
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 		final var string = singleValueFrom(client.updateItemStatus(localItemId, AVAILABLE, null));
 
 		// Assert
