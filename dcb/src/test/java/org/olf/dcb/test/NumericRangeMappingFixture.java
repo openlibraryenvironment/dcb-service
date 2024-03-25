@@ -19,15 +19,19 @@ public class NumericRangeMappingFixture {
 		this.repository = repository;
 	}
 
-	public void createMapping(String system, String domain,
+	public void createMapping(String fromContext, String domain,
 		Long lowerBound, Long upperBound, String targetContext, String targetValue) {
 
-		log.debug("createNumericRangeMapping({},{},{},{},{},{})", system, domain,
+		log.debug("createNumericRangeMapping({},{},{},{},{},{})", fromContext, domain,
 			lowerBound, upperBound, targetContext, targetValue);
 
-		final var nrm = NumericRangeMapping.builder()
-			.id(UUIDUtils.dnsUUID(system + ":" + ":" + domain + ":" + targetContext + ":" + lowerBound))
-			.context(system)
+		final var generatedId = UUIDUtils.dnsUUID(fromContext + ":" + ":" + domain + ":" + targetContext + ":" + lowerBound);
+
+		log.debug("Generated ID for numeric range mapping: {}", generatedId);
+
+		final var mapping = NumericRangeMapping.builder()
+			.id(generatedId)
+			.context(fromContext)
 			.domain(domain)
 			.lowerBound(lowerBound)
 			.upperBound(upperBound)
@@ -35,7 +39,7 @@ public class NumericRangeMappingFixture {
 			.mappedValue(targetValue)
 			.build();
 
-		singleValueFrom(repository.save(nrm));
+		singleValueFrom(repository.save(mapping));
 	}
 
 	public void deleteAll() {
