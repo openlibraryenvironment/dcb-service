@@ -45,10 +45,13 @@ import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.util.StringUtils;
+import io.micronaut.serde.annotation.Serdeable;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
+import lombok.Builder;
+import lombok.Data;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
@@ -68,6 +71,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	private final ProcessStateService processStateService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final ReferenceValueMappingService referenceValueMappingService;
+	private final Map<UUID, DummyRequestData> dummyRequestStore = new HashMap<UUID, DummyRequestData>();
 
 	private static final String[] titleWords = { "Science", "Philosophy", "Music", "Art", "Nonsense", "Dialectic",
 			"FlipDeBoop", "FlopLehoop", "Affdgerandunique", "Literacy" };
@@ -253,7 +257,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
-		log.debug("getItem({}, {})", localItemId, localRequestId);
+		log.debug("getItem(localItemId:{}, localRequestId:{})", localItemId, localRequestId);
 		return Mono.empty();
 	}
 
@@ -401,8 +405,17 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		PlaceHoldRequestParameters parameters) {
 		log.info("placeHoldRequest({})", parameters);
 
+		UUID generated_request_id = UUID.randomUUID();
+		DummyRequestData drd = DummyRequestData.builder()
+			.initialParameters(parameters)
+			.requestId(generated_request_id)
+			.requestStatus("HELD")
+			.build();
+
+		dummyRequestStore.put(generated_request_id, drd);
+
 		return Mono.just(LocalRequest.builder()
-			.localId(UUID.randomUUID().toString())
+			.localId(generated_request_id.toString())
 			.localStatus("HELD")
 			.build());
 	}
@@ -473,4 +486,13 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
     return Mono.just("OK");
   }
 
+
+  @Data
+  @Builder
+  @Serdeable
+	static class DummyRequestData {
+		public PlaceHoldRequestParameters initialParameters;
+		public UUID requestId;
+		public String requestStatus;
+	}
 }

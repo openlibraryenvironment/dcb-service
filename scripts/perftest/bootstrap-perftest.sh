@@ -1,19 +1,11 @@
 #!/bin/bash
 
 TARGET="http://localhost:8080"
-# TARGET="https://dcb-dev.sph.k-int.com"
-# TARGET="https://dcb.libsdev.k-int.com"
 
 OPENRS_ROOT_UUID=`uuidgen --sha1 -n @dns --name org.olf.dcb`
 AGENCIES_NS_UUID=`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name Agency`
 HOSTLMS_NS_UUID=`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name HostLms`
 LOCATION_NS_UUID=`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name Location`
-
-
-# curl https://dcb.libsdev.k-int.com/patrons/requests
-# curl https://dcb.libsdev.k-int.com/hostlmss
-# curl https://dcb.libsdev.k-int.com/agencies
-
 
 echo Logging in
 TOKEN=`../login`
