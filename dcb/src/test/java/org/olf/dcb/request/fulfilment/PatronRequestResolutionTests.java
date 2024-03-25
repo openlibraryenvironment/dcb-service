@@ -67,6 +67,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 class PatronRequestResolutionTests {
 	private final String CATALOGUING_HOST_LMS_CODE = "resolution-cataloguing";
 	private final String CIRCULATING_HOST_LMS_CODE = "resolution-circulating";
+	private final String BORROWING_HOST_LMS_CODE = "resolution-borrowing";
 
 	@Inject
 	private PatronRequestResolutionStateTransition patronRequestResolutionStateTransition;
@@ -135,7 +136,7 @@ class PatronRequestResolutionTests {
 		agencyFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			CATALOGUING_HOST_LMS_CODE,"ABC123","ab8");
+			BORROWING_HOST_LMS_CODE,"ABC123","ab8");
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			CATALOGUING_HOST_LMS_CODE,"ab6","ab8");
@@ -177,7 +178,7 @@ class PatronRequestResolutionTests {
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
-			.pickupLocationCodeContext(CATALOGUING_HOST_LMS_CODE)
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
 			.pickupLocationCode("ABC123")
 			.status(PATRON_VERIFIED)
 			.build();
@@ -239,7 +240,7 @@ class PatronRequestResolutionTests {
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
-			.pickupLocationCodeContext(CATALOGUING_HOST_LMS_CODE)
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
 			.pickupLocationCode("ABC123")
 			.status(PATRON_VERIFIED)
 			.build();
@@ -279,7 +280,7 @@ class PatronRequestResolutionTests {
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
-			.pickupLocationCodeContext(CATALOGUING_HOST_LMS_CODE)
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
 			.pickupLocationCode("ABC123")
 			.status(PATRON_VERIFIED)
 			.build();
@@ -314,7 +315,7 @@ class PatronRequestResolutionTests {
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
-			.pickupLocationCodeContext(CATALOGUING_HOST_LMS_CODE)
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
 			.pickupLocationCode("ABC123")
 			.status(PATRON_VERIFIED)
 			.build();
@@ -360,7 +361,7 @@ class PatronRequestResolutionTests {
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
-			.pickupLocationCodeContext(CATALOGUING_HOST_LMS_CODE)
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
 			.pickupLocationCode("ABC123")
 			.status(PATRON_VERIFIED)
 			.build();
