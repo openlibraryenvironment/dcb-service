@@ -53,6 +53,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import lombok.Builder;
 import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
@@ -72,8 +74,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	private final ProcessStateService processStateService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final ReferenceValueMappingService referenceValueMappingService;
-	private final static Map<String, DummyRequestData> dummyRequestStore = new HashMap<String, DummyRequestData>();
-	private final static Map<String, DummyItemData> dummyItemStore = new HashMap<String, DummyItemData>();
+	private final static Map<String, DummySystemData> dummySystems = new HashMap<String, DummySystemData>();
 
 	private static final String[] titleWords = { "Science", "Philosophy", "Music", "Art", "Nonsense", "Dialectic",
 			"FlipDeBoop", "FlopLehoop", "Affdgerandunique", "Literacy" };
@@ -255,7 +256,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		log.debug("getRequest({})", localRequestId);
-		DummyRequestData drd = dummyRequestStore.get(localRequestId);
+		DummyRequestData drd = getDummyRequest(localRequestId);
 
     if ( drd != null ) {
       log.debug("Looked up request {}",drd);
@@ -275,7 +276,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
 		log.debug("getItem(localItemId:{}, localRequestId:{})", localItemId, localRequestId);
 
-		DummyRequestData drd = dummyRequestStore.get(localRequestId);
+		DummyRequestData drd = getDummyRequest(localRequestId);
 
 		if ( drd != null ) {
 			log.debug("Looked up request {}",drd);
@@ -447,8 +448,8 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 			.build();
 
 		log.debug("Store {} as {} in dummyRequestStore",drd,id_as_string);
-		dummyRequestStore.put(id_as_string, drd);
-		dummyItemStore.put(parameters.getLocalItemId(), did);
+		putDummyRequest(id_as_string, drd);
+		putDummyItem(parameters.getLocalItemId(), did);
 
 		return Mono.just(LocalRequest.builder()
 			.localId(id_as_string)
@@ -520,6 +521,45 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
   public Mono<String> deleteHold(String id) {
     log.info("Delete hold is not currently implemented for Dummy");
     return Mono.just("OK");
+  }
+
+	public DummySystemData getDummySystem() {
+    DummySystemData dsd = dummySystems.get(getHostLmsCode());
+    if ( dsd == null ) {
+      dsd = new DummySystemData();
+      dummySystems.put(getHostLmsCode(), dsd);
+    }
+		return dsd;
+	}
+
+	public DummyRequestData getDummyRequest(String requestId) {
+		DummySystemData dsd = getDummySystem();
+		return dsd.getRequests().get(requestId);
+	}
+
+  public DummyItemData getDummyItem(String itemId) {
+		DummySystemData dsd = getDummySystem();
+    return dsd.getItems().get(itemId);
+  }
+
+	public void putDummyRequest(String request_id, DummyRequestData drd) {
+		DummySystemData dsd = getDummySystem();
+		dsd.getRequests().put(request_id,drd);
+	}
+
+	public void putDummyItem(String item_id, DummyItemData did) {
+		DummySystemData dsd = getDummySystem();
+		dsd.getItems().put(item_id,did);
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	@NoArgsConstructor
+  static class DummySystemData {
+  	public Map<String, DummyRequestData> requests = new HashMap<String, DummyRequestData>();
+  	public Map<String, DummyItemData> items = new HashMap<String, DummyItemData>();
   }
 
 
