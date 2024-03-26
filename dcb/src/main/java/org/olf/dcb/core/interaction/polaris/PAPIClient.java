@@ -108,9 +108,9 @@ public class PAPIClient {
 		final var servicesConfig = client.getServicesConfig();
 
 		final var body = PatronRegistration.builder()
-			.logonBranchID(Integer.valueOf((String) conf.get(LOGON_BRANCH_ID)))
-			.logonUserID(Integer.valueOf((String) conf.get(LOGON_USER_ID)))
-			.logonWorkstationID(Integer.valueOf((String) servicesConfig.get(SERVICES_WORKSTATION_ID)))
+			.logonBranchID( extractRequiredMapValue(conf, LOGON_BRANCH_ID, Integer.class) )
+			.logonUserID( extractRequiredMapValue(conf, LOGON_USER_ID, Integer.class) )
+			.logonWorkstationID( extractRequiredMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class) )
 			.patronCode(Integer.valueOf(patronType))
 			.build();
 
@@ -118,9 +118,10 @@ public class PAPIClient {
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
 			.map(request -> request.body(body))
+			.doOnSuccess(req -> log.debug("patronRegistrationUpdate body: {}", req.getBody()))
 			.flatMap(request -> client.retrieve(request,
 				Argument.of(PatronUpdateResult.class), noExtraErrorHandling()))
-			.filter(patronUpdateResult -> patronUpdateResult.getPAPIErrorCode() == 0)
+			.doOnSuccess(patronUpdateResult -> log.debug("PatronUpdateResult: {}", patronUpdateResult))
 			.map(patronUpdateResult -> barcode);
 	}
 
