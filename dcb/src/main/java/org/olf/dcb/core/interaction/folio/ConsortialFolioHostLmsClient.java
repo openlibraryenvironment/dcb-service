@@ -382,6 +382,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var firstPatronBarcodeInList = parseList(parameters.getLocalPatronBarcode()).get(0);
 
+		final var pickupLocation = resolvePickupLocation(parameters);
+
 		return findLocalItemType(parameters.getCanonicalItemType())
 			.map(localItemType -> authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
 				.body(CreateTransactionRequest.builder()
@@ -398,9 +400,23 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 						.barcode(firstPatronBarcodeInList)
 						.build())
 					.pickup(CreateTransactionRequest.Pickup.builder()
-						.servicePointId(parameters.getPickupLocationCode())
+						.servicePointId(pickupLocation)
 						.build())
 					.build()));
+	}
+
+	private static String resolvePickupLocation(PlaceHoldRequestParameters parameters) {
+
+		if (parameters.getPickupLocation() != null &&
+		parameters.getPickupLocation().getLocalId() != null) {
+
+			final var pickup_location = parameters.getPickupLocation().getLocalId();
+
+			log.debug("Overriding pickup location code with ID from selected record: {}", pickup_location);
+			return pickup_location;
+		}
+
+		throw new IllegalArgumentException("Pickup locations local id missing.");
 	}
 
 	private void assertExtendedBorrowingRequestParameters(PlaceHoldRequestParameters parameters) {

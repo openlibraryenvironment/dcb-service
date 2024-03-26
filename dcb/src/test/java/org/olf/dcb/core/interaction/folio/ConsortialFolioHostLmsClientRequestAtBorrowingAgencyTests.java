@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -53,7 +54,7 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 		final var patronId = UUID.randomUUID().toString();
 		// we expect the barcode to be a toString list
 		final var patronBarcode =  "[67129553]";
-		final var pickupLocationCode = UUID.randomUUID().toString();
+		final var pickupLocation = Location.builder().localId(UUID.randomUUID().toString()).build();
 		final var supplyingAgencyCode = "supplying-agency";
 		final var supplyingLocalItemId = "supplying-item-id";
 		final var itemId = dnsUUID(supplyingAgencyCode + ":" + supplyingLocalItemId).toString();
@@ -78,7 +79,7 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 					.supplyingAgencyCode(supplyingAgencyCode)
 					.localPatronId(patronId)
 					.localPatronBarcode(patronBarcode)
-					.pickupLocationCode(pickupLocationCode)
+					.pickupLocation(pickupLocation)
 					.build()));
 
 		// Assert
@@ -102,7 +103,7 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 				.barcode("67129553")
 				.build())
 			.pickup(CreateTransactionRequest.Pickup.builder()
-				.servicePointId(pickupLocationCode)
+				.servicePointId(pickupLocation.getLocalId())
 				.build())
 			.build());
 	}
