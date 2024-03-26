@@ -27,21 +27,10 @@ public class LocationToAgencyMappingService {
 		this.referenceValueMappingService = referenceValueMappingService;
 	}
 
-	public Mono<DataAgency> mapLocationToAgency(String hostLmsCode, String locationCode) {
-		return findLocationToAgencyMapping(hostLmsCode, locationCode)
-			.map(ReferenceValueMapping::getToValue)
-			.flatMap(agencyService::findByCode)
-			.doOnNext(agency -> log.debug("Found agency for location: {}", agency));
-	}
-
 	public Mono<Item> enrichItemAgencyFromLocation(Item incomingItem, String hostLmsCode) {
 		return Mono.just(incomingItem)
 			.zipWhen(item -> findLocationToAgencyMapping(item, hostLmsCode))
-			.map(function((item, agency) ->
-				item.setAgency(agency)
-					.setAgencyCode(agency.getCode())
-					.setAgencyName(agency.getName())
-			))
+			.map(function(Item::setAgency))
 			.defaultIfEmpty(incomingItem)
 			// This has to be set separately in case agency is not found
 			.map(item -> item.setHostLmsCode(hostLmsCode));
@@ -57,21 +46,11 @@ public class LocationToAgencyMappingService {
 		return mapLocationToAgency(hostLmsCode, locationCode);
 	}
 
-	private Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
-		String pickupLocationContext, String pickupLocationCode) {
-
-		return findLocationToAgencyMapping(pickupLocationContext, pickupLocationCode);
-	}
-
-	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
-		String pickupLocationCode, String pickupLocationContext, String requestorLocalSystemCode) {
-
-		return findLocationToAgencyMapping(pickupLocationCode)
-			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(pickupLocationContext, pickupLocationCode)))
-			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(requestorLocalSystemCode, pickupLocationCode)))
-			.doOnSuccess(consumeOnSuccess(
-				() -> log.info("No pickup location mapping found for {} {} {}",pickupLocationCode,pickupLocationContext,requestorLocalSystemCode),
-				mapping -> log.debug("Found mapping: {}", mapping)));
+	private Mono<DataAgency> mapLocationToAgency(String hostLmsCode, String locationCode) {
+		return findLocationToAgencyMapping(hostLmsCode, locationCode)
+			.map(ReferenceValueMapping::getToValue)
+			.flatMap(agencyService::findByCode)
+			.doOnNext(agency -> log.debug("Found agency for location: {}", agency));
 	}
 
 	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String pickupLocationCode) {
@@ -87,5 +66,22 @@ public class LocationToAgencyMappingService {
 
 		return referenceValueMappingService.findMapping("Location", fromContext,
 			locationCode, "AGENCY", "DCB");
+	}
+
+	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
+		String pickupLocationCode, String pickupLocationContext, String requestorLocalSystemCode) {
+
+		return findLocationToAgencyMapping(pickupLocationCode)
+			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(pickupLocationContext, pickupLocationCode)))
+			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(requestorLocalSystemCode, pickupLocationCode)))
+			.doOnSuccess(consumeOnSuccess(
+				() -> log.info("No pickup location mapping found for {} {} {}",pickupLocationCode,pickupLocationContext,requestorLocalSystemCode),
+				mapping -> log.debug("Found mapping: {}", mapping)));
+	}
+
+	private Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
+		String pickupLocationContext, String pickupLocationCode) {
+
+		return findLocationToAgencyMapping(pickupLocationContext, pickupLocationCode);
 	}
 }

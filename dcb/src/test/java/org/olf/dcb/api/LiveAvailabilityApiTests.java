@@ -3,10 +3,12 @@ package org.olf.dcb.api;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
@@ -84,6 +86,8 @@ class LiveAvailabilityApiTests {
 	@BeforeEach
 	void beforeEach() {
 		clusterRecordFixture.deleteAll();
+		agencyFixture.deleteAll();
+		referenceValueMappingFixture.deleteAll();
 	}
 
 	@Test
@@ -107,6 +111,9 @@ class LiveAvailabilityApiTests {
 
 		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_NAME,
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			CATALOGUING_HOST_LMS_CODE, 999, 999, "BKM");
 
 		// Act
 		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
@@ -214,6 +221,62 @@ class LiveAvailabilityApiTests {
 		assertThat(firstItem.getLocation().getName(), is("Example Location"));
 
 		assertThat(firstItem.getAgency(), is(nullValue()));
+	}
+
+	@Test
+	void shouldTolerateItemsForAnUnknownCirculatingHostLms() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
+
+		final var hostLms = hostLmsFixture.findByCode(CATALOGUING_HOST_LMS_CODE);
+
+		final var sourceSystemId = hostLms.getId();
+		final var sourceRecordId = "8374290";
+
+		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId, sourceRecordId, clusterRecord);
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			SierraItem.builder()
+				.id("466742")
+				.locationCode("example-location")
+				.locationName("Example Location")
+				.build()));
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CATALOGUING_HOST_LMS_CODE, "example-location", "example-agency");
+
+		agencyFixture.defineAgency("example-agency", "Example Agency", null);
+
+		// Act
+		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
+
+		// Assert
+		assertThat(report, is(notNullValue()));
+
+		final var items = report.getItemList();
+
+		assertThat(items, is(notNullValue()));
+		assertThat(items.size(), is(1));
+		assertThat(report.getClusteredBibId(), is(clusterRecordId));
+
+		final var firstItem = items.get(0);
+
+		assertThat(firstItem, allOf(
+			notNullValue(),
+			hasProperty("id", is("466742")),
+			hasProperty("location", allOf(
+				notNullValue(),
+				hasProperty("code", is("example-location")),
+				hasProperty("name", is("Example Location"))
+			)),
+			hasProperty("agency", allOf(
+				notNullValue(),
+				hasProperty("code", is("example-agency")),
+				hasProperty("description", is("Example Agency"))
+			))
+		));
 	}
 
 	@Test

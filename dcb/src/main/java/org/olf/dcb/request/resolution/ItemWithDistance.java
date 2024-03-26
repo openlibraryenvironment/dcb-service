@@ -1,6 +1,5 @@
 package org.olf.dcb.request.resolution;
 
-import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
 
@@ -20,7 +19,6 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 public class ItemWithDistance {
 	private Location pickupLocation;
 	private Item item;
-	private DataAgency itemAgency;
 	private double distance;
 }
 

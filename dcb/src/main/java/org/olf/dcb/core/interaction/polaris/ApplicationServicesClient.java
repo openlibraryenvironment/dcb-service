@@ -12,8 +12,7 @@ import static java.util.Collections.singletonList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
 import static org.apache.commons.lang3.RandomStringUtils.randomNumeric;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.*;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Continue;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Retain;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.*;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.CompletedSuccessfully;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
@@ -115,7 +114,7 @@ class ApplicationServicesClient {
 			throw new PolarisWorkflowException("Unknown response");
 		}
 
-		if (workflowResponse.getWorkflowStatus().equals(CompletedSuccessfully) &&
+		if (workflowResponse.getWorkflowStatus() > 0 &&
 			workflowResponse.getPrompt() != null &&
 			workflowResponse.getPrompt().getMessage() != null) {
 
@@ -382,19 +381,16 @@ class ApplicationServicesClient {
 			.flatMap(this::createItemRequest);
 	}
 
-	// if we don't add the prefix to the virtual item barcode
-	// it will only save the item provisionally
-	// a provisional save will mean the hold can not be placed with this item
 	private static String useBarcodeWithPrefix(CreateItemCommand createItemCommand, String barcodePrefix) {
 		return (barcodePrefix != null && !barcodePrefix.equals("")
-			? barcodePrefix
-			: emptyBarcodePrefix())
+			? useItemBarcodePrefix(barcodePrefix)
+			: useItemBarcodePrefix(""))
 			+ createItemCommand.getBarcode();
 	}
 
-	private static String emptyBarcodePrefix() {
-		log.warn("No barcode prefix added.");
-		return "";
+	private static String useItemBarcodePrefix(String prefix) {
+		log.info("Using item barcode prefix: {}", prefix);
+		return prefix;
 	}
 
 	private static Integer isInterLibraryLoanBranchIfNotNull(Integer interLibraryLoanBranch, Integer patronHomeBranch) {
@@ -658,6 +654,8 @@ class ApplicationServicesClient {
 
 	private <R> Mono<WorkflowResponse> createCheckInRequest(MutableHttpRequest<WorkflowRequest> workflowRequest) {
 			return client.retrieve(workflowRequest, Argument.of(WorkflowResponse.class), noExtraErrorHandling())
+				// Fills another request, transfer?
+				.flatMap(response -> handlePolarisWorkflow(response, FillsRequestTransferPrompt, Yes))
 				.map(response -> validateWorkflowResponse(response));
 	}
 
@@ -1059,6 +1057,7 @@ class ApplicationServicesClient {
 	@Serdeable
 	static class WorkflowReply {
 		// Prompt Results
+		public static final Integer Yes = 2;
 		public static final Integer Continue = 5;
 		public static final Integer Retain = 11;
 		@JsonProperty("WorkflowPromptID")
@@ -1092,6 +1091,7 @@ class ApplicationServicesClient {
 	@Serdeable
 	static class Prompt {
 		// Prompt Identifiers
+		public static final Integer FillsRequestTransferPrompt = 30;
 		public static final Integer BriefItemEntry = 55;
 		public static final Integer NoDisplayInPAC = 66;
 		public static final Integer DuplicateRecords = 72;

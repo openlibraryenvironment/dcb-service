@@ -39,8 +39,6 @@ public class Item implements Comparable<Item> {
 	private String canonicalItemType;
 	private Boolean deleted;
 	private Boolean suppressed;
-	private String agencyCode;
-	private String agencyName;
 	private DataAgency agency;
 
 	// If this item has attached volume information use these two fields to stash the raw
