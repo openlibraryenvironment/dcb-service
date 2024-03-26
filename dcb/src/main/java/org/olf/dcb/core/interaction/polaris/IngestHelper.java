@@ -179,13 +179,13 @@ class IngestHelper {
 			.doOnComplete(() -> log.debug("Consumed {} items", page.getGetBibsPagedRows().size()));
 	}
 
-	private Mono<PolarisLmsClient.BibsPagedResult> fetchPage(Instant updateDate, Integer lastId, Integer nrecs) {
+	private Mono<PolarisLmsClient.BibsPagedResult> fetchPage(Instant startdatemodified, Integer lastId, Integer nrecs) {
 		log.trace("Creating subscribeable batch from last id;  {}, {}", lastId, nrecs);
-		final var date = formatDateFrom(updateDate);
+		final var date = formatDateFrom(startdatemodified);
 		return Mono.from( client.getBibs(date, lastId, nrecs) )
 			//.doOnSuccess(bibsPagedResult -> log.debug("result of bibPagedResult: {}", bibsPagedResult))
 			.doOnSubscribe(_s -> log.info("Fetching batch from Polaris {} with since={} offset={} limit={}",
-				lms.getName(), updateDate, lastId, nrecs));
+				lms.getName(), startdatemodified, lastId, nrecs));
 	}
 
 	// @Transactional(value = Transactional.TxType.REQUIRES_NEW)

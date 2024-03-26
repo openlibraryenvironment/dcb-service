@@ -160,10 +160,10 @@ public class PAPIClient {
 	Protected endpoints
 	*/
 	@SingleResult
-	public Publisher<PolarisLmsClient.BibsPagedResult> synch_BibsPagedGet(String updatedate, Integer lastId, Integer nrecs) {
+	public Publisher<PolarisLmsClient.BibsPagedResult> synch_BibsPagedGet(String startdatemodified, Integer lastId, Integer nrecs) {
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "MARCXML", "paged");
 		return createRequest(GET, path, uri -> uri
-				.queryParam("updatedate", updatedate)
+				.queryParam("startdatemodified", startdatemodified)
 				.queryParam("lastid", lastId)
 				.queryParam("nrecs", nrecs))
 			.flatMap(authFilter::ensureStaffAuth)
