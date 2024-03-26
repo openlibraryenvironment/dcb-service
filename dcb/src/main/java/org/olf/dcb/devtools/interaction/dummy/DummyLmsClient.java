@@ -26,8 +26,8 @@ import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
@@ -43,44 +43,49 @@ import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.util.StringUtils;
+import io.micronaut.serde.annotation.Serdeable;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
+import lombok.Builder;
+import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
+
 /**
  * This adapter exists to allow devs to run a fully functional local system
  * without configuring an external HostLMS.
  */
 @Slf4j
-@Prototype
+@Singleton
 public class DummyLmsClient implements HostLmsClient, IngestSource {
 	private static final String UUID5_PREFIX = "ingest-source:dummy-lms";
 	private final HostLms lms;
 	private final ProcessStateService processStateService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
-	private final NumericPatronTypeMapper numericPatronTypeMapper;
 	private final ReferenceValueMappingService referenceValueMappingService;
+	private final static Map<String, DummySystemData> dummySystems = new HashMap<String, DummySystemData>();
 
 	private static final String[] titleWords = { "Science", "Philosophy", "Music", "Art", "Nonsense", "Dialectic",
 			"FlipDeBoop", "FlopLehoop", "Affdgerandunique", "Literacy" };
 
 	public DummyLmsClient(@Parameter HostLms lms, ProcessStateService processStateService,
 		LocationToAgencyMappingService locationToAgencyMappingService,
-		NumericPatronTypeMapper numericPatronTypeMapper,
 		ReferenceValueMappingService referenceValueMappingService) {
 
 		this.lms = lms;
 		this.processStateService = processStateService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
-		this.numericPatronTypeMapper = numericPatronTypeMapper;
 		this.referenceValueMappingService = referenceValueMappingService;
 	}
 
@@ -120,6 +125,8 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 						.callNumber("CN-" + localBibId).holdCount(0)
 						.localItemType("Books/Monographs")
 						.localItemTypeCode("BKM")
+						// Real host lms adapters use mappings to convert item types into canonical codes CIRC, CIRCAV and NONCIRC
+						.canonicalItemType("CIRC")
 						.deleted(false)
 						.suppressed(false)
 						.build());
@@ -143,8 +150,17 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	@Override
 	public Mono<String> findCanonicalPatronType(String localPatronType, String localId) {
-		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(
-			getHostLmsCode(), localPatronType, localId);
+    String hostLmsCode = getHostLmsCode();
+    if (localPatronType == null) {
+      return Mono.empty();
+    }
+    
+    return referenceValueMappingService.findMapping("patronType",
+        hostLmsCode, localPatronType, "patronType", "DCB")
+      .map(ReferenceValueMapping::getToValue)
+      .switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
+        "Unable to map patron type \"" + localPatronType + "\" on Host LMS: \"" + hostLmsCode + "\" to canonical value",
+        hostLmsCode, localPatronType)));
 	}
 
 	@Override
@@ -240,11 +256,35 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		log.debug("getRequest({})", localRequestId);
+		DummyRequestData drd = getDummyRequest(localRequestId);
+
+    if ( drd != null ) {
+      log.debug("Looked up request {}",drd);
+			return Mono.just( HostLmsRequest.builder()
+				.localId(localRequestId)
+				.status("CONFIRMED")
+				.requestedItemId(drd.getInitialParameters().getLocalItemId())
+				.requestedItemBarcode(drd.getInitialParameters().getLocalItemBarcode())
+				.build());
+    }
+
+    log.warn("unable to locate request {}",localRequestId);
 		return Mono.empty();
+
 	}
 
 	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
-		log.debug("getItem({}, {})", localItemId, localRequestId);
+		log.debug("getItem(localItemId:{}, localRequestId:{})", localItemId, localRequestId);
+
+		DummyRequestData drd = getDummyRequest(localRequestId);
+
+		if ( drd != null ) {
+			log.debug("Looked up request {}",drd);
+		}
+		else {
+			log.warn("unable to locate request {}",localRequestId);
+		}
+
 		return Mono.empty();
 	}
 
@@ -392,8 +432,27 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		PlaceHoldRequestParameters parameters) {
 		log.info("placeHoldRequest({})", parameters);
 
+		UUID generated_request_id = UUID.randomUUID();
+		String id_as_string = generated_request_id.toString();
+
+		DummyRequestData drd = DummyRequestData.builder()
+			.initialParameters(parameters)
+			.requestId(id_as_string)
+			.requestStatus("HELD")
+			.build();
+
+		DummyItemData did = DummyItemData.builder()
+    	.itemId(parameters.getLocalItemId())
+    	.itemStatus("AVAILABLE")
+    	.itemBarcode(parameters.getLocalItemBarcode())
+			.build();
+
+		log.debug("Store {} as {} in dummyRequestStore",drd,id_as_string);
+		putDummyRequest(id_as_string, drd);
+		putDummyItem(parameters.getLocalItemId(), did);
+
 		return Mono.just(LocalRequest.builder()
-			.localId(UUID.randomUUID().toString())
+			.localId(id_as_string)
 			.localStatus("HELD")
 			.build());
 	}
@@ -463,5 +522,63 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
     log.info("Delete hold is not currently implemented for Dummy");
     return Mono.just("OK");
   }
+
+	public DummySystemData getDummySystem() {
+    DummySystemData dsd = dummySystems.get(getHostLmsCode());
+    if ( dsd == null ) {
+      dsd = new DummySystemData();
+      dummySystems.put(getHostLmsCode(), dsd);
+    }
+		return dsd;
+	}
+
+	public DummyRequestData getDummyRequest(String requestId) {
+		DummySystemData dsd = getDummySystem();
+		return dsd.getRequests().get(requestId);
+	}
+
+  public DummyItemData getDummyItem(String itemId) {
+		DummySystemData dsd = getDummySystem();
+    return dsd.getItems().get(itemId);
+  }
+
+	public void putDummyRequest(String request_id, DummyRequestData drd) {
+		DummySystemData dsd = getDummySystem();
+		dsd.getRequests().put(request_id,drd);
+	}
+
+	public void putDummyItem(String item_id, DummyItemData did) {
+		DummySystemData dsd = getDummySystem();
+		dsd.getItems().put(item_id,did);
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	@NoArgsConstructor
+  static class DummySystemData {
+  	public Map<String, DummyRequestData> requests = new HashMap<String, DummyRequestData>();
+  	public Map<String, DummyItemData> items = new HashMap<String, DummyItemData>();
+  }
+
+
+  @Data
+  @Builder
+  @Serdeable
+	static class DummyRequestData {
+		public PlaceHoldRequestParameters initialParameters;
+		public String requestId;
+		public String requestStatus;
+	}
+
+  @Data
+  @Builder
+  @Serdeable
+  static class DummyItemData {
+    public String itemId;
+    public String itemStatus;
+    public String itemBarcode;
+  } 
 
 }

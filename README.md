@@ -36,6 +36,10 @@ DB connection effectively, 2 different connections - with JDBC only being used f
 | MICRONAUT_METRICS_EXPORT_CLOUDWATCH_ENABLED | In AWS environments set to true to enable cloudwatch metrics export | true |
 | MICRONAUT_METRICS_EXPORT_CLOUDWATCH_NAMESPCE | Cloudwatch namespace | dcb |
 | DCB_LOG_APPENDERS | Optionally change the log appenders -default is both :- "CLOUDWATCH JSON_SYNC" set this to disable one or the other | JSON_SYNC |
+| DCB_INDEX_NAME | ES or OS index name ||
+| DCB_INDEX_USERNAME | ES or OS username ||
+| DCB_INDEX_PASSWORD | ES or OS password ||
+| ELASTICSEARCH_HTTP_HOSTS OR OPENSEARCH_HTTP_HOSTS | The url of the ES or OS instance | |
 
 # Configuration
 

@@ -15,6 +15,7 @@ export DCB_ENV_CODE="LOCAL-DEV"
 export DCB_ENV_DESCRIPTION="Local Dev"
 export LOGGER_LEVELS_ORG_OLF_DCB="DEBUG"
 export DCB_SHUTDOWN_MAXWAIT=60000
+export DCB_INDEX_NAME=mobius-si
 
 echo Access postgres with "psql -h localhost -p 49168 -U test" and the password test
 
