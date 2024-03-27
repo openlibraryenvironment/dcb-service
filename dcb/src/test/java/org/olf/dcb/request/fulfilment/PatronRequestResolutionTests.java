@@ -6,7 +6,6 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -17,6 +16,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalAgencyCode;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
@@ -199,7 +199,7 @@ class PatronRequestResolutionTests {
 
 		assertThat(onlySupplierRequest, allOf(
 			notNullValue(),
-			hasProperty("hostLmsCode", is(CATALOGUING_HOST_LMS_CODE)),
+			hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
 			hasLocalItemId("1000002"),
 			hasLocalItemBarcode("6565750674"),
 			hasLocalBibId("465675"),
@@ -262,7 +262,7 @@ class PatronRequestResolutionTests {
 	}
 
 	@Test
-	void shouldTolerateUnknownCirculatingHostLmsForItem() {
+	void shouldExcludeItemCirculatingHostLmsIsUnknown() {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
@@ -311,27 +311,12 @@ class PatronRequestResolutionTests {
 		// Assert
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
-		assertThat(fetchedPatronRequest, hasStatus(RESOLVED));
+		assertThat(fetchedPatronRequest, hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
 
-		final var onlySupplierRequest = supplierRequestsFixture.findFor(patronRequest);
+		assertThat("Should not find any supplier requests",
+			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
 
-		final DataAgency expectedAgency = agencyFixture.findByCode("unknown-circulating-host-lms");
-
-		assertThat(onlySupplierRequest, allOf(
-			notNullValue(),
-			hasProperty("hostLmsCode", is(CATALOGUING_HOST_LMS_CODE)),
-			hasLocalItemId(localItemId),
-			hasLocalItemBarcode(localItemBarcode),
-			hasLocalBibId(sourceRecordId),
-			hasLocalItemLocationCode("example-location"),
-			hasNoLocalItemStatus(),
-			hasNoLocalId(),
-			hasNoLocalStatus(),
-			hasLocalAgencyCode("unknown-circulating-host-lms"),
-			hasResolvedAgency(expectedAgency)
-		));
-
-		assertSuccessfulTransitionAudit(fetchedPatronRequest, RESOLVED);
+		assertSuccessfulTransitionAudit(fetchedPatronRequest, NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
 	}
 
 	@Test

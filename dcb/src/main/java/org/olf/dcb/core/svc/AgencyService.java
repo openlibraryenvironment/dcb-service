@@ -12,8 +12,10 @@ import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.storage.AgencyRepository;
 
 import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Singleton
 public class AgencyService {
 	private final AgencyRepository agencyRepository;
@@ -26,6 +28,7 @@ public class AgencyService {
 
 	public Mono<DataAgency> findByCode(String code) {
 		return Mono.from(agencyRepository.findOneByCode(code))
+			.doOnSuccess(agency -> log.debug("Found agency: {}", agency))
 			.flatMap(this::enrichWithHostLms);
 	}
 

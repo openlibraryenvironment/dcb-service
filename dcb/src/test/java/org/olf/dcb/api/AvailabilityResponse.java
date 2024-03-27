@@ -42,6 +42,8 @@ public class AvailabilityResponse {
 		private final String canonicalItemType;
 		@Nullable
 		private final Agency agency;
+		@Nullable
+		private final String hostLmsCode;
 	}
 
 	@Data

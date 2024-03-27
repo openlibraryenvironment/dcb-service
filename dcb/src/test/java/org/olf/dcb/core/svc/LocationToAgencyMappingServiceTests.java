@@ -8,6 +8,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgency;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoHostLmsCode;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,6 @@ import jakarta.inject.Inject;
 @DcbTest
 class LocationToAgencyMappingServiceTests {
 	private static final String CATALOGUING_HOST_LMS_CODE = "cataloguing-host-lms";
-	private static final String CIRCULATING_HOST_LMS_CODE = "circulating-host-lms";
 
 	@Inject
 	private LocationToAgencyMappingService locationToAgencyMappingService;
@@ -45,13 +45,15 @@ class LocationToAgencyMappingServiceTests {
 	@Test
 	void shouldEnrichItemWithAgencyMappedFromLocationCode() {
 		// Arrange
-		final var agencyCode = "known-agency";
+		final var circulatingHostLmsCode = "circulating-host-lms";
 
-		final var cataloguingHostLms = hostLmsFixture.createSierraHostLms(
-			CATALOGUING_HOST_LMS_CODE, "some-user",
+		final var circulatingHostLms = hostLmsFixture.createSierraHostLms(
+			circulatingHostLmsCode, "some-user",
 			"some-password", "https://some-address");
 
-		agencyFixture.defineAgency(agencyCode, "Known agency", cataloguingHostLms);
+		final var agencyCode = "known-agency";
+
+		agencyFixture.defineAgency(agencyCode, "Known agency", circulatingHostLms);
 
 		final var locationCode = "location-with-mapping";
 
@@ -68,7 +70,7 @@ class LocationToAgencyMappingServiceTests {
 		// Assert
 		assertThat(enrichedItem, hasAgencyCode(agencyCode));
 		assertThat(enrichedItem, hasAgencyName("Known agency"));
-		assertThat(enrichedItem, hasHostLmsCode(CATALOGUING_HOST_LMS_CODE));
+		assertThat(enrichedItem, hasHostLmsCode(circulatingHostLmsCode));
 	}
 
 	@Test
@@ -84,7 +86,7 @@ class LocationToAgencyMappingServiceTests {
 		assertThat(enrichedItem, allOf(
 			notNullValue(),
 			hasNoAgency(),
-			hasHostLmsCode(CATALOGUING_HOST_LMS_CODE)
+			hasNoHostLmsCode()
 		));
 	}
 
@@ -104,7 +106,7 @@ class LocationToAgencyMappingServiceTests {
 		assertThat(enrichedItem, allOf(
 			notNullValue(),
 			hasNoAgency(),
-			hasHostLmsCode(CATALOGUING_HOST_LMS_CODE)
+			hasNoHostLmsCode()
 		));
 	}
 
@@ -128,9 +130,12 @@ class LocationToAgencyMappingServiceTests {
 		final var enrichedItem = enrichItemWithAgency(item);
 
 		// Assert
-		assertThat(enrichedItem, hasAgencyCode(agencyCode));
-		assertThat(enrichedItem, hasAgencyName("Known agency"));
-		assertThat(enrichedItem, hasHostLmsCode(CATALOGUING_HOST_LMS_CODE));
+		assertThat(enrichedItem, allOf(
+			notNullValue(),
+			hasAgencyCode(agencyCode),
+			hasAgencyName("Known agency"),
+			hasNoHostLmsCode()
+		));
 	}
 
 	@Test
@@ -144,7 +149,7 @@ class LocationToAgencyMappingServiceTests {
 		assertThat(enrichedItem, allOf(
 			notNullValue(),
 			hasNoAgency(),
-			hasHostLmsCode(CATALOGUING_HOST_LMS_CODE)
+			hasNoHostLmsCode()
 		));
 	}
 
@@ -162,7 +167,7 @@ class LocationToAgencyMappingServiceTests {
 		assertThat(enrichedItem, allOf(
 			notNullValue(),
 			hasNoAgency(),
-			hasHostLmsCode(CATALOGUING_HOST_LMS_CODE)
+			hasNoHostLmsCode()
 		));
 	}
 

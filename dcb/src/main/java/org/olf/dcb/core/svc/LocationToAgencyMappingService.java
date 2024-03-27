@@ -31,9 +31,7 @@ public class LocationToAgencyMappingService {
 		return Mono.just(incomingItem)
 			.zipWhen(item -> findLocationToAgencyMapping(item, hostLmsCode))
 			.map(function(Item::setAgency))
-			.defaultIfEmpty(incomingItem)
-			// This has to be set separately in case agency is not found
-			.map(item -> item.setHostLmsCode(hostLmsCode));
+			.defaultIfEmpty(incomingItem);
 	}
 
 	private Mono<DataAgency> findLocationToAgencyMapping(Item item, String hostLmsCode) {

@@ -47,6 +47,7 @@ public class HostLmsService implements IngestSourcesProvider {
 	
 	public Mono<DataHostLms> findById(UUID id) {
 		return Mono.from(hostLmsRepository.findById(id))
+			.doOnSuccess(hostLms -> log.debug("Found Host LMS: {}", hostLms))
 			.switchIfEmpty(Mono.error(() -> new UnknownHostLmsException("ID", id)));
 	}
 

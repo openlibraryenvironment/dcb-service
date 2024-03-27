@@ -5,11 +5,13 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.core.svc.RecordClusteringService;
 import org.olf.dcb.ingest.model.IngestRecord;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +48,7 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 	@Value("${dcb.shutdown.maxwait:0}")
 	protected long maxWaitTime;
 	
-	private static final int INGEST_PASS_RECORDS_THRESHOLD = 100000;
+	private static final int INGEST_PASS_RECORDS_THRESHOLD = 100_000;
 
 	private Disposable mutex = null;
 	private MonoSink<String> terminationReason; 
@@ -62,7 +64,7 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
   private final ConcurrencyGroupService concurrency;
   private final ReactorFederatedLockService lockService;
 
-	IngestService(BibRecordService bibRecordService, 
+	protected IngestService(BibRecordService bibRecordService, 
 		List<IngestSourcesProvider> sourceProviders, 
 		PublisherTransformationService publisherHooksService, 
 		RecordClusteringService recordClusteringService, 
@@ -143,7 +145,7 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 				return false;
 			})
 			
-			.transform( concurrency.toGroupedSubscription( source -> getRecordsFromSource(source, terminator) ) )
+			.transform( concurrency.toGroupedSubscription( subscribeToSource(terminator) ) )
 
 			.doOnNext( _ir -> {
 				int count = counter.addAndGet(1);
@@ -165,6 +167,11 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 
 		.transform(publisherTransformationService.getTransformationChain(TRANSFORMATIONS_BIBS)) // Apply any hooks for "ingest-bibs";
 		.doOnError ( throwable -> log.warn("ONERROR Error after transform step", throwable) );
+	}
+
+
+	protected Function<IngestSource, Publisher<IngestRecord>> subscribeToSource(final Mono<String> terminator) {
+		return source -> getRecordsFromSource(source, terminator);
 	}
 	
 
