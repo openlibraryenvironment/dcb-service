@@ -108,7 +108,7 @@ public class PatronRequestResolutionService {
 			.localItemType(item.getLocalItemType())
 			.canonicalItemType(item.getCanonicalItemType())
 			.hostLmsCode(item.getHostLmsCode())
-			.localAgency(item.getAgency() != null ? item.getAgency().getCode() : null)
+			.localAgency(item.getAgencyCode())
 			.statusCode(PENDING)
 			.isActive(true)
 			.resolvedAgency(item.getAgency())

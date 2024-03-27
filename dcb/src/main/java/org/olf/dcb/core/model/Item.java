@@ -57,6 +57,10 @@ public class Item implements Comparable<Item> {
 		return getValue(location, Location::getCode);
 	}
 
+	public String getAgencyCode() {
+		return getValue(agency, Agency::getCode);
+	}
+
 	public HostLms getHostLms() {
 		return getValue(agency, Agency::getHostLms);
 	}
