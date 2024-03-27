@@ -60,7 +60,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 class SierraHostLmsClientItemTests {
-	private static final String HOST_LMS_CODE = "sierra-item-api-tests";
+	private static final String CATALOGUING_HOST_LMS_CODE = "sierra-item-cataloguing";
+	private static final String CIRCULATING_HOST_LMS_CODE = "sierra-item-circulating";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -94,7 +95,8 @@ class SierraHostLmsClientItemTests {
 
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
+		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
+		hostLmsFixture.createSierraHostLms(CIRCULATING_HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 	}
 
 	@BeforeEach
@@ -141,15 +143,17 @@ class SierraHostLmsClientItemTests {
 				.build()
 		));
 
-		numericRangeMappingFixture.createMapping(HOST_LMS_CODE, "ItemType", 999L, 999L, "DCB", "BKM");
+		numericRangeMappingFixture.createMapping(CATALOGUING_HOST_LMS_CODE,
+			"ItemType", 999L, 999L, "DCB", "BKM");
 
 		agencyFixture.defineAgency("sierra-agency", "Sierra Agency",
-			hostLmsFixture.findByCode(HOST_LMS_CODE));
+			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE, "ab5", "sierra-agency");
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CATALOGUING_HOST_LMS_CODE, "ab5", "sierra-agency");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var items = getItems(client, "65423515");
 
@@ -166,9 +170,9 @@ class SierraHostLmsClientItemTests {
 				hasLocalItemTypeCode("999"),
 				hasCanonicalItemType("BKM"),
 				hasHoldCount(0),
-				hasHostLmsCode(HOST_LMS_CODE),
 				hasAgencyCode("sierra-agency"),
 				hasAgencyName("Sierra Agency"),
+				hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
 				suppressionUnknown(),
 				isNotDeleted()
 			),
@@ -184,8 +188,8 @@ class SierraHostLmsClientItemTests {
 				hasLocalItemTypeCode("999"),
 				hasCanonicalItemType("BKM"),
 				hasHoldCount(1),
-				hasHostLmsCode(HOST_LMS_CODE),
 				hasNoAgency(),
+				hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
 				suppressionUnknown(),
 				isNotDeleted()
 			),
@@ -201,8 +205,8 @@ class SierraHostLmsClientItemTests {
 				hasLocalItemTypeCode("999"),
 				hasCanonicalItemType("BKM"),
 				hasHoldCount(2),
-				hasHostLmsCode(HOST_LMS_CODE),
 				hasNoAgency(),
+				hasHostLmsCode(CATALOGUING_HOST_LMS_CODE),
 				suppressionUnknown(),
 				isNotDeleted()
 			)
@@ -213,7 +217,7 @@ class SierraHostLmsClientItemTests {
 	void shouldProvideNoItemsWhenSierraRespondsWithNoRecordsFoundError() {
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("87878325");
 
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var items = getItems(client,"87878325");
 
