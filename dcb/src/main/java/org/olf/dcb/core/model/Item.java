@@ -30,7 +30,6 @@ public class Item implements Comparable<Item> {
 	private Location location;
 	private String barcode;
 	private String callNumber;
-	private String hostLmsCode;
 	private Boolean isRequestable;
 	private Integer holdCount;
 	private String localBibId;
@@ -60,6 +59,10 @@ public class Item implements Comparable<Item> {
 
 	public HostLms getHostLms() {
 		return getValue(agency, Agency::getHostLms);
+	}
+
+	public String getHostLmsCode() {
+		return getValue(getHostLms(), HostLms::getCode);
 	}
 
 	@Override
