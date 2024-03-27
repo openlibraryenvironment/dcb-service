@@ -66,6 +66,9 @@ public class PatronRequestWorkflowService {
 		}
 	}
 
+	/**
+	 * Initiate a new request workflow
+	 */
 	public void initiate(PatronRequest patronRequest) {
 		log.info("WORKFLOW initiate({})", patronRequest);
 
@@ -77,11 +80,33 @@ public class PatronRequestWorkflowService {
 			.subscribe();
 	}
 	
+	/**
+	 * Try to progress the identified patron request. This is the main entry point for trying to progress a patron request.
+	 */
 	public Flux<PatronRequest> progressAll(PatronRequest patronRequest) {
+		return this.progressAll(patronRequest, false);
+	}
+
+	public Flux<PatronRequest> progressAll(PatronRequest patronRequest, boolean pollDownstream) {
 		log.debug("WORKFLOW progressAll({})", patronRequest);
 
 		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+			.flatMap( ctx -> this.optionallyPollDownstreamSystems(ctx, pollDownstream) )
 			.flatMapMany( ctx -> this.progressUsing(ctx, getApplicableTransitionFor(ctx) ));
+	}
+
+	/**
+	 * If requested to, workflow can poll downstream systems to make sure we have the latest status information
+	 * before attempting to progress a request.
+	 */
+	public Mono<RequestWorkflowContext> optionallyPollDownstreamSystems(RequestWorkflowContext ctx, boolean pollDownstream) {
+		if ( pollDownstream ) {
+		log.debug("perform downstream polling from workflow service");
+			return Mono.just(ctx);
+		}
+
+		log.debug("skip downstream polling from workflow service");
+		return Mono.just(ctx);
 	}
 
 	public Flux<PatronRequest> progressUsing(PatronRequest patronRequest, PatronRequestStateTransition action) {

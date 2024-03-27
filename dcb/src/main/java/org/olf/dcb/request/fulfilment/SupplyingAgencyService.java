@@ -246,7 +246,6 @@ public class SupplyingAgencyService {
 	// This can change as we select different suppliers, so we recalculate for each new supplier.
 	private Mono<RequestWorkflowContext> setPatronRequestWorkflow(RequestWorkflowContext psrc) {
 
-		log.debug("setPatronRequestWorkflow for {}", psrc);
 		if ((psrc.getPatronAgencyCode().equals(psrc.getLenderAgencyCode())) &&
 			(psrc.getPatronAgencyCode().equals(psrc.getPickupAgencyCode()))) {
 			// Case 1 : Purely local request
@@ -270,16 +269,17 @@ public class SupplyingAgencyService {
 
 		return checkIfPatronExistsAtSupplier(psrc)
 			.switchIfEmpty(Mono.defer(() -> {
-				log.warn("checkIfPatronExistsAtSupplier {} false, creating new patron record", psrc);
+				log.warn("checkIfPatronExistsAtSupplier is false, creating new patron record prid={}",patronRequest.getId());
 				return createPatronAtSupplier(patronRequest, supplierRequest);
 			}));
 	}
 
 	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(RequestWorkflowContext psrc) {
-		log.debug("checkIfPatronExistsAtSupplier({})", psrc);
 
 		final var patronRequest = psrc.getPatronRequest();
 		final var supplierRequest = psrc.getSupplierRequest();
+
+		log.debug("checkIfPatronExistsAtSupplier(prid={})", patronRequest.getId());
 
 		// Get supplier system interface
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
