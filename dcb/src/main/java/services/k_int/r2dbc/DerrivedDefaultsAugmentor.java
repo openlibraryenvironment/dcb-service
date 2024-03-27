@@ -31,21 +31,25 @@ public class DerrivedDefaultsAugmentor implements BeanCreatedEventListener<Conne
 			return MIN_POOLSIZE;
 		}
 		
-		final int recommendation = (availableProcessors / 2) + 1;
+		// final int recommendation = (availableProcessors / 2) + 1;
+		final int recommendation = (availableProcessors) + 1;
 		if (recommendation < 4) {
 			log.atWarn()
-				.log("Based on the available proceesor information [{}], a pool size of [{}] would be used. "
+				.log("Based on the available proceesor information [{}], recommended pool size of [{}] would be used. "
 						+ "A default of [{}] will be used instead as this is too low, and you should consider increasing the available cores", availableProcessors, recommendation, MIN_POOLSIZE);
 			return MIN_POOLSIZE;
 		}
 		
 		log.atInfo()
 			.log("Based on the available proceesor information [{}], a pool size of [{}] will be used.", availableProcessors, recommendation);
+
 		return recommendation;
 	}
 
 	@Override
 	public ConnectionFactoryOptions onCreated(@NonNull BeanCreatedEvent<ConnectionFactoryOptions> event) {
+
+		log.atInfo().log("event: {}",event);
 		
 		var opts = event.getBean();
 		var newOptsBuilder = ConnectionFactoryOptions.builder().from(opts);
@@ -53,9 +57,11 @@ public class DerrivedDefaultsAugmentor implements BeanCreatedEventListener<Conne
 		final int recommendation = getRecommendedPoolsize();
 		int initial = recommendation; // Default the initial poolsize to our recommendation.
 		if (!opts.hasOption(OPT_MAX_SIZE)) {
+			log.atWarn().log("Using recommended pool size {}",recommendation);
 			newOptsBuilder.option(OPT_MAX_SIZE, recommendation);
 		} else {
 			var valObj = opts.getValue(OPT_MAX_SIZE);
+			log.atWarn().log("Using specified pool size {}",valObj);
 			try {
 				if (valObj != null) {
 					initial = Integer.valueOf("" + valObj);
