@@ -752,12 +752,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		log.info("checkOutItemToPatron({},{},{})",itemId,patronBarcode,localRequestId);
 
-		final var patronBarcodePrefix = extractMapValueWithDefault(
-			getServicesConfig(), PATRON_BARCODE_PREFIX, String.class, "DCB-");
-		final var barcodeWithPrefix = patronBarcodePrefix + patronBarcode;
-
 		return ApplicationServices.getItemBarcode(itemId)
-			.flatMap(itemBarcode -> PAPIService.itemCheckoutPost(itemBarcode, barcodeWithPrefix))
+			.flatMap(itemBarcode -> PAPIService.itemCheckoutPost(itemBarcode, patronBarcode))
 			.map(itemCheckoutResult -> "OK");
 	}
 
