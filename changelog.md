@@ -1,9 +1,40 @@
 # Changelog
 
+## Version 5.12.0
+
+### Additions
+* [Tracking]
+	* Improvements
+* [General]
+	* Use Host LMS from agency for items DCB-947
+	* Ingest counts per second
+	* Exclude items without an agency from resolution DCB-947
+	* update a Polaris virtual item to pickup transit [DCB-950]
+
+### Changes
+* [Chore]
+	* preparation for tracking refactor
+	* Added DummyRequestData class to DummyHostLms to be able to track requests
+	* make next scheduled check nullable
+	* Added previous state and is loaned to vpatron props
+	* Added tracking helpers
+	* add missig migration
+	* Preparation for pre scheduled tracking, paused requests and needs attention
+	* Add location.localId to graphql schema
+	* Sierra now tracks the highest record timestamp seen at ingest time in preparation for refining the delta process
+
+### Fixes
+* [General]
+	* use pickup locations local id for folios borrowing request
+	* use new query param for polaris ingest 'startdatemodified'
+	* polaris workflow Hold requests are not permitted on Provisional records
+	* get item with duplicate barcode in polaris [DCB-949]
+
 ## Version 5.11.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* comment out graalvm jar it causes the native image build to explode
 
 ## Version 5.11.0
