@@ -80,6 +80,7 @@ public class SupplierRequest {
 	@Size(max = 200)
 	private String localItemLocationCode;
 
+	@ToString.Include
 	@Nullable
 	@Size(max = 32)
 	private String localItemStatus;

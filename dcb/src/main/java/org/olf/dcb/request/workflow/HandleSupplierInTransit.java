@@ -115,21 +115,10 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 
 		log.debug("Consider HandleSupplierInTransit - {} {}",ctx.getPatronRequest().getStatus(),ctx.getSupplierRequest());
 
-		if ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()))
-			log.debug("First clause passes");
-
-		if ( ctx.getSupplierRequest() != null ) {
-			log.debug("Second clause passes - local status is {}",ctx.getSupplierRequest().getLocalStatus());
-			log.debug("expression \"{}\" == \"{}\"",ctx.getSupplierRequest().getLocalStatus(),HostLmsItem.ITEM_TRANSIT);
-		}
-		else {
-			log.warn("Supplier request is null");
-		}
-
 		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus())) &&
 			( ctx.getSupplierRequest() != null ) &&
-			( ctx.getSupplierRequest().getLocalStatus() != null ) &&
-			( ctx.getSupplierRequest().getLocalStatus().equals(HostLmsItem.ITEM_TRANSIT) );
+			( ctx.getSupplierRequest().getLocalItemStatus() != null ) &&
+			( ctx.getSupplierRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_TRANSIT) );
 	}
 
 	@Override
