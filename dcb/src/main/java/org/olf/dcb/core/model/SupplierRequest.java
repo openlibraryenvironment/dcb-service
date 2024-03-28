@@ -121,6 +121,7 @@ public class SupplierRequest {
 	@Size(max = 200)
 	private String localId;
 
+	@ToString.Include
 	@Nullable
 	@Size(max = 32)
 	private String localStatus;

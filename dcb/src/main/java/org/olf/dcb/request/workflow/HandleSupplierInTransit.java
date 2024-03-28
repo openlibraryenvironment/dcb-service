@@ -115,14 +115,28 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 
 		log.debug("Consider HandleSupplierInTransit - {} {}",ctx.getPatronRequest().getStatus(),ctx.getSupplierRequest());
 
+		if ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()))
+			log.debug("First clause passes");
+
+		if ( ctx.getSupplierRequest() != null ) {
+			log.debug("Second clause passes - local status is {}",ctx.getSupplierRequest().getLocalStatus());
+			log.debug("expression \"{}\" == \"{}\"",ctx.getSupplierRequest().getLocalStatus(),HostLmsItem.ITEM_TRANSIT);
+		}
+		else {
+			log.warn("Supplier request is null");
+		}
+
 		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus())) &&
 			( ctx.getSupplierRequest() != null ) &&
+			( ctx.getSupplierRequest().getLocalStatus() != null ) &&
 			( ctx.getSupplierRequest().getLocalStatus().equals(HostLmsItem.ITEM_TRANSIT) );
 	}
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
-		log.debug("Attempting transit transition for supplier request");
+
+		log.info("Attempting HandleSupplierInTransit for {}",ctx.getPatronRequest().getId());
+
 		ctx.getPatronRequest().setStatus(PatronRequest.Status.PICKUP_TRANSIT);
 		return updateUpstreamSystems(ctx)
 			// If we managed to update other systems, then update the supplier request
