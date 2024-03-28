@@ -1074,16 +1074,17 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.switchIfEmpty(Mono.defer(() -> { return patronFind("b", username); }));
 	}
 
-
 	@Override
 	public Mono<Patron> updatePatron(String localPatronId, String patronType) {
-		log.debug("updatePatron({})", localPatronId);
+		log.debug("updatePatron localPatronId {} patronType {}", localPatronId, patronType);
 
-		final var patronPatch = PatronPatch.builder().patronType(parseInt(patronType)).build();
+		final var parsedPatronType = parseInt(patronType);
+		PatronPatch patronPatch = PatronPatch.builder().patronType(parsedPatronType).build();
 
 		return Mono.from(client.updatePatron(Long.valueOf(localPatronId), patronPatch))
-			.flatMap(this::sierraPatronToHostLmsPatron)
-			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLmsCode())));
+			.doOnSuccess(__ -> log.info("Patron successfully updated."))
+			.then(Mono.defer(() -> getPatronByLocalId(localPatronId)))
+			.doOnError(error -> log.error("Error updating patron: {}", error.getMessage()));
 	}
 
 	public Mono<HostLmsRequest> sierraPatronHoldToHostLmsHold(SierraPatronHold sierraHold) {
