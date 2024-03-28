@@ -10,9 +10,10 @@ import io.r2dbc.spi.Option;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
-@Requires(bean = ConnectionFactoryOptions.class)
+// Ian: Disabling this for now - it seems to prevent us overriding the pool size via the environment
+// @Requires(bean = ConnectionFactoryOptions.class)
 @Slf4j
-@Singleton
+// @Singleton
 public class DerrivedDefaultsAugmentor implements BeanCreatedEventListener<ConnectionFactoryOptions> {
 
 	private static final int MIN_POOLSIZE = 4;
