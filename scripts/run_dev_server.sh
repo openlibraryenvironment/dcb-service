@@ -16,7 +16,7 @@ export DCB_ENV_DESCRIPTION="Local Dev"
 export LOGGER_LEVELS_ORG_OLF_DCB="DEBUG"
 export DCB_SHUTDOWN_MAXWAIT=60000
 export DCB_INDEX_NAME=mobius-si
-export R2DBC_DATASOURCES_DEFAULT_OPTIONS_MAXSIZE=27
+export R2DBC_DATASOURCES_DEFAULT_OPTIONS_MAX_SIZE=27
 
 echo Access postgres with "psql -h localhost -p 49168 -U test" and the password test
 
