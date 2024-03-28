@@ -52,7 +52,9 @@ public class AvailabilityResponseView {
 			new Status(item.getStatus().getCode().name()), item.getDueDate(),
 			new Location(item.getLocation().getCode(), item.getLocation().getName()),
 			item.getBarcode(), item.getCallNumber(), item.getHostLmsCode(),
-			item.getIsRequestable(), item.getHoldCount(), item.getLocalItemType(),
+			item.getIsRequestable(), 
+			item.getSuppressed(), 
+			item.getHoldCount(), item.getLocalItemType(),
 			item.getCanonicalItemType(),
 			item.getLocalItemTypeCode(),
 			mappedAgency,
@@ -73,6 +75,8 @@ public class AvailabilityResponseView {
 		private final String callNumber;
 		private final String hostLmsCode;
 		private final Boolean isRequestable;
+		@Nullable
+		private final Boolean isSuppressed;
 		private final Integer holdCount;
 		private final String localItemType;
 		private final String canonicalItemType;
