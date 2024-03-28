@@ -112,9 +112,12 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		// This action fires when the state is REQUEST_PLACED_AT_BORROWING_AGENCY and we detected
 		// that the supplying library has placed its request IN TRANSIT
-		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) &&
-			ctx.getSupplierRequest() != null &&
-			ctx.getSupplierRequest().getLocalStatus().equals(HostLmsItem.ITEM_TRANSIT);
+
+		log.debug("Consider HandleSupplierInTransit - {} {}",ctx.getPatronRequest().getStatus(),ctx.getSupplierRequest());
+
+		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus())) &&
+			( ctx.getSupplierRequest() != null ) &&
+			( ctx.getSupplierRequest().getLocalStatus().equals(HostLmsItem.ITEM_TRANSIT) );
 	}
 
 	@Override
