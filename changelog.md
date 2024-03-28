@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 5.12.1
+
+### Changes
+* [Chore]
+	* more logging for HandleSupplierInTransit
+	* Additional logging around isApplicable for HandleSupplierInTransit
+	* Surface suppressed flag in RTAC results
+
+### Fixes
+* [General]
+	* HandleSupplierInTransit is triggered by ITEM type and not REQUEST type
+	* patron update for patron type in Sierra client
+
 ## Version 5.12.0
 
 ### Additions
@@ -13,6 +26,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* preparation for tracking refactor
 	* Added DummyRequestData class to DummyHostLms to be able to track requests
 	* make next scheduled check nullable
