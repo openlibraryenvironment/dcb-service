@@ -106,13 +106,7 @@ public class SierraPatronsAPIFixture {
 	public void updatePatron(String patronId) {
 		mockServer
 			.when(putPatron(patronId))
-			.respond(successfulPatron(Patron.builder()
-				.id(1000002)
-				.patronType(15)
-				.homeLibraryCode("testccc")
-				.barcodes(List.of("647647746"))
-				.names(List.of("Bob"))
-				.build()));
+			.respond(sierraMockServerResponses.noContent());
 	}
 
 	public void verifyUpdatePatronRequestMade(String expectedPatronId) {

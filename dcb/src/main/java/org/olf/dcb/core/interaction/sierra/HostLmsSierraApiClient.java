@@ -265,11 +265,11 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	}
 
 	@SingleResult
-	public Publisher<SierraPatronRecord> updatePatron(@Nullable final Long patronId, PatronPatch patronPatch) {
+	public Mono<Void> updatePatron(@Nullable final Long patronId, PatronPatch patronPatch) {
 
 		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Update_the_Patron_record_put_19
-		return createRequest(HttpMethod.PUT, "patrons/" + patronId).map(request -> request.body(patronPatch))
-				.flatMap(this::ensureToken).flatMap(req -> doRetrieve(req, Argument.of(SierraPatronRecord.class)));
+		return putRequest("patrons/" + patronId).map(request -> request.body(patronPatch))
+				.flatMap(this::ensureToken).flatMap(req -> doExchange(req, Object.class)).then();
 	}
 
 	@SingleResult

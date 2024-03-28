@@ -144,6 +144,13 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		// The unexpected patron type will trigger a request to update the virtual patron
 		sierraPatronsAPIFixture.updatePatron("1000002");
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("1000002", SierraPatronsAPIFixture.Patron.builder()
+			.id(1000002)
+			.patronType(15)
+			.homeLibraryCode("testccc")
+			.barcodes(List.of("647647746"))
+			.names(List.of("Bob"))
+			.build());
 
 		final var localItemId = "45736543";
 

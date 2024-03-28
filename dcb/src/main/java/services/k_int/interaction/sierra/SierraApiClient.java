@@ -136,7 +136,7 @@ public interface SierraApiClient extends BasicAuthClient {
 
 	@SingleResult
 	@Put("/patrons/{id}")
-	Publisher<SierraPatronRecord> updatePatron(@Nullable @PathVariable("id") final Long patronId,
+	Publisher<Void> updatePatron(@Nullable @PathVariable("id") final Long patronId,
 			@Body final PatronPatch patronPatch);
 
 	@SingleResult
