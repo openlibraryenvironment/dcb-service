@@ -314,10 +314,16 @@ public class SupplyingAgencyService {
 			// Work out the ???
 			.flatMap(requestingIdentity -> determinePatronType(supplierHostLmsCode, requestingIdentity))
 			.doOnNext(newlyMappedVPatronType -> log.debug("Testing to see if patron type needs to be updated from {} to {}",patronType,newlyMappedVPatronType) )
-			// don't continue the stream if the local type matches what we have stored
-			.filter(newlyMappedVPatronType -> newlyMappedVPatronType.equals(patronType))
-			// if the returned value and the stored value were different, we have an empty stream, update the virtual patron
-			.switchIfEmpty(Mono.defer(() -> updateVirtualPatron(supplierHostLmsCode, localId, patronType)))
+			.flatMap(newlyMappedVPatronType -> {
+
+				// if the returned value and the stored value were different, update the virtual patron
+				if (newlyMappedVPatronType != patronType) {
+					return updateVirtualPatron(supplierHostLmsCode, localId, newlyMappedVPatronType);
+				}
+
+				// do nothing if the patron types are equal
+				return Mono.just(newlyMappedVPatronType);
+			})
 			// Construct return tuple
 			.map(updatedPatronType -> Tuples.of(localId, updatedPatronType));
 	}
