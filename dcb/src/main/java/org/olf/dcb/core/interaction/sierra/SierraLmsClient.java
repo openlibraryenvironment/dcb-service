@@ -603,20 +603,35 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// location where the item currently resides
 		// return placeHoldRequest(parameters, parameters.getSupplyingLocalItemLocation());
 
-		return placeHoldRequest(parameters, parameters.getPickupLocationCode());
+		return placeHoldRequest(parameters, parameters.getPickupLocationCode(), "supplier");
 	}
 
 	@Override
-	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(
-		PlaceHoldRequestParameters parameters) {
-		// When placing the hold at a borrower system we want to use the pickup location code as selected by
+	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
+
+		// When placing the hold at a pickup system we want to use the pickup location code as selected by
 		// the patron
-		return placeHoldRequest(parameters, parameters.getPickupLocationCode());
+
+		// Start with the default - a fallback - but unlikely to be correct
+		String pickup_location_code = parameters.getPickupLocationCode();
+
+		// Now, look to see if we have attached the location record corresponding to a user selection. If so,
+		// Sierra expects us to use the right code for the local pickup location - extract that from the code field
+		// of the location record. N.B. This is different to polaris and FOLIO which use local-id because in those
+		// systems, a location can have BOTH a code(e.g. "DB") and an ID(e.g. 24).
+    if ( parameters.getPickupLocation() != null ) {
+      if ( parameters.getPickupLocation().getCode() != null ) {
+        log.debug("Overriding pickup location code with code from location record");
+        pickup_location_code = parameters.getPickupLocation().getCode();
+			}
+    }
+
+		return placeHoldRequest(parameters, pickup_location_code, "borrower");
 	}
 
 	private Mono<LocalRequest> placeHoldRequest(
-		PlaceHoldRequestParameters parameters, String pickupLocation) {
-		log.debug("placeHoldRequest({})", parameters);
+		PlaceHoldRequestParameters parameters, String pickupLocation, String role) {
+		log.debug("placeHoldRequest({},{},{})", role, pickupLocation, parameters);
 
 		final String recordNumber;
 		final String recordType;
