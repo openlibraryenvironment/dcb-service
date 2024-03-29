@@ -300,24 +300,22 @@ public class SupplyingAgencyService {
 			log.warn("VPatron will have no barcodes {}/{}",patronRequest,patron);
 		}
 
-		return checkPatronType( patron.getLocalId().get(0),
-				patron.getLocalPatronType(), patronRequest, supplierRequest.getHostLmsCode())
-			.flatMap(function((localId, patronType) ->
-				checkForPatronIdentity(patronRequest, supplierRequest.getHostLmsCode(),
-					localId, patronType, barcodes_as_string)));
+		return checkPatronType( patron.getLocalId().get(0), patron.getLocalPatronType(), patronRequest, supplierRequest.getHostLmsCode())
+			.flatMap(function((localId, patronType) -> checkForPatronIdentity(patronRequest, supplierRequest.getHostLmsCode(), localId, patronType, barcodes_as_string)));
 	}
 
 	private Mono<Tuple2<String, String>> checkPatronType(String localId,
 		String patronType, PatronRequest patronRequest, String supplierHostLmsCode) {
 
-		log.debug("checkPatronType {}, {}", localId, patronType);
+		log.debug("checkPatronType localId={}, patronType={}", localId, patronType);
 
 		// Work out what the global patronId is we are using for this real patron
 		return getRequestingIdentity(patronRequest)
 			// Work out the ???
 			.flatMap(requestingIdentity -> determinePatronType(supplierHostLmsCode, requestingIdentity))
+			.doOnNext(newlyMappedVPatronType -> log.debug("Testing to see if patron type needs to be updated from {} to {}",patronType,newlyMappedVPatronType) )
 			// don't continue the stream if the local type matches what we have stored
-			.filter(dcbPatronType -> dcbPatronType.equals(patronType))
+			.filter(newlyMappedVPatronType -> newlyMappedVPatronType.equals(patronType))
 			// if the returned value and the stored value were different, we have an empty stream, update the virtual patron
 			.switchIfEmpty(Mono.defer(() -> updateVirtualPatron(supplierHostLmsCode, localId, patronType)))
 			// Construct return tuple
