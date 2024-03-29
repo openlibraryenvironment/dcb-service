@@ -804,7 +804,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode, String localRequestId) {
+	public Mono<String> checkOutItemToPatron(String itemId, String itemBarcode, String patronId, String patronBarcode, String localRequestId) {
 
 		// HandleBorrowerItemLoaned
 		return updateTransactionStatus(localRequestId, TransactionStatus.ITEM_CHECKED_OUT)

@@ -295,7 +295,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	// WARNING We might need to make this accept a patronIdentity - as different
 	// systems might take different ways to identify the patron
 
-	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode, String localRequestId) {
+	public Mono<String> checkOutItemToPatron(String itemId, String itemBarcode, String patronId, String patronBarcode, String localRequestId) {
 		log.info("checkOutItemToPatron({},{})", itemId, patronBarcode);
 		return Mono.just("DUMMY");
 	}

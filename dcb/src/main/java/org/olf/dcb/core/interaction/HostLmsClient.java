@@ -75,7 +75,7 @@ public interface HostLmsClient {
 
 	// WARNING We might need to make this accept a patronIdentity - as different
 	// systems might take different ways to identify the patron
-	Mono<String> checkOutItemToPatron(String itemId, String patronBarcode, String localRequestId);
+	Mono<String> checkOutItemToPatron(String itemId, String itemBarcode, String patronId, String patronBarcode, String localRequestId);
 
 	Mono<String> deleteItem(String id);
 

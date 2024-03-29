@@ -603,7 +603,7 @@ class PolarisLmsClientTests {
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var response = singleValueFrom(client
-			.checkOutItemToPatron(localItemId, localPatronBarcode, null));
+			.checkOutItemToPatron(localItemId, null, null, localPatronBarcode, null));
 
 		// Assert
 		assertThat(response, is(notNullValue()));

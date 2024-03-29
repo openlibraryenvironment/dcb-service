@@ -103,7 +103,13 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 		if ( hostLmsClient.reflectPatronLoanAtSupplier() ) {
 			return hostLmsClient.updateItemStatus(supplierRequest.getLocalItemId(), AVAILABLE, supplierRequest.getLocalId())
-				.then(hostLmsClient.checkOutItemToPatron(supplierRequest.getLocalItemId(), patronBarcode[0], supplierRequest.getLocalId()))
+				.then(hostLmsClient.checkOutItemToPatron(
+					supplierRequest.getLocalItemId(), 
+					supplierRequest.getLocalItemBarcode(),
+					rwc.getPatronVirtualIdentity().getLocalId(),
+					patronBarcode[0], 
+					supplierRequest.getLocalId()))
+
 				// .then(hostLmsClient.checkOutItemToPatron(rwc.getSupplierRequest().getLocalItemBarcode(), patronBarcode[0], supplierRequest.getLocalId()))
 				.thenReturn(rwc);
 		}

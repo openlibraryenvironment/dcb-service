@@ -1225,7 +1225,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	// WARNING We might need to make this accept a patronIdentity - as different
 	// systems might take different ways to identify the patron
 	@Override
-	public Mono<String> checkOutItemToPatron(String itemId, String patronBarcode, String localRequestId) {
+	public Mono<String> checkOutItemToPatron(String itemId, String itemBarcode, String patronId, String patronBarcode, String localRequestId) {
 		log.debug("checkOutItemToPatron({},{})", itemId, patronBarcode);
 
 		return Mono.from(client.checkOutItemToPatron(itemId, patronBarcode))
