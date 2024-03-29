@@ -602,6 +602,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// When placing the hold on a suppling location, the item will be "Picked up" by the transit van at the
 		// location where the item currently resides
 		// return placeHoldRequest(parameters, parameters.getSupplyingLocalItemLocation());
+		String pickup_location_code = parameters.getPickupLocationCode();
+
+		// We would like pickup location to be code@agency not just agency
+    if ( parameters.getPickupLocation() != null ) {
+      if ( parameters.getPickupLocation().getCode() != null ) {
+				pickup_location_code = parameters.getPickupLocation().getCode() + "@" + parameters.getPickupLocationCode();
+			}
+		}
 
 		return placeHoldRequest(parameters, parameters.getPickupLocationCode(), "supplier");
 	}
