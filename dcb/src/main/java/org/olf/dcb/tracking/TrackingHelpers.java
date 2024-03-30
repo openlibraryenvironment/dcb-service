@@ -21,7 +21,8 @@ public class TrackingHelpers {
       case RESOLVED -> null;
       case NOT_SUPPLIED_CURRENT_SUPPLIER -> null;
       case NO_ITEMS_AVAILABLE_AT_ANY_AGENCY -> null;
-      case REQUEST_PLACED_AT_SUPPLYING_AGENCY -> Duration.ofMinutes(1);
+			// We want to poll in real time for confirmed - in part this is due to tests 1m would be OK
+      case REQUEST_PLACED_AT_SUPPLYING_AGENCY -> Duration.ofSeconds(0);
       case CONFIRMED -> null;
       case REQUEST_PLACED_AT_BORROWING_AGENCY -> Duration.ofHours(1);
       case RECEIVED_AT_PICKUP -> Duration.ofHours(1);

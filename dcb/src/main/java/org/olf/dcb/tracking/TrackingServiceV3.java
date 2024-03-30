@@ -1,227 +1,81 @@
 package org.olf.dcb.tracking;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 import java.util.function.Function;
+import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.model.StatusCode;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
-import org.olf.dcb.storage.StatusCodeRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
 
-import io.micronaut.context.annotation.Replaces;
-import io.micronaut.scheduling.TaskExecutors;
-import io.micronaut.scheduling.annotation.ExecuteOn;
+import io.micronaut.runtime.context.scope.Refreshable;
 import io.micronaut.scheduling.annotation.Scheduled;
-import io.micronaut.transaction.TransactionDefinition.Propagation;
-import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.function.TupleUtils;
-import reactor.util.function.Tuples;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
-import services.k_int.stability.FeatureGate;
-import services.k_int.stability.StabilityLevel.Beta;
+import java.time.Instant;
+import java.time.Duration;
+import io.micrometer.core.annotation.Timed;
 
 @Slf4j
+@Refreshable
 @Singleton
-@Beta
-@FeatureGate("tracking-v2")
-@Replaces(bean = TrackingService.class)
-@ExecuteOn(TaskExecutors.BLOCKING)
-public class TrackingServiceV2 implements Runnable {
-	private static final List<Status> TERMINAL_STATES = List.of(
-			Status.ERROR,
-			Status.FINALISED,
-			Status.COMPLETED);
-	
-	
-	public static final String LOCK_NAME = "tracking-service";
+public class TrackingServiceV3 implements TrackingService {
+
 	private final PatronRequestRepository patronRequestRepository;
-	private final StatusCodeRepository statusCodeRepository;
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final SupplyingAgencyService supplyingAgencyService;
 	private final HostLmsService hostLmsService;
 	private final HostLmsReactions hostLmsReactions;
 	private final PatronRequestWorkflowService patronRequestWorkflowService;
 	private final ReactorFederatedLockService reactorFederatedLockService;
-
-	TrackingServiceV2(
-			PatronRequestRepository patronRequestRepository,
-			SupplierRequestRepository supplierRequestRepository,
-			StatusCodeRepository statusCodeRepository,
-			SupplyingAgencyService supplyingAgencyService,
-			HostLmsService hostLmsService,
-			HostLmsReactions hostLmsReactions,
-			PatronRequestWorkflowService patronRequestWorkflowService,
-			ReactorFederatedLockService reactorFederatedLockService) {
+	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
+	TrackingServiceV3(PatronRequestRepository patronRequestRepository,
+                      SupplierRequestRepository supplierRequestRepository,
+                      SupplyingAgencyService supplyingAgencyService,
+                      HostLmsService hostLmsService,
+                      HostLmsReactions hostLmsReactions,
+                      PatronRequestWorkflowService patronRequestWorkflowService,
+                      ReactorFederatedLockService reactorFederatedLockService,
+											RequestWorkflowContextHelper requestWorkflowContextHelper) {
 
 		this.patronRequestRepository = patronRequestRepository;
-		this.statusCodeRepository = statusCodeRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplyingAgencyService = supplyingAgencyService;
 		this.hostLmsService = hostLmsService;
 		this.hostLmsReactions = hostLmsReactions;
 		this.patronRequestWorkflowService = patronRequestWorkflowService;
 		this.reactorFederatedLockService = reactorFederatedLockService;
-		
-		log.info("---- Tracking V2 active ----");
-	}
-	
-	
-	@Transactional(propagation = Propagation.MANDATORY)
-  protected Mono<PatronRequest> doBorrowerHoldCheck(Collection<String> dcbRequestCodes, Collection<String> localRequestCodes, PatronRequest patronRequest) {
-		return Mono.justOrEmpty(patronRequest)
-			.filter( pr -> passBackoffPolling("PatronRequest", pr.getId(), pr.getLocalRequestLastCheckTimestamp(), pr.getLocalRequestStatusRepeat()) )
-			.filter( pr -> pr.getLocalRequestStatus() == null || localRequestCodes.contains(pr.getLocalRequestStatus()) )
-			.filter( pr -> dcbRequestCodes.contains( pr.getStatus().toString() ))
-			.flatMap(this::checkPatronRequest);
+		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 	}
 
-	@Transactional(propagation = Propagation.MANDATORY)
-  protected Mono<PatronRequest> doBorrowerItemCheck(Collection<String> dcbRequestCodes, Collection<String> localItemCodes, PatronRequest patronRequest) {
-		return Mono.justOrEmpty(patronRequest)
-			.filter( pr -> passBackoffPolling("VirtualItem", pr.getId(), pr.getLocalItemLastCheckTimestamp(), pr.getLocalItemStatusRepeat()) )
-			.filter( pr -> pr.getLocalItemStatus() == null || localItemCodes.contains(pr.getLocalItemStatus()) )
-			.filter( pr -> dcbRequestCodes.contains( pr.getStatus().toString() ))
-			.flatMap(this::checkVirtualItem);
-	}
-	
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
-  protected Mono<PatronRequest> doBorrowerChecks( Map<String, Collection<String>> trackableStates, PatronRequest patronRequest ) {
-  	
-  	// Create a list of viable item status codes. 
-  	final Collection<String> localItemCodes = trackableStates.get("VirtualItem");
-  	final Collection<String> localRequestCodes = trackableStates.get("PatronRequest");
-  	final Collection<String> dcbRequestCodes = trackableStates.get("DCBRequest");
-  	
-  	return Flux.merge(
-				doBorrowerHoldCheck(dcbRequestCodes, localRequestCodes, patronRequest),
-				doBorrowerItemCheck(dcbRequestCodes, localItemCodes, patronRequest))
-  		.last(patronRequest);
-  }
-  
-  
-  @Transactional(propagation = Propagation.MANDATORY)
-  protected Mono<SupplierRequest> doSupplierItemCheck( Collection<String> supplierItemCodes, PatronRequest patronRequest, SupplierRequest supplierRequest ) {
-  	
-  	return Mono.justOrEmpty(supplierRequest)
-			.filter( sr -> passBackoffPolling("SupplierItem", sr.getId(), sr.getLocalItemLastCheckTimestamp(), sr.getLocalItemStatusRepeat()) )
-			.filter( sr -> sr.getLocalItemStatus() == null || supplierItemCodes.contains(sr.getLocalItemStatus()) )
-			.map( sr -> Tuples.of(patronRequest, sr) )
-			.flatMap( TupleUtils.function(this::checkSupplierItem));
-  }
+  @Timed("tracking.run")
+  @AppTask
+  @Override
+  @Scheduled(initialDelay = "2m", fixedDelay = "${dcb.tracking.interval:5m}")
+  public void run() {
+    log.debug("DCB Tracking Service run");
 
-  @Transactional(propagation = Propagation.MANDATORY)
-  protected Mono<SupplierRequest> doSupplierHoldsCheck( Collection<String> supplierRequestCodes, PatronRequest patronRequest, SupplierRequest supplierRequest ) {
-		return Mono.justOrEmpty(supplierRequest)
-			.filter( sr -> passBackoffPolling("SupplierRequest", sr.getId(), sr.getLocalRequestLastCheckTimestamp(), sr.getLocalRequestStatusRepeat()) )
-			.filter( sr -> sr.getLocalItemStatus() == null || supplierRequestCodes.contains(sr.getLocalItemStatus()) )
-			.map( sr -> Tuples.of(patronRequest, sr) )
-			.flatMap(TupleUtils.function(this::checkSupplierRequest));
-	}
-	
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  protected Mono<PatronRequest> doSupplierChecks( Map<String, Collection<String>> trackableStates, PatronRequest pr ) {
-  	  	
-  	// Create a list of viable item status codes. 
-  	final Collection<String> supplierItemCodes = trackableStates.get("SupplierItem");
-  	final Collection<String> supplierRequestCodes = trackableStates.get("SupplierRequest");
-  	
-  	// Handle all the attached supplier requests.
-  	return Mono.justOrEmpty(pr.getSupplierRequests())
-  		.flatMapMany(Flux::fromIterable)
-  		.flatMap( sr -> Flux.merge(
-					doSupplierItemCheck(supplierItemCodes, pr, sr),
-					doSupplierHoldsCheck(supplierRequestCodes, pr, sr)))
-  		.then( Mono.just(pr) );
-  }
-
-
-  @Transactional(propagation = Propagation.MANDATORY)
-	protected Mono<PatronRequest> doSupplierAndBorrowerChecks(Map<String, Collection<String>> trackableStates, PatronRequest pr) {
-		// Merge the 2 paths.
-		return Flux.concat(
-				doSupplierChecks( trackableStates, pr ),
-				doBorrowerChecks( trackableStates, pr )) // Eager subscription to both sources.
-			.last(pr); // Should always be the same PatronRequest 
-	}
-
-  @Transactional(propagation = Propagation.MANDATORY)
-	protected Flux<PatronRequest> trackUsingStates ( List<StatusCode> trackableStates ) {
-  	
-  	return Flux.fromIterable( trackableStates )
-  		.collectMultimap(StatusCode::getModel, StatusCode::getCode)
-  		.flatMapMany( stateMap -> { // Map of Model -> Code
-  			log.atDebug()
-  				.log("Trackable states: {}", stateMap);
-  				
-  			Set<String> allCodes = new HashSet<>();
-  			stateMap.forEach( (type, vals) -> vals.forEach(allCodes::add) );
-  			return Flux.from( patronRequestRepository.findAllTrackableRequests(TERMINAL_STATES, allCodes, allCodes) )
-  				.flatMap(pr -> doSupplierAndBorrowerChecks( stateMap, pr ));
-  		});
-//  	
-//  	
-//		return Mono.just(trackableStates.stream()
-//				.map(StatusCode::getCode)
-//				.collect(Collectors.toUnmodifiableSet()))
-//			// Grab the list of candidates.
-//			.flatMapMany(stateCodes -> patronRequestRepository.findAllTrackableRequests(TERMINAL_STATES, stateCodes, stateCodes))
-//			.flatMap(pr -> doSupplierAndBorrowerChecks( trackableStates, pr ));
-	}
-	
-	@Transactional(readOnly = true)
-	protected Flux<PatronRequest> doRemoteChecks() {
-		return Flux.from(statusCodeRepository.findAllByTracked(true))
-			.collectList()
-			.flatMapMany(this::trackUsingStates);
-	}
-	
-	@AppTask
-	@Override
-	@Scheduled(initialDelay = "20s", fixedDelay = "${dcb.tracking.interval:5m}")
-	public void run() {
-		
-		// Start by finding the list of tracked status codes.
-		doRemoteChecks()
-			.doOnSubscribe( _s -> log.info("TRACKING Starting Scheduled Tracking Ingest"))
-			.onErrorResume( error -> {
-				log.error("TRACKING Error enriching collecting request data", error);
-				return Mono.empty();
-			})
-			.thenMany( Flux.defer(this::trackActiveDCBRequests) )
+		Flux.from(patronRequestRepository.findScheduledChecks())
+			.doOnNext( tracking_record -> log.debug("Scheduled check for {}",tracking_record))
+			.flatMap(this::doTracking)
 			.transformDeferred(reactorFederatedLockService.withLockOrEmpty(LOCK_NAME))
 			.count()
 			.subscribe(
-					total -> log.info("TRACKING Tracking completed for {} total Requests", total),
-					error -> log.error("TRACKING Error when updating tracking information"));
-
-	}
-
-	@Transactional(readOnly = true)
-	protected Flux<PatronRequest> trackActiveDCBRequests() {
-		return Flux.from(patronRequestRepository.findProgressibleDCBRequests())
-			.doOnSubscribe(_s -> log.info("TRACKING trackActiveDCBRequests()"))
-			.concatMap(this::tryToProgressDCBRequest)
-			.transform(enrichWithLogging("TRACKING active DCB request tracking complete", "TrackingError (DCBRequest):"));
+				total -> log.info("TRACKING Tracking completed for {} total Requests", total),
+				error -> log.error("TRACKING Error when updating tracking information"));
 	}
 
 	private <T> Function<Flux<T>, Flux<T>> enrichWithLogging( String successMsg, String errorMsg ) {
@@ -230,40 +84,47 @@ public class TrackingServiceV2 implements Runnable {
 			.doOnError(error -> log.error(errorMsg, error));
 	}
 
-	/**
-	 * This method is used to provide backoff period for polling.. In the first moments after a change has been made we want to poll
-   * pretty persistently - because users in testing will be changing things and expecting to see a result. As time goes on however,
-   * it is not sensible to poll every request constantly so we back off
-   *
-	 */
-	private boolean passBackoffPolling(String tp, UUID id, Instant lastCheck, Long repeatCount) {
-		boolean result = true;
 
-		long rc = repeatCount != null ? repeatCount.longValue() : 0;
-		if ( lastCheck == null )
-			rc = 0;
-
-		// First 10 poll immediately, otherwise
-		if ( rc > 10 ) {
-			Duration duration_since_last_check = Duration.between(lastCheck, Instant.now());
-			long seconds_since_last_check = duration_since_last_check.getSeconds();
-			if ( rc < 20 ) {
-				// Next 10 - wait 10 mins before asking again
-				if ( seconds_since_last_check < 600 )
-					return false;
-			}
-			if ( seconds_since_last_check < 5400 )
-				return false;  // At least check every 90m
-		}
-		log.debug("passBackoffPolling({},{},{},{}:{})",tp,id,lastCheck,repeatCount,result);
-		return result;
+	private Mono<PatronRequestRepository.ScheduledTrackingRecord> doTracking(PatronRequestRepository.ScheduledTrackingRecord tr) {
+		return Mono.from(patronRequestRepository.findById(tr.id()))
+			.flatMap(requestWorkflowContextHelper::fromPatronRequest)
+			.flatMap(this::trackBorrowingSystem)
+			.flatMap(this::trackPickupSystem)
+			.flatMap(this::trackSupplyingSystem)
+			.flatMap(ctx -> patronRequestWorkflowService.progressUsing(ctx))
+			.thenReturn(tr);
 	}
 
-	// The check methods themselves
+	private Mono<RequestWorkflowContext> trackBorrowingSystem(RequestWorkflowContext rwc) {
+		log.debug("trackBorrowingSystem");
+		return Mono.just(rwc.getPatronRequest())
+			.flatMap(this::checkPatronRequest)
+			.flatMap(this::checkVirtualItem)
+			.thenReturn(rwc);
+	}
 
-	@Transactional(propagation = Propagation.MANDATORY)
+	private Mono<RequestWorkflowContext> trackPickupSystem(RequestWorkflowContext rwc) {
+		log.debug("trackPickupSystem");
+		return Mono.just(rwc);
+	}
+	private Mono<RequestWorkflowContext> trackSupplyingSystem(RequestWorkflowContext rwc) {
+		log.debug("trackSupplyingSystem");
+		return Mono.just(rwc.getSupplierRequest())
+			.flatMap(this::checkSupplierRequest)
+			.flatMap(this::checkSupplierItem)
+			.thenReturn(rwc);
+	}
+
+	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	protected Mono<PatronRequest> checkPatronRequest(PatronRequest pr) {
 		log.info("TRACKING Check patron request {}", pr);
+
+		// If we dont have an ID, or we previously did have an ID but have detected the downstream is MISSING, bail
+		if ( ( pr.getLocalRequestId() == null ) ||
+			   ( ( pr.getLocalRequestStatus() != null ) && ( pr.getLocalRequestStatus().equals("MISSING")))) {
+			log.warn("No local request ID or status is missing - cannot track");
+			return Mono.just(pr);
+		}
 
 		return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
 			.flatMap(client -> client.getRequest(pr.getLocalRequestId()))
@@ -307,14 +168,20 @@ public class TrackingServiceV2 implements Runnable {
 		return repeat_count;
 	}
 
-	@Transactional(propagation = Propagation.MANDATORY)
+	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	protected Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
+
+		if ( ( pr.getLocalItemId() == null ) ||
+			( (pr.getLocalItemStatus() != null ) &&  (pr.getLocalItemStatus().equals("MISSING")) )){
+			log.warn("Unable to track virtual item - no ID");
+			return Mono.just(pr);
+		}
 
 		log.info("TRACKING Check (local) virtualItem from patron request {} {} {}", pr.getLocalItemId(), pr.getLocalItemStatus(), pr.getPatronHostlmsCode());
 
 		if (pr.getPatronHostlmsCode() != null) {
 			return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
-				.flatMap(client -> client.getItem(pr.getLocalItemId(), pr.getLocalRequestId()))
+				.flatMap(client -> Mono.from(client.getItem(pr.getLocalItemId(), pr.getLocalRequestId())))
 				.flatMap( item -> {
 					if ( ((item.getStatus() == null) && (pr.getLocalItemStatus() != null)) ||
             ((item.getStatus() != null) && (pr.getLocalItemStatus() == null)) ||
@@ -350,9 +217,15 @@ public class TrackingServiceV2 implements Runnable {
 		}
 	}
 
-	@Transactional(propagation = Propagation.MANDATORY)
-	protected Mono<SupplierRequest> checkSupplierItem(PatronRequest pr, SupplierRequest sr) {
-		
+	@Transactional(Transactional.TxType.REQUIRES_NEW)
+	protected Mono<SupplierRequest> checkSupplierItem(SupplierRequest sr) {
+
+		if ( ( sr.getLocalItemId() == null ) ||
+			( (sr.getLocalItemStatus() != null ) && ( sr.getLocalStatus().equals("MISSING")) ) ) {
+			log.warn("unable to track supplier item - no ID");
+			return Mono.just(sr);
+		}
+
 		log.info("TRACKING Check (hostlms) supplierItem from supplier request item={} status={} code={}",
 			sr.getLocalItemId(), sr.getLocalItemStatus(), sr.getHostLmsCode());
 
@@ -369,7 +242,7 @@ public class TrackingServiceV2 implements Runnable {
 
 						log.debug("Detected supplying system - supplier item status change {} to {}", sr.getLocalItemStatus(), item.getStatus());
             StateChange sc = StateChange.builder()
-              .patronRequestId(pr.getId())
+              .patronRequestId(sr.getPatronRequest().getId())
               .resourceType("SupplierItem")
               .resourceId(sr.getId().toString())
               .fromState(sr.getLocalItemStatus())
@@ -397,8 +270,24 @@ public class TrackingServiceV2 implements Runnable {
 		}
 	}
 
-	@Transactional(propagation = Propagation.MANDATORY)
-	protected Mono<SupplierRequest> checkSupplierRequest(PatronRequest pr, SupplierRequest sr) {
+  // Look up the patron request and add it to the supplier request as a full object instead of a stub
+	private Mono<SupplierRequest> enrichWithPatronRequest(SupplierRequest sr) {
+		return Mono.from(patronRequestRepository.findById(sr.getPatronRequest().getId()))
+			.flatMap(pr -> {
+				sr.setPatronRequest(pr);
+				return Mono.just(sr);
+			});
+	}
+
+	@Transactional(Transactional.TxType.REQUIRES_NEW)
+	protected Mono<SupplierRequest> checkSupplierRequest(SupplierRequest sr) {
+
+		if ( ( sr.getLocalId() == null ) ||
+			( ( sr.getLocalStatus() != null ) && ( sr.getLocalStatus().equals("MISSING")))) {
+			log.warn("unable to track supplier request - no ID");
+			return Mono.just(sr);
+		}
+
 		log.info("TRACKING Check supplier request {} with local status \"{}\"", sr.getId(), sr.getLocalStatus());
 
 		// We fetch the state of the hold at the supplying library. If it is different to the last state
@@ -421,7 +310,7 @@ public class TrackingServiceV2 implements Runnable {
 					  additionalProperties.put("RequestedItemId", hold.getRequestedItemId());
 
 	        StateChange sc = StateChange.builder()
-		        .patronRequestId(pr.getId())
+		        .patronRequestId(sr.getPatronRequest().getId())
 			      .resourceType("SupplierRequest")
 				    .resourceId(sr.getId().toString())
 					  .fromState(sr.getLocalStatus())
@@ -449,7 +338,7 @@ public class TrackingServiceV2 implements Runnable {
 
 				if ( ! "ERROR".equals(sr.getLocalStatus()) ) {
 	        StateChange sc = StateChange.builder()
-  	        .patronRequestId(pr.getId())
+  	        .patronRequestId(sr.getPatronRequest().getId())
     	      .resourceType("SupplierRequest")
       	    .resourceId(sr.getId().toString())
         	  .fromState(sr.getLocalStatus())
@@ -466,9 +355,10 @@ public class TrackingServiceV2 implements Runnable {
 			}));
 	}
 
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	protected Mono<PatronRequest> tryToProgressDCBRequest(PatronRequest patronRequest) {
 		log.debug("TRACKING Attempt to progress {}:{}",patronRequest.getId(),patronRequest.getStatus());
 		return patronRequestWorkflowService.progressAll(patronRequest);
 	}
+
 }

@@ -6,6 +6,7 @@ import static services.k_int.utils.StringUtils.truncate;
 import java.time.Instant;
 import java.util.UUID;
 
+import io.micronaut.core.annotation.Introspected;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -67,6 +68,13 @@ public interface PatronRequestRepository {
 	@Query(value = "SELECT pr.* from patron_request pr, patron_identity pi, host_lms h where pr.patron_id = pi.patron_id and pi.host_lms_id = h.id and h.code = :patronSystem and pi.local_id = :patronId and pi.home_identity=true order by pr.date_updated", countQuery = "SELECT count(pr.id) from patron_request pr, patron_identity pi, host_lms h where pr.patron_id = pi.patron_id and pi.host_lms_id = h.id and h.code = :patronSystem and pi.local_id = :patronId and pi.home_identity=true", nativeQuery = true)
 	Publisher<Page<PatronRequest>> findRequestsForPatron(String patronSystem, String patronId, Pageable pageable);
 
+
+	@Introspected
+	public record ScheduledTrackingRecord(UUID id, @Nullable String status_code, @Nullable Instant next_scheduled_poll) {	};
+
+	@Query(value = "SELECT pr.id, pr.status_code, pr.next_scheduled_poll from patron_request pr where pr.next_scheduled_poll < now() order by pr.next_scheduled_poll", nativeQuery = true)
+	Publisher<ScheduledTrackingRecord> findScheduledChecks();
+
 	@SingleResult
 	@NonNull
 	default Publisher<PatronRequest> saveOrUpdate(@Valid @NotNull @NonNull PatronRequest pc) {
@@ -105,4 +113,6 @@ public interface PatronRequestRepository {
   Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, String localRequestStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
   Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
   Publisher<Long> updateNextScheduledPoll(@Id @NotNull UUID id, @Nullable Instant nextScheduledPoll);
+
+
 }
