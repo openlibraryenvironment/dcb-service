@@ -132,6 +132,15 @@ public class PatronRequestController {
 		.last();
 	}
 
+	/**
+	 * Explicitly attempts to progress this request by polling downstream systems and then 
+	 * looking for applicable transitions.
+	 */
+	@SingleResult
+	@Post(value = "/{patronRequestId}/update", consumes = APPLICATION_JSON)
+	public Mono<PatronRequest> updatePatronRequest(@NotNull final UUID patronRequestId) {
+		return workflowService.progressAll(patronRequestId);
+	}
 
 	@SingleResult
 	@Post(value = "/place", consumes = APPLICATION_JSON)

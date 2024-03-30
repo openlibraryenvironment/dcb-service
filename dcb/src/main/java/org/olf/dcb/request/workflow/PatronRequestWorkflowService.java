@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import java.util.UUID;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -80,55 +81,59 @@ public class PatronRequestWorkflowService {
 			.subscribe();
 	}
 	
+	public Mono<PatronRequest> progressAll(UUID patronRequestId) {
+		return Mono.from(patronRequestRepository.findById(patronRequestId))
+			.flatMap(pr -> this.progressAll(pr, false));
+	}
+
 	/**
 	 * Try to progress the identified patron request. This is the main entry point for trying to progress a patron request.
 	 */
-	public Flux<PatronRequest> progressAll(PatronRequest patronRequest) {
+	public Mono<PatronRequest> progressAll(PatronRequest patronRequest) {
 		return this.progressAll(patronRequest, false);
 	}
 
-	public Flux<PatronRequest> progressAll(PatronRequest patronRequest, boolean pollDownstream) {
+	public Mono<PatronRequest> progressAll(PatronRequest patronRequest, boolean pollDownstream) {
 		log.debug("WORKFLOW progressAll({})", patronRequest);
 
 		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-			.flatMap( ctx -> this.optionallyPollDownstreamSystems(ctx, pollDownstream) )
-			.flatMapMany( ctx -> this.progressUsing(ctx, getApplicableTransitionFor(ctx) ));
+			.flatMap( ctx -> this.progressUsing(ctx, getApplicableTransitionFor(ctx) ));
 	}
 
 	/**
-	 * If requested to, workflow can poll downstream systems to make sure we have the latest status information
-	 * before attempting to progress a request.
+	 * For when we already have a request workflow context in our hand
+	 * @param ctx
+	 * @return
 	 */
-	public Mono<RequestWorkflowContext> optionallyPollDownstreamSystems(RequestWorkflowContext ctx, boolean pollDownstream) {
-		if ( pollDownstream ) {
-		log.debug("perform downstream polling from workflow service");
-			return Mono.just(ctx);
-		}
-
-		log.debug("skip downstream polling from workflow service");
-		return Mono.just(ctx);
+	public Mono<RequestWorkflowContext> progressUsing(RequestWorkflowContext ctx) {
+		return Mono.just(ctx)
+			.flatMap( ctx2 -> this.progressUsing(ctx2, getApplicableTransitionFor(ctx2) ))
+			.thenReturn(ctx);
 	}
 
-	public Flux<PatronRequest> progressUsing(PatronRequest patronRequest, PatronRequestStateTransition action) {
+	public Mono<PatronRequest> progressUsing(PatronRequest patronRequest, PatronRequestStateTransition action) {
 		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-			.flatMapMany(ctx -> this.progressUsing(ctx, Optional.ofNullable(action)));
+			.flatMap(ctx -> this.progressUsing(ctx, Optional.ofNullable(action)));
 	}
 	
-	public Flux<PatronRequest> progressUsing(RequestWorkflowContext ctx, Optional<PatronRequestStateTransition> action) {
+	public Mono<PatronRequest> progressUsing(RequestWorkflowContext ctx, Optional<PatronRequestStateTransition> action) {
 
+		// We don't schedule the next check until we have exhausted all our possible expansions/progressions
+		// apply Transition will call recursively until we run out of possible actions, then we pass through this leg
+		// and set the next check.
 		if (action.isEmpty()) {
 			log.debug("WORKFLOW Unable to progress {} - no transformations available from state {}",
 				ctx.getPatronRequest().getId(), ctx.getPatronRequest().getStatus());
 
 			return scheduleNextCheck(ctx)
-				.flatMapMany(ctx2 -> {
-					return Flux.empty();
+				.flatMap(ctx2 -> {
+					return Mono.empty();
 				});
 		}
 		
 		return Mono.justOrEmpty(action)
-			.flatMapMany(transition -> {
-				log.debug("WORKFLOW found action {} applying transition", action.get().getClass().getName());
+			.flatMap(transition -> {
+				log.debug("WORKFLOW found action {} applying transition", transition.getClass().getName());
 
 				final var pr = applyTransition(transition, ctx);
 
@@ -148,7 +153,7 @@ public class PatronRequestWorkflowService {
 			.filter(transition -> (transition.isApplicableFor(ctx) && transition.attemptAutomatically()));
 	}
 
-	private Flux<PatronRequest> applyTransition(PatronRequestStateTransition action, RequestWorkflowContext ctx) {
+	private Mono<PatronRequest> applyTransition(PatronRequestStateTransition action, RequestWorkflowContext ctx) {
 
 		log.debug("WORKFLOW applyTransition({}, {})", action.getName(), ctx.getPatronRequest().getId());
 
@@ -159,15 +164,14 @@ public class PatronRequestWorkflowService {
 			auditData.put("workflowMessages", ctx.getWorkflowMessages());
 
 			return action.attempt(ctx)
-			.flux()
-			.concatMap(nc -> patronRequestAuditService.addAuditEntry(
+			.flatMap(nc -> patronRequestAuditService.addAuditEntry(
 				ctx.getPatronRequest(), 
 				ctx.getPatronRequestStateOnEntry(), 
 				ctx.getPatronRequest().getStatus(), 
 				Optional.of("Action completed : " + action.getName()),
 				Optional.of(auditData)))
-			.concatMap(nc -> patronRequestRepository.saveOrUpdate(nc.getPatronRequest()))
-			.concatMap(request -> {
+			.flatMap(nc -> Mono.from(patronRequestRepository.saveOrUpdate(nc.getPatronRequest())))
+			.flatMap(request -> {
 				// Recursively call progress all in case there are subsequent steps we can apply
 				return progressAll(ctx.getPatronRequest());
 			});
