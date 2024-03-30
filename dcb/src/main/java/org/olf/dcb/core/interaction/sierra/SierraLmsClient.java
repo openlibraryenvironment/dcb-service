@@ -1228,7 +1228,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<String> checkOutItemToPatron(String itemId, String itemBarcode, String patronId, String patronBarcode, String localRequestId) {
 		log.debug("checkOutItemToPatron({},{})", itemId, patronBarcode);
 
-		return Mono.from(client.checkOutItemToPatron(itemId, patronBarcode))
+		// Sierra checkout operation uses patron barcode and item barcode
+		return Mono.from(client.checkOutItemToPatron(itemBarcode, patronBarcode))
 			.thenReturn("OK")
 			.switchIfEmpty(Mono.error(() ->
 				new RuntimeException("Check out of " + itemId + " to " + patronBarcode + " at " + lms.getCode() + " failed")));
