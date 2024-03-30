@@ -34,7 +34,7 @@ public class HandleBorrowerSkippedLoanTransit implements PatronRequestStateTrans
 	private final PatronRequestRepository patronRequestRepository;
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.PICKUP_TRANSIT, Status.READY_FOR_PICKUP);
-	private static final List<String> possibleLocalItemStatus = List.of(HostLmsItem.ITEM_TRANSIT);
+	private static final List<String> possibleLocalItemStatus = List.of(HostLmsItem.ITEM_TRANSIT, HostLmsItem.ITEM_MISSING);
 	private static final List<String> possibleLocalRequestStatus = List.of(HostLmsRequest.HOLD_MISSING);
 	
 	public HandleBorrowerSkippedLoanTransit(PatronRequestRepository patronRequestRepository) {
@@ -43,9 +43,15 @@ public class HandleBorrowerSkippedLoanTransit implements PatronRequestStateTrans
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ( ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
-			getPossibleLocalItemStatus().contains(ctx.getPatronRequest().getLocalItemStatus()) &&
-      possibleLocalRequestStatus.contains(ctx.getPatronRequest().getLocalRequestStatus()) ) ;
+
+		if ( ctx.getPatronRequest().getActiveWorkflow() != null ) {
+			if ( ctx.getPatronRequest().getActiveWorkflow().equals("RET-STD") ) {
+				return ( ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
+					getPossibleLocalItemStatus().contains(ctx.getPatronRequest().getLocalItemStatus()) &&
+					possibleLocalRequestStatus.contains(ctx.getPatronRequest().getLocalRequestStatus()) ) ;
+			}
+		}
+		return false;
 	}
 
 	@Override
