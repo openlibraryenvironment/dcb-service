@@ -37,16 +37,16 @@ public class HostLmsReactions {
 	private final SupplierRequestRepository supplierRequestRepository;
 
 	// Ensure that we have loaded and initialised all workflow actions
-	private final List<WorkflowAction> allWorkflowActions;
+	// private final List<WorkflowAction> allWorkflowActions;
 
 	public HostLmsReactions(ApplicationContext appContext,
 		PatronRequestAuditService patronRequestAuditService,
-		List<WorkflowAction> allWorkflowActions,
+		// List<WorkflowAction> allWorkflowActions,
 		PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository) {
 
 		this.appContext = appContext;
-		this.allWorkflowActions = allWorkflowActions;
+		// this.allWorkflowActions = allWorkflowActions;
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
@@ -55,9 +55,9 @@ public class HostLmsReactions {
 	@jakarta.annotation.PostConstruct
 	private void init() {
 		log.info("HostLmsReactions::init");
-		for (WorkflowAction w : allWorkflowActions) {
-			log.info("Workflow action: {}", w);
-		}
+		// for (WorkflowAction w : allWorkflowActions) {
+		//	log.info("Workflow action: {}", w);
+		// }
 	}
 
 	@Transactional

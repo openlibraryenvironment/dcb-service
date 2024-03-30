@@ -197,8 +197,8 @@ public class TrackingServiceV3 implements TrackingService {
 	protected Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
 
 		if ( ( pr.getLocalItemId() == null ) ||
-			( (pr.getLocalItemStatus() != null ) &&  (pr.getLocalItemStatus().equals("MISSING")) )){
-			log.warn("Unable to track virtual item - no ID");
+			( (pr.getLocalItemStatus() != null ) && (pr.getLocalItemStatus().equals("MISSING")) )){
+			log.warn("TRACKING Unable to track virtual item for pr {} - no ID {} {}",pr.getId(),pr.getLocalItemId(),pr.getLocalItemStatus());
 			return Mono.just(pr);
 		}
 
