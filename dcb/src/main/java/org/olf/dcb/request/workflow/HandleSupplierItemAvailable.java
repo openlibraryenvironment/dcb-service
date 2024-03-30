@@ -72,7 +72,12 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
     return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
       ( ctx.getSupplierRequest() != null ) &&
 			// N.B. CLOSED is somewhat FOLIO specific - should be revisited soon
-      ( (HostLmsItem.ITEM_AVAILABLE.equals(ctx.getSupplierRequest().getLocalItemStatus())) || ( ("CLOSED".equals(ctx.getSupplierRequest().getLocalStatus() ) ) ) );
+			// Received is a sierra state
+      ( 
+				(HostLmsItem.ITEM_RECEIVED.equals(ctx.getSupplierRequest().getLocalItemStatus())) || 
+				(HostLmsItem.ITEM_AVAILABLE.equals(ctx.getSupplierRequest().getLocalItemStatus())) || 
+				( ("CLOSED".equals(ctx.getSupplierRequest().getLocalStatus() ) ) ) 
+			);
   }
 
 	@Override
