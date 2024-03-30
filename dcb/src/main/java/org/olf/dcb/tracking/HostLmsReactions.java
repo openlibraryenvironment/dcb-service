@@ -8,7 +8,6 @@ import java.util.function.Supplier;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
-import org.olf.dcb.request.workflow.WorkflowAction;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
