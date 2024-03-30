@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -21,28 +22,30 @@ import reactor.core.publisher.Mono;
 
 
 /**
- * HandleBorrowerRequestReturnTransit.
- * When the DCB status is LOANED and the item at the borrowing library is IN_TRANSIT or AVAILABLE then
- * we note that the item has been returned by the patron and is starting it's return leg.
+ * HandleBorrowerSkippedLoanTransit.
+ * The DCB status is READY_FOR_PICKUP or PICKUP_TRANSIT but the patron reqest is missing AND the item status is TRANSIT
+ * this indicates that EITHER we failed to detect the patron loan OR the request is cancelled and the item is on it's way back
+ * to the lending system. We move directly to RETURN_TRANSIT.
  */
 @Slf4j
 @Singleton
-@Named("BorrowerRequestReturnTransit")
-public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTransition {
+@Named("BorrowerSkippedLoanTransit")
+public class HandleBorrowerSkippedLoanTransit implements PatronRequestStateTransition {
 	private final PatronRequestRepository patronRequestRepository;
 
-	private static final List<Status> possibleSourceStatus = List.of(Status.LOANED);
-	private static final List<String> possibleLocalItemStatus = List.of(
-		HostLmsItem.ITEM_TRANSIT, HostLmsItem.ITEM_AVAILABLE);
+	private static final List<Status> possibleSourceStatus = List.of(Status.PICKUP_TRANSIT, Status.READY_FOR_PICKUP);
+	private static final List<String> possibleLocalItemStatus = List.of(HostLmsItem.ITEM_TRANSIT);
+	private static final List<String> possibleLocalRequestStatus = List.of(HostLmsRequest.HOLD_MISSING);
 	
-	public HandleBorrowerRequestReturnTransit(PatronRequestRepository patronRequestRepository) {
+	public HandleBorrowerSkippedLoanTransit(PatronRequestRepository patronRequestRepository) {
 		this.patronRequestRepository = patronRequestRepository;
 	}
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		return ( ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
-			getPossibleLocalItemStatus().contains(ctx.getPatronRequest().getLocalItemStatus()) );
+			getPossibleLocalItemStatus().contains(ctx.getPatronRequest().getLocalItemStatus()) &&
+      possibleLocalRequestStatus.contains(ctx.getPatronRequest().getLocalRequestStatus()) ) ;
 	}
 
 	@Override
@@ -72,12 +75,12 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 
 	@Override
 	public String getName() {
-		return "HandleBorrowerRequestReturnTransit";
+		return "HandleBorrowerSkippedLoanTransit";
 	}
 
 	@Override
 	public List<DCBGuardCondition> getGuardConditions() {
-		return List.of( new DCBGuardCondition("DCBPatronRequest state is LOANED and Item at Patron or Pickup Library state is TRANSIT"));
+		return List.of( new DCBGuardCondition("DCBPatronRequest state is PICKUP_TRANSIT or READY_FOR_PICKUP and Item at Patron or Pickup Library state is TRANSIT and patron request is MISSING"));
 	}
 
 	@Override
