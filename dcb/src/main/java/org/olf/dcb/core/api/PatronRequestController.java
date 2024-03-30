@@ -19,6 +19,7 @@ import org.olf.dcb.request.workflow.PatronRequestStateTransition;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.PatronRequestRepository;
+import org.olf.dcb.tracking.TrackingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,14 +63,18 @@ public class PatronRequestController {
 	private final PatronRequestWorkflowService workflowService;
 	private final CleanupPatronRequestTransition cleanupPatronRequestTransition;
 
+	private final TrackingService trackingService;
+
 	public PatronRequestController(PatronRequestService patronRequestService,
 			PatronRequestRepository patronRequestRepository, 
 			PatronRequestWorkflowService workflowService,
-			CleanupPatronRequestTransition cleanupPatronRequestTransition) {
+			CleanupPatronRequestTransition cleanupPatronRequestTransition,
+			TrackingService trackingService) {
 		this.patronRequestService = patronRequestService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.workflowService = workflowService;
 		this.cleanupPatronRequestTransition = cleanupPatronRequestTransition;
+		this.trackingService = trackingService;
 	}
 	
 	public PatronRequest ensureValidStateForTransition( final PatronRequest patronRequest ) {
@@ -83,33 +88,6 @@ public class PatronRequestController {
 	}
 
 
-	/*
-	private Mono<PatronRequestStateTransition> resolvePatronRequestTransition( PatronRequest patronRequest, Predicate<PatronRequestStateTransition> predicate ) {
-		
-		return Flux.fromStream( workflowService.getPossibleStateTransitionsFor(patronRequest) )
-				.filter( predicate )
-				.next();
-	}
-*/
-	/* Does anyone call this?
-
-	@SingleResult
-	@Post(value = "/{patronRequestId}/transtion/{status}", consumes = APPLICATION_JSON)
-	public Mono<PatronRequest> transitionPatronRequest(@NotNull final UUID patronRequestId, @NotNull Status status) {
-				
-		return patronRequestService
-			.findById( patronRequestId )
-			.map( this::ensureValidStateForTransition )
-			.zipWhen( (req) -> resolvePatronRequestTransition(req,
-					transition -> transition.getTargetStatus()
-						.orElse(status) == status ))
-			
-			.flatMapMany( TupleUtils.function(workflowService::progressUsing ))
-			.last();
-	}
-
-	 */
-	
 	/**
 	 * Special state transitions that don't have a target state i.e. they leave the state untouched, but
 	 * with a workflow associated should be listed explicitly as url entry points
@@ -139,7 +117,7 @@ public class PatronRequestController {
 	@SingleResult
 	@Post(value = "/{patronRequestId}/update", consumes = APPLICATION_JSON)
 	public Mono<PatronRequest> updatePatronRequest(@NotNull final UUID patronRequestId) {
-		return workflowService.progressAll(patronRequestId);
+		return trackingService.forceUpdate(patronRequestId);
 	}
 
 	@SingleResult

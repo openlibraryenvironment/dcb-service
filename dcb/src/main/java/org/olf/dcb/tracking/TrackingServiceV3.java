@@ -42,6 +42,9 @@ public class TrackingServiceV3 implements TrackingService {
 	private final PatronRequestWorkflowService patronRequestWorkflowService;
 	private final ReactorFederatedLockService reactorFederatedLockService;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
+
+	private final int MAX_TRACKING_CONCURRENCY = 10;
+
 	TrackingServiceV3(PatronRequestRepository patronRequestRepository,
                       SupplierRequestRepository supplierRequestRepository,
                       SupplyingAgencyService supplyingAgencyService,
@@ -70,7 +73,7 @@ public class TrackingServiceV3 implements TrackingService {
 
 		Flux.from(patronRequestRepository.findScheduledChecks())
 			.doOnNext( tracking_record -> log.debug("Scheduled check for {}",tracking_record))
-			.flatMap(this::doTracking)
+			.flatMap(this::doTracking, MAX_TRACKING_CONCURRENCY)
 			.transformDeferred(reactorFederatedLockService.withLockOrEmpty(LOCK_NAME))
 			.count()
 			.subscribe(
@@ -84,7 +87,29 @@ public class TrackingServiceV3 implements TrackingService {
 			.doOnError(error -> log.error(errorMsg, error));
 	}
 
+	/**
+	 * Force an update of the patron request.
+	 * @param pr_id
+	 * @return
+	 */
+	public Mono<PatronRequest> forceUpdate(UUID pr_id) {
+		return Mono.from(patronRequestRepository.findById(pr_id))
+			.flatMap(requestWorkflowContextHelper::fromPatronRequest)
+			.flatMap(this::trackBorrowingSystem)
+			.flatMap(this::trackPickupSystem)
+			.flatMap(this::trackSupplyingSystem)
+			.flatMap(patronRequestWorkflowService::progressUsing)
+			.flatMap(ctx -> Mono.just(ctx.getPatronRequest() ) );
+	}
 
+	/**
+	 * doTracking.
+	 * We may choose to loop back to the HTTP forceUpdate request. This would enable us to use a load balancer
+	 * to spread the load of the tracking phase over a cluster of dcb-service instances. Alternatively we could
+	 * use a hazelcast distributed queue.
+	 * @param tr
+	 * @return
+	 */
 	private Mono<PatronRequestRepository.ScheduledTrackingRecord> doTracking(PatronRequestRepository.ScheduledTrackingRecord tr) {
 		return Mono.from(patronRequestRepository.findById(tr.id()))
 			.flatMap(requestWorkflowContextHelper::fromPatronRequest)
