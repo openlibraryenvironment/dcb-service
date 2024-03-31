@@ -50,6 +50,13 @@ public class HandleBorrowerSkippedLoanTransit implements PatronRequestStateTrans
 					getPossibleLocalItemStatus().contains(ctx.getPatronRequest().getLocalItemStatus()) &&
 					possibleLocalRequestStatus.contains(ctx.getPatronRequest().getLocalRequestStatus()) ) ;
 			}
+			else if ( ctx.getPatronRequest().getActiveWorkflow().equals("RET-LOCAL") ) {
+				// For now we repeat the same configuration for RET-LOCAL - to allow LOCAL loans to also bypass the loan stage
+				// There may be a better way to deal with RET-LOCAL requests.
+				return ( ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
+					getPossibleLocalItemStatus().contains(ctx.getPatronRequest().getLocalItemStatus()) &&
+					possibleLocalRequestStatus.contains(ctx.getPatronRequest().getLocalRequestStatus()) ) ;
+			}
 		}
 		return false;
 	}
