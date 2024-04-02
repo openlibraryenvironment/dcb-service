@@ -74,7 +74,7 @@ public class PolarisItemMapper {
 			return null;
 		}
 		try {
-			DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("[MMM dd yyyy ]h[:mm]a[ HH:mm]", Locale.ENGLISH);
+			DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("MMM[ ][ ][d] yyyy hh:mma", Locale.ENGLISH);
 			LocalDateTime localDateTime = LocalDateTime.parse(dueDate, inputFormatter);
 			ZoneId zoneId = ZoneId.of("UTC");
 
