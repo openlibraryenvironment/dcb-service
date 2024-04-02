@@ -124,7 +124,6 @@ class PlaceRequestAtSupplyingAgencyTests {
 	}
 
 	// ToDo: Marc and Alex - please reactivate
-	@Disabled
 	@DisplayName("patron is known to supplier and places patron request with the unexpected patron type")
 	@Test
 	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithAnUnexpectedPtype() {
@@ -194,7 +193,6 @@ class PlaceRequestAtSupplyingAgencyTests {
 	}
 
 	// ToDo: Marc and Alex - please reactivate
-	@Disabled
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
 	@Test
 	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithTheExpectedPtype() {

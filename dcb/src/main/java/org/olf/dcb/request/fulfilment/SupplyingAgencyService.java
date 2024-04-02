@@ -7,6 +7,7 @@ import static services.k_int.utils.StringUtils.parseList;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -316,8 +317,14 @@ public class SupplyingAgencyService {
 			.doOnNext(newlyMappedVPatronType -> log.debug("Testing to see if patron type needs to be updated from {} to {}",patronType,newlyMappedVPatronType) )
 			.flatMap(newlyMappedVPatronType -> {
 
+				if (patronType == null || newlyMappedVPatronType == null) {
+					throw new NullPointerException("One or both values are null: " +
+						"known patron type = " + patronType + ", " +
+						"determined patron type = " + newlyMappedVPatronType);
+				}
+
 				// if the returned value and the stored value were different, update the virtual patron
-				if (newlyMappedVPatronType != patronType) {
+				else if (!Objects.equals(newlyMappedVPatronType, patronType)) {
 					return updateVirtualPatron(supplierHostLmsCode, localId, newlyMappedVPatronType);
 				}
 
