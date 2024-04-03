@@ -246,7 +246,7 @@ public class TrackingServiceV3 implements TrackingService {
 	protected Mono<SupplierRequest> checkSupplierItem(SupplierRequest sr) {
 
 		if ( ( sr.getLocalItemId() == null ) ||
-			( (sr.getLocalItemStatus() != null ) && ( sr.getLocalStatus().equals("MISSING")) ) ) {
+			( (sr.getLocalItemStatus() != null ) && ( sr.getLocalItemStatus().equals("MISSING")) ) ) {
 			log.warn("unable to track supplier item - no ID {} {}",sr.getLocalItemId(),sr.getLocalItemStatus());
 			return Mono.just(sr);
 		}
