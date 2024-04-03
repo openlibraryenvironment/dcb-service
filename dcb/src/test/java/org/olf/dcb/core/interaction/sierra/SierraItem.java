@@ -18,4 +18,5 @@ public class SierraItem {
 	String locationCode;
 	String itemType;
 	int holdCount;
+	Boolean suppressed;
 }

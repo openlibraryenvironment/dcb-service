@@ -164,6 +164,7 @@ public class SierraItemsAPIFixture {
 			.fixedFields(fixedFields)
 			.holdCount(item.getHoldCount())
 			.deleted(false)
+			.suppressed(item.getSuppressed())
 			.build();
 	}
 

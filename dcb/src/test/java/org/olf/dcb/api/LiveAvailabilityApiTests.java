@@ -284,6 +284,50 @@ class LiveAvailabilityApiTests {
 	}
 
 	@Test
+	void shouldExcludeSuppressedItems() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
+
+		final var hostLms = hostLmsFixture.findByCode(CATALOGUING_HOST_LMS_CODE);
+
+		final var sourceSystemId = hostLms.getId();
+
+		final var sourceRecordId = "364255";
+
+		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId,
+			sourceRecordId, clusterRecord);
+
+		final var locationCode = "example-location";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			SierraItem.builder()
+				.id("3642679")
+				.locationCode(locationCode)
+				.locationName("Example Location")
+				.suppressed(true)
+				.build()));
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CATALOGUING_HOST_LMS_CODE, locationCode, SUPPLYING_AGENCY_CODE);
+
+		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_NAME,
+			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			CATALOGUING_HOST_LMS_CODE, 999, 999, "loanable-item");
+
+		// Act
+		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
+
+		// Assert
+		assertThat(report, is(notNullValue()));
+
+		assertThat(report.getItemList(), is(nullValue()));
+	}
+
+	@Test
 	void shouldFailWhenClusterRecordCannotBeFound() {
 		// Arrange
 		final var clusterRecordId = randomUUID();

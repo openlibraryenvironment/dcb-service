@@ -45,6 +45,10 @@ public class Item implements Comparable<Item> {
 	private String rawVolumeStatement;
 	private String parsedVolumeStatement;
 
+	public static boolean notSuppressed(Item item) {
+		return item.getSuppressed() == null || !item.getSuppressed();
+	}
+
 	public boolean isAvailable() {
 		return getStatus().getCode() == AVAILABLE;
 	}

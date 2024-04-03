@@ -106,43 +106,51 @@ public class LiveAvailabilityService {
 			);
 	}
 
-	private Mono<AvailabilityReport> checkBibAvailabilityAtHost( Optional<Duration> timeout, BibRecord bibRecord ) {
+	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(
+		Optional<Duration> timeout, BibRecord bibRecord) {
 		
 		return hostLmsService.getClientFor(bibRecord.getSourceSystemId())
-		  .flatMap( TupleUtils.curry(timeout, bibRecord, this::checkBibAvailabilityAtHost) )
-			.doOnNext ( b -> log.debug("getAvailableItems got items, progress to availability check") );
+		  .flatMap(TupleUtils.curry(timeout, bibRecord, this::checkBibAvailabilityAtHost))
+			.doOnNext(b -> log.debug("getAvailableItems got items, progress to availability check"));
 	}
 
-	private Mono<AvailabilityReport> checkBibAvailabilityAtHost( Optional<Duration> timeout, BibRecord bib, HostLmsClient hostLms) {		
+	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(
+		Optional<Duration> timeout, BibRecord bib, HostLmsClient hostLms) {
 		
-		final Mono<AvailabilityReport> liveData = hostLms.getItems(bib)
+		final var liveData = hostLms.getItems(bib)
+			.map(this::excludeSuppressedItems)
 			.doOnError(error -> log.error("doOnError occurred fetching items", error))
 			.map(AvailabilityReport::ofItems)
-			.map(TupleUtils.curry(bib, this::addValueToCache ))
-			.onErrorResume ( error -> {
-				return Mono.defer(() -> Mono.just(AvailabilityReport.ofErrors(mapToError(bib, hostLms.getHostLmsCode()))));
-			})
-			.cache();	// Create a hot source and cache. This will make sure the mono completes as hot sources cannot be cancelled;
+			.map(TupleUtils.curry(bib, this::addValueToCache))
+			.onErrorResume(error -> Mono.defer(() ->
+				Mono.just(AvailabilityReport.ofErrors(mapToError(bib, hostLms.getHostLmsCode())))))
+			.cache(); // Create a hot source and cache. This will make sure the mono completes as hot sources cannot be cancelled;
 		
 		return timeout
-			.map( timeoutSet -> liveData.transformDeferred(addCacheFallback(timeoutSet, bib, hostLms)) )
+			.map(timeoutSet -> liveData.transformDeferred(addCacheFallback(timeoutSet, bib, hostLms)))
 			.orElse(liveData);
 	}
-	
-	private Function<Mono<AvailabilityReport>, Mono<AvailabilityReport>> addCacheFallback ( Duration timeout, BibRecord bib, HostLmsClient hostLms ) {
+
+	private List<Item> excludeSuppressedItems(List<Item> items) {
+		return items.stream()
+			.filter(Item::notSuppressed)
+			.toList();
+	}
+
+	private Function<Mono<AvailabilityReport>, Mono<AvailabilityReport>> addCacheFallback(
+		Duration timeout, BibRecord bib, HostLmsClient hostLms) {
 
 		return (liveData) -> {
 			Mono<AvailabilityReport> cachedData = getFromCache( bib )
 				.delaySubscription(timeout)
-				.doOnCancel( () -> log.trace("Request for bib {} from host lms {} completed in time. Cancelled cache subscripiton.", bib.getId(), hostLms.getHostLmsCode()) )
-				.doOnSuccess( _ar -> log.info("Request for bib {} from host lms {} did not complete in time.", bib.getId(), hostLms.getHostLmsCode()) )
-				.onErrorResume ( error -> {
-					return Mono.defer(() -> {
-						log.error("Error fecthing bib {} for host lms {} from cache.", bib.getId(), hostLms.getHostLmsCode());
-						return Mono.empty();
-					});
-				})
-				.switchIfEmpty( Mono.defer(() -> Mono.just(getNoCachedValueErrorReport("Unable to fetch live availability from " + hostLms.getHostLmsCode() + ", and no previously cached value to fall back on.")) ));
+				.doOnCancel(() -> log.trace("Request for bib {} from host lms {} completed in time. Cancelled cache subscription.", bib.getId(), hostLms.getHostLmsCode()) )
+				.doOnSuccess(_ar -> log.info("Request for bib {} from host lms {} did not complete in time.", bib.getId(), hostLms.getHostLmsCode()) )
+				.onErrorResume (error -> Mono.defer(() -> {
+					log.error("Error fetching bib {} for host lms {} from cache.", bib.getId(), hostLms.getHostLmsCode());
+					return Mono.empty();
+				}))
+				.switchIfEmpty(Mono.defer(() -> Mono.just(
+					getNoCachedValueErrorReport("Unable to fetch live availability from " + hostLms.getHostLmsCode() + ", and no previously cached value to fall back on."))));
 
 				// Create a delayed mono that will emit the cached value (if present) after the timeout duration.
 				return Mono.firstWithSignal(liveData, cachedData);
