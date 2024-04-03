@@ -97,15 +97,9 @@ class LiveAvailabilityApiTests {
 	void canProvideAListOfAvailableItems() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
+		final var sourceRecordId = "798472";
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
-
-		final var hostLms = hostLmsFixture.findByCode(CATALOGUING_HOST_LMS_CODE);
-
-		final var sourceSystemId = hostLms.getId();
-
-		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId,
-			"798472", clusterRecord);
+		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
 
 		final var locationCode = "ab6";
 
@@ -165,15 +159,9 @@ class LiveAvailabilityApiTests {
 	void shouldTolerateItemsFromAnUnknownAgency() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
-
-		final var hostLms = hostLmsFixture.findByCode(CATALOGUING_HOST_LMS_CODE);
-
-		final var sourceSystemId = hostLms.getId();
 		final var sourceRecordId = "267635";
 
-		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId, sourceRecordId, clusterRecord);
+		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			SierraItem.builder()
@@ -205,15 +193,9 @@ class LiveAvailabilityApiTests {
 	void shouldTolerateItemsForAnUnknownCirculatingHostLms() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
-
-		final var hostLms = hostLmsFixture.findByCode(CATALOGUING_HOST_LMS_CODE);
-
-		final var sourceSystemId = hostLms.getId();
 		final var sourceRecordId = "8374290";
 
-		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId, sourceRecordId, clusterRecord);
+		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			SierraItem.builder()
@@ -249,17 +231,9 @@ class LiveAvailabilityApiTests {
 	void shouldExcludeSuppressedItems() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
-
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
-
-		final var hostLms = hostLmsFixture.findByCode(CATALOGUING_HOST_LMS_CODE);
-
-		final var sourceSystemId = hostLms.getId();
-
 		final var sourceRecordId = "364255";
 
-		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId,
-			sourceRecordId, clusterRecord);
+		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
 
 		final var locationCode = "example-location";
 
@@ -358,6 +332,18 @@ class LiveAvailabilityApiTests {
 			hasNoItems(),
 			hasNoErrors()
 		));
+	}
+
+	private void defineClusterRecordWithSingleBib(UUID clusterRecordId, String sourceRecordId) {
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			clusterRecordId, clusterRecordId);
+
+		final var hostLms = hostLmsFixture.findByCode(CATALOGUING_HOST_LMS_CODE);
+
+		final var sourceSystemId = hostLms.getId();
+
+		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId,
+			sourceRecordId, clusterRecord);
 	}
 
 	private static Matcher<AvailabilityResponse> hasClusterRecordId(
