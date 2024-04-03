@@ -133,7 +133,7 @@ public class TrackingServiceV3 implements TrackingService {
 		return Mono.just(rwc);
 	}
 	private Mono<RequestWorkflowContext> trackSupplyingSystem(RequestWorkflowContext rwc) {
-		log.debug("trackSupplyingSystem");
+		log.debug("trackSupplyingSystem prId={}",rwc.getPatronRequest().getId());
 		return Mono.just(rwc.getSupplierRequest())
 			.flatMap(this::checkSupplierRequest)
 			.flatMap(this::checkSupplierItem)
@@ -247,7 +247,7 @@ public class TrackingServiceV3 implements TrackingService {
 
 		if ( ( sr.getLocalItemId() == null ) ||
 			( (sr.getLocalItemStatus() != null ) && ( sr.getLocalStatus().equals("MISSING")) ) ) {
-			log.warn("unable to track supplier item - no ID");
+			log.warn("unable to track supplier item - no ID {} {}",sr.getLocalItemId(),sr.getLocalItemStatus());
 			return Mono.just(sr);
 		}
 
