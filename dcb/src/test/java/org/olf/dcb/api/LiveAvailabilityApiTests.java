@@ -8,12 +8,15 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import java.util.List;
+import java.util.UUID;
 
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -119,65 +122,43 @@ class LiveAvailabilityApiTests {
 		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
 
 		// Assert
-		assertThat(report, is(notNullValue()));
-
-		final var items = report.getItemList();
-
-		assertThat(items, is(notNullValue()));
-		assertThat(items.size(), is(2));
-		assertThat(report.getClusteredBibId(), is(clusterRecordId));
-
-		final var firstItem = items.get(0);
-
-		assertThat(firstItem, is(notNullValue()));
-		assertThat(firstItem.getId(), is("1000002"));
-		assertThat(firstItem.getBarcode(), is("6565750674"));
-		assertThat(firstItem.getCallNumber(), is("BL221 .C48"));
-		assertThat(firstItem.getDueDate(), is(nullValue()));
-		assertThat(firstItem.getIsRequestable(), is(true));
-		assertThat(firstItem.getHoldCount(), is(0));
-		assertThat(firstItem.getLocalItemType(), is("999"));
-		assertThat(firstItem.getCanonicalItemType(), is("BKM"));
-		assertThat(firstItem.getAgency().getCode(), is(SUPPLYING_AGENCY_CODE));
-		assertThat(firstItem.getAgency().getDescription(), is(SUPPLYING_AGENCY_NAME));
-		assertThat(firstItem.getHostLmsCode(), is(CIRCULATING_HOST_LMS_CODE));
-
-		final var firstItemStatus = firstItem.getStatus();
-
-		assertThat(firstItemStatus, is(notNullValue()));
-		assertThat(firstItemStatus.getCode(), is("AVAILABLE"));
-
-		final var firstItemLocation = firstItem.getLocation();
-
-		assertThat(firstItemLocation, is(notNullValue()));
-		assertThat(firstItemLocation.getCode(), is(locationCode));
-		assertThat(firstItemLocation.getName(), is("King 6th Floor"));
-
-		final var secondItem = items.get(1);
-
-		assertThat(secondItem, is(notNullValue()));
-		assertThat(secondItem.getId(), is("1000001"));
-		assertThat(secondItem.getBarcode(), is("30800005238487"));
-		assertThat(secondItem.getCallNumber(), is("HD9787.U5 M43 1969"));
-		assertThat(secondItem.getDueDate(), is("2021-02-25T12:00:00Z"));
-		assertThat(secondItem.getIsRequestable(), is(false));
-		assertThat(secondItem.getHoldCount(), is(0));
-		assertThat(secondItem.getLocalItemType(), is("999"));
-		assertThat(secondItem.getCanonicalItemType(), is("BKM"));
-		assertThat(secondItem.getAgency().getCode(), is(SUPPLYING_AGENCY_CODE));
-		assertThat(secondItem.getAgency().getDescription(), is(SUPPLYING_AGENCY_NAME));
-		assertThat(secondItem.getHostLmsCode(), is(CIRCULATING_HOST_LMS_CODE));
-
-		final var secondItemStatus = secondItem.getStatus();
-
-		assertThat(secondItemStatus, is(notNullValue()));
-		assertThat(secondItemStatus.getCode(), is("CHECKED_OUT"));
-
-		final var secondItemLocation = secondItem.getLocation();
-
-		assertThat(secondItemLocation, is(notNullValue()));
-		assertThat(secondItemLocation.getCode(), is(locationCode));
-		assertThat(secondItemLocation.getName(), is("King 6th Floor"));
+		assertThat(report, allOf(
+			notNullValue(),
+			hasClusterRecordId(clusterRecordId),
+			hasNoErrors(),
+			hasItems(
+				allOf(
+					notNullValue(),
+					hasId("1000002"),
+					hasBarcode("6565750674"),
+					hasCallNumber("BL221 .C48"),
+					hasNoDueDate(),
+					isRequestable(),
+					hasStatus("AVAILABLE"),
+					hasNoHolds(),
+					hasLocalItemType("999"),
+					hasCanonicalItemType("BKM"),
+					hasLocation(locationCode, "King 6th Floor"),
+					hasAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_NAME),
+					hasHostLms(CIRCULATING_HOST_LMS_CODE)
+				),
+				allOf(
+					notNullValue(),
+					hasId("1000001"),
+					hasBarcode("30800005238487"),
+					hasCallNumber("HD9787.U5 M43 1969"),
+					hasDueDate("2021-02-25T12:00:00Z"),
+					isNotRequestable(),
+					hasStatus("CHECKED_OUT"),
+					hasNoHolds(),
+					hasLocalItemType("999"),
+					hasCanonicalItemType("BKM"),
+					hasLocation(locationCode, "King 6th Floor"),
+					hasAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_NAME),
+					hasHostLms(CIRCULATING_HOST_LMS_CODE)
+				)
+			)
+		));
 	}
 
 	@Test
@@ -205,25 +186,19 @@ class LiveAvailabilityApiTests {
 		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
 
 		// Assert
-		assertThat(report, is(notNullValue()));
-
-		final var items = report.getItemList();
-
-		assertThat(items, is(notNullValue()));
-		assertThat(items.size(), is(1));
-		assertThat(report.getClusteredBibId(), is(clusterRecordId));
-
-		final var firstItem = items.get(0);
-
-		assertThat(firstItem, is(notNullValue()));
-		assertThat(firstItem.getId(), is("47564655"));
-
-		assertThat(firstItem.getLocation(), is(notNullValue()));
-		assertThat(firstItem.getLocation().getCode(), is("example-location"));
-		assertThat(firstItem.getLocation().getName(), is("Example Location"));
-
-		assertThat(firstItem.getAgency(), is(nullValue()));
-		assertThat(firstItem.getHostLmsCode(), is(nullValue()));
+		assertThat(report, allOf(
+			notNullValue(),
+			hasClusterRecordId(clusterRecordId),
+			hasNoErrors(),
+			hasItems(
+				allOf(
+					notNullValue(),
+					hasId("47564655"),
+					hasLocation("example-location", "Example Location"),
+					hasNoAgency(),
+					hasNoHostLms()
+				))
+		));
 	}
 
 	@Test
@@ -256,30 +231,17 @@ class LiveAvailabilityApiTests {
 		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
 
 		// Assert
-		assertThat(report, is(notNullValue()));
-
-		final var items = report.getItemList();
-
-		assertThat(items, is(notNullValue()));
-		assertThat(items.size(), is(1));
-		assertThat(report.getClusteredBibId(), is(clusterRecordId));
-
-		final var firstItem = items.get(0);
-
-		assertThat(firstItem, allOf(
+		assertThat(report, allOf(
 			notNullValue(),
-			hasProperty("id", is("466742")),
-			hasProperty("location", allOf(
+			hasClusterRecordId(clusterRecordId),
+			hasNoErrors(),
+			hasItems(allOf(
 				notNullValue(),
-				hasProperty("code", is("example-location")),
-				hasProperty("name", is("Example Location"))
-			)),
-			hasProperty("agency", allOf(
-				notNullValue(),
-				hasProperty("code", is("example-agency")),
-				hasProperty("description", is("Example Agency"))
-			)),
-			hasProperty("hostLmsCode", is(nullValue()))
+				hasId("466742"),
+				hasLocation("example-location", "Example Location"),
+				hasAgency("example-agency", "Example Agency"),
+				hasProperty("hostLmsCode", is(nullValue()))
+			))
 		));
 	}
 
@@ -322,9 +284,12 @@ class LiveAvailabilityApiTests {
 		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
 
 		// Assert
-		assertThat(report, is(notNullValue()));
-
-		assertThat(report.getItemList(), is(nullValue()));
+		assertThat(report, allOf(
+			notNullValue(),
+			hasClusterRecordId(clusterRecordId),
+			hasNoItems(),
+			hasNoErrors()
+		));
 	}
 
 	@Test
@@ -387,11 +352,108 @@ class LiveAvailabilityApiTests {
 		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
 
 		// Assert
-		assertThat("Report is not null", report, is(notNullValue()));
-		assertThat("Should have cluster record ID",
-			report.getClusteredBibId(), is(clusterRecordId));
+		assertThat(report, allOf(
+			notNullValue(),
+			hasClusterRecordId(clusterRecordId),
+			hasNoItems(),
+			hasNoErrors()
+		));
+	}
 
-		assertThat("Should contain no items", report.getItemList(),  is(nullValue()));
-		assertThat("Should contain no errors", report.getErrors(),  is(nullValue()));
+	private static Matcher<AvailabilityResponse> hasClusterRecordId(
+		UUID clusterRecordId) {
+		return hasProperty("clusteredBibId", is(clusterRecordId));
+	}
+
+	@SafeVarargs
+	static Matcher<AvailabilityResponse> hasItems(
+		Matcher<AvailabilityResponse.Item>... itemMatchers) {
+
+		return hasProperty("itemList", containsInAnyOrder(itemMatchers));
+	}
+
+	private static Matcher<AvailabilityResponse> hasNoItems() {
+		return hasProperty("itemList", is(nullValue()));
+	}
+
+	private static Matcher<AvailabilityResponse> hasNoErrors() {
+		return hasProperty("errors", is(nullValue()));
+	}
+
+	private static Matcher<AvailabilityResponse.Item> hasId(String expectedId) {
+		return hasProperty("id", is(expectedId));
+	}
+
+	private static Matcher<AvailabilityResponse.Item> hasCallNumber(String expectedCallNumber) {
+		return hasProperty("callNumber", is(expectedCallNumber));
+	}
+
+	private static Matcher<AvailabilityResponse.Item> hasBarcode(String expectedBarcode) {
+		return hasProperty("barcode", is(expectedBarcode));
+	}
+
+	private static Matcher<AvailabilityResponse.Item> hasAgency(
+		String expectedCode, String expectedName) {
+
+		return hasProperty("agency", allOf(
+			notNullValue(),
+			hasProperty("code", is(expectedCode)),
+			hasProperty("description", is(expectedName))
+		));
+	}
+
+	private static Matcher<AvailabilityResponse.Item> hasNoAgency() {
+		return hasProperty("agency", nullValue());
+	}
+
+	private static Matcher<AvailabilityResponse.Item> hasLocation(
+		String expectedCode, String expectedName) {
+
+		return hasProperty("location", allOf(
+			notNullValue(),
+			hasProperty("code", is(expectedCode)),
+			hasProperty("name", is(expectedName))
+		));
+	}
+
+	private static Matcher<AvailabilityResponse.Item> hasHostLms(String expectedHostLmsCode) {
+		return hasProperty("hostLmsCode", is(expectedHostLmsCode));
+	}
+
+	private static Matcher<AvailabilityResponse.Item> hasNoHostLms() {
+		return hasProperty("hostLmsCode", nullValue());
+	}
+
+	private static Matcher<AvailabilityResponse.Item> hasDueDate(String expectedDueDate) {
+		return hasProperty("dueDate", is(expectedDueDate));
+	}
+
+	private static Matcher<AvailabilityResponse.Item> hasNoDueDate() {
+		return hasProperty("dueDate", nullValue());
+	}
+
+	static Matcher<AvailabilityResponse.Item> hasCanonicalItemType(String expectedItemType) {
+		return hasProperty("canonicalItemType", is(expectedItemType));
+	}
+
+	static Matcher<AvailabilityResponse.Item> hasLocalItemType(String expectedItemType) {
+		return hasProperty("localItemType", is(expectedItemType));
+	}
+
+	private static Matcher<AvailabilityResponse.Item> hasNoHolds() {
+		return hasProperty("holdCount", is(0));
+	}
+
+	private static Matcher<AvailabilityResponse.Item> isRequestable() {
+		return hasProperty("isRequestable", is(true));
+	}
+
+	private static Matcher<AvailabilityResponse.Item> isNotRequestable() {
+		return hasProperty("isRequestable", is(false));
+	}
+
+	private static Matcher<AvailabilityResponse.Item> hasStatus(String expectedStatus) {
+		return hasProperty("status",
+			hasProperty("code", is(expectedStatus)));
 	}
 }
