@@ -40,7 +40,7 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
   private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private HostLmsService hostLmsService;
 
-	private static final List<Status> possibleSourceStatus = List.of(Status.RETURN_TRANSIT, Status.LOANED);
+	private static final List<Status> possibleSourceStatus = List.of(Status.RETURN_TRANSIT);
 	
 	public HandleSupplierItemAvailable(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
@@ -75,7 +75,7 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 			// Received is a sierra state
       ( 
 				(HostLmsItem.ITEM_RECEIVED.equals(ctx.getSupplierRequest().getLocalItemStatus())) || 
-				(HostLmsItem.ITEM_AVAILABLE.equals(ctx.getSupplierRequest().getLocalItemStatus())) || 
+				(HostLmsItem.ITEM_AVAILABLE.equals(ctx.getSupplierRequest().getLocalItemStatus())) ||
 				( ("CLOSED".equals(ctx.getSupplierRequest().getLocalStatus() ) ) ) 
 			);
   }
