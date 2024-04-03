@@ -111,7 +111,8 @@ type PatronRequest {
   localItemType: String
   localBibId: String
   description: String
-  errorMessage: String
+	nextScheduledPoll: String
+	errorMessage: String
   activeWorkflow: String
   requesterNote: String
   suppliers: [SupplierRequest]
