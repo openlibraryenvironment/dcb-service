@@ -22,6 +22,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.Times;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.test.HostLmsFixture;
 import org.zalando.problem.ThrowableProblem;
 
@@ -115,7 +116,18 @@ class SierraApiLoginTests {
 
 		itemsFixture.unauthorisedResponseForCreateItem(12345, "ABC-123", "584866478");
 
-		itemsFixture.twoItemsResponseForBibId("12345");
+		itemsFixture.itemsForBibId("12345", List.of(
+			SierraItem.builder()
+				.id("864477")
+				.locationCode("example-location")
+				.locationName("Example Location")
+				.build(),
+			SierraItem.builder()
+				.id("3669266")
+				.locationCode("example-location")
+				.locationName("Example Location")
+				.build()
+			));
 
 		// Act
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
