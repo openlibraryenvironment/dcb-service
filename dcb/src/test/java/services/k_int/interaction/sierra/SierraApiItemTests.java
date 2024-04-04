@@ -72,12 +72,12 @@ class SierraApiItemTests {
 	@Test
 	void shouldBeAbleToCreateAnItem() {
 		// Arrange
-		sierraItemsAPIFixture
-			.successResponseForCreateItem(4641865, "ab1234", "68439643");
-
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		sierraItemsAPIFixture.successResponseForCreateItem(4641865,
+			"ab1234", "68439643", "7916922");
 
 		// Act
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+
 		final var itemPatch = ItemPatch.builder()
 			.bibIds(List.of(4641865))
 			.location("ab1234")

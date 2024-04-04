@@ -174,7 +174,10 @@ class PatronRequestApiTests {
 			.build();
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916920);
-		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_AGENCY_CODE, SUPPLYING_ITEM_BARCODE);
+
+		sierraItemsAPIFixture.successResponseForCreateItem(7916920,
+			SUPPLYING_AGENCY_CODE, SUPPLYING_ITEM_BARCODE, "7916922");
+
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(KNOWN_PATRON_LOCAL_ID, "i", null);
 
 		final var borrowingAgency = agencyFixture.defineAgency(BORROWING_AGENCY_CODE,
@@ -488,7 +491,8 @@ class PatronRequestApiTests {
 				.build());
 
 		// Mock required for placing request with different item barcode
-		sierraItemsAPIFixture.successResponseForCreateItem(7916920, SUPPLYING_AGENCY_CODE, updatedLocalSupplyingItemBarcode);
+		sierraItemsAPIFixture.successResponseForCreateItem(7916920,
+			SUPPLYING_AGENCY_CODE, updatedLocalSupplyingItemBarcode, "7916922");
 
 		trackingFixture.runTracking();
 
