@@ -116,8 +116,9 @@ public class PatronRequestController {
 	 */
 	@SingleResult
 	@Post(value = "/{patronRequestId}/update", consumes = APPLICATION_JSON)
-	public Mono<PatronRequest> updatePatronRequest(@NotNull final UUID patronRequestId) {
-		return trackingService.forceUpdate(patronRequestId);
+	public Mono<UUID> updatePatronRequest(@NotNull final UUID patronRequestId) {
+		return trackingService.forceUpdate(patronRequestId)
+			.thenReturn(patronRequestId);
 	}
 
 	@SingleResult
