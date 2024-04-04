@@ -118,8 +118,6 @@ class LiveAvailabilityServiceTests {
 				.itemType("999")
 				.locationCode("ab6")
 				.locationName("King 6th Floor")
-				.suppressed(false)
-				.deleted(false)
 				.build(),
 			SierraItem.builder()
 				.id("1000001")
@@ -133,7 +131,35 @@ class LiveAvailabilityServiceTests {
 				.build()
 		));
 
-		sierraItemsAPIFixture.threeItemsResponseForBibId("767648");
+		sierraItemsAPIFixture.itemsForBibId("767648", List.of(
+			SierraItem.builder()
+				.id("8757567")
+				.barcode("9849123490")
+				.callNumber("BL221 .C48")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode("ab5")
+				.locationName("King 5th Floor")
+				.build(),
+			SierraItem.builder()
+				.id("8275735")
+				.barcode("30800005315459")
+				.callNumber("HX157 .H8")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode("ab7")
+				.locationName("King 7th Floor")
+				.build(),
+			SierraItem.builder()
+				.id("72465635")
+				.barcode("30800005208449")
+				.callNumber("HC336.2 .S74 1969")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode("ab7")
+				.locationName("King 7th Floor")
+				.build()
+		));
 
 		// Act
 		final var report = liveAvailabilityService
