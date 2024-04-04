@@ -139,16 +139,20 @@ public class PAPIClient {
 			.itemBarcode(itemBarcode)
 			.build();
 
+		log.debug("Attempt checkout {}",body);
+
 		return createRequest(POST, path, uri -> {})
 			.map(request -> request.body(body))
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
-			.flatMap(request -> client.retrieve(request,
-				Argument.of(ItemCheckoutResult.class), noExtraErrorHandling()))
+			.flatMap(request -> client.retrieve(request, Argument.of(ItemCheckoutResult.class), noExtraErrorHandling()))
 			.flatMap(this::checkForItemCheckOutError);
 	}
 
 	private Mono<ItemCheckoutResult> checkForItemCheckOutError(ItemCheckoutResult itemCheckoutResult) {
+
+		log.debug("checkForItemCheckOutError {}",itemCheckoutResult);
+
 		return Mono.just(itemCheckoutResult)
 			// PAPI Error Codes: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1221124
 			.filter(result -> result.getPAPIErrorCode() == 0)
