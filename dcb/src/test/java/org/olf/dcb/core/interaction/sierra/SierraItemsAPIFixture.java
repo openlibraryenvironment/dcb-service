@@ -67,11 +67,6 @@ public class SierraItemsAPIFixture {
 			.respond(threeItemsResponse());
 	}
 
-	public void twoItemsResponseForBibId(String bibId) {
-		mockServer.when(getItemsForBib(bibId))
-			.respond(twoItemsResponse());
-	}
-
 	public void zeroItemsResponseForBibId(String bibId) {
 		mockServer.when(getItemsForBib(bibId))
 			.respond(sierraMockServerResponses.noRecordsFound());
@@ -85,11 +80,6 @@ public class SierraItemsAPIFixture {
 	public HttpResponse threeItemsResponse() {
 		return sierraMockServerResponses.jsonSuccess(
 			"items/sierra-api-three-items.json");
-	}
-
-	private HttpResponse twoItemsResponse() {
-		return sierraMockServerResponses.jsonSuccess(
-			"items/sierra-api-two-items.json");
 	}
 
 	public void jsonErrorResponseForCreateItem() {
