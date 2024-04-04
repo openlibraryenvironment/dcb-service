@@ -13,6 +13,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -101,7 +102,29 @@ class LiveAvailabilityApiTests {
 
 		final var locationCode = "ab6";
 
-		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
+		sierraItemsAPIFixture.itemsForBibId("798472", List.of(
+			SierraItem.builder()
+				.id("1000002")
+				.barcode("6565750674")
+				.callNumber("BL221 .C48")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode(locationCode)
+				.locationName("King 6th Floor")
+				.suppressed(false)
+				.build(),
+			SierraItem.builder()
+				.id("1000001")
+				.barcode("30800005238487")
+				.callNumber("HD9787.U5 M43 1969")
+				.statusCode("-")
+				.dueDate(Instant.parse("2021-02-25T12:00:00Z"))
+				.itemType("999")
+				.locationCode(locationCode)
+				.locationName("King 6th Floor")
+				.suppressed(false)
+				.build()
+		));
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			CATALOGUING_HOST_LMS_CODE, locationCode, SUPPLYING_AGENCY_CODE);
