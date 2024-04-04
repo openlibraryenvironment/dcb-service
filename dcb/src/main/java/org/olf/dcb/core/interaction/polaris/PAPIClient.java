@@ -126,7 +126,7 @@ public class PAPIClient {
 	}
 
 	public Mono<ItemCheckoutResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {
-		log.info("Patron {} checking out item {}", patronBarcode, itemBarcode);
+		log.info("itemCheckoutPost PatronBarcode {} itemBarcode {}", patronBarcode, itemBarcode);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
 		final var conf = client.getConfig();
@@ -139,7 +139,7 @@ public class PAPIClient {
 			.itemBarcode(itemBarcode)
 			.build();
 
-		log.debug("Attempt checkout {}",body);
+		log.debug("POLARIS itemCheckoutPost {}",body);
 
 		return createRequest(POST, path, uri -> {})
 			.map(request -> request.body(body))
