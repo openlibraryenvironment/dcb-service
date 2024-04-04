@@ -1,9 +1,44 @@
 # Changelog
 
+## Version 6.0.0
+
+### Additions
+* [Tracking]
+	* **BREAKING** -  Add a new tracking implementation and disable the previous implementation
+
+### Changes
+* [Chore]
+	* Make updatePatronRequest return the UUID of the PR and not the full object
+	* Additional logging supplier item tracking
+	* Add nextScheduledPoll to schema [DCB-989]
+	* Extend skipped loan detection to RET-LOCAL workflow
+	* Include missing borrower items in guard condition for skipped loan
+	* add HandleBorrowerSkippedLoanTransit to try to recover from a missed loan phase or a cancellation return
+	* remove unused WorkflowAction
+	* remove residual workflow actions
+	* Added dev durations to tracking helper
+	* Extend checkOutItem to have item barcode and patron id available ready to address DCB-983
+	* Disable 2 supplying agency tests until we can look at them on tuesday
+	* Extra logging when a patron type changes
+* [Feature]
+	* Allow sierra RECEIVED item state to trigger completion from RETURN_TRANSIT
+	* /patrons/requests/{patronRequestId}/update
+	* Use location@agency as pickup location when placing a supplier request at a sierra agency
+
+### Fixes
+* [General]
+	* Exclude suppressed items from live availability DCB-976
+	* transitioning to supplier item available before item has been loaned
+	* if condition improved for matching patron types
+	* Use item barcode when submitting a checkOut to sierra - DCB-983
+	* use the determined patron type to update the virtual patron
+	* DCB-980 Use location.code when placing a borrowing hold on a sierra system instead of agency code. This ensures that the specific code the user selected is used in the borrowing library system.
+
 ## Version 5.12.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* more logging for HandleSupplierInTransit
 	* Additional logging around isApplicable for HandleSupplierInTransit
 	* Surface suppressed flag in RTAC results
@@ -54,2391 +89,17 @@
 ## Version 5.11.0
 
 ### Additions
-* [General]
-	* Confirm FOLIO supplying agency request immediately DCB-884
-	* Startup defaults and JVM info sources
-	* Fallback to general information field for language DCB-394
-	* Split concatenated language codes during MARC ingest DCB-394
-	* implement borrower ILL flow for polaris
-	* DCB-918 add local-id to location modelling to allow DCB to reference host lms locations by their internal ID
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* use concatMap when tracking rather than constrained flatmap
-	* Added necessary options for larger zip file archives
-	* Stop explicitly specifying db pool size and instead compute defaults from allocated cores
-	* add timers to tracking service
-	* signpost for todo needed on hierarchical host LMS setup
-	* Wire in remaining test backoff poll calls
-	* allow awaiting pickup at borrower to progress in transit
-	* Allow virtual items to be tracked even in a missing state
-	* remove another extra audit message, use ctx.workflowMessages instead. Tone down logging on polaris url factory
-	* additional logging
-	* Reinstate flag to not reflect loaned back to polaris, remove additional excessive audit messages
-	* remove excessive state change message
-	* Bump commit to force CI
-	* push nullsafe protection down into sierra client
-	* Back off nullsafe protections in tracking code
-	* preparation for hold cleanup and defensive code on action tracking
-	* tidy
-	* more logging
-	* Refactor to allow pickup location to propagate to borrowing system hold
-	* logging for new tracking options
-	* add missing migration file
-	* Report host lms code when constructing the adapter to aid in troubleshooting from logs
-* [Feature]
-	* DCB-939 - graphql endpoint for pickup locations sorted by local agency locations first
-	* Use more descriptive note text
-	* Introduce common function to generate more descriptive note to request workflow context
-	* Add backoff timing on tracking service
-	* Allow an item state of LOANED to allow the RECEVED flow to trigger - letting us handle a failed detection of check-in
-	* DCB-926 add remaining tracking
-	* DCB-925 first part of tracking improvements
-	* DCB-926 add domain model fields for better control of poll intervals when tracking
-	* DCB-919 Add pickup location fields in to request workflow context
-* [Refactor]
-	* revise place hold method in polaris
-
-### Fixes
-* [General]
-	* Stop requesting FOLIO transaction status for empty ID
-	* Trying a different engine to see if that resolves the statemodel generation problem
-	* Allow FOLIO CLOSED state to complete a dcb request
-	* repeated error detection for supplier request
-	* updateItemThenCheckout should be passed itemid and not item barcode
-	* DCB-931 - Use explicit mapping for canonical item type to folio
-	* don't assume process graphql will come with a sort option
-	* Owning location not being set in sierra, preventing return transit flow
-	* DCB-923 include calls to delete item and bib in reactive flow
-	* DCB-922 attempt to clear transit message in sierra by setting message to zero length string
-
-## Version 5.10.0
-
-### Additions
-* [General]
-	* JVM properties as source and startup reporter.
-	* determine assigned branch id for Polaris virtual item creation [DCB-910]
-	* Update item barcode uupon confirmation DCB-884
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* add update methods to patron request repository for more granular polling control
-	* add update methods to supplier request repository for more granular polling control
-	* Add extra tracking states to test
-	* Add LOANED and AVAILABLE to list of tracked states on supplier item
-	* Add fields to enable more fine grained control of the polling period for downstream systems
-	* Add an audit message on validation
-* [Feature]
-	* add method to HostLmsClient which controls if borrower checkouts should be reflected back to the supplying library
-	* Add record counts to admin endpoint, add workflow messages to request workflow context
-* [Refactor]
-	* add HostLmsItem status Available to applicable for HandleBorrowerRequestReturnTransit
-
-### Fixes
-* [General]
-	* Correct received token, log mapping failures as errors
-	* Temporarily revert the extra property sources.
-	* cloudwatch op-in MICRONAUT_METRICS_EXPORT_CLOUDWATCH_ENABLED=true
-
-## Version 5.9.0
-
-### Additions
-* [General]
-	* Wait for confirmation before placing request at borrowing agency DCB-884
-	* Test integration that selects the correct TransactionManager
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* enable requests to be completed without a return transit
-
-### Fixes
-* [General]
-	* Revert health endpoint to being insecure
-	* multiple patron records being found during polaris patron lookup [DCB-907]
-	* Extra defensive code when looking into location data from sierra
-
-## Version 5.8.0
-
-### Additions
-* [General]
-	* Search hooks
-	* Distributed Federated locks in reactive flow
-	* Secure the various internal endpoints by IP or ROLE_SYSTEM
-	* Remove option to disable patron request preflight checks DCB-892
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* stop emitting guard passed audit message - it's confusing
-	* revert change which required a bib hold to be converted to an item hold within the retry period - we can't force that and need to be able to cope with this happening asynchronously
-	* Include item information when fetching Polaris hold DCB-844
-	* Consider on hold item request from Sierra confirmed DCB-884
-	* Fetch Sierra item after fetching hold DCB-884
-	* Use elvis operator for interpreting item ID from Sierra hold DCB-884
-	* Use derestify method for interpreting Sierra hold ID DCB-884
-	* Added the ability for state changes to have additional properties
-	* added micronaut.http.client.connect-ttl to application.yml
-	* Raise error when Sierra hold status is null or empty DCB-884
-	* make place request endpoint callable by any authenticated user not just administrator role
-	* Disable DCB as a Token issuer
-	* Map pending Polaris hold to confirmed local status DCB-884
-	* Use property accessor to get Polaris hold properties DCB-884
-	* Map created folio transaction to confirmed local status DCB-884
-	* Introduce dedicated workflow action for confirmed supplier request DCB-884
-	* Replace spaces with tabs in unhandle state action DCB-884
-	* Remove typo from get tracking record type method name DCB-884
-	* Describe why audit method in Host LMS reactions has to be public
-	* Introduce confirmed Host LMS request status DCB-884
-* [Feature]
-	* Propagate hold item ID through tracking service
-	* Updates to workflow to allow bypass of borrowing library hold states and jump directly to LOANED from IN_TRANSIT
-	* Refactor to cleanly decouple tracking service and state model, merge location participation database changes.
-* [Refactor]
-	* Remove map to hold status only when fetching hold from Polaris DCB-884
-	* Pass hold instead of only status when determining status DCB-884
-	* Extract method for determining Sierra hold status DCB-884
-	* Introduce guard clause for empty hold response from Sierra DCB-884
-	* Return publisher when mapping Sierra hold to request DCB-884
-	* handle virtual item with duplicate barcode - polaris workflow [DCB-809]
-	* Make tracking record an interface DCB-884
-	* Move Host LMS reactions class DCB-884
-* [Test]
-	* Demonstrate fetch FOLIO request does not have item information DCB-884
-	* Demonstrate empty hold being returned by Sierra DCB-884
-	* Mock getting item after getting hold from Sierra DCB-884
-	* Check for item ID when getting request from Sierra DCB-884
-	* Use title level hold when detecting request is placed at supplying agency DCB-884
-	* Demonstrate getting item level request from Sierra DCB-884
-	* Demonstrate getting title level request from Sierra DCB-884
-	* Demonstrate detection of expected local status changes DCB-884
-	* Remove Polaris hold example json DCB-884
-	* Use serialisation to provide mock response for Polaris hold DCB-884
-	* Include item ID and barcode in example Polaris hold used in mocks DCB-884
-	* Check item properties for placed hold in Polaris DCB-884
-	* Check supplier request local status changed to confirmed DCB-884
-	* Check audit record is recorded after confirmation DCB-884
-	* Pass patron request with confirmed state change DCB-884
-	* Pass supplier request with confirmed state change DCB-884
-	* Invoke Host LMS reactions during confirmation test DCB-884
-	* Delete all Host LMS before confirmation reaction tests DCB-884
-	* Delete all agencies before confirmation reaction tests DCB-884
-	* Delete all supplier requests before confirmation reaction tests DCB-884
-	* Delete all patron requests before confirmation reaction tests DCB-884
-	* Introduce test class for reactions to supplier request confirmation DCB-884
-	* Use fixture to create agency before fetching all agencies DCB-884
-	* Use fixture to create host LMS when creating agency DCB-884
-	* Make agency repository tests independent DCB-884
-
-### Fixes
-* [General]
-	* Ensure tracking service is sequential.
-	* Added the means to generate the state table model as a diagram
-	* Request tracking flow out of order
-	* Added getPossibleSourceStatus to workspace handlers
-	* Map item barcode for Polaris hold to barcode instead of item ID DCB-872
-	* parse patron barcodes in folio requests
-
-## Version 5.7.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* tune timeout on RTAC api call - 7s instead of 5
-	* logging around missing patron hold request tracking
-
-### Fixes
-* [General]
-	* Handle missing borrower request was setting the local item status and not the local request status in a cancelled scenario - leading to repeated attempts to process the message
-
-## Version 5.7.0
-
-### Additions
-* [General]
-	* Record item barcode after Sierra title level request placed DCB-872
-	* Timeout live availability requests with Unknown fallback status
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Extra hint that problem props are supplier side
-	* remove dcbContext from problem - it's too verbose. Transactional annotation for audit log message
-	* Reinstate getting item barcode for placed Sierra hold DCB-872
-	* remove unused config value - default-patron-home-location-code
-	* Remove unused constructor parameter in place request at borrowing agency transition
-	* back out sierra retrieve-item-after-hold change - sierra is not behaving as expected for this approach - back to item level requesting
-	* null item id protection
-	* Improve error message when Sierra hold record number is invalid integer DCB-872
-	* Remove unused state transition method in supplier request DCB-872
-	* refactor HandleSupplierItemAvailable.java - WIP
-	* Revert to using requesting agency when placing requests in sierra libraries
-	* Preparation for LocalRequest being able to return the requested item barcode and id when placing a bib level hold. Non-null return values should overwrite values in the supplier request when placing a request at a supplying agency
-	* Remove redundant generic type in application services auth filter
-	* Remove redundant static modifier on patron request status enum
-	* Replace spaces with tabs in workflow service
-	* Remove unused string utility methods
-	* Wrap long lines in audit service
-* [Feature]
-	* Add NumericRangeMappingController
-	* When placing a hold in sierra, examine the returned hold structure and take note of the requested itemId - propagate that back and record it in the supplier request. If the hold was a bib hold, this will be the actual item requested
-* [Refactor]
-	* Move null if empty method to utility class
-	* add item id and item barcode to LocalRequest (Polaris)
-	* Audit logging in HandleSupplierItemAvailable - we cannot use .subscribe inside a stream so the audit messages are not being logged
-	* Extract method for adding body to HTTP request
-	* Use instance of pattern matching to remove explicit cast to problem
-	* Extract method for truncating string to a maximum length
-* [Test]
-	* Demonstrate getting item after hold placed tolerates not found response DCB-872
-	* Limit mock expectations for getting holds from Sierra to single time DCB-872
-	* Stop removing existing mock expectations for getting holds from Sierra DCB-872
-	* Rename methods for mocking get holds for patron from Sierra DCB-872
-	* Reinstate check on item ID after request is placed DCB-872
-	* Demonstrate placing a title level hold in Sierra DCB-872
-	* Rename method for mocking place hold request in Sierra DCB-872
-	* Remove unecessary sneaky throws from place hold request in Sierra supplying agency test DCB-872
-	* Demonstrate patron request status changes to error when error occurs in reactive chain
-	* Delete all patron requests before workflow service tests
-	* Add patron request workflow service test class
-
-### Fixes
-* [General]
-	* correct URI path for numeric range mapping controller
-	* Raise error when no item level hold found in Sierra DCB-872
-	* continue flow for -1 failure resp from polaris find virtual patron
-	* check for error in response of Polaris patron search
-	* Truncate patron request error message to shorter length than database column
-	* patron barcode parsing [DCB-826]
-
-## Version 5.6.0
-
-### Additions
-* [General]
-	* Ingest terminator for graceful shutdown
-	* Handle unexpected responses from Polaris DCB-855
-	* concurrency groups
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Reduce duplication in property access utility methods DCB-855
-	* Include request path in unexpected response problem parameters DCB-855
-	* Add log message for when getting request defaults from Polaris fails DCB-855
-	* Remove unused patron find method in Polaris Host LMS client DCB-855
-	* Reformat PAPI auth filter DCB-855
-* [Feature]
-	* DCB-877 for sierra supplier use item location as pickup location
-	* Add localItemLocationCode to PlaceHoldRequestParameters - allows a supplying agency hold to use the current location of the item as a pickup location at the supplying library
-* [Refactor]
-	* added StringUtils methods for removing brackets
-* [Test]
-	* Check request URL included in unexpected response problem DCB-855
-	* Demonstrate failure when finding a patron in Polaris returns server error DCB-855
-	* Rename Polaris LMS Host test methods DCB-855
-	* Make methods in Polaris Host LMS client tests package-private DCB-855
-	* Demonstrate placing a hold in Polaris failing DCB-855
-
-### Fixes
-* [General]
-	* remove prefixing barcode when searching for patron, polaris
-
-## Version 5.5.2
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Add a get record count report method to the BibRepository in preparation for API endpoint that reports bib record count per source system
-	* Minor refactor of HandleSupplierInTransit to allow for onError to report problems setting transit on downstream systems
-	* Defensive code around nulls in audit data
-* [Refactor]
-	* use exception for multiple virtual patrons found
-* [Test]
-	* Demonstrate failure when creating virtual item in Polaris DCB-855
-	* Use specific start workflow mock when creating item in Polaris DCB-855
-	* Verify when a patron search happens in Polaris DCB-871
-
-### Fixes
-* [General]
-	* ensure empty mono emmits patronNotFound exception
-	* Unable to create virtual patron at polaris - errorcode:-3505: Duplicate barcode
-
-## Version 5.5.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* correct tracker refdata tests
-	* Include patron as audit data when virtual patron creation in Polaris fails
-	* Make HTTP request related methods in Polaris client package-private DCB-855
-	* Include patron in error when creating virtual patron in Polaris
-	* Improve error message when home patron identity cannot be found
-
-### Fixes
-* [General]
-	* Add rule to track virtual items in status REQUESTED so we can detect CHECK-IN
-	* Audit messages not saving
-
-## Version 5.5.0
-
-### Additions
-* [General]
-	* Make wildcard searches case insensitive by default.
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Handle unexpected responses during retrieve operations to Polaris DCB-855
-	* correct exception message
-	* Remove unecessary casts when reading Polaris client config DCB-855
-	* Replace spaces with tabs in application services client DCB-855
-	* Make types used in PAPI client interface public DCB-855
-	* Remove unused field in Polaris Host LMS client DCB-855
-* [Refactor]
-	* Move specific handling for patron blocks to error transformer parameter DCB-855
-	* Introduce an error handling transformer for Polaris retrieve method DCB-855
-	* Move iterable to array method to utility class
-	* patron type exception messages [DCB-867]
-	* Use common method for getting services config in application services auth filter DCB-855
-	* Use common method for getting services config in application services client DCB-855
-	* Extract method for getting PAPI config DCB-855
-	* Move service config method to Polaris Host LMS client DCB-855
-	* Extract method for making patron search request in Polaris DCB-855
-	* Extract method for getting Polaris Host LMS client services config DCB-855
-	* Extract method for defining empty PAPI client credentials DCB-855
-* [Test]
-	* Demonstrate specific failure when receive server error response for patron blocks from Polaris DCB-855
-	* Demonstrate tolerance of patron blocks not being found in Polaris DCB-855
-	* Demonstrate unexpected response when creating a bib in Polaris DCB-855
-	* Demonstrate unexpected response when getting an item from Polaris DCB-855
-	* Extract method for mocking starting a workflow in Polaris DCB-855
-	* Extract method for mocking continuing a workflow in Polaris DCB-855
-	* Remove unused mocking of workflow when deleting item in Polaris DCB-855
-	* Extract method for mocking creating a bib in Polaris DCB-855
-	* Extract method for mocking placing a hold in Polaris DCB-855
-	* Extract method for mocking check out item to patron in Polaris DCB-855
-	* Extract method for mocking get bib from Polaris DCB-855
-	* Extract methods in Polaris mock fixture to reduce duplication DCB-855
-	* Extract method for mocking get item barcode from Polaris DCB-855
-	* Extract method for mocking update patron in Polaris DCB-855
-	* Extract method for mocking get patron barcode from Polaris DCB-855
-	* Extract method for mocking create patron in Polaris DCB-855
-	* Extract method for mocking get hold from Polaris DCB-855
-	* Change patron ID parameter type from int to string DCB-855
-	* Extract method for mocking get patron block summary from Polaris DCB-855
-	* Extract method for mocking get item from Polaris DCB-855
-	* Extract method for mocking get patron by barcode from Polaris DCB-855
-	* Extract method for mocking patron authentication for Polaris DCB-855
-	* Extract method for mocking get item statuses from Polaris DCB-855
-	* Extract method for mocking get material types from Polaris DCB-855
-	* Extract method for mocking get items for bib from Polaris DCB-855
-	* Extract method for mocking application services auth in Polaris DCB-855
-	* Remove use of Polaris test utils in ingest tests DCB-855
-	* Extract method for mocking Polaris PAPI staff auth DCB-855
-	* Move mocking paged bibs from Polaris to fixture DCB-855
-	* Remove ordering from Polaris ingest tests DCB-855
-	* Use test resource loader in Polaris ingest tests DCB-855
-	* Removed unused code from Polaris ingest tests DCB-855
-	* Inline use of Polaris test utils inside fixture DCB-855
-	* Remove unused auth code in Polaris test utils DCB-855
-	* Use utility method for getting value from publisher in Polaris client tests DCB-855
-	* Move creation of resource loader to mock fixture DCB-855
-	* Extract method for mocking patron search in Polaris DCB-855
-	* Move mock methods from Polaris tests to fixture DCB-855
-* [Tests]
-	* Move fields to before all method in Polaris client tests DCB-855
-
-### Fixes
-* [General]
-	* expected error message in shouldThrowExceptionWhenNoMappingFromSpinePatronTypeToBorrowingPatronType
-	* change error mapping round when we determinePatronType
-	* Rework to use MN internals.
-	* use NonNull instead of NotNull annotation to vaildate place request body
-
-## Version 5.4.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [General]
-	* changes for process state update
-
-## Version 5.4.0
-
-### Additions
-* [General]
-	* Handle unexpected responses from Sierra DCB-849
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Save audit data with audit record DCB-849
-	* Replace spaces with tabs in request audit service DCB-849
-	* Make request workflow context serdeable DCB-849
-	* Include parameters from underlying problem when placing request at supplying agency DCB-849
-	* Include json request body for unexpected response DCB-849
-	* Include text request body for unexpected response DCB-849
-	* Tolerate no request body for unexpected response DCB-849
-	* Tolerate no request or host LMS code for unexpected response DCB-849
-	* add log for debugging duplicate error audit
-	* Reformat get method in Sierra client DCB-849
-	* Rename generic type arguments when making request DCB-855
-	* Handle unexpected responses when getting RTAC holdings from FOLIO DCB-855
-	* Additional logging around state saving for FOLIO
-* [Feature]
-	* Re-apply the transactional annotation needed to stop Folio OAI from deadlocking - adding additional annotations needed to stop non-folio tests from deadlocking
-	* add transition to pickup_transit in audit log
-* [Refactor]
-	* Use error handler to handle no records error from Sierra DCB-849
-	* Remove optional execute of error handling transform when retrieving from Sierra DCB-849
-	* Provide no extra error handling when retrieving from Sierra DCB-849
-	* Explicitly remove cached token when retrieve receives unauthorised response DCB-849
-	* Explicitly remove cached token when exchange receives unauthorised response DCB-849
-	* Introduce parameter for error handler when retrieving from Sierra DCB-849
-	* Move detecting unexpected response from FOLIO to common request method DCB-855
-	* Move detecting unathorised response from FOLIO to common request method DCB-855
-	* Provide error handler when creating a FOLIO transaction DCB-855
-	* Raise specific exception when transaction not found in FOLIO DCB-855
-	* Extract parameter for an error handler when making FOLIO HTTP request DCB-855
-	* Extract method for finding FOLIO user by barcode DCB-855
-* [Test]
-	* Check for audit data when placing request at supplying agency fails DCB-849
-	* Extract matchers for audit data DCB-849
-	* Demonstrate adding an audit entry for an error DCB-849
-	* Demonstrate login failure in Sierra Host LMS client DCB-849
-
-### Fixes
-* [General]
-	* Ensure transactional encapsulation of "updateState"
-	* remove extra Error Transformer after applyTransition
-	* Use the patronRequest status to control the action of a missing request at the requesting library to avoid accidentially cancelling the request
-
-## Version 5.3.0
-
-### Additions
-* [General]
-	* Report unexpected response from Sierra when placing hold DCB-849
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Move detection of unexpected response from Sierra to lower level client DCB-849
-	* Use request path in title for unexpected response from unknown host LMS DCB-849
-	* Use request URI in title for unexpected response from unknown host LMS DCB-849
-	* Remove unused unexpected response exception DCB-849
-	* Include request method in unexpected response problem DCB-849
-	* Parse unexpected text response body as a string DCB-849
-	* Parse unexpected JSON response body as map DCB-849
-	* Include unexpected response status code in problem DCB-849
-	* report problem for unexpected response when creating FOLIO transaction DCB-849
-* [Feature]
-	* re-enable parallel processing of ingest items. TRIAL
-* [Refactor]
-	* Extract method for interpreting unexpected response body DCB-849
-	* Move unexpected response problem creation to separate class DCB-849
-* [Test]
-	* Rename place request at supplying agency test class DCB-849
-	* Vary property types in unexpected json response DCB-849
-	* Introduce matcher for each json property in unexpected response DCB-849
-	* Extract matcher for problem parameters DCB-849
-	* Introduce tests for mapping response exception to unexpected response problem DCB-849
-	* Match on throwable problem rather than default problem DCB-849
-	* Move unexpected response matchers to separate class DCB-849
-
-## Version 5.2.0
-
-### Additions
-* [General]
-	* reworked cluster merging
-	* close FOLIO borrowing library request when item has been received back [DCB-851]
-	* Detect item returned by patron in FOLIO borrowing agency DCB-826
-	* Detect when item has been borrowed by patron DCB-826
-	* Detect when item has arrived at pickup location DCB-826
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* insert a function to report if we're about to create a new cluster when one already exists for a bib
-	* extra info in log messages
-	* Remove unused fields in borrower request return transit handler
-	* Replace spaces with tabs in borrower request return transit handler
-	* Replace spaces with tabs in host LMS item
-	* Remove unused fields in supplier item state change handler
-	* Make fields final in borrower item in unhandled state handler
-	* Make fields final in borrower item missing handler
-	* Replace spaces with tabs in borrower item missing handler
-	* Make fields final in borrower item on hold shelf handler
-	* Replace spaces with tabs in borrower item on hold shelf handler
-	* Use string format placeholders in borrower item loaned handler
-	* Make fields final in borrower item loaned handler
-	* Replace spaces with tabs in borrower item loaned handler
-	* Make fields final in borrower item available handler
-	* Replace spaces with tabs in borrower item available handler
-	* Remove unused field in borrower item in transit handler
-	* Replace spaces with tabs in borrower item in transit handler
-	* Removed unused field in handle borrower item received handler
-	* Replace spaces with tabs in handle borrower item received handler
-* [Refactor]
-	* use patron barcode not username for patron lookup in folio client
-
-### Fixes
-* [General]
-	* shouldFinaliseRequestWhenSupplierItemAvailable and successfullyGetPatronByUsername
-
-## Version 5.1.0
-
-### Additions
-* [General]
-	* Reworked clustering
-	* circulate requests involving consortial folio libraries
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Tolerate null response when raising unexpected response exception DCB-849
-	* Tolerate null request when raising unexpected response exception DCB-849
-	* Include response in error message when unexpected response is received DCB-849
-	* Detect unexpected HTTP response when creating FOLIO transaction DCB-849
-	* Tone down some logging on stats service
-	* Add zero length checking to resumption token
-* [Feature]
-	* Add 245 to goldrush key
-* [Refactor]
-	* replace not implemented error with NOOP when attempting to finalise folio related requests [DCB-850]
-	* Introduce overload for raising unexpected response exception without a request DCB-849
-	* Move HTTP to log output methods to separate class DCB-849
-* [Test]
-	* Match properties for exceptions extending throwable DCB-849
-	* Demonstrate unexpected response from Sierra DCB-849
-
-## Version 5.0.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* updated .gitignore
-
-## Version 5.0.0
-
-### Additions
-* [General]
-	* **BREAKING** -  Add partitions to data model and consolidate migrations
-* [General]
-	* Detect item returned to FOLIO supplying agency DCB-825
-	* Give sierra the capacity to use hierarchical mappings where only overrides need to be explicit for a system and default consortial mapping can be used for most sites
-	* Implement context hierarchy lookups and tests
-	* Detect missing request in FOLIO DCB-825
-	* Detect FOLIO request has been cancelled DCB-827
-	* Index on derived type
-	* Detect FOLIO request has been placed in transit DCB-825
-
-### Changes
-* [Chore]
-	* Remove remaining Character usage from any DTO that will be encoded as JSON
-	* Add shutdown listener in preparation for cleaner shutdown handling
-	* Return unmapped when transaction status is recognised yet unhandled DCB-825
-	* Raise error when transaction status is not recognised DCB-825
-	* Remove unused fields from supplier item available handler
-	* Remove unused field in host LMS reactions
-	* Add link to transaction status docs DCB-825
-	* Make fields final in supplier in transit handler
-	* Replace spaces with tabs in supplier in transit handler
-	* Use switch expression for mapping FOLIO transaction status DCB-825
-	* Map created transaction status to hold placed status DCB-825
-	* Fetch transaction status from FOLIO DCB-825
-	* More logging updates for clustering
-	* Additional logging for cluster writing
-	* Trying a cheeky way to force touching of a cluster record
-* [Feature]
-	* Add ability to set eager_global_ordinals in ES schema declaration
-	* Watch app shutdown status and exit any ingest sources when shutdown detected
-* [Refactor]
-	* Rename local item ID parameter when getting items DCB-825
-	* Introduce parameter for request ID when getting item from host LMS DCB-825
-* [Test]
-	* Use host LMS item matchers in Polaris tests DCB-825
-	* Move host LMS item matchers to separate class DCB-825
-	* Add folio interaction package to commented out log settings DCB-825
-	* Extract method for mocking authorised request to FOLIO DCB-825
-	* Use matchers when getting request from Polaris DCB-825
-	* Move host LMS request matchers to separate class DCB-825
-	* Initial test to demonstrate detecting request has been placed DCB-825
-
-### Fixes
-* [General]
-	* Stats service logging
-	* Use String and not character encoding for varField fieldTag - suspect character is encoding as an ASCII integer and not a string in json output
-	* reinstate createAuditEntry in correct order
-	* comment out audit assersions in ValidatePatronTests to help tests pass (temp)
-	* error handling for audit - repeated additional line [DCB-847]
-	* Potential fix for duplicating clusters.
-
-## Version 4.7.0
-
-### Additions
-* [General]
-	* place request in borrowing library on folio system [DCB-492]
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* preparatory work for multiple supplier mode
-	* Add find by ID to supplier request repository
-	* Tolerate finding no supplier requests for patron request
-	* Use builder for defining Sierra code tuple
-	* Replace spaces with tabs in Sierra code tuple class
-	* Replace spaces with tabs in Sierra patron hold request object
-	* Don't track supplier requests when the owning request is in a COMPLETE, FINALISED or ERROR state. When retrieving the state of a supplier hold, emit a state change to ERROR when we encounter an ERROR
-	* Default polaris barcode prefix to DCB- if none specified
-	* Replace spaces with tabs in handler supplier request placed workflow action
-* [Refactor]
-	* Rename get hold method to get request DCB-825
-* [Test]
-	* Introduce method for creating supplier request during tracking tests
-	* Delete unused json Sierra hold examples
-	* Use more varied local request IDs in tracking tests
-	* Move local status matcher to separate class
-	* Demonstrate detection that request has been placed at supplying agency
-	* Add find by ID to supplier request fixture
-	* Introduce parameter for get hold by ID response from Sierra
-	* Use serialisation for mock get Sierra hold by ID response
-	* Extract method for get Sierra hold by ID request matching
-	* Rename methods for mocking get Sierra hold by ID
-	* Remove unused method for mocking get item from Sierra
-	* Use serialisation for item fetched from Sierra in place request at borrowing agency tests
-	* Use serialisation for item fetched from Sierra in patron request API tests
-	* Delete all locations before patron request API tests
-	* Use serialisation for get item from Sierra responses during tracking tests
-	* Extract variables for local record IDs at borrowing agency
-	* Define separate supplying agency host LMS for tracking tests
-	* Extract method for defining host LMS during tracking tests
-	* Delete all host LMS before tracking tests
-	* Introduce builder consumer parameter for extending patron request attributes
-	* Extract method for creating a patron request during tracking tests
-	* Use fixture to save supplier requests during tracking tests
-	* Remove usused status code repository from tracking tests
-	* Use fixture to find patron requests during tracking tests
-	* Use fixture to create patron requests during tracking tests
-	* Move request is finalised matcher to matchers class
-	* Extract method for waiting for patron request to become finalised
-	* Use utility method to get single value from publisher during tracking tests
-	* Delete all patron requests prior to each tracking test
-	* Delete all reference value mappings prior to tracking tests
-
-## Version 4.6.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Refactoring around sort order
-	* Make tracking service field final
-	* Reformat tracking service
-	* Remove empty init method from tracking service
-	* Remove unused fields from tracking service
-	* Attempt to address UnsupportedCharsetException: UTF-32BE in native exec by adding docker-native build option -H:+AddAllCharsets
-
-### Fixes
-* [General]
-	* Don't explode when not provided with a orderBy sort direction in graphql
-	* Default sort direction if not specified in patron request data fetcher
-
-## Version 4.6.0
-
-### Additions
-* [General]
-	* Place request at FOLIO supplying agency
-	* Add check for year as volume from polaris
-	* Add ability to stop reindex job
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Adjust oai parameter logging
-	* Add some fields to error logging on Folio OAI source
-	* Throw exception when relative URI does not start with a forward slash DCB-490
-	* Log validation error when placing request at FOLIO supplying agency DCB-490
-	* Log body of requests to FOLIO DCB-490
-	* Log parameters when placing request at FOLIO supplying agency DCB-490
-	* Pass patron group name when creating a FOLIO transaction DCB-490
-	* Remove patron group ID from FOLIO user representation DCB-490
-	* Map patron group name from FOLIO to local patron type DCB-490
-	* Find local FOLIO patron type from canonical patron type DCB-490
-	* Find canonical patron type for local FOLIO patron type DCB-490
-	* Raise error when creating FOLIO transaction returns unauthorised response DCB-490
-	* Raise error when creating FOLIO transaction returns not found response DCB-490
-	* Raise error when creating FOLIO transaction returns validation response DCB-490
-	* Pass generated service point ID based upon pickup agency code when creating a FOLIO transaction DCB-490
-	* Pass pickup agency code as library code when creating a FOLIO transaction DCB-490
-	* Pass pickup agency name as service point name when creating a FOLIO transaction DCB-490
-	* Pass patron barcode when creating a FOLIO transaction DCB-490
-	* Pass patron ID when creating a FOLIO transaction DCB-490
-	* Pass item barcode when creating FOLIO transaction DCB-490
-	* Supplying request in FOLIO uses lender role DCB-490
-	* Pass item ID to FOLIO create transaction API DCB-490
-	* Return hold placed local status for FOLIO requests DCB-490
-	* Return transaction ID as local ID of FOLIO request DCB-490
-	* Make basic request to create FOLIO DCB transaction DCB-490
-	* Reformat determine patron type method DCB-490
-	* Replace spaces with tabs in patron type service tests DCB-490
-	* Try setting varFields messages when issuing sierra ItemPatch to clear in transit status per DCB-795
-	* Change to polaris explicit volume field
-	* logging around polaris item mapper, first pass volume normalisation in sierra
-	* refactor extraciton of volume statement in sierra
-	* refactor sierra item mapping logging
-	* logging around index bulk ops and volume processing
-	* Change apikey to header rather than parameter for FOLIO OAI - per EBSCO request today
-* [Feature]
-	* Add sort direction to GraphQL [DCB-480]
-	* sierra - When parsing volume statements, handle no. as number and normalise to n in parsed volume statement
-	* Improve audit logging on circulation of home item to vpatron for DCB-838
-	* Order audit rows by date in graphql patron request response
-	* Add volume designator to various API responses and DTOs
-	* first pass at parsing polaris call numbers containing volume information
-	* Collect raw sierra volume var field and attach to Item records
-* [Refactor]
-	* Move finding canonical FOLIO patron type implementation to client DCB-490
-	* Extract method for creating FOLIO transaction DCB-490
-	* Remove supplier host LMS code parameter DCB-490
-	* Remove reference value mapping service parameter DCB-490
-	* Push find local patron type implementation down to specific clients DCB-490
-	* Move finding local patron type to host LMS client interface DCB-490
-	* Get supplying host LMS client before mapping patron type DCB-490
-	* Extract method for finding local patron type DCB-490
-	* Extract method for finding canonical patron type DCB-490
-	* Remove host LMS code parameter for finding canonical patron type DCB-490
-	* Move finding canonical patron type to host LMS client DCB-490
-	* Introduce patron type mapper dependency to Dummy host LMS client DCB-490
-	* Introduce patron type mapper dependency to Polaris host LMS client DCB-490
-	* get requesting host LMS client before finding patron type DCB-490
-	* Introduce host LMS service dependency for patron type service DCB-490
-* [Test]
-	* Enable negative flow tests for placing at FOLIO supplying agency DCB-490
-	* Enable positive flow test for placing at FOLIO supplying agency DCB-490
-	* Disable positive flow test for placing at FOLIO supplying agency DCB-490
-	* Disable negative flow tests for placing at FOLIO supplying agency DCB-490
-	* Use single instance for testing place request at FOLIO supplying agency DCB-490
-	* Use separate client for each place at FOLIO supplying agency test DCB-490
-	* Remove patron group ID from mock FOLIO users DCB-490
-	* Include patron group name in mock FOLIO users DCB-490
-	* Delete all agencies prior to placing request at FOLIO supplying agency DCB-490
-	* Introduce class for placing request at FOLIO supplying agency tests DCB-490
-	* Define host LMS during patron type tests DCB-490
-	* Delete all host LMS before each patron service test DCB-490
-	* Define required parameters for all Sierra host LMS DCB-490
-
-### Fixes
-* [General]
-	* Trim empty resumption token.
-	* Add forward slash to path for creating FOLIO transaction DCB-490
-	* Error in accessing year regex mapper
-	* label on state change was wrong way round
-
-## Version 4.5.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [General]
-	* Reusing builder in Opensearch causes immediate error.
-
-## Version 4.5.0
-
-### Additions
-* [General]
-	* Add code to index document template.
-	* validate patron in folio borrowing system [DCB-766]
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Pass item barcode when placing request at supplying agency DCB-490
-	* Add fallback error for when pickup location to agency mapping fails DCB-490
-	* Pass pickup agency when placing request at supplying agency DCB-490
-	* Add pickup agency to place request parameters DCB-490
-	* Remove redundant modifiers for agency properties DCB-490
-	* Replace spaces with tabs in workflow context DCB-490
-	* Pass paron type and barcode when placing request at supplying agency DCB-490
-	* Add barcode and host LMS to patron identity to string contents DCB-490
-	* Incremental refactor preparing for supplier preflight
-	* take heed of isActive flag on supplier request
-	* more meaningful message when unable to map item type
-	* Add patron request UUID to tracking record in preparation for writing audit records with respect to tracking events
-	* Change hold status handling in polaris client to switch, add translations for Shipped to IN_TRANSIT, tidy indenting in tracking service
-	* Factor in patron request when looking for tracked requests - don't watch anything in an ERROR state
-	* Null-safe protection on patron barcode prefix for polaris
-* [Feature]
-	* Implement tracking service audit logging
-	* Add UniqueID+NAME authentication to sierra host lms for WASHU
-	* Added handlers for supplier request cancelled and for unhandled state transitions in supplier requests - a noop that will just update the supplier request record
-	* Understand label / comment field in reference data import
-	* When creating an item in SIERRA, Read back sierra create item before contunuing
-* [Refactor]
-	* Extract method for creating unable to place request problem DCB-490
-* [Test]
-	* Check hold is placed at borrowing agency DCB-490
-	* Delete all agencies before Polaris host LMS client tests DCB-490
-	* Pickup location should be associated with borrowing agency DCB-490
-	* Verify pickup location sent to Sierra when placing supplying request DCB-490
-	* Verify that hold request was made to Sierra during supplying agency tests DCB-490
-	* Use property matcher for Sierra invalid hold policy message DCB-490
-	* polaris delete item and delete bib override methods [DCB-789]
-
-### Fixes
-* [General]
-	* Stop attempting to bulk update on empty lists
-	* validate a polaris hold response success [DCB-832]
-	* Guard code around invalid bulk operation.
-
-## Version 4.4.0
-
-### Additions
-* [General]
-	* handle patron authentication for folio [DCB-765]
-	* implement polaris client override methods deleteItem and deleteBib [DCB-789]
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* defensive code in polaris adapter to make sure items array length > 0
-	* correct local item status name
-	* Extra info to make grepping for onTrackingEvent more meaningful when watching a specific flow
-	* adjust error logging in tracking code
-	* Pass host LMS code as last parameter for multiple users error DCB-490
-	* Include host LMS code in failed to get items exceptions DCB-479
-	* Include host LMS code in FOLIO client log entries DCB-479 DCB-490
-	* Include host LMS code in likely API key error DCB-479
-	* Add patron request id to create item command so we can give more informative logging in failure scenarios
-	* Map suppress from discovery for FOLIO items DCB-479
-	* Remove preferred first name from FOLIO virtual patron's local names DCB-490
-	* Generate new ID only when creating FOLIO virtual patron DCB-490
-	* Rename variable for created virtual patron ID DCB-490
-	* backout stats counter
-	* default hazelcast constructor
-	* Try specifying hazelcast servicelabelname in yaml file
-	* remove unneeded hz config object
-	* null detection around hazelcast
-	* trying alternate hazelcast config
-	* Return explict error for non-implemented FOLIO host LMS client methods DCB-490
-	* Fail when no patron group to type mapping found DCB-490
-	* Map FOLIO user patron group to canonical patron type DCB-490
-	* Fail finding a virtual patron when requesting patron has no barcode DCB-490
-	* Fail finding FOLIO users when API key is invalid DCB-490
-	* Fail finding virtual patron in FOLIO when multiple users found DCB-490
-	* Tolerate missing properties when mapping FOLIO user to patron DCB-490
-	* Map all FOLIO user's names to local names DCB-490
-	* Map FOLIO user's barcode DCB-490
-	* Map FOLIO user's patron group to local patron type DCB-490
-	* Return empty when no user found for barcode DCB-490
-	* Include trace level request logging for FOLIO client DCB-490
-	* Only accept JSON when finding users in FOLIO DCB-490
-	* Use CQL to find FOLIO virtual patron by barcode DCB-490
-	* Fetch users from FOLIO when finding virtual patron DCB-490
-* [Feature]
-	* trial adding stats to indo endpoint
-	* evict member info if we detect a node is no longer present. Trialling leader election for cluster operation
-	* Add the node start date and if the node is running scheduled tasks to the cluster information shared via hazelcast. Subsequently, these should now appear in the app info endpoint giving the admin app visibility of all DCB nodes
-	* Use hazelcast initially to maintain a map of DCB nodes which are reported back in the info endpoint
-* [Refactor]
-	* Use common predicate for detecting unauthorized response from FOLIO DCB-490
-	* Extract methods for HTTP status predicates DCB-490
-	* Move common HTTP response predicates to separate class DCB-490
-	* Move non-null values list method to collection utils class DCB-490
-	* Extract method for mapping FOLIO user to patron DCB-490
-	* Introduce parameter for query when finding FOLIO users DCB-490
-	* Move method for creating exact equality query DCB-490
-	* Introduce CQL Query class DCB-490
-	* Extract method for constructing CQL query to find users DCB-490
-	* Extract method for mapping first FOLIO user to patron DCB-490
-	* Use flat map to map FOLIO users to a patron DCB-490
-	* Extract method for making HTTP requests in FOLIO client DCB-490
-	* Extract method for defining authorised FOLIO request DCB-490
-	* Extract method for finding users in FOLIO DCB-490
-* [Test]
-	* Remove duplicate tests for unauthorized status code predicate DCB-490
-	* Make test names specific to finding a virtual patron DCB-490
-	* Delete reference value mappings before each FOLIO host LMS client patron tests DCB-490
-	* Move patron matchers to separate class DCB-490
-	* Check no mapping for FOLIO patron's names DCB-490
-	* Check no mapping for FOLIO patron's home library code DCB-490
-	* Introduce parameter for users when mocking find users DCB-490
-	* Move patron local IDs matcher to separate class DCB-490
-	* Add class for FOLIO host LMS client patron tests DCB-490
-
-### Fixes
-* [General]
-	* Use patron home location for item location when creating an item for POLARIS
-	* Rely on declarative config for hazelcast
-
-## Version 4.3.0
-
-### Additions
-* [General]
-	* add a barcode field when creating a patron in polaris
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Extra error checking around POLARIS create patron - validate the response and check for a nonzero error code
-	* Add some defers to empty handling to prevent premature side effects
-	* Extra logging on polaris createPatron
-	* add logging for creating patron in polaris
-	* add log before local hold request is made (polaris)
-	* Removed unused code in Sierra host LMS client DCB-490
-	* Replace spaces with tabs in patron class DCB-490
-	* log when supplying agency service clean up is called
-	* refactor cancelled action a little
-	* re Added hazelcast, added doOnError to cancel api endpoint for logging
-	* toggle bib record creation - both work
-	* Explore alternate way of populating member bibs for indexing
-	* refactor some error scenarios to defer invoking the onError until it's actually needed
-	* instrument item availability checks
-	* Better logging on availability status checks
-	* Disable case sensitivity for sierra userId lookup
-	* tidy public interface for authv2 - use uniqueIds as a parallel for sierra
-	* Check username returned by authV2 interface is aligned with public API
-	* align auth and lookup methods on AuthV2 API
-	* The AuthV2 iterface should return the username as it is known at the DCB boundary - i.e. prefixed with the agency
-	* Additional info returning DCB patron info
-	* Extra validation on authv2 methods
-	* info logging on config import
-	* Don't cancel a request after it's been finalised if we detect a missing hold
-	* Add tests for AuthAPI v2
-	* More logging refinements
-	* more logging changes
-	* tone down ingest logging
-	* log level adjustments, some ingest infos change to trace
-	* Reformat patron service DCB-490
-	* Replace spaces with tabs in supplying agency service DCB-490
-	* more logging refinements
-* [Feature]
-	* Fill out cleanup transition
-	* domain class for delivery network edge
-	* Allow a HUB location type to be posted which does not have an attached agency. Tidy up some spacing in Location model class
-	* Replace mapping table handling of pickup locations ONLY with direct references to UUIDs from the Location table
-	* Return username and userid in Authv2 LocalPatronDetails
-	* Add variable field support to sierra adapter and request varFields when fetching bibs
-	* Add v2 auth api which provides domain style login identities
-	* Add auth v2 controller
-	* graphql - Add locations to agency
-* [Refactor]
-	* pass along local item id when creating patron [DCB-809]
-	* revert patron code back in polaris client
-	* add default patron code when creating a patron in Polaris
-	* add the item location id during the place hold request
-	* Remove unique ID path from Sierra patron auth DCB-490
-	* Inline patron auth when finding Sierra virtual patron DCB-490
-	* Separate pathon auth and finding virtual patron in dummy host LMS DCB-490
-	* Remove patron find path from patron auth DCB-490
-	* Get local barcode from home identity when finding virtual patron DCB-490
-	* Throw specific exception when patron does not have home identity DCB-490
-	* Extract method for getting home identity DCB-490
-	* Return null unique ID when no home identity DCB-490
-	* Push find virtual patron implementation down to each client DCB-490
-	* Introduce method for finding virtual patron in host LMS client DCB-490
-	* Remove redundant zip when finding virtual patron DCB-490
-	* Remove intermediary unique ID method when creating virtual patron DCB-490
-	* Remove intermediary unique ID method when checking virtual patron exists DCB-490
-	* Move getting unique ID to patron class DCB-490
-	* Use identities from patron when determining unique ID DCB-490
-	* Extract method for determining unique ID for patron DCB-490
-	* Move finding resolved agency from identity to service DCB-490
-	* Remove location repository dependency from context helper DCB-490
-	* Use service to find pickup location in context DCB-490
-	* Add location service dependency to context helper DCB-490
-	* Remove host LMS repository dependency from context helper DCB-490
-	* Use service to find host LMS for agency in context DCB-490
-	* Add host LMS service dependency to context helper DCB-490
-	* Remove patron repository dependency from context helper DCB-490
-	* Use service to find patron for context DCB-490
-	* Add patron service dependency to context helper DCB-490
-	* Move finding agency by ID to service DCB-490
-* [Test]
-	* Use stricter mock expectations when finding Polaris virtual patron DCB-490
-	* Use find virtual patron method instead of auth in Polaris tests DCB-490
-	* Use serialisation instead of json file for find patron response DCB-490
-	* Introduce parameter for mock response when finding patron DCB-490
-	* Inline single use assertion methods when placing supplying request DCB-490
-	* Remove unecessary home library mapping when placing supplying request DCB-490
-	* Extract method for placing request at supplying agency DCB-490
-	* Remove test for invalid hold policy when placing supplying request DCB-490
-	* Check invalid hold polcy in host LMS client test DCB-490
-	* Rename supplying agency when placing request DCB-490
-	* Change before all to before each place request at supplying agency DCB-490
-	* Move defining mock fetch hold response to tests that need it DCB-490
-	* Extract method for checking the patron request was placed at supplying agency DCB-490
-	* Extract methods for patron request property matchers DCB-490
-	* Use property matchers for checking patron request DCB-490
-	* Extract method for checking patron request has error DCB-490
-	* Use property matchers for audit entries when placing supplying request DCB-490
-	* Return created cluster record ID DCB-490
-	* Return saved patron request from fixture DCB-490
-	* Remove commented out code from place supplying request tests DCB-490
-	* Verify that create patron request was not made when placing a request at supplying agency DCB-490
-	* Verify that create patron request was made when placing a request at supplying agency DCB-490
-	* Verify that update patron request was not made when placing a request at supplying agency DCB-490
-	* Verify that update patron request was made when placing a request at supplying agency DCB-490
-	* Move verify find patron request method to fixture DCB-490
-	* Extract method for verifying that find patron request was made DCB-490
-	* Verify that find patron request was made when placing a request at supplying agency DCB-490
-
-### Fixes
-* [General]
-	* DCB-807 description is not trimmed to 254 characters and can lead to exceptions inserting PR
-	* createPatron test in PolarisLmsClientTests
-	* for POLARIS only, Use a default patron home location code defined in the HostLMS config instead of trying to map the requestingPatron home location
-	* use PATB for looking up patron barcode in polaris adaptor
-	* comment out old getMembersOld method
-	* path name for /transtion/cleanup to /transition/cleanup, also allow user to request cleanup on ERROR states
-	* Aling geo-distance filter with requirement to use only location UUID for pickup location
-	* use equals for comparing selected bib to members when generating index record. populate location for some sierra records
-	* Don't attempt to post a bulk request unless there are actually ops in the queue
-
-## Version 4.2.0
-
-### Additions
-* [General]
-	* Strip punctuation from the subject labels.
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-## Version 4.1.0
-
-### Additions
-* [General]
-	* Map FOLIO material type name to canonical item type DCB-479
-	* Map location to agency for items from FOLIO DCB-479
-	* Fallback mapping for FOLIO item statuses DCB-479
-	* Drop instances with invalid OAI-PMH identifier during FOLIO ingest DCB-797
-	* Parse OAI identifier for instance ID during FOLIO ingest DCB-797
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* more logging when exchanging messages with polaris for create item
-	* logging for failure on create item
-	* extra logging on polaris create item
-	* Split finding agency by code and getting mapping value DCB-479
-	* Use property accessor for location code when mapping to agency DCB-479
-	* Unmapped FOLIO item type should be mapped to unknown canonical type DCB-479
-	* Map null FOLIO item type to unknown canonical type DCB-479
-	* Map FOLIO item type to canonical item type DCB-479
-	* Remove unused dependencies for finalise request transition DCB-479
-	* Warn when no reference value mapping found DCB-479
-	* Should tolerate null location when enriching item with agency DCB-479
-	* Use is empty collection method when getting items from FOLIO DCB-479
-	* Use is empty method during FOLIO fallback item status mapping DCB-479
-	* Add warning when attempting to map location to agency with empty from context DCB-479
-	* Include host LMS code for items from FOLIO DCB-479
-	* Map material type name to item type code for FOLIO items
-	* Assume that items from FOLIO are not suppressed DCB-479
-	* Include hold count in items from FOLIO DCB-479
-	* Assume that items from FOLIO are not deleted DCB-479
-	* Use material type rather than loan type for FOLIO item type DCB-479
-	* Include location code in items from FOLIO DCB-479
-	* Include barcode in items from FOLIO DCB-479
-	* Include due date in items from FOLIO DCB-479
-	* Fail when receive multiple outer holdings from RTAC DCB-479
-	* Interpret holdings not found error as zero items assocated with instance DCB-479
-	* Improve error message for likely invalid API key response from RTAC DCB-479
-	* Fail when receive holdings not found error from RTAC DCB-479
-	* Fail when receive instance not found error from RTAC DCB-479
-	* Include errors in RTAC response classes DCB-479
-	* Handle zero inner holdings returned from FOLIO DCB-479
-	* Introduce limited FOLIO fallback mapping DCB-479
-	* Map local FOLIO item status using reference mappings DCB-479
-	* Introduce item status mapper dependency for FOLIO LMS client DCB-479
-	* Add API key to FOLIO settings description DCB-479
-	* Use client config for FOLIO base URL DCB-497
-	* Use client config for FOLIO api key DCB-497
-	* Map holdings from FOLIO to items DCB-479
-	* Delete all host LMS before each FOLIO host LMS client test DCB-479
-	* Remove commented out code when initialising ingest record DCB-797
-	* Added some extra properties to polaris create item workflow request
-	* change log level on auth by barcode+name fail
-* [Refactor]
-	* Make previous status mapping method private DCB-479
-	* Extract method for mapping an item status with a due date DCB-479
-	* Extract method for mapping item status without a due date DCB-479
-	* Extract method for finding item type mapping DCB-479
-	* Use service when mapping item status DCB-479
-	* Improve logging when finding mapping with no target category DCB-479
-	* Move method for finding mapping without target category to service DCB-479
-	* Extract method for finding mapping without target category DCB-479
-	* Use service to map item type when creating an item in Sierra DCB-479
-	* Use service to map item type when creating an item in Polaris DCB-479
-	* Use service to map location when placing a request at borrowing agency DCB-479
-	* Use service to map location to agency during resolution DCB-479
-	* Use service for finding mappings during patron validation DCB-479
-	* Move finding pickup location to agency mapping to service DCB-479
-	* Add location to agency service as workflow context dependency DCB-479
-	* Move mapping pickup location to agency to dedicated service DCB-479
-	* Introduce method for consuming successful reactive stream DCB-479
-	* Extract method for finding reference value mapping DCB-479
-	* Use property access utility to get item location code DCB-479
-	* Add location to agency mapping service dependency for client DCB-479
-	* Move getting property from nullable object to util class
-	* Extract method for whether multiple outer holdings are returned by RTAC DCB-479
-	* Extract method for determining if errors are holdings not found DCB-479
-	* Extract method for whether RTAC response has any outer holdings DCB-479
-	* Move likely invalid API key check to initial response check DCB-479
-	* Extract method for whether RTAC response has no errors DCB-479
-	* Rename method for checking RTAC response DCB-479
-	* Move unknown fallback status mapper to tests only
-	* Extract method for defining mock response for holdings DCB-479
-	* Map a holding to an item using a publisher DCB-479
-	* Move get config value to host LMS property definition DCB-479
-	* Define FOLIO settings as fields DCB-479
-	* Move method for mocking RTAC holdings response to fixture DCB-479
-	* Make get holdings method in FOLIO client private DCB-479
-	* Introduce parameter for instance ID when getting FOLIO holdings DCB-479
-	* Add HTTP client field to FOLIO LMS client DCB-479
-	* Move getting holdings to FOLIO LMS client DCB-479
-	* Introduce parameter for http client when getting holdings DCB-479
-	* Extract method for mocking RTAC holdings response using mock server DCB-479
-	* Move FOLIO RTAC serialisation types to production code DCB-479
-	* Extract method for getting holdings from FOLIO DCB-479
-* [Test]
-	* Should not use item type mapping associated with another host LMS DCB-479
-	* Remove redundant test for agency mapping for items from FOLIO DCB-479
-	* Include agency mapping in general get items from FOLIO test DCB-479
-	* Should enrich item with agency mapped from location code DCB-479
-	* Tolerate absence of agency when enriching item with agency DCB-479
-	* Extract method for enriching an item with an agency DCB-479
-	* Delete all agencies before enriching an item with an agency DCB-479
-	* Tolerate absence of mapping when enriching item with agency DCB-479
-	* Delete all mappings before enriching an item with an agency DCB-479
-	* Tolerate null location code when enriching item with agency DCB-479
-	* Extract method for creating example item DCB-479
-	* Delete all agencies before each FOLIO host LMS client item tests DCB-479
-	* Use single instance for FOLIO host LMS client item tests DCB-479
-	* Check that whether items from FOLIO are suppressed is unknown DCB-479
-	* Replace string literal for RTAC error with serialised class DCB-479
-	* Extract method for JSON mock RTAC response DCB-479
-	* Use unusual mappings when checking FOLIO item status mapping DCB-479
-	* Delete mappings before FOLIO LMS item tests DCB-479
-	* Add test for FOLIO settings description DCB-479
-	* Create FOLIO client before each test DCB-479
-	* Move location without code matcher to item matchers DCB-479
-	* Remove test for directly fetching holdings from FOLIO DCB-479
-	* Create FOLIO client when getting items from FOLIO DCB-479
-	* Create FOLIO host LMS during client tests DCB-479
-	* Use stricter mock expectations when fetching items from FOLIO DCB-479
-	* Initial test for fetching items from FOLIO using mock server for response DCB-479
-	* Extract method for defining mock OAI-PMH response DCB-797
-
-## Version 4.0.6
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* improve error logging from polaris
-* [Test]
-	* Define single record OAI-PMH response during FOLIO ingest tests DCB-797
-	* Define FOLIO host LMS during ingest tests DCB-797
-	* Trigger ingest during FOLIO ingest tests DCB-797
-	* Delete all cluster records before each FOLIO ingest test DCB-797
-	* Delete all host LMS before each FOLIO ingest test DCB-797
-
-### Fixes
-* [General]
-	* Constrain the message in audit log description strings to max 254 characters
-
-## Version 4.0.5
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [Polaris]
-	* Reviewing the polaris docs at https://qa-polaris.polarislibrary.com/polaris.applicationservices/help/workflow/add_or_update_item_record and aligning data types as polaris doesn't like getting integers as strings. We no longer resumeOnError for createItem but instead just return the Problem as an error
-
-## Version 4.0.4
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Replace spaces with tabs in Polaris host LMS client DCB-490
-	* Enrich supplier request with patron request object when tracking - to enable audit logging
-* [Refactor]
-	* Remove previous method for placing request in host LMS DCB-490
-	* Introduce method for placing request at borrowing agency DCB-490
-	* Introduce method for placing request at supplying agency DCB-490
-
-### Fixes
-* [General]
-	* 404 looking up patron blocks is not an error
-	* Dupe bibs in ingest record view.
-
-## Version 4.0.3
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* comment out aws logging jar
-	* Comment out AWS log appender
-* [Feature]
-	* graphql - Add data fetcher for reqesting patron identity
-
-### Fixes
-* [Graphql]
-	* Correct misaligned property name for virtualPatron in SupplierRequest
-
-## Version 4.0.2
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* logging adjustments to BorrowingAgencyService
-	* don't pretty print json logs
-* [Feature]
-	* NONCIRC items are not requestable
-
-## Version 4.0.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Add missing dependency for json log formatting
-
-### Fixes
-* [General]
-	* for apparent behaviour of polaris. When passed an itemType in a string, polaris seems to take only the first character of the string as a part of the integer. Changed parameter type to Integer and parse it with parseInt before setting
-
-## Version 4.0.0
-
-### Additions
-* [General]
-	* **BREAKING** -  Rename consortial FOLIO host LMS client DCB-774
-	* **BREAKING** -  Expect FOLIO base-url without /oai path DCB-774
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* more polaris logging
-	* Switch logging to json, better message for failed to place supplier hold error
-	* Add logging around URI resolution during FOLIO ingest DCB-774
-
-## Version 3.0.3
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Better error logging around create item in Polaris
-	* Add @body annotation to lookup api call
-	* update post annotation on user lookup
-	* refactor validate by pin
-	* more logging around user auth
-	* rest annotations on new lookup methof
-	* Add rest annotation
-	* Work on workflow doc
-* [Core]
-	* defer creation of invalid response when doing patron auth
-* [Feature]
-	* lookup user by username
-	* graphql - Add ReferenceValue and NumericRangeMapping queries
-	* Add BibRecord to PatronRequest GraphQL [DCB-748]
-	* graphql - Add virtual patron identity to supplier request
-
-### Fixes
-* [Graphql]
-	* Reciprocal mapping syntax error
-* [General]
-	* Update PatronRequest GraphQL type [DCB-487]
-	* Correct GraphQLFactory clusterRecord naming [DCB-748]
-	* When authenticating uniqueid+pin for sierra, use the standard auth method
-
-## Version 3.0.2
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Replace spaces with tabs in host LMS service
-	* Add dependency on Sierra specific mapper from shared item mapper
-	* Remove unused status mapping method when mapping items
-* [Feature]
-	* graphql - Location data fetchers
-* [Refactor]
-	* Map status using separate code and due date
-	* Extract method for mapping item status and due date
-	* Move unknown host LMS exception to top level
-	* Rename item mappers to refer to host LMS type
-	* Remove overload for getting items by local bib ID
-	* Inline existing method into get by bib record overload
-	* Replace usages of get items by bib ID
-	* Introduce method for getting items from host LMS by bib record
-	* Move item status fallback definitions to specific mappers
-	* Move remaining item mapping logic to Polaris package
-	* Use Sierra specific item mapper directly
-	* Move map Sierra result to item to Sierra specific mapper
-	* Move local item type method to Sierra specific item mapper
-	* Move parsed due date method to Sierra specific item mapper
-	* Add location to agency mapper dependency to Sierra specific item mapper
-	* Add item type mapper dependency to Sierra specific item mapper
-	* Add item status mapper dependency to Sierra specific item mapper
-	* Move method for enriching item with an item type to mapper
-	* Move method for enriching item with an agency to service
-	* Extract method for mapping an item's location to an agency
-	* Extract method for setting agency information on an item
-	* Use zip to enrich item with agency code and name
-	* Use property chaining to set item agency code and name
-	* Rename item agency name field
-	* Rename enrich item with agency based upon location method
-* [Test]
-	* Disable ingest for all config defined host LMS
-	* Remove unecessary borrowing agency mocks in patron request API tests
-	* Extract constant for the barcode of supplied item in patron request API tests
-	* Extract constant for the location of supplied item in patron request API tests
-	* Use code to define items in Sierra during patron request API tests
-	* Remove unecessary mock response in patron request API tests
-	* Use constant for host LMS code where possible in patron request API tests
-	* Remove unused host LMS in patron API tests
-	* Move mapping to Sierra items response to fixture
-	* Use simpler Sierra item definition when defining mock responses
-	* Define items from Sierra in code rather than resource
-	* Check that Polaris items are not deleted
-	* Check that Sierra items are not deleted
-	* Check no hold count is provided for Polaris item
-	* Check hold count for Sierra items
-	* Replace spaces with tabs in three item Sierra response
-	* Remove nested class in item status mapper tests
-	* Move Polaris item status mapping tests to separate class
-	* Move Sierra item status mapping tests to separate class
-	* Move map sierra item statsus method to nested class
-	* Remove commented out method in reference value mapping fixture
-	* Define one location to agency mapping during Sierra host LMS client item test
-	* Define agency during Sierra host LMS client item test
-	* Delete reference value mappings before each Sierra host LMS client items test
-	* Define item type mapping during Sierra host LMS client item test
-	* Delete agencies before each Sierra host LMS client items test
-	* Move Polaris host LMS client tests to same package as production
-
-### Fixes
-* [General]
-	* Defensive code in data fetchers - null safety
-	* Add further validation of uploaded mappings [DCB-508]
-	* Tolerate Sierra item's without a status
-	* Warn when ingest configuration is invalid for a host LMS
-	* Do not change Polaris item status based upon presence of due date
-
-## Version 3.0.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* move mapping around in ReferenceValueMappingService to provide more meaningful logging
-* [Feature]
-	* Disable auto location configuration for sierra. data too messy to rely upon, locations don't have agencies attached
-
-## Version 3.0.0
-
-### Additions
-* [General]
-	* **BREAKING** -  Add new ingest source type for host LMS configuration DCB-739
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* more logging
-	* defensive code rejecting locations which specify an unknown agency
-	* graphql - implement more sort defaults
-	* Allow polaris to use BASIC/BARCODE+PIN as well as other variants as an auth profile
-	* Include source system ID in bib
-	* Tolerate no client type for host LMS in config DCB-739
-	* Tolerate no ingest source type for host LMS in config DCB-739
-	* Remove redundant unchecked conversion of type DCB-739
-	* Log error when class cannot be found for name DCB-739
-	* Raise specific error when host LMS ingest source class is not an ingest source DCB-739
-	* Raise specific error when host LMS client class is not a host LMS client DCB-739
-	* Raise specific error when host LMS ingest source class cannot be found DCB-739
-	* Raise specific error when host LMS client class cannot be found DCB-739
-	* Define invalid host LMS configuration exception DCB-739
-	* Make FOLIO LMS client a bean DCB-739
-	* Configure ingest source class for host LMS from config DCB-739
-	* Add ingest source class field to data host LMS DCB-739
-	* Add ingest source class column to host LMS table DCB-739
-* [Feature]
-	* Shipping and Routing Labels
-	* Administrative metatdata for Location imports
-	* Add order clause to graphql schema, implement for agencies and default to name
-	* Check for existing mapping data on import [DCB-603]
-* [Refactor]
-	* Remove unused dependencies in borrowing agency service
-	* Introduce specific exception when cannot find selected bib for cluster record
-	* Consolidate finding cluster record in shared index service
-	* Move find selected bib method to shared index service
-	* Move get cluster record method to shared index service
-	* Move get selected bib to shared index service
-	* Add shared index service dependency to borrowing agency service
-	* Extract method for finding selected bib
-	* Use switch if empty instead of specific check for no bibs for cluster record
-	* Rename bibs field in clustered bib
-	* Remove bibs from clustered bib
-	* Use bib records during live availability
-	* Include bib records in clustered bib
-	* Remove finding host LMS from shared index service
-	* Remove host LMS field from bib
-	* Extract method for getting config from host LMS client
-	* Extract method for getting host LMS code from host LMS client
-	* Extract method for getting items using host LMS client
-	* Get host LMS client by code during patron resolution preflight check
-	* Extract method for getting host LMS client by ID
-	* Find host LMS inside live availability service
-	* Move null check to common get type method DCB-739
-	* Introduce parameter for name getting class from a name DCB-739
-	* Introduce generic parameter for type of class to get from name DCB-739
-	* Extract method for getting type from class name DCB-739
-	* Rename get client type method for host LMS DCB-739
-	* Use ternary operator for falling back to client class for ingest source DCB-739
-	* Introduce get ingest source type method on host LMS interface DCB-739
-	* Config host LMS no longer implements host LMS interface DCB-739
-* [Test]
-	* Check that items from Sierra have a canonical item type
-	* Check that items from Sierra have no agency description
-	* Check that items from Sierra have no agency code
-	* Check whether items from Sierra are suppressed
-	* Check local item type code for items from Sierra
-	* Check host LMS code on items from Sierra
-	* Use property matchers for cluster record subjects
-	* Use fixture to delete agencies in host LMS fixture
-	* Stop deleting records after place request at borrowing agency tests
-	* Stop deleting records after patron request API tests
-	* Stop creating shelving location in patron request API tests
-	* Remove unused constructor in Sierra mock server responses
-	* Use test resource loader during cluster records API tests
-	* Use test resource loader during configuration import tests
-	* Use provider for test resources in Polaris host LMS client tests
-	* Use provider for Sierra patrons API fixture
-	* Use provider for Sierra bibs API fixture
-	* Use provider for Sierra API items fixture
-	* Use Provider for Sierra API pickup locations fixture
-	* Use provider for Sierra API login fixture
-	* Use test resource provider in Sierra API login fixture
-	* Stop returning created Polaris host LMS
-	* Demonstrate placing request at borrowing agency fails when selected bib cannot be found
-	* Introduce parameter for selected bib for cluster record
-	* Demonstrate placing request at borrowing agency fails when cluster record cannot be found
-	* Weaken type constraints on bib matchers
-	* Demonstrate failure when host LMS has invalid ingest source class DCB-739
-	* Demonstrate failure when host LMS has invalid client class DCB-739
-	* Demonstrate failure when host LMS ingest source class is unknown DCB-739
-	* Demonstrate failure when host LMS client class is unknown DCB-739
-	* Constrain client and ingest source types in fixture DCB-739
-	* Define ingest source class explicitly for Polaris host LMS DCB-739
-	* Introduce parameter for ingest source class when creating host LMS DCB-739
-
-### Fixes
-* [General]
-	* Amend annotations on ReferenceValueMapping to fix failing tests [DCB-603]
-
-## Version 2.6.2
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Remove unused factory method for availability report
-	* Reformat Polaris host LMS client
-	* Reformat Sierra host LMS client
-	* Remove use of record number when getting recently placed hold
-* [Refactor]
-	* Introduce guard clause for null item type
-	* Use location code from item when mapping to agency
-	* Extract method for parsing Sierra due date
-	* Return item status instead of code when mapping local item status DCB-479
-	* Move pickup location to agency mapping to reference value mapping service
-	* Use reference mapping service in location to agency mapping service
-	* Use location to agency mapping service in dummy host LMS
-	* Extract service for mapping a location to an agency
-	* error response handling when placing a hold in the polaris client [DCB-746]
-	* Rename item local ID field
-	* Hide decision between title and item holds within Sierra host LMS client
-	* Remove unused record number from place hold request parameters
-	* Remove unused record type from place hold request parameters
-* [Test]
-	* Use additional item matchers pulled forward from DCB-479
-	* Introduce parameter for type when defining FOLIO host LMS
-	* Demonstrate Polaris fallback mapping DCB-479
-	* Remove unecessary context rebuilds
-	* Use item barcode matcher in live availability service tests
-	* Use item matchers for items from Polaris
-	* Add missing due date checks for items from Sierra
-	* Move item matchers to separate class
-	* Extract methods for item matchers
-	* Use has property matchers for checking items from Sierra
-	* Demonstrate getting items using the Sierra host LMS client
-
-### Fixes
-* [General]
-	* Use lowercase token_filter by default
-
-## Version 2.6.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* add note on HTTP_HOSTS env vars
-	* Add missing test resource loader file
-	* Remove check in Polaris host LMS client for item level requests only
-* [Refactor]
-	* use logon branch id as fallback for patron branch id [DCB-746]
-	* Move Polaris hold request parameters to separate class
-	* Remove unecessary setters in Polaris hold request parameters
-	* Inline place item level request method in Polaris host LMS client
-	* Move item vs title request logic to Sierra host LMS clent only
-	* Always use local item ID when placing request in Polaris
-	* Rename local patron ID parameter when placing hold request
-	* Remove unused record type from Polaris hold request parameters
-	* Pass local item ID when placing hold request
-	* Pass local bib ID when placing hold request
-	* Use builder for placing patron hold request to Sierra
-	* Introduce parameter object for placing a hold request
-	* patron branch id when creating a patron in polaris [DCB-746]
-* [Test]
-	* Use source record ID when getting items from Polaris
-	* Use test resource loader in Polaris LMS client tests
-	* Move test resource loader to test package
-	* Move resource loading to separate class
-
-### Fixes
-* [General]
-	* Refactor the background index job.
-	* polaris item status fallback mapping
-
-## Version 2.6.0
-
-### Additions
-* [General]
-	* checkOutItemToPatron [DCB-743]
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Report server error when host LMS cannot be found for bib during live availability
-	* Remove redundant check for host LMS not found during live availability
-	* Throw exception inline when finding resolution stragegy
-	* Make item resolver finl in resolution service
-	* Return bad request response when no cluster record found for live availability
-	* Use switch when empty to report error when cluster record cannot be found
-	* Replace spaces with tabs in resolution service
-	* Remove explicit http status code from live availability controller
-	* Remove unecessary use of tuple in dummy host LMS client
-	* Remove use of tuple within supplying agency service
-	* Replace spaces with tabs in supplier request
-	* no security needed on list location
-* [Refactor]
-	* Remove cluster record overload in live availability service
-	* Get item availability for cluster record ID during resolution
-	* Throw explicit exception when no bibs found for cluster record during live availability
-	* Move method for getting available items by ID to service
-	* Move method for getting availability report to service
-	* Extract method in controller for getting item availability by clustered bib ID
-	* Add shared index service dependency to live availability service
-	* Remove use of tuple when placing hold request in Sierra
-	* Remove use of tuple when placing hold request in Polaris
-	* Remove use of tuple when getting hold request from Polaris
-	* Rename non-tuple based place hold request method
-	* Remove tuple based place hold request method
-	* Inline any use of the tuple method
-	* Use non-tuple method in supplying agency service
-	* Use non-tuple method in borrowing agency service
-	* Introduce place hold request method that returns object instead of tuple
-* [Test]
-	* Move live availability fails when host LMS cannot be found test
-	* Demonstrate live availability API fails when cluster record not found
-	* Remove redundant test for cluster record with no bibs
-	* Move test for no cluster record can be found to live availability service tests
-	* Use property matchers for checking order of items in live availability report
-	* Remove unecessary assertions in live availability tests
-	* Stop deleting host LMS before each live availability test
-	* Remove after each from shared index service tests
-	* Delete all host LMS before live availability service tests
-	* Use property matchers when checking availability report
-	* Extract client from live availability API tests
-	* Demonstrate live availability API when cluster record has no bibs
-	* Use cluster record ID overload in service tests
-	* Use throwable matchers in shared index service tests
-	* Move bib matchers to separate class
-	* Move has ID matcher to separate class
-	* Use matcher for clustered bib ID
-	* Inline constant resources path in Polaris host LMS client tests
-	* Stop reloading context for Polaris host LMS client tests
-	* Remove unused dependencies from Polaris host LMS client tests
-	* Use sneaky throws when getting resources in Polaris host LMS client tests
-	* Move local request matchers to separate class
-
-### Fixes
-* [Graphql]
-	* correct PatronRequest type mappings in graphql
-* [General]
-	* Try with a 3second delay
-	* Reinstate the delay
-	* Ensure endpoint is protected
-	* Do not overwhelm the indexer with 2 subs
-	* Null handling.
-
-## Version 2.5.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* working on item patch
-	* try adding an empty string to messages when updating item status
-* [Feature]
-	* add RequesterNote to patron request
-
-### Fixes
-* [Graphql]
-	* Misspelled data fetcher for patron request joins
-* [General]
-	* Improve badResumption token handling
-
-## Version 2.5.0
-
-### Additions
-* [General]
-	* patron cancels polaris request [DCB-529]
-	* implement circulation polling and transition for polaris requests [DCB-528]
-	* place request in borrowing library on a polaris system [DCB-485]
-	* Added authentication for Search Index.
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Remove creation of grant during startup DCB-739
-	* Move status codes defined only in tests to startup DCB-739
-	* Remove unused methods on host LMS repository DCB-739
-	* Replace spaces with tabs in host LMS service DCB-739
-	* Use builder when creating status codes during startup DCB-739
-	* Remove unecessary return statement when boostrapping codes DCB-739
-	* Remove unused dependencies from startup event listener DCB-739
-	* Replace spaces with tabs in startup event listener DCB-739
-	* Remove non-static access to data host LMS builder DCB-739
-	* Remove redundant pubic modifiers on host LMS interface DCB-739
-	* Docs - Add SI docs
-	* Shout when cert verification is disabled
-	* Enable generation of jacoco csv file
-	* uncomment metrics implementation
-	* Replace spaces with tabs in data host LMS class DCB-739
-* [Feature]
-	* Clear out messages when updating item status
-	* add messaging to cancellation handler
-	* graphql - Add patronRequest to supplierRequest type
-* [Refactor]
-	* Use lombok to generate getters for config host LMS properties DCB-739
-	* Use for each to save all config host LMS DCB-739
-	* Move save or update of host LMS to repository DCB-739
-	* Extract method for saving config host LMS DCB-739
-	* Accept list of config host LMS during startup DCB-739
-	* Remove unecessary introspection from config host LMS DCB-739
-	* Make get all host LMS private DCB-739
-	* Accept only config host LMS during startup DCB-739
-	* Move method for getting ingest source by code to host LMS service DCB-739
-* [Test]
-	* remove DCB test annotation from startup event listener tests DCB-739
-	* Use fixture to create host LMS during patron identity repository tests DCB-739
-	* Use builder in host LMS tests DCB-739
-	* Demonstrate status codes created at startup DCB-739
-	* Demonstrate grant created at startup DCB-739
-	* Use builder during host LMS repository tests DCB-739
-	* Delete host LMS before each  host LMS repository test DCB-739
-	* Remove redundant http client field in host LMS repository test class DCB-739
-	* Replace spaces with tabs in host LMS repository tests DCB-739
-	* Check format of host LMS ID from config DCB-739
-	* Extract method for host LMS ID matcher DCB-739
-	* Demonstrate loading host LMS from config on startup DCB-739
-	* Demonstrate getting a ingest source from a FOLIO host LMS DCB-739
-	* Move host LMS matchers to separate class DCB-739
-	* Move message matcher to throwable matchers class DCB-739
-	* Define Polaris host LMS before each test in nested class DCB-739
-	* Move Polaris host LMS tests to nested class DCB-739
-	* Define Sierra host LMS before each test in nested class DCB-739
-	* Move Sierra host LMS in database tests to nested class DCB-739
-	* Creation of Polaris ingest source based upon host LMS DCB-739
-	* Creation of Polaris client based upon host LMS DCB-739
-	* Rename method for defining Polaris host LMS DCB-739
-	* Make code first parameter when defining Sierra host LMS DCB-739
-	* Rename method for creating low level Sierra client DCB-739
-	* Move method for getting ingest source in tests to fixture DCB-739
-	* Extract method for getting an ingest source by host LMS code DCB-739
-	* Creation of Sierra ingest source based upon host LMS DCB-739
-	* Creation of Sierra client based upon host LMS DCB-739
-	* Use has property matcher during host LMS tests DCB-739
-	* Group negative host LMS tests together DCB-739
-	* Use fixture to save host LMS DCB-739
-	* Use single value helper method when finding host LMS by code DCB-739
-	* Include LMS in names of existing host LMS tests DCB-739
-
-### Fixes
-* [Tests]
-	* Require config prefix
-* [General]
-	* add patron to WorkFlowContext
-
-## Version 2.4.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [General]
-	* Use correct local_request_status when seeking patron requests on the borrowing side to track
-
-## Version 2.4.0
-
-### Additions
-* [General]
-	* Added reindex job to admin controller.
-	* Create index for OS or ES on startup.
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Create a new transaction for each of the tracking events
-	* add logger when subscribe complete for tracking calls
-	* Indexing tweaks
-	* Case insensitivity
-* [Test]
-	* Remove redundant deletion of bib records separately to cluster records DCB-739
-	* Delete all cluster records before each Polaris ingest test DCB-739
-	* Delete all cluster records before each Sierra ingest test DCB-739
-	* Use empty set of bibs when creating cluster record DCB-739
-	* Rename delete all bib records method DCB-739
-	* Rename delete all cluster records method DCB-739
-	* Remove redundant ID parameter when creating a Sierra host LMS DCB-739
-	* Use ID from returned host LMS instead of defining it first DCB-739
-	* Use builder when defining host LMS DCB-739
-	* Use create host LMS method when creating Polaris host LMS DCB-739
-	* Use create host LMS method when creating Sierra host LMS DCB-739
-	* Rename Sierra specific create host LMS method DCB-739
-	* Introduce parameters for client class and config when creating host LMS DCB-739
-	* Delete all cluster records before each cluster record tests DCB-739
-	* Delete all bib records before deleting all cluster records DCB-739
-	* Use sneaky throws to avoid checked IO exception in cluster record tests DCB-739
-	* Remove unused log from cluster record tests DCB-739
-
-## Version 2.3.0
-
-### Additions
-* [General]
-	* Configurable number of retry attempts for getting patron holds from Sierra
-	* Background job for indexing items.
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Change page size to integer property DCB-739
-	* Change page size Sierra setting to optional DCB-739
-	* Change type of get holds retry attempts setting
-	* Reformat host LMS property definition DCB-479
-	* Reformat Sierra client settings
-	* Tweaks to keep the Java compiler happy.
-* [Feature]
-	* Added env code and env description to info endpoint for display
-* [Refactor]
-	* Move method for getting integer property from config to class DCB-739
-	* Introduce class for integer property definition DCB-739
-	* Extract parameter for property definition when getting optional integer config value DCB-739
-	* Use property definition for getting integer value from config DCB-739
-	* Extract field for page size property definition DCB-739
-	* Extract method for getting integer property value DCB-739
-	* Move get holds retry attempts property to field DCB-739
-	* Convert property definition to value object DCB-739
-	* Extract method for defining an integer property definition DCB-739
-	* Extract method for defining a boolean property definition DCB-739
-	* Extract method for defining a string property definition DCB-739
-	* Extract method for defining a URL property definition DCB-739
-* [Test]
-	* Only retry getting holds from Sierra once in most tests
-
-## Version 2.2.2
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [General]
-	* Add missing AVAILABLE status to updateItem impletation in sierra adapter
-
-## Version 2.2.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [General]
-	* corrected static item status code mapping
-
-## Version 2.2.0
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-## Version 2.1.5
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [General]
-	* Error getting deleted flag for items
-
-## Version 2.1.4
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [Workflow]
-	* More Gracefully handle deletion of a virtual item
-
-## Version 2.1.3
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* More tuning for logging
-	* refine logging
-	* turn down logging
-	* Use toState() rather than strings when updating local reflections of remote states
-
-### Fixes
-* [Graphql]
-	* Add PatronRequest to PatronRequestAudit object
-
-## Version 2.1.2
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Extend Item mappings for sierra
-
-## Version 2.1.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [Flyway]
-	* Add out-of-order:true to allow branches to merge with migrations out of sequence
-* [General]
-	* set PR state to READY_FOR_PICKUP when appropriate
-
-## Version 2.1.0
-
-### Additions
-* [General]
-	* Shared index service
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Refactor supplier checkout so we can set the item state before attempting the checkout
-	* graphql - Add default sort order to hostlmss, patronrequest and supplierrequest
-	* rename patronIdentity upsert method to clarify what it's doing
-	* improve error trapping in sierra checkOut
-	* more warn logging in unexpected conversion scenarios
-	* warn when we try and convert an item record which is missing key properties
-* [Feature]
-	* Set a supplier item status to RECEIVED before attempting to check it out
-	* graphql - Add audit query to graphql
-
-## Version 2.0.5
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Split out parsing of patron barcode, add comment explaining what the string manipulation is about
-	* Remove unused code from FOLIO LMS client DCB-479
-	* Use annotation for log in host LMS fixture DCB-479
-	* Remove get all bib data method from host LMS client interface
-* [Refactor]
-	* Rename save host LMS method in fixture DCB-479
-	* Reduce access to methods in host LMS fixture DCB-479
-
-### Fixes
-* [General]
-	* store barcode when creating or updating patron identity records relating to virtual patron records in supplying systems
-
-## Version 2.0.4
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Add some more unique words to test data generators
-
-### Fixes
-* [General]
-	* Don't trim patron barcode when attempting to check out
-
-## Version 2.0.3
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-* [Feature]
-	* When creating a (vpatron) in sierra, allow the caller to specify an expiryDate or default it to 10 years from now
-
-## Version 2.0.2
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [General]
-	* align tests with reverted patron id change
-
-## Version 2.0.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [General]
-	* revert DCB: change as the likely culprit for failure to place hold at lending site
-
-## Version 2.0.0
-
-### Additions
-* [General]
-	* **BREAKING** -  Disallow unknown hold policy for Sierra host LMS when placing request at supplying agency DCB-613
-	* **BREAKING** -  Disallow unknown hold policy for Sierra host LMS during placing request at borrowing agency DCB-613
-* [General]
-	* Optionally disable patron resolution preflight check DCB-612
-	* Optionally disable pickup location to agency preflight check DCB-612
-	* Optionally disable pickup location preflight check DCB-612
-	* Default hold policy for Sierra client to item DCB-613
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Reformat production of invalid hold policy error DCB-613
-	* Rename variables for record number and type when placing request at supplying agency DCB-613
-	* Add method for item level request policy to host LMS client interface DCB-613
-* [Feature]
-	* Create endpoint to import uploaded mappings [DCB-527]
-* [Refactor]
-	* add DCB prefix to unique id generation
-	* Use optional when checking hold policy DCB-613
-	* Extract method for checking hold policy in Sierra host LMS client DCB-613
-	* Use common policy for title level requests when placing at supplying agency DCB-613
-	* Rename method for checking title level request policy when placing requests DCB-613
-	* Move implementation of title hold policy to host LMS client implementations DCB-613
-	* Move title hold policy decision to host LMS client interface DCB-613
-	* Move getting hold policy from config to extracted method DCB-613
-	* Extract method for whether policy is to place title hold DCB-613
-* [Test]
-	* Remove separate tests for disabling individual preflight checks DCB-612
-	* Remove redundant preparation in preflight checks service tests DCB-612
-	* Only include always failing check during preflight checks service tests DCB-612
-	* Define test only preflight check DCB-612
-	* Check all indidual checks are enabled DCB-612
-	* Extract method for creating Sierra host LMS client with client config DCB-613
-	* Use host LMS code constants for defining mappings when placing requests at borrowing agency DCB-613
-	* statically import request statuses when placing request at borrowing agency DCB-613
-	* Use host LMS code constant for defining mappings when placing requests at supplying agency DCB-613
-
-### Fixes
-* [General]
-	* Switch lastImported to use Instant [DCB-527]
-
-## Version 1.11.0
-
-### Additions
-* [General]
-	* Choose between placing title or item level request in borrowing agency DCB-613
-	* Optionally disable preflight all checks DCB-612
-	* Check requesting patron's local patron type is mapped to canonical DCB-530
-	* Check requesting patron is recognised in host LMS DCB-531
-	* Check requesting patron's host LMS is recognised DCB-531
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Reformat reactive chain when placing request at borrowing agency DCB-613
-	* Replace spaces with tabs in place request at borrowing agency service DCB-613
-	* Remove unused dependencies from place patron request at borrowing agency service DCB-613
-	* Change case of host LMS in preflight check failure description DCB-531
-	* Label the pickup location in agency mapping preflight check failure messages DCB-519
-	* Add debug logging for finding pickup location to agency mappings DCB-519
-	* Map failure to find patron mapping to failed check DCB-530
-	* Replace spaces with tabs in numeric range mapping DCB-530
-	* Replace spaces with tabs in supplying agency service
-	* Remove unused dependencies from supplying agency service
-	* Replace spaces with tabs in patron request API tests
-	* Inline always null local barcode in patron service
-	* Remove unused method from patron service
-	* Add resolve patron preflight check class DCB-531
-* [Feature]
-	* graphql - Convert hostLms props, PatronRequestAudiy props and canonical record to JSON scalar type
-	* enable graphql scalar type and use it for raw record
-	* sierra - Add Fixed Fields when pulling bibs from Sierra in anticipation of involving 031-BCODE3 in the decision to suppress or not. There is a do not submit to central flag we need to observe
-* [Refactor]
-	* Return virtual bib ID in tuple when creating virtual bib in borrowing host LMS DCB-613
-	* Extract variables for record type and number when placing request at borrowing agency DCB-613
-	* Defer finding alternative pickup location to agency mappings during preflight checks DCB-519
-	* Carry local patron information in unable to convert type exception DCB-530
-	* Provide local ID when attempting to map local patron type DCB-530
-	* Return specific error when attempting to map non-numeric local patron type DCB-530
-	* Rename method in patron type mapper to refer to patron type DCB-530
-	* Return specific error when no patron type mapping could be found DCB-530
-	* Extract method for getting requesting patron's local ID DCB-530
-	* Include host LMS service dependency for resolve patron preflight check DCB-531
-	* Return specific error when patron cannot be found in Sierra host LMS DCB-531
-	* Extract method for creating a patron not found error in Sierra client DCB-531
-* [Test]
-	* test: Expect virtual item ID as record number when placing borrowing Sierra hold DCB-613
-	* Replace spaces with tabs in place request at borrowing agency tests DCB-613
-	* Expect local bib ID as record number when placing supplying Sierra hold DCB-613
-	* Introduce parameter for expected record number when placing Sierra hold DCB-613
-	* Place title level requests at supplying agency DCB-613
-	* Define local bib ID when placing Sierra requests DCB-613
-	* Introduce parameter for Sierra host LMS client hold policy DCB-613
-	* Configure Sierra host LMS to use item requests DCB-613
-	* Introduce parameter for expected record type for Sierra patron request DCB-613
-	* Expect item record type when placing requests in Sierra DCB-613
-	* Delete all check related state prior to preflight checks service tests DCB-612
-	* Add preflight checks service test class DCB-612
-	* Demonstrate preflight check failure when no patron type mapping is defined DCB-530
-	* Delete mappings before each resolve patron preflight check test DCB-530
-	* Define patron type mapping before attempting to successfully resolve patron DCB-531
-	* Delete all reference value mappings before attempting to resolve patron DCB-531
-	* Define successful response for mock Sierra before resolving patron DCB-531
-	* Define credentials for mock Sierra before resolving patron DCB-531
-	* Define a host LMS before resolving a patron DCB-531
-	* Delete all numeric range mappings during tests DCB-531
-	* Rename reference value mapping repository field in fixture DCB-531
-	* Add example for failed patron type mapping when validating patron DCB-531
-	* Define patron type mappings in unsuccesful place request API tests DCB-531
-	* Define patron type mappings in unresolvable request API test DCB-531
-
-### Fixes
-* [General]
-	* Field for raw source record is json not rawSource
-
-## Version 1.10.2
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* db - Add missing unique constraint to host lms, date fields for agency, protocol fields for paronRequest and supplierRequest
-	* Improve logging on item fetch failure
-
-### Fixes
-* [Graphql]
-	* nested fetchers should use findBy and not findAllBy
-
-## Version 1.10.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* clean up logging
-* [Test]
-	* Check for audit entry when patron validation fails when host LMS responds with an error DCB-531
-	* Move audit assertion methods to bottom of validate patron tests DCB-531
-	* Move audit entry matchers to separate class DCB-531
-	* Extract methods for audit entry matchers DCB-531
-	* Use matchers for checking audit entries when validating a patron DCB-531
-	* Import patron request statuses in validate patron tests DCB-531
-	* Move local patron type matcher to separate class DCB-531
-	* Use matcher for checking validated patron local type DCB-531
-	* Make patron requests fixture a singletion DCB-531
-	* Consolidate use of delete all patron requests methods DCB-531
-	* Replace delete all audit entries with delete all patron requests DCB-531
-	* Introduce delete all method in patron requests fixture DCB-531
-	* Use query all and delete by ID when deleting audit entries DCB-531
-	* Rename delete all audit entries method DCB-531
-	* Group delete methods together in patron request fixture DCB-531
-	* Use only audit entry method in other tests DCB-531
-	* Check for single audit entry DCB-531
-	* Use publisher to list conversion instead of flux when fetching audit entry DCB-531
-	* Extract method for finding only audit entry DCB-531
-	* Replace spaces with tabs in validate patron tests DCB-531
-
-### Fixes
-* [Polaris]
-	* Return Mono.empty rather than null for methods not yet implemented
-
-## Version 1.10.0
-
-### Additions
-* [General]
-	* Report failed preflight checks in event log DCB-532
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* scripts - fix graphql_hostlms script - hostlms doesn't have dates
-	* graphql - Add created and modified dates to patron request
-* [Feature]
-	* graphql - Add PatronRequestAudit into graphql model and attach to PatronRequest object
-	* graphql - Add supplierRequests to patronRequest
-* [Refactor]
-	* Define event as a value object DCB-532
-	* Extract method for creating an event from a failed check result DCB-532
-	* Define event type as a enum DCB-532
-	* Introduce method for reporting failed checks in the event log DCB-532
-	* Add event log repository dependency to preflight checks service DCB-532
-* [Test]
-	* Extract method for checking failed check event in log DCB-532
-	* Check that successfully placed patron request generates no events in the log DCB-532
-	* Demonstrate failed preflight check for mapping only DCB-532
-	* Delete all event log entries before each patron request API test DCB-532
-
-### Fixes
-* [Mappings]
-	* Expunge residual ShelvingLocation references - we're now just on a flat list of Locations
-
-## Version 1.9.0
-
-### Additions
-* [General]
-	* Find location by ID when code is a UUID during agency mapping preflight check DCB-519
-	* Find location by ID when code is a UUID during preflight pickup location check DCB-519
-	* Find agency mapping in requestor host LMS context during preflight check DCB-519
-	* Find agency mapping in explicit pickup location context during preflight check DCB-519
-	* Fail preflight checks when pickup location is mapped to an unrecognised agency DCB-519
-	* Fail preflight checks when pickup location is not mapped to an agency DCB-519
-	* Fail preflight checks when pickup location is not recognised DCB-519
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Do not attempt to find pickup location by ID when code is not a UUID DCB-519
-	* Replace spaces with tabs in reference value mapping service DCB-519
-	* Do not attempt to find mapping when pickup location context is null or empty DCB-519
-	* Replace spaces with tabs in reference value mapping fixture DCB-519
-	* Add agency repository dependency to agency mapping preflight check DCB-519
-	* Introduce pickup location to agency mapping check DCB-519
-	* Add dependency on location repository to preflight checks service DCB-519
-	* Consistent debug log messages in patron request service DCB-519
-	* Use annotation for patron request service log DCB-519
-	* Hard code failure for unknown pickup location code DCB-519
-	* Extract shelving location lookup for more fine grained exception reporting
-	* Decompose create bib to throw more granualr exceptions
-* [Refactor]
-	* Introduce method for possibly mapping a location ID to a code DCB-519
-	* Extract method for finding agency mapping by code and context or host LMS code DCB-519
-	* Add location service dependency to agency mapping preflight check DCB-519
-	* Move find by code method to agency service DCB-519
-	* Introduce agency service dependency for agency mapping preflight check DCB-519
-	* Move find by ID string overload to location service DCB-519
-	* Move find by code method to location service DCB-519
-	* Move find by ID method to location service DCB-519
-	* Add location service dependency for pickup location preflight check DCB-519
-	* Introduce method for finding a location by ID during pickup location preflight check DCB-519
-	* Extract method for finding pickup location by Code DCB-519
-	* Move empty or null from context check to reference value mapping service DCB-519
-	* Reduce duplication when finding a location to agency mapping DCB-519
-	* Extract method for getting requestor's local system code DCB-519
-	* Introduce method for finding agency mapping by context DCB-519
-	* Extract method for getting pickup location context from command DCB-519
-	* Pass command instead of pickup location code only when finding mapping DCB-519
-	* pass command instead of pickup location code when checking mapping DCB-519
-	* Extract method for getting pickup location code from command DCB-519
-	* Extract method for finding a pickup location to agency mapping in DCB context DCB-519
-	* Extract method for finding an agency by code DCB-519
-	* Extract method for checking agency without assessing previous check result DCB-519
-	* Extract method for finding agency mapping DCB-519
-	* Introduce method for checking whether agency exists during preflight check DCB-519
-	* Return tuple of result and agency code during agency mapping check DCB-519
-	* Extract method for checking pickup location to agency mapping DCB-519
-	* Extract method for performing preflight checks DCB-519
-	* Extract method for creating failed checks exception from results DCB-519
-	* Extract method for mapping failed check result to failure DCB-519
-	* Extract method for checking whether a check has failed DCB-519
-	* Extract method for checking whether all checks have passed DCB-519
-	* Add reference value mapping service dependency to pickup location to agency mapping check DCB-519
-	* Inject collection of preflight checks DCB-519
-	* Define flux from list of checks DCB-519
-	* Extract interface for preflight check DCB-519
-	* Reduce flux of preflight checks DCB-519
-	* Return list of check results from each check DCB-519
-	* Move pickup location preflight check to separate class DCB-519
-	* Return result when checking for recognised pickup location DCB-519
-	* Rename preflight check class DCB-519
-	* Rename preflight check exception DCB-519
-	* Move hard coded pre-flight check to separate service DCB-519
-	* Use zip to find or create a patron when placing a request DCB-519
-	* Add hard coded check into reactive chain for placing a patron request DCB-519
-	* Move hard coded failure to service DCB-519
-	* Move check failed exception to request fulfilment package DCB-519
-* [Test]
-	* Delete locations for pickup location to agency mapping preflight check tests DCB-519
-	* Provide requestor local system code in preflight tests DCB-519
-	* Provide pickup location context in preflight tests DCB-519
-	* Extract method for defining pickup location to agency mapping in preflight check tests DCB-519
-	* Remove duplicated code for defining location to agency mappings DCB-519
-	* Rename parameters for defining location to agency mappings DCB-519
-	* Remove pickup location to agency mappings in patron request API tests DCB-519
-	* Explicit DCB context in mappings for preflight tests DCB-519
-	* Define an agency during succesful preflight agency mapping test DCB-519
-	* Delete all agencies before agency mapping preflight checks DCB-519
-	* Move preflight checks common code to abstract base class DCB-519
-	* Remove preflight checks service tests DCB-519
-	* Split out pickup location to agency mapping preflight tests DCB-519
-	* Split out pickup location preflight tests DCB-519
-	* Move checks failure response class to clients package DCB-519
-	* Extract matcher for preflight check failure description in API tests DCB-519
-	* Delete all reference value mappings during preflight tests DCB-519
-	* Move recognised pickup location check tests to nested class DCB-519
-	* Define pickup location in patron request API tests DCB-519
-	* Move method for creating a pickup location to fixture DCB-519
-	* Extract method for creating a pickup location DCB-519
-	* Create location in known location preflight check test DCB-519
-	* Delete all locations prior to preflight check tests DCB-519
-	* Tests for hard coded pickup location check DCB-519
-	* Disabled test for placing a request with unknown pickup location DCB-519
-	* Reduce maximum PostgreSQL connections to one
-
-### Fixes
-* [Graphql]
-	* Remove duplicated field in SupplierRequest
-* [Workflow]
-	* When the resolver was not able to choose an item because all the options are electronic, resove to no items available
-
-## Version 1.8.4
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [General]
-	* return for UUID based pickup location codes
-
-## Version 1.8.3
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Add supplier request scalar fields to graphql schema
-
-### Fixes
-* [General]
-	* interpret pickup location strings of 36 chars as a UUID
-
-## Version 1.8.2
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* More deliberate failure and exception reporting when unable to map a patron type
-
-### Fixes
-* [General]
-	* Ensure we remove the related match-points before the bib
-
-## Version 1.8.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Add script for fetching info from UAT environment
-* [Feature]
-	* info - Add ingest and tracking intervals to info endpoint
-* [Test]
-	* Rename delete all agencies method DCB-519
-
-### Fixes
-* [General]
-	* PickupLocation mappings are a legacy thing now - we just have Location code mappings and put everything into one pot. At some point a merge had reverted a curried value of Location back to PickupLocation which was causing a lookup failure now that we no longer need PickupLocation mappings
-	* Cleanup on finish, not just cancellation or error.
-
-## Version 1.8.0
-
-### Additions
-* [Auth]
-	* Implement validatePatronByUniqueIdAndSecret option for patron auth
-* [General]
-	* Add DcbInfoSource
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* tidy
-	* Bit of a messy merge :(
-	* Replace spaces with tabs in workflow context helper DCB-519
-	* ingest - Add status to ingest state to make it clear when a process is RUNNING or COMPLETE
-	* Remove erroneous comment in patron request controller DCB-519
-	* Fix formatting in place patron request command DCB-519
-* [Feature]
-	* Flexible handling of pickup location context - allow the place request command to optionally specify a context for the pickup location, if not provided default to the patron home context
-	* Add canonicalPType field to interaction Patron and set this coming out of the Sierra host LMS adapter
-	* graphql - Add ProcessStatus query to graphql endpoint
-	* ingest - Add human readable timestamps HRTS to process state for sierra to make it eaiser to diagnose harvesting issues
-	* Change patron type lookups to range mapping
-	* Add pickup location code context to data model
-	* auth - Implement UniqueID+Name validation method
-* [Refactor]
-	* Move method for finding pickup location to agency mapping to service DCB-519
-	* Extract method for finding pickup location to agency mapping DCB-519
-	* Use value object instead of record for response from place patron request API DCB-519
-	* Remove mapping to HTTP response when placing a request DCB-519
-	* Change place patron request command to value object rather than record DCB-519
-	* Use tuple when placing initial patron request DCB-519
-* [Test]
-	* Replace empty JSON object with null object for placing a request with no information DCB-519
-	* Extract method for placing a request using a command DCB-519
-	* Use serialised object instead of raw JSON when placing a request DCB-519
-	* Remove patron request status workaround DCB-519
-	* Use value objects instead of records when placing requests DCB-519
-	* Use client for placing request with unknown local system DCB-519
-	* Use login client in declarative HTTP client with JWT test DCB-519
-	* Use declarative client for login DCB-519
-	* Return body only when logging in DCB-519
-	* Use login client in configuration import API tests DCB-519
-	* Replace spaces with tabs in configuration import API tests DCB-519
-	* Use login client in patron auth API tests DCB-519
-	* Remove unused fields / variables in patron auth API tests DCB-519
-	* Use login client in JWT authentication tests DCB-519
-	* Use login client in agency API tests DCB-519
-	* Use login client in patron request API client DCB-519
-	* Use constructor injection for patron request API client DCB-519
-	* Use dedicated HTTP client for login client DCB-519
-	* Reorganise fields in patron request API tests DCB-519
-	* Move method for getting an access token to login client class DCB-519
-	* Make saving mapping method private in fixture DCB-519
-	* Use fixture to define shelving location to agency mapping when getting items from Polaris DCB-519
-	* Use fixture to define location to agency mapping when validating a patron DCB-519
-	* Use fixture to define shelving location to agency mapping when placing request at borrowing agency DCB-519
-	* Use fixture to define shelving location to agency mapping when checking live availability DCB-519
-	* Remove duplicate reciprocal patron type mappings DCB-519
-	* Use fixture to define pickup location to agency mapping when placing request at borrowing agency DCB-519
-	* Use fixture to define location to agency mapping when placing request at borrowing agency DCB-519
-	* Replace spaces with tabs in place request at supplying agency tests DCB-519
-	* Extract method for defining patron type mapping DCB-519
-	* Rename place patron request API test DCB-519
-	* Extract method for defining location to agency mapping DCB-519
-	* Extract method for defining shelving location to agency mapping DCB-519
-	* Extract method for defining pickup location to agency mapping DCB-519
-	* Remove unused log message parameter in place patron request API tests DCB-519
-	* Replace spaces with tabs in place patron request API tests DCB-519
-	* Inline access token variable in place patron request API tests DCB-519
-	* Remove commented out code in place patron request API tests DCB-519
-	* Use annotation for log in patron request API tests DCB-519
-
-## Version 1.7.3
-
-### Additions
 * [Build]
 	* **BREAKING** -  Restructure into sub projects
+* [General]
+	* **BREAKING** -  Add partitions to data model and consolidate migrations
+	* **BREAKING** -  Rename consortial FOLIO host LMS client DCB-774
+	* **BREAKING** -  Expect FOLIO base-url without /oai path DCB-774
+	* **BREAKING** -  Add new ingest source type for host LMS configuration DCB-739
+	* **BREAKING** -  Disallow unknown hold policy for Sierra host LMS when placing request at supplying agency DCB-613
+	* **BREAKING** -  Disallow unknown hold policy for Sierra host LMS during placing request at borrowing agency DCB-613
+* [Auth]
+	* Implement validatePatronByUniqueIdAndSecret option for patron auth
 * [Bib]
 	* all models changed to 'record' based, with builders
 	* Extention of ImportRecord added
@@ -2456,6 +117,86 @@
 * [Locations]
 	* Added list method with temporary, static data
 * [General]
+	* Confirm FOLIO supplying agency request immediately DCB-884
+	* Startup defaults and JVM info sources
+	* Fallback to general information field for language DCB-394
+	* Split concatenated language codes during MARC ingest DCB-394
+	* implement borrower ILL flow for polaris
+	* DCB-918 add local-id to location modelling to allow DCB to reference host lms locations by their internal ID
+	* JVM properties as source and startup reporter.
+	* determine assigned branch id for Polaris virtual item creation [DCB-910]
+	* Update item barcode uupon confirmation DCB-884
+	* Wait for confirmation before placing request at borrowing agency DCB-884
+	* Test integration that selects the correct TransactionManager
+	* Search hooks
+	* Distributed Federated locks in reactive flow
+	* Secure the various internal endpoints by IP or ROLE_SYSTEM
+	* Remove option to disable patron request preflight checks DCB-892
+	* Record item barcode after Sierra title level request placed DCB-872
+	* Timeout live availability requests with Unknown fallback status
+	* Ingest terminator for graceful shutdown
+	* Handle unexpected responses from Polaris DCB-855
+	* concurrency groups
+	* Make wildcard searches case insensitive by default.
+	* Handle unexpected responses from Sierra DCB-849
+	* Report unexpected response from Sierra when placing hold DCB-849
+	* reworked cluster merging
+	* close FOLIO borrowing library request when item has been received back [DCB-851]
+	* Detect item returned by patron in FOLIO borrowing agency DCB-826
+	* Detect when item has been borrowed by patron DCB-826
+	* Detect when item has arrived at pickup location DCB-826
+	* Reworked clustering
+	* circulate requests involving consortial folio libraries
+	* Detect item returned to FOLIO supplying agency DCB-825
+	* Give sierra the capacity to use hierarchical mappings where only overrides need to be explicit for a system and default consortial mapping can be used for most sites
+	* Implement context hierarchy lookups and tests
+	* Detect missing request in FOLIO DCB-825
+	* Detect FOLIO request has been cancelled DCB-827
+	* Index on derived type
+	* Detect FOLIO request has been placed in transit DCB-825
+	* place request in borrowing library on folio system [DCB-492]
+	* Place request at FOLIO supplying agency
+	* Add check for year as volume from polaris
+	* Add ability to stop reindex job
+	* Add code to index document template.
+	* validate patron in folio borrowing system [DCB-766]
+	* handle patron authentication for folio [DCB-765]
+	* implement polaris client override methods deleteItem and deleteBib [DCB-789]
+	* add a barcode field when creating a patron in polaris
+	* Strip punctuation from the subject labels.
+	* Map FOLIO material type name to canonical item type DCB-479
+	* Map location to agency for items from FOLIO DCB-479
+	* Fallback mapping for FOLIO item statuses DCB-479
+	* Drop instances with invalid OAI-PMH identifier during FOLIO ingest DCB-797
+	* Parse OAI identifier for instance ID during FOLIO ingest DCB-797
+	* checkOutItemToPatron [DCB-743]
+	* patron cancels polaris request [DCB-529]
+	* implement circulation polling and transition for polaris requests [DCB-528]
+	* place request in borrowing library on a polaris system [DCB-485]
+	* Added authentication for Search Index.
+	* Added reindex job to admin controller.
+	* Create index for OS or ES on startup.
+	* Configurable number of retry attempts for getting patron holds from Sierra
+	* Background job for indexing items.
+	* Shared index service
+	* Optionally disable patron resolution preflight check DCB-612
+	* Optionally disable pickup location to agency preflight check DCB-612
+	* Optionally disable pickup location preflight check DCB-612
+	* Default hold policy for Sierra client to item DCB-613
+	* Choose between placing title or item level request in borrowing agency DCB-613
+	* Optionally disable preflight all checks DCB-612
+	* Check requesting patron's local patron type is mapped to canonical DCB-530
+	* Check requesting patron is recognised in host LMS DCB-531
+	* Check requesting patron's host LMS is recognised DCB-531
+	* Report failed preflight checks in event log DCB-532
+	* Find location by ID when code is a UUID during agency mapping preflight check DCB-519
+	* Find location by ID when code is a UUID during preflight pickup location check DCB-519
+	* Find agency mapping in requestor host LMS context during preflight check DCB-519
+	* Find agency mapping in explicit pickup location context during preflight check DCB-519
+	* Fail preflight checks when pickup location is mapped to an unrecognised agency DCB-519
+	* Fail preflight checks when pickup location is not mapped to an agency DCB-519
+	* Fail preflight checks when pickup location is not recognised DCB-519
+	* Add DcbInfoSource
 	* Re-elect selected bib on cluster if current is deleted
 	* Soft delete of ClusterRecords
 	* turn on authentication on the place request API [DCB-322]
@@ -2555,6 +296,472 @@
 	* Github - Build native too.
 * [Chore]
 	* Changelog - Generate the changelog
+	* use concatMap when tracking rather than constrained flatmap
+	* Added necessary options for larger zip file archives
+	* Stop explicitly specifying db pool size and instead compute defaults from allocated cores
+	* add timers to tracking service
+	* signpost for todo needed on hierarchical host LMS setup
+	* Wire in remaining test backoff poll calls
+	* allow awaiting pickup at borrower to progress in transit
+	* Allow virtual items to be tracked even in a missing state
+	* remove another extra audit message, use ctx.workflowMessages instead. Tone down logging on polaris url factory
+	* additional logging
+	* Reinstate flag to not reflect loaned back to polaris, remove additional excessive audit messages
+	* remove excessive state change message
+	* Bump commit to force CI
+	* push nullsafe protection down into sierra client
+	* Back off nullsafe protections in tracking code
+	* preparation for hold cleanup and defensive code on action tracking
+	* tidy
+	* more logging
+	* Refactor to allow pickup location to propagate to borrowing system hold
+	* logging for new tracking options
+	* add missing migration file
+	* Report host lms code when constructing the adapter to aid in troubleshooting from logs
+	* add update methods to patron request repository for more granular polling control
+	* add update methods to supplier request repository for more granular polling control
+	* Add extra tracking states to test
+	* Add LOANED and AVAILABLE to list of tracked states on supplier item
+	* Add fields to enable more fine grained control of the polling period for downstream systems
+	* Add an audit message on validation
+	* enable requests to be completed without a return transit
+	* stop emitting guard passed audit message - it's confusing
+	* revert change which required a bib hold to be converted to an item hold within the retry period - we can't force that and need to be able to cope with this happening asynchronously
+	* Include item information when fetching Polaris hold DCB-844
+	* Consider on hold item request from Sierra confirmed DCB-884
+	* Fetch Sierra item after fetching hold DCB-884
+	* Use elvis operator for interpreting item ID from Sierra hold DCB-884
+	* Use derestify method for interpreting Sierra hold ID DCB-884
+	* Added the ability for state changes to have additional properties
+	* added micronaut.http.client.connect-ttl to application.yml
+	* Raise error when Sierra hold status is null or empty DCB-884
+	* make place request endpoint callable by any authenticated user not just administrator role
+	* Disable DCB as a Token issuer
+	* Map pending Polaris hold to confirmed local status DCB-884
+	* Use property accessor to get Polaris hold properties DCB-884
+	* Map created folio transaction to confirmed local status DCB-884
+	* Introduce dedicated workflow action for confirmed supplier request DCB-884
+	* Replace spaces with tabs in unhandle state action DCB-884
+	* Remove typo from get tracking record type method name DCB-884
+	* Describe why audit method in Host LMS reactions has to be public
+	* Introduce confirmed Host LMS request status DCB-884
+	* tune timeout on RTAC api call - 7s instead of 5
+	* logging around missing patron hold request tracking
+	* Extra hint that problem props are supplier side
+	* remove dcbContext from problem - it's too verbose. Transactional annotation for audit log message
+	* Reinstate getting item barcode for placed Sierra hold DCB-872
+	* remove unused config value - default-patron-home-location-code
+	* Remove unused constructor parameter in place request at borrowing agency transition
+	* back out sierra retrieve-item-after-hold change - sierra is not behaving as expected for this approach - back to item level requesting
+	* null item id protection
+	* Improve error message when Sierra hold record number is invalid integer DCB-872
+	* Remove unused state transition method in supplier request DCB-872
+	* refactor HandleSupplierItemAvailable.java - WIP
+	* Revert to using requesting agency when placing requests in sierra libraries
+	* Preparation for LocalRequest being able to return the requested item barcode and id when placing a bib level hold. Non-null return values should overwrite values in the supplier request when placing a request at a supplying agency
+	* Remove redundant generic type in application services auth filter
+	* Remove redundant static modifier on patron request status enum
+	* Replace spaces with tabs in workflow service
+	* Remove unused string utility methods
+	* Wrap long lines in audit service
+	* Reduce duplication in property access utility methods DCB-855
+	* Include request path in unexpected response problem parameters DCB-855
+	* Add log message for when getting request defaults from Polaris fails DCB-855
+	* Remove unused patron find method in Polaris Host LMS client DCB-855
+	* Reformat PAPI auth filter DCB-855
+	* Add a get record count report method to the BibRepository in preparation for API endpoint that reports bib record count per source system
+	* Minor refactor of HandleSupplierInTransit to allow for onError to report problems setting transit on downstream systems
+	* Defensive code around nulls in audit data
+	* correct tracker refdata tests
+	* Include patron as audit data when virtual patron creation in Polaris fails
+	* Make HTTP request related methods in Polaris client package-private DCB-855
+	* Include patron in error when creating virtual patron in Polaris
+	* Improve error message when home patron identity cannot be found
+	* Handle unexpected responses during retrieve operations to Polaris DCB-855
+	* correct exception message
+	* Remove unecessary casts when reading Polaris client config DCB-855
+	* Replace spaces with tabs in application services client DCB-855
+	* Make types used in PAPI client interface public DCB-855
+	* Remove unused field in Polaris Host LMS client DCB-855
+	* Save audit data with audit record DCB-849
+	* Replace spaces with tabs in request audit service DCB-849
+	* Make request workflow context serdeable DCB-849
+	* Include parameters from underlying problem when placing request at supplying agency DCB-849
+	* Include json request body for unexpected response DCB-849
+	* Include text request body for unexpected response DCB-849
+	* Tolerate no request body for unexpected response DCB-849
+	* Tolerate no request or host LMS code for unexpected response DCB-849
+	* add log for debugging duplicate error audit
+	* Reformat get method in Sierra client DCB-849
+	* Rename generic type arguments when making request DCB-855
+	* Handle unexpected responses when getting RTAC holdings from FOLIO DCB-855
+	* Additional logging around state saving for FOLIO
+	* Move detection of unexpected response from Sierra to lower level client DCB-849
+	* Use request path in title for unexpected response from unknown host LMS DCB-849
+	* Use request URI in title for unexpected response from unknown host LMS DCB-849
+	* Remove unused unexpected response exception DCB-849
+	* Include request method in unexpected response problem DCB-849
+	* Parse unexpected text response body as a string DCB-849
+	* Parse unexpected JSON response body as map DCB-849
+	* Include unexpected response status code in problem DCB-849
+	* report problem for unexpected response when creating FOLIO transaction DCB-849
+	* insert a function to report if we're about to create a new cluster when one already exists for a bib
+	* extra info in log messages
+	* Remove unused fields in borrower request return transit handler
+	* Replace spaces with tabs in borrower request return transit handler
+	* Replace spaces with tabs in host LMS item
+	* Remove unused fields in supplier item state change handler
+	* Make fields final in borrower item in unhandled state handler
+	* Make fields final in borrower item missing handler
+	* Replace spaces with tabs in borrower item missing handler
+	* Make fields final in borrower item on hold shelf handler
+	* Replace spaces with tabs in borrower item on hold shelf handler
+	* Use string format placeholders in borrower item loaned handler
+	* Make fields final in borrower item loaned handler
+	* Replace spaces with tabs in borrower item loaned handler
+	* Make fields final in borrower item available handler
+	* Replace spaces with tabs in borrower item available handler
+	* Remove unused field in borrower item in transit handler
+	* Replace spaces with tabs in borrower item in transit handler
+	* Removed unused field in handle borrower item received handler
+	* Replace spaces with tabs in handle borrower item received handler
+	* Tolerate null response when raising unexpected response exception DCB-849
+	* Tolerate null request when raising unexpected response exception DCB-849
+	* Include response in error message when unexpected response is received DCB-849
+	* Detect unexpected HTTP response when creating FOLIO transaction DCB-849
+	* Tone down some logging on stats service
+	* Add zero length checking to resumption token
+	* updated .gitignore
+	* Remove remaining Character usage from any DTO that will be encoded as JSON
+	* Add shutdown listener in preparation for cleaner shutdown handling
+	* Return unmapped when transaction status is recognised yet unhandled DCB-825
+	* Raise error when transaction status is not recognised DCB-825
+	* Remove unused fields from supplier item available handler
+	* Remove unused field in host LMS reactions
+	* Add link to transaction status docs DCB-825
+	* Make fields final in supplier in transit handler
+	* Replace spaces with tabs in supplier in transit handler
+	* Use switch expression for mapping FOLIO transaction status DCB-825
+	* Map created transaction status to hold placed status DCB-825
+	* Fetch transaction status from FOLIO DCB-825
+	* More logging updates for clustering
+	* Additional logging for cluster writing
+	* Trying a cheeky way to force touching of a cluster record
+	* preparatory work for multiple supplier mode
+	* Add find by ID to supplier request repository
+	* Tolerate finding no supplier requests for patron request
+	* Use builder for defining Sierra code tuple
+	* Replace spaces with tabs in Sierra code tuple class
+	* Replace spaces with tabs in Sierra patron hold request object
+	* Don't track supplier requests when the owning request is in a COMPLETE, FINALISED or ERROR state. When retrieving the state of a supplier hold, emit a state change to ERROR when we encounter an ERROR
+	* Default polaris barcode prefix to DCB- if none specified
+	* Replace spaces with tabs in handler supplier request placed workflow action
+	* Refactoring around sort order
+	* Make tracking service field final
+	* Reformat tracking service
+	* Remove empty init method from tracking service
+	* Remove unused fields from tracking service
+	* Attempt to address UnsupportedCharsetException: UTF-32BE in native exec by adding docker-native build option -H:+AddAllCharsets
+	* Adjust oai parameter logging
+	* Add some fields to error logging on Folio OAI source
+	* Throw exception when relative URI does not start with a forward slash DCB-490
+	* Log validation error when placing request at FOLIO supplying agency DCB-490
+	* Log body of requests to FOLIO DCB-490
+	* Log parameters when placing request at FOLIO supplying agency DCB-490
+	* Pass patron group name when creating a FOLIO transaction DCB-490
+	* Remove patron group ID from FOLIO user representation DCB-490
+	* Map patron group name from FOLIO to local patron type DCB-490
+	* Find local FOLIO patron type from canonical patron type DCB-490
+	* Find canonical patron type for local FOLIO patron type DCB-490
+	* Raise error when creating FOLIO transaction returns unauthorised response DCB-490
+	* Raise error when creating FOLIO transaction returns not found response DCB-490
+	* Raise error when creating FOLIO transaction returns validation response DCB-490
+	* Pass generated service point ID based upon pickup agency code when creating a FOLIO transaction DCB-490
+	* Pass pickup agency code as library code when creating a FOLIO transaction DCB-490
+	* Pass pickup agency name as service point name when creating a FOLIO transaction DCB-490
+	* Pass patron barcode when creating a FOLIO transaction DCB-490
+	* Pass patron ID when creating a FOLIO transaction DCB-490
+	* Pass item barcode when creating FOLIO transaction DCB-490
+	* Supplying request in FOLIO uses lender role DCB-490
+	* Pass item ID to FOLIO create transaction API DCB-490
+	* Return hold placed local status for FOLIO requests DCB-490
+	* Return transaction ID as local ID of FOLIO request DCB-490
+	* Make basic request to create FOLIO DCB transaction DCB-490
+	* Reformat determine patron type method DCB-490
+	* Replace spaces with tabs in patron type service tests DCB-490
+	* Try setting varFields messages when issuing sierra ItemPatch to clear in transit status per DCB-795
+	* Change to polaris explicit volume field
+	* logging around polaris item mapper, first pass volume normalisation in sierra
+	* refactor extraciton of volume statement in sierra
+	* refactor sierra item mapping logging
+	* logging around index bulk ops and volume processing
+	* Change apikey to header rather than parameter for FOLIO OAI - per EBSCO request today
+	* Pass item barcode when placing request at supplying agency DCB-490
+	* Add fallback error for when pickup location to agency mapping fails DCB-490
+	* Pass pickup agency when placing request at supplying agency DCB-490
+	* Add pickup agency to place request parameters DCB-490
+	* Remove redundant modifiers for agency properties DCB-490
+	* Replace spaces with tabs in workflow context DCB-490
+	* Pass paron type and barcode when placing request at supplying agency DCB-490
+	* Add barcode and host LMS to patron identity to string contents DCB-490
+	* Incremental refactor preparing for supplier preflight
+	* take heed of isActive flag on supplier request
+	* more meaningful message when unable to map item type
+	* Add patron request UUID to tracking record in preparation for writing audit records with respect to tracking events
+	* Change hold status handling in polaris client to switch, add translations for Shipped to IN_TRANSIT, tidy indenting in tracking service
+	* Factor in patron request when looking for tracked requests - don't watch anything in an ERROR state
+	* Null-safe protection on patron barcode prefix for polaris
+	* defensive code in polaris adapter to make sure items array length > 0
+	* correct local item status name
+	* Extra info to make grepping for onTrackingEvent more meaningful when watching a specific flow
+	* adjust error logging in tracking code
+	* Pass host LMS code as last parameter for multiple users error DCB-490
+	* Include host LMS code in failed to get items exceptions DCB-479
+	* Include host LMS code in FOLIO client log entries DCB-479 DCB-490
+	* Include host LMS code in likely API key error DCB-479
+	* Add patron request id to create item command so we can give more informative logging in failure scenarios
+	* Map suppress from discovery for FOLIO items DCB-479
+	* Remove preferred first name from FOLIO virtual patron's local names DCB-490
+	* Generate new ID only when creating FOLIO virtual patron DCB-490
+	* Rename variable for created virtual patron ID DCB-490
+	* backout stats counter
+	* default hazelcast constructor
+	* Try specifying hazelcast servicelabelname in yaml file
+	* remove unneeded hz config object
+	* null detection around hazelcast
+	* trying alternate hazelcast config
+	* Return explict error for non-implemented FOLIO host LMS client methods DCB-490
+	* Fail when no patron group to type mapping found DCB-490
+	* Map FOLIO user patron group to canonical patron type DCB-490
+	* Fail finding a virtual patron when requesting patron has no barcode DCB-490
+	* Fail finding FOLIO users when API key is invalid DCB-490
+	* Fail finding virtual patron in FOLIO when multiple users found DCB-490
+	* Tolerate missing properties when mapping FOLIO user to patron DCB-490
+	* Map all FOLIO user's names to local names DCB-490
+	* Map FOLIO user's barcode DCB-490
+	* Map FOLIO user's patron group to local patron type DCB-490
+	* Return empty when no user found for barcode DCB-490
+	* Include trace level request logging for FOLIO client DCB-490
+	* Only accept JSON when finding users in FOLIO DCB-490
+	* Use CQL to find FOLIO virtual patron by barcode DCB-490
+	* Fetch users from FOLIO when finding virtual patron DCB-490
+	* Extra error checking around POLARIS create patron - validate the response and check for a nonzero error code
+	* Add some defers to empty handling to prevent premature side effects
+	* Extra logging on polaris createPatron
+	* add logging for creating patron in polaris
+	* add log before local hold request is made (polaris)
+	* Removed unused code in Sierra host LMS client DCB-490
+	* Replace spaces with tabs in patron class DCB-490
+	* log when supplying agency service clean up is called
+	* refactor cancelled action a little
+	* re Added hazelcast, added doOnError to cancel api endpoint for logging
+	* toggle bib record creation - both work
+	* Explore alternate way of populating member bibs for indexing
+	* refactor some error scenarios to defer invoking the onError until it's actually needed
+	* instrument item availability checks
+	* Better logging on availability status checks
+	* Disable case sensitivity for sierra userId lookup
+	* tidy public interface for authv2 - use uniqueIds as a parallel for sierra
+	* Check username returned by authV2 interface is aligned with public API
+	* align auth and lookup methods on AuthV2 API
+	* The AuthV2 iterface should return the username as it is known at the DCB boundary - i.e. prefixed with the agency
+	* Additional info returning DCB patron info
+	* Extra validation on authv2 methods
+	* info logging on config import
+	* Don't cancel a request after it's been finalised if we detect a missing hold
+	* Add tests for AuthAPI v2
+	* More logging refinements
+	* more logging changes
+	* tone down ingest logging
+	* log level adjustments, some ingest infos change to trace
+	* Reformat patron service DCB-490
+	* Replace spaces with tabs in supplying agency service DCB-490
+	* more logging refinements
+	* more logging when exchanging messages with polaris for create item
+	* logging for failure on create item
+	* extra logging on polaris create item
+	* Split finding agency by code and getting mapping value DCB-479
+	* Use property accessor for location code when mapping to agency DCB-479
+	* Unmapped FOLIO item type should be mapped to unknown canonical type DCB-479
+	* Map null FOLIO item type to unknown canonical type DCB-479
+	* Map FOLIO item type to canonical item type DCB-479
+	* Remove unused dependencies for finalise request transition DCB-479
+	* Warn when no reference value mapping found DCB-479
+	* Should tolerate null location when enriching item with agency DCB-479
+	* Use is empty collection method when getting items from FOLIO DCB-479
+	* Use is empty method during FOLIO fallback item status mapping DCB-479
+	* Add warning when attempting to map location to agency with empty from context DCB-479
+	* Include host LMS code for items from FOLIO DCB-479
+	* Map material type name to item type code for FOLIO items
+	* Assume that items from FOLIO are not suppressed DCB-479
+	* Include hold count in items from FOLIO DCB-479
+	* Assume that items from FOLIO are not deleted DCB-479
+	* Use material type rather than loan type for FOLIO item type DCB-479
+	* Include location code in items from FOLIO DCB-479
+	* Include barcode in items from FOLIO DCB-479
+	* Include due date in items from FOLIO DCB-479
+	* Fail when receive multiple outer holdings from RTAC DCB-479
+	* Interpret holdings not found error as zero items assocated with instance DCB-479
+	* Improve error message for likely invalid API key response from RTAC DCB-479
+	* Fail when receive holdings not found error from RTAC DCB-479
+	* Fail when receive instance not found error from RTAC DCB-479
+	* Include errors in RTAC response classes DCB-479
+	* Handle zero inner holdings returned from FOLIO DCB-479
+	* Introduce limited FOLIO fallback mapping DCB-479
+	* Map local FOLIO item status using reference mappings DCB-479
+	* Introduce item status mapper dependency for FOLIO LMS client DCB-479
+	* Add API key to FOLIO settings description DCB-479
+	* Use client config for FOLIO base URL DCB-497
+	* Use client config for FOLIO api key DCB-497
+	* Map holdings from FOLIO to items DCB-479
+	* Delete all host LMS before each FOLIO host LMS client test DCB-479
+	* Remove commented out code when initialising ingest record DCB-797
+	* Added some extra properties to polaris create item workflow request
+	* change log level on auth by barcode+name fail
+	* improve error logging from polaris
+	* Replace spaces with tabs in Polaris host LMS client DCB-490
+	* Enrich supplier request with patron request object when tracking - to enable audit logging
+	* comment out aws logging jar
+	* Comment out AWS log appender
+	* logging adjustments to BorrowingAgencyService
+	* don't pretty print json logs
+	* Add missing dependency for json log formatting
+	* more polaris logging
+	* Switch logging to json, better message for failed to place supplier hold error
+	* Add logging around URI resolution during FOLIO ingest DCB-774
+	* Better error logging around create item in Polaris
+	* Add @body annotation to lookup api call
+	* update post annotation on user lookup
+	* refactor validate by pin
+	* more logging around user auth
+	* rest annotations on new lookup methof
+	* Add rest annotation
+	* Work on workflow doc
+	* Replace spaces with tabs in host LMS service
+	* Add dependency on Sierra specific mapper from shared item mapper
+	* Remove unused status mapping method when mapping items
+	* move mapping around in ReferenceValueMappingService to provide more meaningful logging
+	* defensive code rejecting locations which specify an unknown agency
+	* graphql - implement more sort defaults
+	* Allow polaris to use BASIC/BARCODE+PIN as well as other variants as an auth profile
+	* Include source system ID in bib
+	* Tolerate no client type for host LMS in config DCB-739
+	* Tolerate no ingest source type for host LMS in config DCB-739
+	* Remove redundant unchecked conversion of type DCB-739
+	* Log error when class cannot be found for name DCB-739
+	* Raise specific error when host LMS ingest source class is not an ingest source DCB-739
+	* Raise specific error when host LMS client class is not a host LMS client DCB-739
+	* Raise specific error when host LMS ingest source class cannot be found DCB-739
+	* Raise specific error when host LMS client class cannot be found DCB-739
+	* Define invalid host LMS configuration exception DCB-739
+	* Make FOLIO LMS client a bean DCB-739
+	* Configure ingest source class for host LMS from config DCB-739
+	* Add ingest source class field to data host LMS DCB-739
+	* Add ingest source class column to host LMS table DCB-739
+	* Remove unused factory method for availability report
+	* Reformat Polaris host LMS client
+	* Reformat Sierra host LMS client
+	* Remove use of record number when getting recently placed hold
+	* add note on HTTP_HOSTS env vars
+	* Add missing test resource loader file
+	* Remove check in Polaris host LMS client for item level requests only
+	* Report server error when host LMS cannot be found for bib during live availability
+	* Remove redundant check for host LMS not found during live availability
+	* Throw exception inline when finding resolution stragegy
+	* Make item resolver finl in resolution service
+	* Return bad request response when no cluster record found for live availability
+	* Use switch when empty to report error when cluster record cannot be found
+	* Replace spaces with tabs in resolution service
+	* Remove explicit http status code from live availability controller
+	* Remove unecessary use of tuple in dummy host LMS client
+	* Remove use of tuple within supplying agency service
+	* Replace spaces with tabs in supplier request
+	* no security needed on list location
+	* working on item patch
+	* try adding an empty string to messages when updating item status
+	* Remove creation of grant during startup DCB-739
+	* Move status codes defined only in tests to startup DCB-739
+	* Remove unused methods on host LMS repository DCB-739
+	* Replace spaces with tabs in host LMS service DCB-739
+	* Use builder when creating status codes during startup DCB-739
+	* Remove unecessary return statement when boostrapping codes DCB-739
+	* Remove unused dependencies from startup event listener DCB-739
+	* Replace spaces with tabs in startup event listener DCB-739
+	* Remove non-static access to data host LMS builder DCB-739
+	* Remove redundant pubic modifiers on host LMS interface DCB-739
+	* Docs - Add SI docs
+	* Shout when cert verification is disabled
+	* Enable generation of jacoco csv file
+	* uncomment metrics implementation
+	* Replace spaces with tabs in data host LMS class DCB-739
+	* Create a new transaction for each of the tracking events
+	* add logger when subscribe complete for tracking calls
+	* Indexing tweaks
+	* Case insensitivity
+	* Change page size to integer property DCB-739
+	* Change page size Sierra setting to optional DCB-739
+	* Change type of get holds retry attempts setting
+	* Reformat host LMS property definition DCB-479
+	* Reformat Sierra client settings
+	* Tweaks to keep the Java compiler happy.
+	* More tuning for logging
+	* refine logging
+	* turn down logging
+	* Use toState() rather than strings when updating local reflections of remote states
+	* Extend Item mappings for sierra
+	* Refactor supplier checkout so we can set the item state before attempting the checkout
+	* graphql - Add default sort order to hostlmss, patronrequest and supplierrequest
+	* rename patronIdentity upsert method to clarify what it's doing
+	* improve error trapping in sierra checkOut
+	* more warn logging in unexpected conversion scenarios
+	* warn when we try and convert an item record which is missing key properties
+	* Split out parsing of patron barcode, add comment explaining what the string manipulation is about
+	* Remove unused code from FOLIO LMS client DCB-479
+	* Use annotation for log in host LMS fixture DCB-479
+	* Remove get all bib data method from host LMS client interface
+	* Add some more unique words to test data generators
+	* Reformat production of invalid hold policy error DCB-613
+	* Rename variables for record number and type when placing request at supplying agency DCB-613
+	* Add method for item level request policy to host LMS client interface DCB-613
+	* Reformat reactive chain when placing request at borrowing agency DCB-613
+	* Replace spaces with tabs in place request at borrowing agency service DCB-613
+	* Remove unused dependencies from place patron request at borrowing agency service DCB-613
+	* Change case of host LMS in preflight check failure description DCB-531
+	* Label the pickup location in agency mapping preflight check failure messages DCB-519
+	* Add debug logging for finding pickup location to agency mappings DCB-519
+	* Map failure to find patron mapping to failed check DCB-530
+	* Replace spaces with tabs in numeric range mapping DCB-530
+	* Replace spaces with tabs in supplying agency service
+	* Remove unused dependencies from supplying agency service
+	* Replace spaces with tabs in patron request API tests
+	* Inline always null local barcode in patron service
+	* Remove unused method from patron service
+	* Add resolve patron preflight check class DCB-531
+	* db - Add missing unique constraint to host lms, date fields for agency, protocol fields for paronRequest and supplierRequest
+	* Improve logging on item fetch failure
+	* clean up logging
+	* scripts - fix graphql_hostlms script - hostlms doesn't have dates
+	* graphql - Add created and modified dates to patron request
+	* Do not attempt to find pickup location by ID when code is not a UUID DCB-519
+	* Replace spaces with tabs in reference value mapping service DCB-519
+	* Do not attempt to find mapping when pickup location context is null or empty DCB-519
+	* Replace spaces with tabs in reference value mapping fixture DCB-519
+	* Add agency repository dependency to agency mapping preflight check DCB-519
+	* Introduce pickup location to agency mapping check DCB-519
+	* Add dependency on location repository to preflight checks service DCB-519
+	* Consistent debug log messages in patron request service DCB-519
+	* Use annotation for patron request service log DCB-519
+	* Hard code failure for unknown pickup location code DCB-519
+	* Extract shelving location lookup for more fine grained exception reporting
+	* Decompose create bib to throw more granualr exceptions
+	* Add supplier request scalar fields to graphql schema
+	* More deliberate failure and exception reporting when unable to map a patron type
+	* Add script for fetching info from UAT environment
+	* Bit of a messy merge :(
+	* Replace spaces with tabs in workflow context helper DCB-519
+	* ingest - Add status to ingest state to make it clear when a process is RUNNING or COMPLETE
+	* Remove erroneous comment in patron request controller DCB-519
+	* Fix formatting in place patron request command DCB-519
 	* When setting page size for polaris, limit the value to 100
 	* docs - Added state model json
 	* release - updated Release build instructions
@@ -2718,8 +925,92 @@
 	* Publish reports
 	* First pass at project creation
 * [Core]
+	* defer creation of invalid response when doing patron auth
 	* extend bib data in cluster response
 * [Feature]
+	* DCB-939 - graphql endpoint for pickup locations sorted by local agency locations first
+	* Use more descriptive note text
+	* Introduce common function to generate more descriptive note to request workflow context
+	* Add backoff timing on tracking service
+	* Allow an item state of LOANED to allow the RECEVED flow to trigger - letting us handle a failed detection of check-in
+	* DCB-926 add remaining tracking
+	* DCB-925 first part of tracking improvements
+	* DCB-926 add domain model fields for better control of poll intervals when tracking
+	* DCB-919 Add pickup location fields in to request workflow context
+	* add method to HostLmsClient which controls if borrower checkouts should be reflected back to the supplying library
+	* Add record counts to admin endpoint, add workflow messages to request workflow context
+	* Propagate hold item ID through tracking service
+	* Updates to workflow to allow bypass of borrowing library hold states and jump directly to LOANED from IN_TRANSIT
+	* Refactor to cleanly decouple tracking service and state model, merge location participation database changes.
+	* Add NumericRangeMappingController
+	* When placing a hold in sierra, examine the returned hold structure and take note of the requested itemId - propagate that back and record it in the supplier request. If the hold was a bib hold, this will be the actual item requested
+	* DCB-877 for sierra supplier use item location as pickup location
+	* Add localItemLocationCode to PlaceHoldRequestParameters - allows a supplying agency hold to use the current location of the item as a pickup location at the supplying library
+	* Re-apply the transactional annotation needed to stop Folio OAI from deadlocking - adding additional annotations needed to stop non-folio tests from deadlocking
+	* add transition to pickup_transit in audit log
+	* re-enable parallel processing of ingest items. TRIAL
+	* Add 245 to goldrush key
+	* Add ability to set eager_global_ordinals in ES schema declaration
+	* Watch app shutdown status and exit any ingest sources when shutdown detected
+	* Add sort direction to GraphQL [DCB-480]
+	* sierra - When parsing volume statements, handle no. as number and normalise to n in parsed volume statement
+	* Improve audit logging on circulation of home item to vpatron for DCB-838
+	* Order audit rows by date in graphql patron request response
+	* Add volume designator to various API responses and DTOs
+	* first pass at parsing polaris call numbers containing volume information
+	* Collect raw sierra volume var field and attach to Item records
+	* Implement tracking service audit logging
+	* Add UniqueID+NAME authentication to sierra host lms for WASHU
+	* Added handlers for supplier request cancelled and for unhandled state transitions in supplier requests - a noop that will just update the supplier request record
+	* Understand label / comment field in reference data import
+	* When creating an item in SIERRA, Read back sierra create item before contunuing
+	* trial adding stats to indo endpoint
+	* evict member info if we detect a node is no longer present. Trialling leader election for cluster operation
+	* Add the node start date and if the node is running scheduled tasks to the cluster information shared via hazelcast. Subsequently, these should now appear in the app info endpoint giving the admin app visibility of all DCB nodes
+	* Use hazelcast initially to maintain a map of DCB nodes which are reported back in the info endpoint
+	* Fill out cleanup transition
+	* domain class for delivery network edge
+	* Allow a HUB location type to be posted which does not have an attached agency. Tidy up some spacing in Location model class
+	* Replace mapping table handling of pickup locations ONLY with direct references to UUIDs from the Location table
+	* Return username and userid in Authv2 LocalPatronDetails
+	* Add variable field support to sierra adapter and request varFields when fetching bibs
+	* Add v2 auth api which provides domain style login identities
+	* Add auth v2 controller
+	* graphql - Add locations to agency
+	* graphql - Add data fetcher for reqesting patron identity
+	* NONCIRC items are not requestable
+	* lookup user by username
+	* graphql - Add ReferenceValue and NumericRangeMapping queries
+	* Add BibRecord to PatronRequest GraphQL [DCB-748]
+	* graphql - Add virtual patron identity to supplier request
+	* graphql - Location data fetchers
+	* Disable auto location configuration for sierra. data too messy to rely upon, locations don't have agencies attached
+	* Shipping and Routing Labels
+	* Administrative metatdata for Location imports
+	* Add order clause to graphql schema, implement for agencies and default to name
+	* Check for existing mapping data on import [DCB-603]
+	* add RequesterNote to patron request
+	* Clear out messages when updating item status
+	* add messaging to cancellation handler
+	* graphql - Add patronRequest to supplierRequest type
+	* Added env code and env description to info endpoint for display
+	* Set a supplier item status to RECEIVED before attempting to check it out
+	* graphql - Add audit query to graphql
+	* When creating a (vpatron) in sierra, allow the caller to specify an expiryDate or default it to 10 years from now
+	* Create endpoint to import uploaded mappings [DCB-527]
+	* graphql - Convert hostLms props, PatronRequestAudiy props and canonical record to JSON scalar type
+	* enable graphql scalar type and use it for raw record
+	* sierra - Add Fixed Fields when pulling bibs from Sierra in anticipation of involving 031-BCODE3 in the decision to suppress or not. There is a do not submit to central flag we need to observe
+	* graphql - Add PatronRequestAudit into graphql model and attach to PatronRequest object
+	* graphql - Add supplierRequests to patronRequest
+	* info - Add ingest and tracking intervals to info endpoint
+	* Flexible handling of pickup location context - allow the place request command to optionally specify a context for the pickup location, if not provided default to the patron home context
+	* Add canonicalPType field to interaction Patron and set this coming out of the Sierra host LMS adapter
+	* graphql - Add ProcessStatus query to graphql endpoint
+	* ingest - Add human readable timestamps HRTS to process state for sierra to make it eaiser to diagnose harvesting issues
+	* Change patron type lookups to range mapping
+	* Add pickup location code context to data model
+	* auth - Implement UniqueID+Name validation method
 	* Rollup beta for weekly release
 	* graphql - Add paginated supplier requests and agency groups. Leave old groups api intact for now
 	* graphql - DCB-501 add paginated patron requests query to graphql endpoint
@@ -2760,6 +1051,358 @@
 	* Can delay task execution DCB-123
 	* trigger patron request workflow asynchronously (DCB-119)
 * [Refactor]
+	* revise place hold method in polaris
+	* add HostLmsItem status Available to applicable for HandleBorrowerRequestReturnTransit
+	* Remove map to hold status only when fetching hold from Polaris DCB-884
+	* Pass hold instead of only status when determining status DCB-884
+	* Extract method for determining Sierra hold status DCB-884
+	* Introduce guard clause for empty hold response from Sierra DCB-884
+	* Return publisher when mapping Sierra hold to request DCB-884
+	* handle virtual item with duplicate barcode - polaris workflow [DCB-809]
+	* Make tracking record an interface DCB-884
+	* Move Host LMS reactions class DCB-884
+	* Move null if empty method to utility class
+	* add item id and item barcode to LocalRequest (Polaris)
+	* Audit logging in HandleSupplierItemAvailable - we cannot use .subscribe inside a stream so the audit messages are not being logged
+	* Extract method for adding body to HTTP request
+	* Use instance of pattern matching to remove explicit cast to problem
+	* Extract method for truncating string to a maximum length
+	* added StringUtils methods for removing brackets
+	* use exception for multiple virtual patrons found
+	* Move specific handling for patron blocks to error transformer parameter DCB-855
+	* Introduce an error handling transformer for Polaris retrieve method DCB-855
+	* Move iterable to array method to utility class
+	* patron type exception messages [DCB-867]
+	* Use common method for getting services config in application services auth filter DCB-855
+	* Use common method for getting services config in application services client DCB-855
+	* Extract method for getting PAPI config DCB-855
+	* Move service config method to Polaris Host LMS client DCB-855
+	* Extract method for making patron search request in Polaris DCB-855
+	* Extract method for getting Polaris Host LMS client services config DCB-855
+	* Extract method for defining empty PAPI client credentials DCB-855
+	* Use error handler to handle no records error from Sierra DCB-849
+	* Remove optional execute of error handling transform when retrieving from Sierra DCB-849
+	* Provide no extra error handling when retrieving from Sierra DCB-849
+	* Explicitly remove cached token when retrieve receives unauthorised response DCB-849
+	* Explicitly remove cached token when exchange receives unauthorised response DCB-849
+	* Introduce parameter for error handler when retrieving from Sierra DCB-849
+	* Move detecting unexpected response from FOLIO to common request method DCB-855
+	* Move detecting unathorised response from FOLIO to common request method DCB-855
+	* Provide error handler when creating a FOLIO transaction DCB-855
+	* Raise specific exception when transaction not found in FOLIO DCB-855
+	* Extract parameter for an error handler when making FOLIO HTTP request DCB-855
+	* Extract method for finding FOLIO user by barcode DCB-855
+	* Extract method for interpreting unexpected response body DCB-849
+	* Move unexpected response problem creation to separate class DCB-849
+	* use patron barcode not username for patron lookup in folio client
+	* replace not implemented error with NOOP when attempting to finalise folio related requests [DCB-850]
+	* Introduce overload for raising unexpected response exception without a request DCB-849
+	* Move HTTP to log output methods to separate class DCB-849
+	* Rename local item ID parameter when getting items DCB-825
+	* Introduce parameter for request ID when getting item from host LMS DCB-825
+	* Rename get hold method to get request DCB-825
+	* Move finding canonical FOLIO patron type implementation to client DCB-490
+	* Extract method for creating FOLIO transaction DCB-490
+	* Remove supplier host LMS code parameter DCB-490
+	* Remove reference value mapping service parameter DCB-490
+	* Push find local patron type implementation down to specific clients DCB-490
+	* Move finding local patron type to host LMS client interface DCB-490
+	* Get supplying host LMS client before mapping patron type DCB-490
+	* Extract method for finding local patron type DCB-490
+	* Extract method for finding canonical patron type DCB-490
+	* Remove host LMS code parameter for finding canonical patron type DCB-490
+	* Move finding canonical patron type to host LMS client DCB-490
+	* Introduce patron type mapper dependency to Dummy host LMS client DCB-490
+	* Introduce patron type mapper dependency to Polaris host LMS client DCB-490
+	* get requesting host LMS client before finding patron type DCB-490
+	* Introduce host LMS service dependency for patron type service DCB-490
+	* Extract method for creating unable to place request problem DCB-490
+	* Use common predicate for detecting unauthorized response from FOLIO DCB-490
+	* Extract methods for HTTP status predicates DCB-490
+	* Move common HTTP response predicates to separate class DCB-490
+	* Move non-null values list method to collection utils class DCB-490
+	* Extract method for mapping FOLIO user to patron DCB-490
+	* Introduce parameter for query when finding FOLIO users DCB-490
+	* Move method for creating exact equality query DCB-490
+	* Introduce CQL Query class DCB-490
+	* Extract method for constructing CQL query to find users DCB-490
+	* Extract method for mapping first FOLIO user to patron DCB-490
+	* Use flat map to map FOLIO users to a patron DCB-490
+	* Extract method for making HTTP requests in FOLIO client DCB-490
+	* Extract method for defining authorised FOLIO request DCB-490
+	* Extract method for finding users in FOLIO DCB-490
+	* pass along local item id when creating patron [DCB-809]
+	* revert patron code back in polaris client
+	* add default patron code when creating a patron in Polaris
+	* add the item location id during the place hold request
+	* Remove unique ID path from Sierra patron auth DCB-490
+	* Inline patron auth when finding Sierra virtual patron DCB-490
+	* Separate pathon auth and finding virtual patron in dummy host LMS DCB-490
+	* Remove patron find path from patron auth DCB-490
+	* Get local barcode from home identity when finding virtual patron DCB-490
+	* Throw specific exception when patron does not have home identity DCB-490
+	* Extract method for getting home identity DCB-490
+	* Return null unique ID when no home identity DCB-490
+	* Push find virtual patron implementation down to each client DCB-490
+	* Introduce method for finding virtual patron in host LMS client DCB-490
+	* Remove redundant zip when finding virtual patron DCB-490
+	* Remove intermediary unique ID method when creating virtual patron DCB-490
+	* Remove intermediary unique ID method when checking virtual patron exists DCB-490
+	* Move getting unique ID to patron class DCB-490
+	* Use identities from patron when determining unique ID DCB-490
+	* Extract method for determining unique ID for patron DCB-490
+	* Move finding resolved agency from identity to service DCB-490
+	* Remove location repository dependency from context helper DCB-490
+	* Use service to find pickup location in context DCB-490
+	* Add location service dependency to context helper DCB-490
+	* Remove host LMS repository dependency from context helper DCB-490
+	* Use service to find host LMS for agency in context DCB-490
+	* Add host LMS service dependency to context helper DCB-490
+	* Remove patron repository dependency from context helper DCB-490
+	* Use service to find patron for context DCB-490
+	* Add patron service dependency to context helper DCB-490
+	* Move finding agency by ID to service DCB-490
+	* Make previous status mapping method private DCB-479
+	* Extract method for mapping an item status with a due date DCB-479
+	* Extract method for mapping item status without a due date DCB-479
+	* Extract method for finding item type mapping DCB-479
+	* Use service when mapping item status DCB-479
+	* Improve logging when finding mapping with no target category DCB-479
+	* Move method for finding mapping without target category to service DCB-479
+	* Extract method for finding mapping without target category DCB-479
+	* Use service to map item type when creating an item in Sierra DCB-479
+	* Use service to map item type when creating an item in Polaris DCB-479
+	* Use service to map location when placing a request at borrowing agency DCB-479
+	* Use service to map location to agency during resolution DCB-479
+	* Use service for finding mappings during patron validation DCB-479
+	* Move finding pickup location to agency mapping to service DCB-479
+	* Add location to agency service as workflow context dependency DCB-479
+	* Move mapping pickup location to agency to dedicated service DCB-479
+	* Introduce method for consuming successful reactive stream DCB-479
+	* Extract method for finding reference value mapping DCB-479
+	* Use property access utility to get item location code DCB-479
+	* Add location to agency mapping service dependency for client DCB-479
+	* Move getting property from nullable object to util class
+	* Extract method for whether multiple outer holdings are returned by RTAC DCB-479
+	* Extract method for determining if errors are holdings not found DCB-479
+	* Extract method for whether RTAC response has any outer holdings DCB-479
+	* Move likely invalid API key check to initial response check DCB-479
+	* Extract method for whether RTAC response has no errors DCB-479
+	* Rename method for checking RTAC response DCB-479
+	* Move unknown fallback status mapper to tests only
+	* Extract method for defining mock response for holdings DCB-479
+	* Map a holding to an item using a publisher DCB-479
+	* Move get config value to host LMS property definition DCB-479
+	* Define FOLIO settings as fields DCB-479
+	* Move method for mocking RTAC holdings response to fixture DCB-479
+	* Make get holdings method in FOLIO client private DCB-479
+	* Introduce parameter for instance ID when getting FOLIO holdings DCB-479
+	* Add HTTP client field to FOLIO LMS client DCB-479
+	* Move getting holdings to FOLIO LMS client DCB-479
+	* Introduce parameter for http client when getting holdings DCB-479
+	* Extract method for mocking RTAC holdings response using mock server DCB-479
+	* Move FOLIO RTAC serialisation types to production code DCB-479
+	* Extract method for getting holdings from FOLIO DCB-479
+	* Remove previous method for placing request in host LMS DCB-490
+	* Introduce method for placing request at borrowing agency DCB-490
+	* Introduce method for placing request at supplying agency DCB-490
+	* Map status using separate code and due date
+	* Extract method for mapping item status and due date
+	* Move unknown host LMS exception to top level
+	* Rename item mappers to refer to host LMS type
+	* Remove overload for getting items by local bib ID
+	* Inline existing method into get by bib record overload
+	* Replace usages of get items by bib ID
+	* Introduce method for getting items from host LMS by bib record
+	* Move item status fallback definitions to specific mappers
+	* Move remaining item mapping logic to Polaris package
+	* Use Sierra specific item mapper directly
+	* Move map Sierra result to item to Sierra specific mapper
+	* Move local item type method to Sierra specific item mapper
+	* Move parsed due date method to Sierra specific item mapper
+	* Add location to agency mapper dependency to Sierra specific item mapper
+	* Add item type mapper dependency to Sierra specific item mapper
+	* Add item status mapper dependency to Sierra specific item mapper
+	* Move method for enriching item with an item type to mapper
+	* Move method for enriching item with an agency to service
+	* Extract method for mapping an item's location to an agency
+	* Extract method for setting agency information on an item
+	* Use zip to enrich item with agency code and name
+	* Use property chaining to set item agency code and name
+	* Rename item agency name field
+	* Rename enrich item with agency based upon location method
+	* Remove unused dependencies in borrowing agency service
+	* Introduce specific exception when cannot find selected bib for cluster record
+	* Consolidate finding cluster record in shared index service
+	* Move find selected bib method to shared index service
+	* Move get cluster record method to shared index service
+	* Move get selected bib to shared index service
+	* Add shared index service dependency to borrowing agency service
+	* Extract method for finding selected bib
+	* Use switch if empty instead of specific check for no bibs for cluster record
+	* Rename bibs field in clustered bib
+	* Remove bibs from clustered bib
+	* Use bib records during live availability
+	* Include bib records in clustered bib
+	* Remove finding host LMS from shared index service
+	* Remove host LMS field from bib
+	* Extract method for getting config from host LMS client
+	* Extract method for getting host LMS code from host LMS client
+	* Extract method for getting items using host LMS client
+	* Get host LMS client by code during patron resolution preflight check
+	* Extract method for getting host LMS client by ID
+	* Find host LMS inside live availability service
+	* Move null check to common get type method DCB-739
+	* Introduce parameter for name getting class from a name DCB-739
+	* Introduce generic parameter for type of class to get from name DCB-739
+	* Extract method for getting type from class name DCB-739
+	* Rename get client type method for host LMS DCB-739
+	* Use ternary operator for falling back to client class for ingest source DCB-739
+	* Introduce get ingest source type method on host LMS interface DCB-739
+	* Config host LMS no longer implements host LMS interface DCB-739
+	* Introduce guard clause for null item type
+	* Use location code from item when mapping to agency
+	* Extract method for parsing Sierra due date
+	* Return item status instead of code when mapping local item status DCB-479
+	* Move pickup location to agency mapping to reference value mapping service
+	* Use reference mapping service in location to agency mapping service
+	* Use location to agency mapping service in dummy host LMS
+	* Extract service for mapping a location to an agency
+	* error response handling when placing a hold in the polaris client [DCB-746]
+	* Rename item local ID field
+	* Hide decision between title and item holds within Sierra host LMS client
+	* Remove unused record number from place hold request parameters
+	* Remove unused record type from place hold request parameters
+	* use logon branch id as fallback for patron branch id [DCB-746]
+	* Move Polaris hold request parameters to separate class
+	* Remove unecessary setters in Polaris hold request parameters
+	* Inline place item level request method in Polaris host LMS client
+	* Move item vs title request logic to Sierra host LMS clent only
+	* Always use local item ID when placing request in Polaris
+	* Rename local patron ID parameter when placing hold request
+	* Remove unused record type from Polaris hold request parameters
+	* Pass local item ID when placing hold request
+	* Pass local bib ID when placing hold request
+	* Use builder for placing patron hold request to Sierra
+	* Introduce parameter object for placing a hold request
+	* patron branch id when creating a patron in polaris [DCB-746]
+	* Remove cluster record overload in live availability service
+	* Get item availability for cluster record ID during resolution
+	* Throw explicit exception when no bibs found for cluster record during live availability
+	* Move method for getting available items by ID to service
+	* Move method for getting availability report to service
+	* Extract method in controller for getting item availability by clustered bib ID
+	* Add shared index service dependency to live availability service
+	* Remove use of tuple when placing hold request in Sierra
+	* Remove use of tuple when placing hold request in Polaris
+	* Remove use of tuple when getting hold request from Polaris
+	* Rename non-tuple based place hold request method
+	* Remove tuple based place hold request method
+	* Inline any use of the tuple method
+	* Use non-tuple method in supplying agency service
+	* Use non-tuple method in borrowing agency service
+	* Introduce place hold request method that returns object instead of tuple
+	* Use lombok to generate getters for config host LMS properties DCB-739
+	* Use for each to save all config host LMS DCB-739
+	* Move save or update of host LMS to repository DCB-739
+	* Extract method for saving config host LMS DCB-739
+	* Accept list of config host LMS during startup DCB-739
+	* Remove unecessary introspection from config host LMS DCB-739
+	* Make get all host LMS private DCB-739
+	* Accept only config host LMS during startup DCB-739
+	* Move method for getting ingest source by code to host LMS service DCB-739
+	* Move method for getting integer property from config to class DCB-739
+	* Introduce class for integer property definition DCB-739
+	* Extract parameter for property definition when getting optional integer config value DCB-739
+	* Use property definition for getting integer value from config DCB-739
+	* Extract field for page size property definition DCB-739
+	* Extract method for getting integer property value DCB-739
+	* Move get holds retry attempts property to field DCB-739
+	* Convert property definition to value object DCB-739
+	* Extract method for defining an integer property definition DCB-739
+	* Extract method for defining a boolean property definition DCB-739
+	* Extract method for defining a string property definition DCB-739
+	* Extract method for defining a URL property definition DCB-739
+	* Rename save host LMS method in fixture DCB-479
+	* Reduce access to methods in host LMS fixture DCB-479
+	* add DCB prefix to unique id generation
+	* Use optional when checking hold policy DCB-613
+	* Extract method for checking hold policy in Sierra host LMS client DCB-613
+	* Use common policy for title level requests when placing at supplying agency DCB-613
+	* Rename method for checking title level request policy when placing requests DCB-613
+	* Move implementation of title hold policy to host LMS client implementations DCB-613
+	* Move title hold policy decision to host LMS client interface DCB-613
+	* Move getting hold policy from config to extracted method DCB-613
+	* Extract method for whether policy is to place title hold DCB-613
+	* Return virtual bib ID in tuple when creating virtual bib in borrowing host LMS DCB-613
+	* Extract variables for record type and number when placing request at borrowing agency DCB-613
+	* Defer finding alternative pickup location to agency mappings during preflight checks DCB-519
+	* Carry local patron information in unable to convert type exception DCB-530
+	* Provide local ID when attempting to map local patron type DCB-530
+	* Return specific error when attempting to map non-numeric local patron type DCB-530
+	* Rename method in patron type mapper to refer to patron type DCB-530
+	* Return specific error when no patron type mapping could be found DCB-530
+	* Extract method for getting requesting patron's local ID DCB-530
+	* Include host LMS service dependency for resolve patron preflight check DCB-531
+	* Return specific error when patron cannot be found in Sierra host LMS DCB-531
+	* Extract method for creating a patron not found error in Sierra client DCB-531
+	* Define event as a value object DCB-532
+	* Extract method for creating an event from a failed check result DCB-532
+	* Define event type as a enum DCB-532
+	* Introduce method for reporting failed checks in the event log DCB-532
+	* Add event log repository dependency to preflight checks service DCB-532
+	* Introduce method for possibly mapping a location ID to a code DCB-519
+	* Extract method for finding agency mapping by code and context or host LMS code DCB-519
+	* Add location service dependency to agency mapping preflight check DCB-519
+	* Move find by code method to agency service DCB-519
+	* Introduce agency service dependency for agency mapping preflight check DCB-519
+	* Move find by ID string overload to location service DCB-519
+	* Move find by code method to location service DCB-519
+	* Move find by ID method to location service DCB-519
+	* Add location service dependency for pickup location preflight check DCB-519
+	* Introduce method for finding a location by ID during pickup location preflight check DCB-519
+	* Extract method for finding pickup location by Code DCB-519
+	* Move empty or null from context check to reference value mapping service DCB-519
+	* Reduce duplication when finding a location to agency mapping DCB-519
+	* Extract method for getting requestor's local system code DCB-519
+	* Introduce method for finding agency mapping by context DCB-519
+	* Extract method for getting pickup location context from command DCB-519
+	* Pass command instead of pickup location code only when finding mapping DCB-519
+	* pass command instead of pickup location code when checking mapping DCB-519
+	* Extract method for getting pickup location code from command DCB-519
+	* Extract method for finding a pickup location to agency mapping in DCB context DCB-519
+	* Extract method for finding an agency by code DCB-519
+	* Extract method for checking agency without assessing previous check result DCB-519
+	* Extract method for finding agency mapping DCB-519
+	* Introduce method for checking whether agency exists during preflight check DCB-519
+	* Return tuple of result and agency code during agency mapping check DCB-519
+	* Extract method for checking pickup location to agency mapping DCB-519
+	* Extract method for performing preflight checks DCB-519
+	* Extract method for creating failed checks exception from results DCB-519
+	* Extract method for mapping failed check result to failure DCB-519
+	* Extract method for checking whether a check has failed DCB-519
+	* Extract method for checking whether all checks have passed DCB-519
+	* Add reference value mapping service dependency to pickup location to agency mapping check DCB-519
+	* Inject collection of preflight checks DCB-519
+	* Define flux from list of checks DCB-519
+	* Extract interface for preflight check DCB-519
+	* Reduce flux of preflight checks DCB-519
+	* Return list of check results from each check DCB-519
+	* Move pickup location preflight check to separate class DCB-519
+	* Return result when checking for recognised pickup location DCB-519
+	* Rename preflight check class DCB-519
+	* Rename preflight check exception DCB-519
+	* Move hard coded pre-flight check to separate service DCB-519
+	* Use zip to find or create a patron when placing a request DCB-519
+	* Add hard coded check into reactive chain for placing a patron request DCB-519
+	* Move hard coded failure to service DCB-519
+	* Move check failed exception to request fulfilment package DCB-519
+	* Move method for finding pickup location to agency mapping to service DCB-519
+	* Extract method for finding pickup location to agency mapping DCB-519
+	* Use value object instead of record for response from place patron request API DCB-519
+	* Remove mapping to HTTP response when placing a request DCB-519
+	* Change place patron request command to value object rather than record DCB-519
+	* Use tuple when placing initial patron request DCB-519
 	* Move BibRecordService to svc package
 	* Move record clustering service into package.
 	* Rename map status method to indicate use of Sierra fallback DCB-479
@@ -2827,6 +1470,497 @@
 * [Rework]
 	* Cluster controller to use service and improve response time
 * [Test]
+	* Demonstrate fetch FOLIO request does not have item information DCB-884
+	* Demonstrate empty hold being returned by Sierra DCB-884
+	* Mock getting item after getting hold from Sierra DCB-884
+	* Check for item ID when getting request from Sierra DCB-884
+	* Use title level hold when detecting request is placed at supplying agency DCB-884
+	* Demonstrate getting item level request from Sierra DCB-884
+	* Demonstrate getting title level request from Sierra DCB-884
+	* Demonstrate detection of expected local status changes DCB-884
+	* Remove Polaris hold example json DCB-884
+	* Use serialisation to provide mock response for Polaris hold DCB-884
+	* Include item ID and barcode in example Polaris hold used in mocks DCB-884
+	* Check item properties for placed hold in Polaris DCB-884
+	* Check supplier request local status changed to confirmed DCB-884
+	* Check audit record is recorded after confirmation DCB-884
+	* Pass patron request with confirmed state change DCB-884
+	* Pass supplier request with confirmed state change DCB-884
+	* Invoke Host LMS reactions during confirmation test DCB-884
+	* Delete all Host LMS before confirmation reaction tests DCB-884
+	* Delete all agencies before confirmation reaction tests DCB-884
+	* Delete all supplier requests before confirmation reaction tests DCB-884
+	* Delete all patron requests before confirmation reaction tests DCB-884
+	* Introduce test class for reactions to supplier request confirmation DCB-884
+	* Use fixture to create agency before fetching all agencies DCB-884
+	* Use fixture to create host LMS when creating agency DCB-884
+	* Make agency repository tests independent DCB-884
+	* Demonstrate getting item after hold placed tolerates not found response DCB-872
+	* Limit mock expectations for getting holds from Sierra to single time DCB-872
+	* Stop removing existing mock expectations for getting holds from Sierra DCB-872
+	* Rename methods for mocking get holds for patron from Sierra DCB-872
+	* Reinstate check on item ID after request is placed DCB-872
+	* Demonstrate placing a title level hold in Sierra DCB-872
+	* Rename method for mocking place hold request in Sierra DCB-872
+	* Remove unecessary sneaky throws from place hold request in Sierra supplying agency test DCB-872
+	* Demonstrate patron request status changes to error when error occurs in reactive chain
+	* Delete all patron requests before workflow service tests
+	* Add patron request workflow service test class
+	* Check request URL included in unexpected response problem DCB-855
+	* Demonstrate failure when finding a patron in Polaris returns server error DCB-855
+	* Rename Polaris LMS Host test methods DCB-855
+	* Make methods in Polaris Host LMS client tests package-private DCB-855
+	* Demonstrate placing a hold in Polaris failing DCB-855
+	* Demonstrate failure when creating virtual item in Polaris DCB-855
+	* Use specific start workflow mock when creating item in Polaris DCB-855
+	* Verify when a patron search happens in Polaris DCB-871
+	* Demonstrate specific failure when receive server error response for patron blocks from Polaris DCB-855
+	* Demonstrate tolerance of patron blocks not being found in Polaris DCB-855
+	* Demonstrate unexpected response when creating a bib in Polaris DCB-855
+	* Demonstrate unexpected response when getting an item from Polaris DCB-855
+	* Extract method for mocking starting a workflow in Polaris DCB-855
+	* Extract method for mocking continuing a workflow in Polaris DCB-855
+	* Remove unused mocking of workflow when deleting item in Polaris DCB-855
+	* Extract method for mocking creating a bib in Polaris DCB-855
+	* Extract method for mocking placing a hold in Polaris DCB-855
+	* Extract method for mocking check out item to patron in Polaris DCB-855
+	* Extract method for mocking get bib from Polaris DCB-855
+	* Extract methods in Polaris mock fixture to reduce duplication DCB-855
+	* Extract method for mocking get item barcode from Polaris DCB-855
+	* Extract method for mocking update patron in Polaris DCB-855
+	* Extract method for mocking get patron barcode from Polaris DCB-855
+	* Extract method for mocking create patron in Polaris DCB-855
+	* Extract method for mocking get hold from Polaris DCB-855
+	* Change patron ID parameter type from int to string DCB-855
+	* Extract method for mocking get patron block summary from Polaris DCB-855
+	* Extract method for mocking get item from Polaris DCB-855
+	* Extract method for mocking get patron by barcode from Polaris DCB-855
+	* Extract method for mocking patron authentication for Polaris DCB-855
+	* Extract method for mocking get item statuses from Polaris DCB-855
+	* Extract method for mocking get material types from Polaris DCB-855
+	* Extract method for mocking get items for bib from Polaris DCB-855
+	* Extract method for mocking application services auth in Polaris DCB-855
+	* Remove use of Polaris test utils in ingest tests DCB-855
+	* Extract method for mocking Polaris PAPI staff auth DCB-855
+	* Move mocking paged bibs from Polaris to fixture DCB-855
+	* Remove ordering from Polaris ingest tests DCB-855
+	* Use test resource loader in Polaris ingest tests DCB-855
+	* Removed unused code from Polaris ingest tests DCB-855
+	* Inline use of Polaris test utils inside fixture DCB-855
+	* Remove unused auth code in Polaris test utils DCB-855
+	* Use utility method for getting value from publisher in Polaris client tests DCB-855
+	* Move creation of resource loader to mock fixture DCB-855
+	* Extract method for mocking patron search in Polaris DCB-855
+	* Move mock methods from Polaris tests to fixture DCB-855
+	* Check for audit data when placing request at supplying agency fails DCB-849
+	* Extract matchers for audit data DCB-849
+	* Demonstrate adding an audit entry for an error DCB-849
+	* Demonstrate login failure in Sierra Host LMS client DCB-849
+	* Rename place request at supplying agency test class DCB-849
+	* Vary property types in unexpected json response DCB-849
+	* Introduce matcher for each json property in unexpected response DCB-849
+	* Extract matcher for problem parameters DCB-849
+	* Introduce tests for mapping response exception to unexpected response problem DCB-849
+	* Match on throwable problem rather than default problem DCB-849
+	* Move unexpected response matchers to separate class DCB-849
+	* Match properties for exceptions extending throwable DCB-849
+	* Demonstrate unexpected response from Sierra DCB-849
+	* Use host LMS item matchers in Polaris tests DCB-825
+	* Move host LMS item matchers to separate class DCB-825
+	* Add folio interaction package to commented out log settings DCB-825
+	* Extract method for mocking authorised request to FOLIO DCB-825
+	* Use matchers when getting request from Polaris DCB-825
+	* Move host LMS request matchers to separate class DCB-825
+	* Initial test to demonstrate detecting request has been placed DCB-825
+	* Introduce method for creating supplier request during tracking tests
+	* Delete unused json Sierra hold examples
+	* Use more varied local request IDs in tracking tests
+	* Move local status matcher to separate class
+	* Demonstrate detection that request has been placed at supplying agency
+	* Add find by ID to supplier request fixture
+	* Introduce parameter for get hold by ID response from Sierra
+	* Use serialisation for mock get Sierra hold by ID response
+	* Extract method for get Sierra hold by ID request matching
+	* Rename methods for mocking get Sierra hold by ID
+	* Remove unused method for mocking get item from Sierra
+	* Use serialisation for item fetched from Sierra in place request at borrowing agency tests
+	* Use serialisation for item fetched from Sierra in patron request API tests
+	* Delete all locations before patron request API tests
+	* Use serialisation for get item from Sierra responses during tracking tests
+	* Extract variables for local record IDs at borrowing agency
+	* Define separate supplying agency host LMS for tracking tests
+	* Extract method for defining host LMS during tracking tests
+	* Delete all host LMS before tracking tests
+	* Introduce builder consumer parameter for extending patron request attributes
+	* Extract method for creating a patron request during tracking tests
+	* Use fixture to save supplier requests during tracking tests
+	* Remove usused status code repository from tracking tests
+	* Use fixture to find patron requests during tracking tests
+	* Use fixture to create patron requests during tracking tests
+	* Move request is finalised matcher to matchers class
+	* Extract method for waiting for patron request to become finalised
+	* Use utility method to get single value from publisher during tracking tests
+	* Delete all patron requests prior to each tracking test
+	* Delete all reference value mappings prior to tracking tests
+	* Enable negative flow tests for placing at FOLIO supplying agency DCB-490
+	* Enable positive flow test for placing at FOLIO supplying agency DCB-490
+	* Disable positive flow test for placing at FOLIO supplying agency DCB-490
+	* Disable negative flow tests for placing at FOLIO supplying agency DCB-490
+	* Use single instance for testing place request at FOLIO supplying agency DCB-490
+	* Use separate client for each place at FOLIO supplying agency test DCB-490
+	* Remove patron group ID from mock FOLIO users DCB-490
+	* Include patron group name in mock FOLIO users DCB-490
+	* Delete all agencies prior to placing request at FOLIO supplying agency DCB-490
+	* Introduce class for placing request at FOLIO supplying agency tests DCB-490
+	* Define host LMS during patron type tests DCB-490
+	* Delete all host LMS before each patron service test DCB-490
+	* Define required parameters for all Sierra host LMS DCB-490
+	* Check hold is placed at borrowing agency DCB-490
+	* Delete all agencies before Polaris host LMS client tests DCB-490
+	* Pickup location should be associated with borrowing agency DCB-490
+	* Verify pickup location sent to Sierra when placing supplying request DCB-490
+	* Verify that hold request was made to Sierra during supplying agency tests DCB-490
+	* Use property matcher for Sierra invalid hold policy message DCB-490
+	* polaris delete item and delete bib override methods [DCB-789]
+	* Remove duplicate tests for unauthorized status code predicate DCB-490
+	* Make test names specific to finding a virtual patron DCB-490
+	* Delete reference value mappings before each FOLIO host LMS client patron tests DCB-490
+	* Move patron matchers to separate class DCB-490
+	* Check no mapping for FOLIO patron's names DCB-490
+	* Check no mapping for FOLIO patron's home library code DCB-490
+	* Introduce parameter for users when mocking find users DCB-490
+	* Move patron local IDs matcher to separate class DCB-490
+	* Add class for FOLIO host LMS client patron tests DCB-490
+	* Use stricter mock expectations when finding Polaris virtual patron DCB-490
+	* Use find virtual patron method instead of auth in Polaris tests DCB-490
+	* Use serialisation instead of json file for find patron response DCB-490
+	* Introduce parameter for mock response when finding patron DCB-490
+	* Inline single use assertion methods when placing supplying request DCB-490
+	* Remove unecessary home library mapping when placing supplying request DCB-490
+	* Extract method for placing request at supplying agency DCB-490
+	* Remove test for invalid hold policy when placing supplying request DCB-490
+	* Check invalid hold polcy in host LMS client test DCB-490
+	* Rename supplying agency when placing request DCB-490
+	* Change before all to before each place request at supplying agency DCB-490
+	* Move defining mock fetch hold response to tests that need it DCB-490
+	* Extract method for checking the patron request was placed at supplying agency DCB-490
+	* Extract methods for patron request property matchers DCB-490
+	* Use property matchers for checking patron request DCB-490
+	* Extract method for checking patron request has error DCB-490
+	* Use property matchers for audit entries when placing supplying request DCB-490
+	* Return created cluster record ID DCB-490
+	* Return saved patron request from fixture DCB-490
+	* Remove commented out code from place supplying request tests DCB-490
+	* Verify that create patron request was not made when placing a request at supplying agency DCB-490
+	* Verify that create patron request was made when placing a request at supplying agency DCB-490
+	* Verify that update patron request was not made when placing a request at supplying agency DCB-490
+	* Verify that update patron request was made when placing a request at supplying agency DCB-490
+	* Move verify find patron request method to fixture DCB-490
+	* Extract method for verifying that find patron request was made DCB-490
+	* Verify that find patron request was made when placing a request at supplying agency DCB-490
+	* Should not use item type mapping associated with another host LMS DCB-479
+	* Remove redundant test for agency mapping for items from FOLIO DCB-479
+	* Include agency mapping in general get items from FOLIO test DCB-479
+	* Should enrich item with agency mapped from location code DCB-479
+	* Tolerate absence of agency when enriching item with agency DCB-479
+	* Extract method for enriching an item with an agency DCB-479
+	* Delete all agencies before enriching an item with an agency DCB-479
+	* Tolerate absence of mapping when enriching item with agency DCB-479
+	* Delete all mappings before enriching an item with an agency DCB-479
+	* Tolerate null location code when enriching item with agency DCB-479
+	* Extract method for creating example item DCB-479
+	* Delete all agencies before each FOLIO host LMS client item tests DCB-479
+	* Use single instance for FOLIO host LMS client item tests DCB-479
+	* Check that whether items from FOLIO are suppressed is unknown DCB-479
+	* Replace string literal for RTAC error with serialised class DCB-479
+	* Extract method for JSON mock RTAC response DCB-479
+	* Use unusual mappings when checking FOLIO item status mapping DCB-479
+	* Delete mappings before FOLIO LMS item tests DCB-479
+	* Add test for FOLIO settings description DCB-479
+	* Create FOLIO client before each test DCB-479
+	* Move location without code matcher to item matchers DCB-479
+	* Remove test for directly fetching holdings from FOLIO DCB-479
+	* Create FOLIO client when getting items from FOLIO DCB-479
+	* Create FOLIO host LMS during client tests DCB-479
+	* Use stricter mock expectations when fetching items from FOLIO DCB-479
+	* Initial test for fetching items from FOLIO using mock server for response DCB-479
+	* Extract method for defining mock OAI-PMH response DCB-797
+	* Define single record OAI-PMH response during FOLIO ingest tests DCB-797
+	* Define FOLIO host LMS during ingest tests DCB-797
+	* Trigger ingest during FOLIO ingest tests DCB-797
+	* Delete all cluster records before each FOLIO ingest test DCB-797
+	* Delete all host LMS before each FOLIO ingest test DCB-797
+	* Disable ingest for all config defined host LMS
+	* Remove unecessary borrowing agency mocks in patron request API tests
+	* Extract constant for the barcode of supplied item in patron request API tests
+	* Extract constant for the location of supplied item in patron request API tests
+	* Use code to define items in Sierra during patron request API tests
+	* Remove unecessary mock response in patron request API tests
+	* Use constant for host LMS code where possible in patron request API tests
+	* Remove unused host LMS in patron API tests
+	* Move mapping to Sierra items response to fixture
+	* Use simpler Sierra item definition when defining mock responses
+	* Define items from Sierra in code rather than resource
+	* Check that Polaris items are not deleted
+	* Check that Sierra items are not deleted
+	* Check no hold count is provided for Polaris item
+	* Check hold count for Sierra items
+	* Replace spaces with tabs in three item Sierra response
+	* Remove nested class in item status mapper tests
+	* Move Polaris item status mapping tests to separate class
+	* Move Sierra item status mapping tests to separate class
+	* Move map sierra item statsus method to nested class
+	* Remove commented out method in reference value mapping fixture
+	* Define one location to agency mapping during Sierra host LMS client item test
+	* Define agency during Sierra host LMS client item test
+	* Delete reference value mappings before each Sierra host LMS client items test
+	* Define item type mapping during Sierra host LMS client item test
+	* Delete agencies before each Sierra host LMS client items test
+	* Move Polaris host LMS client tests to same package as production
+	* Check that items from Sierra have a canonical item type
+	* Check that items from Sierra have no agency description
+	* Check that items from Sierra have no agency code
+	* Check whether items from Sierra are suppressed
+	* Check local item type code for items from Sierra
+	* Check host LMS code on items from Sierra
+	* Use property matchers for cluster record subjects
+	* Use fixture to delete agencies in host LMS fixture
+	* Stop deleting records after place request at borrowing agency tests
+	* Stop deleting records after patron request API tests
+	* Stop creating shelving location in patron request API tests
+	* Remove unused constructor in Sierra mock server responses
+	* Use test resource loader during cluster records API tests
+	* Use test resource loader during configuration import tests
+	* Use provider for test resources in Polaris host LMS client tests
+	* Use provider for Sierra patrons API fixture
+	* Use provider for Sierra bibs API fixture
+	* Use provider for Sierra API items fixture
+	* Use Provider for Sierra API pickup locations fixture
+	* Use provider for Sierra API login fixture
+	* Use test resource provider in Sierra API login fixture
+	* Stop returning created Polaris host LMS
+	* Demonstrate placing request at borrowing agency fails when selected bib cannot be found
+	* Introduce parameter for selected bib for cluster record
+	* Demonstrate placing request at borrowing agency fails when cluster record cannot be found
+	* Weaken type constraints on bib matchers
+	* Demonstrate failure when host LMS has invalid ingest source class DCB-739
+	* Demonstrate failure when host LMS has invalid client class DCB-739
+	* Demonstrate failure when host LMS ingest source class is unknown DCB-739
+	* Demonstrate failure when host LMS client class is unknown DCB-739
+	* Constrain client and ingest source types in fixture DCB-739
+	* Define ingest source class explicitly for Polaris host LMS DCB-739
+	* Introduce parameter for ingest source class when creating host LMS DCB-739
+	* Use additional item matchers pulled forward from DCB-479
+	* Introduce parameter for type when defining FOLIO host LMS
+	* Demonstrate Polaris fallback mapping DCB-479
+	* Remove unecessary context rebuilds
+	* Use item barcode matcher in live availability service tests
+	* Use item matchers for items from Polaris
+	* Add missing due date checks for items from Sierra
+	* Move item matchers to separate class
+	* Extract methods for item matchers
+	* Use has property matchers for checking items from Sierra
+	* Demonstrate getting items using the Sierra host LMS client
+	* Use source record ID when getting items from Polaris
+	* Use test resource loader in Polaris LMS client tests
+	* Move test resource loader to test package
+	* Move resource loading to separate class
+	* Move live availability fails when host LMS cannot be found test
+	* Demonstrate live availability API fails when cluster record not found
+	* Remove redundant test for cluster record with no bibs
+	* Move test for no cluster record can be found to live availability service tests
+	* Use property matchers for checking order of items in live availability report
+	* Remove unecessary assertions in live availability tests
+	* Stop deleting host LMS before each live availability test
+	* Remove after each from shared index service tests
+	* Delete all host LMS before live availability service tests
+	* Use property matchers when checking availability report
+	* Extract client from live availability API tests
+	* Demonstrate live availability API when cluster record has no bibs
+	* Use cluster record ID overload in service tests
+	* Use throwable matchers in shared index service tests
+	* Move bib matchers to separate class
+	* Move has ID matcher to separate class
+	* Use matcher for clustered bib ID
+	* Inline constant resources path in Polaris host LMS client tests
+	* Stop reloading context for Polaris host LMS client tests
+	* Remove unused dependencies from Polaris host LMS client tests
+	* Use sneaky throws when getting resources in Polaris host LMS client tests
+	* Move local request matchers to separate class
+	* remove DCB test annotation from startup event listener tests DCB-739
+	* Use fixture to create host LMS during patron identity repository tests DCB-739
+	* Use builder in host LMS tests DCB-739
+	* Demonstrate status codes created at startup DCB-739
+	* Demonstrate grant created at startup DCB-739
+	* Use builder during host LMS repository tests DCB-739
+	* Delete host LMS before each  host LMS repository test DCB-739
+	* Remove redundant http client field in host LMS repository test class DCB-739
+	* Replace spaces with tabs in host LMS repository tests DCB-739
+	* Check format of host LMS ID from config DCB-739
+	* Extract method for host LMS ID matcher DCB-739
+	* Demonstrate loading host LMS from config on startup DCB-739
+	* Demonstrate getting a ingest source from a FOLIO host LMS DCB-739
+	* Move host LMS matchers to separate class DCB-739
+	* Move message matcher to throwable matchers class DCB-739
+	* Define Polaris host LMS before each test in nested class DCB-739
+	* Move Polaris host LMS tests to nested class DCB-739
+	* Define Sierra host LMS before each test in nested class DCB-739
+	* Move Sierra host LMS in database tests to nested class DCB-739
+	* Creation of Polaris ingest source based upon host LMS DCB-739
+	* Creation of Polaris client based upon host LMS DCB-739
+	* Rename method for defining Polaris host LMS DCB-739
+	* Make code first parameter when defining Sierra host LMS DCB-739
+	* Rename method for creating low level Sierra client DCB-739
+	* Move method for getting ingest source in tests to fixture DCB-739
+	* Extract method for getting an ingest source by host LMS code DCB-739
+	* Creation of Sierra ingest source based upon host LMS DCB-739
+	* Creation of Sierra client based upon host LMS DCB-739
+	* Use has property matcher during host LMS tests DCB-739
+	* Group negative host LMS tests together DCB-739
+	* Use fixture to save host LMS DCB-739
+	* Use single value helper method when finding host LMS by code DCB-739
+	* Include LMS in names of existing host LMS tests DCB-739
+	* Remove redundant deletion of bib records separately to cluster records DCB-739
+	* Delete all cluster records before each Polaris ingest test DCB-739
+	* Delete all cluster records before each Sierra ingest test DCB-739
+	* Use empty set of bibs when creating cluster record DCB-739
+	* Rename delete all bib records method DCB-739
+	* Rename delete all cluster records method DCB-739
+	* Remove redundant ID parameter when creating a Sierra host LMS DCB-739
+	* Use ID from returned host LMS instead of defining it first DCB-739
+	* Use builder when defining host LMS DCB-739
+	* Use create host LMS method when creating Polaris host LMS DCB-739
+	* Use create host LMS method when creating Sierra host LMS DCB-739
+	* Rename Sierra specific create host LMS method DCB-739
+	* Introduce parameters for client class and config when creating host LMS DCB-739
+	* Delete all cluster records before each cluster record tests DCB-739
+	* Delete all bib records before deleting all cluster records DCB-739
+	* Use sneaky throws to avoid checked IO exception in cluster record tests DCB-739
+	* Remove unused log from cluster record tests DCB-739
+	* Only retry getting holds from Sierra once in most tests
+	* Remove separate tests for disabling individual preflight checks DCB-612
+	* Remove redundant preparation in preflight checks service tests DCB-612
+	* Only include always failing check during preflight checks service tests DCB-612
+	* Define test only preflight check DCB-612
+	* Check all indidual checks are enabled DCB-612
+	* Extract method for creating Sierra host LMS client with client config DCB-613
+	* Use host LMS code constants for defining mappings when placing requests at borrowing agency DCB-613
+	* statically import request statuses when placing request at borrowing agency DCB-613
+	* Use host LMS code constant for defining mappings when placing requests at supplying agency DCB-613
+	* test: Expect virtual item ID as record number when placing borrowing Sierra hold DCB-613
+	* Replace spaces with tabs in place request at borrowing agency tests DCB-613
+	* Expect local bib ID as record number when placing supplying Sierra hold DCB-613
+	* Introduce parameter for expected record number when placing Sierra hold DCB-613
+	* Place title level requests at supplying agency DCB-613
+	* Define local bib ID when placing Sierra requests DCB-613
+	* Introduce parameter for Sierra host LMS client hold policy DCB-613
+	* Configure Sierra host LMS to use item requests DCB-613
+	* Introduce parameter for expected record type for Sierra patron request DCB-613
+	* Expect item record type when placing requests in Sierra DCB-613
+	* Delete all check related state prior to preflight checks service tests DCB-612
+	* Add preflight checks service test class DCB-612
+	* Demonstrate preflight check failure when no patron type mapping is defined DCB-530
+	* Delete mappings before each resolve patron preflight check test DCB-530
+	* Define patron type mapping before attempting to successfully resolve patron DCB-531
+	* Delete all reference value mappings before attempting to resolve patron DCB-531
+	* Define successful response for mock Sierra before resolving patron DCB-531
+	* Define credentials for mock Sierra before resolving patron DCB-531
+	* Define a host LMS before resolving a patron DCB-531
+	* Delete all numeric range mappings during tests DCB-531
+	* Rename reference value mapping repository field in fixture DCB-531
+	* Add example for failed patron type mapping when validating patron DCB-531
+	* Define patron type mappings in unsuccesful place request API tests DCB-531
+	* Define patron type mappings in unresolvable request API test DCB-531
+	* Check for audit entry when patron validation fails when host LMS responds with an error DCB-531
+	* Move audit assertion methods to bottom of validate patron tests DCB-531
+	* Move audit entry matchers to separate class DCB-531
+	* Extract methods for audit entry matchers DCB-531
+	* Use matchers for checking audit entries when validating a patron DCB-531
+	* Import patron request statuses in validate patron tests DCB-531
+	* Move local patron type matcher to separate class DCB-531
+	* Use matcher for checking validated patron local type DCB-531
+	* Make patron requests fixture a singletion DCB-531
+	* Consolidate use of delete all patron requests methods DCB-531
+	* Replace delete all audit entries with delete all patron requests DCB-531
+	* Introduce delete all method in patron requests fixture DCB-531
+	* Use query all and delete by ID when deleting audit entries DCB-531
+	* Rename delete all audit entries method DCB-531
+	* Group delete methods together in patron request fixture DCB-531
+	* Use only audit entry method in other tests DCB-531
+	* Check for single audit entry DCB-531
+	* Use publisher to list conversion instead of flux when fetching audit entry DCB-531
+	* Extract method for finding only audit entry DCB-531
+	* Replace spaces with tabs in validate patron tests DCB-531
+	* Extract method for checking failed check event in log DCB-532
+	* Check that successfully placed patron request generates no events in the log DCB-532
+	* Demonstrate failed preflight check for mapping only DCB-532
+	* Delete all event log entries before each patron request API test DCB-532
+	* Delete locations for pickup location to agency mapping preflight check tests DCB-519
+	* Provide requestor local system code in preflight tests DCB-519
+	* Provide pickup location context in preflight tests DCB-519
+	* Extract method for defining pickup location to agency mapping in preflight check tests DCB-519
+	* Remove duplicated code for defining location to agency mappings DCB-519
+	* Rename parameters for defining location to agency mappings DCB-519
+	* Remove pickup location to agency mappings in patron request API tests DCB-519
+	* Explicit DCB context in mappings for preflight tests DCB-519
+	* Define an agency during succesful preflight agency mapping test DCB-519
+	* Delete all agencies before agency mapping preflight checks DCB-519
+	* Move preflight checks common code to abstract base class DCB-519
+	* Remove preflight checks service tests DCB-519
+	* Split out pickup location to agency mapping preflight tests DCB-519
+	* Split out pickup location preflight tests DCB-519
+	* Move checks failure response class to clients package DCB-519
+	* Extract matcher for preflight check failure description in API tests DCB-519
+	* Delete all reference value mappings during preflight tests DCB-519
+	* Move recognised pickup location check tests to nested class DCB-519
+	* Define pickup location in patron request API tests DCB-519
+	* Move method for creating a pickup location to fixture DCB-519
+	* Extract method for creating a pickup location DCB-519
+	* Create location in known location preflight check test DCB-519
+	* Delete all locations prior to preflight check tests DCB-519
+	* Tests for hard coded pickup location check DCB-519
+	* Disabled test for placing a request with unknown pickup location DCB-519
+	* Reduce maximum PostgreSQL connections to one
+	* Rename delete all agencies method DCB-519
+	* Replace empty JSON object with null object for placing a request with no information DCB-519
+	* Extract method for placing a request using a command DCB-519
+	* Use serialised object instead of raw JSON when placing a request DCB-519
+	* Remove patron request status workaround DCB-519
+	* Use value objects instead of records when placing requests DCB-519
+	* Use client for placing request with unknown local system DCB-519
+	* Use login client in declarative HTTP client with JWT test DCB-519
+	* Use declarative client for login DCB-519
+	* Return body only when logging in DCB-519
+	* Use login client in configuration import API tests DCB-519
+	* Replace spaces with tabs in configuration import API tests DCB-519
+	* Use login client in patron auth API tests DCB-519
+	* Remove unused fields / variables in patron auth API tests DCB-519
+	* Use login client in JWT authentication tests DCB-519
+	* Use login client in agency API tests DCB-519
+	* Use login client in patron request API client DCB-519
+	* Use constructor injection for patron request API client DCB-519
+	* Use dedicated HTTP client for login client DCB-519
+	* Reorganise fields in patron request API tests DCB-519
+	* Move method for getting an access token to login client class DCB-519
+	* Make saving mapping method private in fixture DCB-519
+	* Use fixture to define shelving location to agency mapping when getting items from Polaris DCB-519
+	* Use fixture to define location to agency mapping when validating a patron DCB-519
+	* Use fixture to define shelving location to agency mapping when placing request at borrowing agency DCB-519
+	* Use fixture to define shelving location to agency mapping when checking live availability DCB-519
+	* Remove duplicate reciprocal patron type mappings DCB-519
+	* Use fixture to define pickup location to agency mapping when placing request at borrowing agency DCB-519
+	* Use fixture to define location to agency mapping when placing request at borrowing agency DCB-519
+	* Replace spaces with tabs in place request at supplying agency tests DCB-519
+	* Extract method for defining patron type mapping DCB-519
+	* Rename place patron request API test DCB-519
+	* Extract method for defining location to agency mapping DCB-519
+	* Extract method for defining shelving location to agency mapping DCB-519
+	* Extract method for defining pickup location to agency mapping DCB-519
+	* Remove unused log message parameter in place patron request API tests DCB-519
+	* Replace spaces with tabs in place patron request API tests DCB-519
+	* Inline access token variable in place patron request API tests DCB-519
+	* Remove commented out code in place patron request API tests DCB-519
+	* Use annotation for log in patron request API tests DCB-519
 	* Use unknown status fallback when testing reference value status mappings DCB-479
 	* Move reference value status mapping tests to nested class DCB-479
 	* Move Sierra specific status mapping tests to nested class DCB-479
@@ -2872,6 +2006,7 @@
 	* include HTTP request and response bodies in test logs
 	* placePatronRequestValidation
 * [Tests]
+	* Move fields to before all method in Polaris client tests DCB-855
 	* added sierra api mocks
 * [WIP]
 	* DOES NOT COMPILE. Arranging skeletal shape.
@@ -2907,7 +2042,16 @@
 	* API docs published
 * [Docs]
 	* Tweak redoc lib path
+* [Flyway]
+	* Add out-of-order:true to allow branches to merge with migrations out of sequence
 * [Graphql]
+	* Correct misaligned property name for virtualPatron in SupplierRequest
+	* Reciprocal mapping syntax error
+	* correct PatronRequest type mappings in graphql
+	* Misspelled data fetcher for patron request joins
+	* Add PatronRequest to PatronRequestAudit object
+	* nested fetchers should use findBy and not findAllBy
+	* Remove duplicated field in SupplierRequest
 	* AgencyGroups data fetcher is now reactive
 	* Declare a page type in the schema for the reactive page
 * [Harvesting]
@@ -2917,14 +2061,131 @@
 	* Syntax error caused by previous merge
 	* In sierra - deleted=true means ONLY deleted records, suppressed=true means ONLY suppressed records. The default is to return all and thats what we want
 * [Mappings]
+	* Expunge residual ShelvingLocation references - we're now just on a flat list of Locations
 	* DCB-502 patch marc leader item type mappings
 * [Marc   Ingest]
 	* DCB-504 DCB-521 - check 264 for publication info before 260
 * [Polaris]
+	* Reviewing the polaris docs at https://qa-polaris.polarislibrary.com/polaris.applicationservices/help/workflow/add_or_update_item_record and aligning data types as polaris doesn't like getting integers as strings. We no longer resumeOnError for createItem but instead just return the Problem as an error
+	* Return Mono.empty rather than null for methods not yet implemented
 	* Overrid the isEnabled method to honour settings from config
 * [Security]
 	* remove anon auth from rest endpoints
+* [Tests]
+	* Require config prefix
+* [Workflow]
+	* More Gracefully handle deletion of a virtual item
+	* When the resolver was not able to choose an item because all the options are electronic, resove to no items available
 * [General]
+	* Stop requesting FOLIO transaction status for empty ID
+	* Trying a different engine to see if that resolves the statemodel generation problem
+	* Allow FOLIO CLOSED state to complete a dcb request
+	* repeated error detection for supplier request
+	* updateItemThenCheckout should be passed itemid and not item barcode
+	* DCB-931 - Use explicit mapping for canonical item type to folio
+	* don't assume process graphql will come with a sort option
+	* Owning location not being set in sierra, preventing return transit flow
+	* DCB-923 include calls to delete item and bib in reactive flow
+	* DCB-922 attempt to clear transit message in sierra by setting message to zero length string
+	* Correct received token, log mapping failures as errors
+	* Temporarily revert the extra property sources.
+	* cloudwatch op-in MICRONAUT_METRICS_EXPORT_CLOUDWATCH_ENABLED=true
+	* Revert health endpoint to being insecure
+	* multiple patron records being found during polaris patron lookup [DCB-907]
+	* Extra defensive code when looking into location data from sierra
+	* Ensure tracking service is sequential.
+	* Added the means to generate the state table model as a diagram
+	* Request tracking flow out of order
+	* Added getPossibleSourceStatus to workspace handlers
+	* Map item barcode for Polaris hold to barcode instead of item ID DCB-872
+	* parse patron barcodes in folio requests
+	* Handle missing borrower request was setting the local item status and not the local request status in a cancelled scenario - leading to repeated attempts to process the message
+	* correct URI path for numeric range mapping controller
+	* Raise error when no item level hold found in Sierra DCB-872
+	* continue flow for -1 failure resp from polaris find virtual patron
+	* check for error in response of Polaris patron search
+	* Truncate patron request error message to shorter length than database column
+	* patron barcode parsing [DCB-826]
+	* remove prefixing barcode when searching for patron, polaris
+	* ensure empty mono emmits patronNotFound exception
+	* Unable to create virtual patron at polaris - errorcode:-3505: Duplicate barcode
+	* Add rule to track virtual items in status REQUESTED so we can detect CHECK-IN
+	* Audit messages not saving
+	* expected error message in shouldThrowExceptionWhenNoMappingFromSpinePatronTypeToBorrowingPatronType
+	* change error mapping round when we determinePatronType
+	* Rework to use MN internals.
+	* use NonNull instead of NotNull annotation to vaildate place request body
+	* changes for process state update
+	* Ensure transactional encapsulation of "updateState"
+	* remove extra Error Transformer after applyTransition
+	* Use the patronRequest status to control the action of a missing request at the requesting library to avoid accidentially cancelling the request
+	* shouldFinaliseRequestWhenSupplierItemAvailable and successfullyGetPatronByUsername
+	* Stats service logging
+	* Use String and not character encoding for varField fieldTag - suspect character is encoding as an ASCII integer and not a string in json output
+	* reinstate createAuditEntry in correct order
+	* comment out audit assersions in ValidatePatronTests to help tests pass (temp)
+	* error handling for audit - repeated additional line [DCB-847]
+	* Potential fix for duplicating clusters.
+	* Don't explode when not provided with a orderBy sort direction in graphql
+	* Default sort direction if not specified in patron request data fetcher
+	* Trim empty resumption token.
+	* Add forward slash to path for creating FOLIO transaction DCB-490
+	* Error in accessing year regex mapper
+	* label on state change was wrong way round
+	* Reusing builder in Opensearch causes immediate error.
+	* Stop attempting to bulk update on empty lists
+	* validate a polaris hold response success [DCB-832]
+	* Guard code around invalid bulk operation.
+	* Use patron home location for item location when creating an item for POLARIS
+	* Rely on declarative config for hazelcast
+	* DCB-807 description is not trimmed to 254 characters and can lead to exceptions inserting PR
+	* createPatron test in PolarisLmsClientTests
+	* for POLARIS only, Use a default patron home location code defined in the HostLMS config instead of trying to map the requestingPatron home location
+	* use PATB for looking up patron barcode in polaris adaptor
+	* comment out old getMembersOld method
+	* path name for /transtion/cleanup to /transition/cleanup, also allow user to request cleanup on ERROR states
+	* Aling geo-distance filter with requirement to use only location UUID for pickup location
+	* use equals for comparing selected bib to members when generating index record. populate location for some sierra records
+	* Don't attempt to post a bulk request unless there are actually ops in the queue
+	* Constrain the message in audit log description strings to max 254 characters
+	* 404 looking up patron blocks is not an error
+	* Dupe bibs in ingest record view.
+	* for apparent behaviour of polaris. When passed an itemType in a string, polaris seems to take only the first character of the string as a part of the integer. Changed parameter type to Integer and parse it with parseInt before setting
+	* Update PatronRequest GraphQL type [DCB-487]
+	* Correct GraphQLFactory clusterRecord naming [DCB-748]
+	* When authenticating uniqueid+pin for sierra, use the standard auth method
+	* Defensive code in data fetchers - null safety
+	* Add further validation of uploaded mappings [DCB-508]
+	* Tolerate Sierra item's without a status
+	* Warn when ingest configuration is invalid for a host LMS
+	* Do not change Polaris item status based upon presence of due date
+	* Amend annotations on ReferenceValueMapping to fix failing tests [DCB-603]
+	* Use lowercase token_filter by default
+	* Refactor the background index job.
+	* polaris item status fallback mapping
+	* Try with a 3second delay
+	* Reinstate the delay
+	* Ensure endpoint is protected
+	* Do not overwhelm the indexer with 2 subs
+	* Null handling.
+	* Improve badResumption token handling
+	* add patron to WorkFlowContext
+	* Use correct local_request_status when seeking patron requests on the borrowing side to track
+	* Add missing AVAILABLE status to updateItem impletation in sierra adapter
+	* corrected static item status code mapping
+	* Error getting deleted flag for items
+	* set PR state to READY_FOR_PICKUP when appropriate
+	* store barcode when creating or updating patron identity records relating to virtual patron records in supplying systems
+	* Don't trim patron barcode when attempting to check out
+	* align tests with reverted patron id change
+	* revert DCB: change as the likely culprit for failure to place hold at lending site
+	* Switch lastImported to use Instant [DCB-527]
+	* Field for raw source record is json not rawSource
+	* return for UUID based pickup location codes
+	* interpret pickup location strings of 36 chars as a UUID
+	* Ensure we remove the related match-points before the bib
+	* PickupLocation mappings are a legacy thing now - we just have Location code mappings and put everything into one pot. At some point a merge had reverted a curried value of Location back to PickupLocation which was causing a lookup failure now that we no longer need PickupLocation mappings
+	* Cleanup on finish, not just cancellation or error.
 	* Ignore resumption initially if we have a since.
 	* Save removed resumption token
 	* Remove related bib identifiers before the bib
