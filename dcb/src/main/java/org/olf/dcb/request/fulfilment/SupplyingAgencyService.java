@@ -292,6 +292,8 @@ public class SupplyingAgencyService {
 	private Mono<PatronIdentity> updateLocalPatronIdentityForLmsPatron(
 		Patron patron, PatronRequest patronRequest, SupplierRequest supplierRequest) {
 
+		log.debug("updateLocalPatronIdentityForLmsPatron {}",patron);
+
 		String barcodes_as_string = ((patron.getLocalBarcodes() != null)
 				&& (patron.getLocalBarcodes().size() > 0))
 			? patron.getLocalBarcodes().toString()
@@ -308,10 +310,11 @@ public class SupplyingAgencyService {
 	private Mono<Tuple2<String, String>> checkPatronType(String localId,
 		String patronType, PatronRequest patronRequest, String supplierHostLmsCode) {
 
-		log.debug("checkPatronType localId={}, patronType={}", localId, patronType);
+		log.debug("checkPatronType patronHomeId={}, patronHomeType={} supplyingSyste={} requestingIdentity={}", localId, patronType);
 
 		// Work out what the global patronId is we are using for this real patron
 		return getRequestingIdentity(patronRequest)
+			.doOnNext(requestingIdentity -> log.debug("checkPatronType checking requesting identity {} at {}",requestingIdentity, supplierHostLmsCode) )
 			// Work out the ???
 			.flatMap(requestingIdentity -> determinePatronType(supplierHostLmsCode, requestingIdentity))
 			.doOnNext(newlyMappedVPatronType -> log.debug("Testing to see if patron type needs to be updated from {} to {}",patronType,newlyMappedVPatronType) )
