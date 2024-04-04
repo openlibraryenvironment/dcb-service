@@ -163,11 +163,10 @@ public class SierraItemsAPIFixture {
 			.itemType(itemType)
 			.fixedFields(fixedFields)
 			.holdCount(item.getHoldCount())
-			.deleted(false)
+			.deleted(item.getDeleted())
 			.suppressed(item.getSuppressed())
 			.build();
 	}
-
 
 	@Serdeable
 	@Data

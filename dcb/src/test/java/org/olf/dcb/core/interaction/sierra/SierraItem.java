@@ -19,4 +19,5 @@ public class SierraItem {
 	String itemType;
 	int holdCount;
 	Boolean suppressed;
+	Boolean deleted;
 }

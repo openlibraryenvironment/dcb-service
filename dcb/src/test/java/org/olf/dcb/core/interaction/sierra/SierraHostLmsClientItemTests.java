@@ -121,6 +121,7 @@ class SierraHostLmsClientItemTests {
 				.locationCode("ab5")
 				.itemType("999")
 				.holdCount(0)
+				.deleted(false)
 				.build(),
 			SierraItem.builder()
 				.id("c5bc9cd0-fc23-48be-9d52-647cea8c63ca")
@@ -131,6 +132,7 @@ class SierraHostLmsClientItemTests {
 				.locationCode("ab7")
 				.itemType("999")
 				.holdCount(1)
+				.deleted(false)
 				.build(),
 			SierraItem.builder()
 				.id("69415d0a-ace5-49e4-96fd-f63855235bf0")
@@ -141,6 +143,7 @@ class SierraHostLmsClientItemTests {
 				.locationCode("ab7")
 				.itemType("999")
 				.holdCount(2)
+				.deleted(false)
 				.build()
 		));
 

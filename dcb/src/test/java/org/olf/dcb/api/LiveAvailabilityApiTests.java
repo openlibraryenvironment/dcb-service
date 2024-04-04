@@ -112,6 +112,7 @@ class LiveAvailabilityApiTests {
 				.locationCode(locationCode)
 				.locationName("King 6th Floor")
 				.suppressed(false)
+				.deleted(false)
 				.build(),
 			SierraItem.builder()
 				.id("1000001")
@@ -122,7 +123,6 @@ class LiveAvailabilityApiTests {
 				.itemType("999")
 				.locationCode(locationCode)
 				.locationName("King 6th Floor")
-				.suppressed(false)
 				.build()
 		));
 
