@@ -189,7 +189,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 			"Consortial Hold. tno=" + patronRequest.getId()+" \nFor 8675309012@%s\n Pickup UNKNOWN@%s"
 				.formatted(SUPPLYING_AGENCY_CODE, BORROWING_AGENCY_CODE));
 	}
-	
+
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
 	@Test
 	void shouldReturnPlacedAtSupplyingAgencyWhenPatronIsKnownToSupplierWithTheExpectedPtype() {

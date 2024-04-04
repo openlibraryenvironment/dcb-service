@@ -78,8 +78,6 @@ class LiveAvailabilityApiTests {
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
-		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
-
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
@@ -102,6 +100,8 @@ class LiveAvailabilityApiTests {
 		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
 
 		final var locationCode = "ab6";
+
+		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			CATALOGUING_HOST_LMS_CODE, locationCode, SUPPLYING_AGENCY_CODE);
