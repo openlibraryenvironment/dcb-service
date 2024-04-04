@@ -22,6 +22,8 @@ curl -X POST $TARGET/hostlmss -H "Content-Type: application/json"  -H "Authoriza
   "name":"Dummy1", 
   "lmsClientClass": "org.olf.dcb.devtools.interaction.dummy.DummyLmsClient", 
   "clientConfig": { 
+    "roles": [ "CATALOGUE", "CIRCULATION" ],
+    "trackingMode": "poll",
     "ingest": "true",
     "num-records-to-generate": 9000000,
     "shelving-locations": "LM1-A1-SL1,LM1-A1-SL2,LM1-A2-SL1,LM1-A2-SL2,LM1-A2-SL3",
@@ -36,6 +38,8 @@ curl -X POST $TARGET/hostlmss -H "Content-Type: application/json"  -H "Authoriza
   "name":"Dummy2", 
   "lmsClientClass": "org.olf.dcb.devtools.interaction.dummy.DummyLmsClient", 
   "clientConfig": { 
+    "roles": [ "CATALOGUE", "CIRCULATION" ],
+    "trackingMode": "poll",
     "ingest": "true",
     "num-records-to-generate": 10000,
     "shelving-locations": "LM2-A1-SL1,LM2-A2-SL1",
@@ -51,6 +55,8 @@ curl -X POST $TARGET/hostlmss -H "Content-Type: application/json"  -H "Authoriza
   "name":"Dummy3", 
   "lmsClientClass": "org.olf.dcb.devtools.interaction.dummy.DummyLmsClient", 
   "clientConfig": { 
+    "roles": [ "CATALOGUE", "CIRCULATION" ],
+    "trackingMode": "poll",
     "ingest": "true",
     "num-records-to-generate": 0,
     "shelving-locations": "LM3-A1-SL1,LM3-A2-SL1",

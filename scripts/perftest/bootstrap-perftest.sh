@@ -58,6 +58,22 @@ curl -X POST $TARGET/hostlmss -H "Content-Type: application/json"  -H "Authoriza
   } 
 }'
 
+# Generate a system with 0 holdings - we will use this as our requester
+echo Dummy4
+curl -X POST $TARGET/hostlmss -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id":"'`uuidgen --sha1 -n $HOSTLMS_NS_UUID --name DUMMY4`'", 
+  "code":"DUMMY4", 
+  "name":"Dummy4", 
+  "lmsClientClass": "org.olf.dcb.devtools.interaction.dummy.DummyLmsClient", 
+  "clientConfig": { 
+    "ingest": "true",
+    "num-records-to-generate": 0,
+    "shelving-locations": "LM4-A1-SL1,LM4-A2-SL1",
+    "contextHierarchy": [ "DUMMY3", "PERFTEST", "GLOBAL" ]
+  } 
+}'
+
+
 
 echo
 echo Agency 1-1
@@ -94,6 +110,13 @@ echo Agency 3-2
 echo
 curl -X POST $TARGET/agencies -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
   "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-3-2`'", "code":"DA-3-2", "name":"Dummy3Agency2", "hostLMSCode": "DUMMY3", "authProfile": "BASIC/BARCODE+PIN" }'
+
+echo
+echo Agency 4-1
+echo
+curl -X POST $TARGET/agencies -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-4-1`'",    "code":"DA-4-1",      "name":"Dummy4Agency1 (Grand Junction, CO, USA)",               "hostLMSCode": "DUMMY4", "authProfile": "BASIC/BARCODE+PIN", "latitude":39.0588, "longitude": -108.5587 }'
+
 
 echo
 echo Shelving location to agency mappings
@@ -202,7 +225,16 @@ curl -X POST $TARGET/locations -H "Content-Type: application/json"  -H "Authoriz
   "longitude":-1.466667
 }'
 
-
+curl -X POST $TARGET/locations -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
+  "id": "'`uuidgen --sha1 -n $OPENRS_ROOT_UUID --name PU-DA-4-1-KI`'",
+  "code":"PU-DA-4-1-KI",
+  "name":"PUA TEST LOC",
+  "type":"PICKUP",
+  "agency":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-4-1`'",
+  "isPickup":true,
+  "latitude":53.383331,
+  "longitude":-1.466667
+}'
 
 echo
 echo Location Mappings - from a User HomeLibrary to an agency
