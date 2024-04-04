@@ -34,7 +34,7 @@ public class HandleBorrowerSkippedLoanTransit implements PatronRequestStateTrans
 	private final PatronRequestRepository patronRequestRepository;
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.PICKUP_TRANSIT, Status.READY_FOR_PICKUP);
-	private static final List<String> possibleLocalItemStatus = List.of(HostLmsItem.ITEM_TRANSIT, HostLmsItem.ITEM_MISSING);
+	private static final List<String> possibleLocalItemStatus = List.of(HostLmsItem.ITEM_TRANSIT, HostLmsItem.ITEM_MISSING, HostLmsItem.ITEM_AVAILABLE);
 	private static final List<String> possibleLocalRequestStatus = List.of(HostLmsRequest.HOLD_MISSING);
 	
 	public HandleBorrowerSkippedLoanTransit(PatronRequestRepository patronRequestRepository) {

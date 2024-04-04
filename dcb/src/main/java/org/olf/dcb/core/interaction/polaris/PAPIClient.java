@@ -146,6 +146,7 @@ public class PAPIClient {
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
 			.flatMap(request -> client.retrieve(request, Argument.of(ItemCheckoutResult.class), noExtraErrorHandling()))
+			.doOnSuccess( r -> log.debug("Result of client.retrieve itemCheckoutPost {}",r) )
 			.flatMap(this::checkForItemCheckOutError);
 	}
 
