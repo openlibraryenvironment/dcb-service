@@ -13,6 +13,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -78,8 +79,6 @@ class LiveAvailabilityApiTests {
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
-		sierraItemsAPIFixture.twoItemsResponseForBibId("798472");
-
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
@@ -102,6 +101,30 @@ class LiveAvailabilityApiTests {
 		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
 
 		final var locationCode = "ab6";
+
+		sierraItemsAPIFixture.itemsForBibId("798472", List.of(
+			SierraItem.builder()
+				.id("1000002")
+				.barcode("6565750674")
+				.callNumber("BL221 .C48")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode(locationCode)
+				.locationName("King 6th Floor")
+				.suppressed(false)
+				.deleted(false)
+				.build(),
+			SierraItem.builder()
+				.id("1000001")
+				.barcode("30800005238487")
+				.callNumber("HD9787.U5 M43 1969")
+				.statusCode("-")
+				.dueDate(Instant.parse("2021-02-25T12:00:00Z"))
+				.itemType("999")
+				.locationCode(locationCode)
+				.locationName("King 6th Floor")
+				.build()
+		));
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			CATALOGUING_HOST_LMS_CODE, locationCode, SUPPLYING_AGENCY_CODE);
@@ -243,6 +266,47 @@ class LiveAvailabilityApiTests {
 				.locationCode(locationCode)
 				.locationName("Example Location")
 				.suppressed(true)
+				.deleted(false)
+				.build()));
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CATALOGUING_HOST_LMS_CODE, locationCode, SUPPLYING_AGENCY_CODE);
+
+		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_NAME,
+			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			CATALOGUING_HOST_LMS_CODE, 999, 999, "loanable-item");
+
+		// Act
+		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
+
+		// Assert
+		assertThat(report, allOf(
+			notNullValue(),
+			hasClusterRecordId(clusterRecordId),
+			hasNoItems(),
+			hasNoErrors()
+		));
+	}
+
+	@Test
+	void shouldExcludeDeletedItems() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+		final var sourceRecordId = "728951";
+
+		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
+
+		final var locationCode = "example-location";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			SierraItem.builder()
+				.id("98725178")
+				.locationCode(locationCode)
+				.locationName("Example Location")
+				.suppressed(false)
+				.deleted(true)
 				.build()));
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(

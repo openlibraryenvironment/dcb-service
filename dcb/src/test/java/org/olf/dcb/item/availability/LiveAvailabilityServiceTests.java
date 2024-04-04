@@ -13,6 +13,9 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
+import java.time.Instant;
+import java.util.List;
+
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +25,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
@@ -105,8 +109,57 @@ class LiveAvailabilityServiceTests {
 
 		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
-		sierraItemsAPIFixture.twoItemsResponseForBibId("465675");
-		sierraItemsAPIFixture.threeItemsResponseForBibId("767648");
+		sierraItemsAPIFixture.itemsForBibId("465675", List.of(
+			SierraItem.builder()
+				.id("1000002")
+				.barcode("6565750674")
+				.callNumber("BL221 .C48")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode("ab6")
+				.locationName("King 6th Floor")
+				.build(),
+			SierraItem.builder()
+				.id("1000001")
+				.barcode("30800005238487")
+				.callNumber("HD9787.U5 M43 1969")
+				.statusCode("-")
+				.dueDate(Instant.parse("2021-02-25T12:00:00Z"))
+				.itemType("999")
+				.locationCode("ab6")
+				.locationName("King 6th Floor")
+				.build()
+		));
+
+		sierraItemsAPIFixture.itemsForBibId("767648", List.of(
+			SierraItem.builder()
+				.id("8757567")
+				.barcode("9849123490")
+				.callNumber("BL221 .C48")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode("ab5")
+				.locationName("King 5th Floor")
+				.build(),
+			SierraItem.builder()
+				.id("8275735")
+				.barcode("30800005315459")
+				.callNumber("HX157 .H8")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode("ab7")
+				.locationName("King 7th Floor")
+				.build(),
+			SierraItem.builder()
+				.id("72465635")
+				.barcode("30800005208449")
+				.callNumber("HC336.2 .S74 1969")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode("ab7")
+				.locationName("King 7th Floor")
+				.build()
+		));
 
 		// Act
 		final var report = liveAvailabilityService

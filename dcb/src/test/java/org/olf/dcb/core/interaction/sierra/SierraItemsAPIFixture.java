@@ -16,6 +16,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import services.k_int.interaction.sierra.FixedField;
+import services.k_int.interaction.sierra.LinkResult;
 import services.k_int.interaction.sierra.items.Location;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
@@ -56,20 +57,12 @@ public class SierraItemsAPIFixture {
 		mockServer.when(getItemsForBib(bibId))
 			.respond(sierraMockServerResponses.jsonSuccess(json(
 				ItemResultSet.builder()
+					.start(0)
+					.total(items.size())
 					.entries(items.stream()
 						.map(SierraItemsAPIFixture::mapItem)
 						.toList())
 					.build())));
-	}
-
-	public void threeItemsResponseForBibId(String bibId) {
-		mockServer.when(getItemsForBib(bibId))
-			.respond(threeItemsResponse());
-	}
-
-	public void twoItemsResponseForBibId(String bibId) {
-		mockServer.when(getItemsForBib(bibId))
-			.respond(twoItemsResponse());
 	}
 
 	public void zeroItemsResponseForBibId(String bibId) {
@@ -82,16 +75,6 @@ public class SierraItemsAPIFixture {
 			.respond(sierraMockServerResponses.badRequestError());
 	}
 
-	public HttpResponse threeItemsResponse() {
-		return sierraMockServerResponses.jsonSuccess(
-			"items/sierra-api-three-items.json");
-	}
-
-	private HttpResponse twoItemsResponse() {
-		return sierraMockServerResponses.jsonSuccess(
-			"items/sierra-api-two-items.json");
-	}
-
 	public void jsonErrorResponseForCreateItem() {
 		mockServer.clear(sierraMockServerRequests.post());
 
@@ -99,7 +82,9 @@ public class SierraItemsAPIFixture {
 			.respond(sierraMockServerResponses.badRequestError());
 	}
 
-	public void successResponseForCreateItem(Integer bibId, String locationCode, String barcode) {
+	public void successResponseForCreateItem(Integer bibId, String locationCode,
+		String barcode, String itemId) {
+
 		final var body = ItemPatch.builder()
 			.bibIds(List.of(bibId))
 			.location(locationCode)
@@ -109,8 +94,11 @@ public class SierraItemsAPIFixture {
 		mockServer
 			.when(sierraMockServerRequests.post()
 				.withBody(json(body)))
-			.respond(sierraMockServerResponses.jsonSuccess(
-				"items/sierra-api-post-item-success-response.json"));
+			.respond(sierraMockServerResponses.jsonSuccess(json(
+				LinkResult.builder()
+					.link("https://sandbox.iii.com/iii/sierra-api/v6/items/" + itemId)
+					.build()
+			)));
 	}
 
 	public void unauthorisedResponseForCreateItem(Integer bibId, String locationCode, String barcode) {
@@ -163,11 +151,10 @@ public class SierraItemsAPIFixture {
 			.itemType(itemType)
 			.fixedFields(fixedFields)
 			.holdCount(item.getHoldCount())
-			.deleted(false)
+			.deleted(item.getDeleted())
 			.suppressed(item.getSuppressed())
 			.build();
 	}
-
 
 	@Serdeable
 	@Data

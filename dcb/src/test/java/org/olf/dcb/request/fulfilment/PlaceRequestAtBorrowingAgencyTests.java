@@ -116,7 +116,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921,
-			BORROWING_AGENCY_CODE, "9849123490");
+			BORROWING_AGENCY_CODE, "9849123490", "7916922");
 
 		sierraItemsAPIFixture.mockGetItemById("7916922",
 			SierraItem.builder()
