@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 6.0.1
+
+### Changes
+* [Feature]
+	* Allow ITEM_AVAILABLE when the borrower hold is MISSING to bypass the LOANED state in a borrowing system
+
+### Fixes
+* [General]
+	* Exclude deleted items from live availability DCB-976
+
 ## Version 6.0.0
 
 ### Additions
@@ -8,6 +18,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Make updatePatronRequest return the UUID of the PR and not the full object
 	* Additional logging supplier item tracking
 	* Add nextScheduledPoll to schema [DCB-989]
