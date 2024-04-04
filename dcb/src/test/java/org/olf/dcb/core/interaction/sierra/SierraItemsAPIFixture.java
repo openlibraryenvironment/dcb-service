@@ -56,6 +56,8 @@ public class SierraItemsAPIFixture {
 		mockServer.when(getItemsForBib(bibId))
 			.respond(sierraMockServerResponses.jsonSuccess(json(
 				ItemResultSet.builder()
+					.start(0)
+					.total(items.size())
 					.entries(items.stream()
 						.map(SierraItemsAPIFixture::mapItem)
 						.toList())

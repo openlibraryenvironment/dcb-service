@@ -16,6 +16,7 @@ import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMat
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.zalando.problem.ThrowableProblem;
@@ -122,17 +124,49 @@ class SierraApiItemTests {
 	@Test
 	@SneakyThrows
 	void sierraCanRespondWithMultipleItems() {
-		sierraItemsAPIFixture.threeItemsResponseForBibId("65423515");
+		// Arrange
+		sierraItemsAPIFixture.itemsForBibId("65423515", List.of(
+			SierraItem.builder()
+				.id("8757567")
+				.barcode("9849123490")
+				.callNumber("BL221 .C48")
+				.statusCode("-")
+				.dueDate(Instant.parse("2023-04-22T15:55:13Z"))
+				.itemType("999")
+				.locationCode("ab5")
+				.locationName("King 5th Floor")
+				.build(),
+			SierraItem.builder()
+				.id("8275735")
+				.barcode("30800005315459")
+				.callNumber("HX157 .H8")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode("ab7")
+				.locationName("King 7th Floor")
+				.build(),
+			SierraItem.builder()
+				.id("72465635")
+				.barcode("30800005208449")
+				.callNumber("HC336.2 .S74 1969")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode("ab7")
+				.locationName("King 7th Floor")
+				.build()
+		));
 
+		// Act
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
 
-		var response = Mono.from(sierraApiClient.items(
+		final var response = singleValueFrom(sierraApiClient.items(
 			Params.builder()
 				.bibId("65423515")
 				.deleted(false)
-				.build()))
-			.block();
+				.build()
+		));
 
+		// Assert
 		assertThat(response, is(notNullValue()));
 		assertThat(response.getTotal(), is(3));
 
@@ -144,7 +178,7 @@ class SierraApiItemTests {
 		final var firstItem = items.get(0);
 
 		assertThat(firstItem, is(notNullValue()));
-		assertThat(firstItem.getId(), is("f2010365-e1b1-4a5d-b431-a3c65b5f23fb"));
+		assertThat(firstItem.getId(), is("8757567"));
 		assertThat(firstItem.getBarcode(), is("9849123490"));
 		assertThat(firstItem.getCallNumber(), is("BL221 .C48"));
 
@@ -159,7 +193,7 @@ class SierraApiItemTests {
 		final var secondItem = items.get(1);
 
 		assertThat(secondItem, is(notNullValue()));
-		assertThat(secondItem.getId(), is("c5bc9cd0-fc23-48be-9d52-647cea8c63ca"));
+		assertThat(secondItem.getId(), is("8275735"));
 		assertThat(secondItem.getBarcode(), is("30800005315459"));
 		assertThat(secondItem.getCallNumber(), is("HX157 .H8"));
 
@@ -174,7 +208,7 @@ class SierraApiItemTests {
 		final var thirdItem = items.get(2);
 
 		assertThat(thirdItem, is(notNullValue()));
-		assertThat(thirdItem.getId(), is("69415d0a-ace5-49e4-96fd-f63855235bf0"));
+		assertThat(thirdItem.getId(), is("72465635"));
 		assertThat(thirdItem.getBarcode(), is("30800005208449"));
 		assertThat(thirdItem.getCallNumber(), is("HC336.2 .S74 1969"));
 
