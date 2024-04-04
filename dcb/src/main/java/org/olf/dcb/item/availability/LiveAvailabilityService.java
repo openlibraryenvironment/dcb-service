@@ -118,7 +118,7 @@ public class LiveAvailabilityService {
 		Optional<Duration> timeout, BibRecord bib, HostLmsClient hostLms) {
 		
 		final var liveData = hostLms.getItems(bib)
-			.map(this::excludeSuppressedItems)
+			.map(this::excludeSuppressedOrDeletedItems)
 			.doOnError(error -> log.error("doOnError occurred fetching items", error))
 			.map(AvailabilityReport::ofItems)
 			.map(TupleUtils.curry(bib, this::addValueToCache))
@@ -131,9 +131,10 @@ public class LiveAvailabilityService {
 			.orElse(liveData);
 	}
 
-	private List<Item> excludeSuppressedItems(List<Item> items) {
+	private List<Item> excludeSuppressedOrDeletedItems(List<Item> items) {
 		return items.stream()
 			.filter(Item::notSuppressed)
+			.filter(Item::notDeleted)
 			.toList();
 	}
 

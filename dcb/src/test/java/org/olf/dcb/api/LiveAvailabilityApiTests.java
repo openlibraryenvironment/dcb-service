@@ -266,6 +266,47 @@ class LiveAvailabilityApiTests {
 				.locationCode(locationCode)
 				.locationName("Example Location")
 				.suppressed(true)
+				.deleted(false)
+				.build()));
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CATALOGUING_HOST_LMS_CODE, locationCode, SUPPLYING_AGENCY_CODE);
+
+		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_NAME,
+			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			CATALOGUING_HOST_LMS_CODE, 999, 999, "loanable-item");
+
+		// Act
+		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
+
+		// Assert
+		assertThat(report, allOf(
+			notNullValue(),
+			hasClusterRecordId(clusterRecordId),
+			hasNoItems(),
+			hasNoErrors()
+		));
+	}
+
+	@Test
+	void shouldExcludeDeletedItems() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+		final var sourceRecordId = "728951";
+
+		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
+
+		final var locationCode = "example-location";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			SierraItem.builder()
+				.id("98725178")
+				.locationCode(locationCode)
+				.locationName("Example Location")
+				.suppressed(false)
+				.deleted(true)
 				.build()));
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
