@@ -221,6 +221,8 @@ class ApplicationServicesClient {
 
 	public Mono<String> getPatronBarcode(String localId) {
 		final var path = createPath("barcodes", "patrons", localId);
+		log.info("Getting patron barcode from patron id: {}", localId);
+
 		return createRequest(GET, path, uri -> {})
 			.flatMap(request -> client.retrieve(request, Argument.of(String.class),
 				response -> response

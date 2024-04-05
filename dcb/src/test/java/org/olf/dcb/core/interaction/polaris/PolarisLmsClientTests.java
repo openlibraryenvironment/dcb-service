@@ -594,8 +594,10 @@ class PolarisLmsClientTests {
 	void shouldBeAbleToCheckOutAnItemToPatron() {
 		// Arrange
 		final var localItemId = "2273395";
+		final var localPatronId = "3424738";
 		final var localPatronBarcode = "0077777777";
 
+		mockPolarisFixture.mockGetPatronBarcode(localPatronId, localPatronBarcode);
 		mockPolarisFixture.mockGetItemBarcode(localItemId, "126448190");
 		mockPolarisFixture.mockCheckoutItemToPatron(localPatronBarcode);
 
@@ -603,7 +605,7 @@ class PolarisLmsClientTests {
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
 		final var response = singleValueFrom(client
-			.checkOutItemToPatron(localItemId, null, null, localPatronBarcode, null));
+			.checkOutItemToPatron(localItemId, null, localPatronId, localPatronBarcode, null));
 
 		// Assert
 		assertThat(response, is(notNullValue()));
