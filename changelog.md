@@ -1,8 +1,20 @@
 # Changelog
 
+## Version 6.0.2
+
+### Changes
+* [Chore]
+	* Improve logging when there are problems with patron type mappings
+	* ensure that checkout errors go to log and audit
+	* more logging in polaris checkout
+* [Refactor]
+	* polaris patron checkout
+
 ## Version 6.0.1
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Feature]
 	* Allow ITEM_AVAILABLE when the borrower hold is MISSING to bypass the LOANED state in a borrowing system
 
