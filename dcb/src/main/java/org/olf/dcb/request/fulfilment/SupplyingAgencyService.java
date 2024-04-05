@@ -310,7 +310,7 @@ public class SupplyingAgencyService {
 	private Mono<Tuple2<String, String>> checkPatronType(String localId,
 		String patronType, PatronRequest patronRequest, String supplierHostLmsCode) {
 
-		log.debug("checkPatronType patronHomeId={}, patronHomeType={} supplyingSyste={} requestingIdentity={}", localId, patronType);
+		log.debug("checkPatronType id of patron at home system={}, type of patron at home system={} supplyingSystem={}", localId, patronType, supplierHostLmsCode);
 
 		// Work out what the global patronId is we are using for this real patron
 		return getRequestingIdentity(patronRequest)
