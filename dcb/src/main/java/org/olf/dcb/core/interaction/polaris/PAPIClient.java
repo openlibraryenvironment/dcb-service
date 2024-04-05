@@ -128,14 +128,12 @@ public class PAPIClient {
 	public Mono<ItemCheckoutResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
-		final var conf = client.getConfig();
 		final var servicesConfig = client.getServicesConfig();
 
 		log.info("itemCheckoutPost PatronBarcode {} itemBarcode {} path {}", patronBarcode, itemBarcode, path);
 
 		final var body = ItemCheckoutData.builder()
-			.logonBranchID(extractRequiredMapValue(conf, LOGON_BRANCH_ID, Integer.class))
-			.logonUserID(extractRequiredMapValue(conf, LOGON_USER_ID, Integer.class))
+			.logonBranchID(client.illLocationId())
 			.logonWorkstationID(extractRequiredMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class))
 			.itemBarcode(itemBarcode)
 			.build();

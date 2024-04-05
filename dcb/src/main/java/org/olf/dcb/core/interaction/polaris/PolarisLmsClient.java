@@ -752,8 +752,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		log.info("checkOutItemToPatron({},{},{})",itemId,patronBarcode,localRequestId);
 
-		return ApplicationServices.getItemBarcode(itemId)
-			.flatMap(lookedUpBarcode -> PAPIService.itemCheckoutPost(lookedUpBarcode, patronBarcode))
+		return Mono.zip(
+			ApplicationServices.getItemBarcode(itemId),
+			ApplicationServices.getPatronBarcode(patronId)
+			)
+			.flatMap(tuple -> PAPIService.itemCheckoutPost(tuple.getT1(), tuple.getT2()))
 			.map(itemCheckoutResult -> "OK");
 	}
 
