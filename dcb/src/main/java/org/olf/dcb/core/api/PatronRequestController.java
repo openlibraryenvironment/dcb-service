@@ -2,26 +2,22 @@ package org.olf.dcb.core.api;
 
 import static io.micronaut.http.HttpResponse.badRequest;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static io.micronaut.security.rules.SecurityRule.IS_AUTHENTICATED;
+import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Predicate;
 
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.FailedPreflightCheck;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
 import org.olf.dcb.request.workflow.CleanupPatronRequestTransition;
-import org.olf.dcb.request.workflow.PatronRequestStateTransition;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
-import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.TrackingService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
@@ -34,8 +30,6 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.authentication.Authentication;
-import io.micronaut.security.filters.SecurityFilter;
-import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.serde.annotation.Serdeable;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,17 +41,16 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Value;
-import reactor.core.publisher.Flux;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
 @Controller("/patrons/requests")
 @Validated
-@Secured(SecurityRule.IS_AUTHENTICATED)
+@Secured(IS_AUTHENTICATED)
 @Tag(name = "Patron Request API")
+@Slf4j
 public class PatronRequestController {
-	private static final Logger log = LoggerFactory.getLogger(PatronRequestController.class);
-
 	private final PatronRequestService patronRequestService;
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestWorkflowService workflowService;
@@ -70,6 +63,7 @@ public class PatronRequestController {
 			PatronRequestWorkflowService workflowService,
 			CleanupPatronRequestTransition cleanupPatronRequestTransition,
 			TrackingService trackingService) {
+
 		this.patronRequestService = patronRequestService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.workflowService = workflowService;
@@ -82,11 +76,10 @@ public class PatronRequestController {
 			// we want to be able to clean up errored requests, so am removing this for now
 			// case ERROR -> throw new IllegalStateException("Cannot transition errored requests");
 			case CANCELLED -> throw new IllegalStateException("Cannot transition cancelled requests");
-			
+
 			default -> patronRequest;
 		};
 	}
-
 
 	/**
 	 * Special state transitions that don't have a target state i.e. they leave the state untouched, but
@@ -98,7 +91,6 @@ public class PatronRequestController {
 	@SingleResult
 	@Post(value = "/{patronRequestId}/transition/cleanup", consumes = APPLICATION_JSON)
 	public Mono<PatronRequest> cleanupPatronRequest(@NotNull final UUID patronRequestId) {
-
 		log.info("Request cleanup for {}",patronRequestId);
 
 		return patronRequestService
@@ -124,7 +116,8 @@ public class PatronRequestController {
 	@SingleResult
 	@Post(value = "/place", consumes = APPLICATION_JSON)
 	public Mono<PatronRequestView> placePatronRequest(
-			@Body @Valid PlacePatronRequestCommand command) {
+		@Body @Valid PlacePatronRequestCommand command) {
+
 		log.info("REST, place patron request: {}", command);
 
 		return patronRequestService.placePatronRequest(command)
@@ -138,7 +131,7 @@ public class PatronRequestController {
 			.build());
 	}
 
-	@Secured(RoleNames.ADMINISTRATOR)
+	@Secured(ADMINISTRATOR)
 	@Operation(summary = "Browse Requests", description = "Paginate through the list of Patron Requests", parameters = {
 			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
 			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100") })
