@@ -40,7 +40,7 @@ import java.util.function.Function;
 
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CannotPlaceRequestException;
+import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.FailedToGetItemsException;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -341,7 +341,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					error -> interpretValidationError(error, request)));
 	}
 
-	private CannotPlaceRequestException interpretValidationError(Throwable error,
+	private CannotPlaceRequestProblem interpretValidationError(Throwable error,
 		MutableHttpRequest<CreateTransactionRequest> request) {
 
 		log.debug("Received validation error", error);
@@ -354,10 +354,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.map(ValidationError::getFirstError)
 				.orElse("Unknown validation error");
 
-			return new CannotPlaceRequestException(firstError, clientResponseException, request);
+			return new CannotPlaceRequestProblem(firstError, clientResponseException, request);
 		}
 		else {
-			return new CannotPlaceRequestException("Unknown validation error", null, request);
+			return new CannotPlaceRequestProblem("Unknown validation error", null, request);
 		}
 	}
 

@@ -26,7 +26,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.interaction.CannotPlaceRequestException;
+import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.test.AgencyFixture;
@@ -138,7 +138,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		// Act
 		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
-		final var exception = assertThrows(CannotPlaceRequestException.class,
+		final var exception = assertThrows(CannotPlaceRequestProblem.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
 					.localItemId(UUID.randomUUID().toString())
@@ -171,7 +171,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		// Act
 		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
-		final var exception = assertThrows(CannotPlaceRequestException.class,
+		final var exception = assertThrows(CannotPlaceRequestProblem.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
 					.localItemId(UUID.randomUUID().toString())
