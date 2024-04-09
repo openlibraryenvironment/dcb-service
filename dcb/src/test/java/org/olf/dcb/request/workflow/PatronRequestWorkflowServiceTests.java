@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.PatronRequestsFixture;
+import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
@@ -34,7 +36,7 @@ class PatronRequestWorkflowServiceTests {
 	}
 
 	@Test
-	void shouldTransitionPatronRequestToErrorStatus() {
+	void shouldTransitionPatronRequestToErrorStatusForException() {
 		// Arrange
 		final var patronRequestId = randomUUID();
 
@@ -48,7 +50,36 @@ class PatronRequestWorkflowServiceTests {
 		// Act
 		assertThrows(RuntimeException.class, () -> singleValueFrom(
 			Mono.just(patronRequest)
-				.flatMap(pr -> raiseError("Something went wrong"))
+				.flatMap(pr -> raiseException("Something went wrong"))
+				.transform(workflowService.getErrorTransformerFor(patronRequest))));
+
+		// Assert
+		final var updatedPatronRequest = patronRequestsFixture.findById(patronRequestId);
+
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(ERROR),
+			hasErrorMessage("Something went wrong")
+		));
+	}
+
+	@Test
+	void shouldTransitionPatronRequestToErrorStatusForProblem() {
+		// Arrange
+		final var patronRequestId = randomUUID();
+
+		final var patronRequest = PatronRequest.builder()
+			.id(patronRequestId)
+			.status(RESOLVED)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		assertThrows(ThrowableProblem.class, () -> singleValueFrom(
+			Mono.just(patronRequest)
+				.flatMap(pr -> raiseProblem("Cannot Perform Operation",
+					"Something went wrong", "example-parameter", "example-value"))
 				.transform(workflowService.getErrorTransformerFor(patronRequest))));
 
 		// Assert
@@ -76,7 +107,7 @@ class PatronRequestWorkflowServiceTests {
 		// Act
 		assertThrows(RuntimeException.class, () -> singleValueFrom(
 			Mono.just(patronRequest)
-				.flatMap(pr -> raiseError("e".repeat(300)))
+				.flatMap(pr -> raiseException("e".repeat(300)))
 				.transform(workflowService.getErrorTransformerFor(patronRequest))));
 
 		// Assert
@@ -89,7 +120,16 @@ class PatronRequestWorkflowServiceTests {
 		));
 	}
 
-	private static Mono<PatronRequest> raiseError(String message) {
+	private static Mono<PatronRequest> raiseException(String message) {
 		return Mono.error(new RuntimeException(message));
+	}
+
+	private static Mono<PatronRequest> raiseProblem(String message, String detail,
+		String parameterKey, String parameterValue) {
+		return Mono.error(Problem.builder()
+			.withTitle(message)
+			.withDetail(detail)
+			.with(parameterKey, parameterValue)
+			.build());
 	}
 }
