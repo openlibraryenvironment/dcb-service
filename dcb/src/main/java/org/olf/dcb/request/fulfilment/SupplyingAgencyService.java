@@ -5,7 +5,6 @@ import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.StringUtils.parseList;
 
 import java.net.URI;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -154,7 +153,7 @@ public class SupplyingAgencyService {
 			.onErrorResume(error -> {
 				log.error("Error in placeRequestAtSupplier {} : {}", psrc, error.getMessage());
 
-				return Mono.error(unableToPlaceRequestAtSupplyingAgencyProblem(psrc, error,
+				return Mono.error(unableToPlaceRequestAtSupplyingAgencyProblem(error,
 					patronRequest, patronIdentityAtSupplier, supplierRequest));
 			});
 	}
@@ -204,8 +203,8 @@ public class SupplyingAgencyService {
 	}
 
 	private static ThrowableProblem unableToPlaceRequestAtSupplyingAgencyProblem(
-		RequestWorkflowContext context, Throwable error, PatronRequest patronRequest,
-		PatronIdentity patronIdentityAtSupplier, SupplierRequest supplierRequest) {
+		Throwable error, PatronRequest patronRequest, PatronIdentity patronIdentityAtSupplier,
+		SupplierRequest supplierRequest) {
 
 		var builder = Problem.builder()
 			.withType(ERR0010)
@@ -213,7 +212,6 @@ public class SupplyingAgencyService {
 				"Unable to place SUPPLIER hold request for pr=" + patronRequest.getId() + " Lpatron=" + patronIdentityAtSupplier.getLocalId() +
 					" Litemid=" + supplierRequest.getLocalItemId() + " Lit=" + supplierRequest.getLocalItemType() + " Lpt=" + patronIdentityAtSupplier.getLocalPtype() + " system=" + supplierRequest.getHostLmsCode())
 			.withDetail(error.getMessage())
-			// .with("dcbContext", context)
 			.with("supplier-dcbPatronId", patronIdentityAtSupplier.getLocalId())
 			.with("supplier-dcbLocalItemId", supplierRequest.getLocalItemId())
 			.with("supplier-dcbLocalItemBarcode", supplierRequest.getLocalItemBarcode())
