@@ -104,7 +104,7 @@ class UnexpectedResponseProblemTests {
 		assertThat(problem, allOf(
 			hasMessageForHostLms("example-host-lms"),
 			hasResponseStatusCodeParameter(400),
-			hasRequestMethodParameter(null)
+			hasRequestMethodParameter("Unknown")
 		));
 	}
 
@@ -189,7 +189,7 @@ class UnexpectedResponseProblemTests {
 		assertThat(problem, allOf(
 			hasMessage("Unexpected response received for unknown request or Host LMS"),
 			hasResponseStatusCodeParameter(400),
-			hasRequestMethodParameter(null)
+			hasRequestMethodParameter("Unknown")
 		));
 	}
 

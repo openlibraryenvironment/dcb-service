@@ -10,6 +10,10 @@ public class PropertyAccessUtils {
 		return getValue(nullableObject, accessor, identity());
 	}
 
+	public static <T, R> R getValueOrDefault(T nullableObject, Function<T, R> accessor, R valueWhenMissing) {
+		return getValue(nullableObject, accessor, identity(), valueWhenMissing);
+	}
+
 	public static <T, R, S> S getValue(T nullableObject, Function<T, R> accessor,
 		Function<R, S> mapper) {
 

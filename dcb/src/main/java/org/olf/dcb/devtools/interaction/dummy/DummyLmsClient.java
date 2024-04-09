@@ -42,7 +42,6 @@ import org.olf.dcb.ingest.model.IngestRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Parameter;
-import io.micronaut.context.annotation.Prototype;
 import jakarta.inject.Singleton;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.util.StringUtils;

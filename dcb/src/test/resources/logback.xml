@@ -8,7 +8,7 @@
 	</appender>
 
 <!-- Uncomment as you need but please don't commit with these turned on-->
-<!--	<logger name="io.micronaut.http.client" level="TRACE"/>-->
+	<logger name="io.micronaut.http.client" level="TRACE"/>
 <!--	<logger name="io.micronaut.data.query" level="TRACE"/>-->
 <!--	<logger name="io.r2dbc.postgresql.QUERY" level="DEBUG"/>-->
 <!--	<logger name="org.mockserver" level="TRACE"/>-->
