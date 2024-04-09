@@ -3,7 +3,6 @@ package org.olf.dcb.test.matchers;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 
@@ -18,10 +17,6 @@ public class PatronRequestAuditMatchers {
 
 	public static Matcher<PatronRequestAudit> briefDescriptionContains(String description) {
 		return hasBriefDescription(containsString(description));
-	}
-
-	public static Matcher<PatronRequestAudit> hasNoBriefDescription() {
-		return hasBriefDescription(is(nullValue()));
 	}
 
 	private static <T> Matcher<PatronRequestAudit> hasBriefDescription(Matcher<T> valueMatcher) {
