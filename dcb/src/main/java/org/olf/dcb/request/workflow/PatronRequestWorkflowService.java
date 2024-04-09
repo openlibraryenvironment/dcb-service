@@ -3,13 +3,13 @@ package org.olf.dcb.request.workflow;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import java.util.UUID;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -17,6 +17,7 @@ import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.storage.PatronRequestRepository;
+import org.olf.dcb.tracking.TrackingHelpers;
 import org.reactivestreams.Publisher;
 import org.slf4j.MDC;
 import org.zalando.problem.DefaultProblem;
@@ -28,8 +29,6 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import org.olf.dcb.tracking.TrackingHelpers;
 
 @Slf4j
 @Singleton
@@ -206,8 +205,9 @@ public class PatronRequestWorkflowService {
 				}
 
 				return Mono.from(patronRequestRepository.updateStatusWithError(prId, throwable.getMessage()))
-					.then(patronRequestAuditService.addErrorAuditEntry(patronRequest,
-						fromState, throwable, auditData))
+					.then(patronRequestAuditService.addErrorAuditEntry(
+						patronRequest, fromState, throwable.getMessage(),
+						auditData))
 					.onErrorResume(saveError -> {
 						log.error("WORKFLOW Could not update PatronRequest with error state", saveError);
 						return Mono.empty();

@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.PatronRequestsFixture;
-import org.zalando.problem.Problem;
 
 import jakarta.inject.Inject;
 
@@ -47,8 +46,8 @@ class PatronRequestAuditServiceTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		// Act
-		singleValueFrom(patronRequestAuditService.addErrorAuditEntry(patronRequest,
-			RESOLVED, Problem.builder().withTitle("Some message").build(),
+		singleValueFrom(patronRequestAuditService.addErrorAuditEntry(
+			patronRequest, RESOLVED, "Some message",
 			Map.of(
 				"someProperty", "some value",
 				"someNestedProperty", Map.of("otherProperty", "other value")

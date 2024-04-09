@@ -8,21 +8,16 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
-import org.reactivestreams.Publisher;
 
-import io.micronaut.core.async.publisher.Publishers;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -51,19 +46,6 @@ public class PatronRequestAuditService {
 	}
 
 	public Mono<PatronRequestAudit> addAuditEntry(PatronRequest patronRequest,
-		Status from, Status to, Optional<String> message) {
-
-		return addAuditEntry(patronRequest, from, to, message, empty());
-	}
-
-	public Mono<RequestWorkflowContext> addAuditEntry(RequestWorkflowContext context,
-		Status from, Status to, Optional<String> message, Optional<Map<String, Object>> auditData) {
-
-		return addAuditEntry(context.getPatronRequest(), from, to, message, auditData)
-			.thenReturn(context);
-	}
-
-	public Mono<PatronRequestAudit> addAuditEntry(PatronRequest patronRequest,
 		Status from, Status to, Optional<String> message, Optional<Map<String, Object>> auditData) {
 
 		var builder = PatronRequestAudit.builder()
@@ -73,7 +55,7 @@ public class PatronRequestAuditService {
 			.fromStatus(from)
 			.toStatus(to);
 
-		if (auditData != null) {
+		if (auditData.isPresent()) {
 			builder.auditData(auditData.orElse(null));
 		}
 
@@ -99,7 +81,7 @@ public class PatronRequestAuditService {
 		String message, Map<String, Object> auditData) {
 
 		return Mono.from(patronRequestRepository.findById(patronRequestId))
-			.flatMap(pr -> this.addAuditEntry(pr, pr.getStatus(), pr.getStatus(),
+			.flatMap(pr -> addAuditEntry(pr, pr.getStatus(), pr.getStatus(),
 				Optional.ofNullable(message), Optional.ofNullable(auditData)));
 	}
 
@@ -108,65 +90,17 @@ public class PatronRequestAuditService {
 			Optional.ofNullable(message), empty());
 	}
 
-	public Mono<PatronRequestAudit> addAuditEntry(PatronRequest pr,
-		String message, Map<String, Object> auditData) {
-
-		return this.addAuditEntry(pr, pr.getStatus(), pr.getStatus(),
-			Optional.ofNullable(message), Optional.ofNullable(auditData));
-	}
-
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest,
 		String message) {
 
-		return addAuditEntry(patronRequest, patronRequest.getStatus(), ERROR,
-			Optional.ofNullable(message), empty());
+		return addErrorAuditEntry(patronRequest, patronRequest.getStatus(), message, Map.of());
 	}
 
 	public Mono<PatronRequestAudit> addErrorAuditEntry(
-		PatronRequest patronRequest, Status from, Throwable error,
-		Map<String, Object> auditData) {
+		PatronRequest patronRequest, Status fromStatus, String message,
+		Map<String, Object> data) {
 
-		return addAuditEntry(patronRequest, from, ERROR,
-			Optional.ofNullable(error.getMessage()), Optional.ofNullable(auditData));
-	}
-	
-//	@Transactional
-	protected <T> Mono<T> createAuditEntryPublisher(T context,
-		BiConsumer<T, PatronRequestAudit.PatronRequestAuditBuilder> consumer, boolean propagate) {
-
-		var flow = Mono.just(PatronRequestAudit.builder())
-			.map(builder -> builder
-				.id(UUID.randomUUID())
-				.auditDate(Instant.now()))
-			.flatMap(builder -> {
-				consumer.accept(context, builder);
-				return buildAndSaveAuditMessage(builder);
-			})
-			.doOnError(t -> log.error("Error creating audit log entry", t));
-		
-		// No propagation means we complete normally... But log the error regardless.
-		flow =  propagate ? flow : flow.onErrorComplete();
-
-		return flow.thenReturn(context);
-	}
-	
-	@SuppressWarnings("unchecked")
-//	@Transactional
-	protected <T, P extends Publisher<T>> Function<P, P> withAuditMessage(
-		BiConsumer<T, PatronRequestAudit.PatronRequestAuditBuilder> consumer, boolean propagate) {
-		
-		return (currentFlow) -> {
-			var auditGenFlow = Flux.from(currentFlow)
-				.flatMap(item -> createAuditEntryPublisher(item, consumer, propagate));
-			
-			return (P)(Publishers.isSingle(currentFlow.getClass()) ? auditGenFlow.single() : auditGenFlow);
-		};
-	}
-
-	//	@Transactional
-	public <T, P extends Publisher<T>> Function<P, P> withAuditMessageNoPropagateErrors(
-		BiConsumer<T, PatronRequestAudit.PatronRequestAuditBuilder> consumer ) {
-
-		return withAuditMessage(consumer, false);
+		return addAuditEntry(patronRequest, fromStatus, ERROR,
+			Optional.ofNullable(message), Optional.ofNullable(data));
 	}
 }
