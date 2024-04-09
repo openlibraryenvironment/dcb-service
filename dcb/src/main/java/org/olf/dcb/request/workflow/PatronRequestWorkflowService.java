@@ -1,5 +1,6 @@
 package org.olf.dcb.request.workflow;
 
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 
 import java.time.Instant;
@@ -176,21 +177,28 @@ public class PatronRequestWorkflowService {
 					return Mono.error(throwable);
 				}
 
-				// When we encounter an error we should set the status in the DB only to avoid,
-				// partial state saves.
-				log.error("WORKFLOW update patron request {} to error state ({}) - {}",
-					prId, throwable.getMessage(), throwable.getClass().getName());
+				final var message = throwable instanceof Problem problem
+					? problem.getTitle()
+					: throwable.getMessage();
 
 				final var auditData = new HashMap<String, Object>();
 
 				if (throwable instanceof Problem problem) {
+					if (isNotEmpty(problem.getDetail())) {
+						auditData.put("detail", problem.getDetail());
+					}
+
 					auditData.putAll(problem.getParameters());
 				}
 
-				return Mono.from(patronRequestRepository.updateStatusWithError(prId, throwable.getMessage()))
+				// When we encounter an error we should set the status in the DB only to avoid,
+				// partial state saves.
+				log.error("WORKFLOW update patron request {} to error state ({}) - {}",
+					prId, message, throwable.getClass().getName());
+
+				return Mono.from(patronRequestRepository.updateStatusWithError(prId, message))
 					.then(patronRequestAuditService.addErrorAuditEntry(
-						patronRequest, fromState, throwable.getMessage(),
-						auditData))
+						patronRequest, fromState, message, auditData))
 					.onErrorResume(saveError -> {
 						log.error("WORKFLOW Could not update PatronRequest with error state", saveError);
 						return Mono.empty();

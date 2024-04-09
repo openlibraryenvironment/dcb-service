@@ -102,7 +102,7 @@ class PatronRequestWorkflowServiceTests {
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
 			hasStatus(ERROR),
-			hasErrorMessage("Something went wrong")
+			hasErrorMessage("Cannot Perform Operation")
 		));
 
 		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(updatedPatronRequest);
@@ -111,7 +111,8 @@ class PatronRequestWorkflowServiceTests {
 			notNullValue(),
 			hasFromStatus(RESOLVED),
 			hasToStatus(ERROR),
-			hasBriefDescription("Cannot Perform Operation: Something went wrong"),
+			hasBriefDescription("Cannot Perform Operation"),
+			hasAuditDataProperty("detail", "Something went wrong"),
 			hasAuditDataProperty("exampleParameter", "example-value")
 		));
 	}

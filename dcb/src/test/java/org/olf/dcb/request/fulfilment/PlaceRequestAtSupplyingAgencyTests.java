@@ -18,11 +18,12 @@ import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasId;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestMethod;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestUrl;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
+import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasDetail;
+import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasTitle;
 
 import java.util.List;
 import java.util.UUID;
@@ -307,6 +308,9 @@ class PlaceRequestAtSupplyingAgencyTests {
 	void shouldFailWhenPlacingRequestAtSupplyingAgencyReturnsUnexpectedResponse() {
 		// Arrange
 		final var localId = "931824";
+		final var localPatronId = 1000001;
+		final var localItemId = "7916922";
+
 		final var patronRequestId = randomUUID();
 		final var clusterRecordId = createClusterRecord();
 		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
@@ -315,21 +319,30 @@ class PlaceRequestAtSupplyingAgencyTests {
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
 		sierraPatronsAPIFixture.patronNotFoundResponse("u", "931824@%s".formatted(SUPPLYING_AGENCY_CODE));
-		sierraPatronsAPIFixture.postPatronResponse("931824@%s".formatted(SUPPLYING_AGENCY_CODE), 1000001);
-		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("1000001", "b");
+		sierraPatronsAPIFixture.postPatronResponse("931824@%s".formatted(SUPPLYING_AGENCY_CODE),
+			localPatronId);
+
+		sierraPatronsAPIFixture.patronHoldRequestErrorResponse(
+			Integer.toString(localPatronId), "b");
 
 		// Act
 		final var problem = assertThrows(ThrowableProblem.class,
 			() -> placeAtSupplyingAgency(patronRequest));
 
 		// Assert
-		final var expectedMessage = "Unexpected response from: POST /iii/sierra-api/v6/patrons/1000001/holds/requests";
+
+		final var expectedDetail = "Unexpected response from: POST /iii/sierra-api/v6/patrons/%d/holds/requests"
+			.formatted(localPatronId);
 
 		assertThat(problem, allOf(
-			messageContains(expectedMessage),
-			// These are includes from the underlying unexpected response problem created by the client
+			notNullValue(),
+			hasTitle("Unable to place SUPPLIER hold request for pr=%s Lpatron=%d Litemid=%s Lit=null Lpt=15 system=supplying-agency-service-tests"
+				.formatted(patronRequestId, localPatronId, localItemId)),
+			// These are included from the underlying unexpected response problem created by the client
+			hasDetail(expectedDetail),
 			hasRequestMethod("POST"),
-			hasRequestUrl("https://supplying-agency-service-tests.com/iii/sierra-api/v6/patrons/1000001/holds/requests"),
+			hasRequestUrl("https://supplying-agency-service-tests.com/iii/sierra-api/v6/patrons/%d/holds/requests"
+				.formatted(localPatronId)),
 			hasResponseStatusCode(500),
 			hasJsonResponseBodyProperty("code", 109),
 			hasJsonResponseBodyProperty("description", "Invalid configuration"),
@@ -340,18 +353,21 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
+		// Only matches on part of the message because it's too long for the database column
+		final var partOfTruncatedErrorMessage = "Unable to place SUPPLIER hold request";
+
 		assertThat(fetchedPatronRequest, allOf(
 			hasStatus(ERROR),
-			// Only matches on part of the message because it's too long for the database column
-			hasErrorMessage("Unexpected response")
+			hasErrorMessage(partOfTruncatedErrorMessage)
 		));
 
 		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(fetchedPatronRequest);
 
 		assertThat(onlyAuditEntry, allOf(
-			briefDescriptionContains(expectedMessage),
+			briefDescriptionContains(partOfTruncatedErrorMessage),
 			hasFromStatus(RESOLVED),
 			hasToStatus(ERROR),
+			hasAuditDataProperty("detail", expectedDetail),
 			hasAuditDataProperty("responseStatusCode", 500),
 			hasNestedAuditDataProperty("responseBody","code", 109),
 			hasNestedAuditDataProperty("responseBody","description", "Invalid configuration"),
