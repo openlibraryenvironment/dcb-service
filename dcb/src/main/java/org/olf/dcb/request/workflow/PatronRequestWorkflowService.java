@@ -1,13 +1,11 @@
 package org.olf.dcb.request.workflow;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -22,7 +20,6 @@ import org.reactivestreams.Publisher;
 import org.slf4j.MDC;
 import org.zalando.problem.DefaultProblem;
 
-import io.micronaut.context.annotation.Value;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Singleton;
@@ -34,13 +31,6 @@ import reactor.core.publisher.Mono;
 @Singleton
 @ExecuteOn(value = TaskExecutors.IO)
 public class PatronRequestWorkflowService {
-	/**
-	 * Duration of delay before task is started Uses ISO-8601 format, as described
-	 * <a href="https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html#parse-java.lang.CharSequence-">here</a>
-	 */
-	@Value("${dcb.request-workflow.state-transition-delay:PT0.0S}")
-	private Duration stateTransitionDelay;
-
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestAuditService patronRequestAuditService;
 
@@ -60,6 +50,7 @@ public class PatronRequestWorkflowService {
 		this.allTransitions = allTransitions;
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
+
 		log.debug("Initialising workflow engine with available transitions");
 		for (PatronRequestStateTransition t : allTransitions) {
 			log.debug(t.getClass().getName());
@@ -75,24 +66,15 @@ public class PatronRequestWorkflowService {
 		// Inspired by https://blogs.ashrithgn.com/adding-transaction-trace-id-correlation-id-for-each-request-in-micronaut-for-tracing-the-log-easily/
 		MDC.put("prID", patronRequest.getId().toString());
 
-		progressAll(patronRequest)
+		this.progressAll(patronRequest)
 			.doFinally(signalType -> log.info("WORKFLOW Completed processing for {}", patronRequest.getId()))
 			.subscribe();
-	}
-	
-	public Mono<PatronRequest> progressAll(UUID patronRequestId) {
-		return Mono.from(patronRequestRepository.findById(patronRequestId))
-			.flatMap(pr -> this.progressAll(pr, false));
 	}
 
 	/**
 	 * Try to progress the identified patron request. This is the main entry point for trying to progress a patron request.
 	 */
 	public Mono<PatronRequest> progressAll(PatronRequest patronRequest) {
-		return this.progressAll(patronRequest, false);
-	}
-
-	public Mono<PatronRequest> progressAll(PatronRequest patronRequest, boolean pollDownstream) {
 		log.debug("WORKFLOW progressAll({})", patronRequest);
 
 		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
@@ -101,8 +83,8 @@ public class PatronRequestWorkflowService {
 
 	/**
 	 * For when we already have a request workflow context in our hand
-	 * @param ctx
-	 * @return
+	 * @param ctx context to use when progressing workflow
+	 * @return provided context
 	 */
 	public Mono<RequestWorkflowContext> progressUsing(RequestWorkflowContext ctx) {
 		return Mono.just(ctx)
@@ -110,12 +92,15 @@ public class PatronRequestWorkflowService {
 			.thenReturn(ctx);
 	}
 
-	public Mono<PatronRequest> progressUsing(PatronRequest patronRequest, PatronRequestStateTransition action) {
+	public Mono<PatronRequest> progressUsing(PatronRequest patronRequest,
+		PatronRequestStateTransition action) {
+
 		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
 			.flatMap(ctx -> this.progressUsing(ctx, Optional.ofNullable(action)));
 	}
 	
-	public Mono<PatronRequest> progressUsing(RequestWorkflowContext ctx, Optional<PatronRequestStateTransition> action) {
+	public Mono<PatronRequest> progressUsing(RequestWorkflowContext ctx,
+		Optional<PatronRequestStateTransition> action) {
 
 		// We don't schedule the next check until we have exhausted all our possible expansions/progressions
 		// apply Transition will call recursively until we run out of possible actions, then we pass through this leg
@@ -125,9 +110,7 @@ public class PatronRequestWorkflowService {
 				ctx.getPatronRequest().getId(), ctx.getPatronRequest().getStatus());
 
 			return scheduleNextCheck(ctx)
-				.flatMap(ctx2 -> {
-					return Mono.empty();
-				});
+				.flatMap(ctx2 -> Mono.empty());
 		}
 		
 		return Mono.justOrEmpty(action)
@@ -143,7 +126,9 @@ public class PatronRequestWorkflowService {
 			});
 	}
 
-	public Stream<PatronRequestStateTransition> getPossibleStateTransitionsFor(RequestWorkflowContext ctx) {
+	public Stream<PatronRequestStateTransition> getPossibleStateTransitionsFor(
+		RequestWorkflowContext ctx) {
+
 		final var sortedTransitions = allTransitions.stream()
 			.sorted(Comparator.comparing(PatronRequestStateTransition::getName).reversed())
 			.toList();
@@ -152,36 +137,35 @@ public class PatronRequestWorkflowService {
 			.filter(transition -> (transition.isApplicableFor(ctx) && transition.attemptAutomatically()));
 	}
 
-	private Mono<PatronRequest> applyTransition(PatronRequestStateTransition action, RequestWorkflowContext ctx) {
+	private Mono<PatronRequest> applyTransition(PatronRequestStateTransition action,
+		RequestWorkflowContext ctx) {
 
 		log.debug("WORKFLOW applyTransition({}, {})", action.getName(), ctx.getPatronRequest().getId());
 
-		// return patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), ctx.getPatronRequestStateOnEntry(), 
-					// ctx.getPatronRequestStateOnEntry(), Optional.of("guard passed : " + action.getName()))
+		final var auditData = new HashMap<String, Object>();
 
-			Map<String,Object> auditData=new HashMap<String,Object>();
-			auditData.put("workflowMessages", ctx.getWorkflowMessages());
+		auditData.put("workflowMessages", ctx.getWorkflowMessages());
 
-			return action.attempt(ctx)
-			.flatMap(nc -> patronRequestAuditService.addAuditEntry(
-				ctx.getPatronRequest(), 
-				ctx.getPatronRequestStateOnEntry(), 
-				ctx.getPatronRequest().getStatus(), 
-				Optional.of("Action completed : " + action.getName()),
-				Optional.of(auditData)))
-			.flatMap(nc -> Mono.from(patronRequestRepository.saveOrUpdate(nc.getPatronRequest())))
-			.flatMap(request -> {
-				// Recursively call progress all in case there are subsequent steps we can apply
-				return progressAll(ctx.getPatronRequest());
-			});
+		return action.attempt(ctx)
+		.flatMap(nc -> patronRequestAuditService.addAuditEntry(
+			ctx.getPatronRequest(),
+			ctx.getPatronRequestStateOnEntry(),
+			ctx.getPatronRequest().getStatus(),
+			Optional.of("Action completed : " + action.getName()),
+			Optional.of(auditData)))
+		.flatMap(nc -> Mono.from(patronRequestRepository.saveOrUpdate(nc.getPatronRequest())))
+		.flatMap(request -> {
+			// Recursively call progress all in case there are subsequent steps we can apply
+			return this.progressAll(ctx.getPatronRequest());
+		});
 	}
 	
 	public Function<Publisher<PatronRequest>, Flux<PatronRequest>> getErrorTransformerFor(
 		PatronRequest patronRequest) {
 		
-		final Status fromState = patronRequest.getStatus();
+		final var fromState = patronRequest.getStatus();
 
-		return (Publisher<PatronRequest> pub) -> Flux.from(pub)
+		return pub -> Flux.from(pub)
 			.onErrorResume(throwable -> Mono.defer(() -> {
 				// If we don't do this, then a subsequent save of the patron request can overwrite the status we explicitly set
 				patronRequest.setStatus(Status.ERROR);
@@ -194,7 +178,6 @@ public class PatronRequestWorkflowService {
 
 				// When we encounter an error we should set the status in the DB only to avoid,
 				// partial state saves.
-
 				log.error("WORKFLOW update patron request {} to error state ({}) - {}",
 					prId, throwable.getMessage(), throwable.getClass().getName());
 
@@ -216,7 +199,9 @@ public class PatronRequestWorkflowService {
 			}));
 	}
 
-	private Optional<PatronRequestStateTransition> getApplicableTransitionFor(RequestWorkflowContext ctx) {
+	private Optional<PatronRequestStateTransition> getApplicableTransitionFor(
+		RequestWorkflowContext ctx) {
+
 		log.debug("getApplicableTransitionFor...");
 
 		log.debug("WORKFLOW Possible transitions: {}", getPossibleStateTransitionsFor(ctx)
@@ -233,16 +218,19 @@ public class PatronRequestWorkflowService {
 	}
 
 	private Mono<RequestWorkflowContext> scheduleNextCheck(RequestWorkflowContext ctx) {
-		Optional<Duration> d = TrackingHelpers.getDurationFor(ctx.getPatronRequest().getStatus());
+		final var d = TrackingHelpers.getDurationFor(ctx.getPatronRequest().getStatus());
+
 		Instant next_poll = null;
-		if ( d.isEmpty() ) {
+
+		if (d.isEmpty()) {
 			log.debug("No scheduled check due");
 		}
 		else {
 			next_poll = Instant.now().plus(d.get());
 			log.debug("scheduleNextCheck Extracted duration {} next check is {}",d,next_poll);
 		}
-		return Mono.from(patronRequestRepository.updateNextScheduledPoll(ctx.getPatronRequest().getId(), next_poll))
+		return Mono.from(patronRequestRepository
+				.updateNextScheduledPoll(ctx.getPatronRequest().getId(), next_poll))
 			.thenReturn(ctx);
 	}
 }

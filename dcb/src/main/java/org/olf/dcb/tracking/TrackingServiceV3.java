@@ -26,7 +26,7 @@ import reactor.core.publisher.Mono;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 import java.time.Instant;
-import java.time.Duration;
+
 import io.micrometer.core.annotation.Timed;
 
 @Slf4j
@@ -383,7 +383,7 @@ public class TrackingServiceV3 implements TrackingService {
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	protected Mono<PatronRequest> tryToProgressDCBRequest(PatronRequest patronRequest) {
 		log.debug("TRACKING Attempt to progress {}:{}",patronRequest.getId(),patronRequest.getStatus());
-		return patronRequestWorkflowService.progressAll(patronRequest);
-	}
+        return patronRequestWorkflowService.progressAll(patronRequest);
+    }
 
 }

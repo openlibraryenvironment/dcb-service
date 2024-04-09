@@ -469,6 +469,6 @@ public class TrackingServiceV2 implements Runnable {
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	protected Mono<PatronRequest> tryToProgressDCBRequest(PatronRequest patronRequest) {
 		log.debug("TRACKING Attempt to progress {}:{}",patronRequest.getId(),patronRequest.getStatus());
-		return patronRequestWorkflowService.progressAll(patronRequest);
-	}
+        return patronRequestWorkflowService.progressAll(patronRequest);
+    }
 }

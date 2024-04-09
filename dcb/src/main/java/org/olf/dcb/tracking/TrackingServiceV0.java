@@ -14,9 +14,7 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
 
-import io.micronaut.runtime.context.scope.Refreshable;
 import io.micronaut.scheduling.annotation.Scheduled;
-import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -389,7 +387,7 @@ public class TrackingServiceV0 implements Runnable {
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	protected Mono<PatronRequest> tryToProgressDCBRequest(PatronRequest patronRequest) {
 		log.debug("TRACKING Attempt to progress {}:{}",patronRequest.getId(),patronRequest.getStatus());
-		return patronRequestWorkflowService.progressAll(patronRequest);
-	}
+        return patronRequestWorkflowService.progressAll(patronRequest);
+    }
 
 }
