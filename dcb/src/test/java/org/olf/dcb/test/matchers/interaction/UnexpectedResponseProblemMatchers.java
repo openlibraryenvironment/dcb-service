@@ -19,7 +19,7 @@ public class UnexpectedResponseProblemMatchers {
 		return hasMessage("Unexpected response from: %s %s".formatted(method, path));
 	}
 
-	public static Matcher<ThrowableProblem> hasResponseStatusCodeParameter(
+	public static Matcher<ThrowableProblem> hasResponseStatusCode(
 		Object expectedStatusCode) {
 
 		return hasParameters(hasEntry(equalTo("responseStatusCode"), is(expectedStatusCode)));
@@ -28,34 +28,34 @@ public class UnexpectedResponseProblemMatchers {
 	public static Matcher<ThrowableProblem> hasJsonResponseBodyProperty(
 		String expectedPropertyName, Object expectedValue) {
 
-		return hasResponseBodyParameter(hasEntry(equalTo(expectedPropertyName), is(expectedValue)));
+		return hasResponseBody(hasEntry(equalTo(expectedPropertyName), is(expectedValue)));
 	}
 
-	public static Matcher<ThrowableProblem> hasTextResponseBodyParameter(String expectedBody) {
-		return hasResponseBodyParameter(is(expectedBody));
+	public static Matcher<ThrowableProblem> hasTextResponseBody(String expectedBody) {
+		return hasResponseBody(is(expectedBody));
 	}
 
-	public static Matcher<ThrowableProblem> hasNoResponseBodyParameter() {
-		return hasTextResponseBodyParameter("No body");
+	public static Matcher<ThrowableProblem> hasNoResponseBody() {
+		return hasTextResponseBody("No body");
 	}
 
-	private static Matcher<ThrowableProblem> hasResponseBodyParameter(Matcher<?> valueMatcher) {
+	private static Matcher<ThrowableProblem> hasResponseBody(Matcher<?> valueMatcher) {
 		return hasParameters(hasEntry(equalTo("responseBody"), valueMatcher));
 	}
 
-	public static Matcher<ThrowableProblem> hasRequestMethodParameter(String expectedValue) {
+	public static Matcher<ThrowableProblem> hasRequestMethod(String expectedValue) {
 		return hasParameters(hasEntry(equalTo("requestMethod"), is(expectedValue)));
 	}
 
-	public static Matcher<ThrowableProblem> hasRequestUrlParameter(String expectedUrl) {
+	public static Matcher<ThrowableProblem> hasRequestUrl(String expectedUrl) {
 		return hasParameters(hasEntry(equalTo("requestUrl"), is(expectedUrl)));
 	}
 
-	public static Matcher<ThrowableProblem> hasRequestBodyParameter(Matcher<?> valueMatcher) {
+	public static Matcher<ThrowableProblem> hasRequestBody(Matcher<?> valueMatcher) {
 		return hasParameters(hasEntry(equalTo("requestBody"), valueMatcher));
 	}
 
 	public static Matcher<ThrowableProblem> hasNoRequestBody() {
-		return hasRequestBodyParameter(is("No body"));
+		return hasRequestBody(is("No body"));
 	}
 }

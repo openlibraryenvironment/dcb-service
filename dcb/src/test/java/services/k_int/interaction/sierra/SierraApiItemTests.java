@@ -13,8 +13,8 @@ import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethod;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCode;
 
 import java.time.Instant;
 import java.util.List;
@@ -111,13 +111,13 @@ class SierraApiItemTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForRequest("POST", "/iii/sierra-api/v6/items"),
-			hasResponseStatusCodeParameter(400),
+			hasResponseStatusCode(400),
 			hasJsonResponseBodyProperty("name","Bad JSON/XML Syntax"),
 			hasJsonResponseBodyProperty("description",
 				"Please check that the JSON fields/values are of the expected JSON data types"),
 			hasJsonResponseBodyProperty("code", 130),
 			hasJsonResponseBodyProperty("specificCode", 0),
-			hasRequestMethodParameter("POST")
+			hasRequestMethod("POST")
 		));
 	}
 
@@ -258,9 +258,9 @@ class SierraApiItemTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForRequest("GET", "/iii/sierra-api/v6/items/56737658"),
-			hasResponseStatusCodeParameter(400),
+			hasResponseStatusCode(400),
 			hasJsonResponseBodyProperty("message", "something went wrong"),
-			hasRequestMethodParameter("GET")
+			hasRequestMethod("GET")
 		));
 	}
 }

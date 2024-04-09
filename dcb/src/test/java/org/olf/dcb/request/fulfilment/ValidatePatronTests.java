@@ -16,8 +16,8 @@ import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolvedAgency;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethod;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCode;
 
 import java.util.List;
 import java.util.UUID;
@@ -235,13 +235,13 @@ public class ValidatePatronTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForRequest("GET", "/iii/sierra-api/v6/patrons/236462"),
-			hasResponseStatusCodeParameter(400),
+			hasResponseStatusCode(400),
 			hasJsonResponseBodyProperty("name","Bad JSON/XML Syntax"),
 			hasJsonResponseBodyProperty("description",
 				"Please check that the JSON fields/values are of the expected JSON data types"),
 			hasJsonResponseBodyProperty("code", 130),
 			hasJsonResponseBodyProperty("specificCode", 0),
-			hasRequestMethodParameter("GET")
+			hasRequestMethod("GET")
 		));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());

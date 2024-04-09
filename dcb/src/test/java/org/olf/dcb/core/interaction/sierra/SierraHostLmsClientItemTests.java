@@ -30,9 +30,9 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.suppressionUnknown;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoResponseBodyParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoResponseBody;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethod;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCode;
 
 import java.time.Instant;
 import java.util.List;
@@ -247,9 +247,9 @@ class SierraHostLmsClientItemTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForRequest("POST", "/iii/sierra-api/v6/token"),
-			hasResponseStatusCodeParameter(401),
-			hasNoResponseBodyParameter(),
-			hasRequestMethodParameter("POST")
+			hasResponseStatusCode(401),
+			hasNoResponseBody(),
+			hasRequestMethod("POST")
 		));
 	}
 

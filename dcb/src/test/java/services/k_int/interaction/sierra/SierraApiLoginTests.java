@@ -9,9 +9,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoResponseBodyParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoResponseBody;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethod;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCode;
 
 import java.time.Instant;
 import java.util.List;
@@ -82,9 +82,9 @@ class SierraApiLoginTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForRequest("POST", "/iii/sierra-api/v6/token"),
-			hasResponseStatusCodeParameter(401),
-			hasNoResponseBodyParameter(),
-			hasRequestMethodParameter("POST")
+			hasResponseStatusCode(401),
+			hasNoResponseBody(),
+			hasRequestMethod("POST")
 		));
 	}
 
@@ -149,9 +149,9 @@ class SierraApiLoginTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForRequest("POST", "/iii/sierra-api/v6/items"),
-			hasResponseStatusCodeParameter(401),
-			hasNoResponseBodyParameter(),
-			hasRequestMethodParameter("POST")
+			hasResponseStatusCode(401),
+			hasNoResponseBody(),
+			hasRequestMethod("POST")
 		));
 
 		assertThat("Items should not be null", items, is(notNullValue()));

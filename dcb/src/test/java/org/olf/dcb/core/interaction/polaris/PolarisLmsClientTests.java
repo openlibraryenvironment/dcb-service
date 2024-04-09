@@ -46,10 +46,10 @@ import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
 import static org.olf.dcb.test.matchers.ThrowableProblemMatchers.hasParameters;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoRequestBody;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestUrlParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasTextResponseBodyParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethod;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestUrl;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCode;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasTextResponseBody;
 
 import java.util.List;
 import java.util.UUID;
@@ -649,11 +649,11 @@ class PolarisLmsClientTests {
 		assertThat(exception, allOf(
 			notNullValue(),
 			hasMessageForHostLms(CATALOGUING_HOST_LMS_CODE),
-			hasResponseStatusCodeParameter(500),
-			hasTextResponseBodyParameter("Something went wrong"),
-			hasRequestMethodParameter("GET"),
+			hasResponseStatusCode(500),
+			hasTextResponseBody("Something went wrong"),
+			hasRequestMethod("GET"),
 			hasNoRequestBody(),
-			hasRequestUrlParameter(
+			hasRequestUrl(
 				"https://polaris-hostlms-tests.com/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/6483613")
 		));
 	}
@@ -693,9 +693,9 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForHostLms(CATALOGUING_HOST_LMS_CODE),
-			hasResponseStatusCodeParameter(401),
-			hasTextResponseBodyParameter("No body"),
-			hasRequestUrlParameter("https://polaris-hostlms-tests.com/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords?type=create")
+			hasResponseStatusCode(401),
+			hasTextResponseBody("No body"),
+			hasRequestUrl("https://polaris-hostlms-tests.com/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords?type=create")
 		));
 	}
 
@@ -811,8 +811,8 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForHostLms(CATALOGUING_HOST_LMS_CODE),
-			hasResponseStatusCodeParameter(500),
-			hasTextResponseBodyParameter("Something went wrong")
+			hasResponseStatusCode(500),
+			hasTextResponseBody("Something went wrong")
 		));
 	}
 

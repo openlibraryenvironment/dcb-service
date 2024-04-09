@@ -12,12 +12,12 @@ import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMat
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoRequestBody;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoResponseBodyParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestBodyParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestUrlParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasTextResponseBodyParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoResponseBody;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestBody;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethod;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestUrl;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCode;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasTextResponseBody;
 
 import java.util.Map;
 
@@ -50,11 +50,11 @@ class UnexpectedResponseProblemTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForHostLms("example-host-lms"),
-			hasResponseStatusCodeParameter(400),
+			hasResponseStatusCode(400),
 			hasJsonResponseBodyProperty("error", "something went wrong"),
 			hasJsonResponseBodyProperty("code", 109),
-			hasRequestMethodParameter("POST"),
-			hasRequestUrlParameter(url)
+			hasRequestMethod("POST"),
+			hasRequestUrl(url)
 		));
 	}
 
@@ -71,9 +71,9 @@ class UnexpectedResponseProblemTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForHostLms("example-host-lms"),
-			hasResponseStatusCodeParameter(400),
-			hasTextResponseBodyParameter("something went wrong"),
-			hasRequestMethodParameter("GET")
+			hasResponseStatusCode(400),
+			hasTextResponseBody("something went wrong"),
+			hasRequestMethod("GET")
 		));
 	}
 
@@ -88,8 +88,8 @@ class UnexpectedResponseProblemTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForHostLms("example-host-lms"),
-			hasResponseStatusCodeParameter(400),
-			hasNoResponseBodyParameter()
+			hasResponseStatusCode(400),
+			hasNoResponseBody()
 		));
 	}
 
@@ -104,8 +104,8 @@ class UnexpectedResponseProblemTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForHostLms("example-host-lms"),
-			hasResponseStatusCodeParameter(400),
-			hasRequestMethodParameter("Unknown")
+			hasResponseStatusCode(400),
+			hasRequestMethod("Unknown")
 		));
 	}
 
@@ -135,7 +135,7 @@ class UnexpectedResponseProblemTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForHostLms("example-host-lms"),
-			hasRequestBodyParameter(is("Some body"))
+			hasRequestBody(is("Some body"))
 		));
 	}
 
@@ -160,7 +160,7 @@ class UnexpectedResponseProblemTests {
 			// The request body hasn't been serialised yet
 			// so toString of the object is closest we can get
 			// without invoking the serialisation manually
-			hasRequestBodyParameter(is(requestBody.toString()))
+			hasRequestBody(is(requestBody.toString()))
 		));
 	}
 
@@ -188,8 +188,8 @@ class UnexpectedResponseProblemTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForHostLms("example-host-lms"),
-			hasResponseStatusCodeParameter("Unknown"),
-			hasNoResponseBodyParameter()
+			hasResponseStatusCode("Unknown"),
+			hasNoResponseBody()
 		));
 	}
 
@@ -203,8 +203,8 @@ class UnexpectedResponseProblemTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessage("Unexpected response received for unknown request or Host LMS"),
-			hasResponseStatusCodeParameter(400),
-			hasRequestMethodParameter("Unknown")
+			hasResponseStatusCode(400),
+			hasRequestMethod("Unknown")
 		));
 	}
 

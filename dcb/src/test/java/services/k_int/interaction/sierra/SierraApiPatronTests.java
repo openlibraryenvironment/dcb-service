@@ -13,8 +13,8 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethod;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCode;
 
 import java.util.List;
 
@@ -85,13 +85,13 @@ class SierraApiPatronTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForRequest("POST", "/iii/sierra-api/v6/patrons"),
-			hasResponseStatusCodeParameter(400),
+			hasResponseStatusCode(400),
 			hasJsonResponseBodyProperty("name","Bad JSON/XML Syntax"),
 			hasJsonResponseBodyProperty("description",
 				"Please check that the JSON fields/values are of the expected JSON data types"),
 			hasJsonResponseBodyProperty("code", 130),
 			hasJsonResponseBodyProperty("specificCode", 0),
-			hasRequestMethodParameter("POST")
+			hasRequestMethod("POST")
 		));
 	}
 
@@ -228,13 +228,13 @@ class SierraApiPatronTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForRequest("GET", "/iii/sierra-api/v6/patrons/489365810/holds"),
-			hasResponseStatusCodeParameter(400),
+			hasResponseStatusCode(400),
 			hasJsonResponseBodyProperty("name","Bad JSON/XML Syntax"),
 			hasJsonResponseBodyProperty("description",
 				"Please check that the JSON fields/values are of the expected JSON data types"),
 			hasJsonResponseBodyProperty("code", 130),
 			hasJsonResponseBodyProperty("specificCode", 0),
-			hasRequestMethodParameter("GET")
+			hasRequestMethod("GET")
 		));
 	}
 
@@ -281,8 +281,8 @@ class SierraApiPatronTests {
 		assertThat(problem, hasMessage("Unexpected response from: %s %s"
 			.formatted("POST", "/iii/sierra-api/v6/patrons/%s/holds/requests".formatted(patronLocalId))));
 
-		assertThat(problem, hasRequestMethodParameter("POST"));
-		assertThat(problem, hasResponseStatusCodeParameter(500));
+		assertThat(problem, hasRequestMethod("POST"));
+		assertThat(problem, hasResponseStatusCode(500));
 		assertThat(problem, hasJsonResponseBodyProperty("code", 109));
 		assertThat(problem, hasJsonResponseBodyProperty("description", "Invalid configuration"));
 	}

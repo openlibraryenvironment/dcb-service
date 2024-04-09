@@ -43,7 +43,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.ItemMatchers.isSuppressed;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCode;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -594,7 +594,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForHostLms(CATALOGUING_HOST_LMS_CODE),
-			hasResponseStatusCodeParameter(400),
+			hasResponseStatusCode(400),
 			hasJsonResponseBodyProperty("message", "something went wrong")
 		));
 	}

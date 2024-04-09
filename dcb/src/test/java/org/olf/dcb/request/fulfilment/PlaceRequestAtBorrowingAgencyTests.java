@@ -13,7 +13,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORR
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCode;
 
 import java.util.List;
 
@@ -252,7 +252,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		assertThat(problem, allOf(
 			hasMessage(expectedMessage),
-			hasResponseStatusCodeParameter(500),
+			hasResponseStatusCode(500),
 			hasJsonResponseBodyProperty("code", 109),
 			hasJsonResponseBodyProperty("description", "Invalid configuration"),
 			hasJsonResponseBodyProperty("httpStatus", 500),
