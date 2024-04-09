@@ -335,23 +335,29 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		return makeRequest(request, Argument.of(CreateTransactionResponse.class),
 			response -> response
-				.onErrorMap(HttpResponsePredicates::isUnprocessableContent, this::interpretValidationError)
-				.onErrorMap(HttpResponsePredicates::isNotFound, this::interpretValidationError));
+				.onErrorMap(HttpResponsePredicates::isUnprocessableContent,
+					error -> interpretValidationError(error, request))
+				.onErrorMap(HttpResponsePredicates::isNotFound,
+					error -> interpretValidationError(error, request)));
 	}
 
-	private CannotPlaceRequestException interpretValidationError(Throwable error) {
+	private CannotPlaceRequestException interpretValidationError(Throwable error,
+		MutableHttpRequest<CreateTransactionRequest> request) {
+
 		log.debug("Received validation error", error);
 
 		if (error instanceof HttpClientResponseException clientResponseException) {
-			return clientResponseException
-				.getResponse()
+			final var response = clientResponseException.getResponse();
+
+			final var firstError = response
 				.getBody(Argument.of(ValidationError.class))
 				.map(ValidationError::getFirstError)
-				.map(CannotPlaceRequestException::new)
-				.orElse(new CannotPlaceRequestException("Unknown validation error"));
+				.orElse("Unknown validation error");
+
+			return new CannotPlaceRequestException(firstError, clientResponseException, request);
 		}
 		else {
-			return new CannotPlaceRequestException("Unknown validation error");
+			return new CannotPlaceRequestException("Unknown validation error", null, request);
 		}
 	}
 

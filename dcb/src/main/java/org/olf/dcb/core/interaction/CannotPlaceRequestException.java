@@ -1,7 +1,12 @@
 package org.olf.dcb.core.interaction;
 
-public class CannotPlaceRequestException extends RuntimeException {
-	public CannotPlaceRequestException(String message) {
-		super(message);
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+
+public class CannotPlaceRequestException extends AbstractHttpResponseProblem {
+	public CannotPlaceRequestException(String message,
+		HttpClientResponseException responseException, HttpRequest<?> request) {
+
+		super(message, responseException, request);
 	}
 }
