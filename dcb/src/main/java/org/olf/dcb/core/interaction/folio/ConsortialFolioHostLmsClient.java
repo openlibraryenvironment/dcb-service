@@ -192,7 +192,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.queryParam("fullPeriodicals", true)
 			);
 
-		return makeRequest(request, Argument.of(OuterHoldings.class), noExtraErrorHandling());
+		return makeRequest(request, Argument.of(OuterHoldings.class));
 	}
 
 	private Mono<OuterHoldings> checkResponse(OuterHoldings outerHoldings, String instanceId) {
@@ -525,7 +525,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var request = authorisedRequest(GET, "/users/users")
 			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
-		return makeRequest(request, Argument.of(UserCollection.class), noExtraErrorHandling());
+		return makeRequest(request, Argument.of(UserCollection.class));
 	}
 
 	private Mono<Patron> mapFirstUserToPatron(UserCollection response,
@@ -631,7 +631,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var request = authorisedRequest(POST, "/users/patron-pin/verify")
 			.body(VerifyPatron.builder().id(localID).pin(pin).build());
 
-		return makeRequest(request, VOID, noExtraErrorHandling())
+		return makeRequest(request, VOID)
 			.thenReturn(patron);
 	}
 
@@ -755,7 +755,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.body(TransactionStatus.builder()
 					.status(status)
 					.build()),
-			Argument.of(TransactionStatus.class), noExtraErrorHandling());
+			Argument.of(TransactionStatus.class));
 	}
 
 	@Override
@@ -834,7 +834,22 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	/**
-	 * Make a HTTP request to a FOLIO system
+	 * Make HTTP request to a FOLIO system
+	 *
+	 * @param request Request to send
+	 * @param responseBodyType Expected type of the response body
+	 * @return Deserialized response body or error, that might have been transformed already by handler
+	 * @param <TResponse> Type to deserialize the response to
+	 * @param <TRequest> Type of the request body
+	 */
+	public <TResponse, TRequest> Mono<TResponse> makeRequest(
+		MutableHttpRequest<TRequest> request, Argument<TResponse> responseBodyType) {
+
+		return makeRequest(request, responseBodyType, noExtraErrorHandling());
+	}
+
+	/**
+	 * Make HTTP request to a FOLIO system
 	 *
 	 * @param request Request to send
 	 * @param responseBodyType Expected type of the response body
@@ -890,10 +905,16 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return RelativeUriResolver.resolve(rootUri, relativeURI);
 	}
 
-  public Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType) {
-    log.debug("CONSORIAL FOLIO Supplier Preflight {} {} {} {}",borrowingAgencyCode,supplyingAgencyCode,canonicalItemType,canonicalPatronType);
-    return Mono.just(Boolean.TRUE);
-  }
+	public Mono<Boolean> supplierPreflight(String borrowingAgencyCode,
+		String supplyingAgencyCode, String canonicalItemType,
+		String canonicalPatronType) {
+
+		log.debug("CONSORTIAL FOLIO Supplier Preflight {} {} {} {}",
+			borrowingAgencyCode, supplyingAgencyCode, canonicalItemType,
+			canonicalPatronType);
+
+		return Mono.just(true);
+	}
 
 	@Data
 	@Builder
