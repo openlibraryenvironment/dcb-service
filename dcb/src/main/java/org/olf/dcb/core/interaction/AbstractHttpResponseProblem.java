@@ -27,7 +27,8 @@ public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
 		HttpClientResponseException responseException, HttpRequest<?> request) {
 
 		return Map.of(
-			"responseStatusCode", getValue(responseException.getStatus(), HttpStatus::getCode),
+			"responseStatusCode", getValue(responseException,
+				HttpClientResponseException::getStatus, HttpStatus::getCode, "Unknown"),
 			"responseBody", interpretResponseBody(responseException),
 			"requestMethod", getValueOrDefault(request, HttpRequest::getMethodName, "Unknown"),
 			"requestUrl", getValue(request, HttpRequest::getUri, URI::toString, "Unknown"),
@@ -38,13 +39,16 @@ public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
 	private static Object interpretResponseBody(HttpClientResponseException responseException) {
 		final var response = getValue(responseException, HttpClientResponseException::getResponse);
 
+		if (response == null) {
+			return noBodyMessage();
+		}
+
 		final var optionalJsonBody = response.getBody(Argument.of(Map.class));
 
 		if (optionalJsonBody.isPresent()) {
 			return optionalJsonBody.get();
 		} else {
-			return response.getBody(Argument.of(String.class)).orElse(
-				noBodyMessage());
+			return response.getBody(Argument.of(String.class)).orElse(noBodyMessage());
 		}
 	}
 

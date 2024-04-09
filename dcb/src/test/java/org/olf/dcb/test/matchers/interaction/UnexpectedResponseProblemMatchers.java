@@ -20,7 +20,7 @@ public class UnexpectedResponseProblemMatchers {
 	}
 
 	public static Matcher<ThrowableProblem> hasResponseStatusCodeParameter(
-		Integer expectedStatusCode) {
+		Object expectedStatusCode) {
 
 		return hasParameters(hasEntry(equalTo("responseStatusCode"), is(expectedStatusCode)));
 	}
@@ -53,5 +53,9 @@ public class UnexpectedResponseProblemMatchers {
 
 	public static Matcher<ThrowableProblem> hasRequestBodyParameter(Matcher<?> valueMatcher) {
 		return hasParameters(hasEntry(equalTo("requestBody"), valueMatcher));
+	}
+
+	public static Matcher<ThrowableProblem> hasNoRequestBody() {
+		return hasRequestBodyParameter(is("No body"));
 	}
 }

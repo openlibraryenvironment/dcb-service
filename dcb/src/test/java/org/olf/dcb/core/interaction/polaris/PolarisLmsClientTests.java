@@ -45,7 +45,7 @@ import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
 import static org.olf.dcb.test.matchers.ThrowableProblemMatchers.hasParameters;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
-import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestBodyParameter;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoRequestBody;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestUrlParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasResponseStatusCodeParameter;
@@ -652,7 +652,7 @@ class PolarisLmsClientTests {
 			hasResponseStatusCodeParameter(500),
 			hasTextResponseBodyParameter("Something went wrong"),
 			hasRequestMethodParameter("GET"),
-			hasRequestBodyParameter(is("No body")),
+			hasNoRequestBody(),
 			hasRequestUrlParameter(
 				"https://polaris-hostlms-tests.com/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/6483613")
 		));

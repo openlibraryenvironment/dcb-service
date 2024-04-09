@@ -11,6 +11,7 @@ import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasMessageForRequest;
+import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoRequestBody;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasNoResponseBodyParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestBodyParameter;
 import static org.olf.dcb.test.matchers.interaction.UnexpectedResponseProblemMatchers.hasRequestMethodParameter;
@@ -174,7 +175,21 @@ class UnexpectedResponseProblemTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasMessageForHostLms("example-host-lms"),
-			hasRequestBodyParameter(is("No body"))
+			hasNoRequestBody()
+		));
+	}
+
+	@Test
+	void shouldTolerateNullResponseException() {
+		// Act
+		final var problem = unexpectedResponseProblem(null,
+			exampleGetRequest(), "example-host-lms");
+
+		// Assert
+		assertThat(problem, allOf(
+			hasMessageForHostLms("example-host-lms"),
+			hasResponseStatusCodeParameter("Unknown"),
+			hasNoResponseBodyParameter()
 		));
 	}
 
