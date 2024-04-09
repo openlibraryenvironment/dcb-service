@@ -67,7 +67,9 @@ class ApplicationServicesAuthFilter {
 		final String parameters = "/polaris.applicationservices/api/" + version + "/" + language + "/" + product;
 
 		return Mono.just(UriBuilder.of(parameters + "/authentication/staffuser").build())
-			.map(client::resolve)
+			.map(uri -> client.isApplicationServicesBaseUrlPresent()
+				? client.overrideResolve(uri)
+				: client.defaultResolve(uri))
 			.map(resolvedUri -> HttpRequest.create(POST, resolvedUri.toString()).accept(APPLICATION_JSON))
 			.map(this::staffAuthorization)
 			// empty body needs to be passed to make successful call

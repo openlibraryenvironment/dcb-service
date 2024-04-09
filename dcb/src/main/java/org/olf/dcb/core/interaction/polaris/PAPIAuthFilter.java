@@ -148,7 +148,7 @@ class PAPIAuthFilter {
 
 	private Mono<MutableHttpRequest<?>> createAuthRequest(String path, Object requestBody) {
 		return Mono.defer(() -> Mono.just(UriBuilder.of(path).build())
-			.map(client::resolve)
+			.map(client::defaultResolve)
 			.map(resolvedUri -> HttpRequest.create(POST, resolvedUri.toString()).accept(APPLICATION_JSON))
 			.map(request -> request.body(requestBody)));
 	}

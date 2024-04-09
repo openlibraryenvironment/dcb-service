@@ -604,7 +604,11 @@ class ApplicationServicesClient {
 	private Mono<MutableHttpRequest<?>> createRequest(HttpMethod httpMethod, String path,
 		Consumer<UriBuilder> uriBuilderConsumer) {
 
-		return client.createRequest(httpMethod,path).map(req -> req.uri(uriBuilderConsumer)).flatMap(authFilter::basicAuth);
+		final var createdRequest = client.isApplicationServicesBaseUrlPresent()
+			? client.createRequestWithOverrideURL(httpMethod,path)
+			: client.createRequest(httpMethod,path);
+
+		return createdRequest.map(req -> req.uri(uriBuilderConsumer)).flatMap(authFilter::basicAuth);
 	}
 
 	private String createPath(Object... pathSegments) {

@@ -93,7 +93,8 @@ import services.k_int.utils.UUIDUtils;
 @Slf4j
 @Prototype
 public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsPagedRow>, HostLmsClient {
-	private final URI rootUri;
+	private final URI defaultBaseUrl;
+	private final URI applicationServicesOverrideURL;
 	private final HostLms lms;
 	private final HttpClient client;
 	private final ProcessStateService processStateService;
@@ -121,7 +122,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
-		rootUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
+		final var clientConfig = hostLms.getClientConfig();
+
+
+		// The URL for ingest
+		defaultBaseUrl = getBaseURL(clientConfig, DEFAULT_CLIENT_BASE_URL, TRUE);
+		applicationServicesOverrideURL = getBaseURL(clientConfig, OVERRIDE_CLIENT_BASE_URL, FALSE);
+
 		lms = hostLms;
 
 		this.ApplicationServices = new ApplicationServicesClient(this);
@@ -135,6 +142,22 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
 		this.client = client;
 	}
+
+	private URI getBaseURL(Map<String, Object> clientConfig, String baseUrlKey, Boolean throwExceptionIfNull) {
+		final var configValue = extractRequiredMapValue(clientConfig, baseUrlKey, String.class);
+
+		if (configValue == null) {
+			if (throwExceptionIfNull) {
+				throw new IllegalArgumentException("Client base URL key " + baseUrlKey + " is null.");
+			} else {
+				log.warn("No client base URL found for key: {}", baseUrlKey);
+				return null;
+			}
+		}
+
+		return UriBuilder.of(configValue).build();
+	}
+
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(
@@ -902,12 +925,27 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	<T> Mono<MutableHttpRequest<?>> createRequest(HttpMethod method, String path) {
 		return Mono.just(UriBuilder.of(path).build())
-			.map(this::resolve)
+			.map(this::defaultResolve)
 			.map(resolvedUri -> HttpRequest.<T>create(method, resolvedUri.toString()).accept(APPLICATION_JSON));
 	}
 
-	URI resolve(URI relativeURI) {
-		return RelativeUriResolver.resolve(rootUri, relativeURI);
+	<T> Mono<MutableHttpRequest<?>> createRequestWithOverrideURL(HttpMethod method, String path) {
+
+		return Mono.just(UriBuilder.of(path).build())
+			.map(this::overrideResolve)
+			.map(resolvedUri -> HttpRequest.<T>create(method, resolvedUri.toString()).accept(APPLICATION_JSON));
+	}
+
+	Boolean isApplicationServicesBaseUrlPresent() {
+		return applicationServicesOverrideURL != null ? TRUE : FALSE;
+	}
+
+	URI defaultResolve(URI relativeURI) {
+		return RelativeUriResolver.resolve(defaultBaseUrl, relativeURI);
+	}
+
+	URI overrideResolve(URI relativeURI) {
+		return RelativeUriResolver.resolve(applicationServicesOverrideURL, relativeURI);
 	}
 
 	private UUID uuid5ForBibPagedRow(@NotNull final BibsPagedRow result) {
@@ -1078,6 +1116,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		if (params.values().stream().anyMatch(Objects::isNull)) {
 			log.error("One or more parameter values are null: params={}", params);
+			throw new IllegalArgumentException("One or more parameter values are null: params="+params);
 		}
 
 		return params.values().stream().map(s -> "/" + s).collect(Collectors.joining());

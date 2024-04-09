@@ -2,7 +2,8 @@ package org.olf.dcb.core.interaction.polaris;
 
 class PolarisConstants {
 	public static final String UUID5_PREFIX = "ingest-source:polaris-lms";
-	public static final String CLIENT_BASE_URL = "base-url";
+	public static final String DEFAULT_CLIENT_BASE_URL = "base-url";
+	public static final String OVERRIDE_CLIENT_BASE_URL = "base-url-application-services";
 	public static final String MAX_BIBS = "page-size";
 	public static final String DOMAIN_ID = "domain-id";
 	public static final String STAFF_USERNAME = "staff-username";
