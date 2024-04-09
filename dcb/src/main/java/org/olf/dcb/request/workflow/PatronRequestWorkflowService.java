@@ -1,16 +1,16 @@
 package org.olf.dcb.request.workflow;
 
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
@@ -18,7 +18,7 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.TrackingHelpers;
 import org.reactivestreams.Publisher;
 import org.slf4j.MDC;
-import org.zalando.problem.DefaultProblem;
+import org.zalando.problem.Problem;
 
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
@@ -168,7 +168,7 @@ public class PatronRequestWorkflowService {
 		return pub -> Flux.from(pub)
 			.onErrorResume(throwable -> Mono.defer(() -> {
 				// If we don't do this, then a subsequent save of the patron request can overwrite the status we explicitly set
-				patronRequest.setStatus(Status.ERROR);
+				patronRequest.setStatus(ERROR);
 
 				final var prId = patronRequest.getId();
 
@@ -181,10 +181,10 @@ public class PatronRequestWorkflowService {
 				log.error("WORKFLOW update patron request {} to error state ({}) - {}",
 					prId, throwable.getMessage(), throwable.getClass().getName());
 
-				Map<String, Object> auditData = null;
+				final var auditData = new HashMap<String, Object>();
 
-				if (throwable instanceof DefaultProblem problem) {
-					auditData = problem.getParameters();
+				if (throwable instanceof Problem problem) {
+					auditData.putAll(problem.getParameters());
 				}
 
 				return Mono.from(patronRequestRepository.updateStatusWithError(prId, throwable.getMessage()))
