@@ -4,9 +4,10 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 
 public class CannotPlaceRequestProblem extends AbstractHttpResponseProblem {
-	public CannotPlaceRequestProblem(String title,
+	public CannotPlaceRequestProblem(String hostLmsCode, String detail,
 		HttpClientResponseException responseException, HttpRequest<?> request) {
 
-		super(title, responseException, request);
+		super("Cannot Place Request in Host LMS \"%s\"".formatted(hostLmsCode),
+			detail, responseException, request);
 	}
 }

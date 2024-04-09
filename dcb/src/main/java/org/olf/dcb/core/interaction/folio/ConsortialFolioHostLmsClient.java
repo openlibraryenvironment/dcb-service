@@ -354,10 +354,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.map(ValidationError::getFirstError)
 				.orElse("Unknown validation error");
 
-			return new CannotPlaceRequestProblem(firstError, clientResponseException, request);
+			return new CannotPlaceRequestProblem(getHostLmsCode(),
+				firstError, clientResponseException, request);
 		}
 		else {
-			return new CannotPlaceRequestProblem("Unknown validation error", null, request);
+			return new CannotPlaceRequestProblem(getHostLmsCode(),
+				"Unknown validation error", null, request);
 		}
 	}
 

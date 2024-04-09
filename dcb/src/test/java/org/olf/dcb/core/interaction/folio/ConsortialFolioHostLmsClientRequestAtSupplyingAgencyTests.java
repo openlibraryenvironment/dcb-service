@@ -13,10 +13,11 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
+import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasDetail;
+import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasTitle;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.util.List;
@@ -28,15 +29,17 @@ import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
-import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+@Slf4j
 @MockServerMicronautTest
 class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 	private static final String SUPPLYING_HOST_LMS_CODE = "folio-supplying-host-lms";
@@ -138,7 +141,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		// Act
 		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
-		final var exception = assertThrows(CannotPlaceRequestProblem.class,
+		final var problem = assertThrows(CannotPlaceRequestProblem.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
 					.localItemId(UUID.randomUUID().toString())
@@ -150,7 +153,11 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.build())));
 
 		// Assert
-		assertThat(exception, hasMessage("Something went wrong"));
+		assertThat(problem, allOf(
+			hasTitle("Cannot Place Request in Host LMS \"%s\"".formatted(SUPPLYING_HOST_LMS_CODE)),
+			hasDetail("Something went wrong"),
+			hasResponseStatusCode(422)
+		));
 	}
 
 	@Test
@@ -171,7 +178,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		// Act
 		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
-		final var exception = assertThrows(CannotPlaceRequestProblem.class,
+		final var problem = assertThrows(CannotPlaceRequestProblem.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
 					.localItemId(UUID.randomUUID().toString())
@@ -182,8 +189,14 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.pickupAgency(pickupAgency)
 					.build())));
 
+		log.debug("Problem Parameters {}", problem.getParameters());
+
 		// Assert
-		assertThat(exception, hasMessage("Patron group not found with name unknown group"));
+		assertThat(problem, allOf(
+			hasTitle("Cannot Place Request in Host LMS \"%s\"".formatted(SUPPLYING_HOST_LMS_CODE)),
+			hasDetail("Patron group not found with name unknown group"),
+			hasResponseStatusCode(404)
+		));
 	}
 
 	@Test
@@ -234,7 +247,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		// Act
 		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
-		final var problem = assertThrows(ThrowableProblem.class,
+		final var problem = assertThrows(UnexpectedHttpResponseProblem.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
 					.localItemId(UUID.randomUUID().toString())

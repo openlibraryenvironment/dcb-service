@@ -19,7 +19,7 @@ public class UnexpectedHttpResponseProblem extends AbstractHttpResponseProblem {
 	private UnexpectedHttpResponseProblem(HttpClientResponseException responseException,
 		HttpRequest<?> request, String hostLmsCode) {
 
-		super(determineTitle(hostLmsCode, request), responseException, request);
+		super(determineTitle(hostLmsCode, request), null, responseException, request);
 	}
 
 	private static String determineTitle(String hostLmsCode, HttpRequest<?> request) {

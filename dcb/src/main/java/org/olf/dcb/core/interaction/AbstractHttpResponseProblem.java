@@ -15,11 +15,11 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 
 public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
-	protected AbstractHttpResponseProblem(String title, HttpClientResponseException responseException,
-		HttpRequest<?> request) {
+	protected AbstractHttpResponseProblem(String title, String detail,
+		HttpClientResponseException responseException, HttpRequest<?> request) {
 
 		super(URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/overview"),
-			title, INTERNAL_SERVER_ERROR, null, null, null,
+			title, INTERNAL_SERVER_ERROR, detail, null, null,
 			determineParameters(responseException, request));
 	}
 
