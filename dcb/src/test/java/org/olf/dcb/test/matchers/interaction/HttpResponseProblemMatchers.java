@@ -9,7 +9,7 @@ import static org.olf.dcb.test.matchers.ThrowableProblemMatchers.hasParameters;
 import org.hamcrest.Matcher;
 import org.zalando.problem.ThrowableProblem;
 
-public class UnexpectedResponseProblemMatchers {
+public class HttpResponseProblemMatchers {
 	public static Matcher<ThrowableProblem> hasMessageForHostLms(String expectedHostLmsCode) {
 		return hasMessage("Unexpected response from Host LMS: \"%s\""
 			.formatted(expectedHostLmsCode));
