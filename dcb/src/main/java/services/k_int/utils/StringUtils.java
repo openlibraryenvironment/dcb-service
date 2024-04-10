@@ -1,5 +1,8 @@
 package services.k_int.utils;
 
+import static io.micronaut.core.util.StringUtils.*;
+import static java.lang.Math.min;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -13,7 +16,11 @@ public interface StringUtils {
 	}
 
 	static String truncate(String value, int maximumLength) {
-		return value.substring(0, Math.min(value.length(), maximumLength));
+		if (isEmpty(value)) {
+			return value;
+		}
+
+		return value.substring(0, min(value.length(), maximumLength));
 	}
 
 	interface Functions {
@@ -22,7 +29,7 @@ public interface StringUtils {
 		}
 	}
 
-	public static List<String> parseList(String input) {
+	static List<String> parseList(String input) {
 		if (input == null)
 			return null;
 

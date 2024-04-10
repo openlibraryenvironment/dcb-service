@@ -157,6 +157,41 @@ class PatronRequestWorkflowServiceTests {
 	}
 
 	@Test
+	void shouldTransitionPatronRequestToErrorStatusForProblemWithoutTitle() {
+		// Arrange
+		final var patronRequestId = randomUUID();
+
+		final var patronRequest = PatronRequest.builder()
+			.id(patronRequestId)
+			.status(RESOLVED)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		assertThrows(ThrowableProblem.class, () -> singleValueFrom(
+			Mono.just(patronRequest)
+				.flatMap(pr -> raiseProblem(null, "Some Detail", "some-parameter", "some-value"))
+				.transform(workflowService.getErrorTransformerFor(patronRequest))));
+
+		// Assert
+		final var updatedPatronRequest = patronRequestsFixture.findById(patronRequestId);
+
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(ERROR),
+			hasErrorMessage("Some Detail")
+		));
+
+		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(updatedPatronRequest);
+
+		assertThat(onlyAuditEntry, allOf(
+			notNullValue(),
+			hasBriefDescription("Some Detail")
+		));
+	}
+
+	@Test
 	void shouldTolerateTooLongErrorMessageWhenTransitioningPatronRequestToErrorStatus() {
 		// Arrange
 		final var patronRequestId = randomUUID();

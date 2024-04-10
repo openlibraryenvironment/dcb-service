@@ -20,6 +20,7 @@ import org.olf.dcb.tracking.TrackingHelpers;
 import org.reactivestreams.Publisher;
 import org.slf4j.MDC;
 import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
@@ -177,9 +178,7 @@ public class PatronRequestWorkflowService {
 					return Mono.error(throwable);
 				}
 
-				final var message = throwable instanceof Problem problem
-					? problem.getTitle()
-					: throwable.getMessage();
+				final var message = determineMessage(throwable);
 
 				final var auditData = new HashMap<String, Object>();
 
@@ -205,6 +204,16 @@ public class PatronRequestWorkflowService {
 					})
 					.then(Mono.error(throwable));
 			}));
+	}
+
+	private static String determineMessage(Throwable throwable) {
+		if (throwable instanceof ThrowableProblem problem) {
+			return isNotEmpty(problem.getTitle())
+				? problem.getTitle()
+				: problem.getMessage();
+		}
+
+		return throwable.getMessage();
 	}
 
 	private Optional<PatronRequestStateTransition> getApplicableTransitionFor(
