@@ -10,6 +10,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataDetail;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
@@ -112,7 +113,7 @@ class PatronRequestWorkflowServiceTests {
 			hasFromStatus(RESOLVED),
 			hasToStatus(ERROR),
 			hasBriefDescription("Cannot Perform Operation"),
-			hasAuditDataProperty("detail", "Something went wrong"),
+			hasAuditDataDetail("Something went wrong"),
 			hasAuditDataProperty("exampleParameter", "example-value")
 		));
 	}

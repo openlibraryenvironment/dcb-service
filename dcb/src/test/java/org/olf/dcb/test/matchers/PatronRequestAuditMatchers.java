@@ -45,4 +45,8 @@ public class PatronRequestAuditMatchers {
 		return hasProperty("auditData",
 			hasEntry(equalTo(expectedPropertyName), is(expectedPropertyValue)));
 	}
+
+	public static Matcher<PatronRequestAudit> hasAuditDataDetail(String expectedDetail) {
+		return hasAuditDataProperty("detail", expectedDetail);
+	}
 }

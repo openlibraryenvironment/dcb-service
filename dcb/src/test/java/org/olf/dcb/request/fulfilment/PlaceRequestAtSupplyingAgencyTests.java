@@ -10,6 +10,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.briefDescriptionContains;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataDetail;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNestedAuditDataProperty;
@@ -367,7 +368,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 			briefDescriptionContains(partOfTruncatedErrorMessage),
 			hasFromStatus(RESOLVED),
 			hasToStatus(ERROR),
-			hasAuditDataProperty("detail", expectedDetail),
+			hasAuditDataDetail(expectedDetail),
 			hasAuditDataProperty("responseStatusCode", 500),
 			hasNestedAuditDataProperty("responseBody","code", 109),
 			hasNestedAuditDataProperty("responseBody","description", "Invalid configuration"),
