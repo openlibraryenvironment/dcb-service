@@ -2,15 +2,15 @@ package org.olf.dcb.core.svc;
 
 import static services.k_int.utils.ReactorUtils.consumeOnSuccess;
 
+import java.util.List;
+
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
-
-import java.util.List;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
@@ -48,13 +48,6 @@ public class ReferenceValueMappingService {
 					sourceCategory, sourceContext, sourceValue, targetContext),
 				mapping -> log.debug("Found mapping from category: {} context: {} to context {}: {}", sourceContext,
 					sourceContext, targetContext, mapping)));
-	}
-
-	public Mono<ReferenceValueMapping> findReciprocalMapping(String targetCategory,
-		String targetContext, String targetValue, String sourceCategory, String sourceContext) {
-
-		return Mono.from(repository.findOneByFromCategoryAndFromContextAndToCategoryAndToContextAndToValue(
-			sourceCategory, sourceContext, targetCategory, targetContext, targetValue));
 	}
 
 	/**
