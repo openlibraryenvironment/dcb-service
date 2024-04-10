@@ -1,5 +1,8 @@
 package org.olf.dcb.request.fulfilment;
 
+import static org.olf.dcb.request.fulfilment.CheckResult.failed;
+import static org.olf.dcb.request.fulfilment.CheckResult.passed;
+
 import java.util.List;
 
 import org.olf.dcb.core.HostLmsService;
@@ -27,20 +30,30 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 
 		return hostLmsService.getClientFor(localSystemCode)
 			.flatMap(client -> client.getPatronByLocalId(command.getRequestorLocalId()))
-			.map(localPatron -> CheckResult.passed())
-			.onErrorResume(PatronNotFoundInHostLmsException.class,
-				error -> Mono.just(CheckResult.failed(error.getMessage())))
-			.onErrorResume(NoPatronTypeMappingFoundException.class,
-				error -> Mono.just(CheckResult.failed(
-					"Local patron type \"" + error.getLocalPatronType()
-						+ "\" from \"" + error.getHostLmsCode() + "\" is not mapped to a DCB canonical patron type")))
-			.onErrorResume(UnableToConvertLocalPatronTypeException.class,
-				error -> Mono.just(CheckResult.failed(
-						"Local patron \"" + error.getLocalId() + "\" from \""
-							+ error.getLocalSystemCode() + "\" has non-numeric patron type \"" + error.getLocalPatronTypeCode() + "\""
-					)))
-			.onErrorReturn(UnknownHostLmsException.class,
-				CheckResult.failed("\"" + localSystemCode + "\" is not a recognised Host LMS"))
+			.map(localPatron -> passed())
+			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
+			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
+			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
+			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(localSystemCode))
 			.map(List::of);
+	}
+
+	private Mono<CheckResult> patronNotFound(PatronNotFoundInHostLmsException error) {
+		return Mono.just(failed(error.getMessage()));
+	}
+
+	private Mono<CheckResult> noPatronTypeMappingFound(NoPatronTypeMappingFoundException error) {
+		return Mono.just(failed(
+			"Local patron type \"%s\" from \"%s\" is not mapped to a DCB canonical patron type"
+				.formatted(error.getLocalPatronType(), error.getHostLmsCode())));
+	}
+
+	private Mono<CheckResult> nonNumericPatronType(UnableToConvertLocalPatronTypeException error) {
+		return Mono.just(failed("Local patron \"%s\" from \"%s\" has non-numeric patron type \"%s\""
+			.formatted(error.getLocalId(), error.getLocalSystemCode(), error.getLocalPatronTypeCode())));
+	}
+
+	private static CheckResult unknownHostLms(String localSystemCode) {
+		return failed("\"%s\" is not a recognised Host LMS".formatted(localSystemCode));
 	}
 }
