@@ -3,14 +3,16 @@ package org.olf.dcb.request.workflow;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.anEmptyMap;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataDetail;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
-import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataDetail;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
@@ -119,6 +121,42 @@ class PatronRequestWorkflowServiceTests {
 	}
 
 	@Test
+	void shouldTransitionPatronRequestToErrorStatusForProblemWithoutDetail() {
+		// Arrange
+		final var patronRequestId = randomUUID();
+
+		final var patronRequest = PatronRequest.builder()
+			.id(patronRequestId)
+			.status(RESOLVED)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		assertThrows(ThrowableProblem.class, () -> singleValueFrom(
+			Mono.just(patronRequest)
+				.flatMap(pr -> raiseProblem("Cannot Perform Operation"))
+				.transform(workflowService.getErrorTransformerFor(patronRequest))));
+
+		// Assert
+		final var updatedPatronRequest = patronRequestsFixture.findById(patronRequestId);
+
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(ERROR),
+			hasErrorMessage("Cannot Perform Operation")
+		));
+
+		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(updatedPatronRequest);
+
+		assertThat(onlyAuditEntry, allOf(
+			notNullValue(),
+			hasBriefDescription("Cannot Perform Operation"),
+			hasProperty("auditData", anEmptyMap())
+		));
+	}
+
+	@Test
 	void shouldTolerateTooLongErrorMessageWhenTransitioningPatronRequestToErrorStatus() {
 		// Arrange
 		final var patronRequestId = randomUUID();
@@ -150,10 +188,17 @@ class PatronRequestWorkflowServiceTests {
 		return Mono.error(new RuntimeException(message));
 	}
 
-	private static Mono<PatronRequest> raiseProblem(String message, String detail,
-		String parameterKey, String parameterValue) {
+	private static Mono<PatronRequest> raiseProblem(String title) {
 		return Mono.error(Problem.builder()
-			.withTitle(message)
+			.withTitle(title)
+			.build());
+	}
+
+	private static Mono<PatronRequest> raiseProblem(String title, String detail,
+		String parameterKey, String parameterValue) {
+
+		return Mono.error(Problem.builder()
+			.withTitle(title)
 			.withDetail(detail)
 			.with(parameterKey, parameterValue)
 			.build());
