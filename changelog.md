@@ -1,9 +1,17 @@
 # Changelog
 
+## Version 6.1.0
+
+### Additions
+* [General]
+	* Use problem title for error message when transitioning to error status
+	* add override baseurl for polaris application services API
+
 ## Version 6.0.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Improve logging when there are problems with patron type mappings
 	* ensure that checkout errors go to log and audit
 	* more logging in polaris checkout
@@ -25,95 +33,10 @@
 ## Version 6.0.0
 
 ### Additions
-* [Tracking]
-	* **BREAKING** -  Add a new tracking implementation and disable the previous implementation
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* Make updatePatronRequest return the UUID of the PR and not the full object
-	* Additional logging supplier item tracking
-	* Add nextScheduledPoll to schema [DCB-989]
-	* Extend skipped loan detection to RET-LOCAL workflow
-	* Include missing borrower items in guard condition for skipped loan
-	* add HandleBorrowerSkippedLoanTransit to try to recover from a missed loan phase or a cancellation return
-	* remove unused WorkflowAction
-	* remove residual workflow actions
-	* Added dev durations to tracking helper
-	* Extend checkOutItem to have item barcode and patron id available ready to address DCB-983
-	* Disable 2 supplying agency tests until we can look at them on tuesday
-	* Extra logging when a patron type changes
-* [Feature]
-	* Allow sierra RECEIVED item state to trigger completion from RETURN_TRANSIT
-	* /patrons/requests/{patronRequestId}/update
-	* Use location@agency as pickup location when placing a supplier request at a sierra agency
-
-### Fixes
-* [General]
-	* Exclude suppressed items from live availability DCB-976
-	* transitioning to supplier item available before item has been loaned
-	* if condition improved for matching patron types
-	* Use item barcode when submitting a checkOut to sierra - DCB-983
-	* use the determined patron type to update the virtual patron
-	* DCB-980 Use location.code when placing a borrowing hold on a sierra system instead of agency code. This ensures that the specific code the user selected is used in the borrowing library system.
-
-## Version 5.12.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* more logging for HandleSupplierInTransit
-	* Additional logging around isApplicable for HandleSupplierInTransit
-	* Surface suppressed flag in RTAC results
-
-### Fixes
-* [General]
-	* HandleSupplierInTransit is triggered by ITEM type and not REQUEST type
-	* patron update for patron type in Sierra client
-
-## Version 5.12.0
-
-### Additions
-* [Tracking]
-	* Improvements
-* [General]
-	* Use Host LMS from agency for items DCB-947
-	* Ingest counts per second
-	* Exclude items without an agency from resolution DCB-947
-	* update a Polaris virtual item to pickup transit [DCB-950]
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* preparation for tracking refactor
-	* Added DummyRequestData class to DummyHostLms to be able to track requests
-	* make next scheduled check nullable
-	* Added previous state and is loaned to vpatron props
-	* Added tracking helpers
-	* add missig migration
-	* Preparation for pre scheduled tracking, paused requests and needs attention
-	* Add location.localId to graphql schema
-	* Sierra now tracks the highest record timestamp seen at ingest time in preparation for refining the delta process
-
-### Fixes
-* [General]
-	* use pickup locations local id for folios borrowing request
-	* use new query param for polaris ingest 'startdatemodified'
-	* polaris workflow Hold requests are not permitted on Provisional records
-	* get item with duplicate barcode in polaris [DCB-949]
-
-## Version 5.11.1
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-	* comment out graalvm jar it causes the native image build to explode
-
-## Version 5.11.0
-
-### Additions
 * [Build]
 	* **BREAKING** -  Restructure into sub projects
+* [Tracking]
+	* **BREAKING** -  Add a new tracking implementation and disable the previous implementation
 * [General]
 	* **BREAKING** -  Add partitions to data model and consolidate migrations
 	* **BREAKING** -  Rename consortial FOLIO host LMS client DCB-774
@@ -139,7 +62,13 @@
 	* Multiple Lms/Agencies initially from config only.
 * [Locations]
 	* Added list method with temporary, static data
+* [Tracking]
+	* Improvements
 * [General]
+	* Use Host LMS from agency for items DCB-947
+	* Ingest counts per second
+	* Exclude items without an agency from resolution DCB-947
+	* update a Polaris virtual item to pickup transit [DCB-950]
 	* Confirm FOLIO supplying agency request immediately DCB-884
 	* Startup defaults and JVM info sources
 	* Fallback to general information field for language DCB-394
@@ -319,6 +248,31 @@
 	* Github - Build native too.
 * [Chore]
 	* Changelog - Generate the changelog
+	* Make updatePatronRequest return the UUID of the PR and not the full object
+	* Additional logging supplier item tracking
+	* Add nextScheduledPoll to schema [DCB-989]
+	* Extend skipped loan detection to RET-LOCAL workflow
+	* Include missing borrower items in guard condition for skipped loan
+	* add HandleBorrowerSkippedLoanTransit to try to recover from a missed loan phase or a cancellation return
+	* remove unused WorkflowAction
+	* remove residual workflow actions
+	* Added dev durations to tracking helper
+	* Extend checkOutItem to have item barcode and patron id available ready to address DCB-983
+	* Disable 2 supplying agency tests until we can look at them on tuesday
+	* Extra logging when a patron type changes
+	* more logging for HandleSupplierInTransit
+	* Additional logging around isApplicable for HandleSupplierInTransit
+	* Surface suppressed flag in RTAC results
+	* preparation for tracking refactor
+	* Added DummyRequestData class to DummyHostLms to be able to track requests
+	* make next scheduled check nullable
+	* Added previous state and is loaned to vpatron props
+	* Added tracking helpers
+	* add missig migration
+	* Preparation for pre scheduled tracking, paused requests and needs attention
+	* Add location.localId to graphql schema
+	* Sierra now tracks the highest record timestamp seen at ingest time in preparation for refining the delta process
+	* comment out graalvm jar it causes the native image build to explode
 	* use concatMap when tracking rather than constrained flatmap
 	* Added necessary options for larger zip file archives
 	* Stop explicitly specifying db pool size and instead compute defaults from allocated cores
@@ -951,6 +905,9 @@
 	* defer creation of invalid response when doing patron auth
 	* extend bib data in cluster response
 * [Feature]
+	* Allow sierra RECEIVED item state to trigger completion from RETURN_TRANSIT
+	* /patrons/requests/{patronRequestId}/update
+	* Use location@agency as pickup location when placing a supplier request at a sierra agency
 	* DCB-939 - graphql endpoint for pickup locations sorted by local agency locations first
 	* Use more descriptive note text
 	* Introduce common function to generate more descriptive note to request workflow context
@@ -2100,6 +2057,18 @@
 	* More Gracefully handle deletion of a virtual item
 	* When the resolver was not able to choose an item because all the options are electronic, resove to no items available
 * [General]
+	* Exclude suppressed items from live availability DCB-976
+	* transitioning to supplier item available before item has been loaned
+	* if condition improved for matching patron types
+	* Use item barcode when submitting a checkOut to sierra - DCB-983
+	* use the determined patron type to update the virtual patron
+	* DCB-980 Use location.code when placing a borrowing hold on a sierra system instead of agency code. This ensures that the specific code the user selected is used in the borrowing library system.
+	* HandleSupplierInTransit is triggered by ITEM type and not REQUEST type
+	* patron update for patron type in Sierra client
+	* use pickup locations local id for folios borrowing request
+	* use new query param for polaris ingest 'startdatemodified'
+	* polaris workflow Hold requests are not permitted on Provisional records
+	* get item with duplicate barcode in polaris [DCB-949]
 	* Stop requesting FOLIO transaction status for empty ID
 	* Trying a different engine to see if that resolves the statemodel generation problem
 	* Allow FOLIO CLOSED state to complete a dcb request
