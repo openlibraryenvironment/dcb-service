@@ -144,13 +144,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private URI getBaseURL(Map<String, Object> clientConfig, String baseUrlKey, Boolean throwExceptionIfNull) {
-		final var configValue = extractRequiredMapValue(clientConfig, baseUrlKey, String.class);
+		final var configValue = extractOptionalMapValue(clientConfig, baseUrlKey, String.class);
 
 		if (configValue == null) {
 			if (throwExceptionIfNull) {
 				throw new IllegalArgumentException("Client base URL key " + baseUrlKey + " is null.");
 			} else {
-				log.warn("No client base URL found for key: {}", baseUrlKey);
+				//log.warn("No client base URL found for key: {}", baseUrlKey);
 				return null;
 			}
 		}
@@ -1124,7 +1124,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	static <T> T extractMapValueWithDefault(Map<String, Object> map, String key, Class<T> type, Object defval) {
-		final Object r1 = extractRequiredMapValue(map,key,type);
+		final Object r1 = extractOptionalMapValue(map,key,type);
 		return type.cast( r1 != null ? r1 : defval );
 	}
 
@@ -1142,7 +1142,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		}
 
 		log.warn("Unable to extract required key: {}, to type: {}, from map: {},", key, type, map);
-		return null;
+		throw new NullPointerException("Unable to extract required key: "+key+", to type: "+type+" from config.");
 	}
 
 	static <T> T extractOptionalMapValue(Map<String, Object> map, String key, Class<T> type) {

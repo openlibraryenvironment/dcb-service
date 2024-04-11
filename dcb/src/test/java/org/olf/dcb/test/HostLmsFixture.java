@@ -122,6 +122,7 @@ public class HostLmsFixture {
 		services.put("site-domain", "polaris");
 		services.put("organisation-id", "73");
 		services.put("workstation-id", "1");
+		services.put("patron-barcode-prefix", "");
 
 		clientConfig.put("services", services);
 
