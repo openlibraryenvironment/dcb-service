@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.UnknownHostLmsException;
+import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
@@ -26,16 +27,29 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
-		final var localSystemCode = command.getRequestorLocalSystemCode();
+		final var hostLmsCode = command.getRequestorLocalSystemCode();
+		final var localPatronId = command.getRequestorLocalId();
 
-		return hostLmsService.getClientFor(localSystemCode)
-			.flatMap(client -> client.getPatronByLocalId(command.getRequestorLocalId()))
-			.map(localPatron -> passed())
+		return hostLmsService.getClientFor(hostLmsCode)
+			.flatMap(client -> client.getPatronByLocalId(localPatronId))
+			.map(patron -> checkEligibility(localPatronId, patron, hostLmsCode))
 			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
-			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(localSystemCode))
+			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(hostLmsCode))
 			.map(List::of);
+	}
+
+	private CheckResult checkEligibility(String localPatronId, Patron patron, String hostLmsCode) {
+		// Uses the incoming local patron ID
+		// rather than the list of IDs that could be returned from the Host LMS
+		// in order to avoid having to choose (and potential data leakage)
+
+		return patron.isEligible()
+			? passed()
+			: failed("PATRON_INELIGIBLE",
+				"Patron \"%s\" from \"%s\" is of type %s which is not eligible for consortial borrowing"
+					.formatted(localPatronId, hostLmsCode, patron.getLocalPatronType()));
 	}
 
 	private Mono<CheckResult> patronNotFound(PatronNotFoundInHostLmsException error) {

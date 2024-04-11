@@ -68,7 +68,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
 			Patron.builder()
-				.id(1000002)
+				.id(Integer.parseInt(localPatronId))
 				.patronType(15)
 				.homeLibraryCode("home-library")
 				.barcodes(List.of("647647746"))
@@ -90,6 +90,45 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		// Assert
 		assertThat(results, containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldFailWhenPatronIsIneligible() {
+		// Arrange
+		final var localPatronId = "345358";
+		final var localPatronType = 15;
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.barcodes(List.of("27536633"))
+				.names(List.of("Bob"))
+				.build());
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "NOT_ELIGIBLE");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		final var s = "[ID]";
+		final var s1 = "[borrowing library full name]";
+		final var s2 = "[patronCode]";
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_INELIGIBLE",
+				"Patron \"%s\" from \"%s\" is of type %s which is not eligible for consortial borrowing"
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, localPatronType))
+		));
 	}
 
 	@Test

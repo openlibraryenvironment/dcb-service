@@ -1,16 +1,17 @@
 package org.olf.dcb.core.interaction;
 
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
+
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import lombok.experimental.Accessors;
-import lombok.Data;
-import java.util.List;
-import java.util.Date;
+import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 /**
  *
@@ -38,6 +39,9 @@ public class Patron {
 	private Date expiryDate; // To be formatted as needed by any system
 	private String localItemId;
 	private Integer localItemLocationId;
-
 	private Boolean isDeleted;
+
+	public boolean isEligible() {
+		return !Objects.equals(canonicalPatronType, "NOT_ELIGIBLE");
+	}
 }
