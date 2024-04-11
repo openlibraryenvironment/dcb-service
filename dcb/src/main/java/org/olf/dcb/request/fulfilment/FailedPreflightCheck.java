@@ -8,10 +8,12 @@ import lombok.Value;
 @Serdeable
 @Builder
 public class FailedPreflightCheck {
+	String code;
 	String failureDescription;
 
 	static FailedPreflightCheck fromResult(CheckResult result) {
 		return builder()
+			.code(result.getFailureCode())
 			.failureDescription(result.getFailureDescription())
 			.build();
 	}

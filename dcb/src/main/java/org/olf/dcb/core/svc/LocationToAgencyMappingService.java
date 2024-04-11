@@ -3,8 +3,8 @@ package org.olf.dcb.core.svc;
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.trimToNull;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static reactor.core.publisher.Mono.empty;
 import static reactor.function.TupleUtils.function;
-import static services.k_int.utils.ReactorUtils.consumeOnSuccess;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
@@ -38,7 +38,7 @@ public class LocationToAgencyMappingService {
 		final var locationCode = trimToNull(getValue(item, Item::getLocationCode));
 
 		if (isEmpty(locationCode)) {
-			return Mono.empty();
+			return empty();
 		}
 
 		return mapLocationToAgency(hostLmsCode, locationCode);
@@ -59,27 +59,10 @@ public class LocationToAgencyMappingService {
 		if (isEmpty(fromContext)) {
 			log.warn("Attempting to find mapping from location (code: \"{}\") to agency with empty from context", locationCode);
 
-			return Mono.empty();
+			return empty();
 		}
 
 		return referenceValueMappingService.findMapping("Location", fromContext,
 			locationCode, "AGENCY", "DCB");
-	}
-
-	public Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
-		String pickupLocationCode, String pickupLocationContext, String requestorLocalSystemCode) {
-
-		return findLocationToAgencyMapping(pickupLocationCode)
-			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(pickupLocationContext, pickupLocationCode)))
-			.switchIfEmpty(Mono.defer(() -> findPickupLocationToAgencyMapping(requestorLocalSystemCode, pickupLocationCode)))
-			.doOnSuccess(consumeOnSuccess(
-				() -> log.info("No pickup location mapping found for {} {} {}",pickupLocationCode,pickupLocationContext,requestorLocalSystemCode),
-				mapping -> log.debug("Found mapping: {}", mapping)));
-	}
-
-	private Mono<ReferenceValueMapping> findPickupLocationToAgencyMapping(
-		String pickupLocationContext, String pickupLocationCode) {
-
-		return findLocationToAgencyMapping(pickupLocationContext, pickupLocationCode);
 	}
 }

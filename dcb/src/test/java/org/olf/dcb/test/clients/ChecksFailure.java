@@ -19,10 +19,15 @@ public class ChecksFailure {
 	@Value
 	@Serdeable
 	public static class Check {
+		@Nullable String code;
 		@Nullable String failureDescription;
 
 		public static Matcher<Check> hasDescription(String expectedDescription) {
 			return hasProperty("failureDescription", is(expectedDescription));
+		}
+
+		public static Matcher<Check> hasCode(String expectedCode) {
+			return hasProperty("code", is(expectedCode));
 		}
 	}
 }

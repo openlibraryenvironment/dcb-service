@@ -21,9 +21,12 @@ public abstract class AbstractPreflightCheckTests {
 			.build();
 	}
 
-	protected static Matcher<CheckResult> failedCheck(String expectedDescription) {
+	protected static Matcher<CheckResult> failedCheck(
+		String expectedCode, String expectedDescription) {
+
 		return allOf(
 			hasProperty("passed", is(false)),
+			hasProperty("failureCode", is(expectedCode)),
 			hasProperty("failureDescription", is(expectedDescription))
 		);
 	}

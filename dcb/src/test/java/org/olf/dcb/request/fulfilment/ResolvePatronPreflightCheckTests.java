@@ -110,10 +110,11 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		final var results = check(command);
 
 		// Assert
-		assertThat(results, containsInAnyOrder(failedCheck(
-			"Patron \"%s\" is not recognised in \"%s\""
-				.formatted(localPatronId, BORROWING_HOST_LMS_CODE)
-		)));
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_NOT_FOUND",
+				"Patron \"%s\" is not recognised in \"%s\""
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
+		));
 	}
 
 	@Test
@@ -142,9 +143,10 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		final var results = check(command);
 
 		// Assert
-		assertThat(results, containsInAnyOrder(failedCheck(
-			"Local patron type \"%d\" from \"%s\" is not mapped to a DCB canonical patron type"
-				.formatted(unmappedLocalPatronType, BORROWING_HOST_LMS_CODE))
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_TYPE_NOT_MAPPED",
+				"Local patron type \"%d\" from \"%s\" is not mapped to a DCB canonical patron type"
+					.formatted(unmappedLocalPatronType, BORROWING_HOST_LMS_CODE))
 		));
 	}
 
@@ -171,18 +173,21 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		final var results = check(command);
 
 		// Assert
-		assertThat(results, containsInAnyOrder(failedCheck(
-			"Local patron \"%s\" from \"%s\" has non-numeric patron type \"null\""
-				.formatted(localPatronId, BORROWING_HOST_LMS_CODE)
-		)));
+		assertThat(results, containsInAnyOrder(
+			failedCheck("LOCAL_PATRON_TYPE_IS_NON_NUMERIC",
+				"Local patron \"%s\" from \"%s\" has non-numeric patron type \"null\""
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
+		));
 	}
 
 	@Test
 	void shouldFailWhenHostLmsIsNotRecognised() {
 		// Act
+		final var unknownHostLmsCode = "unknown-host-lms";
+
 		final var command = PlacePatronRequestCommand.builder()
 			.requestor(PlacePatronRequestCommand.Requestor.builder()
-				.localSystemCode("unknown-host-lms")
+				.localSystemCode(unknownHostLmsCode)
 				.build())
 			.build();
 
@@ -190,7 +195,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		// Assert
 		assertThat(results, containsInAnyOrder(
-			failedCheck("\"unknown-host-lms\" is not a recognised Host LMS")));
+			failedCheck("UNKNOWN_BORROWING_HOST_LMS",
+				"\"%s\" is not a recognised Host LMS".formatted(unknownHostLmsCode))
+		));
 	}
 
 	private List<CheckResult> check(PlacePatronRequestCommand command) {

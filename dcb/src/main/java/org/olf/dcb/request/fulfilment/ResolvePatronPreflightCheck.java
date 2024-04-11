@@ -39,21 +39,24 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 	}
 
 	private Mono<CheckResult> patronNotFound(PatronNotFoundInHostLmsException error) {
-		return Mono.just(failed(error.getMessage()));
+		return Mono.just(failed("PATRON_NOT_FOUND", error.getMessage()));
 	}
 
 	private Mono<CheckResult> noPatronTypeMappingFound(NoPatronTypeMappingFoundException error) {
-		return Mono.just(failed(
+		return Mono.just(failed("PATRON_TYPE_NOT_MAPPED",
 			"Local patron type \"%s\" from \"%s\" is not mapped to a DCB canonical patron type"
 				.formatted(error.getLocalPatronType(), error.getHostLmsCode())));
 	}
 
 	private Mono<CheckResult> nonNumericPatronType(UnableToConvertLocalPatronTypeException error) {
-		return Mono.just(failed("Local patron \"%s\" from \"%s\" has non-numeric patron type \"%s\""
-			.formatted(error.getLocalId(), error.getLocalSystemCode(), error.getLocalPatronTypeCode())));
+		return Mono.just(failed("LOCAL_PATRON_TYPE_IS_NON_NUMERIC",
+			"Local patron \"%s\" from \"%s\" has non-numeric patron type \"%s\""
+				.formatted(error.getLocalId(), error.getLocalSystemCode(), error.getLocalPatronTypeCode())
+		));
 	}
 
 	private static CheckResult unknownHostLms(String localSystemCode) {
-		return failed("\"%s\" is not a recognised Host LMS".formatted(localSystemCode));
+		return failed("UNKNOWN_BORROWING_HOST_LMS",
+			"\"%s\" is not a recognised Host LMS".formatted(localSystemCode));
 	}
 }

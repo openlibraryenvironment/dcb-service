@@ -66,7 +66,8 @@ public class PickupLocationPreflightCheckTests extends AbstractPreflightCheckTes
 
 		// Assert
 		assertThat(results, containsInAnyOrder(
-			failedCheck("\"unknown-pickup-location\" is not a recognised pickup location code")
+			failedCheck("UNKNOWN_PICKUP_LOCATION_CODE",
+				"\"unknown-pickup-location\" is not a recognised pickup location code")
 		));
 	}
 

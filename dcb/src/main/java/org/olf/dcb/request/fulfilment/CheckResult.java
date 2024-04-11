@@ -9,14 +9,15 @@ import lombok.Value;
 @AllArgsConstructor(access = PRIVATE)
 public class CheckResult {
 	Boolean passed;
+	String failureCode;
 	String failureDescription;
 
 	public static CheckResult passed() {
-		return new CheckResult(true, "");
+		return new CheckResult(true, null, null);
 	}
 
-	public static CheckResult failed(String description) {
-		return new CheckResult(false, description);
+	public static CheckResult failed(String code, String description) {
+		return new CheckResult(false, code, description);
 	}
 
 	boolean getFailed() {

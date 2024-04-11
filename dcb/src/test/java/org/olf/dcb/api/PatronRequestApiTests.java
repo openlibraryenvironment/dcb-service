@@ -25,6 +25,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.test.clients.ChecksFailure.Check.hasCode;
 import static org.olf.dcb.test.clients.ChecksFailure.Check.hasDescription;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
@@ -659,9 +660,15 @@ class PatronRequestApiTests {
 
 		assertThat("Body should report unknown pickup location failed check", optionalBody.get(),
 			hasProperty("failedChecks", containsInAnyOrder(
-				hasDescription("\"unknown-pickup-location\" is not a recognised pickup location code"),
-				hasDescription("Pickup location \"unknown-pickup-location\" is not mapped to an agency"))
-			));
+				allOf(
+					hasDescription("\"unknown-pickup-location\" is not a recognised pickup location code"),
+					hasCode("UNKNOWN_PICKUP_LOCATION_CODE")
+				),
+				allOf(
+					hasDescription("Pickup location \"unknown-pickup-location\" is not mapped to an agency"),
+					hasCode("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY")
+				)
+			)));
 
 		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
 			isFailedCheckEvent("\"unknown-pickup-location\" is not a recognised pickup location code"),
@@ -701,8 +708,11 @@ class PatronRequestApiTests {
 
 		assertThat("Body should report unmapped pickup location failed check", optionalBody.get(),
 			hasProperty("failedChecks", containsInAnyOrder(
-				hasDescription("Pickup location \"unmapped-pickup-location\" is not mapped to an agency"))
-			));
+				allOf(
+					hasDescription("Pickup location \"unmapped-pickup-location\" is not mapped to an agency"),
+					hasCode("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY")
+				)
+			)));
 
 		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
 			isFailedCheckEvent("Pickup location \"unmapped-pickup-location\" is not mapped to an agency")));

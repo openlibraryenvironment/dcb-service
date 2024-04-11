@@ -69,8 +69,10 @@ class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPreflight
 		final var results = check(command);
 
 		// Assert
-		assertThat(results, containsInAnyOrder(failedCheck(
-			"Pickup location \"known-pickup-location\" is not mapped to an agency")));
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY",
+				"Pickup location \"known-pickup-location\" is not mapped to an agency")
+		));
 	}
 
 	private List<CheckResult> check(PlacePatronRequestCommand command) {

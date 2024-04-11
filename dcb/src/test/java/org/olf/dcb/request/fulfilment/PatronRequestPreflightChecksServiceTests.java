@@ -3,6 +3,7 @@ package org.olf.dcb.request.fulfilment;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 
 import java.util.Collection;
 import java.util.List;
@@ -37,7 +38,7 @@ class PatronRequestPreflightChecksServiceTests extends AbstractPreflightCheckTes
 	static class AlwaysFailingCheck implements PreflightCheck {
 		@Override
 		public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
-			return Mono.just(List.of(CheckResult.failed("Always fail")));
+			return Mono.just(List.of(failed("ALWAYS_FAIL", "Always fail")));
 		}
 	}
 }
