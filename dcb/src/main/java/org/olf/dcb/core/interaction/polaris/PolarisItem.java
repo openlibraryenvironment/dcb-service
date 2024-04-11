@@ -2,6 +2,7 @@ package org.olf.dcb.core.interaction.polaris;
 
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.polaris.exceptions.UnknownItemStatusException;
 
 import java.util.Map;
 import java.util.function.Function;
@@ -23,7 +24,7 @@ class PolarisItem {
 			case ON_HOLD_SHELF -> HostLmsItem.ITEM_ON_HOLDSHELF;
 			case CHECKED_OUT -> HostLmsItem.ITEM_LOANED;
 			case MISSING -> HostLmsItem.ITEM_MISSING;
-			default -> getUnknown(status);
+			default -> handleUnknownStatus(status);
 		},
 		Direction.HOST_LMS_TO_POLARIS, status -> switch (status) {
 			case HostLmsItem.ITEM_AVAILABLE -> AVAILABLE;
@@ -31,13 +32,16 @@ class PolarisItem {
 			case HostLmsItem.ITEM_ON_HOLDSHELF -> ON_HOLD_SHELF;
 			case HostLmsItem.ITEM_LOANED -> CHECKED_OUT;
 			case HostLmsItem.ITEM_MISSING -> MISSING;
-			default -> throw new RuntimeException("Unable to map a HostLmsItem status: '{ "+status+" }' to a Polaris item status.");
+			default -> throw new UnknownItemStatusException(
+				"Unable to map a HostLmsItem status: '{ "+status+" }' to a Polaris item status.");
 		}
 	);
 
-	private static String getUnknown(String status) {
-		log.warn("Cannot map Polaris local item status '{}' to a Hostlms item status. Returning UNKNOWN", status);
-		return "UNKNOWN";
+	private static String handleUnknownStatus(String status) {
+		log.error("We don't have a mapping from local item status: '{}' to a HostLmsItem status.", status);
+
+		throw new UnknownItemStatusException(
+			"Cannot map Polaris local item status '{ "+status+" }' to a HostLmsItem status.");
 	}
 
 	static String mapItemStatus(Direction direction, String status) {
