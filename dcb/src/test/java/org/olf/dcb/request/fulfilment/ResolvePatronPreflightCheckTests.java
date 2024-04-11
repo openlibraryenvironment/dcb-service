@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
@@ -37,6 +38,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
+	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
 		final String BASE_URL = "https://resolve-patron-tests.com";
@@ -49,6 +52,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
+
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 	}
 
 	@BeforeEach
@@ -57,11 +62,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
-	void shouldPassWhenPatronCanBeFoundInHostLms(MockServerClient mockServerClient) {
+	void shouldPassWhenPatronCanBeFoundInHostLms() {
 		// Arrange
 		final var localPatronId = "345358";
-
-		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
 			Patron.builder()
@@ -90,10 +93,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
-	void shouldFailWhenPatronCannotBeFoundInHostLms(MockServerClient mockServerClient) {
+	void shouldFailWhenPatronCannotBeFoundInHostLms() {
+		// Arrange
 		final var localPatronId = "673825";
-
-		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(localPatronId);
 
@@ -115,12 +117,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
-	void shouldFailWhenLocalPatronTypeIsNotMappedToCanonicalPatronType(
-		MockServerClient mockServerClient) {
-
+	void shouldFailWhenLocalPatronTypeIsNotMappedToCanonicalPatronType() {
 		// Arrange
-		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
-
 		final var localPatronId = "578374";
 		final var unmappedLocalPatronType = 15;
 
@@ -151,11 +149,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
-	void shouldFailWhenNoLocalPatronTypeIsDefined(MockServerClient mockServerClient) {
+	void shouldFailWhenNoLocalPatronTypeIsDefined() {
 		// Arrange
 		final var localPatronId = "683945";
-
-		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId, Patron.builder()
 			.id(Integer.parseInt(localPatronId))
