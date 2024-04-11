@@ -2,7 +2,9 @@ package org.olf.dcb.request.fulfilment;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture.Patron;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
 
@@ -20,7 +22,7 @@ import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(PER_CLASS)
 class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	private static final String HOST_LMS_CODE = "host-lms";
 
@@ -81,7 +83,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.build())
 			.build();
 
-		final var results = check.check(command).block();
+		final var results = check(command);
 
 		// Assert
 		assertThat(results, containsInAnyOrder(passedCheck()));
@@ -103,7 +105,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.build())
 			.build();
 
-		final var results = check.check(command).block();
+		final var results = check(command);
 
 		// Assert
 		assertThat(results, containsInAnyOrder(failedCheck(
@@ -136,7 +138,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.build())
 			.build();
 
-		final var results = check.check(command).block();
+		final var results = check(command);
 
 		// Assert
 		assertThat(results, containsInAnyOrder(failedCheck(
@@ -165,7 +167,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.build())
 			.build();
 
-		final var results = check.check(command).block();
+		final var results = check(command);
 
 		// Assert
 		assertThat(results, containsInAnyOrder(failedCheck(
@@ -181,10 +183,14 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.build())
 			.build();
 
-		final var results = check.check(command).block();
+		final var results = check(command);
 
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("\"unknown-host-lms\" is not a recognised Host LMS")));
+	}
+
+	private List<CheckResult> check(PlacePatronRequestCommand command) {
+		return singleValueFrom(check.check(command));
 	}
 }

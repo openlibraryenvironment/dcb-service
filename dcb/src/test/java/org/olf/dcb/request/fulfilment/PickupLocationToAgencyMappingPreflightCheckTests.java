@@ -2,7 +2,9 @@ package org.olf.dcb.request.fulfilment;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -52,7 +54,7 @@ class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPreflight
 		final var command = placeRequestCommand("0f102b5a-e300-41c8-9aca-afd170e17921",
 			null, "requester-host-lms-code");
 
-		final var results = check.check(command).block();
+		final var results = check(command);
 
 		// Assert
 		assertThat(results, containsInAnyOrder(passedCheck()));
@@ -64,10 +66,14 @@ class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPreflight
 		final var command = placeRequestCommand("known-pickup-location",
 			"pickup-context", "requester-host-lms-code");
 
-		final var results = check.check(command).block();
+		final var results = check(command);
 
 		// Assert
 		assertThat(results, containsInAnyOrder(failedCheck(
 			"Pickup location \"known-pickup-location\" is not mapped to an agency")));
+	}
+
+	private List<CheckResult> check(PlacePatronRequestCommand command) {
+		return singleValueFrom(check.check(command));
 	}
 }

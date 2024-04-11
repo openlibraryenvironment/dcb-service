@@ -2,6 +2,9 @@ package org.olf.dcb.request.fulfilment;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +35,7 @@ public class PickupLocationPreflightCheckTests extends AbstractPreflightCheckTes
 		final var command = placeRequestCommand("known-pickup-location",
 			"pickup-context", "requester-host-lms-code");
 
-		final var results = check.check(command).block();
+		final var results = check(command);
 
 		// Assert
 		assertThat(results, containsInAnyOrder(passedCheck()));
@@ -47,7 +50,7 @@ public class PickupLocationPreflightCheckTests extends AbstractPreflightCheckTes
 		final var command = placeRequestCommand(location.getId().toString(),
 			"pickup-context", "requester-host-lms-code");
 
-		final var results = check.check(command).block();
+		final var results = check(command);
 
 		// Assert
 		assertThat(results, containsInAnyOrder(passedCheck()));
@@ -59,11 +62,15 @@ public class PickupLocationPreflightCheckTests extends AbstractPreflightCheckTes
 		final var command = placeRequestCommand("unknown-pickup-location",
 			"pickup-context", "requester-host-lms-code");
 
-		final var results = check.check(command).block();
+		final var results = check(command);
 
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("\"unknown-pickup-location\" is not a recognised pickup location code")
 		));
+	}
+
+	private List<CheckResult> check(PlacePatronRequestCommand command) {
+		return singleValueFrom(check.check(command));
 	}
 }
