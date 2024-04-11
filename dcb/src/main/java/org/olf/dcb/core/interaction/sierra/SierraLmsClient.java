@@ -467,7 +467,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("patronFind({}, {})", varFieldTag, varFieldContent);
 
 		return Mono.from(client.patronFind(varFieldTag, varFieldContent))
-			.flatMap(result -> validatePatronRecordResult(result))
+			.flatMap(this::validatePatronRecordResult)
 			.flatMap(this::sierraPatronToHostLmsPatron)
 			.onErrorResume(NullPointerException.class, error -> {
 				log.error("NullPointerException occurred when finding Patron: {}", error.getMessage());
@@ -1049,13 +1049,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	private Mono<Patron> sierraPatronToHostLmsPatron(SierraPatronRecord spr) {
 		log.debug("sierraPatronToHostLmsPatron({})", spr);
-		String patronLocalAgency = null;
-
-		// If we were supplied fixed fields, and we can find an entry for fixed field
-		// 158, grab the patron agency
-		if ((spr.getFixedFields() != null) && (spr.getFixedFields().get(FIXED_FIELD_158) != null)) {
-			patronLocalAgency = spr.getFixedFields().get(FIXED_FIELD_158).getValue().toString();
-		}
 
 		final var result = Patron.builder()
 			.localId(singletonList(valueOf(spr.getId())))
@@ -1066,8 +1059,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.isDeleted(spr.getDeleted() != null ? spr.getDeleted() : null)
 			.build();
 
-		if ((result.getLocalBarcodes() == null) || (result.getLocalBarcodes().isEmpty()) )
-			log.warn("Returned patron has NO BARCODES : {} -> {}",spr, result);
+		if ((result.getLocalBarcodes() == null) || (result.getLocalBarcodes().isEmpty()))
+			log.warn("Returned patron has NO BARCODES : {} -> {}", spr, result);
 
 		return Mono.just(result)
 			.flatMap(this::enrichWithCanonicalPatronType);
@@ -1106,13 +1099,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLmsCode())));
 	}
 
-        public Mono<Patron> getPatronByUsername(String username) {
+	public Mono<Patron> getPatronByUsername(String username) {
 		log.debug("getPatronByUsername({})", username);
 		// This is complicated because in sierra, users log on by different fields - some systems are
 		// configured to have users log in by barcode, and others use uniqueId. Here we're going to try a
 		// belt and braces approach and look up by UniqueId first, then Barcode
 		return patronFind("u", username)
-			.switchIfEmpty(Mono.defer(() -> { return patronFind("b", username); }));
+			.switchIfEmpty(Mono.defer(() -> patronFind("b", username)));
 	}
 
 	@Override

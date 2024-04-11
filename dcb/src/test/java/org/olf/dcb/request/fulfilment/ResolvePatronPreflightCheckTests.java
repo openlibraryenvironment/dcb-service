@@ -107,8 +107,11 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.names(List.of("Bob"))
 				.build());
 
+		final var notEligibleCanonicalPatronType = "NOT_ELIGIBLE";
+
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
-			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "NOT_ELIGIBLE");
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB",
+			notEligibleCanonicalPatronType);
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -121,13 +124,11 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		final var results = check(command);
 
 		// Assert
-		final var s = "[ID]";
-		final var s1 = "[borrowing library full name]";
-		final var s2 = "[patronCode]";
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_INELIGIBLE",
-				"Patron \"%s\" from \"%s\" is of type %s which is not eligible for consortial borrowing"
-					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, localPatronType))
+				"Patron \"%s\" from \"%s\" is of type \"%s\" which is \"%s\" for consortial borrowing"
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, localPatronType,
+						notEligibleCanonicalPatronType))
 		));
 	}
 

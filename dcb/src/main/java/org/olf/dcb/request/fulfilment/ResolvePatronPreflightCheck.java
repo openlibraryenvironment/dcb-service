@@ -48,8 +48,8 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		return patron.isEligible()
 			? passed()
 			: failed("PATRON_INELIGIBLE",
-				"Patron \"%s\" from \"%s\" is of type %s which is not eligible for consortial borrowing"
-					.formatted(localPatronId, hostLmsCode, patron.getLocalPatronType()));
+				"Patron \"%s\" from \"%s\" is of type \"%s\" which is \"%s\" for consortial borrowing"
+					.formatted(localPatronId, hostLmsCode, patron.getLocalPatronType(), patron.getCanonicalPatronType()));
 	}
 
 	private Mono<CheckResult> patronNotFound(PatronNotFoundInHostLmsException error) {
