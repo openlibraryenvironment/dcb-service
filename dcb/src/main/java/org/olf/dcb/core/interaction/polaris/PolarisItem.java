@@ -2,14 +2,34 @@ package org.olf.dcb.core.interaction.polaris;
 
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.polaris.exceptions.UnhandledItemStatusException;
 import org.olf.dcb.core.interaction.polaris.exceptions.UnknownItemStatusException;
+import org.olf.dcb.core.model.PatronRequest;
 
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 
 @Slf4j
 class PolarisItem {
+
+	// https://documentation.iii.com/polaris/7.4/PolarisStaffHelp/Patron_Services_Admin/PDPitems/Viewing_Circulation_Statuses.htm
+	private static final List<String> unhandledLocalItemStatuses = List.of(
+		CLAIM_RETURNED,
+		CLAIM_NEVER_HAD,
+		CLAIM_MISSING_PARTS,
+		LOST,
+		RETURNED_ILL,
+		NON_CIRCULATING,
+		WITHDRAWN,
+		IN_REPAIR,
+		BINDERY,
+		UNAVAILABLE,
+		IN_PROCESS,
+		ON_ORDER,
+		ROUTED,
+		E_CONTENT_EXTERNAL_LOAN);
 
 	// Ref: https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/2669510868/DCB+Circulation+Lifecycle+Events
 	private static final Map<Direction, Function<String, String>> STATUS_MAP = Map.of(
@@ -24,7 +44,7 @@ class PolarisItem {
 			case ON_HOLD_SHELF -> HostLmsItem.ITEM_ON_HOLDSHELF;
 			case CHECKED_OUT -> HostLmsItem.ITEM_LOANED;
 			case MISSING -> HostLmsItem.ITEM_MISSING;
-			default -> handleUnknownStatus(status);
+			default -> checkUnhandledStatus(status);
 		},
 		Direction.HOST_LMS_TO_POLARIS, status -> switch (status) {
 			case HostLmsItem.ITEM_AVAILABLE -> AVAILABLE;
@@ -32,16 +52,20 @@ class PolarisItem {
 			case HostLmsItem.ITEM_ON_HOLDSHELF -> ON_HOLD_SHELF;
 			case HostLmsItem.ITEM_LOANED -> CHECKED_OUT;
 			case HostLmsItem.ITEM_MISSING -> MISSING;
-			default -> throw new UnknownItemStatusException(
-				"Unable to map a HostLmsItem status: '{ "+status+" }' to a Polaris item status.");
+			default -> throw new UnhandledItemStatusException(
+				"We do not currently map HostLmsItem status: " + status + " to a local item status.");
 		}
 	);
 
-	private static String handleUnknownStatus(String status) {
+	private static String checkUnhandledStatus(String status) {
 		log.error("We don't have a mapping from local item status: '{}' to a HostLmsItem status.", status);
 
+		if (unhandledLocalItemStatuses.contains(status)) {
+			throw new UnhandledItemStatusException("Local item status " + status + " is unhandled.");
+		}
+
 		throw new UnknownItemStatusException(
-			"Cannot map Polaris local item status '{ "+status+" }' to a HostLmsItem status.");
+			"Local item status " + status + " is unknown.");
 	}
 
 	static String mapItemStatus(Direction direction, String status) {
