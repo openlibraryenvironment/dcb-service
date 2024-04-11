@@ -38,4 +38,6 @@ public class Patron {
 	private Date expiryDate; // To be formatted as needed by any system
 	private String localItemId;
 	private Integer localItemLocationId;
+
+	private Boolean isDeleted;
 }

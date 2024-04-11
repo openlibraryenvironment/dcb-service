@@ -6,6 +6,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.PatronDeletedInHostLmsException;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
@@ -86,6 +88,14 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 				// pi.setResolvedAgency(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(),
 				// hostLmsPatron.getLocalHomeLibraryCode()));
+
+				if (hostLmsPatron.getIsDeleted() != null && hostLmsPatron.getIsDeleted()) {
+					throw new PatronDeletedInHostLmsException(
+						"Patron with local id " + hostLmsPatron.getLocalId() +
+							" and home library code " + hostLmsPatron.getLocalHomeLibraryCode() +
+							" had a deleted flag.");
+				}
+
 				return Mono.just(pi);
 			}).flatMap(updatedPatronIdentity -> {
 					return Mono.fromDirect(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(),

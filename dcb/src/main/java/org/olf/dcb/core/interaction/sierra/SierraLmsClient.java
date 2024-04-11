@@ -467,12 +467,29 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("patronFind({}, {})", varFieldTag, varFieldContent);
 
 		return Mono.from(client.patronFind(varFieldTag, varFieldContent))
-			.filter(result -> nonNull(result.getId()) && nonNull(result.getPatronType()))
+			.flatMap(result -> validatePatronRecordResult(result))
 			.flatMap(this::sierraPatronToHostLmsPatron)
 			.onErrorResume(NullPointerException.class, error -> {
 				log.error("NullPointerException occurred when finding Patron: {}", error.getMessage());
 				return Mono.empty();
 			});
+	}
+
+	private Mono<SierraPatronRecord> validatePatronRecordResult(SierraPatronRecord result) {
+
+		final var isNotDeletedRecord = result.getDeleted() != null ? !result.getDeleted() : TRUE;
+
+		if (nonNull(result.getId())
+			&& nonNull(result.getPatronType())
+			&& isNotDeletedRecord) {
+
+			log.info("SierraPatronRecord was validated :: id:{}", result.getId());
+			return Mono.just(result);
+		}
+
+		log.warn("SierraPatronRecord was not validated :: {}", result);
+		log.warn("Returning empty.");
+		return Mono.empty();
 	}
 
 	@Override
@@ -1046,6 +1063,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.localBarcodes(spr.getBarcodes())
 			.localNames(spr.getNames())
 			.localHomeLibraryCode(spr.getHomeLibraryCode())
+			.isDeleted(spr.getDeleted() != null ? spr.getDeleted() : null)
 			.build();
 
 		if ((result.getLocalBarcodes() == null) || (result.getLocalBarcodes().isEmpty()) )
