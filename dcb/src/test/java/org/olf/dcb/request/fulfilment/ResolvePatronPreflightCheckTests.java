@@ -24,7 +24,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
-	private static final String HOST_LMS_CODE = "host-lms";
+	private static final String BORROWING_HOST_LMS_CODE = "borrowing-host-lms";
 
 	@Inject
 	private ResolvePatronPreflightCheck check;
@@ -48,7 +48,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
+		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 	}
 
 	@BeforeEach
@@ -59,27 +59,27 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldPassWhenPatronCanBeFoundInHostLms(MockServerClient mockServerClient) {
 		// Arrange
-		final var LOCAL_ID = "345358";
+		final var localPatronId = "345358";
 
 		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(LOCAL_ID,
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
 			Patron.builder()
 				.id(1000002)
 				.patronType(15)
-				.homeLibraryCode("testccc")
+				.homeLibraryCode("home-library")
 				.barcodes(List.of("647647746"))
 				.names(List.of("Bob"))
 				.build());
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
-			HOST_LMS_CODE, 10, 25, "DCB", "15");
+			BORROWING_HOST_LMS_CODE, 15, 15, "DCB", "UNDERGRAD");
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
 			.requestor(PlacePatronRequestCommand.Requestor.builder()
-				.localSystemCode(HOST_LMS_CODE)
-				.localId(LOCAL_ID)
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
 				.build())
 			.build();
 
@@ -91,17 +91,17 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 	@Test
 	void shouldFailWhenPatronCannotBeFoundInHostLms(MockServerClient mockServerClient) {
-		final var LOCAL_ID = "673825";
+		final var localPatronId = "673825";
 
 		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
-		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(LOCAL_ID);
+		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(localPatronId);
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
 			.requestor(PlacePatronRequestCommand.Requestor.builder()
-				.localSystemCode(HOST_LMS_CODE)
-				.localId(LOCAL_ID)
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
 				.build())
 			.build();
 
@@ -109,7 +109,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		// Assert
 		assertThat(results, containsInAnyOrder(failedCheck(
-			"Patron \"" + LOCAL_ID + "\" is not recognised in \"" + HOST_LMS_CODE + "\"")));
+			"Patron \"%s\" is not recognised in \"%s\""
+				.formatted(localPatronId, BORROWING_HOST_LMS_CODE)
+		)));
 	}
 
 	@Test
@@ -117,15 +119,16 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		MockServerClient mockServerClient) {
 
 		// Arrange
-		final var LOCAL_ID = "578374";
-
 		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(LOCAL_ID,
+		final var localPatronId = "578374";
+		final var unmappedLocalPatronType = 15;
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
 			Patron.builder()
 				.id(1000002)
-				.patronType(15)
-				.homeLibraryCode("testccc")
+				.patronType(unmappedLocalPatronType)
+				.homeLibraryCode("home-library")
 				.barcodes(List.of("647647746"))
 				.names(List.of("Bob"))
 				.build());
@@ -133,8 +136,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
 			.requestor(PlacePatronRequestCommand.Requestor.builder()
-				.localSystemCode(HOST_LMS_CODE)
-				.localId(LOCAL_ID)
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
 				.build())
 			.build();
 
@@ -142,19 +145,21 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		// Assert
 		assertThat(results, containsInAnyOrder(failedCheck(
-			"Local patron type \"15\" from \"host-lms\" is not mapped to a DCB canonical patron type")));
+			"Local patron type \"%d\" from \"%s\" is not mapped to a DCB canonical patron type"
+				.formatted(unmappedLocalPatronType, BORROWING_HOST_LMS_CODE))
+		));
 	}
 
 	@Test
 	void shouldFailWhenNoLocalPatronTypeIsDefined(MockServerClient mockServerClient) {
 		// Arrange
-		final var LOCAL_ID = "683945";
+		final var localPatronId = "683945";
 
 		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(LOCAL_ID, Patron.builder()
-			.id(Integer.parseInt(LOCAL_ID))
-			.homeLibraryCode("testccc")
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId, Patron.builder()
+			.id(Integer.parseInt(localPatronId))
+			.homeLibraryCode("home-library")
 			.barcodes(List.of("647647746"))
 			.names(List.of("Bob"))
 			.build());
@@ -162,8 +167,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
 			.requestor(PlacePatronRequestCommand.Requestor.builder()
-				.localSystemCode(HOST_LMS_CODE)
-				.localId(LOCAL_ID)
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
 				.build())
 			.build();
 
@@ -171,7 +176,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		// Assert
 		assertThat(results, containsInAnyOrder(failedCheck(
-			"Local patron \"" + LOCAL_ID + "\" from \"host-lms\" has non-numeric patron type \"null\"")));
+			"Local patron \"%s\" from \"%s\" has non-numeric patron type \"null\""
+				.formatted(localPatronId, BORROWING_HOST_LMS_CODE)
+		)));
 	}
 
 	@Test
