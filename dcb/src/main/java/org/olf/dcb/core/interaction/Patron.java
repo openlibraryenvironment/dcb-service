@@ -44,4 +44,8 @@ public class Patron {
 	public boolean isEligible() {
 		return !Objects.equals(canonicalPatronType, "NOT_ELIGIBLE");
 	}
+
+	public boolean isNotDeleted() {
+		return isDeleted == null || !isDeleted;
+	}
 }

@@ -323,6 +323,7 @@ public class SierraPatronsAPIFixture {
 		String homeLibraryCode;
 		List<String> barcodes;
 		List<String> names;
+		Boolean deleted;
 	}
 	
 	@Data

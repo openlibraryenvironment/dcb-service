@@ -65,18 +65,19 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	void shouldPassWhenPatronCanBeFoundInHostLms() {
 		// Arrange
 		final var localPatronId = "345358";
+		final var localPatronType = 15;
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
 			Patron.builder()
 				.id(Integer.parseInt(localPatronId))
-				.patronType(15)
+				.patronType(localPatronType)
 				.homeLibraryCode("home-library")
 				.barcodes(List.of("647647746"))
 				.names(List.of("Bob"))
 				.build());
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
-			BORROWING_HOST_LMS_CODE, 15, 15, "DCB", "UNDERGRAD");
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -153,6 +154,43 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_NOT_FOUND",
 				"Patron \"%s\" is not recognised in \"%s\""
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
+		));
+	}
+
+	@Test
+	void shouldFailWhenPatronHasBeenDeletedInHostLms() {
+		// Arrange
+		final var localPatronId = "352452";
+		final var localPatronType = 15;
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.deleted(true)
+				.build());
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_DELETED",
+				"Patron \"%s\" from \"%s\" has been deleted"
 					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
 		));
 	}

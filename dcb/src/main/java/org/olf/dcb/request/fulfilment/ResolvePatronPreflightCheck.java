@@ -32,11 +32,15 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 
 		return hostLmsService.getClientFor(hostLmsCode)
 			.flatMap(client -> client.getPatronByLocalId(localPatronId))
+			// Could be done inside the Host LMS client method
+			// Was not done initially due to potentially affecting other uses
+			.filter(Patron::isNotDeleted)
 			.map(patron -> checkEligibility(localPatronId, patron, hostLmsCode))
 			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(hostLmsCode))
+			.switchIfEmpty(patronDeleted(localPatronId, hostLmsCode))
 			.map(List::of);
 	}
 
@@ -54,6 +58,11 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 
 	private Mono<CheckResult> patronNotFound(PatronNotFoundInHostLmsException error) {
 		return Mono.just(failed("PATRON_NOT_FOUND", error.getMessage()));
+	}
+
+	private Mono<CheckResult> patronDeleted(String localPatronId, String hostLmsCode) {
+		return Mono.defer(() -> Mono.just(failed("PATRON_DELETED",
+			"Patron \"%s\" from \"%s\" has been deleted".formatted(localPatronId, hostLmsCode))));
 	}
 
 	private Mono<CheckResult> noPatronTypeMappingFound(NoPatronTypeMappingFoundException error) {
