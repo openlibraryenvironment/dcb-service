@@ -20,10 +20,10 @@ public class ChecksFailure {
 	@Serdeable
 	public static class Check {
 		@Nullable String code;
-		@Nullable String failureDescription;
+		@Nullable String description;
 
 		public static Matcher<Check> hasDescription(String expectedDescription) {
-			return hasProperty("failureDescription", is(expectedDescription));
+			return hasProperty("description", is(expectedDescription));
 		}
 
 		public static Matcher<Check> hasCode(String expectedCode) {

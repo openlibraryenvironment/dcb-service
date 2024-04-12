@@ -9,12 +9,12 @@ import lombok.Value;
 @Builder
 public class FailedPreflightCheck {
 	String code;
-	String failureDescription;
+	String description;
 
 	static FailedPreflightCheck fromResult(CheckResult result) {
 		return builder()
 			.code(result.getFailureCode())
-			.failureDescription(result.getFailureDescription())
+			.description(result.getFailureDescription())
 			.build();
 	}
 }
