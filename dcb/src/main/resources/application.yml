@@ -47,6 +47,8 @@ micronaut:
     client:
       read-timeout: PT1M
       max-content-length: 20971520
+      # Without this, http connections can silently expire but the closed connection will not be
+      # discovered until we try to make a request. This was causing random failures talking to ES
       connect-ttl: PT30S
       
   metrics:
