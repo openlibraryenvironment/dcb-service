@@ -63,15 +63,9 @@ public class PatronRequestResolutionService {
 			.doOnNext(item -> log.debug("Selected item {}", item))
 			.flatMap(item -> createSupplierRequest(item, patronRequest))
 			.map(PatronRequestResolutionService::mapToResolution)
-			// pretty sure this onErrorReturn is being evaluated eagerly and is updating the patron request regardless of the 
-			// presence of an error. If there was an error, the stream should be empty and the case should be caught by the
-			// switchIfEmpty, so trying without the explicitOnErrorReturn for now
-			// .onErrorReturn(NoItemsRequestableAtAnyAgency.class, resolveToNoItemsAvailable(patronRequest))
-			.doOnError( error -> log.warn(
+			.doOnError(error -> log.warn(
 				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))
-			.onErrorResume(NoItemsRequestableAtAnyAgency.class,
-				error -> Mono.defer(() -> Mono.just(resolveToNoItemsAvailable(patronRequest,error))))
-			.switchIfEmpty(Mono.defer(() -> Mono.just(resolveToNoItemsAvailable(patronRequest))));
+			.switchIfEmpty(Mono.defer(() -> Mono.just(resolveToNoItemsSelectable(patronRequest))));
 	}
 
 	private List<Item> excludeItemsWithoutAgencyOrHostLms(List<Item> items) {
@@ -115,18 +109,11 @@ public class PatronRequestResolutionService {
 			.build();
 	}
 
-	private static Resolution resolveToNoItemsAvailable(PatronRequest patronRequest, Throwable reason) {
-		log.error("PatronRequestResolutionService::resolveToNoItemsAvailable called because", reason);
-		return new Resolution(patronRequest.resolveToNoItemsAvailable(), Optional.empty());
-	}
-
-	private static Resolution resolveToNoItemsAvailable(PatronRequest patronRequest) {
-		log.debug("PatronRequestResolutionService::resolveToNoItemsAvailable called");
-		return new Resolution(patronRequest.resolveToNoItemsAvailable(), Optional.empty());
+	private static Resolution resolveToNoItemsSelectable(PatronRequest patronRequest) {
+		return new Resolution(patronRequest.resolveToNoItemsSelectable(), Optional.empty());
 	}
 
 	private static Resolution mapToResolution(SupplierRequest supplierRequest) {
-		return new Resolution(supplierRequest.getPatronRequest(),
-			Optional.of(supplierRequest));
+		return new Resolution(supplierRequest.getPatronRequest(), Optional.of(supplierRequest));
 	}
 }

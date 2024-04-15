@@ -285,7 +285,7 @@ public class PatronRequest {
 		return setStatus(RESOLVED);
 	}
 
-	public PatronRequest resolveToNoItemsAvailable() {
+	public PatronRequest resolveToNoItemsSelectable() {
 		log.debug("resolveToNoItemsAvailable()");
 
 		return setStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
