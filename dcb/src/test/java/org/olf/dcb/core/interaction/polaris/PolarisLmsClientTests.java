@@ -394,7 +394,7 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(exception, allOf(
 			notNullValue(),
-			hasMessage("Unexpected Polaris workflow response for: Failed to handle polaris workflow. Response was: ApplicationServicesClient.WorkflowResponse(workflowRequestGuid=c07ba982-b123-48df-99fb-e9b03cd82dab, workflowStatus=-3, prompt=ApplicationServicesClient.Prompt(WorkflowPromptID=94, title=Serial Holds, message=You have selected a serial title. A request placed on the title will trap any available item.\nSelect one of the following:), answerExtension=null, informationMessages=[]). Expected to reply to promptID: 77 with reply: 5")
+			hasMessage("Failed to handle polaris workflow. Response was: ApplicationServicesClient.WorkflowResponse(workflowRequestGuid=c07ba982-b123-48df-99fb-e9b03cd82dab, workflowStatus=-3, prompt=ApplicationServicesClient.Prompt(WorkflowPromptID=94, title=Serial Holds, message=You have selected a serial title. A request placed on the title will trap any available item.\nSelect one of the following:), answerExtension=null, informationMessages=[]). Expected to reply to promptID: 77 with reply: 5")
 		));
 	}
 

@@ -31,6 +31,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.polaris.exceptions.CreateVirtualItemException;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
 import org.olf.dcb.core.interaction.polaris.exceptions.PatronBlockException;
 import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
@@ -330,7 +331,10 @@ class ApplicationServicesClient {
 		// https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/add_or_update_item_record
 		final var path = createPath("workflow");
 		final var itemConfig = client.getItemConfig();
+
 		final var barcodePrefix = extractOptionalMapValue(itemConfig, BARCODE_PREFIX, String.class);
+		final var itemBarcode = useBarcodeWithPrefix(createItemCommand, barcodePrefix);
+
 		final var itemRecordType = 8;
 		final var itemRecordData = 6;
 		final var Available = 1; // In
@@ -347,6 +351,7 @@ class ApplicationServicesClient {
 				final Integer interLibraryLoanBranch = getInterLibraryLoanBranch(itemConfig);
 				final Integer patronHomeBranch = getPatronHomeBranch(createItemCommand);
 
+
 				final var body = WorkflowRequest.builder()
 					.workflowRequestType(itemRecordType)
 					.txnUserID(TransactingPolarisUserID)
@@ -356,7 +361,7 @@ class ApplicationServicesClient {
 						.workflowRequestExtensionType(itemRecordData)
 						.data(RequestExtensionData.builder()
 							.associatedBibRecordID(Integer.parseInt(createItemCommand.getBibId()))
-							.barcode( useBarcodeWithPrefix(createItemCommand, barcodePrefix) )
+							.barcode( itemBarcode )
 							.isNew(TRUE)
 							.displayInPAC(FALSE)
 							.assignedBranchID( isInterLibraryLoanBranchIfNotNull(interLibraryLoanBranch, patronHomeBranch) )
@@ -380,7 +385,7 @@ class ApplicationServicesClient {
 				log.info("create item workflow request: {}", body);
 				return request.body(body);
 			})
-			.flatMap(this::createItemRequest);
+			.flatMap(request -> createItemRequest(request, itemBarcode));
 	}
 
 	private static String useBarcodeWithPrefix(CreateItemCommand createItemCommand, String barcodePrefix) {
@@ -438,7 +443,7 @@ class ApplicationServicesClient {
 					.build();
 				return request.body(body);
 			})
-			.flatMap(this::createItemRequest)
+			.flatMap(request -> createItemRequest(request, null))
 			.then();
 	}
 
@@ -480,6 +485,7 @@ class ApplicationServicesClient {
 
 		if (response.getPrompt() != null && response.getPrompt().getTitle() != null) {
 			log.info("Trying to handle polaris workflow: {}", response.getPrompt().getTitle());
+
 		} else {
 			log.warn("Trying to handle polaris workflow prompt ID: {}, more information found at: {}",
 				promptID, "https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/overview");
@@ -496,17 +502,28 @@ class ApplicationServicesClient {
 	}
 
 
-	private Mono<WorkflowResponse> createItemRequest(MutableHttpRequest<WorkflowRequest> workflowRequest) {
+	private Mono<WorkflowResponse> createItemRequest(MutableHttpRequest<WorkflowRequest> workflowRequest,
+		String itemBarcode) {
 		// https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/add_or_update_item_record
 
 		return client.retrieve(workflowRequest, Argument.of(WorkflowResponse.class), noExtraErrorHandling())
 			.doOnError(e -> log.info("Error response for create item {} {}", workflowRequest, e))
 			// when we save the virtual item we need to confirm we do not want the item to display in pac
 			.flatMap(response -> handlePolarisWorkflow(response, NoDisplayInPAC, Continue))
-			// if the item barcode exists we still want to continue saving the item
-			.flatMap(resp -> handlePolarisWorkflow(resp, DuplicateRecords, Continue))
+			// creating an item with a duplicate barcode causes the hold request to fail
+			.map(resp -> {
+				if (resp.getPrompt() != null &&
+					resp.getPrompt().getWorkflowPromptID() != null &&
+					resp.getPrompt().getWorkflowPromptID().equals(DuplicateRecords)) {
+
+					throw new CreateVirtualItemException(
+						"Item with barcode: " + itemBarcode + " already exists in host LMS: " + client.getName());
+				}
+
+				return resp;
+			})
 			.switchIfEmpty(Mono.error(new PolarisWorkflowException(
-				"item request failed expecting workflow response to: " + workflowRequest)));
+				"Item request failed expecting workflow response to: " + workflowRequest)));
 	}
 
 	private Mono<MutableHttpRequest<WorkflowReply>> createItemWorkflowReply(
