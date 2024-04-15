@@ -26,7 +26,7 @@ public class FirstRequestableItemResolutionStrategy implements ResolutionStrateg
 
 		log.info("PR-{} - chooseItem(array of size {})", patronRequestId, items.size());
 
-		return Mono.just(
+		return Mono.justOrEmpty(
 			items.stream()
 				.peek(item -> log.info(
 						"PR-{} - Consider item {} @ {} requestable:{} holds:{} ",
@@ -38,7 +38,6 @@ public class FirstRequestableItemResolutionStrategy implements ResolutionStrateg
 				.filter(Item::getIsRequestable)
 				.filter(Item::hasNoHolds)
 				.findFirst()
-				.orElseThrow(() -> new NoItemsRequestableAtAnyAgency(clusterRecordId))
 		);
 	}
 }

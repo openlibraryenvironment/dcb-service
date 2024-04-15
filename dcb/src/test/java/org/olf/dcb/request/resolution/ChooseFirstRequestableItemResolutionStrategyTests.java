@@ -2,15 +2,14 @@ package org.olf.dcb.request.resolution;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.List;
 import java.util.UUID;
@@ -61,7 +60,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 	}
 
 	@Test
-	void shouldFailWhenNoRequestableItemsAreProvided() {
+	void shouldReturnEmptyWhenNoRequestableItemsAreProvided() {
 		// Arrange
 		final var unavailableItem = createItem("23721346", UNAVAILABLE, false, 0);
 		final var unknownStatusItem = createItem("54737664", UNKNOWN, false, 0);
@@ -70,44 +69,33 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 		// Act
 		final var items = List.of(unavailableItem, unknownStatusItem, checkedOutItem);
 
-		final var clusterId = randomUUID();
-
-		final var exception = assertThrows(NoItemsRequestableAtAnyAgency.class,
-			() -> resolutionStrategy.chooseItem(items, clusterId, null).block());
+		final var chosenItem = chooseItem(items, randomUUID());
 
 		// Assert
-		assertThat(exception, hasMessage(
-			"No requestable items could be found for cluster record: " + clusterId));
+		assertThat("Empty publisher returned when no item can be chosen",
+			chosenItem, nullValue());
 	}
 
 	@Test
-	void shouldFailWhenOnlyItemsWithExistingHoldsAreProvided() {
-		// Arrange
-
+	void shouldReturnEmptyWhenOnlyItemsWithExistingHoldsAreProvided() {
 		// Act
 		final var items = List.of(createItem("23721346", AVAILABLE, true, 1));
 
-		final var clusterId = randomUUID();
-
-		final var exception = assertThrows(NoItemsRequestableAtAnyAgency.class,
-			() -> resolutionStrategy.chooseItem(items, clusterId, null).block());
+		final var chosenItem = chooseItem(items, randomUUID());
 
 		// Assert
-		assertThat(exception, hasMessage(
-			"No requestable items could be found for cluster record: " + clusterId));
+		assertThat("Empty publisher returned when no item can be chosen",
+			chosenItem, nullValue());
 	}
 
 	@Test
-	void shouldFailWhenNoItemsAreProvided() {
+	void shouldReturnEmptyWhenNoItemsAreProvided() {
 		// Act
-		final var clusterId = randomUUID();
-
-		final var exception = assertThrows(NoItemsRequestableAtAnyAgency.class,
-			() -> chooseItem(List.of(), clusterId));
+		final var chosenItem = chooseItem(List.of(), randomUUID());
 
 		// Assert
-		assertThat(exception, hasMessage(
-			"No requestable items could be found for cluster record: " + clusterId));
+		assertThat("Empty publisher returned when no item can be chosen",
+			chosenItem, nullValue());
 	}
 
 	private Item chooseItem(List<Item> items, UUID clusterRecordId) {
