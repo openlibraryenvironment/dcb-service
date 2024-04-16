@@ -88,7 +88,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		assertThat(localRequest, allOf(
 			notNullValue(),
 			hasLocalId(localRequestId),
-			hasStatus("TRANSIT"),
+			hasStatus("OPEN"),
 			hasNoRequestedItemId(),
 			hasNoRequestedItemBarcode()
 		));

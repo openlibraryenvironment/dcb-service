@@ -180,7 +180,7 @@ class ConsortialFolioHostLmsClientGetItemTests {
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = {"CREATED", "OPEN", "CANCELLED", "ERROR"})
+	@ValueSource(strings = {"CREATED", "CANCELLED", "ERROR"})
 	void shouldReturnUnmappedTransactionStatusForAnyOtherStatus(String transactionStatus) {
 		// Arrange
 		final var localRequestId = UUID.randomUUID().toString();
