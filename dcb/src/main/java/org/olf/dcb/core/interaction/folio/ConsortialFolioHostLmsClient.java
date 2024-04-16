@@ -674,10 +674,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		// Based upon the statuses defined in https://github.com/folio-org/mod-dcb/blob/master/src/main/resources/swagger.api/schemas/transactionStatus.yaml
 		final var mappedStatus = switch(status) {
 			case "CREATED" -> HOLD_CONFIRMED;
-			case "OPEN" -> HOLD_TRANSIT;
 			case "CANCELLED" -> HOLD_CANCELLED;
 			// These recognised but unhandled statuses should trigger the unhandled status handlers in host LMS reactions
-			case "AWAITING_PICKUP", "ITEM_CHECKED_OUT", "ITEM_CHECKED_IN", "CLOSED", "ERROR" -> status;
+			case "OPEN", "AWAITING_PICKUP", "ITEM_CHECKED_OUT", "ITEM_CHECKED_IN", "CLOSED", "ERROR" -> status;
 			default -> throw new RuntimeException(
 				"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
 					.formatted(status, transactionId));
@@ -717,10 +716,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			case "CLOSED" -> ITEM_AVAILABLE;
 			case "AWAITING_PICKUP" -> ITEM_ON_HOLDSHELF;
 			case "ITEM_CHECKED_OUT" -> ITEM_LOANED;
-			// This is needed to trigger the return to the lending agency workflow action
-			case "ITEM_CHECKED_IN" -> ITEM_TRANSIT;
+			// OPEN is considered a trigger for pickup transit
+			case "OPEN",
+				// This is needed to trigger the return to the lending agency workflow action
+				"ITEM_CHECKED_IN" -> ITEM_TRANSIT;
 			// These recognised but unhandled statuses should trigger the unhandled status handlers in host LMS reactions
-			case "CREATED", "OPEN", "CANCELLED", "ERROR" -> status;
+			case "CREATED", "CANCELLED", "ERROR" -> status;
 			default -> throw new RuntimeException(
 				"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
 					.formatted(status, transactionId));
