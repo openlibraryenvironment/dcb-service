@@ -7,14 +7,11 @@ import java.util.Optional;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.PatronDeletedInHostLmsException;
-import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
@@ -30,7 +27,6 @@ import reactor.core.publisher.Mono;
 public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final HostLmsService hostLmsService;
-	private final PatronRequestAuditService patronRequestAuditService;
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final AgencyRepository agencyRepository;
 
@@ -43,14 +39,12 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private static final List<Status> possibleSourceStatus = List.of(Status.SUBMITTED_TO_DCB);
 	
 	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository,
-		HostLmsService hostLmsService, PatronRequestAuditService patronRequestAuditService,
-		ReferenceValueMappingService referenceValueMappingService,
+		HostLmsService hostLmsService, ReferenceValueMappingService referenceValueMappingService,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
 		AgencyRepository agencyRepository) {
 
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.hostLmsService = hostLmsService;
-		this.patronRequestAuditService = patronRequestAuditService;
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.agencyRepository = agencyRepository;
