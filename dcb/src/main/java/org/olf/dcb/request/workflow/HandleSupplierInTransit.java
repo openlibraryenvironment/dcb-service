@@ -1,31 +1,27 @@
 package org.olf.dcb.request.workflow;
 
+import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
-
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
-import org.olf.dcb.tracking.model.StateChange;
 
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 
 
 /** TODO: Convert this into a PatronRequestStateTransition */
@@ -34,25 +30,21 @@ import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 @Singleton
 @Named("SupplierRequestInTransit")
 public class HandleSupplierInTransit implements PatronRequestStateTransition {
-
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final PatronRequestRepository patronRequestRepository;
-	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final HostLmsService hostLmsService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
-	private static final List<Status> possibleSourceStatus = List.of(Status.REQUEST_PLACED_AT_BORROWING_AGENCY);
+	private static final List<Status> possibleSourceStatus = List.of(REQUEST_PLACED_AT_BORROWING_AGENCY);
 	
 	public HandleSupplierInTransit(
 		SupplierRequestRepository supplierRequestRepository,
 		PatronRequestRepository patronRequestRepository,
 		HostLmsService hostLmsService,
-		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		PatronRequestAuditService patronRequestAuditService) {
 
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.patronRequestRepository = patronRequestRepository;
-		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.hostLmsService = hostLmsService;
 		this.patronRequestAuditService = patronRequestAuditService;
 	}
@@ -63,8 +55,10 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 	}
 
 	public Mono<RequestWorkflowContext> updatePatronRequest(RequestWorkflowContext rwc) {
-		PatronRequest pr = rwc.getPatronRequest();
-		pr.setStatus(PatronRequest.Status.PICKUP_TRANSIT);
+		final var pr = rwc.getPatronRequest();
+
+		pr.setStatus(PICKUP_TRANSIT);
+
 		return Mono.from(patronRequestRepository.saveOrUpdate(pr))
 			.thenReturn(rwc);
 	}
@@ -88,13 +82,13 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 
 			return hostLmsService.getClientFor(rwc.getPatronSystemCode())
 		 		.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(
-					patronRequest.getLocalItemId(), HostLmsClient.CanonicalItemState.TRANSIT, patronRequest.getLocalRequestId()))
+					patronRequest.getLocalItemId(), TRANSIT, patronRequest.getLocalRequestId()))
 				.thenReturn(rwc);
 		}
 		else {
 			log.error("No patron system to update -- this is unlikely");
 			return Mono.just(rwc);
-		}	
+		}
 	}
 
 	public Mono<RequestWorkflowContext> updatePickupItem(RequestWorkflowContext rwc) {
@@ -113,20 +107,21 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 		// This action fires when the state is REQUEST_PLACED_AT_BORROWING_AGENCY and we detected
 		// that the supplying library has placed its request IN TRANSIT
 
-		log.debug("Consider HandleSupplierInTransit - {} {}",ctx.getPatronRequest().getStatus(),ctx.getSupplierRequest());
+		log.debug("Consider HandleSupplierInTransit - {} {}",
+			ctx.getPatronRequest().getStatus(), ctx.getSupplierRequest());
 
-		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus())) &&
-			( ctx.getSupplierRequest() != null ) &&
-			( ctx.getSupplierRequest().getLocalItemStatus() != null ) &&
-			( ctx.getSupplierRequest().getLocalItemStatus().equals(HostLmsItem.ITEM_TRANSIT) );
+		return (getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus())) &&
+			(ctx.getSupplierRequest() != null) &&
+			(ctx.getSupplierRequest().getLocalItemStatus() != null) &&
+			(ctx.getSupplierRequest().getLocalItemStatus().equals(ITEM_TRANSIT));
 	}
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+		log.info("Attempting HandleSupplierInTransit for {}", ctx.getPatronRequest().getId());
 
-		log.info("Attempting HandleSupplierInTransit for {}",ctx.getPatronRequest().getId());
+		ctx.getPatronRequest().setStatus(PICKUP_TRANSIT);
 
-		ctx.getPatronRequest().setStatus(PatronRequest.Status.PICKUP_TRANSIT);
 		return updateUpstreamSystems(ctx)
 			// If we managed to update other systems, then update the supplier request
 			// This will cause st.setLocalStatus("TRANSIT") above to be saved and mean our local state is aligned with the supplier req
@@ -144,7 +139,7 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 	
 	@Override
 	public Optional<PatronRequest.Status> getTargetStatus() {
-		return Optional.of(PatronRequest.Status.PICKUP_TRANSIT);
+		return Optional.of(PICKUP_TRANSIT);
 	}
 
 	@Override
