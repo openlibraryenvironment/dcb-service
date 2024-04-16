@@ -778,8 +778,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	// Informed by
 	// https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
 	private String mapSierraItemStatusToDCBHoldStatus(Status status) {
-		String result;
-
 		if (status == null || status.getCode() == null) {
 			return null;
 		}
