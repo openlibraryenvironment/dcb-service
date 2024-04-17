@@ -40,46 +40,52 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(hostLmsCode))
-			.switchIfEmpty(patronDeleted(localPatronId, hostLmsCode))
-			.map(List::of);
+			.switchIfEmpty(patronDeleted(localPatronId, hostLmsCode));
 	}
 
-	private CheckResult checkEligibility(String localPatronId, Patron patron, String hostLmsCode) {
+	private List<CheckResult> checkEligibility(String localPatronId, Patron patron, String hostLmsCode) {
 		// Uses the incoming local patron ID
 		// rather than the list of IDs that could be returned from the Host LMS
 		// in order to avoid having to choose (and potential data leakage)
 
 		return patron.isEligible()
-			? passed()
-			: failed("PATRON_INELIGIBLE",
+			? List.of(passed())
+			: List.of(failed("PATRON_INELIGIBLE",
 				"Patron \"%s\" from \"%s\" is of type \"%s\" which is \"%s\" for consortial borrowing"
-					.formatted(localPatronId, hostLmsCode, patron.getLocalPatronType(), patron.getCanonicalPatronType()));
+					.formatted(localPatronId, hostLmsCode, patron.getLocalPatronType(), patron.getCanonicalPatronType())));
 	}
 
-	private Mono<CheckResult> patronNotFound(PatronNotFoundInHostLmsException error) {
-		return Mono.just(failed("PATRON_NOT_FOUND", error.getMessage()));
-	}
-
-	private Mono<CheckResult> patronDeleted(String localPatronId, String hostLmsCode) {
-		return Mono.defer(() -> Mono.just(failed("PATRON_DELETED",
-			"Patron \"%s\" from \"%s\" has been deleted".formatted(localPatronId, hostLmsCode))));
-	}
-
-	private Mono<CheckResult> noPatronTypeMappingFound(NoPatronTypeMappingFoundException error) {
-		return Mono.just(failed("PATRON_TYPE_NOT_MAPPED",
-			"Local patron type \"%s\" from \"%s\" is not mapped to a DCB canonical patron type"
-				.formatted(error.getLocalPatronType(), error.getHostLmsCode())));
-	}
-
-	private Mono<CheckResult> nonNumericPatronType(UnableToConvertLocalPatronTypeException error) {
-		return Mono.just(failed("LOCAL_PATRON_TYPE_IS_NON_NUMERIC",
-			"Local patron \"%s\" from \"%s\" has non-numeric patron type \"%s\""
-				.formatted(error.getLocalId(), error.getLocalSystemCode(), error.getLocalPatronTypeCode())
+	private Mono<List<CheckResult>> patronNotFound(PatronNotFoundInHostLmsException error) {
+		return Mono.just(List.of(
+			failed("PATRON_NOT_FOUND", error.getMessage())
 		));
 	}
 
-	private static CheckResult unknownHostLms(String localSystemCode) {
-		return failed("UNKNOWN_BORROWING_HOST_LMS",
-			"\"%s\" is not a recognised Host LMS".formatted(localSystemCode));
+	private Mono<List<CheckResult>> patronDeleted(String localPatronId, String hostLmsCode) {
+		return Mono.just(List.of(
+			failed("PATRON_DELETED",
+				"Patron \"%s\" from \"%s\" has been deleted".formatted(localPatronId, hostLmsCode))
+		));
+	}
+
+	private Mono<List<CheckResult>> noPatronTypeMappingFound(NoPatronTypeMappingFoundException error) {
+		return Mono.just(List.of(
+			failed("PATRON_TYPE_NOT_MAPPED",
+				"Local patron type \"%s\" from \"%s\" is not mapped to a DCB canonical patron type"
+					.formatted(error.getLocalPatronType(), error.getHostLmsCode()))
+		));
+	}
+
+	private Mono<List<CheckResult>> nonNumericPatronType(UnableToConvertLocalPatronTypeException error) {
+		return Mono.just(List.of(
+			failed("LOCAL_PATRON_TYPE_IS_NON_NUMERIC",
+				"Local patron \"%s\" from \"%s\" has non-numeric patron type \"%s\""
+					.formatted(error.getLocalId(), error.getLocalSystemCode(), error.getLocalPatronTypeCode()))
+		));
+	}
+
+	private static List<CheckResult> unknownHostLms(String localSystemCode) {
+		return List.of(failed("UNKNOWN_BORROWING_HOST_LMS",
+			"\"%s\" is not a recognised Host LMS".formatted(localSystemCode)));
 	}
 }
