@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.shared;
 
+import static io.micronaut.core.util.StringUtils.isEmpty;
+
 import org.olf.dcb.storage.NumericRangeMappingRepository;
 
 import jakarta.inject.Singleton;
@@ -15,29 +17,40 @@ public class NumericPatronTypeMapper {
 		this.numericRangeMappingRepository = numericRangeMappingRepository;
 	}
 
-	public Mono<String> mapLocalPatronTypeToCanonical(String system, String localPatronTypeCode, String localId) {
-		log.debug("mapLocalPatronTypeToCanonical({}, {})", system, localPatronTypeCode);
+	public Mono<String> mapLocalPatronTypeToCanonical(String localSystemCode, String localPatronTypeCode, String localId) {
+		log.debug("mapLocalPatronTypeToCanonical({}, {})", localSystemCode, localPatronTypeCode);
 
-		// Sierra item types are integers. They are usually mapped by a range
-		// I have a feeling that creating a static cache of system->localItemType mappings will have solid performance
-		// benefits
-		if (localPatronTypeCode != null) {
-			try {
-				Long l = Long.valueOf(localPatronTypeCode);
-				log.debug("Look up patron type {}", l);
-				return Mono.from(numericRangeMappingRepository.findMappedValueFor(system, "patronType", "DCB", l))
-					.doOnNext(mapping -> log.debug("Found mapping: {}", mapping))
-					.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
-						"Unable to map patronType "+system+":"+l+" To DCB context", system,
-						localPatronTypeCode)));
-			} catch (Exception e) {
-				return Mono.error(new UnableToConvertLocalPatronTypeException(
-					"Unable to convert " + localPatronTypeCode + " into number " + e.getMessage(),
-					localId, system, localPatronTypeCode));
-			}
+		if (isEmpty(localPatronTypeCode)) {
+			log.warn("No localPatronTypeCode provided");
+
+			return Mono.error(new UnableToConvertLocalPatronTypeException(
+				"Unable to map null or empty local patron type",
+				localId, localSystemCode, localPatronTypeCode));
 		}
 
-		log.warn("No localPatronTypeCode provided");
-		return Mono.error(new RuntimeException("No localPatronTypeCode provided for range mapping"));
+		try {
+			// Sierra item types are integers. They are usually mapped by a range
+			// I have a feeling that creating a static cache of system->localItemType mappings will have solid performance
+			// benefits
+			final var numericPatronType = Long.valueOf(localPatronTypeCode);
+
+			log.debug("Look up patron type {}", numericPatronType);
+
+			return findMapping(localSystemCode, numericPatronType)
+				.doOnNext(mapping -> log.debug("Found mapping: {}", mapping))
+				.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
+					"Unable to map patronType %s:%d To DCB context"
+						.formatted(localSystemCode, numericPatronType), localSystemCode, localPatronTypeCode)));
+		} catch (Exception e) {
+			return Mono.error(new UnableToConvertLocalPatronTypeException(
+				"Unable to convert " + localPatronTypeCode + " into number " + e.getMessage(),
+				localId, localSystemCode, localPatronTypeCode));
+		}
+
+	}
+
+	private Mono<String> findMapping(String system, Long patronType) {
+		return Mono.from(numericRangeMappingRepository.findMappedValueFor(
+			system, "patronType", "DCB", patronType));
 	}
 }

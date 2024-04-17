@@ -231,10 +231,10 @@ class SierraHostLmsClientItemTests {
 	@Test
 	void shouldFailWhenCannotAuthenticateWithSierra() {
 		// Arrange
-		final var BASE_URL = "http://invalid-auth-sierra-test";
+		final var invalidAuthBaseUrl = "http://invalid-auth-sierra-test";
 
 		hostLmsFixture.createSierraHostLms("bad-config-sierra-host-lms",
-			"invalid-key", "invalid-secret", BASE_URL, "item");
+			"invalid-key", "invalid-secret", invalidAuthBaseUrl, "item");
 
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("7225825");
 

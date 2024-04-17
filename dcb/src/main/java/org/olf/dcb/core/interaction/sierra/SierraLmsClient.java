@@ -4,7 +4,6 @@ import static io.micronaut.core.util.StringUtils.isEmpty;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
-import static java.lang.String.valueOf;
 import static java.util.Calendar.YEAR;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.nonNull;
@@ -26,6 +25,7 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlProperty
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
+import static services.k_int.utils.StringUtils.convertIntegerToString;
 
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -1049,8 +1049,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("sierraPatronToHostLmsPatron({})", spr);
 
 		final var result = Patron.builder()
-			.localId(singletonList(valueOf(spr.getId())))
-			.localPatronType(valueOf(spr.getPatronType()))
+			.localId(singletonList(convertIntegerToString(spr.getId())))
+			.localPatronType(convertIntegerToString(spr.getPatronType()))
 			.localBarcodes(spr.getBarcodes())
 			.localNames(spr.getNames())
 			.localHomeLibraryCode(spr.getHomeLibraryCode())

@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
+import io.micronaut.core.annotation.Nullable;
+
 public interface StringUtils {
 	static String padRightToLength(String toPad, int length) {
 		return Optional.of(toPad != null ? toPad : "")
@@ -21,6 +23,21 @@ public interface StringUtils {
 		}
 
 		return value.substring(0, min(value.length(), maximumLength));
+	}
+
+	/**
+	 * Converts an Integer to a String
+	 *
+	 * String.valueOf is unsuitable for this as it converts null to "null"
+	 * which potentially stops later null checks from working as intended
+	 *
+	 * @param value integer to convert
+	 * @return null when value is null, otherwise value as a string
+	 */
+	static String convertIntegerToString(@Nullable Integer value) {
+		return value == null
+			? null
+			: value.toString();
 	}
 
 	interface Functions {
