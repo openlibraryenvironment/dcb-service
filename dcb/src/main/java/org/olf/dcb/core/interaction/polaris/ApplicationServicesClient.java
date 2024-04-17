@@ -103,6 +103,23 @@ class ApplicationServicesClient {
 	}
 
 	private WorkflowResponse validateWorkflowResponse(WorkflowResponse workflowResponse) {
+		log.debug("Validating response to placing a request: {}", workflowResponse);
+
+		validateWorkflowStatus(workflowResponse);
+		validateInformationMessages(workflowResponse);
+
+		// logging successful response message
+		if (workflowResponse.getWorkflowStatus() > 0 &&
+			workflowResponse.getPrompt() != null &&
+			workflowResponse.getPrompt().getMessage() != null) {
+
+			log.info(workflowResponse.getPrompt().getMessage());
+		}
+
+		return workflowResponse;
+	}
+
+	private static void validateWorkflowStatus(WorkflowResponse workflowResponse) {
 		if (workflowResponse.getWorkflowStatus() < CompletedSuccessfully) {
 			log.error("Polaris response: " + workflowResponse);
 
@@ -114,15 +131,33 @@ class ApplicationServicesClient {
 
 			throw new PolarisWorkflowException("Unknown response");
 		}
+	}
 
-		if (workflowResponse.getWorkflowStatus() > 0 &&
-			workflowResponse.getPrompt() != null &&
-			workflowResponse.getPrompt().getMessage() != null) {
+	private static void validateInformationMessages(WorkflowResponse workflowResponse) {
+		// It has been found that certain hold request failures do not contain polaris error codes
+		// instead there are information messages that contain the error message
+		// more information: DCB-1031
 
-			log.info(">>>>>>>" + workflowResponse.getPrompt().getMessage() + "<<<<<<<<");
+		final String successfulRequestGuid = "00000000-0000-0000-0000-000000000000";
+		if (Objects.equals(workflowResponse.getWorkflowRequestGuid(), successfulRequestGuid)) {
+
+			Optional.ofNullable(workflowResponse.getInformationMessages())
+				.map(List::stream)
+				.ifPresent(messages -> {
+
+					final List<String> listOfErrorMessages = List.of(
+						"Invalid pickup branch",
+						"Placing hold request failed.");
+
+					messages
+						.filter(message -> listOfErrorMessages.contains(message.getMessage()))
+						.forEach(message -> {
+							log.error("Polaris API response: {}", message);
+							throw new PolarisWorkflowException(message.getMessage());
+						});
+				});
+
 		}
-
-		return workflowResponse;
 	}
 
 	Mono<LibraryHold> getLocalHoldRequest(Integer id) {
@@ -555,12 +590,12 @@ class ApplicationServicesClient {
 				noExtraErrorHandling()));
 	}
 
-	public Mono<List<PolarisLmsClient.PolarisItemStatus>> listItemStatuses() {
+	public Mono<List<PolarisItemStatus>> listItemStatuses() {
 		final var path = createPath("itemstatuses");
 
 		return createRequest(GET, path, uri -> {})
 			.flatMap(request -> client.retrieve(request,
-				Argument.listOf(PolarisLmsClient.PolarisItemStatus.class), noExtraErrorHandling()));
+				Argument.listOf(PolarisItemStatus.class), noExtraErrorHandling()));
 	}
 
 	public Mono<BibliographicRecord> getBibliographicRecordByID(String localBibId) {
