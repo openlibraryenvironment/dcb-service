@@ -1054,7 +1054,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.localBarcodes(spr.getBarcodes())
 			.localNames(spr.getNames())
 			.localHomeLibraryCode(spr.getHomeLibraryCode())
-			.isDeleted(spr.getDeleted() != null ? spr.getDeleted() : null)
+			.isDeleted(spr.getDeleted() != null ? spr.getDeleted() : false)
 			.build();
 
 		if ((result.getLocalBarcodes() == null) || (result.getLocalBarcodes().isEmpty()))

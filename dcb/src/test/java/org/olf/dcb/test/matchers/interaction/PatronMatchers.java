@@ -28,6 +28,10 @@ public class PatronMatchers {
 		return hasProperty("localNames", anyOf(nullValue(), empty()));
 	}
 
+	public static Matcher<Patron> hasHomeLibraryCode(String expectedCode) {
+		return hasProperty("localHomeLibraryCode", is(expectedCode));
+	}
+
 	public static Matcher<Patron> hasNoHomeLibraryCode() {
 		return hasProperty("localHomeLibraryCode", nullValue());
 	}
@@ -54,5 +58,9 @@ public class PatronMatchers {
 
 	public static Matcher<Patron> hasNoCanonicalPatronType() {
 		return hasProperty("canonicalPatronType", anyOf(nullValue(), empty()));
+	}
+
+	public static Matcher<Patron> isNotDeleted() {
+		return hasProperty("isDeleted", is(false));
 	}
 }
