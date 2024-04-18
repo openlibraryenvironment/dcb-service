@@ -727,6 +727,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.formatted(status, transactionId));
 		};
 
+		if (itemId == null) {
+			log.warn("getItem returning HostLmsItem with a null item id.");
+		}
+
 		return HostLmsItem.builder()
 			.localId(itemId)
 			.status(mappedStatus)

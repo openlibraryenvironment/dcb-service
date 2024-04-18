@@ -196,8 +196,8 @@ public class TrackingServiceV3 implements TrackingService {
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	protected Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
 
-		if ( ( pr.getLocalItemId() == null ) ||
-			( (pr.getLocalItemStatus() != null ) && (pr.getLocalItemStatus().equals("MISSING")) )){
+		// Please note: some HostLms don't track item statuses by item id so it item id can be null
+		if (( (pr.getLocalItemStatus() != null ) && (pr.getLocalItemStatus().equals("MISSING")) )) {
 			log.warn("TRACKING Unable to track virtual item for pr {} - no ID {} {}",pr.getId(),pr.getLocalItemId(),pr.getLocalItemStatus());
 			return Mono.just(pr);
 		}
