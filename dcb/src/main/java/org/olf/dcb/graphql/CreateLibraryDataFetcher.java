@@ -100,7 +100,7 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 
 	private Person createPersonFromInput(Map<String, Object> contactInput) {
 		return Person.builder()
-			.id(UUID.randomUUID())
+			.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Person:" + contactInput.get("firstName") + contactInput.get("lastName") + contactInput.get("role")))
 			.firstName(contactInput.get("firstName").toString())
 			.lastName(contactInput.get("lastName").toString())
 			.role(contactInput.get("role").toString())
@@ -113,10 +113,10 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 		return Flux.fromIterable(contacts)
 			.flatMap(contact -> {
 				LibraryContact libraryContact = new LibraryContact();
-				libraryContact.setId(UUID.randomUUID());
+				libraryContact.setId(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "LibraryContact:" + library.getFullName() + contact.getFirstName() + contact.getLastName() + contact.getRole()));
 				libraryContact.setLibrary(library);
 				libraryContact.setPerson(contact);
-				return Mono.from(libraryContactRepository.save(libraryContact));
+				return Mono.from(libraryContactRepository.saveOrUpdate(libraryContact));
 			})
 			.then();
 	}
