@@ -2,26 +2,23 @@ package org.olf.dcb.core.model;
 
 import java.util.UUID;
 
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Creator;
+
+import io.micronaut.data.annotation.*;
+import io.micronaut.data.annotation.Id;
 import jakarta.validation.constraints.Size;
 
-import io.micronaut.core.annotation.Creator;
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.data.annotation.Id;
-import io.micronaut.data.annotation.MappedEntity;
-import io.micronaut.data.annotation.Relation;
-import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
-import lombok.experimental.Accessors;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import lombok.ToString;
+import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 @Data
-@Accessors(chain=true)
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
 @NoArgsConstructor(onConstructor_ = @Creator())
@@ -29,21 +26,25 @@ import lombok.ToString;
 @Builder
 @ToString(onlyExplicitlyIncluded = true)
 @MappedEntity
-public class AgencyGroupMember {
+public class LibraryGroup {
 
 	@ToString.Include
 	@NonNull
 	@Id
-	@TypeDef( type = DataType.UUID)
+	@TypeDef(type = DataType.UUID)
 	private UUID id;
 
-	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	@ToString.Include
 	@NonNull
-	private DataAgency agency;
+	@Size(max = 32)
+	private String code;
 
-	@Relation(value = Relation.Kind.MANY_TO_ONE)
-	@ToString.Include
 	@NonNull
-	private AgencyGroup group;
+	@Size(max = 200)
+	private String name;
+
+	@NonNull
+	@Size(max = 32)
+	private String type;
+
 }

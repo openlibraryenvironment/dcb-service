@@ -2,10 +2,9 @@ package org.olf.dcb.core.model;
 
 import java.util.UUID;
 
-import jakarta.validation.constraints.Size;
-
-import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Creator;
+
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.annotation.Relation;
@@ -29,21 +28,21 @@ import lombok.ToString;
 @Builder
 @ToString(onlyExplicitlyIncluded = true)
 @MappedEntity
-public class AgencyGroupMember {
+public class LibraryContact {
 
 	@ToString.Include
 	@NonNull
 	@Id
-	@TypeDef( type = DataType.UUID)
+	@TypeDef(type = DataType.UUID)
 	private UUID id;
 
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	@ToString.Include
 	@NonNull
-	private DataAgency agency;
+	private Library library;
 
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	@ToString.Include
 	@NonNull
-	private AgencyGroup group;
+	private Person person;
 }
