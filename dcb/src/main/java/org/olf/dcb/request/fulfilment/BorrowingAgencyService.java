@@ -210,7 +210,8 @@ public class BorrowingAgencyService {
 
 				return createHoldRequest(
 					ctx, pr, borrowingIdentity, hostLmsClient, supplierRequest, bibRecordTitle, supplyingAgencyCode)
-					  .delaySubscription(Duration.ofSeconds(5));
+					.delaySubscription(Duration.ofSeconds(5))
+					.doOnSuccess(localRequest -> log.debug("borrowingRequestFlow returned: {}", localRequest));
 			})
 			.transform(extractLocalIdAndLocalStatus())
 			.switchIfEmpty( Mono.defer(() -> Mono.error(new DcbError("Failed to place hold request."))) );

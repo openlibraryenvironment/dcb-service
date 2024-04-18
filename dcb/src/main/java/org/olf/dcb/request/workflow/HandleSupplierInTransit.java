@@ -75,6 +75,9 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 	}
 
 	public Mono<RequestWorkflowContext> updatePatronItem(RequestWorkflowContext rwc) {
+
+		log.debug("updatePatronItem: {}", rwc);
+
 		if (rwc.getPatronRequest().getLocalItemId() != null) {
 			log.debug("Update patron system item: {}", rwc.getPatronRequest().getLocalItemId());
 
