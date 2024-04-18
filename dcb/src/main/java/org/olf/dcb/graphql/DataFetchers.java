@@ -1,15 +1,19 @@
 package org.olf.dcb.graphql;
 
+import java.util.UUID;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
+import org.olf.dcb.storage.LibraryGroupMemberRepository;
 import org.olf.dcb.storage.postgres.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.reactivestreams.Publisher;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.model.Sort;
@@ -21,8 +25,7 @@ import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.data.querying.QueryService;
-import java.util.List;
-import java.util.UUID;
+
 
 @Singleton
 @TypeHint(typeNames = { "org.apache.lucene.search.Query", "org.apache.lucene.search.MultiTermQuery" }, accessType = {
@@ -38,33 +41,53 @@ public class DataFetchers {
 	private final PostgresBibRepository postgresBibRepository;
 	private final PostgresRawSourceRepository postgresRawSourceRepository;
 	private final PostgresHostLmsRepository postgresHostLmsRepository;
- 	private final PostgresLocationRepository postgresLocationRepository;
+	private final PostgresLocationRepository postgresLocationRepository;
 	private final PostgresAgencyGroupRepository postgresAgencyGroupRepository;
- 	private final PostgresProcessStateRepository postgresProcessStateRepository;
+	private final PostgresProcessStateRepository postgresProcessStateRepository;
 	private final PostgresPatronRequestAuditRepository postgresPatronRequestAuditRepository;
 	private final PostgresPatronIdentityRepository postgresPatronIdentityRepository;
 	private final PostgresClusterRecordRepository postgresClusterRecordRepository;
 	private final PostgresReferenceValueMappingRepository postgresReferenceValueMappingRepository;
 	private final PostgresNumericRangeMappingRepository postgresNumericRangeMappingRepository;
 
+	private final PostgresLibraryRepository postgresLibraryRepository;
+
+	private final PostgresConsortiumRepository postgresConsortiumRepository;
+
+	private final PostgresLibraryGroupRepository postgresLibraryGroupRepository;
+
+	private final LibraryGroupMemberRepository libraryGroupMemberRepository;
+
+	private final PostgresLibraryGroupMemberRepository postgresLibraryGroupMemberRepository;
+	private final PostgresPersonRepository postgresPersonRepository;
+
+	private final PostgresLibraryContactRepository postgresLibraryContactRepository;
+
+
 	private final QueryService qs;
 
 	public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
-			AgencyGroupMemberRepository agencyGroupMemberRepository,
-			PostgresPatronRequestRepository postgresPatronRequestRepository,
-			PostgresSupplierRequestRepository postgresSupplierRequestRepository, 
-			PostgresBibRepository postgresBibRepository, 
-                        PostgresRawSourceRepository postgresRawSourceRepository,
-                        PostgresHostLmsRepository postgresHostLmsRepository,
-                        PostgresLocationRepository postgresLocationRepository,
-                        PostgresAgencyGroupRepository postgresAgencyGroupRepository,
-			PostgresProcessStateRepository postgresProcessStateRepository,
-                        PostgresPatronRequestAuditRepository postgresPatronRequestAuditRepository,
-                        PostgresPatronIdentityRepository postgresPatronIdentityRepository, 
-                        PostgresClusterRecordRepository postgresClusterRecordRepository,
-                        PostgresNumericRangeMappingRepository postgresNumericRangeMappingRepository,
-                        PostgresReferenceValueMappingRepository postgresReferenceValueMappingRepository,
-                        QueryService qs) {
+											AgencyGroupMemberRepository agencyGroupMemberRepository,
+											PostgresPatronRequestRepository postgresPatronRequestRepository,
+											PostgresSupplierRequestRepository postgresSupplierRequestRepository,
+											PostgresBibRepository postgresBibRepository,
+											PostgresRawSourceRepository postgresRawSourceRepository,
+											PostgresHostLmsRepository postgresHostLmsRepository,
+											PostgresLocationRepository postgresLocationRepository,
+											PostgresAgencyGroupRepository postgresAgencyGroupRepository,
+											PostgresProcessStateRepository postgresProcessStateRepository,
+											PostgresPatronRequestAuditRepository postgresPatronRequestAuditRepository,
+											PostgresPatronIdentityRepository postgresPatronIdentityRepository,
+											PostgresClusterRecordRepository postgresClusterRecordRepository,
+											PostgresNumericRangeMappingRepository postgresNumericRangeMappingRepository,
+											PostgresReferenceValueMappingRepository postgresReferenceValueMappingRepository,
+											PostgresLibraryRepository postgresLibraryRepository,
+											PostgresConsortiumRepository postgresConsortiumRepository,
+											PostgresPersonRepository postgresPersonRepository,
+											PostgresLibraryGroupRepository postgresLibraryGroupRepository, LibraryGroupMemberRepository libraryGroupMemberRepository,
+											PostgresLibraryGroupMemberRepository postgresLibraryGroupMemberRepository,
+											PostgresLibraryContactRepository postgresLibraryContactRepository,
+											QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
 		this.agencyGroupMemberRepository = agencyGroupMemberRepository;
@@ -81,6 +104,13 @@ public class DataFetchers {
 		this.postgresClusterRecordRepository = postgresClusterRecordRepository;
 		this.postgresReferenceValueMappingRepository = postgresReferenceValueMappingRepository;
 		this.postgresNumericRangeMappingRepository = postgresNumericRangeMappingRepository;
+		this.postgresLibraryRepository = postgresLibraryRepository;
+		this.postgresConsortiumRepository = postgresConsortiumRepository;
+		this.postgresPersonRepository = postgresPersonRepository;
+		this.postgresLibraryGroupRepository = postgresLibraryGroupRepository;
+		this.libraryGroupMemberRepository = libraryGroupMemberRepository;
+		this.postgresLibraryGroupMemberRepository = postgresLibraryGroupMemberRepository;
+		this.postgresLibraryContactRepository = postgresLibraryContactRepository;
 	}
 
 
@@ -125,7 +155,7 @@ public class DataFetchers {
                 };
         }
 
-        public DataFetcher<CompletableFuture<Page<PatronRequest>>> getPatronRequestsDataFetcher() {
+				public DataFetcher<CompletableFuture<Page<PatronRequest>>> getPatronRequestsDataFetcher() {
                 return env -> {
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
@@ -459,6 +489,7 @@ public class DataFetchers {
 			}
                 };
         }
+
         
         public DataFetcher<CompletableFuture<Location>> getParentForLocation() {
                 // ToDo: FillOut
@@ -539,6 +570,214 @@ public class DataFetchers {
 		return env -> {                 
 			String agency = env.getArgument("forAgency");
 			return Flux.from(postgresLocationRepository.getSortedPickupLocations(agency)).collectList().toFuture();
+		};
+	}
+
+	public DataFetcher<CompletableFuture<Page<Library>>> getLibrariesDataFetcher() {
+		return env -> {
+			Integer pageno = env.getArgument("pageno");
+			Integer pagesize = env.getArgument("pagesize");
+			String query = env.getArgument("query");
+			String order = env.getArgument("order");
+			String direction = env.getArgument("orderBy");
+
+			if (pageno == null) pageno = Integer.valueOf(0);
+			if (pagesize == null) pagesize = Integer.valueOf(10);
+			if (order == null) order = "fullName";
+			if (direction == null) direction = "ASC";
+
+			Sort.Order.Direction orderBy = Sort.Order.Direction.valueOf(direction);
+
+			log.debug("LibrariesDataFetcher::get({},{},{})", pageno, pagesize, query);
+			Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
+
+			if ((query != null) && (query.length() > 0)) {
+				var spec = qs.evaluate(query, Library.class);
+				return Mono.from(postgresLibraryRepository.findAll(spec, pageable)).toFuture();
+			}
+			return Mono.from(postgresLibraryRepository.findAll(pageable)).toFuture();
+		};
+	}
+
+	public DataFetcher<CompletableFuture<DataHostLms>> getHostLmsForAgencyDataFetcher() {
+		return env -> {
+			Agency a = (Agency) env.getSource();
+			if (a.getHostLms() != null) {
+				UUID hostSystemUUID = a.getHostLms().getId();
+				return Mono.from(postgresHostLmsRepository.findById(hostSystemUUID)).toFuture();
+			} else {
+				Mono<DataHostLms> r = Mono.empty();
+				return r.toFuture();
+			}
+		};
+	}
+
+
+	public DataFetcher<CompletableFuture<DataAgency>> getAgencyForLibraryDataFetcher() {
+		return env -> {
+			Library l = (Library) env.getSource();
+			if (l.getAgencyCode() != null) {
+				String agencyCode = l.getAgencyCode();
+				return Mono.from(postgresAgencyRepository.findOneByCode(agencyCode)).toFuture();
+			} else {
+				log.debug("Agency code not available.");
+				Mono<DataAgency> r = Mono.empty();
+				return r.toFuture();
+			}
+		};
+	}
+
+// Fetcher to get a second Host LMS for Libraries that have one.
+	// This is done by navigating the context hierarchy of the first Host LMS (on the agency) to get the code
+	// for the second Host LMS, which we then return, if present. If not this just returns empty.
+	public DataFetcher<CompletableFuture<DataHostLms>> getSecondHostLmsForLibraryDataFetcher() {
+		return env -> {
+			Library l = (Library) env.getSource();
+			if (l.getAgencyCode() != null) {
+				String agencyCode = l.getAgencyCode();
+				return Mono.from(postgresAgencyRepository.findOneByCode(agencyCode))
+					.flatMap(agency -> {
+						if (agency != null) {
+							DataHostLms h = agency.getHostLms();
+							if (h != null) {
+								return Mono.from(postgresHostLmsRepository.findById(h.getId()))
+									.flatMap(hostLms -> {
+										// we shouldn't be trying to look up if roles is not there or isn't bigger than 2 - this indicates no second Host LMS present
+										if (hostLms.getClientConfig() != null)
+										{
+											ArrayList roles = (ArrayList) hostLms.getClientConfig().get("roles");
+											ArrayList context = (ArrayList) hostLms.getClientConfig().get("contextHierarchy");
+											String hostLmsCode = (String) context.get(1);
+											if (roles != null && roles.size() < 2) {
+												return Mono.from(postgresHostLmsRepository.findByCode(hostLmsCode));
+											}
+										}
+										return Mono.empty();
+									});
+							}
+						}
+						return Mono.empty(); // Return empty Mono here if no second Host LMS is found.
+					}).toFuture();
+			} else {
+				return CompletableFuture.completedFuture(null);
+			}
+		};
+	}
+
+	public DataFetcher<CompletableFuture<Page<LibraryGroup>>> getLibraryGroupsDataFetcher() {
+		return env -> {
+			Integer pageno = env.getArgument("pageno");
+			Integer pagesize = env.getArgument("pagesize");
+			String query = env.getArgument("query");
+			String order = env.getArgument("order");
+			String direction = env.getArgument("orderBy");
+
+			if ( pageno == null ) pageno = Integer.valueOf(0);
+			if ( pagesize == null ) pagesize = Integer.valueOf(10);
+			if ( order == null ) order = "name";
+			if ( direction == null ) direction = "ASC";
+
+			Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
+
+			Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
+
+			if ((query != null) && (query.length() > 0)) {
+				var spec = qs.evaluate(query, LibraryGroup.class);
+				return Mono.from(postgresLibraryGroupRepository.findAll(spec, pageable)).toFuture();
+			}
+
+			return Mono.from(postgresLibraryGroupRepository.findAll(pageable)).toFuture();
+		};
+	}
+
+	public DataFetcher<CompletableFuture<List<LibraryGroupMember>>> getLibraryGroupMembersDataFetcher() {
+		return env -> {
+			log.debug("getLibraryGroupMembersDataFetcher args={}/ctx={}/root={}/src={}", env.getArguments(), env.getGraphQlContext(), env.getRoot(), env.getSource());
+			return Flux.from(libraryGroupMemberRepository.findByLibraryGroup(env.getSource())).collectList().toFuture();
+		};
+	}
+
+	public DataFetcher<CompletableFuture<List<LibraryGroupMember>>> getLibraryGroupMembersByLibraryDataFetcher() {
+		return env -> {
+			log.debug("getLibraryGroupMembersDataFetcher args={}/ctx={}/root={}/src={}", env.getArguments(), env.getGraphQlContext(), env.getRoot(), env.getSource());
+			return Flux.from(libraryGroupMemberRepository.findByLibrary(env.getSource())).collectList().toFuture();
+		};
+	}
+
+	public DataFetcher<CompletableFuture<Library>> getLibraryForGroupMemberDataFetcher() {
+		return env -> {
+			LibraryGroupMember lgm = (LibraryGroupMember) env.getSource();
+			return Mono.from(libraryGroupMemberRepository.findLibraryById(lgm.getId())).toFuture();
+		};
+	}
+
+	public DataFetcher<CompletableFuture<LibraryGroup>> getGroupForGroupMemberDataFetcher() {
+		return env -> {
+			LibraryGroupMember lgm = (LibraryGroupMember) env.getSource();
+			return Mono.from(libraryGroupMemberRepository.findLibraryGroupById(lgm.getId())).toFuture();
+		};
+	}
+
+	public DataFetcher<CompletableFuture<LibraryGroupMember>> getAllLibraryGroupMembers() {
+			return env -> {
+				log.debug("Fetching the group members for a given library.");
+				return Mono.from(postgresLibraryGroupMemberRepository.findAll()).toFuture();
+			};
+		}
+
+	public DataFetcher<CompletableFuture<Page<Consortium>>> getConsortiaDataFetcher() {
+		return env -> {
+			Integer pageno = env.getArgument("pageno");
+			Integer pagesize = env.getArgument("pagesize");
+			String query = env.getArgument("query");
+			String order = env.getArgument("order");
+			String direction = env.getArgument("orderBy");
+
+			if (pageno == null) pageno = Integer.valueOf(0);
+			if (pagesize == null) pagesize = Integer.valueOf(10);
+			if (order == null) order = "name";
+			if (direction == null) direction = "ASC";
+
+			Sort.Order.Direction orderBy = Sort.Order.Direction.valueOf(direction);
+
+			log.debug("ConsortiaDataFetcher::get({},{},{})", pageno, pagesize, query);
+			Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
+
+			if ((query != null) && (query.length() > 0)) {
+				var spec = qs.evaluate(query, Consortium.class);
+				return Mono.from(postgresConsortiumRepository.findAll(spec, pageable)).toFuture();
+			}
+
+			return Mono.from(postgresConsortiumRepository.findAll(pageable)).toFuture();
+		};
+	}
+
+	public DataFetcher<CompletableFuture<Consortium>> getConsortiumForLibraryGroupDataFetcher() {
+		return env -> {
+			log.debug("Fetching the consortium for a given library group.");
+			return Mono.from(postgresConsortiumRepository.findOneByLibraryGroup(env.getSource())).toFuture();
+		};
+
+
+	}
+
+		public DataFetcher<CompletableFuture<List<Person>>> getContactsForLibraryDataFetcher() {
+		return env -> {
+			log.debug("Fetching the contacts for a given library."+env.getSource());
+
+			return Flux.from(postgresLibraryContactRepository.findByLibrary(env.getSource()))
+				.doOnNext(libraryContact -> {
+					log.debug("LibraryContact: {}", libraryContact);
+				})
+				.flatMap(libraryContact -> {
+					return Mono.from(postgresPersonRepository.findById(libraryContact.getPerson().getId()))
+						.doOnNext(person -> {
+							log.debug("Person: {}", person);
+						});
+				})
+				.distinct() // Only return unique Person objects
+				.collectList()
+				.toFuture();
 		};
 	}
 }

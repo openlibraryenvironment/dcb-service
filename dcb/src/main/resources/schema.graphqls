@@ -14,18 +14,29 @@ type Query {
     patronIdentities(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): PatronIdentityPage!
     numericRangeMappings(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): NumericRangeMappingPage!
     referenceValueMappings(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): ReferenceValueMappingPage!
-
+		libraries(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): LibraryPage!
     pickupLocations(forAgency: String): [Location]
+		libraryGroups(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): LibraryGroupPage!
+		libraryGroupMembers: [LibraryGroupMember]!
 }
 
 type Mutation {
     createAgencyGroup(input: AgencyGroupInput): AgencyGroup!
     addAgencyToGroup(input: AddAgencyToGroupCommand): AgencyGroupMember!
+		createConsortium(input: ConsortiumInput): Consortium!
+		createLibrary(input: LibraryInput): Library!
+		createLibraryGroup(input: LibraryGroupInput): LibraryGroup!
+		addLibraryToGroup(input: AddLibraryToGroupCommand): LibraryGroupMember!
 }
 
 input AddAgencyToGroupCommand {
         agency: ID!
         group: ID!
+}
+
+input AddLibraryToGroupCommand {
+	library: ID!
+	libraryGroup: ID!
 }
 
 
@@ -37,6 +48,47 @@ input AgencyGroupInput {
     id: ID
     code: String!
     name: String!
+}
+
+input ConsortiumInput {
+	id: ID
+	name: String!
+	groupName: String!
+}
+
+input LibraryInput {
+	id: ID
+	agencyCode: String!
+	fullName: String!
+	shortName: String!
+	abbreviatedName: String!
+	address: String!
+	training: Boolean!
+	type: String!
+	contacts: [PersonInput]!
+	longitude: Float
+	latitude: Float
+	patronWebsite: String
+	discoverySystem: String
+	hostLmsConfiguration: String
+	supportHours: String
+	backupDowntimeSchedule: String
+}
+
+input LibraryGroupInput {
+	id: ID
+	code: String!
+	name: String!
+	type: String!
+}
+
+input PersonInput {
+	id: ID
+	firstName: String!
+	lastName: String!
+	role: String!
+	isPrimaryContact: Boolean!
+	email: String!
 }
 
 type ProcessState {
@@ -70,7 +122,7 @@ type Agency {
 }
 
 """
-An agency group is a collection of Agencies that can be referred to a sa group. Agencies are "Members" of agency groups and properties can be
+An agency group is a collection of Agencies that can be referred to as a group. Agencies are "Members" of agency groups and properties can be
 attached to the membership. Agency groups most often represent consortia. The consortium itself is probably still best modelled as an Agency 
 for the purposes of it's interactions with other systems, but for modelling the members of a consortium, agency group is a useful abstracton for
 expressing the aggregation of agencies under a single heading
@@ -185,6 +237,69 @@ type Location {
   localId: String
 }
 
+type Library {
+	id: ID!
+	agencyCode: String
+	fullName: String
+	shortName: String
+	abbreviatedName: String
+	training: Boolean
+	backupDowntimeSchedule: String
+	supportHours: String
+	discoverySystem: String
+	patronWebsite: String
+	hostLmsConfiguration: String
+	longitude: Float
+	latitude: Float
+	address: String
+	agency: Agency
+	type: String
+	contacts: [Person]
+	secondHostLms: HostLms
+	membership: [LibraryGroupMember]
+}
+
+type LibraryContact {
+	id: ID
+	library: Library
+	person: Person
+}
+
+type LibraryGroup {
+	id: ID!
+	name: String!
+	code: String!
+	type: String!
+	members: [LibraryGroupMember]
+	consortium: Consortium
+}
+
+type LibraryGroupMember {
+	id: ID!
+	library: Library
+	libraryGroup: LibraryGroup
+}
+
+type Person {
+	id: ID
+	firstName: String
+	lastName: String
+	role: String
+	isPrimaryContact: Boolean
+	email: String
+}
+
+type Consortium {
+	id: ID!
+	name: String
+	libraryGroup: LibraryGroup!
+}
+
+type ConsortiumMember {
+	id: ID!
+	library: Library
+	consortium: Consortium
+}
 """
 See: https://micronaut-projects.github.io/micronaut-data/2.4.0/api/io/micronaut/data/model/Page.html
 """
@@ -217,6 +332,18 @@ type ClusterRecordPage {
   pageable: Pageable
 }
 
+type ConsortiumPage {
+	content: [Consortium]
+	totalSize: Int
+	pageable: Pageable
+}
+
+type LibraryGroupPage {
+	content: [LibraryGroup]
+	totalSize: Int
+	pageable: Pageable
+}
+
 type HostLmsPage {
   content: [HostLms]
   totalSize: Int
@@ -228,6 +355,13 @@ type LocationPage {
   totalSize: Int
   pageable: Pageable
 }
+
+type LibraryPage {
+	content: [Library]
+	totalSize: Int
+	pageable: Pageable
+}
+
 
 type PatronRequestPage {
   content: [PatronRequest]

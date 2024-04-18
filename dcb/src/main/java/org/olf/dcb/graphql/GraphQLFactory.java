@@ -21,7 +21,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // https://github.com/graphql-java/graphql-java-extended-scalars
-import graphql.schema.GraphQLScalarType;
 import graphql.scalars.ExtendedScalars;
 
 
@@ -37,9 +36,11 @@ public class GraphQLFactory {
 	public GraphQL graphQL(
 			CreateAgencyGroupDataFetcher createAgencyGroupDataFetcher,
 			AddAgencyToGroupDataFetcher addAgencyToGroupDataFetcher,
+			CreateLibraryDataFetcher createLibraryDataFetcher,
 			ResourceResolver resourceResolver,
 			InstanceClusterDataFetcher instanceClusterDataFetcher,
-			SourceBibDataFetcher sourceBibDataFetcher,
+			SourceBibDataFetcher sourceBibDataFetcher, AddLibraryToGroupDataFetcher addLibraryToGroupDataFetcher,
+			CreateLibraryGroupDataFetcher createLibraryGroupDataFetcher, CreateConsortiumDataFetcher createConsortiumDataFetcher,
 			DataFetchers dataFetchers) {
 
 		log.debug("GraphQLFactory::graphQL");
@@ -73,14 +74,23 @@ public class GraphQLFactory {
 						.dataFetcher("numericRangeMappings", dataFetchers.getNumericRangeMappingsDataFetcher())
 						.dataFetcher("referenceValueMappings", dataFetchers.getReferenceValueMappingsDataFetcher())
 						.dataFetcher("pickupLocations", dataFetchers.getPickupLocationsDataFetcher())
+						.dataFetcher("libraries", dataFetchers.getLibrariesDataFetcher())
+						.dataFetcher("consortia", dataFetchers.getConsortiaDataFetcher())
+						.dataFetcher("libraryGroups", dataFetchers.getLibraryGroupsDataFetcher())
+					.dataFetcher("libraryGroupMembers", dataFetchers.getAllLibraryGroupMembers())
 				)
 				.type("Mutation",
 					typeWiring -> typeWiring
 						.dataFetcher("createAgencyGroup", createAgencyGroupDataFetcher)
-						.dataFetcher("addAgencyToGroup", addAgencyToGroupDataFetcher))
+						.dataFetcher("addAgencyToGroup", addAgencyToGroupDataFetcher)
+						.dataFetcher("createLibrary", createLibraryDataFetcher)
+						.dataFetcher("createLibraryGroup", createLibraryGroupDataFetcher)
+						.dataFetcher("createConsortium", createConsortiumDataFetcher)
+						.dataFetcher("addLibraryToGroup", addLibraryToGroupDataFetcher))
 				.type("Agency",
 					typeWiring -> typeWiring
-						.dataFetcher("locations", dataFetchers.getAgencyLocationsDataFetcher()))
+						.dataFetcher("locations", dataFetchers.getAgencyLocationsDataFetcher())
+						.dataFetcher("hostLms", dataFetchers.getHostLmsForAgencyDataFetcher()))
 				.type("AgencyGroup",
 					typeWiring -> typeWiring
 						.dataFetcher("members", dataFetchers.getAgencyGroupMembersDataFetcher()))
@@ -108,6 +118,22 @@ public class GraphQLFactory {
 						.dataFetcher("agency", dataFetchers.getAgencyForLocation())
 						.dataFetcher("hostSystem", dataFetchers.getHostSystemForLocation())
 						.dataFetcher("parentLocation", dataFetchers.getParentForLocation()))
+				.type("Library",
+					typeWiring -> typeWiring
+						.dataFetcher("agency", dataFetchers.getAgencyForLibraryDataFetcher())
+						.dataFetcher("secondHostLms", dataFetchers.getSecondHostLmsForLibraryDataFetcher())
+						.dataFetcher("contacts", dataFetchers.getContactsForLibraryDataFetcher())
+						.dataFetcher("membership", dataFetchers.getLibraryGroupMembersByLibraryDataFetcher()))
+				.type("LibraryGroup",
+					typeWiring -> typeWiring
+						.dataFetcher("members", dataFetchers.getLibraryGroupMembersDataFetcher())
+						.dataFetcher("consortium", dataFetchers.getConsortiumForLibraryGroupDataFetcher())
+			)
+			.type("LibraryGroupMember",
+				typeWiring -> typeWiring
+					.dataFetcher("library", dataFetchers.getLibraryForGroupMemberDataFetcher())
+					.dataFetcher("libraryGroup", dataFetchers.getGroupForGroupMemberDataFetcher())
+			)
 				.scalar(ExtendedScalars.Json)
 				.build();
 
