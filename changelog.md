@@ -1,11 +1,40 @@
 # Changelog
 
+## Version 6.2.0
+
+### Additions
+* [General]
+	* Introduce Libraries, Consortia and LibraryGroups [DCB-969]
+	* Fail preflight checks if borrowing patron has been deleted DCB-973 DCB-1003
+	* Check patron type eligibility before request is placed DCB-1003
+	* handle deleted patron in sierra [DCB-973]
+	* Provide code for each failed preflight check DCB-1003
+	* add UnknownItemStatusException when we cannot map a polaris local item status [DCB-879]
+
+### Changes
+* [Chore]
+	* comment explaining why we added timeout for http client
+* [Refactor]
+	* allow tracking of virtual items with null local item ids in the TrackingServiceV3 [DCB-1036]
+	* Folio transation status OPEN changed to map to DCB ITEM_TRANSIT [DCB-1021]
+	* have difference between unahandled and unknown local item statuses in polaris [DCB-879]
+
+### Fixes
+* [General]
+	* Improve distinction of library contacts [DCB-969]
+	* Fix duplicate contacts [DCB-969]
+	* Report specific error when Sierra local patron type is null or empty DCB-1004
+
 ## Version 6.1.0
 
 ### Additions
 * [General]
 	* Use problem title for error message when transitioning to error status
 	* add override baseurl for polaris application services API
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ## Version 6.0.2
 
