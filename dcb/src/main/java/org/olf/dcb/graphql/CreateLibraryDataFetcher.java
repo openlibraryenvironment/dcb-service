@@ -87,7 +87,7 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 				// Save the contacts and associate them with the saved Library entity
 				Mono<? extends List<? extends Person>> contactsMono = Flux.fromIterable(contactsInput)
 					.map(this::createPersonFromInput)
-					.flatMap(person -> Mono.from(personRepository.save(person)))
+					.flatMap(person -> Mono.from(personRepository.saveOrUpdate(person)))
 					.collectList();
 
 				return contactsMono.flatMap(contacts -> {
@@ -100,7 +100,7 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 
 	private Person createPersonFromInput(Map<String, Object> contactInput) {
 		return Person.builder()
-			.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Person:" + contactInput.get("firstName") + contactInput.get("lastName") + contactInput.get("role")))
+			.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Person:" + contactInput.get("firstName") + contactInput.get("lastName") + contactInput.get("role") + contactInput.get("email")))
 			.firstName(contactInput.get("firstName").toString())
 			.lastName(contactInput.get("lastName").toString())
 			.role(contactInput.get("role").toString())
