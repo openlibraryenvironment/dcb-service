@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.sierra;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
@@ -103,6 +104,7 @@ import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
+import services.k_int.interaction.sierra.patrons.Block;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
@@ -1054,6 +1056,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.localBarcodes(spr.getBarcodes())
 			.localNames(spr.getNames())
 			.localHomeLibraryCode(spr.getHomeLibraryCode())
+			.blocked(isNotEmpty(getValue(spr.getBlockInfo(), Block::getCode)))
 			.isDeleted(spr.getDeleted() != null ? spr.getDeleted() : false)
 			.build();
 

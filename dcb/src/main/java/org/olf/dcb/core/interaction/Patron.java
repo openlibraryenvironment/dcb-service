@@ -40,6 +40,7 @@ public class Patron {
 	private String localItemId;
 	private Integer localItemLocationId;
 	private Boolean isDeleted;
+	private Boolean blocked;
 
 	public boolean isEligible() {
 		return !Objects.equals(canonicalPatronType, "NOT_ELIGIBLE");

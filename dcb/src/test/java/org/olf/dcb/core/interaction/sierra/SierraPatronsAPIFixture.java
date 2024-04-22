@@ -324,8 +324,16 @@ public class SierraPatronsAPIFixture {
 		List<String> barcodes;
 		List<String> names;
 		Boolean deleted;
+		PatronBlock blockInfo;
 	}
-	
+
+	@Data
+	@Serdeable
+	@Builder
+	public static class PatronBlock {
+		String code;
+	}
+
 	@Data
 	@Serdeable
 	@Builder

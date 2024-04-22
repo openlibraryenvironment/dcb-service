@@ -64,6 +64,14 @@ public class PatronMatchers {
 		return hasProperty("canonicalPatronType", anyOf(nullValue(), empty()));
 	}
 
+	public static Matcher<Patron> isBlocked() {
+		return hasProperty("blocked", is(true));
+	}
+
+	public static Matcher<Patron> isNotBlocked() {
+		return hasProperty("blocked", is(false));
+	}
+
 	public static Matcher<Patron> isNotDeleted() {
 		return hasProperty("isDeleted", is(false));
 	}
