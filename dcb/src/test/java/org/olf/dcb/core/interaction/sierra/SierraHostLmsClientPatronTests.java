@@ -24,7 +24,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.NumericRangeMappingFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import jakarta.inject.Inject;
@@ -48,8 +47,6 @@ class SierraHostLmsClientPatronTests {
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
-	@Inject
-	private NumericRangeMappingFixture numericRangeMappingFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
@@ -113,7 +110,7 @@ class SierraHostLmsClientPatronTests {
 			hasLocalIds(localPatronId),
 			hasLocalNames("first name", "middle name", "last name"),
 			hasLocalBarcodes(barcode),
-			hasLocalPatronType(Integer.toString(localPatronType)),
+			hasLocalPatronType(localPatronType),
 			hasCanonicalPatronType(canonicalPatronType),
 			hasHomeLibraryCode("home-library"),
 			isNotDeleted()

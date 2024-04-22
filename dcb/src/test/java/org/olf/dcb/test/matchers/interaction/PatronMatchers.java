@@ -48,6 +48,10 @@ public class PatronMatchers {
 		return hasProperty("localPatronType", is(expectedPatronGroup));
 	}
 
+	public static Matcher<Patron> hasLocalPatronType(Integer expectedPatronGroup) {
+		return hasLocalPatronType(Integer.toString(expectedPatronGroup));
+	}
+
 	public static Matcher<Patron> hasNoLocalPatronType() {
 		return hasProperty("localPatronType", is(nullValue()));
 	}
