@@ -1,7 +1,6 @@
 package org.olf.dcb.core.interaction.sierra;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
@@ -106,7 +105,6 @@ import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
-import services.k_int.interaction.sierra.patrons.Block;
 import services.k_int.interaction.sierra.patrons.ItemPatch;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
@@ -1090,21 +1088,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				});
 	}
 
-	private Mono<Patron> sierraPatronToHostLmsPatron(SierraPatronRecord spr) {
-		log.debug("sierraPatronToHostLmsPatron({})", spr);
+	private Mono<Patron> sierraPatronToHostLmsPatron(SierraPatronRecord patronRecord) {
+		log.debug("sierraPatronToHostLmsPatron({})", patronRecord);
 
 		final var result = Patron.builder()
-			.localId(singletonList(convertIntegerToString(spr.getId())))
-			.localPatronType(convertIntegerToString(spr.getPatronType()))
-			.localBarcodes(spr.getBarcodes())
-			.localNames(spr.getNames())
-			.localHomeLibraryCode(spr.getHomeLibraryCode())
-			.blocked(isNotEmpty(getValue(spr.getBlockInfo(), Block::getCode)))
-			.isDeleted(spr.getDeleted() != null ? spr.getDeleted() : false)
+			.localId(singletonList(convertIntegerToString(patronRecord.getId())))
+			.localPatronType(convertIntegerToString(patronRecord.getPatronType()))
+			.localBarcodes(patronRecord.getBarcodes())
+			.localNames(patronRecord.getNames())
+			.localHomeLibraryCode(patronRecord.getHomeLibraryCode())
+			.blocked(patronRecord.isPatronBlocked())
+			.isDeleted(patronRecord.getDeleted() != null ? patronRecord.getDeleted() : false)
 			.build();
 
 		if ((result.getLocalBarcodes() == null) || (result.getLocalBarcodes().isEmpty()))
-			log.warn("Returned patron has NO BARCODES : {} -> {}", spr, result);
+			log.warn("Returned patron has NO BARCODES : {} -> {}", patronRecord, result);
 
 		return Mono.just(result)
 			.flatMap(this::enrichWithCanonicalPatronType);

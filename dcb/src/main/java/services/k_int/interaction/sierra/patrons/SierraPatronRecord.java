@@ -1,5 +1,8 @@
 package services.k_int.interaction.sierra.patrons;
 
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+
 import java.util.List;
 import java.util.Map;
 
@@ -62,4 +65,15 @@ public class SierraPatronRecord {
 	String langPref;
 	@Nullable
 	Map<Integer, FixedField> fixedFields;
+
+	public boolean isPatronBlocked() {
+		final var manuallyBlocked = hasCode(getBlockInfo());
+		final var automaticallyBlocked = hasCode(getAutoBlockInfo());
+
+		return manuallyBlocked || automaticallyBlocked;
+	}
+
+	private static boolean hasCode(@Nullable Block blockInfo) {
+		return isNotEmpty(getValue(blockInfo, Block::getCode));
+	}
 }

@@ -123,7 +123,7 @@ class SierraHostLmsClientPatronTests {
 
 	@Test
 	@SneakyThrows
-	void shouldFindBlockedPatronByLocalId() {
+	void shouldFindManuallyBlockedPatronByLocalId() {
 		// Arrange
 		final var localPatronId = "364625";
 		final var localPatronType = 23;
@@ -137,6 +137,43 @@ class SierraHostLmsClientPatronTests {
 				.patronType(localPatronType)
 				.homeLibraryCode("home-library")
 				.blockInfo(PatronBlock.builder()
+					.code("blocked")
+					.build())
+				.build());
+
+		final var canonicalPatronType = "UNDERGRAD";
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
+			localPatronType, localPatronType, "DCB", canonicalPatronType);
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var patron = singleValueFrom(client.getPatronByLocalId(localPatronId));
+
+		// Assert
+		assertThat(patron, allOf(
+			notNullValue(),
+			isBlocked()
+		));
+	}
+
+	@Test
+	@SneakyThrows
+	void shouldFindAutomaticallyBlockedPatronByLocalId() {
+		// Arrange
+		final var localPatronId = "364625";
+		final var localPatronType = 23;
+		final var barcode = "79275273";
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(parseInt(localPatronId))
+				.barcodes(List.of(barcode))
+				.names(List.of("first name", "middle name", "last name"))
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.autoBlockInfo(PatronBlock.builder()
 					.code("blocked")
 					.build())
 				.build());

@@ -325,6 +325,7 @@ public class SierraPatronsAPIFixture {
 		List<String> names;
 		Boolean deleted;
 		PatronBlock blockInfo;
+		PatronBlock autoBlockInfo;
 	}
 
 	@Data
