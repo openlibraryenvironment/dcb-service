@@ -1,4 +1,5 @@
 scalar JSON
+scalar Long
 
 type Query {
     agencies(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): AgencyPage!
@@ -170,6 +171,8 @@ type PatronRequest {
   suppliers: [SupplierRequest]
   audit: [PatronRequestAudit]
   clusterRecord: ClusterRecord
+  previousStatus: String
+  pollCountForCurrentStatus: Int
 }
 
 type PatronRequestAudit {
@@ -179,6 +182,10 @@ type PatronRequestAudit {
   fromStatus: String
   toStatus: String
   auditData: JSON
+  currentStatusStamp: String
+  elapsedTimeInCurrentStatus: Long
+  nextExpectedStatus: String
+  outOfSequenceFlag: boolean
   patronRequest: PatronRequest
 }
 

@@ -23,6 +23,9 @@ public interface PatronRequestAuditRepository {
 
 	Publisher<PatronRequestAudit> findAllByPatronRequestOrderByAuditDate(@NotNull @NonNull PatronRequest patronRequest);
 
+	Publisher<PatronRequestAudit> findAllByPatronRequestAndToStatusEquals(
+		@NotNull @NonNull PatronRequest patronRequest, @NotNull @NonNull PatronRequest.Status status);
+
 	@NonNull
 	Publisher<PatronRequestAudit> queryAll();
 

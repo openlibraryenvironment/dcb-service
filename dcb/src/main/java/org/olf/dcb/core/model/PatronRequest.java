@@ -6,6 +6,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPP
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 
 import java.time.Instant;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -70,7 +71,33 @@ public class PatronRequest {
 		CANCELLED,
 		COMPLETED, // Everything is finished, regardless and ready to be finalised
 		FINALISED, // We've cleaned up everything and this is the end of the line
-		ERROR
+		ERROR;
+		private static final EnumMap<Status, Status> path = new EnumMap<>(Status.class);
+
+		// expected path via https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/2870575137/Tracking+v3+matrix
+		static {
+			path.put(SUBMITTED_TO_DCB, PATRON_VERIFIED);
+			path.put(PATRON_VERIFIED, RESOLVED);
+			path.put(RESOLVED, REQUEST_PLACED_AT_SUPPLYING_AGENCY);
+			path.put(NOT_SUPPLIED_CURRENT_SUPPLIER, NOT_SUPPLIED_CURRENT_SUPPLIER);
+			path.put(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY, NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
+			path.put(REQUEST_PLACED_AT_SUPPLYING_AGENCY, CONFIRMED);
+			path.put(CONFIRMED, REQUEST_PLACED_AT_BORROWING_AGENCY);
+			path.put(REQUEST_PLACED_AT_BORROWING_AGENCY, PICKUP_TRANSIT);
+			path.put(PICKUP_TRANSIT, RECEIVED_AT_PICKUP);
+			path.put(RECEIVED_AT_PICKUP, READY_FOR_PICKUP);
+			path.put(READY_FOR_PICKUP, LOANED);
+			path.put(LOANED, RETURN_TRANSIT);
+			path.put(RETURN_TRANSIT, COMPLETED);
+			path.put(CANCELLED, CANCELLED);
+			path.put(COMPLETED, FINALISED);
+			path.put(FINALISED, FINALISED);
+			path.put(ERROR, ERROR);
+		}
+
+		public Status getNextExpectedStatus() {
+			return path.get(this);
+		}
 	}
 
 	@ToString.Include
@@ -235,6 +262,7 @@ public class PatronRequest {
 	
 	@JsonIgnore
 	public PatronRequest setStatus(Status status) {
+		this.previousStatus = this.status;
 		this.status = status;
 		return this;
 	}
@@ -267,6 +295,10 @@ public class PatronRequest {
 	// which can be used by those implementations
 	@Nullable
 	private Instant nextScheduledPoll;
+
+	// poll count for the current status
+	@Nullable
+	private Integer pollCountForCurrentStatus;
 
 	// When we go to ERROR this property allows us to know the previous state so that we can RETRY
   @JsonIgnore
