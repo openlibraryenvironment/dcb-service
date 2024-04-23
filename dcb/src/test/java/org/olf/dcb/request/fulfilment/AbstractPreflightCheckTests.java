@@ -31,6 +31,13 @@ public abstract class AbstractPreflightCheckTests {
 		);
 	}
 
+	protected static Matcher<CheckResult> failedCheck(String expectedCode) {
+		return allOf(
+			hasProperty("passed", is(false)),
+			hasProperty("failureCode", is(expectedCode))
+		);
+	}
+
 	protected static Matcher<CheckResult> passedCheck() {
 		return hasProperty("passed", is(true));
 	}

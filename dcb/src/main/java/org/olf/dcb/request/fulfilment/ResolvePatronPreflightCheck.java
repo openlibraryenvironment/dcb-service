@@ -1,5 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
+import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 
@@ -56,7 +57,15 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 				"Patron \"%s\" from \"%s\" is of type \"%s\" which is \"%s\" for consortial borrowing"
 					.formatted(localPatronId, hostLmsCode, patron.getLocalPatronType(),
 						patron.getCanonicalPatronType())));
-		} else {
+		}
+
+		if (patron.getBlocked()) {
+			checkResults.add(failed("PATRON_BLOCKED",
+				"Patron \"%s\" from \"%s\" has a local account block"
+					.formatted(localPatronId, hostLmsCode)));
+		}
+
+		if (isEmpty(checkResults)) {
 			checkResults.add(passed());
 		}
 
