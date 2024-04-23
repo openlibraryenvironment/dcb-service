@@ -3,6 +3,7 @@ package org.olf.dcb.request.fulfilment;
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.olf.dcb.core.HostLmsService;
@@ -48,11 +49,18 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		// rather than the list of IDs that could be returned from the Host LMS
 		// in order to avoid having to choose (and potential data leakage)
 
-		return patron.isEligible()
-			? List.of(passed())
-			: List.of(failed("PATRON_INELIGIBLE",
+		final var checkResults = new ArrayList<CheckResult>();
+
+		if (!patron.isEligible()) {
+			checkResults.add(failed("PATRON_INELIGIBLE",
 				"Patron \"%s\" from \"%s\" is of type \"%s\" which is \"%s\" for consortial borrowing"
-					.formatted(localPatronId, hostLmsCode, patron.getLocalPatronType(), patron.getCanonicalPatronType())));
+					.formatted(localPatronId, hostLmsCode, patron.getLocalPatronType(),
+						patron.getCanonicalPatronType())));
+		} else {
+			checkResults.add(passed());
+		}
+
+		return checkResults;
 	}
 
 	private Mono<List<CheckResult>> patronNotFound(PatronNotFoundInHostLmsException error) {
