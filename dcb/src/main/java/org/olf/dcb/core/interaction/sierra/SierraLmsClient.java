@@ -5,7 +5,6 @@ import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
 import static java.util.Calendar.YEAR;
-import static java.util.Collections.singletonList;
 import static java.util.Objects.nonNull;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
@@ -25,7 +24,6 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlProperty
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
-import static services.k_int.utils.StringUtils.convertIntegerToString;
 
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -142,6 +140,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
   private final PublisherTransformationService publishers;
 	
 	private final Integer getHoldsRetryAttempts;
+	private final SierraPatronMapper sierraPatronMapper;
 
 	public SierraLmsClient(@Parameter HostLms lms,
 		HostLmsSierraApiClientFactory clientFactory,
@@ -149,9 +148,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		ProcessStateService processStateService,
 		ReferenceValueMappingService referenceValueMappingService,
 		ConversionService conversionService,
-		NumericPatronTypeMapper numericPatronTypeMapper, 
+		NumericPatronTypeMapper numericPatronTypeMapper,
 		SierraItemMapper itemMapper,
-		ObjectRulesService objectRuleService, PublisherTransformationService publisherTransformationService) {
+		ObjectRulesService objectRuleService,
+		PublisherTransformationService publisherTransformationService,
+		 SierraPatronMapper sierraPatronMapper) {
 
 		this.lms = lms;
 
@@ -167,6 +168,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
 		this.objectRuleService = objectRuleService;
 		this.publishers = publisherTransformationService;
+		this.sierraPatronMapper = sierraPatronMapper;
 	}
 
 	private static Integer getGetHoldsRetryAttempts(Map<String, Object> clientConfig) {
@@ -511,7 +513,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return Mono.from(client.patronFind(varFieldTag, varFieldContent))
 			.flatMap(this::validatePatronRecordResult)
-			.flatMap(this::sierraPatronToHostLmsPatron)
+			.flatMap(patronRecord -> sierraPatronMapper.sierraPatronToHostLmsPatron(patronRecord,
+				this.lms.getCode()))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.error("NullPointerException occurred when finding Patron: {}", error.getMessage());
 				return Mono.empty();
@@ -1088,33 +1091,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				});
 	}
 
-	private Mono<Patron> sierraPatronToHostLmsPatron(SierraPatronRecord patronRecord) {
-		log.debug("sierraPatronToHostLmsPatron({})", patronRecord);
-
-		final var result = Patron.builder()
-			.localId(singletonList(convertIntegerToString(patronRecord.getId())))
-			.localPatronType(convertIntegerToString(patronRecord.getPatronType()))
-			.localBarcodes(patronRecord.getBarcodes())
-			.localNames(patronRecord.getNames())
-			.localHomeLibraryCode(patronRecord.getHomeLibraryCode())
-			.blocked(patronRecord.isPatronBlocked())
-			.isDeleted(patronRecord.getDeleted() != null ? patronRecord.getDeleted() : false)
-			.build();
-
-		if ((result.getLocalBarcodes() == null) || (result.getLocalBarcodes().isEmpty()))
-			log.warn("Returned patron has NO BARCODES : {} -> {}", patronRecord, result);
-
-		return Mono.just(result)
-			.flatMap(this::enrichWithCanonicalPatronType);
-	}
-
-	private Mono<Patron> enrichWithCanonicalPatronType(Patron p) {
-		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(lms.getCode(),
-				p.getLocalPatronType(), p.getLocalId().stream().findFirst().orElse(null))
-			.map(p::setCanonicalPatronType)
-			.defaultIfEmpty(p);
-	}
-
 	@Override
 	public Mono<String> findLocalPatronType(String canonicalPatronType) {
 
@@ -1137,7 +1113,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("getPatronByLocalId({})", localPatronId);
 
 		return Mono.from(client.getPatron(Long.valueOf(localPatronId)))
-			.flatMap(this::sierraPatronToHostLmsPatron)
+			.flatMap(patronRecord -> sierraPatronMapper.sierraPatronToHostLmsPatron(patronRecord,
+				this.lms.getCode()))
 			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLmsCode())));
 	}
 
