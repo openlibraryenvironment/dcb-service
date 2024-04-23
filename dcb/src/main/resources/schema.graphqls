@@ -184,7 +184,6 @@ type PatronRequestAudit {
   currentStatusStamp: String
   nextExpectedStatus: String
   outOfSequenceFlag: boolean
-  elapsedTimeInCurrentStatus: Float
   patronRequest: PatronRequest
 }
 
