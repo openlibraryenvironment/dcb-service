@@ -183,7 +183,7 @@ type PatronRequestAudit {
   auditData: JSON
   currentStatusStamp: String
   nextExpectedStatus: String
-  outOfSequenceFlag: boolean
+  outOfSequenceFlag: Boolean
   patronRequest: PatronRequest
 }
 
