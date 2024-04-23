@@ -113,9 +113,9 @@ public class HostLmsReactions {
 
 			final var sc = (StateChange) tr;
 
-			final var msg = "Downstream change to %s(%s) to %s from %s".formatted(
-				sc.getResourceType(), sc.getResourceId(), sc.getToState(),
-				sc.getFromState());
+			final var msg = "to %s from %s - %s(%s)".formatted(
+				sc.getToState(), sc.getFromState(),
+				sc.getResourceType(), sc.getResourceId());
 
 			final var auditData = new HashMap<String,Object>();
 
