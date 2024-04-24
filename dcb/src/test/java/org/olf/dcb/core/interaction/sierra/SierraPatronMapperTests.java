@@ -146,6 +146,40 @@ class SierraPatronMapperTests {
 		));
 	}
 
+	@Test
+	void shouldIgnoreHyphenBlockCode() {
+		// Arrange
+		final var localPatronId = "583634";
+		final var localPatronType = 23;
+		final var barcode = "5472792742";
+
+		final var canonicalPatronType = "UNDERGRAD";
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
+			localPatronType, localPatronType, "DCB", canonicalPatronType);
+
+		// Act
+		final var sierraPatron = SierraPatronRecord.builder()
+			.id(parseInt(localPatronId))
+			.barcodes(List.of(barcode))
+			.names(List.of("first name", "middle name", "last name"))
+			.patronType(localPatronType)
+			.homeLibraryCode("home-library")
+			.autoBlockInfo(Block.builder()
+				.code("-")
+				.build())
+			.build();
+
+		final var patron = mapToPatron(sierraPatron);
+
+		// Assert
+		assertThat(patron, allOf(
+			notNullValue(),
+			isNotBlocked()
+		));
+	}
+
+
 	private Patron mapToPatron(SierraPatronRecord sierraPatron) {
 		return singleValueFrom(sierraPatronMapper.sierraPatronToHostLmsPatron(
 			sierraPatron, HOST_LMS_CODE));

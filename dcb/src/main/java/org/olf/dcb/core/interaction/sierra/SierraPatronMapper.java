@@ -56,7 +56,13 @@ public class SierraPatronMapper {
 	}
 
 	private static boolean hasCode(@Nullable Block blockInfo) {
-		return isNotEmpty(getValue(blockInfo, Block::getCode));
+		final var blockCode = getValue(blockInfo, Block::getCode);
+
+		return isNotEmpty(blockCode) && isNotHyphen(blockCode);
+	}
+
+	private static boolean isNotHyphen(String blockCode) {
+		return !blockCode.equals("-");
 	}
 
 	private Mono<Patron> enrichWithCanonicalPatronType(Patron p, String hostLmsCode) {
