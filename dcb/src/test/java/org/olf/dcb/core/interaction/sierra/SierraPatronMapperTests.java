@@ -130,7 +130,21 @@ class SierraPatronMapperTests {
 			isNotBlocked()
 		));
 	}
-	
+
+	@Test
+	void shouldIgnoreEmptyBlockCode() {
+		// Act
+		final var sierraPatron = patronWithAutomaticBlock("");
+
+		final var patron = mapToPatron(sierraPatron);
+
+		// Assert
+		assertThat(patron, allOf(
+			notNullValue(),
+			isNotBlocked()
+		));
+	}
+
 	private static SierraPatronRecord patronWithAutomaticBlock(String blockCode) {
 		return SierraPatronRecord.builder()
 			.id(5837526)
