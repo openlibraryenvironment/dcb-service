@@ -13,9 +13,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
-/**
- *
- */
 @Builder
 @Data
 @Accessors(chain=true)
@@ -48,5 +45,9 @@ public class Patron {
 
 	public boolean isNotDeleted() {
 		return isDeleted == null || !isDeleted;
+	}
+
+	public String getFirstLocalId() {
+		return getLocalId().stream().findFirst().orElse(null);
 	}
 }

@@ -65,10 +65,10 @@ public class SierraPatronMapper {
 		return !blockCode.equals("-");
 	}
 
-	private Mono<Patron> enrichWithCanonicalPatronType(Patron p, String hostLmsCode) {
+	private Mono<Patron> enrichWithCanonicalPatronType(Patron patron, String hostLmsCode) {
 		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(hostLmsCode,
-				p.getLocalPatronType(), p.getLocalId().stream().findFirst().orElse(null))
-			.map(p::setCanonicalPatronType)
-			.defaultIfEmpty(p);
+				patron.getLocalPatronType(), patron.getFirstLocalId())
+			.map(patron::setCanonicalPatronType)
+			.defaultIfEmpty(patron);
 	}
 }
