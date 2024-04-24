@@ -19,7 +19,6 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlProperty
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
@@ -558,6 +557,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				getValue(personalDetails, PersonalDetails::getMiddleName),
 				getValue(personalDetails, PersonalDetails::getLastName)
 			))
+			.blocked(false)
 			.build())
 			.flatMap(this::enrichWithCanonicalPatronType);
 	}
