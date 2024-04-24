@@ -30,7 +30,10 @@ import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 
 @MicronautTest
 class SierraPatronMapperTests {
-	private final String HOST_LMS_CODE = "sierra-patron-mapping";
+	private final static String HOST_LMS_CODE = "sierra-patron-mapping";
+	private final static int MAPPED_LOCAL_PATRON_TYPE = 23;
+	private final String MAPPED_CANONICAL_PATRON_TYPE = "UNDERGRAD";
+
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
@@ -40,27 +43,24 @@ class SierraPatronMapperTests {
 	@BeforeEach
 	void beforeEach() {
 		referenceValueMappingFixture.deleteAll();
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
+			MAPPED_LOCAL_PATRON_TYPE, MAPPED_LOCAL_PATRON_TYPE, "DCB",
+			MAPPED_CANONICAL_PATRON_TYPE);
 	}
 
 	@Test
 	void shouldMapPatron() {
 		// Arrange
 		final var localPatronId = "583634";
-		final var localPatronType = 23;
 		final var barcode = "5472792742";
-
-		final var canonicalPatronType = "UNDERGRAD";
-
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
-			HOST_LMS_CODE,
-			localPatronType, localPatronType, "DCB", canonicalPatronType);
 
 		// Act
 		final var sierraPatron = SierraPatronRecord.builder()
 			.id(parseInt(localPatronId))
 			.barcodes(List.of(barcode))
 			.names(List.of("first name", "middle name", "last name"))
-			.patronType(localPatronType)
+			.patronType(MAPPED_LOCAL_PATRON_TYPE)
 			.homeLibraryCode("home-library")
 			.build();
 
@@ -72,8 +72,8 @@ class SierraPatronMapperTests {
 			hasLocalIds(localPatronId),
 			hasLocalNames("first name", "middle name", "last name"),
 			hasLocalBarcodes(barcode),
-			hasLocalPatronType(localPatronType),
-			hasCanonicalPatronType(canonicalPatronType),
+			hasLocalPatronType(MAPPED_LOCAL_PATRON_TYPE),
+			hasCanonicalPatronType(MAPPED_CANONICAL_PATRON_TYPE),
 			hasHomeLibraryCode("home-library"),
 			isNotBlocked(),
 			isNotDeleted()
@@ -82,22 +82,12 @@ class SierraPatronMapperTests {
 
 	@Test
 	void shouldMapManuallyBlockedPatron() {
-		// Arrange
-		final var localPatronId = "583634";
-		final var localPatronType = 23;
-		final var barcode = "5472792742";
-
-		final var canonicalPatronType = "UNDERGRAD";
-
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
-			localPatronType, localPatronType, "DCB", canonicalPatronType);
-
 		// Act
 		final var sierraPatron = SierraPatronRecord.builder()
-			.id(parseInt(localPatronId))
-			.barcodes(List.of(barcode))
+			.id(parseInt("583634"))
+			.barcodes(List.of("5472792742"))
 			.names(List.of("first name", "middle name", "last name"))
-			.patronType(localPatronType)
+			.patronType(MAPPED_LOCAL_PATRON_TYPE)
 			.homeLibraryCode("home-library")
 			.blockInfo(Block.builder()
 				.code("blocked")
@@ -115,27 +105,8 @@ class SierraPatronMapperTests {
 
 	@Test
 	void shouldMapAutomaticallyBlockedPatron() {
-		// Arrange
-		final var localPatronId = "583634";
-		final var localPatronType = 23;
-		final var barcode = "5472792742";
-
-		final var canonicalPatronType = "UNDERGRAD";
-
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
-			localPatronType, localPatronType, "DCB", canonicalPatronType);
-
 		// Act
-		final var sierraPatron = SierraPatronRecord.builder()
-			.id(parseInt(localPatronId))
-			.barcodes(List.of(barcode))
-			.names(List.of("first name", "middle name", "last name"))
-			.patronType(localPatronType)
-			.homeLibraryCode("home-library")
-			.autoBlockInfo(Block.builder()
-				.code("blocked")
-				.build())
-			.build();
+		final var sierraPatron = patronWithAutomaticBlock("blocked");
 
 		final var patron = mapToPatron(sierraPatron);
 
@@ -148,27 +119,8 @@ class SierraPatronMapperTests {
 
 	@Test
 	void shouldIgnoreHyphenBlockCode() {
-		// Arrange
-		final var localPatronId = "583634";
-		final var localPatronType = 23;
-		final var barcode = "5472792742";
-
-		final var canonicalPatronType = "UNDERGRAD";
-
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
-			localPatronType, localPatronType, "DCB", canonicalPatronType);
-
 		// Act
-		final var sierraPatron = SierraPatronRecord.builder()
-			.id(parseInt(localPatronId))
-			.barcodes(List.of(barcode))
-			.names(List.of("first name", "middle name", "last name"))
-			.patronType(localPatronType)
-			.homeLibraryCode("home-library")
-			.autoBlockInfo(Block.builder()
-				.code("-")
-				.build())
-			.build();
+		final var sierraPatron = patronWithAutomaticBlock("-");
 
 		final var patron = mapToPatron(sierraPatron);
 
@@ -178,7 +130,19 @@ class SierraPatronMapperTests {
 			isNotBlocked()
 		));
 	}
-
+	
+	private static SierraPatronRecord patronWithAutomaticBlock(String blockCode) {
+		return SierraPatronRecord.builder()
+			.id(5837526)
+			.barcodes(List.of("3725562155"))
+			.names(List.of("first name", "middle name", "last name"))
+			.patronType(MAPPED_LOCAL_PATRON_TYPE)
+			.homeLibraryCode("home-library")
+			.autoBlockInfo(Block.builder()
+				.code(blockCode)
+				.build())
+			.build();
+	}
 
 	private Patron mapToPatron(SierraPatronRecord sierraPatron) {
 		return singleValueFrom(sierraPatronMapper.sierraPatronToHostLmsPatron(
