@@ -3,6 +3,7 @@ package org.olf.dcb.request.workflow;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -112,8 +113,8 @@ public class PatronRequestWorkflowService {
 			log.debug("WORKFLOW Unable to progress {} - no transformations available from state {}",
 				ctx.getPatronRequest().getId(), ctx.getPatronRequest().getStatus());
 
-			return incrementPollingForThisState(ctx)
-				// note: the polling increment will only be saved by scheduleNextCheck
+			return incrementStateTransitionMetrics(ctx, Boolean.FALSE)
+				// note: increments will only be saved by scheduleNextCheck
 				.flatMap(this::scheduleNextCheck)
 				.flatMap(ctx2 -> Mono.empty());
 		}
@@ -130,6 +131,16 @@ public class PatronRequestWorkflowService {
 				return pr;
 			});
 	}
+
+	private Mono<RequestWorkflowContext> incrementStateTransitionMetrics(
+		RequestWorkflowContext ctx, Boolean isStateChange) {
+
+		return Mono.just(incrementPollingForThisState(ctx, isStateChange))
+			.map(requestWorkflowContext -> updateCurrentStatusTimeStamp(requestWorkflowContext, isStateChange))
+			.map(requestWorkflowContext -> incrementElapsedTimeInStatus(requestWorkflowContext));
+	}
+
+
 
 	public Stream<PatronRequestStateTransition> getPossibleStateTransitionsFor(
 		RequestWorkflowContext ctx) {
@@ -158,22 +169,22 @@ public class PatronRequestWorkflowService {
 			ctx.getPatronRequest().getStatus(),
 			Optional.of("Action completed : " + action.getName()),
 			Optional.of(auditData)))
-		// reset the poll count for state change
-		.map(getPatronRequestWithPollCount())
-		.flatMap(pr -> Mono.from(patronRequestRepository.saveOrUpdate(pr)))
+		.flatMap(incrementStateTransitionMetrics(ctx))
+		.flatMap(context -> Mono.from(patronRequestRepository.saveOrUpdate(context.getPatronRequest())))
 		.flatMap(request -> {
 			// Recursively call progress all in case there are subsequent steps we can apply
 			return this.progressAll(ctx.getPatronRequest());
 		});
 	}
 
-	private static Function<PatronRequestAudit, PatronRequest> getPatronRequestWithPollCount() {
+	private Function<PatronRequestAudit, Mono<RequestWorkflowContext>> incrementStateTransitionMetrics(
+		RequestWorkflowContext ctx) {
 		return audit -> {
 			if (audit.getFromStatus() != audit.getToStatus()) {
-				log.info("resetting poll count for status {}", audit.getToStatus());
-				return audit.getPatronRequest().setPollCountForCurrentStatus(0);
+				return incrementStateTransitionMetrics(ctx, Boolean.TRUE);
+			} else {
+				return incrementStateTransitionMetrics(ctx, Boolean.FALSE);
 			}
-			return audit.getPatronRequest();
 		};
 	}
 
@@ -263,18 +274,41 @@ public class PatronRequestWorkflowService {
 			next_poll = Instant.now().plus(duration.get());
 			log.debug("scheduleNextCheck Extracted duration {} next check is {}",duration,next_poll);
 		}
-		return Mono.from(patronRequestRepository.updateNextScheduledPollAndPollCountForCurrentStatus(
-			ctx.getPatronRequest().getId(), next_poll, patronRequest.getPollCountForCurrentStatus()))
-			.thenReturn(ctx);
+
+		patronRequest.setNextScheduledPoll(next_poll);
+
+		return Mono.from(patronRequestRepository.saveOrUpdate(patronRequest))
+			.map(ctx::setPatronRequest);
 	}
 
-	private Mono<RequestWorkflowContext> incrementPollingForThisState(RequestWorkflowContext ctx) {
-		var patronRequest = ctx.getPatronRequest();
-		final Integer currentPollCount = patronRequest.getPollCountForCurrentStatus();
-		final Integer incrementedPoll = currentPollCount == null || currentPollCount == 0 ? 1 : currentPollCount + 1;
-		log.debug("currentPollCount {} is being incremented to {}: ", currentPollCount, incrementedPoll);
+	private RequestWorkflowContext incrementPollingForThisState(
+		RequestWorkflowContext ctx, Boolean isStateChange) {
 
+		var patronRequest = ctx.getPatronRequest();
+		var currentPollCount = patronRequest.getPollCountForCurrentStatus() != null
+			? patronRequest.getPollCountForCurrentStatus()
+			: 0;
+		var incrementedPoll = isStateChange ? 0 : currentPollCount + 1;
 		patronRequest = patronRequest.setPollCountForCurrentStatus(incrementedPoll);
-		return Mono.just(ctx.setPatronRequest(patronRequest));
+		
+		return ctx.setPatronRequest(patronRequest);
+	}
+
+	private RequestWorkflowContext updateCurrentStatusTimeStamp(
+		RequestWorkflowContext requestWorkflowContext, Boolean isStateChange) {
+
+		var patronRequest = requestWorkflowContext.getPatronRequest();
+		patronRequest = isStateChange ? patronRequest.setCurrentStatusTimestamp(Instant.now()) : patronRequest;
+
+		return requestWorkflowContext.setPatronRequest(patronRequest);
+	}
+
+	private RequestWorkflowContext incrementElapsedTimeInStatus(RequestWorkflowContext requestWorkflowContext) {
+
+		var patronRequest = requestWorkflowContext.getPatronRequest();
+		var elapsedTime = Duration.between(patronRequest.getCurrentStatusTimestamp(), Instant.now()).getSeconds();
+		patronRequest = patronRequest.setElapsedTimeInCurrentStatus(elapsedTime);
+		
+		return requestWorkflowContext.setPatronRequest(patronRequest);
 	}
 }

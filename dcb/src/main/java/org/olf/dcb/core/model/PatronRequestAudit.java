@@ -50,19 +50,6 @@ public class PatronRequestAudit {
 	private PatronRequest.Status toStatus;
 
 	@Nullable
-	private Instant currentStatusStamp;
-
-	// in seconds
-	@Nullable
-	private Long elapsedTimeInCurrentStatus;
-
-	@Nullable
-	private PatronRequest.Status nextExpectedStatus;
-
-	@Nullable
-	private Boolean outOfSequenceFlag;
-
-	@Nullable
 	@TypeDef(type = DataType.JSON)
 	Map<String, Object> auditData;
 }

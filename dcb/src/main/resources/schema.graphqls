@@ -172,6 +172,10 @@ type PatronRequest {
   clusterRecord: ClusterRecord
   previousStatus: String
   pollCountForCurrentStatus: Int
+	currentStatusTimestamp: String
+	nextExpectedStatus: String
+	outOfSequenceFlag: Boolean
+	elapsedTimeInCurrentStatus: Float
 }
 
 type PatronRequestAudit {
@@ -181,10 +185,6 @@ type PatronRequestAudit {
   fromStatus: String
   toStatus: String
   auditData: JSON
-  currentStatusStamp: String
-  nextExpectedStatus: String
-  outOfSequenceFlag: Boolean
-  elapsedTimeInCurrentStatus: Float
   patronRequest: PatronRequest
 }
 

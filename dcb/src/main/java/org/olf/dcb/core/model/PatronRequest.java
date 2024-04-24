@@ -262,7 +262,24 @@ public class PatronRequest {
 	
 	@JsonIgnore
 	public PatronRequest setStatus(Status status) {
-		this.previousStatus = this.status;
+
+		// on a status change...
+		if (this.status != status) {
+
+			// set current status to previous
+			this.previousStatus = this.status;
+
+			// first status change will not have a next expected status
+			// if not null check the state change is what we expected
+			if (this.nextExpectedStatus != null && this.nextExpectedStatus != status) {
+				this.outOfSequenceFlag = Boolean.TRUE;
+			} else {
+				this.outOfSequenceFlag = Boolean.FALSE;
+			}
+
+			this.nextExpectedStatus = status.getNextExpectedStatus();
+		}
+
 		this.status = status;
 		return this;
 	}
@@ -306,6 +323,19 @@ public class PatronRequest {
   @Nullable
   @Column(name = "previous_status_code") // Preserve the data mapping value from the old string type.
   private Status previousStatus;
+
+	@Nullable
+	private Instant currentStatusTimestamp;
+
+	@Nullable
+	private PatronRequest.Status nextExpectedStatus;
+
+	@Nullable
+	private Boolean outOfSequenceFlag;
+
+	// in seconds
+	@Nullable
+	private Long elapsedTimeInCurrentStatus;
 
 	// If we are able to tell, is the real item currently loaned to the VPatron. This can be used if the item
 	// is returned to the lender, but then immediately re-loaned. In this scenario, item status is not sufficient
