@@ -89,7 +89,7 @@ class ConfirmedSupplierRequestReactionTests {
 
 		assertThat(patronRequestsFixture.findOnlyAuditEntry(patronRequest), allOf(
 			notNullValue(),
-			hasBriefDescription("Downstream change to SupplierRequest(%s) to %s from %s".formatted(supplierRequestId.toString(), "CONFIRMED", "PLACED")),
+			hasBriefDescription("to %s from %s - SupplierRequest(%s)".formatted("CONFIRMED", "PLACED", supplierRequestId.toString())),
 			hasAuditDataProperty("patronRequestId", patronRequest.getId().toString()),
 			hasAuditDataProperty("resourceType", "SupplierRequest"),
 			hasAuditDataProperty("resourceId", supplierRequestId.toString()),
