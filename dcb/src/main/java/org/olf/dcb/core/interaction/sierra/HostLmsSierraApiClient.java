@@ -204,7 +204,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		return get("patrons/find", Argument.of(SierraPatronRecord.class),
 				uri -> uri.queryParam("varFieldTag", varFieldTag).queryParam("varFieldContent", varFieldContent).queryParam(
 						"fields",
-						"id,names,barcodes,deleted,suppressed,expirationDate,patronType,patronCodes,blockInfo,autoBlockInfo,homeLibraryCode,message,uniqueIds,emails,fixedFields"));
+						"id,names,barcodes,deleted,suppressed,expirationDate,patronType,blockInfo,autoBlockInfo,homeLibraryCode,message,uniqueIds,emails,fixedFields"));
 	}
 
 	@SingleResult
@@ -261,7 +261,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	public Publisher<SierraPatronRecord> getPatron(@Nullable final Long patronId) {
 		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
 		return get("patrons/" + patronId, Argument.of(SierraPatronRecord.class), uri -> uri.queryParam("fields",
-				"id,updatedDate,createdDate,expirationDate,names,barcodes,patronType,patronCodes,homeLibraryCode,emails,message,uniqueIds,emails,fixedFields"));
+				"id,updatedDate,createdDate,expirationDate,names,barcodes,patronType,homeLibraryCode,emails,message,uniqueIds,emails,fixedFields"));
 	}
 
 	@SingleResult

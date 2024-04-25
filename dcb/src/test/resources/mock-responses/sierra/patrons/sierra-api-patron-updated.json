@@ -3,12 +3,6 @@
 	"expirationDate": "2020-12-31",
 	"birthDate": "1990-01-23",
 	"patronType": 15,
-	"patronCodes": {
-		"pcode1": "u",
-		"pcode2": "-",
-		"pcode3": 68,
-		"pcode4": 0
-	},
 	"homeLibraryCode": "testccc",
 	"homeLibrary": {
 		"code": "testccc",

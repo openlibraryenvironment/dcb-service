@@ -14,7 +14,6 @@ public class PatronPatch {
 	List<String> names;
 	String pin;
 	Integer patronType;
-	Codes patronCodes;
 	List<String> uniqueIds;
 	String homeLibraryCode;
 	List<String> barcodes;

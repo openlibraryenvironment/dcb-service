@@ -39,8 +39,6 @@ public class SierraPatronRecord {
 	@Nullable
 	Integer patronType;
 	@Nullable
-	Codes patronCodes;
-	@Nullable
 	String homeLibraryCode;
 	@Nullable
 	Location homeLibrary;
