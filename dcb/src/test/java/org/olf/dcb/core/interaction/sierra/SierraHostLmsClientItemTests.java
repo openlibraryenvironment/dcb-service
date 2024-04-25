@@ -10,25 +10,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasCanonicalItemType;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasHoldCount;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgency;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasNoHostLmsCode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
-import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
-import static org.olf.dcb.test.matchers.ItemMatchers.suppressionUnknown;
+import static org.olf.dcb.test.matchers.ItemMatchers.*;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasMessageForRequest;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasNoResponseBody;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestMethod;
@@ -177,7 +159,7 @@ class SierraHostLmsClientItemTests {
 				hasAgencyCode("sierra-agency"),
 				hasAgencyName("Sierra Agency"),
 				hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
-				suppressionUnknown(),
+				isNotSuppressed(),
 				isNotDeleted()
 			),
 			allOf(
@@ -194,7 +176,7 @@ class SierraHostLmsClientItemTests {
 				hasHoldCount(1),
 				hasNoAgency(),
 				hasNoHostLmsCode(),
-				suppressionUnknown(),
+				isNotSuppressed(),
 				isNotDeleted()
 			),
 			allOf(
@@ -211,7 +193,7 @@ class SierraHostLmsClientItemTests {
 				hasHoldCount(2),
 				hasNoAgency(),
 				hasNoHostLmsCode(),
-				suppressionUnknown(),
+				isNotSuppressed(),
 				isNotDeleted()
 			)
 		));

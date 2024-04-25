@@ -20,6 +20,7 @@ import jakarta.inject.Named;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.FixedField.FixedFieldBuilder;
 
@@ -50,6 +51,21 @@ public class GenericRulesTest {
 			+ "      }]"
 			+ "}";
 	
+	private static final String itemJson = "{"
+			+ "      \"name\": \"slu-item-suppression\","
+			+ "      \"type\": \"DISJUNCTIVE\","
+			+ "      \"conditions\": [{"
+			+ "          \"operation\" : \"propertyPresent\","
+			+ "          \"property\": \"fixedFields.2.value\","
+			+ "          \"negated\": true"
+			+ "      },{"
+			+ "          \"operation\" : \"propertyValueAnyOf\","
+			+ "          \"property\": \"fixedFields.2.value\","
+			+ "          \"values\": [\"z\", \"s\"],"
+			+ "          \"negated\": true"
+			+ "      }]"
+			+ "}";
+	
 	
 	@Test
 	void checkFiltersOnStream() throws IOException {
@@ -62,7 +78,7 @@ public class GenericRulesTest {
 			.log("Injected filterSet: {}", injectedRuleset);
 		
 		// Generate a stream and then apply the injected filterSet
-		List<FixedFieldObject> results = generateFixedFieldObjectsWithField3Values(
+		List<FixedFieldObject> results = generateFixedFieldObjectsWithFixedFieldValues(3,
 				"z", "f",
 				"b", "a", "s",
 				"b", "c", "d", null, "", "n")
@@ -72,7 +88,7 @@ public class GenericRulesTest {
 		assertEquals(7, results.size());
 
 		// Generate a stream and then apply the parsed filterSet
-		results = generateFixedFieldObjectsWithField3Values(
+		results = generateFixedFieldObjectsWithFixedFieldValues(3,
 				"z", "f",
 				"b", "a", "s",
 				"b", "c", "d", null, "", "n")
@@ -82,11 +98,30 @@ public class GenericRulesTest {
 		assertEquals(7, results.size());
 	}
 	
-	private Stream<FixedFieldObject> generateFixedFieldObjectsWithField3Values(String... vals) {
+	@Test
+	void checkItemFiltersOnFlux() throws IOException {
+		
+		ObjectRuleset parsedRuleset = mapper.readValue(itemJson, ObjectRuleset.class);
+		
+		log.info("Parsed (JSON) filterSet: {}", parsedRuleset);
+		
+		List<FixedFieldObject> results = Flux.fromStream(generateFixedFieldObjectsWithFixedFieldValues(2,
+				"z", "r",
+				"r", "s", "s",
+				"b", "r", "z", null, "", "n"))
+				
+			.filter(parsedRuleset)
+			.collectList()
+			.block();
+		
+		assertEquals(7, results.size());
+	}
+	
+	private Stream<FixedFieldObject> generateFixedFieldObjectsWithFixedFieldValues(int fieldNumber, String... vals) {
 		return Stream.of(vals)
 			.map(FixedField.builder()::value)
 			.map(FixedFieldBuilder::build)
-			.map(field -> Map.of(3, field))
+			.map(field -> Map.of(fieldNumber, field))
 			.map(FixedFieldObject::new);
 	}
 	

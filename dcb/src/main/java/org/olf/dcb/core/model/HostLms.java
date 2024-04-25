@@ -15,8 +15,9 @@ public interface HostLms {
 
 	Class<?> getClientType();
 	Class<?> getIngestSourceType();
-	
+
 	String getSuppressionRulesetName();
+	String getItemSuppressionRulesetName();
 
 	Map<String, Object> getClientConfig();
 }

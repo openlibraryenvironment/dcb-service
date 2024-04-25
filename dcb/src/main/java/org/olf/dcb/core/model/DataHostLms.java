@@ -53,6 +53,10 @@ public class DataHostLms implements HostLms {
 	@Nullable
 	@Size(max = 128)
 	public String suppressionRulesetName;
+	
+	@Nullable
+	@Size(max = 128)
+	public String itemSuppressionRulesetName;
 
 	@ToString.Exclude
 	@Nullable

@@ -331,37 +331,60 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 	
-	private Mono<ObjectRuleset> _lmsRuleset = null;
-	private synchronized Optional<ObjectRuleset> getLmsRuleset() {
+	private Mono<ObjectRuleset> _lmsBibSuppressionRuleset = null;
+	private synchronized Optional<ObjectRuleset> getLmsBibSuppressionRuleset() {
 		
-		if (_lmsRuleset == null) {
+		if (_lmsBibSuppressionRuleset == null) {
 			var supSetName = lms.getSuppressionRulesetName();
 			
-			_lmsRuleset = Mono.justOrEmpty( supSetName )
+			_lmsBibSuppressionRuleset = Mono.justOrEmpty( supSetName )
 				.flatMap( name -> objectRuleService.findByName(name)
 						.doOnSuccess(val -> {
 							if (val == null) {
-								log.warn("Host LMS [{}] specified using ruleset [{}], but no ruleset with that name could be found", lms.getCode(), name);
+								log.warn("Host LMS [{}] specified using ruleset [{}] for bib suppression, but no ruleset with that name could be found", lms.getCode(), name);
 								return;
 							}
 							
-							log.debug("");
+							log.debug("Found bib suppression ruleset [{}] for Host LMS [{}]", name, lms.getCode());
 						}))
 				.cache();
 		}
 		
 		// TODO: Blocking!!!! Needs refactoring
-		return  _lmsRuleset.blockOptional();
+		return  _lmsBibSuppressionRuleset.blockOptional();
 	}
 	
-	private boolean derriveSuppressedFlag( BibResult resource ) {
+	private Mono<ObjectRuleset> _lmsItemSuppressionRuleset = null;
+	private synchronized Optional<ObjectRuleset> getLmsItemSuppressionRuleset() {
+		
+		if (_lmsBibSuppressionRuleset == null) {
+			var supSetName = lms.getItemSuppressionRulesetName();
+			
+			_lmsItemSuppressionRuleset = Mono.justOrEmpty( supSetName )
+				.flatMap( name -> objectRuleService.findByName(name)
+						.doOnSuccess(val -> {
+							if (val == null) {
+								log.warn("Host LMS [{}] specified using ruleset [{}] for item suppression, but no ruleset with that name could be found", lms.getCode(), name);
+								return;
+							}
+							
+							log.debug("Found item suppression ruleset [{}] for Host LMS [{}]", name, lms.getCode());
+						}))
+				.cache();
+		}
+		
+		// TODO: Blocking!!!! Needs refactoring
+		return  _lmsItemSuppressionRuleset.blockOptional();
+	}
+	
+	private boolean derriveBibSuppressedFlag( BibResult resource ) {
 		
 		if ( Boolean.TRUE.equals(resource.suppressed()) ) return true;
 		
 		// Grab the suppression rules set against the Host Lms
 		// False is the default value for suppression if we can't find the named ruleset
 		// or if there isn't one.
-		return getLmsRuleset()
+		return getLmsBibSuppressionRuleset()
 		  .map( rules -> rules.negate().test(resource) ) // Negate as the rules evaluate "true" for inclusion
 		  .orElse(FALSE);
 	}
@@ -373,7 +396,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		IngestRecordBuilder irb = IngestRecord.builder().uuid(uuid5ForBibResult(resource))
 			.sourceSystem(lms)
 			.sourceRecordId(resource.id())
-			.suppressFromDiscovery(derriveSuppressedFlag(resource))
+			.suppressFromDiscovery(derriveBibSuppressedFlag(resource))
 			.deleted(resource.deleted());
 
 		// log.info("resource id {}",resource.id());
@@ -504,7 +527,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					"fixedFields", "varFields"))))
 			.map(ResultSet::getEntries)
 			.flatMapMany(Flux::fromIterable)
-			.flatMap(result -> itemMapper.mapResultToItem(result, lms.getCode(), localBibId))
+			.flatMap(result -> itemMapper.mapResultToItem(result, lms.getCode(), localBibId, getLmsItemSuppressionRuleset()))
 			.collectList();
 	}
 

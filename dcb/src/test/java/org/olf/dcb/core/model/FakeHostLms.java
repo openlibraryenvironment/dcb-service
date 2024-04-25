@@ -20,4 +20,5 @@ public class FakeHostLms implements HostLms {
 	private final Class<? extends IngestSource> ingestSourceType;
 	private final Map<String, Object> clientConfig;
 	private final String suppressionRulesetName;
+	private final String itemSuppressionRulesetName;
 }

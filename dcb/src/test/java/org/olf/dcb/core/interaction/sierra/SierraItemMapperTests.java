@@ -4,6 +4,8 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 
+import java.util.Optional;
+
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.test.DcbTest;
@@ -29,6 +31,6 @@ class SierraItemMapperTests {
 
 	@Nullable
 	private Item mapItem(SierraItem item) {
-		return mapper.mapResultToItem(item, "sierra-host-lms", "134523").block();
+		return mapper.mapResultToItem(item, "sierra-host-lms", "134523", Optional.empty()).block();
 	}
 }

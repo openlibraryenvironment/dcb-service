@@ -20,16 +20,19 @@ import services.k_int.utils.UUIDUtils;
 @Serdeable
 @Getter
 @EachProperty("hosts")
-public class ConfigHostLms implements HostLms{
+public class ConfigHostLms implements HostLms {
 	private Map<String, Object> clientConfig;
 	private final UUID id;
 	private final String name;
 	private final String code;
 	private Class<? extends HostLmsClient> type;
 	private Class<? extends IngestSource> ingestSourceType;
-	
+
 	@Setter
 	private String suppressionRulesetName;
+	
+	@Setter
+	private String itemSuppressionRulesetName;
 
 	public ConfigHostLms(@Parameter("code") @NonNull String code, @Parameter("name") String name) {
 		this.code = code;

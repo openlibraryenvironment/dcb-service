@@ -1,18 +1,21 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import static java.lang.Boolean.FALSE;
 import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.fallbackBasedUponAvailableStatuses;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.utils.PropertyAccessUtils;
 
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
@@ -47,8 +50,20 @@ public class SierraItemMapper {
 		this.itemTypeMapper = itemTypeMapper;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 	}
+	
+	private boolean derriveBibSuppressedFlag( @NonNull SierraItem item, @NonNull Optional<ObjectRuleset> itemSuppressionRules) {
+		
+		if ( Boolean.TRUE.equals(item.getSuppressed()) ) return true;
+		
+		// Grab the suppression rules set against the Host Lms
+		// False is the default value for suppression if we can't find the named ruleset
+		// or if there isn't one.
+		return itemSuppressionRules
+		  .map( rules -> rules.negate().test(item) ) // Negate as the rules evaluate "true" for inclusion
+		  .orElse(FALSE);
+	}
 
-	public Mono<Item> mapResultToItem(SierraItem itemResult, String hostLmsCode, String localBibId) {
+	public Mono<Item> mapResultToItem( SierraItem itemResult, String hostLmsCode, String localBibId, @NonNull Optional<ObjectRuleset> itemSuppressionRules ) {
 		log.debug("mapResultToItem({}, {}, {})", itemResult, hostLmsCode, localBibId);
 
 		final var statusCode = PropertyAccessUtils.getValue(itemResult.getStatus(), Status::getCode);
@@ -75,7 +90,7 @@ public class SierraItemMapper {
 				.localItemType(itemResult.getItemType())
 				.localItemTypeCode(determineLocalItemTypeCode(itemResult.getFixedFields()))
 				.deleted(itemResult.getDeleted())
-				.suppressed(itemResult.getSuppressed())
+				.suppressed(derriveBibSuppressedFlag(itemResult, itemSuppressionRules))
 				.rawVolumeStatement(rawVolumeStatement)
 				.parsedVolumeStatement(parsedVolumeStatement)
 				.build())
