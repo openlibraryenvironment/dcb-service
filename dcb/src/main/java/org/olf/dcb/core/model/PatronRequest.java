@@ -267,7 +267,9 @@ public class PatronRequest {
 		if (this.status != status) {
 
 			// set current status to previous
-			this.previousStatus = this.status;
+			if (this.status != null) {
+				this.previousStatus = this.status;
+			}
 
 			// first status change will not have a next expected status
 			// if not null check the state change is what we expected
