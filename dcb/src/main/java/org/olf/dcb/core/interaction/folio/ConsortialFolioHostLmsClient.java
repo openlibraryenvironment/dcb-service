@@ -26,7 +26,6 @@ import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
-import static org.olf.dcb.utils.CollectionUtils.nonNullValuesList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.StringUtils.parseList;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
@@ -51,7 +50,6 @@ import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
-import org.olf.dcb.core.interaction.folio.User.PersonalDetails;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
@@ -546,19 +544,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<Patron> mapUserToPatron(@NonNull User user) {
-		final var personalDetails = user.getPersonal();
+		final var userToPatronConverter = new UserToPatronConverter();
 
-		return Mono.just(Patron.builder()
-			.localId(nonNullValuesList(user.getId()))
-			.localPatronType(user.getPatronGroupName())
-			.localBarcodes(nonNullValuesList(user.getBarcode()))
-			.localNames(nonNullValuesList(
-				getValue(personalDetails, PersonalDetails::getFirstName),
-				getValue(personalDetails, PersonalDetails::getMiddleName),
-				getValue(personalDetails, PersonalDetails::getLastName)
-			))
-			.blocked(false)
-			.build())
+		final var patron = userToPatronConverter.convert(user);
+
+		return Mono.just(patron)
 			.flatMap(this::enrichWithCanonicalPatronType);
 	}
 
