@@ -1,5 +1,27 @@
 # Changelog
 
+## Version 6.3.0
+
+### Additions
+* [General]
+	* Item suppression
+	* Fail preflight check when patron is blocked DCB-1004
+	* Object filtering on Sierra
+	* capture request workflow and state transition metrics [DCB-1039]
+
+### Changes
+* [Refactor]
+	* move all state transition metrics to the patron request object [DCB-1039]
+
+### Fixes
+* [General]
+	* unable to resolve patron home library code to an agency [DCB-1059]
+	* Tidy keys for metrics output
+	* Tidy keys for ingest source info endpoint
+	* remove any reference to pcode in DCB [DCB-1058]
+	* Incorrect migrations for audit data
+	* outOfSequenceFlag Boolean not boolean in graphql
+
 ## Version 6.2.0
 
 ### Additions
@@ -13,6 +35,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* comment explaining why we added timeout for http client
 * [Refactor]
 	* allow tracking of virtual items with null local item ids in the TrackingServiceV3 [DCB-1036]
