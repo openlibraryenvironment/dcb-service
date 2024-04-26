@@ -17,7 +17,7 @@ public class PropertyAccessUtils {
 	public static <T, R, S> S getValue(T nullableObject, Function<T, R> accessor,
 		Function<R, S> mapper) {
 
-		return getValue(nullableObject, accessor, mapper, null);
+		return getValue(nullableObject, accessor, mapper, (S)null);
 	}
 
 	public static <T, R, S> S getValue(T nullableObject, Function<T, R> accessor,

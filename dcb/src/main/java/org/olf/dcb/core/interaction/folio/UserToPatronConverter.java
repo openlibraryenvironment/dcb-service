@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static java.util.function.Function.identity;
 import static org.olf.dcb.utils.CollectionUtils.nonNullValuesList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
@@ -28,7 +29,7 @@ class UserToPatronConverter implements TypeConverter<User, Patron> {
 				getValue(personalDetails, User.PersonalDetails::getMiddleName),
 				getValue(personalDetails, User.PersonalDetails::getLastName)
 			))
-			.blocked(false)
+			.blocked(getValue(user, User::getBlocked, identity(), false))
 			.build());
 	}
 }

@@ -14,6 +14,7 @@ public class User {
 	@Nullable String barcode;
 	@Nullable String username;
 	@Nullable User.PersonalDetails personal;
+	@Nullable Boolean blocked;
 
 	@Serdeable
 	@Builder

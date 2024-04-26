@@ -102,6 +102,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		// Assert
 		assertThat(foundPatron, allOf(
+			notNullValue(),
 			hasLocalIds(localId),
 			hasLocalPatronType(patronGroupName),
 			hasCanonicalPatronType("canonical-patron-type"),
@@ -164,6 +165,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		// Assert
 		assertThat(foundPatron, allOf(
+			notNullValue(),
 			hasNoLocalIds(),
 			hasNoLocalPatronType(),
 			hasNoCanonicalPatronType(),
@@ -192,6 +194,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 				.lastName("Special Pin Test")
 				.middleName("Middle")
 				.build())
+			.blocked(false)
 			.build());
 
 		// Act
@@ -199,6 +202,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		// Assert
 		assertThat(verifiedPatron, allOf(
+			notNullValue(),
 			hasLocalIds("9c2e859d-e923-450d-85e3-b425cfa9f938"),
 			hasLocalPatronType(patronGroupName),
 			hasCanonicalPatronType("canonical-patron-type"),
@@ -235,12 +239,14 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		// Assert
 		assertThat(fetchedPatron, allOf(
+			notNullValue(),
 			hasLocalIds("9c2e859d-e923-450d-85e3-b425cfa9f938"),
 			hasLocalPatronType(patronGroupName),
 			hasCanonicalPatronType("canonical-patron-type"),
 			hasLocalBarcodes("2093487"),
 			hasNoHomeLibraryCode(),
-			hasLocalNames("First", "Middle", "Special Pin Test")
+			hasLocalNames("First", "Middle", "Special Pin Test"),
+			isNotBlocked()
 		));
 	}
 
@@ -269,12 +275,14 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		// Assert
 		assertThat(fetchedPatron, allOf(
+			notNullValue(),
 			hasLocalIds("9c2e859d-e923-450d-85e3-b425cfa9f938"),
 			hasLocalPatronType(patronGroupName),
 			hasCanonicalPatronType("canonical-patron-type"),
 			hasLocalBarcodes("2093487"),
 			hasNoHomeLibraryCode(),
-			hasLocalNames("First", "Middle", "Special Pin Test")
+			hasLocalNames("First", "Middle", "Special Pin Test"),
+			isNotBlocked()
 		));
 	}
 
