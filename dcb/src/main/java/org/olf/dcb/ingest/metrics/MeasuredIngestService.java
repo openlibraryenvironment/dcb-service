@@ -3,9 +3,11 @@ package org.olf.dcb.ingest.metrics;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.svc.BibRecordService;
@@ -37,7 +39,9 @@ import services.k_int.micronaut.concurrency.ConcurrencyGroupService;
 @Replaces(bean = IngestService.class)
 public class MeasuredIngestService extends IngestService {
 	
-	private final Map<String, DistributionSummary> sourceSummaries = new ConcurrentHashMap<>(); 
+	private final Map<String, DistributionSummary> sourceSummaries = new ConcurrentHashMap<>();
+
+	private static final Pattern CLEAN_KEYS = Pattern.compile("(?>[^a-zA-Z0-9_\\n])+");
 	
 	private static final String METRIC_ROOT = "ingest";
 
@@ -72,8 +76,14 @@ public class MeasuredIngestService extends IngestService {
 		
 		return ( source ) -> {
 			
-			final var fetchCountKey = "%s.fetch.counts.%s".formatted(METRIC_ROOT, source.getName());
-			final var fetchGlobalCountKey = "%s.fetch.counts._global".formatted(METRIC_ROOT, source.getName());
+			final String key = Optional.ofNullable(source.getName())
+					.or(() -> Optional.of(source.toString()))
+					.map(CLEAN_KEYS::matcher)
+					.map( m -> m.replaceAll("-") )
+				.get();
+			
+			final var fetchCountKey = "%s.fetch.counts.%s".formatted(METRIC_ROOT, key);
+			final var fetchGlobalCountKey = "%s.fetch.counts._global".formatted(METRIC_ROOT, key);
 			final var fetchGlobalCountSummary = sourceSummaries.computeIfAbsent(fetchGlobalCountKey, theKey -> meterRegistry.summary(theKey));
 			final var fetchCountSummary = sourceSummaries.computeIfAbsent(fetchCountKey, theKey -> meterRegistry.summary(theKey));
 			
