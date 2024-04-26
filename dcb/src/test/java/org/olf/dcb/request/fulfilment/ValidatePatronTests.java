@@ -166,7 +166,7 @@ public class ValidatePatronTests {
 		// Act
 		final var validatedPatronRequest = requestWorkflowContextHelper.fromPatronRequest(patronRequest)
 			.flatMap(ctx -> validatePatronTransition.attempt(ctx))
-			.thenReturn(patronRequest)
+			.map(RequestWorkflowContext::getPatronRequest)
 			.block();
 
 		// Assert

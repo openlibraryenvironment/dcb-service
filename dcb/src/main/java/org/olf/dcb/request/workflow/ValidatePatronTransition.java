@@ -11,8 +11,11 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.workflow.exceptions.NoAgencyFoundException;
+import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
 
@@ -101,9 +104,9 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 	private Mono<PatronIdentity> resolveHomeLibraryCodeFromSystemToAgencyCode(String systemCode, String homeLibraryCode,
 			PatronIdentity pi) {
-		// DataAgency result = null;
 
 		log.debug("resolveHomeLibraryCodeFromSystemToAgencyCode({},{})", systemCode, homeLibraryCode);
+
 		if ((systemCode == null))
 			throw new java.lang.RuntimeException("Missing system code. Unable to accept request");
 
@@ -112,34 +115,64 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 			systemCode, homeLibraryCode);
 
 		return Mono.justOrEmpty(homeLibraryCode)
+
+			// findAgencyForLocation only when homeLibraryCode is not null
 			.flatMap(code -> findAgencyForLocation(code, systemCode))
-			.switchIfEmpty( getDefaultAgency(systemCode) )
+
+			// If homeLibraryCode or findAgencyForLocation produced empty,
+			// try to use a default agency code from config
+			.switchIfEmpty(Mono.defer(() -> findAgencyForDefaultAgencyCode(homeLibraryCode, systemCode)))
+
+			// when either findAgencyForLocation or findAgencyForDefaultAgencyCode
+			// successfully found an agency code then..
+			.flatMap(this::findOneAgencyByCode)
+
+			// If an agency is found from either findAgencyForLocation or findAgencyForDefaultAgencyCode
 			.flatMap(locatedAgency -> {
 				log.debug("Located agency {}", locatedAgency);
 				pi.setResolvedAgency(locatedAgency);
 				return Mono.just(pi);
 			})
-			.switchIfEmpty(Mono.error(new RuntimeException(
-				"Unable to resolve patron home library code(" + systemCode + "/" + homeLibraryCode + ") to an agency")));
+
+			// Last fallback if the empty was not already caught
+			.switchIfEmpty(Mono.defer(() -> Mono.error(new NoAgencyFoundException(
+				"Unable to resolve patron home library code(" + systemCode + "/" + homeLibraryCode + ") to an agency"))));
 	}
 
-	private Mono<DataAgency> findAgencyForLocation(String code, String systemCode) {
+	private Mono<String> findAgencyForLocation(String code, String systemCode) {
+		log.info("findAgencyForLocation({}, {})", code, systemCode);
+
 		return referenceValueMappingService.findMapping("Location", systemCode, code, "AGENCY", "DCB")
 			.doOnNext(locatedMapping -> log.debug("Located Loc-to-agency mapping {}", locatedMapping))
-			.flatMap(locatedMapping -> findOneAgencyByCode( locatedMapping.getToValue() ));
+			.map(ReferenceValueMapping::getToValue);
 	}
 
-	private Mono<DataAgency> getDefaultAgency(String systemCode) {
-		log.info("Attempting to use default agency from config.");
+	private Mono<String> findAgencyForDefaultAgencyCode(String homeLibraryCode, String systemCode) {
+		log.info("Attempting to use default agency from config with systemCode: {}.", systemCode);
 
 		return hostLmsService.getClientFor(systemCode)
 			.flatMap(client -> Mono.justOrEmpty((String) client.getConfig().get(DEFAULT_AGENCY_CODE_KEY)))
-			.flatMap(this::findOneAgencyByCode)
-			.doOnError( error -> log.error("Error occurred getting default Agency: {}", error.getMessage()) );
+			.doOnSuccess(defaultAgencyCode -> log.info("Using default agency code: {}", defaultAgencyCode))
+			.doOnError(error -> log.error("Error occurred getting default Agency.", error))
+			.switchIfEmpty(Mono.defer(() -> {
+				UnableToResolveAgencyProblem problem = new UnableToResolveAgencyProblem(
+					"DCB could not use any agency code to find an agency.",
+					"This problem was triggered because both the home library code and the default agency code were unresolvable.",
+					systemCode,
+					homeLibraryCode,
+					null
+				);
+				return Mono.error(problem);
+			}));
 	}
 
+
 	private Mono<DataAgency> findOneAgencyByCode(String code) {
-		return Mono.from(agencyRepository.findOneByCode(code));
+		log.debug("findOneAgencyByCode({})", code);
+
+		return Mono.from(agencyRepository.findOneByCode(code))
+			.doOnSuccess(dataAgency -> log.debug("Agency found by code {}", dataAgency))
+			.switchIfEmpty(Mono.defer(() -> Mono.error(new NoAgencyFoundException("No agency found with code: " + code))));
 	}
 
 	/**
