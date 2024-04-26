@@ -68,6 +68,7 @@ import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
@@ -125,7 +126,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private final ItemStatusMapper itemStatusMapper;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService;
-    private final ReferenceValueMappingService referenceValueMappingService;
+	private final ReferenceValueMappingService referenceValueMappingService;
+	private final ConversionService conversionService;
 
 	private final String apiKey;
 	private final URI rootUri;
@@ -144,7 +146,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		@Parameter("client") HttpClient httpClient, ItemStatusMapper itemStatusMapper,
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService,
-		ReferenceValueMappingService referenceValueMappingService) {
+		ReferenceValueMappingService referenceValueMappingService,
+		ConversionService conversionService) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
@@ -156,6 +159,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
 		this.rootUri = UriBuilder.of(BASE_URL_SETTING.getRequiredConfigValue(hostLms)).build();
+		this.conversionService = conversionService;
 	}
 
 	@Override
@@ -543,12 +547,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.flatMap(this::mapUserToPatron);
 	}
 
-	private Mono<Patron> mapUserToPatron(@NonNull User user) {
-		final var userToPatronConverter = new UserToPatronConverter();
-
-		final var patron = userToPatronConverter.convert(user);
-
-		return Mono.just(patron)
+	private Mono<Patron> mapUserToPatron(User user) {
+		return Mono.justOrEmpty(conversionService.convert(user, Patron.class).orElse(null))
 			.flatMap(this::enrichWithCanonicalPatronType);
 	}
 

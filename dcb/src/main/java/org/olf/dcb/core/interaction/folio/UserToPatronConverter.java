@@ -3,13 +3,23 @@ package org.olf.dcb.core.interaction.folio;
 import static org.olf.dcb.utils.CollectionUtils.nonNullValuesList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
+import java.util.Optional;
+
 import org.olf.dcb.core.interaction.Patron;
 
-public class UserToPatronConverter {
-	public Patron convert(User user) {
+import io.micronaut.core.convert.ConversionContext;
+import io.micronaut.core.convert.TypeConverter;
+import jakarta.inject.Singleton;
+
+@Singleton
+class UserToPatronConverter implements TypeConverter<User, Patron> {
+	@Override
+	public Optional<Patron> convert(User user, Class<Patron> targetType,
+		ConversionContext context) {
+
 		final var personalDetails = user.getPersonal();
 
-		return Patron.builder()
+		return Optional.of(Patron.builder()
 			.localId(nonNullValuesList(user.getId()))
 			.localPatronType(user.getPatronGroupName())
 			.localBarcodes(nonNullValuesList(user.getBarcode()))
@@ -19,6 +29,6 @@ public class UserToPatronConverter {
 				getValue(personalDetails, User.PersonalDetails::getLastName)
 			))
 			.blocked(false)
-			.build();
+			.build());
 	}
 }
