@@ -187,6 +187,7 @@ class ApplicationServicesClient {
 				.localPatronType(valueOf(data.getPatronCodeID()))
 				.localBarcodes(singletonList(data.getBarcode()))
 				.localHomeLibraryCode(valueOf(data.getOrganizationID()))
+				.blocked(FALSE)
 				.build());
 	}
 
