@@ -38,9 +38,7 @@ public class Patron {
 	private String localItemId;
 	private Integer localItemLocationId;
 	private Boolean isDeleted;
-	@Nullable
-
-	private Boolean blocked;
+	@Nullable private Boolean blocked;
 
 	public boolean isEligible() {
 		return !Objects.equals(canonicalPatronType, "NOT_ELIGIBLE");

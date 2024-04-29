@@ -1,8 +1,10 @@
 package org.olf.dcb.request.fulfilment;
 
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
+import static java.util.function.Function.identity;
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,14 +54,18 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 
 		final var checkResults = new ArrayList<CheckResult>();
 
-		if (!patron.isEligible()) {
+		final var eligible = getValue(patron, Patron::isEligible, identity(), true);
+
+		if (!eligible) {
 			checkResults.add(failed("PATRON_INELIGIBLE",
 				"Patron \"%s\" from \"%s\" is of type \"%s\" which is \"%s\" for consortial borrowing"
 					.formatted(localPatronId, hostLmsCode, patron.getLocalPatronType(),
 						patron.getCanonicalPatronType())));
 		}
 
-		if (patron.getBlocked()) {
+		final var blocked = getValue(patron, Patron::getBlocked, identity(), false);
+
+		if (blocked) {
 			checkResults.add(failed("PATRON_BLOCKED",
 				"Patron \"%s\" from \"%s\" has a local account block"
 					.formatted(localPatronId, hostLmsCode)));
