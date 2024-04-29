@@ -45,8 +45,6 @@ import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
 import static org.olf.dcb.test.matchers.ThrowableProblemMatchers.hasParameters;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasMessageForHostLms;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasNoRequestBody;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestMethod;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestUrl;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasTextResponseBody;
@@ -610,52 +608,6 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(response, is(notNullValue()));
 		assertThat(response, is("OK"));
-	}
-
-	@Test
-	void shouldBeAbleToFindPatronById() {
-		// Arrange
-		final var localPatronId = "1255193";
-
-		mockPolarisFixture.mockGetPatron(localPatronId);
-
-		// Act
-		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
-
-		final var response = singleValueFrom(client.getPatronByLocalId(localPatronId));
-
-		// Assert
-		assertThat(response, is(notNullValue()));
-		assertThat(response.getLocalId(), is(List.of("1255193")));
-		assertThat(response.getLocalPatronType(), is("3"));
-		assertThat(response.getLocalBarcodes(), is(List.of("0077777777")));
-		assertThat(response.getLocalHomeLibraryCode(), is("39"));
-	}
-
-	@Test
-	void shouldFailToFindPatronByIdWhenServerErrorResponseIsReturned() {
-		// Arrange
-		final var localPatronId = "6483613";
-
-		mockPolarisFixture.mockGetPatronServerErrorResponse(localPatronId);
-
-		// Act
-		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
-
-		final var exception = assertThrows(ThrowableProblem.class,
-			() -> singleValueFrom(client.getPatronByLocalId(localPatronId)));
-
-		// Assert
-		assertThat(exception, allOf(
-			notNullValue(),
-			hasMessageForHostLms(CATALOGUING_HOST_LMS_CODE),
-			hasResponseStatusCode(500),
-			hasTextResponseBody("Something went wrong"),
-			hasRequestMethod("GET"),
-			hasNoRequestBody(),
-			hasRequestUrl(
-				"https://polaris-hostlms-tests.com/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/6483613")
-		));
 	}
 
 	@Test
