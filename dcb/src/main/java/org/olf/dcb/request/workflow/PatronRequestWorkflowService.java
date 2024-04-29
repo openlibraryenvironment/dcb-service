@@ -140,8 +140,6 @@ public class PatronRequestWorkflowService {
 			.map(requestWorkflowContext -> incrementElapsedTimeInStatus(requestWorkflowContext));
 	}
 
-
-
 	public Stream<PatronRequestStateTransition> getPossibleStateTransitionsFor(
 		RequestWorkflowContext ctx) {
 
@@ -163,24 +161,24 @@ public class PatronRequestWorkflowService {
 		auditData.put("workflowMessages", ctx.getWorkflowMessages());
 
 		return action.attempt(ctx)
-		.flatMap(nc -> patronRequestAuditService.addAuditEntry(
-			ctx.getPatronRequest(),
-			ctx.getPatronRequestStateOnEntry(),
-			ctx.getPatronRequest().getStatus(),
-			Optional.of("Action completed : " + action.getName()),
-			Optional.of(auditData)))
-		.flatMap(incrementStateTransitionMetrics(ctx))
-		.flatMap(context -> Mono.from(patronRequestRepository.saveOrUpdate(context.getPatronRequest())))
-		.flatMap(request -> {
-			// Recursively call progress all in case there are subsequent steps we can apply
-			return this.progressAll(ctx.getPatronRequest());
-		});
+			.flatMap(incrementStateTransitionMetrics(ctx))
+			.flatMap(chainContext -> patronRequestAuditService.addAuditEntry(
+				chainContext.getPatronRequest(),
+				chainContext.getPatronRequestStateOnEntry(),
+				chainContext.getPatronRequest().getStatus(),
+				Optional.of("Action completed : " + action.getName()),
+				Optional.of(auditData)))
+			.flatMap(audit -> Mono.from(patronRequestRepository.saveOrUpdate(audit.getPatronRequest())))
+			.flatMap(request -> {
+				// Recursively call progress all in case there are subsequent steps we can apply
+				return this.progressAll(ctx.getPatronRequest());
+			});
 	}
 
-	private Function<PatronRequestAudit, Mono<RequestWorkflowContext>> incrementStateTransitionMetrics(
+	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> incrementStateTransitionMetrics(
 		RequestWorkflowContext ctx) {
 		return audit -> {
-			if (audit.getFromStatus() != audit.getToStatus()) {
+			if (ctx.getPatronRequestStateOnEntry() != ctx.getPatronRequest().getStatus()) {
 				return incrementStateTransitionMetrics(ctx, Boolean.TRUE);
 			} else {
 				return incrementStateTransitionMetrics(ctx, Boolean.FALSE);

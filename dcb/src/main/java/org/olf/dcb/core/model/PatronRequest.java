@@ -1,10 +1,5 @@
 package org.olf.dcb.core.model;
 
-import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
-
 import java.time.Instant;
 import java.util.EnumMap;
 import java.util.List;
@@ -36,6 +31,8 @@ import lombok.ToString;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+
+import static org.olf.dcb.core.model.PatronRequest.Status.*;
 
 
 @Slf4j
@@ -279,7 +276,10 @@ public class PatronRequest {
 				this.outOfSequenceFlag = Boolean.FALSE;
 			}
 
-			this.nextExpectedStatus = status.getNextExpectedStatus();
+			// keep the 'last' next expected status on error
+			if (status != ERROR) {
+				this.nextExpectedStatus = status.getNextExpectedStatus();
+			}
 		}
 
 		this.status = status;

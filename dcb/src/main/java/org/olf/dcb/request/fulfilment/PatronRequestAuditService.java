@@ -55,13 +55,31 @@ public class PatronRequestAuditService {
 			.fromStatus(from)
 			.toStatus(to);
 
-		if (auditData.isPresent()) {
-			builder.auditData(auditData.orElse(null));
+		if (auditData.isPresent()) { // use the existing map to add metrics
+			builder.auditData( updateAuditData(auditData.get(), patronRequest) );
+		} else { // use a new map to add metrics
+			builder.auditData( updateAuditData(new HashMap<>(), patronRequest) );
 		}
 
 		message.ifPresent(value -> builder.briefDescription(truncate(value, 254)));
 
 		return buildAndSaveAuditMessage(builder);
+	}
+
+	private Map<String, Object> updateAuditData(Map<String, Object> auditData, PatronRequest patronRequest) {
+		putIfNotNull(auditData, "previousStatus", patronRequest.getPreviousStatus());
+		putIfNotNull(auditData, "pollCountForCurrentStatus", patronRequest.getPollCountForCurrentStatus());
+		putIfNotNull(auditData, "currentStatusTimestamp", patronRequest.getCurrentStatusTimestamp());
+		putIfNotNull(auditData, "nextExpectedStatus", patronRequest.getNextExpectedStatus());
+		putIfNotNull(auditData, "outOfSequenceFlag", patronRequest.getOutOfSequenceFlag());
+		putIfNotNull(auditData, "elapsedTimeInCurrentStatus", patronRequest.getElapsedTimeInCurrentStatus());
+		return auditData;
+	}
+
+	private void putIfNotNull(Map<String, Object> map, String key, Object value) {
+		if (value != null) {
+			map.put(key, value);
+		}
 	}
 
 	@Transactional
