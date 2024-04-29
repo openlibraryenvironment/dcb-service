@@ -2,10 +2,7 @@ package org.olf.dcb.request.workflow;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.anEmptyMap;
-import static org.hamcrest.Matchers.hasProperty;
-import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
@@ -28,6 +25,8 @@ import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
+
+import java.util.Map;
 
 @DcbTest
 class PatronRequestWorkflowServiceTests {
@@ -152,7 +151,7 @@ class PatronRequestWorkflowServiceTests {
 		assertThat(onlyAuditEntry, allOf(
 			notNullValue(),
 			hasBriefDescription("Cannot Perform Operation"),
-			hasProperty("auditData", anEmptyMap())
+			hasProperty("auditData", aMapWithSize(2))
 		));
 	}
 
