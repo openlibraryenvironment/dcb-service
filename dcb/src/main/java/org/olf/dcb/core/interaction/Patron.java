@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Objects;
 
 import io.micronaut.core.annotation.Creator;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,6 +38,8 @@ public class Patron {
 	private String localItemId;
 	private Integer localItemLocationId;
 	private Boolean isDeleted;
+	@Nullable
+
 	private Boolean blocked;
 
 	public boolean isEligible() {
