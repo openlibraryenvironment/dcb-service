@@ -29,7 +29,7 @@ public class PatronRequestPreflightChecksService {
 	}
 
 	public Mono<PlacePatronRequestCommand> check(PlacePatronRequestCommand command) {
-		log.info("Perform preflight checks {}",command);
+		log.info("Perform preflight checks {}", command);
 
 		return performChecks(command)
 			.flatMap(results -> {
@@ -39,11 +39,11 @@ public class PatronRequestPreflightChecksService {
 				}
 
 				// It's worth logging the failures as it might be a sign of some fundamental systems issue
-				log.warn("request {} failed preflight {}",command, results);
+				log.warn("request {} failed preflight {}", command, results);
 
 				return reportFailedChecksInEventLog(results)
-					.flatMap(reportedResults ->
-						Mono.error(PreflightCheckFailedException.from(reportedResults)));
+					.flatMap(reportedResults -> Mono.error(
+						new PreflightCheckFailedException(failedChecksOnly(reportedResults))));
 			});
 	}
 
@@ -66,18 +66,24 @@ public class PatronRequestPreflightChecksService {
 		return results.stream().allMatch(CheckResult::getPassed);
 	}
 
-	private Mono<List<CheckResult>> reportFailedChecksInEventLog(List<CheckResult> results) {
-		return Flux.fromIterable(results)
+	private static List<FailedPreflightCheck> failedChecksOnly(List<CheckResult> reportedResults) {
+		return reportedResults.stream()
 			.filter(CheckResult::getFailed)
+			.map(FailedPreflightCheck::fromResult)
+			.toList();
+	}
+
+	private Mono<List<CheckResult>> reportFailedChecksInEventLog(List<CheckResult> results) {
+		return Flux.fromIterable(failedChecksOnly(results))
 			.concatMap(result -> eventLogRepository.save(eventFrom(result)))
 			.then(Mono.just(results));
 	}
 
-	private static Event eventFrom(CheckResult result) {
+	private static Event eventFrom(FailedPreflightCheck failedCheck) {
 		return Event.builder()
 			.id(UUID.randomUUID())
 			.type(FAILED_CHECK)
-			.summary(result.getFailureDescription())
+			.summary(failedCheck.getDescription())
 			.build();
 	}
 }
