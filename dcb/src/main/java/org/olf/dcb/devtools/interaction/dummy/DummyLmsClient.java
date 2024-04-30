@@ -167,7 +167,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		log.info("getPatronByLocalId({})", localPatronId);
 		Patron result = Patron.builder().localId(List.of(localPatronId)).localNames(List.of("Dummy Name"))
 				.localBarcodes(List.of("66635556635")).uniqueIds(List.of("994746466")).localPatronType("STD")
-				.localHomeLibraryCode("TR").build();
+				.localHomeLibraryCode("TR").blocked(false).build();
 
 		return Mono.just(result);
 	}
