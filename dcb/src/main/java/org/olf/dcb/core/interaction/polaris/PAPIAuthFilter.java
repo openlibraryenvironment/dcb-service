@@ -11,7 +11,6 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.HMAC_SHA1_AL
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.STAFF_PASSWORD;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.STAFF_USERNAME;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.noExtraErrorHandling;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -82,8 +81,7 @@ class PAPIAuthFilter {
 			String password = (String) conf.get(STAFF_PASSWORD);
 
 			return createStaffAuthRequest(domain, username, password)
-				.flatMap(req -> client.retrieve(req, Argument.of(AuthToken.class),
-					noExtraErrorHandling()));
+				.flatMap(req -> client.retrieve(req, Argument.of(AuthToken.class)));
 		});
 	}
 

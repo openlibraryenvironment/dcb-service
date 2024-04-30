@@ -13,9 +13,8 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_USER_I
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PATRON_BARCODE_PREFIX;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WORKSTATION_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractRequiredMapValue;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValueWithDefault;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.noExtraErrorHandling;
+import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractRequiredMapValue;
 
 import java.util.Arrays;
 import java.util.List;
@@ -23,6 +22,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.polaris.PolarisLmsClient.BibsPagedResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
 import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
 import org.reactivestreams.Publisher;
@@ -74,8 +74,7 @@ public class PAPIClient {
 
 		return createRequest(GET, path, uri -> {})
 			.flatMap( req -> authFilter.ensurePatronAuth(req, patronCredentials, FALSE) )
-			.flatMap(request -> Mono.from(client.retrieve(request,
-				Argument.of(PatronValidateResult.class), noExtraErrorHandling())))
+			.flatMap(request -> client.retrieve(request, Argument.of(PatronValidateResult.class)))
 			.filter(PatronValidateResult::getValidPatron)
 			.map(patronValidateResult -> Patron.builder()
 				.localId(singletonList(valueOf(patronValidateResult.getPatronID())))
@@ -96,8 +95,7 @@ public class PAPIClient {
 			.doOnSuccess(req -> log.debug("patronRegistrationCreate body: {}", req.getBody()))
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), FALSE))
-			.flatMap(request -> client.retrieve(request,
-				Argument.of(PatronRegistrationCreateResult.class), noExtraErrorHandling()));
+			.flatMap(request -> client.retrieve(request, Argument.of(PatronRegistrationCreateResult.class)));
 	}
 
 	public Mono<String> patronRegistrationUpdate(String barcode, String patronType) {
@@ -119,8 +117,7 @@ public class PAPIClient {
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
 			.map(request -> request.body(body))
 			.doOnSuccess(req -> log.debug("patronRegistrationUpdate body: {}", req.getBody()))
-			.flatMap(request -> client.retrieve(request,
-				Argument.of(PatronUpdateResult.class), noExtraErrorHandling()))
+			.flatMap(request -> client.retrieve(request, Argument.of(PatronUpdateResult.class)))
 			.doOnSuccess(patronUpdateResult -> log.debug("PatronUpdateResult: {}", patronUpdateResult))
 			.map(patronUpdateResult -> barcode);
 	}
@@ -144,7 +141,7 @@ public class PAPIClient {
 			.map(request -> request.body(body))
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemCheckoutResult.class), noExtraErrorHandling()))
+			.flatMap(request -> client.retrieve(request, Argument.of(ItemCheckoutResult.class)))
 			.doOnSuccess( r -> log.debug("Result of client.retrieve itemCheckoutPost {}",r) )
 			.flatMap(this::checkForItemCheckOutError);
 	}
@@ -165,15 +162,14 @@ public class PAPIClient {
 	Protected endpoints
 	*/
 	@SingleResult
-	public Publisher<PolarisLmsClient.BibsPagedResult> synch_BibsPagedGet(String startdatemodified, Integer lastId, Integer nrecs) {
+	public Publisher<BibsPagedResult> synch_BibsPagedGet(String startdatemodified, Integer lastId, Integer nrecs) {
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "MARCXML", "paged");
 		return createRequest(GET, path, uri -> uri
 				.queryParam("startdatemodified", startdatemodified)
 				.queryParam("lastid", lastId)
 				.queryParam("nrecs", nrecs))
 			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request,
-				Argument.of(PolarisLmsClient.BibsPagedResult.class), noExtraErrorHandling())));
+			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(BibsPagedResult.class))));
 	}
 
 	public Mono<List<ItemGetRow>> synch_ItemGetByBibID(String localBibId) {
@@ -181,8 +177,7 @@ public class PAPIClient {
 
 		return createRequest(GET, path, uri -> uri.queryParam("excludeecontent", false))
 			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(ItemGetResponse.class),
-				noExtraErrorHandling())))
+			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(ItemGetResponse.class))))
 			.map(ItemGetResponse::getItemGetRows);
 	}
 
@@ -204,10 +199,9 @@ public class PAPIClient {
 	private Mono<PatronSearchRow> makePatronSearchRequest(String path, String ccl) {
 		return createRequest(GET, path, uri -> uri.queryParam("q", ccl))
 			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request,
-				Argument.of(PatronSearchResult.class), noExtraErrorHandling())))
-			.map(patronSearchResult -> checkForPAPIErrorCode(patronSearchResult))
-			.flatMap(patronSearchResult -> checkForUniquePatronResult(patronSearchResult));
+			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronSearchResult.class))))
+			.map(this::checkForPAPIErrorCode)
+			.flatMap(this::checkForUniquePatronResult);
 	}
 
 	private PatronSearchResult checkForPAPIErrorCode(PatronSearchResult patronSearchResult) {

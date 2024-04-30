@@ -894,6 +894,18 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	/**
+	 * Make HTTP request to a Polaris system with no extra error handling
+	 *
+	 * @param request Request to send
+	 * @param responseBodyType Expected type of the response body
+	 * @return Deserialized response body or error, that might have been transformed already by handler
+	 * @param <T> Type to deserialize the response to
+	 */
+	<T> Mono<T> retrieve(MutableHttpRequest<?> request, Argument<T> responseBodyType) {
+		return retrieve(request, responseBodyType, noExtraErrorHandling());
+	}
+
+	/**
 	 * Make HTTP request to a Polaris system
 	 *
 	 * @param request Request to send
