@@ -1,10 +1,9 @@
 package org.olf.dcb.request.fulfilment;
 
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
-import static java.util.function.Function.identity;
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +53,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 
 		final var checkResults = new ArrayList<CheckResult>();
 
-		final var eligible = getValue(patron, Patron::isEligible, identity(), true);
+		final var eligible = getValueOrDefault(patron, Patron::isEligible, true);
 
 		if (!eligible) {
 			checkResults.add(failed("PATRON_INELIGIBLE",
@@ -63,7 +62,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 						patron.getCanonicalPatronType())));
 		}
 
-		final var blocked = getValue(patron, Patron::getBlocked, identity(), false);
+		final var blocked = getValueOrDefault(patron, Patron::getBlocked, false);
 
 		if (blocked) {
 			checkResults.add(failed("PATRON_BLOCKED",
