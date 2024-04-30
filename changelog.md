@@ -1,5 +1,16 @@
 # Changelog
 
+## Version 6.4.0
+
+### Additions
+* [General]
+	* add patron request metrics to audit entries [DCB-1039]
+	* Determine whether a FOLIO patron is blocked DCB-1004
+
+### Fixes
+* [General]
+	* invalid postal code specified when trying create virtual patron on polaris system [DCB-1046]
+
 ## Version 6.3.0
 
 ### Additions
@@ -10,6 +21,8 @@
 	* capture request workflow and state transition metrics [DCB-1039]
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Refactor]
 	* move all state transition metrics to the patron request object [DCB-1039]
 
