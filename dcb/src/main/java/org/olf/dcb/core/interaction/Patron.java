@@ -51,4 +51,8 @@ public class Patron {
 	public String getFirstLocalId() {
 		return getLocalId().stream().findFirst().orElse(null);
 	}
+
+	private String city;
+	private String postalCode;
+	private String state;
 }

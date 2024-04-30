@@ -675,18 +675,40 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<String> createPatron(Patron patron) {
 		log.info("createPatron({}) at {}", patron, lms);
 
-		return ApplicationServices.itemrecords(patron.getLocalItemId())
-			.map(item -> patron.setLocalItemLocationId(item.getAssignedBranchID()))
+		return collectDefaultsForCreatePatron(patron)
 			.flatMap(PAPIService::patronRegistrationCreate)
+			.doOnSuccess(response -> log.debug("Successful result creating patron: {}", response))
 			.flatMap(result -> validateCreatePatronResult(result, patron))
-			.doOnSuccess(res -> log.debug("Successful result creating patron {}",res))
-			.doOnError(error -> log.error("Problem trying to create patron",error))
-			.map(PAPIClient.PatronRegistrationCreateResult::getPatronID)
-			.flatMap(ApplicationServices::handlePatronBlock)
-			.map(String::valueOf);
+			.doOnError(error -> log.error("Error trying to create patron: ", error));
 	}
 
-	private Mono<PAPIClient.PatronRegistrationCreateResult> validateCreatePatronResult(
+	private Mono<Patron> collectDefaultsForCreatePatron(Patron patron) {
+		return fetchItemLocation(patron)
+			.flatMap(this::fetchPatronDefaultsByOrg);
+	}
+
+	private Mono<Patron> fetchPatronDefaultsByOrg(Patron patron) {
+		return ApplicationServices.patrondefaults(illLocationId())
+			.onErrorResume(error -> {
+				log.error(error.getMessage() != null ? error.getMessage() : "Unable to get patron defaults.");
+
+				log.info("fetchPatronDefaultsByOrg using empty strings as fallback");
+				return Mono.just(ApplicationServicesClient.PatronDefaults.builder().city("").state("").postalCode("").build());
+			})
+			.map(chain -> {
+				patron.setCity(chain.getCity());
+				patron.setState(chain.getState());
+				patron.setPostalCode(chain.getPostalCode());
+				return patron;
+			});
+	}
+
+	private Mono<Patron> fetchItemLocation(Patron patron) {
+		return ApplicationServices.itemrecords(patron.getLocalItemId())
+			.map(item -> patron.setLocalItemLocationId(item.getAssignedBranchID()));
+	}
+
+	private Mono<String> validateCreatePatronResult(
 		PAPIClient.PatronRegistrationCreateResult result, Patron patron) {
 
 		final var errorCode = result.getPapiErrorCode();
@@ -707,7 +729,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.build());
 		}
 
-		return Mono.just(result);
+		// we expect a block to be added when creating a virtual patron
+		// check and remove it if present
+		return ApplicationServices.handlePatronBlock(result.getPatronID()).map(String::valueOf);
 	}
 
 	@Override

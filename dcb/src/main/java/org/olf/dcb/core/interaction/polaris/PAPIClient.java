@@ -104,12 +104,11 @@ public class PAPIClient {
 	private PatronRegistration getPatronRegistration(Patron patron) {
 		final var conf = client.getConfig();
 		final var servicesConfig = client.getServicesConfig();
-
-		final var patronBarcodePrefix = extractMapValueWithDefault(servicesConfig, PATRON_BARCODE_PREFIX, String.class, "DCB-");
-		final var logonBranchID = extractRequiredMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+		final var patronBarcodePrefix = extractMapValueWithDefault(
+			servicesConfig, PATRON_BARCODE_PREFIX, String.class, "DCB-");
 
 		return PatronRegistration.builder()
-			.logonBranchID(logonBranchID)
+			.logonBranchID(extractRequiredMapValue(conf, LOGON_BRANCH_ID, Integer.class))
 			.logonUserID(extractRequiredMapValue(conf, LOGON_USER_ID, Integer.class))
 			.logonWorkstationID(extractRequiredMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class))
 			.patronBranchID(patron.getLocalItemLocationId())
@@ -117,13 +116,15 @@ public class PAPIClient {
 			.nameLast(patron.getUniqueIds().get(0))
 			.userName(patron.getUniqueIds().get(0))
 			.patronCode(parseInt(patron.getLocalPatronType()))
-			// Polaris needs these fields, but we don't have them for virtual patrons
-			.birthdate("1999-11-01")
-			.postalCode("63131")
-			.streetOne("DCB Patron Street Address")
-			.city("DCB Patron City")
-			.state("MO")
 			.barcode(patronBarcodePrefix + patron.getLocalBarcodes().get(0))
+			.birthdate("1999-11-01")
+
+			// Polaris requires these fields,
+			// we call the API to extract defaults
+			// or fallback to empty strings if not
+			.postalCode(patron.getPostalCode())
+			.city(patron.getCity())
+			.state(patron.getState())
 			.build();
 	}
 

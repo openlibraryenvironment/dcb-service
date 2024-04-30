@@ -310,6 +310,17 @@ class ApplicationServicesClient {
 			.flatMap(request -> client.retrieve(request, Argument.of(String.class)));
 	}
 
+	public Mono<PatronDefaults> patrondefaults(Integer illLocation) {
+
+		final var path = createPath("patrondefaults");
+
+		return createRequest(GET, path,
+			uri -> uri.queryParam("orgid", illLocation))
+			.flatMap(request -> client.exchange(request, PatronDefaults.class, TRUE))
+			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
+			.doOnError(e -> log.debug("Error occurred when getting patron defaults", e));
+	}
+
 	private Mono<Integer> getHoldRequestDefaults() {
 
 		final var path = createPath("holdsdefaults");
@@ -853,7 +864,6 @@ class ApplicationServicesClient {
 			? r.getInformationMessages()
 			: "No information messages available.");
 	}
-
 
 	@Builder
 	@Data
@@ -1511,7 +1521,6 @@ class ApplicationServicesClient {
 		private String data;
 	}
 
-
 	@Builder
 	@Data
 	@AllArgsConstructor
@@ -1519,6 +1528,19 @@ class ApplicationServicesClient {
 	static class HoldRequestDefault {
 		@JsonProperty("ExpirationDatePeriod")
 		private Integer expirationDatePeriod;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class PatronDefaults {
+		@JsonProperty("City")
+		private String city;
+		@JsonProperty("PostalCode")
+		private String postalCode;
+		@JsonProperty("State")
+		private String state;
 	}
 
 	@Builder
