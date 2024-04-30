@@ -199,11 +199,11 @@ public class PAPIClient {
 		return createRequest(GET, path, uri -> uri.queryParam("q", ccl))
 			.flatMap(authFilter::ensureStaffAuth)
 			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronSearchResult.class))))
-			.map(this::checkForPAPIErrorCode)
+			.flatMap(this::checkForPAPIErrorCode)
 			.flatMap(this::checkForUniquePatronResult);
 	}
 
-	private PatronSearchResult checkForPAPIErrorCode(PatronSearchResult patronSearchResult) {
+	private Mono<PatronSearchResult> checkForPAPIErrorCode(PatronSearchResult patronSearchResult) {
 		final var PAPIErrorCode = patronSearchResult.getPAPIErrorCode();
 		final var errorMessage = patronSearchResult.getErrorMessage();
 
@@ -212,21 +212,23 @@ public class PAPIClient {
 		// ref: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1210888
 		// 0 = Success
 		if (PAPIErrorCode < 0) {
-
 			// we assume (-1, general failure) translates to no results found
-			final var FAILURE_General = -1;
-			if (PAPIErrorCode == FAILURE_General) {
+			final var generalFailureCode = -1;
+
+			if (PAPIErrorCode == generalFailureCode) {
 				log.info("PAPIService returned 'General Failure' for the virtual patron search: {}, {}",
 					PAPIErrorCode, errorMessage);
 
-				return patronSearchResult;
+				return Mono.just(patronSearchResult);
 			}
 
 			log.error("PAPIService returned error code: {}, with message: '{}'", PAPIErrorCode, errorMessage);
-			throw new FindVirtualPatronException("PAPIService returned ["+PAPIErrorCode+"], with message: " + errorMessage);
+
+			return Mono.error(new FindVirtualPatronException("PAPIService returned [%d], with message: %s"
+				.formatted(PAPIErrorCode, errorMessage)));
 		}
 
-		return patronSearchResult;
+		return Mono.just(patronSearchResult);
 	}
 
 	private Mono<PatronSearchRow> checkForUniquePatronResult(PatronSearchResult patronSearchResult) {
