@@ -184,11 +184,10 @@ public class PAPIClient {
 	/**
 	 * Search for a patron in Polaris
 	 * @param barcode barcode to search for in patron's first, middle, last name (PATNF) field
-	 * @param uniqueID unique ID to search for in patron's last, first, middle name (PATNL) field
 	 * Refer to <a href="https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServicePatronSearch.htm#papiservicepatronsearch_3172958390_1270206">patron search docs</a>
 	 * for more information
 	 */
-	public Mono<PatronSearchRow> patronSearch(String barcode, String uniqueID) {
+	public Mono<PatronSearchRow> patronSearch(String barcode) {
 		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
 		final var ccl = "PATNF=" + barcode;
 
