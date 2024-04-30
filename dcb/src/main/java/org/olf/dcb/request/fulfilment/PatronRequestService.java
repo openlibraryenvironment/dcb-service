@@ -50,13 +50,12 @@ public class PatronRequestService {
 		log.info("PRS::placePatronRequest({})", command);
 
 		return preflightChecksService.check(command)
+			.doOnError(PreflightCheckFailedException.class, e -> log.error("Preflight check for request {} failed", command, e))
 			.zipWhen(this::findOrCreatePatron)
 			.map(function(this::mapToPatronRequest))
 			.flatMap(this::savePatronRequest)
 			.doOnSuccess(requestWorkflow::initiate)
-			.doOnError( e -> {
-				log.error("PREFLIGHT placePatronRequest {} did not succeed {}",command,e);
-			});
+			.doOnError(e -> log.error("Placing request {} failed", command, e));
 	}
 
 	private Mono<Patron> findOrCreatePatron(PlacePatronRequestCommand command) {
