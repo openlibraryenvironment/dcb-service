@@ -61,6 +61,16 @@ public class MockPolarisFixture {
 			.respond(okJson(resourceLoader.getResource("patron-search.json")));
 	}
 
+	public void mockPatronSearchPapiError(String firstMiddleLastName,
+		int papiErrorCode, String errorMessage) {
+
+		mockServerClient.when(patronSearchRequest(firstMiddleLastName))
+			.respond(okJson(PAPIClient.PatronSearchResult.builder()
+				.PAPIErrorCode(papiErrorCode)
+				.ErrorMessage(errorMessage)
+				.build()));
+	}
+
 	public void verifyPatronSearch(String firstMiddleLastName) {
 		mockServerClient.verify(patronSearchRequest(firstMiddleLastName));
 	}
@@ -71,8 +81,7 @@ public class MockPolarisFixture {
 			.withHeader("host", host)
 			.withMethod("GET")
 			.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/search/patrons/boolean*")
-			.withQueryStringParameter("q",
-				"PATNF=" + firstMiddleLastName);
+			.withQueryStringParameter("q", "PATNF=" + firstMiddleLastName);
 	}
 
 	public void mockGetPatron(String patronId) {

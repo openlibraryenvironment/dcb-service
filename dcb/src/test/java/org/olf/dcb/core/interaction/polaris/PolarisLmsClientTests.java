@@ -63,6 +63,7 @@ import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
+import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
 import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataAgency;
@@ -210,7 +211,7 @@ class PolarisLmsClientTests {
 		final var toStringLocalBarcodeList = "[0077777777]";
 		final var localPatronId = "1255217";
 
-		mockPatronSearchForGeneratedTerms(localBarcode);
+		mockPolarisFixture.mockPatronSearch(localBarcode);
 		mockPolarisFixture.mockGetPatron(localPatronId);
 		mockPolarisFixture.mockGetPatronBlocksSummary(localPatronId);
 
@@ -253,7 +254,7 @@ class PolarisLmsClientTests {
 		final var toStringLocalBarcodeList = "[0077777777]";
 		final var localPatronId = "1255217";
 
-		mockPatronSearchForGeneratedTerms(localBarcode);
+		mockPolarisFixture.mockPatronSearch(localBarcode);
 		mockPolarisFixture.mockGetPatron(localPatronId);
 		mockPolarisFixture.mockGetPatronBlocksSummaryNotFoundResponse(localPatronId);
 
@@ -285,7 +286,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void shouldFailToFindVirtualPatronWhenPatronBlocksCannotBeFetched() {
+	void shouldFailToFindVirtualPatronWhenPatronBlocksReturnServerError() {
 		// Arrange
 		final var agencyCode = "known-agency";
 		final var localId = "1255193";
@@ -293,7 +294,7 @@ class PolarisLmsClientTests {
 		final var toStringLocalBarcodeList = "[0077777777]";
 		final var localPatronId = "1255217";
 
-		mockPatronSearchForGeneratedTerms(localBarcode);
+		mockPolarisFixture.mockPatronSearch(localBarcode);
 		mockPolarisFixture.mockGetPatron(localPatronId);
 		mockPolarisFixture.mockGetPatronBlocksSummaryServerErrorResponse(localPatronId);
 
@@ -322,6 +323,43 @@ class PolarisLmsClientTests {
 			notNullValue(),
 			hasMessage("Unable to retrieve patron blocks from polaris: Internal Server Error"),
 			hasProperty("type", is(ERR0210))
+		));
+	}
+
+	@Test
+	void shouldFailToFindVirtualPatronWhenFindPatronReturnsPapiErrorCode() {
+		// Arrange
+		final var localBarcode = "0077777777";
+
+		final int errorCode = -5;
+		final var errorMessage = "Something went wrong";
+
+		mockPolarisFixture.mockPatronSearchPapiError(localBarcode, errorCode, errorMessage);
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var patron = org.olf.dcb.core.model.Patron.builder()
+			.id(randomUUID())
+			.patronIdentities(List.of(
+				PatronIdentity.builder()
+					.localId("1255193")
+					.localBarcode("[0077777777]")
+					.resolvedAgency(DataAgency.builder()
+						.code("known-agency")
+						.build())
+					.homeIdentity(true)
+					.build()
+			))
+			.build();
+
+		final var exception = assertThrows(FindVirtualPatronException.class,
+			() -> singleValueFrom(client.findVirtualPatron(patron)));
+
+		// Assert
+		assertThat(exception, allOf(
+			notNullValue(),
+			hasMessage("PAPIService returned [%d], with message: %s".formatted(errorCode, errorMessage))
 		));
 	}
 
@@ -808,11 +846,5 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(string, is(notNullValue()));
 		assertThat(string, is("OK"));
-	}
-
-	private void mockPatronSearchForGeneratedTerms(String localBarcode) {
-
-		// DCB does not prefix the barcode stored in the firstMiddleLastName field
-		mockPolarisFixture.mockPatronSearch(localBarcode);
 	}
 }
