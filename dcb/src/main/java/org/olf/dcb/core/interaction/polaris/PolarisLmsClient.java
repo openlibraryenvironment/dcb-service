@@ -944,6 +944,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.transform(errorHandlingTransformer)
 			// This has to go after more specific error handling
 			// as will convert any client response exception to a problem
+			.doOnError(HttpClientResponseException.class, error -> log.error("Unexpected response from Host LMS: {}", getHostLmsCode(), error))
 			.onErrorMap(HttpClientResponseException.class, responseException ->
 				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
 	}
