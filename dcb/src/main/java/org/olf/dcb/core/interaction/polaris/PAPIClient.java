@@ -8,6 +8,7 @@ import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
+import static java.util.function.Function.identity;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_BRANCH_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_USER_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PATRON_BARCODE_PREFIX;
@@ -15,9 +16,11 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WOR
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValueWithDefault;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractRequiredMapValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -96,6 +99,32 @@ public class PAPIClient {
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), FALSE))
 			.flatMap(request -> client.retrieve(request, Argument.of(PatronRegistrationCreateResult.class)));
+	}
+
+	private PatronRegistration getPatronRegistration(Patron patron) {
+		final var conf = client.getConfig();
+		final var servicesConfig = client.getServicesConfig();
+
+		final var patronBarcodePrefix = extractMapValueWithDefault(servicesConfig, PATRON_BARCODE_PREFIX, String.class, "DCB-");
+		final var logonBranchID = extractRequiredMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+
+		return PatronRegistration.builder()
+			.logonBranchID(logonBranchID)
+			.logonUserID(extractRequiredMapValue(conf, LOGON_USER_ID, Integer.class))
+			.logonWorkstationID(extractRequiredMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class))
+			.patronBranchID(patron.getLocalItemLocationId())
+			.nameFirst(patron.getLocalBarcodes().get(0))
+			.nameLast(patron.getUniqueIds().get(0))
+			.userName(patron.getUniqueIds().get(0))
+			.patronCode(parseInt(patron.getLocalPatronType()))
+			// Polaris needs these fields, but we don't have them for virtual patrons
+			.birthdate("1999-11-01")
+			.postalCode("63131")
+			.streetOne("DCB Patron Street Address")
+			.city("DCB Patron City")
+			.state("MO")
+			.barcode(patronBarcodePrefix + patron.getLocalBarcodes().get(0))
+			.build();
 	}
 
 	public Mono<String> patronRegistrationUpdate(String barcode, String patronType) {
@@ -199,36 +228,15 @@ public class PAPIClient {
 		return createRequest(GET, path, uri -> uri.queryParam("q", ccl))
 			.flatMap(authFilter::ensureStaffAuth)
 			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronSearchResult.class))))
-			.flatMap(this::checkForPAPIErrorCode)
+			.flatMap(result -> checkForPAPIErrorCode(result, PAPIClient::toFindVirtualPatronException))
 			.flatMap(this::checkForUniquePatronResult);
 	}
 
-	private Mono<PatronSearchResult> checkForPAPIErrorCode(PatronSearchResult patronSearchResult) {
-		final var PAPIErrorCode = patronSearchResult.getPAPIErrorCode();
-		final var errorMessage = patronSearchResult.getErrorMessage();
+	private static FindVirtualPatronException toFindVirtualPatronException(
+		Integer code, String message) {
 
-		// Any positive number: Represents either the count of rows returned or the number of rows affected by the procedure.
-		// See individual procedure definitions for details.
-		// ref: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1210888
-		// 0 = Success
-		if (PAPIErrorCode < 0) {
-			// we assume (-1, general failure) translates to no results found
-			final var generalFailureCode = -1;
-
-			if (PAPIErrorCode == generalFailureCode) {
-				log.info("PAPIService returned 'General Failure' for the virtual patron search: {}, {}",
-					PAPIErrorCode, errorMessage);
-
-				return Mono.just(patronSearchResult);
-			}
-
-			log.error("PAPIService returned error code: {}, with message: '{}'", PAPIErrorCode, errorMessage);
-
-			return Mono.error(new FindVirtualPatronException("PAPIService returned [%d], with message: %s"
-				.formatted(PAPIErrorCode, errorMessage)));
-		}
-
-		return Mono.just(patronSearchResult);
+		return new FindVirtualPatronException(
+			"PAPIService returned [%d], with message: %s".formatted(code, message));
 	}
 
 	private Mono<PatronSearchRow> checkForUniquePatronResult(PatronSearchResult patronSearchResult) {
@@ -260,30 +268,33 @@ public class PAPIClient {
 		return Arrays.stream(pathSegments).map(Object::toString).collect(Collectors.joining("/"));
 	}
 
-	private PatronRegistration getPatronRegistration(Patron patron) {
-		final var conf = client.getConfig();
-		final var servicesConfig = client.getServicesConfig();
+	private <T extends PapiResult> Mono<T> checkForPAPIErrorCode(T result,
+		BiFunction<Integer, String, Throwable> toThrowableMapper) {
 
-		final var patronBarcodePrefix = extractMapValueWithDefault(servicesConfig, PATRON_BARCODE_PREFIX, String.class, "DCB-");
-		final var logonBranchID = extractRequiredMapValue(conf, LOGON_BRANCH_ID, Integer.class);
+		final var errorCode = getValue(result, PapiResult::getPAPIErrorCode, identity(), 0);
+		final var errorMessage = getValue(result, PapiResult::getErrorMessage);
 
-		return PatronRegistration.builder()
-			.logonBranchID(logonBranchID)
-			.logonUserID(extractRequiredMapValue(conf, LOGON_USER_ID, Integer.class))
-			.logonWorkstationID(extractRequiredMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class))
-			.patronBranchID(patron.getLocalItemLocationId())
-			.nameFirst(patron.getLocalBarcodes().get(0))
-			.nameLast(patron.getUniqueIds().get(0))
-			.userName(patron.getUniqueIds().get(0))
-			.patronCode(parseInt(patron.getLocalPatronType()))
-			// Polaris needs these fields, but we don't have them for virtual patrons
-			.birthdate("1999-11-01")
-			.postalCode("63131")
-			.streetOne("DCB Patron Street Address")
-			.city("DCB Patron City")
-			.state("MO")
-			.barcode(patronBarcodePrefix + patron.getLocalBarcodes().get(0))
-			.build();
+		// Any positive number: Represents either the count of rows returned or the number of rows affected by the procedure.
+		// See individual procedure definitions for details.
+		// ref: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1210888
+		// 0 = Success
+		if (errorCode < 0) {
+			// we assume (-1, general failure) translates to no results found
+			final var generalFailureCode = -1;
+
+			if (errorCode == generalFailureCode) {
+				log.info("PAPIService returned 'General Failure' for the virtual patron search: {}, {}",
+					errorCode, errorMessage);
+
+				return Mono.just(result);
+			}
+
+			log.error("PAPIService returned error code: {}, with message: '{}'", errorCode, errorMessage);
+
+			return Mono.error(toThrowableMapper.apply(errorCode, errorMessage));
+		}
+
+		return Mono.just(result);
 	}
 
 	private static PatronCredentials emptyCredentials() {
@@ -303,6 +314,11 @@ public class PAPIClient {
 		private Integer logonUserID;
 		@JsonProperty("LogonWorkstationID")
 		private Integer logonWorkstationID;
+	}
+
+	static interface PapiResult {
+		Integer getPAPIErrorCode();
+		String getErrorMessage();
 	}
 
 	@Builder
@@ -455,7 +471,7 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class PatronSearchResult {
+	static class PatronSearchResult implements PapiResult {
 		@JsonProperty("PAPIErrorCode")
 		private Integer PAPIErrorCode;
 		@JsonProperty("ErrorMessage")
