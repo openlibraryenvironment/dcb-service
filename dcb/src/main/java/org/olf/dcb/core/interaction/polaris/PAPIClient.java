@@ -8,7 +8,6 @@ import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
-import static java.util.function.Function.identity;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_BRANCH_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_USER_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PATRON_BARCODE_PREFIX;
@@ -17,6 +16,7 @@ import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClien
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValueWithDefault;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractRequiredMapValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
 
 import java.util.Arrays;
 import java.util.List;
@@ -182,7 +182,7 @@ public class PAPIClient {
 
 		return Mono.just(itemCheckoutResult)
 			// PAPI Error Codes: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1221124
-			.filter(result -> result.getPAPIErrorCode() == 0)
+			.filter(result -> result.getPapiErrorCode() == 0)
 			.switchIfEmpty(Mono.error(() -> new ItemCheckoutException(
 				"Checkout of local item id: " + itemCheckoutResult.getItemRecordID()
 				+ ", failed with error message: '" + itemCheckoutResult.getErrorMessage() + "'")));
@@ -272,7 +272,7 @@ public class PAPIClient {
 	private <T extends PapiResult> Mono<T> checkForPAPIErrorCode(T result,
 		BiFunction<Integer, String, Throwable> toThrowableMapper) {
 
-		final var errorCode = getValue(result, PapiResult::getPAPIErrorCode, identity(), 0);
+		final var errorCode = getValueOrDefault(result, PapiResult::getPapiErrorCode, 0);
 		final var errorMessage = getValue(result, PapiResult::getErrorMessage);
 
 		// Any positive number: Represents either the count of rows returned or the number of rows affected by the procedure.
@@ -317,8 +317,8 @@ public class PAPIClient {
 		private Integer logonWorkstationID;
 	}
 
-	static interface PapiResult {
-		Integer getPAPIErrorCode();
+	interface PapiResult {
+		Integer getPapiErrorCode();
 		String getErrorMessage();
 	}
 
@@ -326,9 +326,9 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	public static class ItemCheckoutResult {
+	public static class ItemCheckoutResult implements PapiResult {
 		@JsonProperty("PAPIErrorCode")
-		private Integer pAPIErrorCode;
+		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")
 		private String errorMessage;
 		@JsonProperty("ItemRecordID")
@@ -339,9 +339,9 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class PatronUpdateResult {
+	static class PatronUpdateResult implements PapiResult {
 		@JsonProperty("PAPIErrorCode")
-		private Integer pAPIErrorCode;
+		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")
 		private String errorMessage;
 	}
@@ -350,7 +350,7 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	public static class PatronRegistrationCreateResult {
+	public static class PatronRegistrationCreateResult implements PapiResult {
 		@JsonProperty("PAPIErrorCode")
 		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")
@@ -474,7 +474,7 @@ public class PAPIClient {
 	@Serdeable
 	static class PatronSearchResult implements PapiResult {
 		@JsonProperty("PAPIErrorCode")
-		private Integer PAPIErrorCode;
+		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")
 		private String ErrorMessage;
 		@JsonProperty("WordList")
@@ -515,9 +515,9 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	private static class ItemGetResponse {
+	private static class ItemGetResponse implements PapiResult {
 		@JsonProperty("PAPIErrorCode")
-		private Integer PAPIErrorCode;
+		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")
 		private String ErrorMessage;
 		@JsonProperty("ItemGetRows")
@@ -598,9 +598,9 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	private static class PatronValidateResult {
+	private static class PatronValidateResult implements PapiResult {
 		@JsonProperty("PAPIErrorCode")
-		private Integer PAPIErrorCode;
+		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")
 		private String ErrorMessage;
 		@JsonProperty("Barcode")

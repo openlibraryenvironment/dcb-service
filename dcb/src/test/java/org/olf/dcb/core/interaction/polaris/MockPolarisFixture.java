@@ -66,7 +66,7 @@ public class MockPolarisFixture {
 
 		mockServerClient.when(patronSearchRequest(firstMiddleLastName))
 			.respond(okJson(PAPIClient.PatronSearchResult.builder()
-				.PAPIErrorCode(papiErrorCode)
+				.papiErrorCode(papiErrorCode)
 				.ErrorMessage(errorMessage)
 				.build()));
 	}
