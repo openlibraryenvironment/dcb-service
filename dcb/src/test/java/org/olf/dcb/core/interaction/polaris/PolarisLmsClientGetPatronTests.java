@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import static java.lang.Integer.parseInt;
+import static java.lang.Long.parseLong;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -12,11 +14,11 @@ import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestUrl;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasTextResponseBody;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasCanonicalPatronType;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasHomeLibraryCode;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarcodes;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalIds;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoCanonicalPatronType;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -77,6 +79,8 @@ class PolarisLmsClientGetPatronTests {
 
 		mockPolarisFixture.mockPapiStaffAuthentication();
 		mockPolarisFixture.mockAppServicesStaffAuthentication();
+
+		referenceValueMappingFixture.deleteAll();
 	}
 
 	@Test
@@ -89,11 +93,16 @@ class PolarisLmsClientGetPatronTests {
 
 		mockPolarisFixture.mockGetPatron(localId,
 			PatronData.builder()
-				.patronID((Integer.parseInt(localId)))
-				.patronCodeID(Integer.parseInt(patronCodeId))
+				.patronID((parseInt(localId)))
+				.patronCodeID(parseInt(patronCodeId))
 				.barcode(barcode)
-				.organizationID(Integer.parseInt(organisationId))
+				.organizationID(parseInt(organisationId))
 				.build());
+
+		final var canonicalPatronType = "UNDERGRADUATE";
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
+			parseLong(patronCodeId), parseLong(patronCodeId), "DCB", canonicalPatronType);
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
@@ -105,7 +114,7 @@ class PolarisLmsClientGetPatronTests {
 			notNullValue(),
 			hasLocalIds(localId),
 			hasLocalPatronType(patronCodeId),
-			hasNoCanonicalPatronType(),
+			hasCanonicalPatronType(canonicalPatronType),
 			hasLocalBarcodes(barcode),
 			hasHomeLibraryCode(organisationId),
 			isNotBlocked()
