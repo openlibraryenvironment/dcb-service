@@ -660,9 +660,18 @@ class PolarisLmsClientTests {
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
-		final var updatedPatron = singleValueFrom(client.updatePatron(localId, "3"));
+		final var updatedPatron = singleValueFrom(client.updatePatron(localId, newPatronCodeId));
 
 		// Assert
+		mockPolarisFixture.verifyUpdatePatron(barcode,
+			PAPIClient.PatronRegistration.builder()
+				// These values have to line up with the config of the client
+				.logonBranchID(73)
+				.logonUserID(1)
+				.logonWorkstationID(1)
+				.patronCode(Integer.valueOf(newPatronCodeId))
+				.build());
+
 		assertThat(updatedPatron, allOf(
 			notNullValue(),
 			hasLocalIds(localId),

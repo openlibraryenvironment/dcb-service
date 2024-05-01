@@ -367,7 +367,7 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class PatronRegistration {
+	public static class PatronRegistration {
 		@JsonProperty("LogonBranchID")
 		private Integer logonBranchID;
 		@JsonProperty("LogonUserID")

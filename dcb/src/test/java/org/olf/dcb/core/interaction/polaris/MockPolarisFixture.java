@@ -12,6 +12,7 @@ import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistration;
 import org.olf.dcb.test.TestResourceLoader;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 
@@ -53,7 +54,17 @@ public class MockPolarisFixture {
 	}
 
 	public void mockUpdatePatron(String patronBarcode) {
-		mock("PUT", "/PAPIService/REST/public/v1/1033/100/1/patron/" + patronBarcode, "update-patron.json");
+		mock("PUT", patronByBarcodePath(patronBarcode), "update-patron.json");
+	}
+
+	public void verifyUpdatePatron(String barcode, PatronRegistration expectedUpdate) {
+		mockServerClient.verify(request()
+			.withHeader("Accept", "application/json")
+			.withHeader("host", host)
+			.withMethod("PUT")
+			.withPath(patronByBarcodePath(barcode))
+			.withBody(json(expectedUpdate))
+		);
 	}
 
 	public void mockPatronSearch(String firstMiddleLastName) {
@@ -85,22 +96,18 @@ public class MockPolarisFixture {
 	}
 
 	public void mockGetPatron(String patronId, ApplicationServicesClient.PatronData patron) {
-		mock("GET", getPatronPath(patronId), okJson(patron));
+		mock("GET", patronByIdPath(patronId), okJson(patron));
 	}
 
 	public void mockGetPatronServerErrorResponse(String patronId) {
-		mock("GET", getPatronPath(patronId),
+		mock("GET", patronByIdPath(patronId),
 			response()
 				.withStatusCode(500)
 				.withBody("Something went wrong"));
 	}
 
-	private static String getPatronPath(String patronId) {
-		return "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/" + patronId;
-	}
-
 	public void mockGetPatronByBarcode(String barcode) {
-		mock("GET", "/PAPIService/REST/public/v1/1033/100/1/patron/" + barcode, "patron-by-barcode.json");
+		mock("GET", patronByBarcodePath(barcode), "patron-by-barcode.json");
 	}
 
 	public void mockGetPatronBlocksSummary(String patronId) {
@@ -225,6 +232,14 @@ public class MockPolarisFixture {
 	void mockGetItemStatuses() {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemstatuses",
 			"itemstatuses.json");
+	}
+
+	private static String patronByIdPath(String patronId) {
+		return "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/" + patronId;
+	}
+
+	private static String patronByBarcodePath(String patronBarcode) {
+		return "/PAPIService/REST/public/v1/1033/100/1/patron/" + patronBarcode;
 	}
 
 	private void mock(String method, String path, String jsonResourcePath) {
