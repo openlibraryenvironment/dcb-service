@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.PatronData;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -85,23 +86,32 @@ class PolarisLmsClientGetPatronTests {
 	@Test
 	void shouldBeAbleToFindPatronById() {
 		// Arrange
-		final var localPatronId = "1255193";
+		final var localId = "1255193";
+		final var barcode = "0077777777";
+		final var organisationId = "39";
+		final var patronCodeId = "3";
 
-		mockPolarisFixture.mockGetPatron(localPatronId);
+		mockPolarisFixture.mockGetPatron(localId,
+			PatronData.builder()
+				.patronID((Integer.parseInt(localId)))
+				.patronCodeID(Integer.parseInt(patronCodeId))
+				.barcode(barcode)
+				.organizationID(Integer.parseInt(organisationId))
+				.build());
 
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
-		final var response = singleValueFrom(client.getPatronByLocalId(localPatronId));
+		final var response = singleValueFrom(client.getPatronByLocalId(localId));
 
 		// Assert
 		assertThat(response, allOf(
 			notNullValue(),
-			hasLocalIds("1255193"),
-			hasLocalPatronType("3"),
+			hasLocalIds(localId),
+			hasLocalPatronType(patronCodeId),
 			hasNoCanonicalPatronType(),
-			hasLocalBarcodes("0077777777"),
-			hasHomeLibraryCode("39"),
+			hasLocalBarcodes(barcode),
+			hasHomeLibraryCode(organisationId),
 			isNotBlocked()
 		));
 	}

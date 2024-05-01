@@ -84,16 +84,19 @@ public class MockPolarisFixture {
 			.withQueryStringParameter("q", "PATNF=" + firstMiddleLastName);
 	}
 
-	public void mockGetPatron(String patronId) {
-		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/" + patronId,
-			"get-patron-by-local-id.json");
+	public void mockGetPatron(String patronId, ApplicationServicesClient.PatronData patron) {
+		mock("GET", getPatronPath(patronId), okJson(patron));
 	}
 
 	public void mockGetPatronServerErrorResponse(String patronId) {
-		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/" + patronId,
+		mock("GET", getPatronPath(patronId),
 			response()
 				.withStatusCode(500)
 				.withBody("Something went wrong"));
+	}
+
+	private static String getPatronPath(String patronId) {
+		return "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/" + patronId;
 	}
 
 	public void mockGetPatronByBarcode(String barcode) {

@@ -1568,7 +1568,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class PatronData {
+	public static class PatronData {
 		@JsonProperty("PatronID")
 		private Integer patronID;
 		@JsonProperty("PatronCodeID")

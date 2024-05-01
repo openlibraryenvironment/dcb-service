@@ -48,6 +48,12 @@ import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestUrl;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasTextResponseBody;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasHomeLibraryCode;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarcodes;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalIds;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoCanonicalPatronType;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
 
 import java.util.List;
 import java.util.UUID;
@@ -205,15 +211,22 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToFindVirtualPatron() {
 		// Arrange
-		final var agencyCode = "known-agency";
-		final var localId = "1255193";
-		final var localBarcode = "0077777777";
-		final var toStringLocalBarcodeList = "[0077777777]";
-		final var localPatronId = "1255217";
+		final var localId = "1255217";
+		final var barcode = "0077777777";
+		final var organisationId = "39";
+		final var patronCodeId = "3";
 
-		mockPolarisFixture.mockPatronSearch(localBarcode);
-		mockPolarisFixture.mockGetPatron(localPatronId);
-		mockPolarisFixture.mockGetPatronBlocksSummary(localPatronId);
+		mockPolarisFixture.mockPatronSearch(barcode);
+
+		mockPolarisFixture.mockGetPatron(localId,
+			ApplicationServicesClient.PatronData.builder()
+				.patronID((Integer.parseInt(localId)))
+				.patronCodeID(Integer.parseInt(patronCodeId))
+				.barcode(barcode)
+				.organizationID(Integer.parseInt(organisationId))
+				.build());
+
+		mockPolarisFixture.mockGetPatronBlocksSummary(localId);
 
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
@@ -223,9 +236,9 @@ class PolarisLmsClientTests {
 			.patronIdentities(List.of(
 				PatronIdentity.builder()
 					.localId(localId)
-					.localBarcode(toStringLocalBarcodeList)
+					.localBarcode(barcodeAsSerialisedList(barcode))
 					.resolvedAgency(DataAgency.builder()
-						.code(agencyCode)
+						.code("known-agency")
 						.build())
 					.homeIdentity(true)
 					.build()
@@ -235,28 +248,39 @@ class PolarisLmsClientTests {
 		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
 
 		// Assert
-		assertThat(foundPatron, is(notNullValue()));
-		assertThat(foundPatron.getLocalId(), is(List.of(localId)));
-		assertThat(foundPatron.getLocalPatronType(), is("3"));
-		assertThat(foundPatron.getLocalBarcodes(), is(List.of(localBarcode)));
-		assertThat(foundPatron.getLocalHomeLibraryCode(), is("39"));
+		assertThat(foundPatron, allOf(
+			notNullValue(),
+			hasLocalIds(localId),
+			hasLocalPatronType(patronCodeId),
+			hasNoCanonicalPatronType(),
+			hasLocalBarcodes(barcode),
+			hasHomeLibraryCode(organisationId),
+			isNotBlocked()
+		));
 
 		// DCB appends a prefix to the barcode used in the generated field for the virtual patron
-		mockPolarisFixture.verifyPatronSearch(localBarcode);
+		mockPolarisFixture.verifyPatronSearch(barcode);
 	}
 
 	@Test
 	void shouldTolerateNotFoundResponseFromPatronBlocksWhenFindingVirtualPatron() {
 		// Arrange
-		final var agencyCode = "known-agency";
-		final var localId = "1255193";
-		final var localBarcode = "0077777777";
-		final var toStringLocalBarcodeList = "[0077777777]";
-		final var localPatronId = "1255217";
+		final var localId = "1255217";
+		final var barcode = "0077777777";
+		final var organisationId = "39";
+		final var patronCodeId = "3";
 
-		mockPolarisFixture.mockPatronSearch(localBarcode);
-		mockPolarisFixture.mockGetPatron(localPatronId);
-		mockPolarisFixture.mockGetPatronBlocksSummaryNotFoundResponse(localPatronId);
+		mockPolarisFixture.mockPatronSearch(barcode);
+
+		mockPolarisFixture.mockGetPatron(localId,
+			ApplicationServicesClient.PatronData.builder()
+				.patronID((Integer.parseInt(localId)))
+				.patronCodeID(Integer.parseInt(patronCodeId))
+				.barcode(barcode)
+				.organizationID(Integer.parseInt(organisationId))
+				.build());
+
+		mockPolarisFixture.mockGetPatronBlocksSummaryNotFoundResponse(localId);
 
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
@@ -266,9 +290,9 @@ class PolarisLmsClientTests {
 			.patronIdentities(List.of(
 				PatronIdentity.builder()
 					.localId(localId)
-					.localBarcode(toStringLocalBarcodeList)
+					.localBarcode(barcodeAsSerialisedList(barcode))
 					.resolvedAgency(DataAgency.builder()
-						.code(agencyCode)
+						.code("known-agency")
 						.build())
 					.homeIdentity(true)
 					.build()
@@ -278,25 +302,34 @@ class PolarisLmsClientTests {
 		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
 
 		// Assert
-		assertThat(foundPatron, is(notNullValue()));
-		assertThat(foundPatron.getLocalId(), is(List.of(localId)));
-		assertThat(foundPatron.getLocalPatronType(), is("3"));
-		assertThat(foundPatron.getLocalBarcodes(), is(List.of(localBarcode)));
-		assertThat(foundPatron.getLocalHomeLibraryCode(), is("39"));
+		assertThat(foundPatron, allOf(
+			notNullValue(),
+			hasLocalIds(localId),
+			hasLocalPatronType(patronCodeId),
+			hasNoCanonicalPatronType(),
+			hasLocalBarcodes(barcode),
+			hasHomeLibraryCode(organisationId),
+			isNotBlocked()
+		));
 	}
 
 	@Test
 	void shouldFailToFindVirtualPatronWhenPatronBlocksReturnServerError() {
 		// Arrange
-		final var agencyCode = "known-agency";
-		final var localId = "1255193";
-		final var localBarcode = "0077777777";
-		final var toStringLocalBarcodeList = "[0077777777]";
-		final var localPatronId = "1255217";
+		final var localId = "1255217";
+		final var barcode = "0077777777";
 
-		mockPolarisFixture.mockPatronSearch(localBarcode);
-		mockPolarisFixture.mockGetPatron(localPatronId);
-		mockPolarisFixture.mockGetPatronBlocksSummaryServerErrorResponse(localPatronId);
+		mockPolarisFixture.mockPatronSearch(barcode);
+
+		mockPolarisFixture.mockGetPatron(localId,
+			ApplicationServicesClient.PatronData.builder()
+				.patronID((Integer.parseInt(localId)))
+				.patronCodeID(7)
+				.barcode(barcode)
+				.organizationID(25)
+				.build());
+
+		mockPolarisFixture.mockGetPatronBlocksSummaryServerErrorResponse(localId);
 
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
@@ -306,9 +339,9 @@ class PolarisLmsClientTests {
 			.patronIdentities(List.of(
 				PatronIdentity.builder()
 					.localId(localId)
-					.localBarcode(toStringLocalBarcodeList)
+					.localBarcode(barcodeAsSerialisedList(barcode))
 					.resolvedAgency(DataAgency.builder()
-						.code(agencyCode)
+						.code("known-agency")
 						.build())
 					.homeIdentity(true)
 					.build()
@@ -607,23 +640,38 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToUpdateAnExistingPatron() {
 		// Arrange
-		final var localPatronId = "1255193";
+		final var localId = "1255193";
+		final var barcode = "0077777777";
+		final var organisationId = "39";
 
-		mockPolarisFixture.mockGetPatronBarcode(localPatronId, "0077777777");
-		mockPolarisFixture.mockUpdatePatron("0077777777");
-		mockPolarisFixture.mockGetPatron(localPatronId);
+		final var newPatronCodeId = "7";
+
+		mockPolarisFixture.mockGetPatronBarcode(localId, barcode);
+		mockPolarisFixture.mockUpdatePatron(barcode);
+
+		mockPolarisFixture.mockGetPatron(localId,
+			ApplicationServicesClient.PatronData.builder()
+				.patronID((Integer.parseInt(localId)))
+				.patronCodeID(Integer.parseInt(newPatronCodeId))
+				.barcode(barcode)
+				.organizationID(Integer.parseInt(organisationId))
+				.build());
 
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
-		final var response = singleValueFrom(client.updatePatron(localPatronId, "3"));
+		final var updatedPatron = singleValueFrom(client.updatePatron(localId, "3"));
 
 		// Assert
-		assertThat(response, is(notNullValue()));
-		assertThat(response.getLocalId(), is(List.of("1255193")));
-		assertThat(response.getLocalPatronType(), is("3"));
-		assertThat(response.getLocalBarcodes(), is(List.of("0077777777")));
-		assertThat(response.getLocalHomeLibraryCode(), is("39"));
+		assertThat(updatedPatron, allOf(
+			notNullValue(),
+			hasLocalIds(localId),
+			hasLocalPatronType(newPatronCodeId),
+			hasNoCanonicalPatronType(),
+			hasLocalBarcodes(barcode),
+			hasHomeLibraryCode(organisationId),
+			isNotBlocked()
+		));
 	}
 
 	@Test
@@ -846,5 +894,10 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(string, is(notNullValue()));
 		assertThat(string, is("OK"));
+	}
+
+	private static String barcodeAsSerialisedList(String barcode) {
+		// Multiple barcodes may be formatted as a serialised list in a string
+		return "[%s]".formatted(barcode);
 	}
 }
