@@ -1,7 +1,6 @@
 package org.olf.dcb.core.interaction.polaris;
 
 import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,8 +12,12 @@ import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestUrl;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasTextResponseBody;
-
-import java.util.List;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasHomeLibraryCode;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarcodes;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalIds;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoCanonicalPatronType;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -92,11 +95,15 @@ class PolarisLmsClientGetPatronTests {
 		final var response = singleValueFrom(client.getPatronByLocalId(localPatronId));
 
 		// Assert
-		assertThat(response, is(notNullValue()));
-		assertThat(response.getLocalId(), is(List.of("1255193")));
-		assertThat(response.getLocalPatronType(), is("3"));
-		assertThat(response.getLocalBarcodes(), is(List.of("0077777777")));
-		assertThat(response.getLocalHomeLibraryCode(), is("39"));
+		assertThat(response, allOf(
+			notNullValue(),
+			hasLocalIds("1255193"),
+			hasLocalPatronType("3"),
+			hasNoCanonicalPatronType(),
+			hasLocalBarcodes("0077777777"),
+			hasHomeLibraryCode("39"),
+			isNotBlocked()
+		));
 	}
 
 	@Test
@@ -109,11 +116,11 @@ class PolarisLmsClientGetPatronTests {
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
-		final var exception = assertThrows(ThrowableProblem.class,
+		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(client.getPatronByLocalId(localPatronId)));
 
 		// Assert
-		assertThat(exception, allOf(
+		assertThat(problem, allOf(
 			notNullValue(),
 			hasMessageForHostLms(CATALOGUING_HOST_LMS_CODE),
 			hasResponseStatusCode(500),
