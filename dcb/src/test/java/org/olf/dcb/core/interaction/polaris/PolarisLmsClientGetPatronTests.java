@@ -37,8 +37,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 class PolarisLmsClientGetPatronTests {
-	private static final String CATALOGUING_HOST_LMS_CODE = "polaris-cataloguing";
-	private static final String CIRCULATING_HOST_LMS_CODE = "polaris-circulating";
+	private static final String HOST_LMS_CODE = "polaris-get-patron";
 
 	@Inject
 	private TestResourceLoaderProvider testResourceLoaderProvider;
@@ -57,19 +56,16 @@ class PolarisLmsClientGetPatronTests {
 	void beforeAll(MockServerClient mockServerClient) {
 		this.mockServerClient = mockServerClient;
 
-		final String BASE_URL = "https://polaris-hostlms-tests.com";
-		final String KEY = "polaris-hostlms-test-key";
-		final String SECRET = "polaris-hostlms-test-secret";
-		final String DOMAIN = "TEST";
-
 		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createPolarisHostLms(CATALOGUING_HOST_LMS_CODE, KEY,
-			SECRET, BASE_URL, DOMAIN, KEY, SECRET);
+		final var baseUrl = "https://polaris-hostlms-tests.com";
+		final var key = "polaris-hostlms-test-key";
+		final var secret = "polaris-hostlms-test-secret";
+		final var domain = "TEST";
 
-		hostLmsFixture.createPolarisHostLms(CIRCULATING_HOST_LMS_CODE, KEY,
-			SECRET, BASE_URL, DOMAIN, KEY, SECRET);
+		hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, key,
+			secret, baseUrl, domain, key, secret);
 
 		mockPolarisFixture = new MockPolarisFixture("polaris-hostlms-tests.com",
 			mockServerClient, testResourceLoaderProvider);
@@ -100,7 +96,7 @@ class PolarisLmsClientGetPatronTests {
 				.build());
 
 		// Act
-		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
 		final var response = singleValueFrom(client.getPatronByLocalId(localId));
 
@@ -124,7 +120,7 @@ class PolarisLmsClientGetPatronTests {
 		mockPolarisFixture.mockGetPatronServerErrorResponse(localPatronId);
 
 		// Act
-		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
 		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(client.getPatronByLocalId(localPatronId)));
@@ -132,7 +128,7 @@ class PolarisLmsClientGetPatronTests {
 		// Assert
 		assertThat(problem, allOf(
 			notNullValue(),
-			hasMessageForHostLms(CATALOGUING_HOST_LMS_CODE),
+			hasMessageForHostLms(HOST_LMS_CODE),
 			hasResponseStatusCode(500),
 			hasTextResponseBody("Something went wrong"),
 			hasRequestMethod("GET"),
