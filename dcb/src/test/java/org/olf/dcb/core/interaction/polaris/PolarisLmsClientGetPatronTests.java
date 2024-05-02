@@ -8,6 +8,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasNoRequestBody;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestMethod;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.PatronData;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -122,17 +124,47 @@ class PolarisLmsClientGetPatronTests {
 	}
 
 	@Test
+	void shouldFailWhenLocalPatronTypeCannotBeMappedToCanonical() {
+		// Arrange
+		final var localId = "1255193";
+		final var barcode = "0077777777";
+		final var organisationId = "39";
+		final var patronCodeId = "3";
+
+		mockPolarisFixture.mockGetPatron(localId,
+			PatronData.builder()
+				.patronID((parseInt(localId)))
+				.patronCodeID(parseInt(patronCodeId))
+				.barcode(barcode)
+				.organizationID(parseInt(organisationId))
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var problem = assertThrows(NoPatronTypeMappingFoundException.class,
+			() -> singleValueFrom(client.getPatronByLocalId(localId)));
+
+		// Assert
+		assertThat(problem, allOf(
+			notNullValue(),
+			hasMessage("Unable to map patronType %s:%s To DCB context"
+				.formatted(HOST_LMS_CODE, patronCodeId))
+		));
+	}
+
+	@Test
 	void shouldFailToFindPatronByIdWhenServerErrorResponseIsReturned() {
 		// Arrange
-		final var localPatronId = "6483613";
+		final var localId = "6483613";
 
-		mockPolarisFixture.mockGetPatronServerErrorResponse(localPatronId);
+		mockPolarisFixture.mockGetPatronServerErrorResponse(localId);
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
 		final var problem = assertThrows(ThrowableProblem.class,
-			() -> singleValueFrom(client.getPatronByLocalId(localPatronId)));
+			() -> singleValueFrom(client.getPatronByLocalId(localId)));
 
 		// Assert
 		assertThat(problem, allOf(
