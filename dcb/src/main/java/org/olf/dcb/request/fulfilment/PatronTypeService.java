@@ -1,11 +1,10 @@
 package org.olf.dcb.request.fulfilment;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.interaction.shared.NoNumericRangeMappingFoundException;
-import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -34,7 +33,7 @@ public class PatronTypeService {
 			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException("Unable to map patron type "+requesterPatronType+"@"+requesterHostLmsCode+" to a canonical value")))
 			.flatMap(canonicalPatronType -> findLocalPatronType(supplierHostLmsCode, canonicalPatronType))
 			.onErrorMap(cause -> {
-				if (cause instanceof NoPatronTypeMappingFoundException || cause instanceof NoNumericRangeMappingFoundException) {
+				if (cause instanceof NoPatronTypeMappingFoundException) {
 					return cause;
 				}
 				else {

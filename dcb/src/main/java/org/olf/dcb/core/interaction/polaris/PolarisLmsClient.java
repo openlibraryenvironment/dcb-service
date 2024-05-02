@@ -44,7 +44,6 @@ import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
-import org.olf.dcb.core.interaction.shared.NoNumericRangeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
@@ -756,12 +755,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<String> findCanonicalPatronType(String localPatronType, String localId) {
 		return numericPatronTypeMapper.mapLocalPatronTypeToCanonical(
-			getHostLmsCode(), localPatronType, localId)
-			.switchIfEmpty(Mono.error(new NoNumericRangeMappingFoundException(
-				String.format(
-					"context: %s, domain: %s, targetContext: %s, mappedValue: %s",
-					getHostLmsCode(), "patronType", "DCB", localPatronType)
-			)));
+			getHostLmsCode(), localPatronType, localId);
 	}
 
 	@Override
