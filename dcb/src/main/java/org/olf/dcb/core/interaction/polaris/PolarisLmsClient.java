@@ -1128,20 +1128,20 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		switch (polarisClient) {
 			case PAPIService -> {
 				final var papiMap = getPAPIConfig();
-				params.put("version", papiMap.get(PAPI_VERSION));
-				params.put("langId", papiMap.get(PAPI_LANG_ID));
-				params.put("appId", papiMap.get(PAPI_APP_ID));
-				params.put("orgId", papiMap.get(PAPI_ORG_ID));
+				params.put("version", papiMap.getOrDefault(PAPI_VERSION, "v1"));
+				params.put("langId", papiMap.getOrDefault(PAPI_LANG_ID, "1033"));
+				params.put("appId", papiMap.getOrDefault(PAPI_APP_ID, "100"));
+				params.put("orgId", papiMap.getOrDefault(PAPI_ORG_ID, "1"));
 			}
 			case APPLICATION_SERVICES -> {
 				final var servicesConfig = getServicesConfig();
 
-				params.put("version", servicesConfig.get(SERVICES_VERSION));
-				params.put("language", servicesConfig.get(SERVICES_LANGUAGE));
-				params.put("product", servicesConfig.get(SERVICES_PRODUCT_ID));
-				params.put("domain", servicesConfig.get(SERVICES_SITE_DOMAIN));
-				params.put("org", servicesConfig.get(SERVICES_ORG_ID));
-				params.put("workstation", servicesConfig.get(SERVICES_WORKSTATION_ID));
+				params.put("version", servicesConfig.getOrDefault(SERVICES_VERSION, "v1"));
+				params.put("language", servicesConfig.getOrDefault(SERVICES_LANGUAGE, "eng"));
+				params.put("product", servicesConfig.getOrDefault(SERVICES_PRODUCT_ID, "19"));
+				params.put("domain", servicesConfig.getOrDefault(SERVICES_SITE_DOMAIN, "polaris"));
+				params.put("org", extractRequiredMapValue(servicesConfig, SERVICES_ORG_ID, String.class));
+				params.put("workstation", servicesConfig.getOrDefault(SERVICES_WORKSTATION_ID, "1"));
 			}
 			default -> {
 				log.error("Unknown or unsupported enum value");
@@ -1207,16 +1207,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return Mono.just("19");
 	}
 
+	@SuppressWarnings("unchecked")
 	Map<String, Object> getServicesConfig() {
-		return (Map<String, Object>) getConfig().get(SERVICES);
+		return (Map<String, Object>) extractRequiredMapValue(getConfig(), SERVICES, Map.class);
 	}
 
+	@SuppressWarnings("unchecked")
 	Map<String, Object> getItemConfig() {
-		return (Map<String, Object>) getConfig().get(ITEM);
+		return (Map<String, Object>) extractRequiredMapValue(getConfig(), ITEM, Map.class);
 	}
 
+	@SuppressWarnings("unchecked")
 	private Map<String, Object> getPAPIConfig() {
-		return (Map<String, Object>) getConfig().get(PAPI);
+		return (Map<String, Object>) extractOptionalMapValue(getConfig(), PAPI, Map.class);
 	}
 
 	@Builder
