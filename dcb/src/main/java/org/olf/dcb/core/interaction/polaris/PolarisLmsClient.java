@@ -762,7 +762,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		return ApplicationServices.getPatron(localPatronId)
 			.flatMap(this::enrichWithCanonicalPatronType)
+			.zipWhen(this::getPatronCirculationBlocks, (patron, blocks) -> patron)
 			.switchIfEmpty(Mono.defer(() -> Mono.error(patronNotFound(localPatronId, getHostLmsCode()))));
+	}
+
+	private Mono<PAPIClient.PatronCirculationBlocksResult> getPatronCirculationBlocks(Patron patron) {
+		final var barcode = getValue(patron, Patron::getFirstBarcode);
+
+		return PAPIService.getPatronCirculationBlocks(barcode);
 	}
 
 	private Mono<Patron> enrichWithCanonicalPatronType(Patron patron) {

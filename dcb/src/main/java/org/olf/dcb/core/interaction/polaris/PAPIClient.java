@@ -152,6 +152,10 @@ public class PAPIClient {
 			.map(patronUpdateResult -> barcode);
 	}
 
+	public Mono<PatronCirculationBlocksResult> getPatronCirculationBlocks(String barcode) {
+		return Mono.just(PatronCirculationBlocksResult.builder().build());
+	}
+
 	public Mono<ItemCheckoutResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
@@ -361,6 +365,19 @@ public class PAPIClient {
 		private Integer patronID;
 		@JsonProperty("StatisticalClassID")
 		private Integer statisticalClassID;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class PatronCirculationBlocksResult implements PapiResult {
+		@JsonProperty("PAPIErrorCode")
+		private Integer papiErrorCode;
+		@JsonProperty("ErrorMessage")
+		private String errorMessage;
+		@JsonProperty("CanPatronCirculate")
+		private Boolean canPatronCirculate;
 	}
 
 	@Builder

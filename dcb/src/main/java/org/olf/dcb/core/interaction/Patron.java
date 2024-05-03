@@ -39,6 +39,9 @@ public class Patron {
 	private Integer localItemLocationId;
 	private Boolean isDeleted;
 	@Nullable private Boolean blocked;
+	private String city;
+	private String postalCode;
+	private String state;
 
 	public boolean isEligible() {
 		return !Objects.equals(canonicalPatronType, "NOT_ELIGIBLE");
@@ -52,7 +55,7 @@ public class Patron {
 		return getLocalId().stream().findFirst().orElse(null);
 	}
 
-	private String city;
-	private String postalCode;
-	private String state;
+	public String getFirstBarcode() {
+		return getLocalBarcodes().stream().findFirst().orElse(null);
+	}
 }
