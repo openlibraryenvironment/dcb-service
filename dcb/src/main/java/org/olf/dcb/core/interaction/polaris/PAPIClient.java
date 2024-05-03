@@ -158,7 +158,8 @@ public class PAPIClient {
 		return client.createRequest(GET, path)
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
-			.flatMap(request -> client.retrieve(request, Argument.of(PatronCirculationBlocksResult.class)));
+			.flatMap(request -> client.retrieve(request, Argument.of(PatronCirculationBlocksResult.class)))
+			.flatMap(result -> checkForPAPIErrorCode(result, CannotGetPatronBlocksProblem::new));
 	}
 
 	public Mono<ItemCheckoutResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {

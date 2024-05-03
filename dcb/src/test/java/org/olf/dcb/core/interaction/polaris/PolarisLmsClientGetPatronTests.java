@@ -204,6 +204,46 @@ class PolarisLmsClientGetPatronTests {
 		));
 	}
 
+	@Test
+	void shouldFailWhenCirculationBlocksEndpointReturnsError() {
+		// Arrange
+		final var localId = "2769363";
+		final var barcode = "0077777777";
+		final var organisationId = "39";
+		final var patronCodeId = "3";
+
+		mockPolarisFixture.mockGetPatron(localId,
+			PatronData.builder()
+				.patronID((parseInt(localId)))
+				.patronCodeID(parseInt(patronCodeId))
+				.barcode(barcode)
+				.organizationID(parseInt(organisationId))
+				.build());
+
+		mockPolarisFixture.mockGetPatronCirculationBlocks(barcode,
+			PatronCirculationBlocksResult.builder()
+				.papiErrorCode(-50)
+				.errorMessage("Something went wrong")
+				.build());
+
+		final var canonicalPatronType = "UNDERGRADUATE";
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
+			parseLong(patronCodeId), parseLong(patronCodeId), "DCB", canonicalPatronType);
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var problem = assertThrows(CannotGetPatronBlocksProblem.class,
+			() -> singleValueFrom(client.getPatronByLocalId(localId)));
+
+		// Assert
+		assertThat(problem, allOf(
+			notNullValue(),
+			hasMessage("Circulation blocks endpoint returned error code [%d] with message: %s"
+				.formatted(-50, "Something went wrong"))
+		));
+	}
 
 	@Test
 	void shouldFailWhenLocalPatronTypeCannotBeMappedToCanonical() {
