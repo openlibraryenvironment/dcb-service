@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.PatronData;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -99,6 +100,11 @@ class PolarisLmsClientGetPatronTests {
 				.patronCodeID(parseInt(patronCodeId))
 				.barcode(barcode)
 				.organizationID(parseInt(organisationId))
+				.build());
+
+		mockPolarisFixture.mockGetPatronCirculationBlocks(barcode,
+			PatronCirculationBlocksResult.builder()
+				.canPatronCirculate(true)
 				.build());
 
 		final var canonicalPatronType = "UNDERGRADUATE";

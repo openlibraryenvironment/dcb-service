@@ -153,7 +153,12 @@ public class PAPIClient {
 	}
 
 	public Mono<PatronCirculationBlocksResult> getPatronCirculationBlocks(String barcode) {
-		return Mono.just(PatronCirculationBlocksResult.builder().build());
+		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode, "circulationblocks");
+
+		return client.createRequest(GET, path)
+			// passing empty patron credentials will allow public requests without patron auth
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
+			.flatMap(request -> client.retrieve(request, Argument.of(PatronCirculationBlocksResult.class)));
 	}
 
 	public Mono<ItemCheckoutResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {

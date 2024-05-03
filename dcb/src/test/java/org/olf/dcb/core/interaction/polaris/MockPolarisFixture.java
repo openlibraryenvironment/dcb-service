@@ -110,6 +110,12 @@ public class MockPolarisFixture {
 		mock("GET", patronByBarcodePath(barcode), "patron-by-barcode.json");
 	}
 
+	public void mockGetPatronCirculationBlocks(String barcode,
+		PAPIClient.PatronCirculationBlocksResult response) {
+
+		mock("GET", patronByBarcodePath(barcode) + "/circulationblocks", okJson(response));
+	}
+
 	public void mockGetPatronBlocksSummary(String patronId) {
 		String path = "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/%s/blockssummary"
 			.formatted(patronId);

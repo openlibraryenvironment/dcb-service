@@ -69,6 +69,7 @@ import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
 import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
@@ -229,6 +230,11 @@ class PolarisLmsClientTests {
 				.organizationID(Integer.parseInt(organisationId))
 				.build());
 
+		mockPolarisFixture.mockGetPatronCirculationBlocks(barcode,
+			PatronCirculationBlocksResult.builder()
+				.canPatronCirculate(true)
+				.build());
+
 		mockPolarisFixture.mockGetPatronBlocksSummary(localId);
 
 		final var canonicalPatronType = "UNDERGRADUATE";
@@ -289,6 +295,11 @@ class PolarisLmsClientTests {
 				.build());
 
 		mockPolarisFixture.mockGetPatronBlocksSummaryNotFoundResponse(localId);
+
+		mockPolarisFixture.mockGetPatronCirculationBlocks(barcode,
+			PatronCirculationBlocksResult.builder()
+				.canPatronCirculate(true)
+				.build());
 
 		final var canonicalPatronType = "UNDERGRADUATE";
 
@@ -668,6 +679,11 @@ class PolarisLmsClientTests {
 				.patronCodeID(Integer.parseInt(newPatronCodeId))
 				.barcode(barcode)
 				.organizationID(Integer.parseInt(organisationId))
+				.build());
+
+		mockPolarisFixture.mockGetPatronCirculationBlocks(barcode,
+			PatronCirculationBlocksResult.builder()
+				.canPatronCirculate(true)
 				.build());
 
 		final var canonicalPatronType = "UNDERGRADUATE";
