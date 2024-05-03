@@ -63,7 +63,6 @@ input LibraryInput {
 	shortName: String!
 	abbreviatedName: String!
 	address: String!
-	training: Boolean!
 	type: String!
 	contacts: [PersonInput]!
 	longitude: Float

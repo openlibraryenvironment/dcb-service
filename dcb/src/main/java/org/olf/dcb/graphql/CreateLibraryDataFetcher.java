@@ -66,7 +66,6 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			.backupDowntimeSchedule(input_map.get("backupDowntimeSchedule").toString())
 			.discoverySystem(input_map.get("discoverySystem").toString())
 			.patronWebsite(input_map.get("patronWebsite").toString())
-			.training(Boolean.valueOf(input_map.get("training").toString()))
 			.hostLmsConfiguration(input_map.get("hostLmsConfiguration").toString())
 			.build();
 
