@@ -49,6 +49,10 @@ public interface ReferenceValueMappingRepository {
 		@Query("UPDATE reference_value_mapping SET deleted = true WHERE from_category = :fromCategory AND from_context = :fromContext")
 		Publisher<Long> markAsDeleted(@NotNull String fromCategory, @NotNull String fromContext);
 
+		// For when we want to delete all existing RVMs for a given Host LMS, and we're not bothered about category.
+		@Query("UPDATE reference_value_mapping SET deleted = true WHERE from_context = :fromContext")
+		Publisher<Long> markAsDeleted(@NotNull String fromContext);
+
 		// Find all deleted mappings. This method could be extended for a specific context / category in future if needed.
 		@Query("SELECT * FROM reference_value_mapping WHERE deleted = true")
 		Publisher<ReferenceValueMapping> findDeleted();
