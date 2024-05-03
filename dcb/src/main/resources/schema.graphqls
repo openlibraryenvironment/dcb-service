@@ -102,6 +102,8 @@ type HostLms {
   code: String
   name: String
   lmsClientClass: String
+	suppressionRulesetName: String
+	itemSuppressionRulesetName: String
   clientConfig: JSON
 }
 
