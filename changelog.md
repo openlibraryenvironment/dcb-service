@@ -1,11 +1,32 @@
 # Changelog
 
+## Version 6.5.0
+
+### Additions
+* [General]
+	* Determine whether Polaris patron is blocked DCB-1004
+
+### Changes
+* [Chore]
+	* Update HostLMS GraphQL type [DCB-1097]
+* [Refactor]
+	* streamline polaris configurations [DCB-1084]
+
+### Fixes
+* [General]
+	* Polaris hold status Shipped now maps to DCB status confirmed [DCB-1095]
+	* Add libraries setup script [DCB-1067]
+
 ## Version 6.4.0
 
 ### Additions
 * [General]
 	* add patron request metrics to audit entries [DCB-1039]
 	* Determine whether a FOLIO patron is blocked DCB-1004
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
