@@ -10,6 +10,7 @@ import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRe
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
 import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.StringUtils.parseList;
 
@@ -43,6 +44,7 @@ import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
@@ -762,14 +764,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		return ApplicationServices.getPatron(localPatronId)
 			.flatMap(this::enrichWithCanonicalPatronType)
-			.zipWhen(this::getPatronCirculationBlocks, (patron, blocks) -> patron)
+			.zipWhen(this::getPatronCirculationBlocks, PolarisLmsClient::isBlocked)
 			.switchIfEmpty(Mono.defer(() -> Mono.error(patronNotFound(localPatronId, getHostLmsCode()))));
-	}
-
-	private Mono<PAPIClient.PatronCirculationBlocksResult> getPatronCirculationBlocks(Patron patron) {
-		final var barcode = getValue(patron, Patron::getFirstBarcode);
-
-		return PAPIService.getPatronCirculationBlocks(barcode);
 	}
 
 	private Mono<Patron> enrichWithCanonicalPatronType(Patron patron) {
@@ -777,6 +773,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				patron.getLocalPatronType(), patron.getFirstLocalId())
 			.map(patron::setCanonicalPatronType)
 			.defaultIfEmpty(patron);
+	}
+
+	private Mono<PatronCirculationBlocksResult> getPatronCirculationBlocks(Patron patron) {
+		final var barcode = getValue(patron, Patron::getFirstBarcode);
+
+		return PAPIService.getPatronCirculationBlocks(barcode);
+	}
+
+	private static Patron isBlocked(Patron patron, PatronCirculationBlocksResult blocks) {
+		final var canCirculate = getValueOrDefault(blocks,
+			PatronCirculationBlocksResult::getCanPatronCirculate, true);
+
+		return patron.setBlocked(!canCirculate);
 	}
 
 	@Override

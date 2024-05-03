@@ -20,6 +20,7 @@ import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasHomeLibrar
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarcodes;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalIds;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isBlocked;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -128,6 +129,81 @@ class PolarisLmsClientGetPatronTests {
 			isNotBlocked()
 		));
 	}
+
+	@Test
+	void shouldBeAbleToFindBlockedPatronById() {
+		// Arrange
+		final var localId = "673663";
+		final var barcode = "0077777777";
+		final var organisationId = "39";
+		final var patronCodeId = "3";
+
+		mockPolarisFixture.mockGetPatron(localId,
+			PatronData.builder()
+				.patronID((parseInt(localId)))
+				.patronCodeID(parseInt(patronCodeId))
+				.barcode(barcode)
+				.organizationID(parseInt(organisationId))
+				.build());
+
+		mockPolarisFixture.mockGetPatronCirculationBlocks(barcode,
+			PatronCirculationBlocksResult.builder()
+				.canPatronCirculate(false)
+				.build());
+
+		final var canonicalPatronType = "UNDERGRADUATE";
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
+			parseLong(patronCodeId), parseLong(patronCodeId), "DCB", canonicalPatronType);
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client.getPatronByLocalId(localId));
+
+		// Assert
+		assertThat(response, allOf(
+			notNullValue(),
+			isBlocked()
+		));
+	}
+
+	@Test
+	void shouldDefaultToNotBlocked() {
+		// Arrange
+		final var localId = "8264569";
+		final var barcode = "0077777777";
+		final var organisationId = "39";
+		final var patronCodeId = "3";
+
+		mockPolarisFixture.mockGetPatron(localId,
+			PatronData.builder()
+				.patronID((parseInt(localId)))
+				.patronCodeID(parseInt(patronCodeId))
+				.barcode(barcode)
+				.organizationID(parseInt(organisationId))
+				.build());
+
+		mockPolarisFixture.mockGetPatronCirculationBlocks(barcode,
+			PatronCirculationBlocksResult.builder().build());
+
+		final var canonicalPatronType = "UNDERGRADUATE";
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
+			parseLong(patronCodeId), parseLong(patronCodeId), "DCB", canonicalPatronType);
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client.getPatronByLocalId(localId));
+
+		// Assert
+		assertThat(response, allOf(
+			notNullValue(),
+			isNotBlocked()
+		));
+	}
+
 
 	@Test
 	void shouldFailWhenLocalPatronTypeCannotBeMappedToCanonical() {
