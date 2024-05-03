@@ -593,7 +593,7 @@ class PolarisLmsClientTests {
 		assertThat(request, allOf(
 			notNullValue(),
 			HostLmsRequestMatchers.hasLocalId(localHoldId),
-			hasStatus(HOLD_TRANSIT),
+			hasStatus(HOLD_CONFIRMED),
 			HostLmsRequestMatchers.hasRequestedItemId("6737455"),
 			HostLmsRequestMatchers.hasRequestedItemBarcode("785574212")
 		));

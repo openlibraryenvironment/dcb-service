@@ -508,9 +508,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		log.debug("Checking hold status: {}", status);
 		return switch (status) {
 			case "Cancelled" -> HostLmsRequest.HOLD_CANCELLED;
-			case "Pending", "Active" -> HostLmsRequest.HOLD_CONFIRMED;
+			case "Pending", "Active",
+				// Edge case that the item has been put in transit by staff
+				// before DCB had a chance to confirm the supplier request
+				"Shipped" -> HostLmsRequest.HOLD_CONFIRMED;
 			case "Held" -> HostLmsRequest.HOLD_READY;
-			case "Shipped" -> HostLmsRequest.HOLD_TRANSIT;
 			case "Missing" -> HostLmsRequest.HOLD_MISSING;
 			default -> status;
 		};
