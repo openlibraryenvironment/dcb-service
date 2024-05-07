@@ -61,7 +61,7 @@ public class PatronRequestResolutionService {
 			.map(this::excludeItemsWithoutAgencyOrHostLms)
 			.flatMap(items -> resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest))
 			.doOnNext(item -> log.debug("Selected item {}", item))
-			.flatMap(item -> createSupplierRequest(item, patronRequest))
+			.map(item -> mapToSupplierRequest(item, patronRequest))
 			.map(PatronRequestResolutionService::mapToResolution)
 			.doOnError(error -> log.warn(
 				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))
@@ -72,12 +72,6 @@ public class PatronRequestResolutionService {
 		return items.stream()
 			.filter(item -> item.getHostLms() != null)
 			.toList();
-	}
-
-	private Mono<SupplierRequest> createSupplierRequest(Item item, PatronRequest patronRequest) {
-		log.debug("createSupplierRequest() current pr status = {}", patronRequest.getStatus());
-
-		return Mono.just(mapToSupplierRequest(item, patronRequest));
 	}
 
 	// Right now we assume that this is always the first supplier we are talking to.. In the future we need to
