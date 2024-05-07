@@ -109,6 +109,12 @@ public class PatronRequestService {
 		return patronRequest;
 	}
 
+	public Mono<PatronRequest> updatePatronRequest(PatronRequest patronRequest) {
+		log.debug("updatePatronRequest({})", patronRequest);
+
+		return Mono.from(patronRequestRepository.update(patronRequest));
+	}
+
 	public Mono<List<PatronRequestAudit>> findAllAuditsFor(PatronRequest patronRequest) {
 		return Flux.from(patronRequestAuditRepository.findByPatronRequest(patronRequest)).collectList();
 	}
