@@ -1,5 +1,6 @@
 package org.olf.dcb.request.workflow;
 
+import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 
 import java.util.List;
@@ -7,46 +8,45 @@ import java.util.Optional;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
+import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.SupplierRequestRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Prototype
 public class PatronRequestResolutionStateTransition implements PatronRequestStateTransition {
-	private static final Logger log = LoggerFactory.getLogger(PatronRequestResolutionStateTransition.class);
-
 	private final PatronRequestResolutionService patronRequestResolutionService;
-	private final SupplierRequestRepository supplierRequestRepository;
 	private final PatronRequestAuditService patronRequestAuditService;
 	
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 	private final BeanProvider<PatronRequestService> patronRequestServiceProvider;
+	private final SupplierRequestService supplierRequestService;
 
-	private static final List<Status> possibleSourceStatus = List.of(Status.PATRON_VERIFIED);
-	
+	private static final List<Status> possibleSourceStatus = List.of(PATRON_VERIFIED);
+
 	public PatronRequestResolutionStateTransition(
 		PatronRequestResolutionService patronRequestResolutionService,
 		SupplierRequestRepository supplierRequestRepository,
 		PatronRequestAuditService patronRequestAuditService,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
-		BeanProvider<PatronRequestService> patronRequestServiceProvider) {
+		BeanProvider<PatronRequestService> patronRequestServiceProvider,
+		SupplierRequestService supplierRequestService) {
 
 		this.patronRequestResolutionService = patronRequestResolutionService;
-		this.supplierRequestRepository = supplierRequestRepository;
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.patronRequestServiceProvider = patronRequestServiceProvider;
+		this.supplierRequestService = supplierRequestService;
 	}
 
 	@Override
@@ -82,20 +82,13 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			return Mono.just(resolution);
 		}
 
-		return saveSupplierRequest(resolution.getOptionalSupplierRequest().get())
+		return supplierRequestService.saveSupplierRequest(resolution.getOptionalSupplierRequest().get())
 			.map(supplierRequest -> new Resolution(resolution.getPatronRequest(),
 				Optional.of(supplierRequest)));
 	}
 
-	private Mono<? extends SupplierRequest> saveSupplierRequest(SupplierRequest supplierRequest) {
-		log.debug("saveSupplierRequest({})", supplierRequest);
-
-		return Mono.from(supplierRequestRepository.save(supplierRequest));
-	}
-
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-
 		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
 	}
 
@@ -103,7 +96,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	public List<Status> getPossibleSourceStatus() {
 		return possibleSourceStatus;
 	}
-	
+
 	// getTargetStatus tells us where we're trying to get to BUT be aware that the transitions can have error states so the Status
 	// outcome can be OTHER than the status listed here. This is used for goal-seeking when trying to work out which transitions to
 	// apply - it's not a statement of what the status WILL be after applying the transition. n this case - NO_ITEMS_AT_ANY_SUPPLIER can
@@ -122,5 +115,4 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
   public boolean attemptAutomatically() {
     return true;
   }
-
 }

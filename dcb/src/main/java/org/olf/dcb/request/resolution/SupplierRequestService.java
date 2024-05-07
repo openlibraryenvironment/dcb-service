@@ -5,16 +5,15 @@ import java.util.List;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.storage.SupplierRequestRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Singleton
 public class SupplierRequestService {
-	private static final Logger log = LoggerFactory.getLogger(SupplierRequestService.class);
 	private final SupplierRequestRepository supplierRequestRepository;
 
 	public SupplierRequestService(SupplierRequestRepository supplierRequestRepository) {
@@ -22,7 +21,7 @@ public class SupplierRequestService {
 	}
 
 	public Mono<List<SupplierRequest>> findAllSupplierRequestsFor(PatronRequest patronRequest) {
-		return Flux.from(supplierRequestRepository.findAllByPatronRequestAndIsActive(patronRequest, Boolean.TRUE))
+		return Flux.from(supplierRequestRepository.findAllByPatronRequestAndIsActive(patronRequest, true))
 			.collectList();
 	}
 
@@ -39,8 +38,14 @@ public class SupplierRequestService {
 			// .switchIfEmpty(Mono.error(() -> new RuntimeException("No SupplierRequests found for PatronRequest")));
 	}
 
+	public Mono<? extends SupplierRequest> saveSupplierRequest(SupplierRequest supplierRequest) {
+		log.debug("saveSupplierRequest({})", supplierRequest);
+
+		return Mono.from(supplierRequestRepository.save(supplierRequest));
+	}
+
 	public Mono<SupplierRequest> updateSupplierRequest(SupplierRequest supplierRequest) {
-		log.debug("updateSupplierRequest: {}", supplierRequest);
+		log.debug("updateSupplierRequest({})", supplierRequest);
 
 		return Mono.from(supplierRequestRepository.update(supplierRequest));
 	}
