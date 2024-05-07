@@ -6,6 +6,7 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -14,6 +15,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasHostLmsCode;
@@ -42,7 +44,6 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.UnableToResolvePatronRequest;
 import org.olf.dcb.request.workflow.PatronRequestResolutionStateTransition;
@@ -211,7 +212,8 @@ class PatronRequestResolutionTests {
 			hasResolvedAgency(expectedAgency)
 		));
 
-		assertSuccessfulTransitionAudit(fetchedPatronRequest, RESOLVED);
+		assertSuccessfulResolutionAudit(fetchedPatronRequest, "1000002",
+			CIRCULATING_HOST_LMS_CODE);
 	}
 
 	@Test
@@ -256,9 +258,7 @@ class PatronRequestResolutionTests {
 		assertThat(fetchedPatronRequest, hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
 
 		assertThat("Should not find any supplier requests",
-			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
-
-		assertSuccessfulTransitionAudit(fetchedPatronRequest, NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
+			supplierRequestsFixture.findAllFor(patronRequest), empty());
 	}
 
 	@Test
@@ -314,9 +314,7 @@ class PatronRequestResolutionTests {
 		assertThat(fetchedPatronRequest, hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
 
 		assertThat("Should not find any supplier requests",
-			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
-
-		assertSuccessfulTransitionAudit(fetchedPatronRequest, NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
+			supplierRequestsFixture.findAllFor(patronRequest), empty());
 	}
 
 	@Test
@@ -354,9 +352,7 @@ class PatronRequestResolutionTests {
 		assertThat(fetchedPatronRequest, hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
 
 		assertThat("Should not find any supplier requests",
-			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
-
-		assertSuccessfulTransitionAudit(fetchedPatronRequest, NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
+			supplierRequestsFixture.findAllFor(patronRequest), empty());
 	}
 
 	@Test
@@ -454,8 +450,16 @@ class PatronRequestResolutionTests {
 			.flatMap(ctx -> patronRequestResolutionStateTransition.attempt(ctx)));
 	}
 
-	public void assertSuccessfulTransitionAudit(PatronRequest patronRequest, Status expectedToStatus) {
-		assertThat("Patron Request should have state", patronRequest.getStatus(), is(expectedToStatus));
+	public void assertSuccessfulResolutionAudit(PatronRequest patronRequest,
+		String expectedItemId, String expectedHostLms) {
+
+		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
+
+		assertThat(fetchedAudit, allOf(
+			notNullValue(),
+			hasBriefDescription("Resolved to item with local ID \"%s\" from Host LMS \"%s\""
+				.formatted(expectedItemId, expectedHostLms))
+		));
 	}
 
 	public void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
