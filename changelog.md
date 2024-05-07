@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 6.5.1
+
+### Fixes
+* [General]
+	* re add defer back to HandleSupplierRequestConfirmed [DCB-1095]
+
 ## Version 6.5.0
 
 ### Additions
@@ -8,6 +14,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Update HostLMS GraphQL type [DCB-1097]
 * [Refactor]
 	* streamline polaris configurations [DCB-1084]
