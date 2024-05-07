@@ -87,19 +87,20 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		final var patronRequestService = patronRequestServiceProvider.get();
 
 		return patronRequestService.updatePatronRequest(resolution.getPatronRequest())
-			.map(patronRequest -> new Resolution(patronRequest, resolution.getOptionalSupplierRequest()));
+			.then(Mono.just(resolution));
 	}
 
 	private Mono<Resolution> saveSupplierRequest(Resolution resolution) {
 		log.debug("saveSupplierRequest({})", resolution);
 
-		if (resolution.getOptionalSupplierRequest().isEmpty()) {
+		final var optionalSupplierRequest = resolution.getOptionalSupplierRequest();
+
+		if (optionalSupplierRequest.isEmpty()) {
 			return Mono.just(resolution);
 		}
 
-		return supplierRequestService.saveSupplierRequest(resolution.getOptionalSupplierRequest().get())
-			.map(supplierRequest -> new Resolution(resolution.getPatronRequest(),
-				Optional.of(supplierRequest)));
+		return supplierRequestService.saveSupplierRequest(optionalSupplierRequest.get())
+			.then(Mono.just(resolution));
 	}
 
 	@Override

@@ -5,10 +5,10 @@ import java.util.Optional;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 
-import lombok.Data;
+import lombok.Value;
 
-@Data
+@Value
 public class Resolution {
-	private final PatronRequest patronRequest;
-	private final Optional<SupplierRequest> optionalSupplierRequest;
+	PatronRequest patronRequest;
+	Optional<SupplierRequest> optionalSupplierRequest;
 }
