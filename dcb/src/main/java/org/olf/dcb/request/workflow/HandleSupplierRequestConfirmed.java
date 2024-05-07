@@ -73,8 +73,8 @@ public class HandleSupplierRequestConfirmed implements PatronRequestStateTransit
 					return Mono.just(supplierRequest);
 				}
 			})
-			.flatMap(sr -> Mono.just(patronRequest.setStatus(CONFIRMED)))
-			.map(ctx::setPatronRequest);
+			.flatMap(updatedSupplierRequest -> Mono.defer(() -> Mono.just(patronRequest.setStatus(CONFIRMED))))
+			.then(Mono.just(ctx));
 	}
 
 	@Override
