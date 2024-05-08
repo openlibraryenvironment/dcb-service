@@ -2,6 +2,10 @@
 
 ## Version 6.5.1
 
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
 ### Fixes
 * [General]
 	* re add defer back to HandleSupplierRequestConfirmed [DCB-1095]
