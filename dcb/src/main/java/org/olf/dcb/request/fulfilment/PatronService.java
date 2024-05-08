@@ -3,10 +3,7 @@ package org.olf.dcb.request.fulfilment;
 import static java.util.UUID.randomUUID;
 import static lombok.AccessLevel.PACKAGE;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataAgency;
@@ -58,8 +55,7 @@ public class PatronService {
 	}
 
 	public Mono<PatronId> createPatron(String localSystemCode, String localId, String homeLibraryCode) {
-		// log.debug("createPatron({}, {}, {})", localSystemCode, localId,
-		// homeLibraryCode);
+		// log.debug("createPatron({}, {}, {})", localSystemCode, localId, homeLibraryCode);
 
 		return savePatron(createPatron(homeLibraryCode))
 			.flatMap(patron -> savePatronIdentity(patron, localSystemCode, localId))
@@ -73,7 +69,7 @@ public class PatronService {
 	}
 
 	public Flux<PatronIdentity> findAllPatronIdentitiesByPatron(Patron patron) {
-		// log.debug("findAllPatronIdentitiesByPatron({})", patron);
+		 log.debug("findAllPatronIdentitiesByPatron({})", patron);
 
 		return Flux.from(patronIdentityRepository.findAllByPatron(patron))
 			.flatMap(this::addHostLmsToPatronIdentity)
@@ -81,24 +77,23 @@ public class PatronService {
 	}
 
 	private Mono<PatronIdentity> addHostLmsToPatronIdentity(PatronIdentity patronIdentity) {
-		// log.debug("addHostLmsToPatronIdentity({})", patronIdentity);
-
-		return Mono.just(patronIdentity)
-			.flatMap(this::getHostLmsOfPatronIdentity);
-	}
-
-	private Mono<PatronIdentity> getHostLmsOfPatronIdentity(PatronIdentity patronIdentity) {
 		// log.debug("getHostLmsOfPatronIdentity({})", patronIdentity);
 
+		if (patronIdentity.getHostLms() == null || patronIdentity.getHostLms().getId() == null) {
+			return Mono.just(patronIdentity);
+		}
+
 		return hostLmsService.findById(patronIdentity.getHostLms().getId())
-			.doOnNext(patronIdentity::setHostLms)
-			.thenReturn(patronIdentity);
+			.map(patronIdentity::setHostLms)
+			.defaultIfEmpty(patronIdentity);
 	}
 
 	private Mono<PatronIdentity> addResolvedAgencyToPatronIdentity(PatronIdentity patronIdentity) {
+		// log.debug("addResolvedAgencyToPatronIdentity({})", patronIdentity);
+
 		// Exit early if there is no attached resolved agency - we generally only set
 		// resolvedAgency for "Home" identities
-		if (patronIdentity.getResolvedAgency() == null)
+		if (patronIdentity.getResolvedAgency() == null || patronIdentity.getResolvedAgency().getId() == null)
 			return Mono.just(patronIdentity);
 
 		return agencyService.findById(patronIdentity.getResolvedAgency().getId())
@@ -179,18 +174,41 @@ public class PatronService {
 		return patron;
 	}
 
-	public Optional<PatronIdentity> findIdentityByLocalId(Patron patron, String localId) {
-		return patron.getPatronIdentities().stream().filter(pi -> pi.getLocalId().equals(localId)).findFirst();
+	public PatronIdentity findIdentityByLocalId(List<PatronIdentity> identities, String localId) {
+
+		if (identities == null || identities.isEmpty()) {
+			return null;
+		}
+
+		return identities.stream()
+			.filter(pi -> pi != null && localId.equals(pi.getLocalId()))
+			.findFirst()
+			.orElse(null); // to trigger the switch
 	}
 
 	public Mono<PatronIdentity> checkForPatronIdentity(Patron patron, String hostLmsCode, String localId,
 			String localPType, String barcode) {
+
 		log.debug("checkForPatronIdentity {}, {}, {}, {}, {}",
 			patron, hostLmsCode, localId, localPType, barcode);
 
-		return Mono.justOrEmpty(findIdentityByLocalId(patron, localId))
-			.switchIfEmpty(Mono.defer(() ->
-				createPatronIdentity(patron, localId, localPType, hostLmsCode, false, barcode)));
+		return getPatronIdentitiesBy(patron)
+			.flatMap(identities -> Mono.justOrEmpty(findIdentityByLocalId(identities, localId)))
+			.switchIfEmpty(Mono.defer(() -> createPatronIdentity(patron, localId, localPType, hostLmsCode, false, barcode)));
+	}
+
+	private Mono<List<PatronIdentity>> getPatronIdentitiesBy(Patron patron) {
+
+		final var identities = identitiesOrEmpty(patron);
+
+		return Mono.justOrEmpty(identities)
+			.switchIfEmpty(Mono.defer(() -> fetchAllIdentities(patron)));
+	}
+
+	private static List<PatronIdentity> identitiesOrEmpty(Patron patron) {
+		return patron.getPatronIdentities() == null || patron.getPatronIdentities().isEmpty()
+			? null
+			: patron.getPatronIdentities();
 	}
 
 	private Mono<List<PatronIdentity>> fetchAllIdentities(Patron patron) {
