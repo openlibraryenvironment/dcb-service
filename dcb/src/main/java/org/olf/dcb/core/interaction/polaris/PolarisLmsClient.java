@@ -842,10 +842,15 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.localId(holdRequestId != null
 					? holdRequestId.toString()
 					: "")
-				.localStatus(getValue(response, LibraryHold::getSysHoldStatus, Object::toString, ""))
+				.localStatus( getLocalStatus(response) )
 				.requestedItemId(getValue(response, LibraryHold::getItemRecordID, Object::toString))
 				.requestedItemBarcode(getValue(response, LibraryHold::getItemBarcode))
 				.build());
+	}
+
+	private String getLocalStatus(LibraryHold response) {
+		var value = getValue(response, LibraryHold::getSysHoldStatus, Object::toString, "");
+		return checkHoldStatus(value);
 	}
 
 	private Mono<ApplicationServicesClient.BibliographicRecord> getBib(String localBibId) {
