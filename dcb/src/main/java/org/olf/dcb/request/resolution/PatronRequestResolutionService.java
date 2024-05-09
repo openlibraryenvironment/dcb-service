@@ -1,9 +1,9 @@
 package org.olf.dcb.request.resolution;
 
-import static org.olf.dcb.request.resolution.Resolution.resolveToChosenItem;
-import static org.olf.dcb.request.resolution.Resolution.resolveToNoItemsSelectable;
+import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
@@ -59,13 +59,19 @@ public class PatronRequestResolutionService {
 			.zipWith(Mono.just(Resolution.forPatronRequest(patronRequest)),
 				(allItems, resolution) -> resolution.trackAllItems(allItems))
 			.map(this::trackFilteredItems)
-			.flatMap(resolution -> resolutionStrategy.chooseItem(resolution.getFilteredItems(),
-				clusterRecordId, resolution.getPatronRequest()))
-			.doOnNext(item -> log.debug("Selected item {}", item))
-			.map(item -> resolveToChosenItem(patronRequest, item))
+			.zipWhen(resolution -> selectItem(resolutionStrategy, clusterRecordId, resolution),
+				(Resolution::selectItem))
 			.doOnError(error -> log.warn(
 				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))
-			.switchIfEmpty(Mono.defer(() -> Mono.just(resolveToNoItemsSelectable(patronRequest))));
+			.switchIfEmpty(Mono.defer(() -> Mono.just(noItemsSelectable(patronRequest))));
+	}
+
+	private static Mono<Item> selectItem(ResolutionStrategy resolutionStrategy,
+		UUID clusterRecordId, Resolution resolution) {
+
+		return resolutionStrategy.chooseItem(resolution.getFilteredItems(),
+			clusterRecordId, resolution.getPatronRequest())
+			.doOnNext(item -> log.debug("Selected item {}", item));
 	}
 
 	private Resolution trackFilteredItems(Resolution resolution) {

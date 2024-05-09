@@ -21,19 +21,6 @@ public class Resolution {
 	@Builder.Default List<Item> allItems = emptyList();
 	@Builder.Default List<Item> filteredItems = emptyList();
 
-	static Resolution resolveToNoItemsSelectable(PatronRequest patronRequest) {
-		return builder()
-			.patronRequest(patronRequest)
-			.build();
-	}
-
-	static Resolution resolveToChosenItem(PatronRequest patronRequest, Item item) {
-		return builder()
-			.patronRequest(patronRequest)
-			.chosenItem(Optional.of(item))
-			.build();
-	}
-
 	public static Resolution forPatronRequest(PatronRequest patronRequest) {
 		return builder().patronRequest(patronRequest).build();
 	}
@@ -50,6 +37,21 @@ public class Resolution {
 			.patronRequest(patronRequest)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
+			.build();
+	}
+
+	public Resolution selectItem(Item item) {
+		return Resolution.builder()
+			.patronRequest(patronRequest)
+			.allItems(allItems)
+			.filteredItems(filteredItems)
+			.chosenItem(Optional.of(item))
+			.build();
+	}
+
+	static Resolution noItemsSelectable(PatronRequest patronRequest) {
+		return builder()
+			.patronRequest(patronRequest)
 			.build();
 	}
 }
