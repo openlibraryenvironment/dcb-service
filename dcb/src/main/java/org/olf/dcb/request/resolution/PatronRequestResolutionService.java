@@ -1,9 +1,9 @@
 package org.olf.dcb.request.resolution;
 
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
+import static org.olf.dcb.request.resolution.Resolution.resolveToNoItemsSelectable;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Item;
@@ -62,7 +62,7 @@ public class PatronRequestResolutionService {
 			.flatMap(items -> resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest))
 			.doOnNext(item -> log.debug("Selected item {}", item))
 			.map(item -> mapToSupplierRequest(item, patronRequest))
-			.map(PatronRequestResolutionService::mapToResolution)
+			.map(Resolution::resolveToChosenItem)
 			.doOnError(error -> log.warn(
 				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))
 			.switchIfEmpty(Mono.defer(() -> Mono.just(resolveToNoItemsSelectable(patronRequest))));
@@ -101,13 +101,5 @@ public class PatronRequestResolutionService {
 			.isActive(true)
 			.resolvedAgency(item.getAgency())
 			.build();
-	}
-
-	private static Resolution resolveToNoItemsSelectable(PatronRequest patronRequest) {
-		return new Resolution(patronRequest.resolveToNoItemsSelectable(), Optional.empty());
-	}
-
-	private static Resolution mapToResolution(SupplierRequest supplierRequest) {
-		return new Resolution(supplierRequest.getPatronRequest(), Optional.of(supplierRequest));
 	}
 }
