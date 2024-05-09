@@ -18,7 +18,6 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
 import org.olf.dcb.request.resolution.SupplierRequestService;
-import org.olf.dcb.storage.SupplierRequestRepository;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
@@ -40,7 +39,6 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 	public PatronRequestResolutionStateTransition(
 		PatronRequestResolutionService patronRequestResolutionService,
-		SupplierRequestRepository supplierRequestRepository,
 		PatronRequestAuditService patronRequestAuditService,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
 		BeanProvider<PatronRequestService> patronRequestServiceProvider,
