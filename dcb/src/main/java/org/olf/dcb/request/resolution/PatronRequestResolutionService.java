@@ -62,7 +62,7 @@ public class PatronRequestResolutionService {
 			.map(this::excludeItemsWithoutAgencyOrHostLms)
 			.flatMap(items -> resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest))
 			.doOnNext(item -> log.debug("Selected item {}", item))
-			.map(item -> resolveToChosenItem(mapToSupplierRequest(item, patronRequest)))
+			.map(item -> resolveToChosenItem(mapToSupplierRequest(item, patronRequest), item))
 			.doOnError(error -> log.warn(
 				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))
 			.switchIfEmpty(Mono.defer(() -> Mono.just(resolveToNoItemsSelectable(patronRequest))));
