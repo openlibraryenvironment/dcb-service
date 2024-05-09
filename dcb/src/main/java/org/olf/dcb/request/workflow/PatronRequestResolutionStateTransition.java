@@ -1,13 +1,17 @@
 package org.olf.dcb.request.workflow;
 
+import static java.util.UUID.randomUUID;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
 
 import java.util.List;
 import java.util.Optional;
 
+import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -49,6 +53,9 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		this.supplierRequestService = supplierRequestService;
 	}
 
+	// Right now we assume that this is always the first supplier we are talking to.. In the future we need to
+	// be able to handle a supplier failing to deliver and creating a new request for a different supplier.
+	// isActive is intended to identify the "Current" supplier as we try different agencies.
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
 		PatronRequest patronRequest = ctx.getPatronRequest();
@@ -69,15 +76,15 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 	private Mono<Resolution> auditResolution(Resolution resolution) {
 		// Do not audit a resolution when an item hasn't been chosen
-		if (resolution.getOptionalSupplierRequest().isEmpty()) {
+		if (resolution.getChosenItem().isEmpty()) {
 			return Mono.just(resolution);
 		}
 
-		final var supplierRequest = resolution.getOptionalSupplierRequest().get();
+		final var chosenItem = resolution.getChosenItem().get();
 
 		return patronRequestAuditService.addAuditEntry(resolution.getPatronRequest(),
 				"Resolved to item with local ID \"%s\" from Host LMS \"%s\"".formatted(
-					supplierRequest.getLocalItemId(), supplierRequest.getHostLmsCode()))
+					chosenItem.getLocalId(), chosenItem.getHostLmsCode()))
 			.then(Mono.just(resolution));
 	}
 
@@ -93,14 +100,41 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	private Mono<Resolution> saveSupplierRequest(Resolution resolution) {
 		log.debug("saveSupplierRequest({})", resolution);
 
-		final var optionalSupplierRequest = resolution.getOptionalSupplierRequest();
+		final var chosenItem = resolution.getChosenItem();
 
-		if (optionalSupplierRequest.isEmpty()) {
+		if (chosenItem.isEmpty()) {
 			return Mono.just(resolution);
 		}
 
-		return supplierRequestService.saveSupplierRequest(optionalSupplierRequest.get())
+		return supplierRequestService.saveSupplierRequest(
+				mapToSupplierRequest(chosenItem.get(), resolution.getPatronRequest()))
 			.then(Mono.just(resolution));
+	}
+
+	private static SupplierRequest mapToSupplierRequest(Item item, PatronRequest patronRequest) {
+		log.debug("mapToSupplierRequest({}, {})", item, patronRequest);
+
+		final var supplierRequestId = randomUUID();
+
+		log.debug("create SupplierRequest: {}, {}, {}", supplierRequestId, item, item.getHostLmsCode());
+
+		final var updatedPatronRequest = patronRequest.resolve();
+
+		return SupplierRequest.builder()
+			.id(supplierRequestId)
+			.patronRequest(updatedPatronRequest)
+			.localItemId(item.getLocalId())
+			.localBibId(item.getLocalBibId())
+			.localItemBarcode(item.getBarcode())
+			.localItemLocationCode(item.getLocation().getCode())
+			.localItemType(item.getLocalItemType())
+			.canonicalItemType(item.getCanonicalItemType())
+			.hostLmsCode(item.getHostLmsCode())
+			.localAgency(item.getAgencyCode())
+			.statusCode(PENDING)
+			.isActive(true)
+			.resolvedAgency(item.getAgency())
+			.build();
 	}
 
 	@Override
