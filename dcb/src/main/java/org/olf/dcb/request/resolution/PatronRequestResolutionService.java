@@ -58,8 +58,8 @@ public class PatronRequestResolutionService {
 			.map(AvailabilityReport::getItems)
 			.zipWith(Mono.just(Resolution.forPatronRequest(patronRequest)),
 				(allItems, resolution) -> resolution.trackAllItems(allItems))
-			.map(Resolution::getAllItems)
-			.map(this::excludeItemsWithoutAgencyOrHostLms)
+			.map(this::trackFilteredItems)
+			.map(Resolution::getFilteredItems)
 			.flatMap(items -> resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest))
 			.doOnNext(item -> log.debug("Selected item {}", item))
 			.map(item -> resolveToChosenItem(patronRequest, item))
@@ -68,7 +68,12 @@ public class PatronRequestResolutionService {
 			.switchIfEmpty(Mono.defer(() -> Mono.just(resolveToNoItemsSelectable(patronRequest))));
 	}
 
-	private List<Item> excludeItemsWithoutAgencyOrHostLms(List<Item> items) {
+	private Resolution trackFilteredItems(Resolution resolution) {
+		return resolution.trackFilteredItems(excludeItemsWithNoHostLmsOrAgency(
+			resolution.getAllItems()));
+	}
+
+	private static List<Item> excludeItemsWithNoHostLmsOrAgency(List<Item> items) {
 		return items.stream()
 			.filter(item -> item.getHostLms() != null)
 			.toList();
