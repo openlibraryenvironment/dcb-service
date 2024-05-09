@@ -62,6 +62,9 @@ public interface PatronIdentityRepository {
 	@SingleResult
 	Publisher<Boolean> existsById(@NonNull UUID id);
 
+	@NonNull
+	@SingleResult
+	Publisher<PatronIdentity> findOneByPatronIdAndLocalId(@NotNull UUID patronId, @NotNull String localId);
 
 	@SingleResult
 	@NonNull

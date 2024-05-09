@@ -174,14 +174,18 @@ public class PatronService {
 		return patron;
 	}
 
-	public PatronIdentity findIdentityByLocalId(List<PatronIdentity> identities, String localId) {
+	public PatronIdentity findIdentityByLocalId(Patron patron, String localId) {
 
-		if (identities == null || identities.isEmpty()) {
+		List<PatronIdentity> identities;
+
+		if (patron.getPatronIdentities() == null || patron.getPatronIdentities().isEmpty()) {
 			return null;
+		} else {
+			identities = patron.getPatronIdentities();
 		}
 
 		return identities.stream()
-			.filter(pi -> pi != null && localId.equals(pi.getLocalId()))
+			.filter(pi -> localId.equals(pi.getLocalId()))
 			.findFirst()
 			.orElse(null); // to trigger the switch
 	}
@@ -192,23 +196,19 @@ public class PatronService {
 		log.debug("checkForPatronIdentity {}, {}, {}, {}, {}",
 			patron, hostLmsCode, localId, localPType, barcode);
 
-		return getPatronIdentitiesBy(patron)
-			.flatMap(identities -> Mono.justOrEmpty(findIdentityByLocalId(identities, localId)))
+		return // check passed identity list first
+			Mono.justOrEmpty( findIdentityByLocalId(patron, localId) )
+				// check the repository secondly
+			.switchIfEmpty(Mono.defer(() -> findIdentityByRepository(patron, localId)))
+				// lastly, we couldn't find the identity so create
 			.switchIfEmpty(Mono.defer(() -> createPatronIdentity(patron, localId, localPType, hostLmsCode, false, barcode)));
 	}
 
-	private Mono<List<PatronIdentity>> getPatronIdentitiesBy(Patron patron) {
+	private <T> Mono<PatronIdentity> findIdentityByRepository(Patron patron, String localId) {
 
-		final var identities = identitiesOrEmpty(patron);
-
-		return Mono.justOrEmpty(identities)
-			.switchIfEmpty(Mono.defer(() -> fetchAllIdentities(patron)));
-	}
-
-	private static List<PatronIdentity> identitiesOrEmpty(Patron patron) {
-		return patron.getPatronIdentities() == null || patron.getPatronIdentities().isEmpty()
-			? null
-			: patron.getPatronIdentities();
+		return Mono.from(patronIdentityRepository.findOneByPatronIdAndLocalId(patron.getId(), localId))
+			.flatMap(this::addHostLmsToPatronIdentity)
+			.flatMap(this::addResolvedAgencyToPatronIdentity);
 	}
 
 	private Mono<List<PatronIdentity>> fetchAllIdentities(Patron patron) {
