@@ -58,7 +58,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	// isActive is intended to identify the "Current" supplier as we try different agencies.
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
-		PatronRequest patronRequest = ctx.getPatronRequest();
+		final var patronRequest = ctx.getPatronRequest();
 
 		log.info("PatronRequestResolutionStateTransition attempt for {}", patronRequest);
 
@@ -91,10 +91,16 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	private Mono<Resolution> updatePatronRequest(Resolution resolution) {
 		log.debug("updatePatronRequest({})", resolution);
 
+		if (resolution.getChosenItem().isPresent()) {
+			resolution.getPatronRequest().resolve();
+		} else {
+			resolution.getPatronRequest().resolveToNoItemsSelectable();
+		}
+
 		final var patronRequestService = patronRequestServiceProvider.get();
 
 		return patronRequestService.updatePatronRequest(resolution.getPatronRequest())
-			.then(Mono.just(resolution));
+			.thenReturn(resolution);
 	}
 
 	private Mono<Resolution> saveSupplierRequest(Resolution resolution) {
@@ -108,7 +114,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 		return supplierRequestService.saveSupplierRequest(
 				mapToSupplierRequest(chosenItem.get(), resolution.getPatronRequest()))
-			.then(Mono.just(resolution));
+			.thenReturn(resolution);
 	}
 
 	private static SupplierRequest mapToSupplierRequest(Item item, PatronRequest patronRequest) {
@@ -118,11 +124,9 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 		log.debug("create SupplierRequest: {}, {}, {}", supplierRequestId, item, item.getHostLmsCode());
 
-		final var updatedPatronRequest = patronRequest.resolve();
-
 		return SupplierRequest.builder()
 			.id(supplierRequestId)
-			.patronRequest(updatedPatronRequest)
+			.patronRequest(patronRequest)
 			.localItemId(item.getLocalId())
 			.localBibId(item.getLocalBibId())
 			.localItemBarcode(item.getBarcode())

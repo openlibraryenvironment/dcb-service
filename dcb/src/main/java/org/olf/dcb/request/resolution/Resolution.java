@@ -18,7 +18,7 @@ public class Resolution {
 
 	static Resolution resolveToNoItemsSelectable(PatronRequest patronRequest) {
 		return builder()
-			.patronRequest(patronRequest.resolveToNoItemsSelectable())
+			.patronRequest(patronRequest)
 			.build();
 	}
 
