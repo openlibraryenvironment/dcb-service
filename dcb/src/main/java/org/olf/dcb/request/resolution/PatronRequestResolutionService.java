@@ -59,8 +59,8 @@ public class PatronRequestResolutionService {
 			.zipWith(Mono.just(Resolution.forPatronRequest(patronRequest)),
 				(allItems, resolution) -> resolution.trackAllItems(allItems))
 			.map(this::trackFilteredItems)
-			.map(Resolution::getFilteredItems)
-			.flatMap(items -> resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest))
+			.flatMap(resolution -> resolutionStrategy.chooseItem(resolution.getFilteredItems(),
+				clusterRecordId, resolution.getPatronRequest()))
 			.doOnNext(item -> log.debug("Selected item {}", item))
 			.map(item -> resolveToChosenItem(patronRequest, item))
 			.doOnError(error -> log.warn(
