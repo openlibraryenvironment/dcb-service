@@ -56,6 +56,9 @@ public class PatronRequestResolutionService {
 			})
 			// ToDo ROTA : Filter the list by any suppliers we have already tried for this request
 			.map(AvailabilityReport::getItems)
+			.zipWith(Mono.just(Resolution.forPatronRequest(patronRequest)),
+				(allItems, resolution) -> resolution.trackAllItems(allItems))
+			.map(Resolution::getAllItems)
 			.map(this::excludeItemsWithoutAgencyOrHostLms)
 			.flatMap(items -> resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest))
 			.doOnNext(item -> log.debug("Selected item {}", item))

@@ -1,7 +1,10 @@
 package org.olf.dcb.request.resolution;
 
+import static java.util.Collections.emptyList;
+import static java.util.Optional.empty;
 import static lombok.AccessLevel.PRIVATE;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.olf.dcb.core.model.Item;
@@ -14,7 +17,8 @@ import lombok.Value;
 @Value
 public class Resolution {
 	PatronRequest patronRequest;
-	@Builder.Default Optional<Item> chosenItem = Optional.empty();
+	@Builder.Default Optional<Item> chosenItem = empty();
+	@Builder.Default List<Item> allItems = emptyList();
 
 	static Resolution resolveToNoItemsSelectable(PatronRequest patronRequest) {
 		return builder()
@@ -26,6 +30,17 @@ public class Resolution {
 		return builder()
 			.patronRequest(patronRequest)
 			.chosenItem(Optional.of(item))
+			.build();
+	}
+
+	public static Resolution forPatronRequest(PatronRequest patronRequest) {
+		return builder().patronRequest(patronRequest).build();
+	}
+
+	public Resolution trackAllItems(List<Item> allItems) {
+		return builder()
+			.patronRequest(patronRequest)
+			.allItems(allItems)
 			.build();
 	}
 }
