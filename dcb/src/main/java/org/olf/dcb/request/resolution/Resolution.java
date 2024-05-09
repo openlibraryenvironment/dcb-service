@@ -3,9 +3,11 @@ package org.olf.dcb.request.resolution;
 import static java.util.Collections.emptyList;
 import static java.util.Optional.empty;
 import static lombok.AccessLevel.PRIVATE;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
@@ -23,6 +25,10 @@ public class Resolution {
 
 	public static Resolution forPatronRequest(PatronRequest patronRequest) {
 		return builder().patronRequest(patronRequest).build();
+	}
+
+	UUID getBibClusterId() {
+		return getValue(patronRequest, PatronRequest::getBibClusterId);
 	}
 
 	public Resolution trackAllItems(List<Item> allItems) {

@@ -42,39 +42,40 @@ public class PatronRequestResolutionService {
 		log.debug("resolvePatronRequest(id={}) current status ={} resolver={}",
 			patronRequest.getId(), patronRequest.getStatus(), itemResolver);
 
-		final var clusterRecordId = patronRequest.getBibClusterId();
-
 		final var resolutionStrategy = allResolutionStrategies.stream()
 			.filter(strategy -> strategy.getCode().equals(this.itemResolver))
 			.findFirst()
 			.orElseThrow(() -> new RuntimeException("No resolver with code " + this.itemResolver));
 
-		return liveAvailabilityService.checkAvailability(clusterRecordId)
-			.onErrorMap(NoBibsForClusterRecordException.class, error -> {
-				log.error("Something went wrong with liveAvailabilityService.getAvailableItems", error);
-				return new UnableToResolvePatronRequest(error.getMessage());
-			})
-			// ToDo ROTA : Filter the list by any suppliers we have already tried for this request
-			.map(AvailabilityReport::getItems)
-			.zipWith(Mono.just(Resolution.forPatronRequest(patronRequest)),
-				(allItems, resolution) -> resolution.trackAllItems(allItems))
-			.map(this::trackFilteredItems)
-			.zipWhen(resolution -> selectItem(resolutionStrategy, clusterRecordId, resolution),
-				(Resolution::selectItem))
+		// ToDo ROTA : Filter the list by any suppliers we have already tried for this request
+		return Mono.just(Resolution.forPatronRequest(patronRequest))
+			.zipWhen(this::getAvailableItems, Resolution::trackAllItems)
+			.map(this::filterItems)
+			.zipWhen(resolution -> selectItem(resolutionStrategy, resolution), Resolution::selectItem)
 			.doOnError(error -> log.warn(
 				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))
 			.switchIfEmpty(Mono.defer(() -> Mono.just(noItemsSelectable(patronRequest))));
 	}
 
+	private Mono<List<Item>> getAvailableItems(Resolution resolution) {
+		return getAvailableItems(resolution.getBibClusterId());
+	}
+
+	private Mono<List<Item>> getAvailableItems(UUID clusterRecordId) {
+		return liveAvailabilityService.checkAvailability(clusterRecordId)
+			.onErrorMap(NoBibsForClusterRecordException.class, error -> new UnableToResolvePatronRequest(error.getMessage()))
+			.map(AvailabilityReport::getItems);
+	}
+
 	private static Mono<Item> selectItem(ResolutionStrategy resolutionStrategy,
-		UUID clusterRecordId, Resolution resolution) {
+		Resolution resolution) {
 
 		return resolutionStrategy.chooseItem(resolution.getFilteredItems(),
-			clusterRecordId, resolution.getPatronRequest())
+			resolution.getBibClusterId(), resolution.getPatronRequest())
 			.doOnNext(item -> log.debug("Selected item {}", item));
 	}
 
-	private Resolution trackFilteredItems(Resolution resolution) {
+	private Resolution filterItems(Resolution resolution) {
 		return resolution.trackFilteredItems(excludeItemsWithNoHostLmsOrAgency(
 			resolution.getAllItems()));
 	}
