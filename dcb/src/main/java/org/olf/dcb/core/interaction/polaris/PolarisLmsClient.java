@@ -671,7 +671,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.map(PAPIClient.PatronSearchRow::getPatronID)
 			.flatMap(ApplicationServices::handlePatronBlock)
 			.map(String::valueOf)
-			.flatMap(this::getPatronByLocalId);
+			.flatMap(ApplicationServices::getPatron)
+			.flatMap(this::enrichWithCanonicalPatronType)
+			.switchIfEmpty(Mono.defer(() -> Mono.error(patronNotFound(firstBarcodeInList, getHostLmsCode()))));
 	}
 
 	@Override
