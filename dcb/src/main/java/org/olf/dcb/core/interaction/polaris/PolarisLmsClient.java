@@ -587,6 +587,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		}
 
 		return ApplicationServices.itemrecords(localItemId)
+			.doOnSuccess(itemRecordFull -> log.info("Got item: {}", itemRecordFull))
 			.map(item -> validate(localItemId, item))
 			.flatMap(this::collectItemStatusName)
 			.map(itemRecord -> {

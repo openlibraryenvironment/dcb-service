@@ -70,6 +70,11 @@ public class PAPIClient {
 	public Mono<Patron> patronValidate(String barcode, String password) {
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
 
+		if (barcode == null || password == null) {
+			throw new IllegalArgumentException(
+				"Cannot validate a patron with barcode: "+barcode+" and password: "+password);
+		}
+
 		final var patronCredentials = PatronCredentials.builder()
 			.barcode(barcode)
 			.password(password)
