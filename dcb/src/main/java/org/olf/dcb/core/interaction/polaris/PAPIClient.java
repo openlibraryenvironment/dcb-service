@@ -153,6 +153,8 @@ public class PAPIClient {
 	}
 
 	public Mono<PatronCirculationBlocksResult> getPatronCirculationBlocks(String barcode) {
+		log.info("getPatronCirculationBlocks(), barcode: {}", barcode);
+
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode, "circulationblocks");
 
 		return client.createRequest(GET, path)
@@ -265,6 +267,7 @@ public class PAPIClient {
 		}
 
 		// Return the PatronSearchRow
+		log.info("checkForUniquePatronResult passed: {}", patronSearchResult);
 		return Mono.just(patronSearchResult.getPatronSearchRows().get(0));
 	}
 

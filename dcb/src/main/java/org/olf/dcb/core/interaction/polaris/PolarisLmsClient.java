@@ -778,6 +778,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<PatronCirculationBlocksResult> getPatronCirculationBlocks(Patron patron) {
+		log.info("getPatronCirculationBlocks: {}", patron);
+
 		final var barcode = getValue(patron, Patron::getFirstBarcode);
 
 		return PAPIService.getPatronCirculationBlocks(barcode);

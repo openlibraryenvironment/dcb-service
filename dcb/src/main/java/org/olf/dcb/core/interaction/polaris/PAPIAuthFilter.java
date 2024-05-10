@@ -57,7 +57,8 @@ class PAPIAuthFilter {
 	Mono<MutableHttpRequest<?>> ensureStaffAuth(MutableHttpRequest<?> request) {
 		overrideMethod = FALSE;
 
-		return staffAuthentication(request, FALSE);
+		return staffAuthentication(request, FALSE)
+			.doOnSuccess(req -> log.debug("Request '{}' completed staff auth.", req.getPath()));
 	}
 
 	Mono<MutableHttpRequest<?>> ensurePatronAuth(MutableHttpRequest<?> request,
@@ -65,7 +66,8 @@ class PAPIAuthFilter {
 
 		overrideMethod = override;
 
-		return patronAuthentication(request, patronCredentials, override);
+		return patronAuthentication(request, patronCredentials, override)
+			.doOnSuccess(req -> log.debug("Request '{}' completed patron auth.", req.getPath()));
 	}
 
 	private Mono<MutableHttpRequest<?>> staffAuthentication(MutableHttpRequest<?> request, Boolean publicMethod) {
