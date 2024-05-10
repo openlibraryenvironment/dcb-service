@@ -988,12 +988,15 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	<T> Mono<MutableHttpRequest<?>> createRequest(HttpMethod method, String path) {
+		log.info("{} {}", method, path);
+
 		return Mono.just(UriBuilder.of(path).build())
 			.map(this::defaultResolve)
 			.map(resolvedUri -> HttpRequest.<T>create(method, resolvedUri.toString()).accept(APPLICATION_JSON));
 	}
 
 	<T> Mono<MutableHttpRequest<?>> createRequestWithOverrideURL(HttpMethod method, String path) {
+		log.info("{} {}", method, path);
 
 		return Mono.just(UriBuilder.of(path).build())
 			.map(this::overrideResolve)
