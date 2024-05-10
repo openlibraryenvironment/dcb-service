@@ -2,6 +2,8 @@ package org.olf.dcb.graphql;
 
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -50,9 +52,12 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			.flatMap(libraryGroup -> {
 				if (libraryGroup != null) {
 					// If a library group matching the conditions is found, we can create the associated consortium
+					// Input date must be in format YYYY-MM-DD
+					LocalDate launchDate = LocalDate.parse(input_map.get("dateOfLaunch").toString(), DateTimeFormatter.ISO_LOCAL_DATE );
 					Consortium consortium = Consortium.builder()
 						.id(UUID.randomUUID())
 						.name(input_map.get("name").toString())
+						.dateOfLaunch(launchDate)
 						.libraryGroup(libraryGroup).build();
 						return Mono.from(r2dbcOperations.withTransaction(status -> Mono.from(consortiumRepository.saveOrUpdate(consortium))));
 				} else {

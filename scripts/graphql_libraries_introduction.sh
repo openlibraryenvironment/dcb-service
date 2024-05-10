@@ -29,7 +29,7 @@ echo Create the libraries
 # Create your libraries here with this command - repeat as necessary
 
 echo Create a new library
-curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "$TARGET/graphql" -d '{ "query": "mutation { createLibrary(input: { agencyCode:\"6davn\", fullName:\"Davenport Public Library\", shortName:\"Davenport\", abbreviatedName:\"DAVN\", address:\"321 Main Street, Davenport, IA 52801\", longitude: -90.5750057702084, latitude: 41.5235178164979, type: \"Public\" training: true, ,backupDowntimeSchedule: \"9-5\", supportHours: \"Weekdays: 9-5\", discoverySystem: \"Locate\", patronWebsite: \"https://example.com\", hostLmsConfiguration: \"Standalone\",  contacts: [ { firstName: \"John\", lastName: \"Doe\", role: \"Librarian\", isPrimaryContact: false, email: \"john.doe@test1library.com\"  }, { firstName: \"Jane\", lastName: \"Smith\", role: \"Chief Librarian\", isPrimaryContact: true, email: \"jane.smith@test1ibrary.com\" } ]} ) { id,fullName,agencyCode,shortName,abbreviatedName,address,secondHostLms {id,code,name,clientConfig, lmsClientClass},agency { id,code,name,hostLms{id, code, clientConfig, lmsClientClass} }}}" }'
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "$TARGET/graphql" -d '{ "query": "mutation { createLibrary(input: { agencyCode:\"6davn\", fullName:\"Davenport Public Library\", shortName:\"Davenport\", abbreviatedName:\"DAVN\", address:\"321 Main Street, Davenport, IA 52801\", longitude: -90.5750057702084, latitude: 41.5235178164979, type: \"Public\",backupDowntimeSchedule: \"9-5\", supportHours: \"Weekdays: 9-5\", discoverySystem: \"Locate\", patronWebsite: \"https://example.com\", hostLmsConfiguration: \"Standalone\",  contacts: [ { firstName: \"John\", lastName: \"Doe\", role: \"Librarian\", isPrimaryContact: false, email: \"john.doe@test1library.com\"  }, { firstName: \"Jane\", lastName: \"Smith\", role: \"Chief Librarian\", isPrimaryContact: true, email: \"jane.smith@test1ibrary.com\" } ]} ) { id,fullName,agencyCode,shortName,abbreviatedName,address,secondHostLms {id,code,name,clientConfig, lmsClientClass},agency { id,code,name,hostLms{id, code, clientConfig, lmsClientClass} }}}" }'
 
 
 # Create the group for your consortium here. You can also create other groups if desired.
@@ -40,7 +40,7 @@ echo
 
 # Create the associated consortium, providing the name of the consortium group you just created.
 echo Create a new consortium
-curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -X POST "$TARGET/graphql" -d '{ "query": "mutation { createConsortium(input: { name: \"MOBIUS\", groupName: \"MOBIUS_CONSORTIUM\" }) { id, name, libraryGroup { id, name } } }" }'
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -X POST "$TARGET/graphql" -d '{ "query": "mutation { createConsortium(input: { name: \"MOBIUS\", groupName: \"MOBIUS_CONSORTIUM\", dateOfLaunch:\"2024-05-22\" }) { id, name, libraryGroup { id, name } } }" }'
 
 
 # Add all the libraries to your consortium group here
@@ -52,7 +52,7 @@ echo
 # OPTIONAL : List groups and libraries to verify setup has completed successfully (or just check DCB Admin)
 echo List groups
 curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "$TARGET/graphql" -d '{
-  "query": "query($lq: String) { libraryGroups(query: $lq) { content { id, code, name, consortium { id, name}, type, members { library { shortName } } } } }",
+  "query": "query($lq: String) { libraryGroups(query: $lq) { content { id, code, name, consortium { id, name, dateOfLaunch}, type, members { library { shortName } } } } }",
   "variables": {
     "lq" : "name:*"
   }

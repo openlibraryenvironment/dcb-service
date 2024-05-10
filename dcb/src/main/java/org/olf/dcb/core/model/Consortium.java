@@ -1,12 +1,17 @@
 package org.olf.dcb.core.model;
 
-import java.util.*;
+import java.time.LocalDate;
+import java.util.UUID;
 
-import io.micronaut.core.annotation.*;
-import io.micronaut.data.annotation.*;
+import io.micronaut.core.annotation.Creator;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
 
+import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.annotation.Id;
-import jakarta.persistence.*;
+import io.micronaut.data.annotation.Relation;
+
 import jakarta.validation.constraints.Size;
 
 import io.micronaut.data.model.DataType;
@@ -15,7 +20,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.experimental.*;
+import lombok.experimental.Accessors;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import lombok.ToString;
 
@@ -38,6 +43,9 @@ public class Consortium {
 	@NonNull
 	@Size(max = 200)
 	private String name;
+
+	@Nullable
+	private LocalDate dateOfLaunch;
 
 	@Relation(value = Relation.Kind.ONE_TO_ONE)
 	@Nullable
