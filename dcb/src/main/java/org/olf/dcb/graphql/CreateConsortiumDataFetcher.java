@@ -5,7 +5,6 @@ import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import org.olf.dcb.core.api.exceptions.ConsortiumCreationException;
@@ -21,6 +20,7 @@ import graphql.schema.DataFetchingEnvironment;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
+import services.k_int.utils.UUIDUtils;
 
 @Singleton
 public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFuture<Consortium>> {
@@ -55,7 +55,7 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 					// Input date must be in format YYYY-MM-DD
 					LocalDate launchDate = LocalDate.parse(input_map.get("dateOfLaunch").toString(), DateTimeFormatter.ISO_LOCAL_DATE );
 					Consortium consortium = Consortium.builder()
-						.id(UUID.randomUUID())
+						.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Consortium:" + input_map.get("name").toString()))
 						.name(input_map.get("name").toString())
 						.dateOfLaunch(launchDate)
 						.libraryGroup(libraryGroup).build();
