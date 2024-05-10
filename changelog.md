@@ -1,5 +1,28 @@
 # Changelog
 
+## Version 6.7.0
+
+### Additions
+* [General]
+	* Add consortium date for welcome page [DCB-1103]
+
+### Changes
+* [Refactor]
+	* findVirtualPatron in polaris
+	* pull one identity from repo instead of full list [DCB-1086]
+
+### Fixes
+* [General]
+	* check null barcode and password before polaris patron validate
+	* Make consortia use UUIDUtils [DCB-1103]
+	* unable to progress request [DCB-1086]
+
+## Version 6.6.0
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
 ## Version 6.5.1
 
 ### Changes
