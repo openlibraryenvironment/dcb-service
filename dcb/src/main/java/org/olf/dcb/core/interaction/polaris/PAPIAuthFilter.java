@@ -164,6 +164,8 @@ class PAPIAuthFilter {
 		final var signature = calculateApiSignature(key, method, path, date, accessSecret);
 		final var token = "PWS " + id + ":" + signature;
 
+		log.debug("token {}", token);
+
 		return request.header(HttpHeaders.AUTHORIZATION, token).header("PolarisDate", date);
 	}
 
