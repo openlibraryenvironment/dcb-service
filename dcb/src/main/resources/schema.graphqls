@@ -14,10 +14,11 @@ type Query {
     patronIdentities(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): PatronIdentityPage!
     numericRangeMappings(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): NumericRangeMappingPage!
     referenceValueMappings(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): ReferenceValueMappingPage!
+		pickupLocations(forAgency: String): [Location]
 		libraries(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): LibraryPage!
-    pickupLocations(forAgency: String): [Location]
 		libraryGroups(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): LibraryGroupPage!
 		libraryGroupMembers: [LibraryGroupMember]!
+		consortia(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): ConsortiumPage!
 }
 
 type Mutation {
@@ -54,6 +55,7 @@ input ConsortiumInput {
 	id: ID
 	name: String!
 	groupName: String!
+	dateOfLaunch: String!
 }
 
 input LibraryInput {
@@ -298,15 +300,11 @@ type Person {
 
 type Consortium {
 	id: ID!
-	name: String
+	name: String!
 	libraryGroup: LibraryGroup!
+	dateOfLaunch: String
 }
 
-type ConsortiumMember {
-	id: ID!
-	library: Library
-	consortium: Consortium
-}
 """
 See: https://micronaut-projects.github.io/micronaut-data/2.4.0/api/io/micronaut/data/model/Page.html
 """
