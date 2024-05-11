@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 6.7.1
+
+### Fixes
+* [General]
+	* return empty mono when virtual patron isn't found in polaris
+
 ## Version 6.7.0
 
 ### Additions
@@ -7,6 +13,8 @@
 	* Add consortium date for welcome page [DCB-1103]
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Refactor]
 	* findVirtualPatron in polaris
 	* pull one identity from repo instead of full list [DCB-1086]
