@@ -261,7 +261,7 @@ public class PAPIClient {
 		final var recordsFound = patronSearchResult.getTotalRecordsFound();
 
 		if (recordsFound < 1) {
-			log.info("No Patron found, returning an empty mono to create a new patron.");
+			log.warn("No virtual Patron found, returning an empty mono to create a new patron.");
 
 			return Mono.empty();
 		}

@@ -667,13 +667,21 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		final var firstBarcodeInList = parseList(barcodeListAsString).get(0);
 
+		// note: if a patron isn't found a empty mono will need to be returned
+		// to then create the patron
 		return PAPIService.patronSearch(firstBarcodeInList)
 			.map(PAPIClient.PatronSearchRow::getPatronID)
-			.flatMap(ApplicationServices::handlePatronBlock)
+			.flatMap(this::foundVirtualPatron);
+	}
+
+	private Mono<Patron> foundVirtualPatron(Integer patronId) {
+		log.info("Found virtual patron with local id: {}", patronId);
+
+		return ApplicationServices.handlePatronBlock(patronId)
 			.map(String::valueOf)
 			.flatMap(ApplicationServices::getPatron)
 			.flatMap(this::enrichWithCanonicalPatronType)
-			.switchIfEmpty(Mono.defer(() -> Mono.error(patronNotFound(firstBarcodeInList, getHostLmsCode()))));
+			.switchIfEmpty(Mono.defer(() -> Mono.error(patronNotFound(String.valueOf(patronId), getHostLmsCode()))));
 	}
 
 	@Override
