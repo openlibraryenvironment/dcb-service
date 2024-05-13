@@ -270,7 +270,9 @@ public class PatronRequest {
 
 			// first status change will not have a next expected status
 			// if not null check the state change is what we expected
-			if (this.nextExpectedStatus != null && this.nextExpectedStatus != status) {
+			if ((this.nextExpectedStatus != null && this.nextExpectedStatus != status)
+				// when the status to set is error always treat as OOS
+				|| (status == ERROR)) {
 				this.outOfSequenceFlag = Boolean.TRUE;
 			} else {
 				this.outOfSequenceFlag = Boolean.FALSE;
