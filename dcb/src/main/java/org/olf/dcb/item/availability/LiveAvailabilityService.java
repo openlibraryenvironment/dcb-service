@@ -1,5 +1,6 @@
 package org.olf.dcb.item.availability;
 
+import static java.util.function.UnaryOperator.identity;
 import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 
 import java.time.Duration;
@@ -118,7 +119,10 @@ public class LiveAvailabilityService {
 		Optional<Duration> timeout, BibRecord bib, HostLmsClient hostLms) {
 		
 		final var liveData = hostLms.getItems(bib)
-			.map(this::excludeSuppressedOrDeletedItems)
+			.flatMapIterable(identity())
+			.filter(Item::notSuppressed)
+			.filter(Item::notDeleted)
+			.collectList()
 			.doOnError(error -> log.error("doOnError occurred fetching items", error))
 			.map(AvailabilityReport::ofItems)
 			.map(TupleUtils.curry(bib, this::addValueToCache))
@@ -129,13 +133,6 @@ public class LiveAvailabilityService {
 		return timeout
 			.map(timeoutSet -> liveData.transformDeferred(addCacheFallback(timeoutSet, bib, hostLms)))
 			.orElse(liveData);
-	}
-
-	private List<Item> excludeSuppressedOrDeletedItems(List<Item> items) {
-		return items.stream()
-			.filter(Item::notSuppressed)
-			.filter(Item::notDeleted)
-			.toList();
 	}
 
 	private Function<Mono<AvailabilityReport>, Mono<AvailabilityReport>> addCacheFallback(
