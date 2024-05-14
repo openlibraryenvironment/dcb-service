@@ -1,6 +1,7 @@
 package org.olf.dcb.item.availability;
 
 import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -19,13 +20,13 @@ import java.util.List;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
+import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
@@ -57,10 +58,11 @@ class LiveAvailabilityServiceTests {
 
 	private DataHostLms firstHostLms;
 	private DataHostLms secondHostLms;
+	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@BeforeAll
 	@SneakyThrows
-	public void beforeAll(MockServerClient mock) {
+	void beforeAll(MockServerClient mockServerClient) {
 		final String FIRST_HOST_LMS_BASE_URL = "https://first-live-availability-system.com";
 		final String FIRST_HOST_LMS_CODE = "first-local-system";
 		final String FIRST_HOST_LMS_TOKEN = "first-system-token";
@@ -73,10 +75,10 @@ class LiveAvailabilityServiceTests {
 		final String SECOND_SYSTEM_KEY = "second-system-key";
 		final String SECOND_SYSTEM_SECRET = "second-system-secret";
 
-		SierraTestUtils.mockFor(mock, FIRST_HOST_LMS_BASE_URL)
+		SierraTestUtils.mockFor(mockServerClient, FIRST_HOST_LMS_BASE_URL)
 			.setValidCredentials(FIRST_HOST_LMS_KEY, FIRST_HOST_LMS_SECRET, FIRST_HOST_LMS_TOKEN, 60);
 
-		SierraTestUtils.mockFor(mock, SECOND_HOST_LMS_BASE_URL)
+		SierraTestUtils.mockFor(mockServerClient, SECOND_HOST_LMS_BASE_URL)
 			.setValidCredentials(SECOND_SYSTEM_KEY, SECOND_SYSTEM_SECRET, SECOND_SYSTEM_TOKEN, 60);
 
 		hostLmsFixture.deleteAll();
@@ -86,6 +88,8 @@ class LiveAvailabilityServiceTests {
 
 		secondHostLms = hostLmsFixture.createSierraHostLms(SECOND_HOST_LMS_CODE,
 			SECOND_SYSTEM_KEY, SECOND_SYSTEM_SECRET, SECOND_HOST_LMS_BASE_URL, "item");
+
+		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 	}
 
 	@BeforeEach
@@ -94,10 +98,7 @@ class LiveAvailabilityServiceTests {
 	}
 
 	@Test
-	@DisplayName("Should get items for multiple bibs from separate Sierra systems")
-	void shouldGetItemsForMultipleBibsFromSeparateSierraSystems(
-		MockServerClient mockServerClient) {
-
+	void shouldGetItemsFromMultipleHostLms() {
 		// Arrange
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
 
@@ -106,8 +107,6 @@ class LiveAvailabilityServiceTests {
 
 		bibRecordFixture.createBibRecord(randomUUID(), secondHostLms.getId(),
 			"767648", clusterRecord);
-
-		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		sierraItemsAPIFixture.itemsForBibId("465675", List.of(
 			SierraItem.builder()
@@ -179,17 +178,12 @@ class LiveAvailabilityServiceTests {
 	}
 
 	@Test
-	@DisplayName("Should report zero items when Sierra responds with no records found error")
-	void shouldReportZeroItemsWhenSierraRespondsWithNoRecordsFoundError(
-		MockServerClient mockServerClient) {
-
+	void shouldReportZeroItemsWhenHostLmsRespondsWithZeroItems() {
 		// Arrange
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
 
 		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(),
 			"762354", clusterRecord);
-
-		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("762354");
 
@@ -198,20 +192,19 @@ class LiveAvailabilityServiceTests {
 			.checkAvailability(clusterRecord.getId()));
 
 		// Assert
-		assertThat(report, hasNoItems());
-		assertThat(report, hasNoErrors());
+		assertThat(report, allOf(
+			hasNoItems(),
+			hasNoErrors()
+		));
 	}
 
 	@Test
-	@DisplayName("Should report failures when fetching items from Sierra")
-	void shouldReportFailuresFetchingItemsFromSierra(MockServerClient mockServerClient) {
+	void shouldReportFailuresFetchingItemsFromHostLms() {
 		// Arrange
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
 
 		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(),
 			"839552", clusterRecord);
-
-		final var sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		sierraItemsAPIFixture.errorResponseForBibId("839552");
 
@@ -220,9 +213,10 @@ class LiveAvailabilityServiceTests {
 			.checkAvailability(clusterRecord.getId()));
 
 		// Assert
-		assertThat(report, hasNoItems());
-		assertThat(report, hasError(
-			"Failed to fetch items for bib: 839552 from host: first-local-system"));
+		assertThat(report, allOf(
+			hasNoItems(),
+			hasError("Failed to fetch items for bib: 839552 from host: first-local-system")
+		));
 	}
 
 	@Test
