@@ -204,6 +204,36 @@ class LiveAvailabilityServiceTests {
 	}
 
 	@Test
+	void shouldExcludeItemsThatAreNotAssociatedWithAnAgency() {
+		// Arrange
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
+
+		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(),
+			"362563", clusterRecord);
+
+		sierraItemsAPIFixture.itemsForBibId("362563", List.of(
+			SierraItem.builder()
+				.id("3752566")
+				.barcode("5362553")
+				.callNumber("BL221 .C48")
+				.statusCode("-")
+				.itemType("1")
+				.locationCode("unmapped")
+				.locationName("Unmapped")
+				.build()
+		));
+
+		// Act
+		final var report = checkAvailability(clusterRecord);
+
+		// Assert
+		assertThat(report, allOf(
+			hasNoItems(),
+			hasNoErrors()
+		));
+	}
+
+	@Test
 	void shouldReportZeroItemsWhenHostLmsRespondsWithZeroItems() {
 		// Arrange
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());

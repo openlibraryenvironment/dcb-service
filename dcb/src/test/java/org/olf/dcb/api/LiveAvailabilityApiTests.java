@@ -179,40 +179,6 @@ class LiveAvailabilityApiTests {
 	}
 
 	@Test
-	void shouldTolerateItemsFromAnUnknownAgency() {
-		// Arrange
-		final var clusterRecordId = randomUUID();
-		final var sourceRecordId = "267635";
-
-		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
-
-		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			SierraItem.builder()
-				.id("47564655")
-				.locationCode("example-location")
-				.locationName("Example Location")
-				.build()));
-
-		// Act
-		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
-
-		// Assert
-		assertThat(report, allOf(
-			notNullValue(),
-			hasClusterRecordId(clusterRecordId),
-			hasNoErrors(),
-			hasItems(
-				allOf(
-					notNullValue(),
-					hasId("47564655"),
-					hasLocation("example-location", "Example Location"),
-					hasNoAgency(),
-					hasNoHostLms()
-				))
-		));
-	}
-
-	@Test
 	void shouldTolerateItemsForAnUnknownCirculatingHostLms() {
 		// Arrange
 		final var clusterRecordId = randomUUID();

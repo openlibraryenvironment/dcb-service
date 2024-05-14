@@ -122,6 +122,7 @@ public class LiveAvailabilityService {
 			.flatMapIterable(identity())
 			.filter(Item::notSuppressed)
 			.filter(Item::notDeleted)
+			.filter(Item::hasAgency)
 			.collectList()
 			.doOnError(error -> log.error("doOnError occurred fetching items", error))
 			.map(AvailabilityReport::ofItems)
