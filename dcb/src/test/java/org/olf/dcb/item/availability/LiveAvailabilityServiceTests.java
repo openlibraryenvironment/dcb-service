@@ -36,6 +36,7 @@ import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
@@ -54,6 +55,8 @@ class LiveAvailabilityServiceTests {
 	private BibRecordFixture bibRecordFixture;
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
 	@Inject
 	private LiveAvailabilityService liveAvailabilityService;
@@ -97,6 +100,8 @@ class LiveAvailabilityServiceTests {
 	@BeforeEach
 	void beforeEach() {
 		clusterRecordFixture.deleteAll();
+
+		referenceValueMappingFixture.deleteAll();
 	}
 
 	@Test
