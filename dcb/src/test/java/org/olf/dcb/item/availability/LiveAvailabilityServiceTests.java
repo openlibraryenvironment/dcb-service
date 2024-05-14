@@ -33,6 +33,7 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -57,6 +58,8 @@ class LiveAvailabilityServiceTests {
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 
 	@Inject
 	private LiveAvailabilityService liveAvailabilityService;
@@ -100,8 +103,8 @@ class LiveAvailabilityServiceTests {
 	@BeforeEach
 	void beforeEach() {
 		clusterRecordFixture.deleteAll();
-
 		referenceValueMappingFixture.deleteAll();
+		agencyFixture.deleteAll();
 	}
 
 	@Test
