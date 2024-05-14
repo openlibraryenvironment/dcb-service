@@ -164,12 +164,12 @@ public class PatronRequestWorkflowService {
 			.flatMap(audit -> action.attempt(ctx))
 			.flatMap(incrementStateTransitionMetrics(ctx))
 			.flatMap(auditActionCompleted(action, auditData))
+			.onErrorResume(error -> auditActionError(action, ctx, auditData, error))
+			.switchIfEmpty(Mono.defer(() -> auditActionEmpty(action, ctx, auditData)))
 			.flatMap(request -> {
 				// Recursively call progress all in case there are subsequent steps we can apply
 				return this.progressAll(ctx.getPatronRequest());
-			})
-			.onErrorResume(error -> auditActionError(action, ctx, auditData, error))
-			.switchIfEmpty(Mono.defer(() -> auditActionEmpty(action, ctx, auditData)));
+			});
 	}
 
 	private Mono<? extends PatronRequest> auditActionEmpty(
