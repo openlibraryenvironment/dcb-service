@@ -263,20 +263,8 @@ public class PatronRequest {
 		// on a status change...
 		if (this.status != status) {
 
-			// set current status to previous
-			if (this.status != null) {
-				this.previousStatus = this.status;
-			}
-
-			// first status change will not have a next expected status
-			// if not null check the state change is what we expected
-			if ((this.nextExpectedStatus != null && this.nextExpectedStatus != status)
-				// when the status to set is error always treat as OOS
-				|| (status == ERROR)) {
-				this.outOfSequenceFlag = Boolean.TRUE;
-			} else {
-				this.outOfSequenceFlag = Boolean.FALSE;
-			}
+			decidePreviousStatus();
+			decideOutOfSequenceFlag(status);
 
 			// keep the 'last' next expected status on error
 			if (status != ERROR) {
@@ -286,6 +274,28 @@ public class PatronRequest {
 
 		this.status = status;
 		return this;
+	}
+
+	private void decidePreviousStatus() {
+		// set current status to previous
+		if (this.status != null) {
+			this.previousStatus = this.status;
+		}
+	}
+
+	private void decideOutOfSequenceFlag(Status status) {
+		// An ERROR status will always be treated as out of sequence
+		if (this.status == Status.ERROR || status == Status.ERROR) {
+			this.outOfSequenceFlag = Boolean.TRUE;
+		}
+		// first status change will not have a next expected status
+		// if not null check the state change is what we expected
+		else if (this.nextExpectedStatus != null && this.nextExpectedStatus != status) {
+			this.outOfSequenceFlag = Boolean.TRUE;
+		}
+		else {
+			this.outOfSequenceFlag = Boolean.FALSE;
+		}
 	}
 
 	/**
