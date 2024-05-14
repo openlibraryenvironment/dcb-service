@@ -16,6 +16,7 @@ import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
@@ -29,6 +30,7 @@ import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.test.BibRecordFixture;
@@ -161,8 +163,7 @@ class LiveAvailabilityServiceTests {
 		));
 
 		// Act
-		final var report = liveAvailabilityService
-			.checkAvailability(clusterRecord.getId()).block();
+		final var report = checkAvailability(clusterRecord);
 
 		// Assert
 		// This is a compromise that checks the rough identity of each item
@@ -188,8 +189,7 @@ class LiveAvailabilityServiceTests {
 		sierraItemsAPIFixture.zeroItemsResponseForBibId("762354");
 
 		// Act
-		final var report = singleValueFrom(liveAvailabilityService
-			.checkAvailability(clusterRecord.getId()));
+		final var report = checkAvailability(clusterRecord);
 
 		// Assert
 		assertThat(report, allOf(
@@ -209,8 +209,7 @@ class LiveAvailabilityServiceTests {
 		sierraItemsAPIFixture.errorResponseForBibId("839552");
 
 		// Act
-		final var report = singleValueFrom(liveAvailabilityService
-			.checkAvailability(clusterRecord.getId()));
+		final var report = checkAvailability(clusterRecord);
 
 		// Assert
 		assertThat(report, allOf(
@@ -226,7 +225,7 @@ class LiveAvailabilityServiceTests {
 
 		// Act
 		final var exception = assertThrows(CannotFindClusterRecordException.class,
-			() -> singleValueFrom(liveAvailabilityService.checkAvailability(clusterRecordId)));
+			() -> checkAvailability(clusterRecordId));
 
 		// Assert
 		assertThat(exception, hasMessage("Cannot find cluster record for: " + clusterRecordId));
@@ -239,7 +238,7 @@ class LiveAvailabilityServiceTests {
 
 		// Act
 		final var exception = assertThrows(NoBibsForClusterRecordException.class,
-			() -> singleValueFrom(liveAvailabilityService.checkAvailability(clusterRecord.getId())));
+			() -> checkAvailability(clusterRecord));
 
 		// Assert
 		assertThat(exception, hasMessage(
@@ -258,9 +257,17 @@ class LiveAvailabilityServiceTests {
 			"7657673", clusterRecord);
 
 		final var exception = assertThrows(UnknownHostLmsException.class,
-			() -> singleValueFrom(liveAvailabilityService.checkAvailability(clusterRecordId)));
+			() -> checkAvailability(clusterRecord));
 
 		assertThat(exception, hasMessage("No Host LMS found for ID: " + unknownHostId));
+	}
+
+	private AvailabilityReport checkAvailability(UUID clusterRecordId) {
+		return singleValueFrom(liveAvailabilityService.checkAvailability(clusterRecordId));
+	}
+
+	private AvailabilityReport checkAvailability(ClusterRecord clusterRecord) {
+		return checkAvailability(clusterRecord.getId());
 	}
 
 	private static Matcher<AvailabilityReport> hasNoItems() {
