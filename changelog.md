@@ -1,6 +1,20 @@
 # Changelog
 
+## Version 6.8.0
+
+### Additions
+* [General]
+	* Record resolution in audit DCB-1093
+
+### Fixes
+* [General]
+	* cannotFulfilPatronRequestWhenNoRequestableItemsAreFound
+
 ## Version 6.7.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
