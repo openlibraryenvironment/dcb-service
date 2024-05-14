@@ -8,6 +8,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
@@ -28,6 +29,7 @@ import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
@@ -118,6 +120,11 @@ class LiveAvailabilityServiceTests {
 		bibRecordFixture.createBibRecord(randomUUID(), secondHostLms.getId(),
 			"767648", clusterRecord);
 
+		final var firstAgency = agencyFixture.defineAgency("first-agency",
+			"First Agency", firstHostLms);
+
+		mapLocationToAgency("ab6", firstHostLms, firstAgency);
+
 		sierraItemsAPIFixture.itemsForBibId("465675", List.of(
 			SierraItem.builder()
 				.id("1000002")
@@ -139,6 +146,12 @@ class LiveAvailabilityServiceTests {
 				.locationName("King 6th Floor")
 				.build()
 		));
+
+		final var secondAgency = agencyFixture.defineAgency("second-agency",
+			"Second Agency", secondHostLms);
+
+		mapLocationToAgency("ab5", secondHostLms, secondAgency);
+		mapLocationToAgency("ab7", secondHostLms, secondAgency);
 
 		sierraItemsAPIFixture.itemsForBibId("767648", List.of(
 			SierraItem.builder()
@@ -177,12 +190,16 @@ class LiveAvailabilityServiceTests {
 		// This is a compromise that checks the rough identity of each item
 		// without duplicating checks for many fields
 		// The order is important due to the sorting applied to items
-		assertThat(report, hasItemsInOrder(
-			hasBarcode("9849123490"),
-			hasBarcode("6565750674"),
-			hasBarcode("30800005238487"),
-			hasBarcode("30800005208449"),
-			hasBarcode("30800005315459")
+		assertThat(report, allOf(
+			hasItems(5),
+			hasItemsInOrder(
+				hasBarcode("9849123490"),
+				hasBarcode("6565750674"),
+				hasBarcode("30800005238487"),
+				hasBarcode("30800005208449"),
+				hasBarcode("30800005315459")
+			),
+			hasNoErrors()
 		));
 	}
 
@@ -278,8 +295,19 @@ class LiveAvailabilityServiceTests {
 		return checkAvailability(clusterRecord.getId());
 	}
 
+	private void mapLocationToAgency(String locationCode,
+		DataHostLms hostLms, DataAgency agency) {
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			hostLms.getCode(), locationCode, agency.getCode());
+	}
+
 	private static Matcher<AvailabilityReport> hasNoItems() {
 		return hasProperty("items", empty());
+	}
+
+	private static Matcher<AvailabilityReport> hasItems(int expectedCount) {
+		return hasProperty("items", hasSize(expectedCount));
 	}
 
 	@SafeVarargs
