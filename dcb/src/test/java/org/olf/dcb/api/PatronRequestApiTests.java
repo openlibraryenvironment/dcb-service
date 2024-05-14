@@ -596,11 +596,11 @@ class PatronRequestApiTests {
 		final var lastAuditValue = fetchedPatronRequest.getAudits().size();
 		final var lastAudit = fetchedPatronRequest.getAudits().get(lastAuditValue - 1);
 
-//		assertThat(lastAudit.getPatronRequestId(), is(fetchedPatronRequest.getId().toString()));
-//		assertThat(lastAudit.getDescription(), is("Action completed : PatronRequestResolutionStateTransition"));
-//		assertThat(lastAudit.getFromStatus(), is(PATRON_VERIFIED));
-//		assertThat(lastAudit.getToStatus(), is(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
-//		assertThat(lastAudit.getDate(), is(notNullValue()));
+		assertThat(lastAudit.getPatronRequestId(), is(fetchedPatronRequest.getId().toString()));
+		assertThat(lastAudit.getDescription(), is("Action completed : PatronRequestResolutionStateTransition"));
+		assertThat(lastAudit.getFromStatus(), is(PATRON_VERIFIED));
+		assertThat(lastAudit.getToStatus(), is(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
+		assertThat(lastAudit.getDate(), is(notNullValue()));
 	}
 
 	@Test
