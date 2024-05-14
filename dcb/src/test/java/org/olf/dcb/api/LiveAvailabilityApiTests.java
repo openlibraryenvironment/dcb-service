@@ -177,45 +177,7 @@ class LiveAvailabilityApiTests {
 			)
 		));
 	}
-
-	@Test
-	void shouldTolerateItemsForAnUnknownCirculatingHostLms() {
-		// Arrange
-		final var clusterRecordId = randomUUID();
-		final var sourceRecordId = "8374290";
-
-		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
-
-		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			SierraItem.builder()
-				.id("466742")
-				.locationCode("example-location")
-				.locationName("Example Location")
-				.build()));
-
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			CATALOGUING_HOST_LMS_CODE, "example-location", "example-agency");
-
-		agencyFixture.defineAgency("example-agency", "Example Agency", null);
-
-		// Act
-		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
-
-		// Assert
-		assertThat(report, allOf(
-			notNullValue(),
-			hasClusterRecordId(clusterRecordId),
-			hasNoErrors(),
-			hasItems(allOf(
-				notNullValue(),
-				hasId("466742"),
-				hasLocation("example-location", "Example Location"),
-				hasAgency("example-agency", "Example Agency"),
-				hasProperty("hostLmsCode", is(nullValue()))
-			))
-		));
-	}
-
+	
 	@Test
 	void shouldExcludeSuppressedItems() {
 		// Arrange

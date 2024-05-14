@@ -208,10 +208,11 @@ class LiveAvailabilityServiceTests {
 		// Arrange
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
 
-		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(),
-			"362563", clusterRecord);
+		final var bibId = "658366";
 
-		sierraItemsAPIFixture.itemsForBibId("362563", List.of(
+		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(), bibId, clusterRecord);
+
+		sierraItemsAPIFixture.itemsForBibId(bibId, List.of(
 			SierraItem.builder()
 				.id("3752566")
 				.barcode("5362553")
@@ -220,6 +221,44 @@ class LiveAvailabilityServiceTests {
 				.itemType("1")
 				.locationCode("unmapped")
 				.locationName("Unmapped")
+				.build()
+		));
+
+		// Act
+		final var report = checkAvailability(clusterRecord);
+
+		// Assert
+		assertThat(report, allOf(
+			hasNoItems(),
+			hasNoErrors()
+		));
+	}
+
+	@Test
+	void shouldExcludeItemsThatAreAssociatedWithAnAgencyWithoutAHostLms() {
+		// Arrange
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
+
+		final var bibId = "274656";
+
+		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(), bibId, clusterRecord);
+
+		final var knownLocationCode = "known-location";
+
+		final var agency = agencyFixture.defineAgency("agency",
+			"Agency", null);
+
+		mapLocationToAgency(knownLocationCode, firstHostLms, agency);
+
+		sierraItemsAPIFixture.itemsForBibId(bibId, List.of(
+			SierraItem.builder()
+				.id("3752566")
+				.barcode("5362553")
+				.callNumber("BL221 .C48")
+				.statusCode("-")
+				.itemType("1")
+				.locationCode(knownLocationCode)
+				.locationName("Known Location")
 				.build()
 		));
 

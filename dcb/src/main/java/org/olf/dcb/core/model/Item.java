@@ -65,12 +65,16 @@ public class Item implements Comparable<Item> {
 		return getValue(location, Location::getCode);
 	}
 
+	public boolean hasAgency() {
+		return getAgencyCode() != null;
+	}
+
 	public String getAgencyCode() {
 		return getValue(agency, Agency::getCode);
 	}
 
-	public boolean hasAgency() {
-		return getAgencyCode() != null;
+	public boolean hasHostLms() {
+		return getHostLmsCode() != null;
 	}
 
 	public HostLms getHostLms() {

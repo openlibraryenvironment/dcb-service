@@ -123,6 +123,7 @@ public class LiveAvailabilityService {
 			.filter(Item::notSuppressed)
 			.filter(Item::notDeleted)
 			.filter(Item::hasAgency)
+			.filter(Item::hasHostLms)
 			.collectList()
 			.doOnError(error -> log.error("doOnError occurred fetching items", error))
 			.map(AvailabilityReport::ofItems)
