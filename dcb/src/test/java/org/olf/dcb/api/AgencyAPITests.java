@@ -3,7 +3,10 @@ package org.olf.dcb.api;
 import static io.micronaut.http.HttpStatus.OK;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 
@@ -84,16 +87,24 @@ class AgencyAPITests {
 		assertThat(listResponse.getStatus(), is(OK));
 		assertThat(listResponse.getBody().isPresent(), is(true));
 		
-		Page<AgencyDTO> page = listResponse.getBody().get();
-		final var onlySavedAgency = page.getContent().get(0);
-		assertThat(page.getContent().size(), is(1));
-		assertThat(onlySavedAgency.getId(), is(agencyDTO.getId()));
-		assertThat(onlySavedAgency.getCode(), is("ab6"));
-		assertThat(onlySavedAgency.getName(), is("agencyName"));
-		assertThat(onlySavedAgency.getAuthProfile(), is("authProfile"));
-		assertThat(onlySavedAgency.getIdpUrl(), is("idpUrl"));
-		assertThat(onlySavedAgency.getHostLMSCode(), is("hostLmsCode")); // showing work around works
-		assertThat(onlySavedAgency.getIsSupplyingAgency(), is(true));
-		assertThat(onlySavedAgency.getIsBorrowingAgency(), is(false));
+		final var page = listResponse.getBody().get();
+
+		final var pageContent = page.getContent();
+
+		assertThat("Should only find one agency", pageContent.size(), is(1));
+
+		final var onlySavedAgency = pageContent.get(0);
+
+		assertThat(onlySavedAgency, allOf(
+			notNullValue(),
+			hasProperty("id", is(agencyDTO.getId())),
+			hasProperty("code", is("ab6")),
+			hasProperty("name", is("agencyName")),
+			hasProperty("authProfile", is("authProfile")),
+			hasProperty("idpUrl", is("idpUrl")),
+			hasProperty("hostLMSCode", is("hostLmsCode")),
+			hasProperty("isSupplyingAgency", is(true)),
+			hasProperty("isBorrowingAgency", is(false))
+		));
 	}
 }
