@@ -29,6 +29,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import io.micronaut.http.*;
+import io.micronaut.http.client.exceptions.HttpClientException;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
@@ -46,6 +48,7 @@ import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
+import org.olf.dcb.core.interaction.polaris.exceptions.PolarisRequestNotFoundException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
@@ -71,10 +74,6 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.uri.UriBuilder;
@@ -980,11 +979,27 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return Mono.from(client.retrieve(request, responseBodyType))
 			// Additional request specific error handling
 			.transform(errorHandlingTransformer)
+			.onErrorResume(checkForPolarisRequestNotFoundException(request))
 			// This has to go after more specific error handling
 			// as will convert any client response exception to a problem
 			.doOnError(HttpClientResponseException.class, error -> log.error("Unexpected response from Host LMS: {}", getHostLmsCode(), error))
 			.onErrorMap(HttpClientResponseException.class, responseException ->
 				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
+	}
+
+	private static <T> Function<Throwable, Mono<? extends T>> checkForPolarisRequestNotFoundException(
+		MutableHttpRequest<?> request) {
+
+		return error -> {
+			log.error("An error occured when trying to retrieve request :: {}", request);
+			if ((error instanceof HttpClientResponseException) &&
+				(((HttpClientResponseException) error).getStatus() == HttpStatus.NOT_FOUND)) {
+				return Mono.error(new PolarisRequestNotFoundException("Not Found :: " + request.getUri().toString(),
+					error.getCause()));
+			} else {
+				return Mono.error(error);
+			}
+		};
 	}
 
 	/**
