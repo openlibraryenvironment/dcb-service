@@ -66,7 +66,8 @@ public class PatronRequestAuditService {
 
 	private Map<String, Object> updateAuditData(Map<String, Object> auditData, PatronRequest patronRequest) {
 		putIfNotNull(auditData, "previousStatus", patronRequest.getPreviousStatus());
-		putIfNotNull(auditData, "pollCountForCurrentStatus", patronRequest.getAutoPollCountForCurrentStatus());
+		putIfNotNull(auditData, "autoPollCountForCurrentStatus", patronRequest.getAutoPollCountForCurrentStatus());
+		putIfNotNull(auditData, "manualPollCountForCurrentStatus", patronRequest.getManualPollCountForCurrentStatus());
 		putIfNotNull(auditData, "currentStatusTimestamp", patronRequest.getCurrentStatusTimestamp());
 		putIfNotNull(auditData, "nextExpectedStatus", patronRequest.getNextExpectedStatus());
 		putIfNotNull(auditData, "outOfSequenceFlag", patronRequest.getOutOfSequenceFlag());
