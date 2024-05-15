@@ -76,13 +76,6 @@ public class PatronRequestResolutionService {
 	}
 
 	private Resolution filterItems(Resolution resolution) {
-		return resolution.trackFilteredItems(excludeItemsWithNoHostLmsOrAgency(
-			resolution.getAllItems()));
-	}
-
-	private static List<Item> excludeItemsWithNoHostLmsOrAgency(List<Item> items) {
-		return items.stream()
-			.filter(item -> item.getHostLms() != null)
-			.toList();
+		return resolution.trackFilteredItems(resolution.getAllItems());
 	}
 }
