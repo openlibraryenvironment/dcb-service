@@ -24,6 +24,7 @@ public class AgencyDTO {
 	private @Nullable Double longitude;
 	private @Nullable Double latitude;
 	private @Nullable Boolean isSupplyingAgency;
+	private @Nullable Boolean isBorrowingAgency;
 
 	public static AgencyDTO mapToAgencyDTO(DataAgency agency) {
 		return AgencyDTO.builder()
@@ -36,6 +37,7 @@ public class AgencyDTO {
 			.longitude(agency.getLongitude())
 			.latitude(agency.getLatitude())
 			.isSupplyingAgency(agency.getIsSupplyingAgency())
+			.isBorrowingAgency(agency.getIsBorrowingAgency())
 			.build();
 	}
 }

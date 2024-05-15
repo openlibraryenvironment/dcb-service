@@ -1,5 +1,7 @@
 package org.olf.dcb.core.model;
 
+import static io.micronaut.data.annotation.Relation.Kind.MANY_TO_ONE;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -63,7 +65,7 @@ public class DataAgency implements Agency {
 	private String name;
 
 	@NonNull
-	@Relation(value = Relation.Kind.MANY_TO_ONE)
+	@Relation(value = MANY_TO_ONE)
 	private DataHostLms hostLms;
 
 	@ToString.Include
@@ -82,6 +84,7 @@ public class DataAgency implements Agency {
 
 	// Does this agency participate in interlending
 	private Boolean isSupplyingAgency;
+	private Boolean isBorrowingAgency;
 
 	public static class DataAgencyBuilder {
 		public DataAgencyBuilder() {

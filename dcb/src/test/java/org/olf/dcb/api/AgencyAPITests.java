@@ -65,6 +65,7 @@ class AgencyAPITests {
 			.idpUrl("idpUrl")
 			.hostLMSCode("hostLmsCode")
 			.isSupplyingAgency(true)
+			.isBorrowingAgency(false)
 			.build();
 
 		log.info("get agencies");
@@ -93,5 +94,6 @@ class AgencyAPITests {
 		assertThat(onlySavedAgency.getIdpUrl(), is("idpUrl"));
 		assertThat(onlySavedAgency.getHostLMSCode(), is("hostLmsCode")); // showing work around works
 		assertThat(onlySavedAgency.getIsSupplyingAgency(), is(true));
+		assertThat(onlySavedAgency.getIsBorrowingAgency(), is(false));
 	}
 }

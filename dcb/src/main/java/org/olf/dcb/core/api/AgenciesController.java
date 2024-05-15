@@ -104,6 +104,7 @@ public class AgenciesController {
 			.longitude(agency.getLongitude())
 			.latitude(agency.getLatitude())
 			.isSupplyingAgency(getValueOrDefault(agency, AgencyDTO::getIsSupplyingAgency, true))
+			.isBorrowingAgency(getValueOrDefault(agency, AgencyDTO::getIsBorrowingAgency, true))
 			.build();
 	}
 
