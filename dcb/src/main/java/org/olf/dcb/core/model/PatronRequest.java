@@ -329,7 +329,10 @@ public class PatronRequest {
 
 	// poll count for the current status
 	@Nullable
-	private Integer pollCountForCurrentStatus;
+	private Integer autoPollCountForCurrentStatus;
+
+	@Nullable
+	private Integer manualPollCountForCurrentStatus;
 
 	// When we go to ERROR this property allows us to know the previous state so that we can RETRY
   @JsonIgnore
@@ -375,5 +378,21 @@ public class PatronRequest {
 
 	public PatronRequest placedAtSupplyingAgency() {
 		return setStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY);
+	}
+
+	public void incrementManualPollCountForCurrentStatus() {
+		if (manualPollCountForCurrentStatus == null) {
+			manualPollCountForCurrentStatus = 1;
+		} else {
+			manualPollCountForCurrentStatus++;
+		}
+	}
+
+	public void incrementAutoPollCountForCurrentStatus() {
+		if (autoPollCountForCurrentStatus == null) {
+			autoPollCountForCurrentStatus = 1;
+		} else {
+			autoPollCountForCurrentStatus++;
+		}
 	}
 }

@@ -95,11 +95,18 @@ public class TrackingServiceV3 implements TrackingService {
 	public Mono<PatronRequest> forceUpdate(UUID pr_id) {
 		return Mono.from(patronRequestRepository.findById(pr_id))
 			.flatMap(requestWorkflowContextHelper::fromPatronRequest)
+			.map(this::incrementManualPollCounter)
+			.flatMap(patronRequestWorkflowService::auditManualPoll)
 			.flatMap(this::trackBorrowingSystem)
 			.flatMap(this::trackPickupSystem)
 			.flatMap(this::trackSupplyingSystem)
 			.flatMap(patronRequestWorkflowService::progressUsing)
 			.flatMap(ctx -> Mono.just(ctx.getPatronRequest() ) );
+	}
+
+	public RequestWorkflowContext incrementManualPollCounter(RequestWorkflowContext ctx) {
+		ctx.getPatronRequest().incrementManualPollCountForCurrentStatus();
+		return ctx;
 	}
 
 	/**
@@ -113,11 +120,17 @@ public class TrackingServiceV3 implements TrackingService {
 	private Mono<PatronRequestRepository.ScheduledTrackingRecord> doTracking(PatronRequestRepository.ScheduledTrackingRecord tr) {
 		return Mono.from(patronRequestRepository.findById(tr.id()))
 			.flatMap(requestWorkflowContextHelper::fromPatronRequest)
+			.map(this::incrementAutoPollCounter)
 			.flatMap(this::trackBorrowingSystem)
 			.flatMap(this::trackPickupSystem)
 			.flatMap(this::trackSupplyingSystem)
 			.flatMap(ctx -> patronRequestWorkflowService.progressUsing(ctx))
 			.thenReturn(tr);
+	}
+
+	public RequestWorkflowContext incrementAutoPollCounter(RequestWorkflowContext ctx) {
+		ctx.getPatronRequest().incrementAutoPollCountForCurrentStatus();
+		return ctx;
 	}
 
 	private Mono<RequestWorkflowContext> trackBorrowingSystem(RequestWorkflowContext rwc) {

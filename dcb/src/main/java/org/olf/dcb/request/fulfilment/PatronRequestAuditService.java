@@ -4,7 +4,6 @@ import static java.util.Optional.empty;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static services.k_int.utils.StringUtils.truncate;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 
@@ -17,7 +16,6 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -68,7 +66,7 @@ public class PatronRequestAuditService {
 
 	private Map<String, Object> updateAuditData(Map<String, Object> auditData, PatronRequest patronRequest) {
 		putIfNotNull(auditData, "previousStatus", patronRequest.getPreviousStatus());
-		putIfNotNull(auditData, "pollCountForCurrentStatus", patronRequest.getPollCountForCurrentStatus());
+		putIfNotNull(auditData, "pollCountForCurrentStatus", patronRequest.getAutoPollCountForCurrentStatus());
 		putIfNotNull(auditData, "currentStatusTimestamp", patronRequest.getCurrentStatusTimestamp());
 		putIfNotNull(auditData, "nextExpectedStatus", patronRequest.getNextExpectedStatus());
 		putIfNotNull(auditData, "outOfSequenceFlag", patronRequest.getOutOfSequenceFlag());

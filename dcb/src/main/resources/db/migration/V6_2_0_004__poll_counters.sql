@@ -1,0 +1,3 @@
+alter table patron_request drop column poll_count_for_current_status;
+alter table patron_request add manual_poll_count_for_current_status integer;
+alter table patron_request add auto_poll_count_for_current_status integer;

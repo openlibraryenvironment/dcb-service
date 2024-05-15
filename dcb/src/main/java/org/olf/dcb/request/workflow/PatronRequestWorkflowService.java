@@ -135,8 +135,8 @@ public class PatronRequestWorkflowService {
 	private Mono<RequestWorkflowContext> incrementStateTransitionMetrics(
 		RequestWorkflowContext ctx, Boolean isStateChange) {
 
-		return Mono.just(incrementPollingForThisState(ctx, isStateChange))
-			.map(requestWorkflowContext -> updateCurrentStatusTimeStamp(requestWorkflowContext, isStateChange))
+		return Mono.just( resetPollCountsOnStateChange(ctx, isStateChange) )
+			.map(requestWorkflowContext -> updateCurrentStatusTimeStamp(ctx, isStateChange))
 			.map(requestWorkflowContext -> incrementElapsedTimeInStatus(requestWorkflowContext));
 	}
 
@@ -337,15 +337,15 @@ public class PatronRequestWorkflowService {
 			.map(ctx::setPatronRequest);
 	}
 
-	private RequestWorkflowContext incrementPollingForThisState(
+	// this should just reset poll if state change
+	private RequestWorkflowContext resetPollCountsOnStateChange(
 		RequestWorkflowContext ctx, Boolean isStateChange) {
 
+		if (!isStateChange) return ctx;
+
 		var patronRequest = ctx.getPatronRequest();
-		var currentPollCount = patronRequest.getPollCountForCurrentStatus() != null
-			? patronRequest.getPollCountForCurrentStatus()
-			: 0;
-		var incrementedPoll = isStateChange ? 0 : currentPollCount + 1;
-		patronRequest = patronRequest.setPollCountForCurrentStatus(incrementedPoll);
+		patronRequest = patronRequest.setAutoPollCountForCurrentStatus(0);
+		patronRequest = patronRequest.setManualPollCountForCurrentStatus(0);
 		
 		return ctx.setPatronRequest(patronRequest);
 	}
@@ -366,5 +366,10 @@ public class PatronRequestWorkflowService {
 		patronRequest = patronRequest.setElapsedTimeInCurrentStatus(elapsedTime);
 		
 		return requestWorkflowContext.setPatronRequest(patronRequest);
+	}
+
+	public Mono<RequestWorkflowContext> auditManualPoll(RequestWorkflowContext ctx) {
+		return patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), "Manual update actioned.")
+			.map(audit -> ctx);
 	}
 }
