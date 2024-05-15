@@ -14,10 +14,9 @@ import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.api.serde.AgencyDTO;
 import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.security.TestStaticTokenValidator;
-import org.olf.dcb.storage.postgres.PostgresAgencyRepository;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.clients.LoginClient;
 
 import io.micronaut.core.type.Argument;
 import io.micronaut.data.model.Page;
@@ -36,18 +35,14 @@ class AgencyAPITests {
 	private HttpClient client;
 
 	@Inject
-	private PostgresAgencyRepository agencyRepository;
-
+	private AgencyFixture agencyFixture;
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 
-	@Inject
-	private LoginClient loginClient;
-
 	@BeforeEach
 	void beforeEach() {
+		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
-		agencyRepository.deleteAll();
 	}
 
 	@Test
