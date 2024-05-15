@@ -1,6 +1,7 @@
 package org.olf.dcb.core.api;
 
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
 
 import java.util.UUID;
 
@@ -102,6 +103,7 @@ public class AgenciesController {
 			.idpUrl(agency.getIdpUrl())
 			.longitude(agency.getLongitude())
 			.latitude(agency.getLatitude())
+			.isSupplyingAgency(getValueOrDefault(agency, AgencyDTO::getIsSupplyingAgency, true))
 			.build();
 	}
 

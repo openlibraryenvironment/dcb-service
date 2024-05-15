@@ -15,8 +15,6 @@ import lombok.Data;
 @AllArgsConstructor
 @Serdeable
 public class AgencyDTO {
-	
-
 	private UUID id;
 	private @Nullable String code;
 	private @Nullable String name; 
@@ -25,6 +23,7 @@ public class AgencyDTO {
 	private @Nullable String idpUrl;
 	private @Nullable Double longitude;
 	private @Nullable Double latitude;
+	private @Nullable Boolean isSupplyingAgency;
 
 	public static AgencyDTO mapToAgencyDTO(DataAgency agency) {
 		return AgencyDTO.builder()
@@ -36,7 +35,7 @@ public class AgencyDTO {
 			.hostLMSCode(agency.getHostLms().getCode())
 			.longitude(agency.getLongitude())
 			.latitude(agency.getLatitude())
+			.isSupplyingAgency(agency.getIsSupplyingAgency())
 			.build();
 	}
-
 }

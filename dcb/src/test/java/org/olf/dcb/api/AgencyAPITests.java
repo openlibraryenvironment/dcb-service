@@ -5,6 +5,7 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 
 import java.util.List;
 
@@ -12,7 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.api.serde.AgencyDTO;
-import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.security.TestStaticTokenValidator;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
@@ -46,19 +46,26 @@ class AgencyAPITests {
 	}
 
 	@Test
-	void shouldReturnAgenciesByUsingAPItoSaveAndList() {
+	void shouldBeAbleToCreateAgency() {
 		// Arrange
 		log.info("get client");
 		log.info("create hostLmsCode");
 
 		hostLmsFixture.createSierraHostLms("hostLmsCode");
+
 		final var accessToken = "agency-test-admin-token";
-		TestStaticTokenValidator.add(accessToken, "test-admin", List.of(RoleNames.ADMINISTRATOR));
-		
+		TestStaticTokenValidator.add(accessToken, "test-admin", List.of(ADMINISTRATOR));
 
 		log.info("create agency");
-		final var agencyDTO = AgencyDTO.builder().id(randomUUID()).code("ab6").name("agencyName")
-			.authProfile("authProfile").idpUrl("idpUrl").hostLMSCode("hostLmsCode").build();
+		final var agencyDTO = AgencyDTO.builder()
+			.id(randomUUID())
+			.code("ab6")
+			.name("agencyName")
+			.authProfile("authProfile")
+			.idpUrl("idpUrl")
+			.hostLMSCode("hostLmsCode")
+			.isSupplyingAgency(true)
+			.build();
 
 		log.info("get agencies");
 		final var blockingClient = client.toBlocking();
@@ -85,5 +92,6 @@ class AgencyAPITests {
 		assertThat(onlySavedAgency.getAuthProfile(), is("authProfile"));
 		assertThat(onlySavedAgency.getIdpUrl(), is("idpUrl"));
 		assertThat(onlySavedAgency.getHostLMSCode(), is("hostLmsCode")); // showing work around works
+		assertThat(onlySavedAgency.getIsSupplyingAgency(), is(true));
 	}
 }
