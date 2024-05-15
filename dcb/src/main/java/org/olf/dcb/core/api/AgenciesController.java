@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.olf.dcb.core.api.serde.AgencyDTO;
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 
@@ -73,29 +74,35 @@ public class AgenciesController {
 	}
 
 	@Post("/")
-	public Mono<AgencyDTO> postAgency(@Body AgencyDTO agency) {
-		log.debug("REST, save or update agency: {}", agency);
-		return Mono.from(hostLmsRepository.findByCode(agency.getHostLMSCode()))
-			.flatMap(lms -> {
-				if (lms == null) {
-					log.error("Unable to locate lms with code {}", agency.getHostLMSCode());
+	public Mono<AgencyDTO> postAgency(@Body AgencyDTO agencyToSave) {
+		log.debug("REST, save or update agency: {}", agencyToSave);
+
+		return Mono.from(hostLmsRepository.findByCode(agencyToSave.getHostLMSCode()))
+			.flatMap(hostLms -> {
+				if (hostLms == null) {
+					log.error("Unable to locate Host LMS with code {}", agencyToSave.getHostLMSCode());
 					return Mono.empty();
 				}
-				return Mono.just(DataAgency.builder()
-					.id(agency.getId())
-					.code(agency.getCode())
-					.name(agency.getName())
-					.hostLms(lms)
-					.authProfile(agency.getAuthProfile())
-					.idpUrl(agency.getIdpUrl())
-					.longitude(agency.getLongitude())
-					.latitude(agency.getLatitude())
-					.build());
+
+				return Mono.just(mapToAgency(agencyToSave, hostLms));
 			})
 			.doOnNext(a -> log.debug("save agency {}", a))
 			.flatMap(this::saveOrUpdate)
 			.flatMap(this::addHostLms)
 			.map(AgencyDTO::mapToAgencyDTO);
+	}
+
+	private static DataAgency mapToAgency(AgencyDTO agency, DataHostLms lms) {
+		return DataAgency.builder()
+			.id(agency.getId())
+			.code(agency.getCode())
+			.name(agency.getName())
+			.hostLms(lms)
+			.authProfile(agency.getAuthProfile())
+			.idpUrl(agency.getIdpUrl())
+			.longitude(agency.getLongitude())
+			.latitude(agency.getLatitude())
+			.build();
 	}
 
 	private Mono<DataAgency> addHostLms(DataAgency dataAgency) {
