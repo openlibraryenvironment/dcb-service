@@ -346,6 +346,7 @@ public class PatronRequestWorkflowService {
 		var patronRequest = ctx.getPatronRequest();
 		patronRequest = patronRequest.setAutoPollCountForCurrentStatus(0);
 		patronRequest = patronRequest.setManualPollCountForCurrentStatus(0);
+		patronRequest = patronRequest.setPollCountForCurrentStatus(0);
 		
 		return ctx.setPatronRequest(patronRequest);
 	}

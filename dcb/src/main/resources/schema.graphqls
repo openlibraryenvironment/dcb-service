@@ -174,8 +174,9 @@ type PatronRequest {
   audit: [PatronRequestAudit]
   clusterRecord: ClusterRecord
   previousStatus: String
- 	manualPollCountForCurrentStatus: Int
- 	autoPollCountForCurrentStatus: Int
+  pollCountForCurrentStatus: Int
+  manualPollCountForCurrentStatus: Int
+  autoPollCountForCurrentStatus: Int
 	currentStatusTimestamp: String
 	nextExpectedStatus: String
 	outOfSequenceFlag: Boolean

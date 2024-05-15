@@ -327,12 +327,14 @@ public class PatronRequest {
 	@Nullable
 	private Instant nextScheduledPoll;
 
-	// poll count for the current status
 	@Nullable
 	private Integer autoPollCountForCurrentStatus;
 
 	@Nullable
 	private Integer manualPollCountForCurrentStatus;
+
+	@Nullable
+	private Integer pollCountForCurrentStatus;
 
 	// When we go to ERROR this property allows us to know the previous state so that we can RETRY
   @JsonIgnore
@@ -386,6 +388,7 @@ public class PatronRequest {
 		} else {
 			manualPollCountForCurrentStatus++;
 		}
+		incrementCombinedPollCountForCurrentStatus();
 	}
 
 	public void incrementAutoPollCountForCurrentStatus() {
@@ -393,6 +396,15 @@ public class PatronRequest {
 			autoPollCountForCurrentStatus = 1;
 		} else {
 			autoPollCountForCurrentStatus++;
+		}
+		incrementCombinedPollCountForCurrentStatus();
+	}
+
+	public void incrementCombinedPollCountForCurrentStatus() {
+		if (pollCountForCurrentStatus == null) {
+			pollCountForCurrentStatus = 1;
+		} else {
+			pollCountForCurrentStatus++;
 		}
 	}
 }
