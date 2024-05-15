@@ -1,14 +1,13 @@
 package org.olf.dcb.core.api;
 
+import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
+
 import java.util.UUID;
 
 import org.olf.dcb.core.api.serde.AgencyDTO;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -24,22 +23,22 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Controller("/agencies")
 @Validated
-@Secured(RoleNames.ADMINISTRATOR)
+@Secured(ADMINISTRATOR)
 @Tag(name = "Admin API")
+@Slf4j
 public class AgenciesController {
-	private static final Logger log = LoggerFactory.getLogger(AgenciesController.class);
-	private AgencyRepository agencyRepository;
-	private HostLmsRepository hostLmsRepository;
+	private final AgencyRepository agencyRepository;
+	private final HostLmsRepository hostLmsRepository;
 
-	public AgenciesController(
-		AgencyRepository agencyRepository,
-		HostLmsRepository hostLmsRepository)
-	{
+	public AgenciesController(AgencyRepository agencyRepository,
+		HostLmsRepository hostLmsRepository) {
+
 		this.agencyRepository = agencyRepository;
 		this.hostLmsRepository = hostLmsRepository;
 	}
@@ -57,7 +56,7 @@ public class AgenciesController {
 			pageable = Pageable.from(0, 100);
 		}
 
-                log.debug("agencies::list");
+		log.debug("agencies::list");
 
 		@Valid Pageable finalPageable = pageable;
 		return Flux.from(agencyRepository.queryAll())
@@ -70,7 +69,7 @@ public class AgenciesController {
 
 	@Get("/{id}")
 	public Mono<AgencyDTO> show(UUID id) {
-					return Mono.from(agencyRepository.findById(id)).flatMap(this::addHostLms).map(AgencyDTO::mapToAgencyDTO);
+		return Mono.from(agencyRepository.findById(id)).flatMap(this::addHostLms).map(AgencyDTO::mapToAgencyDTO);
 	}
 
 	@Post("/")
@@ -93,19 +92,12 @@ public class AgenciesController {
 					.latitude(agency.getLatitude())
 					.build());
 			})
-			.doOnNext(a -> log.debug("save agency {}",a))
+			.doOnNext(a -> log.debug("save agency {}", a))
 			.flatMap(this::saveOrUpdate)
 			.flatMap(this::addHostLms)
 			.map(AgencyDTO::mapToAgencyDTO);
 	}
 
-        /*
- 	@Post("/")
-	public Mono<DataAgency> postAgency(@Body DataAgency agency) {
-                return Mono.from(agencyRepository.existsById(agency.getId()))
-                        .flatMap(exists -> Mono.fromDirect(exists ? agencyRepository.update(agency) : agencyRepository.save(agency)));
-	}
-        */
 	private Mono<DataAgency> addHostLms(DataAgency dataAgency) {
 		log.debug("addHostLms: {}", dataAgency);
 		return Mono.from(agencyRepository.findHostLmsIdById(dataAgency.getId()))
